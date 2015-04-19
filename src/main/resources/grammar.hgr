@@ -4,8 +4,8 @@ grammar {
       r'"([^\"]+)"' -> _dquote_string
       r'\'([^\']+)\'' -> _squote_string
       r'[a-zA-Z]' -> _identifier_start
-      r'[a-zA-Z0-9_-]' -> _identifier_follow
-      r'(array|map|object|boolean|int|float|uri|file|string|raw_string)(?!{%_identifier_follow%})' -> _type
+      r'[a-zA-Z0-9_]' -> _identifier_follow
+      r'(array|map|object|boolean|int|float|uri|file|string)(?!{%_identifier_follow%})' -> _type
       r'{%_identifier_start%}({%_identifier_follow%})*' -> _identifier
     }
     r'\s+' -> null
@@ -34,8 +34,17 @@ grammar {
     r'(object)\s*(\{)' -> :object :lbrace
     r'{%_type%}(?!{%_identifier_follow%})' -> :type
     r'{%_identifier%}' -> :identifier
-    r'{%_dquote_string%}' -> :string[1]
-    r'{%_squote_string%}' -> :string[1]
+
+    # TODO: these should probably be partials...
+    enum {
+      python: r'"([^\"]+)"'
+      java: "\"([^\"]+)\""
+    } -> :string[1]
+    enum {
+      python: r'\'([^\']+)\''
+      java: "'([^']+)'"
+    } -> :string[1]
+
     r':' -> :colon
     r',' -> :comma
     r'==' -> :double_equal
@@ -72,7 +81,7 @@ grammar {
     mode<raw_command> {
       r'\{' -> :raw_cmd_start
       r'\}' -> :raw_cmd_end %pop
-      r'\${' -> :cmd_param_start @cmd_param
+      r'\$\{' -> :cmd_param_start @cmd_param
       enum {
         python: r'(.*?)(?=\$\{|\})' (DOTALL)
         c: r'(.*?)(?=\$\{|\})' (PCRE_DOTALL)
@@ -83,7 +92,7 @@ grammar {
     mode<raw_command2> {
       r'<<<' -> :raw_cmd_start
       r'>>>' -> :raw_cmd_end %pop
-      r'\${' -> :cmd_param_start @cmd_param
+      r'\$\{' -> :cmd_param_start @cmd_param
       enum {
         python: r'(.*?)(?=\$\{|>>>)' (DOTALL)
         c: r'(.*?)(?=\$\{|>>>)' (PCRE_DOTALL)
@@ -97,7 +106,10 @@ grammar {
       r'\[' -> :lsquare
       r'\]' -> :rsquare
       r'=' -> :equal
-      r'\?' -> :qmark
+      enum {
+        python: r'\?'
+        java: "\\?"
+      } -> :qmark
       r'\+' -> :plus
       r'\*' -> :asterisk
       r'[0-9]+' -> :integer
@@ -105,8 +117,14 @@ grammar {
       r'{%_type%}(?!{%_identifier_follow%})' -> :type
       r'{%_identifier%}(?=\s*=)' -> :cmd_attr_hint[] :identifier
       r'{%_identifier%}' -> :identifier
-      r'{%_dquote_string%}' -> :string[1]
-      r'{%_squote_string%}' -> :string[1]
+      enum {
+        python: r'"([^\"]+)"'
+        java: "\"([^\"]+)\""
+      } -> :string[1]
+      enum {
+        python: r'\'([^\']+)\''
+        java: "'([^']+)'"
+      } -> :string[1]
     }
   }
   parser {
@@ -117,10 +135,10 @@ grammar {
     $sections = $command | $outputs | $runtime | $parameter_meta | $meta
     $command = :raw_command :raw_cmd_start list($command_part) :raw_cmd_end -> RawCommand(parts=$2)
     $command_part = :cmd_part | $cmd_param
-    $cmd_param = :cmd_param_start list($cmd_param_kv) optional(:string) optional($type_e) :identifier optional($postfix_qualifier) :cmd_param_end
+    $cmd_param = :cmd_param_start list($cmd_param_kv) optional(:string) optional($type_e) :identifier optional($postfix_quantifier) :cmd_param_end
         -> CommandParameter(name=$4, type=$3, prefix=$2, attributes=$1, postfix=$5)
     $cmd_param_kv = :cmd_attr_hint :identifier :equal $e -> CommandParameterAttr(key=$1, value=$3)
-    $postfix_qualifier = :qmark | :plus | :asterisk
+    $postfix_quantifier = :qmark | :plus | :asterisk
     $outputs = :output :lbrace list($output_kv) :rbrace -> Outputs(attributes=$2)
     $output_kv = $type_e :identifier :equal $e -> Output(type=$0, var=$1, expression=$3)
     $runtime = :runtime $map -> Runtime(map=$1)

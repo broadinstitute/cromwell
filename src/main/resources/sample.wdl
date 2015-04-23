@@ -1,10 +1,9 @@
-
 task grep {
   command {
     grep ${pattern} ${flags?} ${file file_name}
   }
   output {
-    file output = "stdout"
+    file out = "stdout"
   }
   runtime {
     memory: "2MB"
@@ -30,7 +29,7 @@ workflow scatter_gather_grep_wc {
     }
   }
   call wc {
-    input: files = grep.output
+    input: files = grep.out
   }
 }
 

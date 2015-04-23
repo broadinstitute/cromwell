@@ -1,0 +1,188 @@
+grammar {
+  lexer {
+    partials {
+      r'"([^\"]+)"' -> _dquote_string
+      r'\'([^\']+)\'' -> _squote_string
+      r'[a-zA-Z]' -> _identifier_start
+      r'[a-zA-Z0-9_-]' -> _identifier_follow
+      r'(array|map|object|boolean|int|float|uri|file|string|raw_string)(?!{%_identifier_follow%})' -> _type
+      r'{%_identifier_start%}({%_identifier_follow%})*' -> _identifier
+    }
+    r'\s+' -> null
+    enum {
+      python: r'/\*(.*?)\*/' (DOTALL)
+      c: r'/\*(.*?)\*/' (PCRE_DOTALL)
+      java: r'/\*(.*?)\*/' (DOTALL)
+      javascript: r'/\*(.*?)\*/' (m)
+    } -> null
+    r'#.*' -> null
+    r'task(?!{%_identifier_follow%})' -> :task
+    r'call(?!{%_identifier_follow%})' -> :call
+    r'workflow(?!{%_identifier_follow%})' -> :workflow
+    r'input(?!{%_identifier_follow%})' -> :input
+    r'output(?!{%_identifier_follow%})' -> :output
+    r'as(?!{%_identifier_follow%})' -> :as
+    r'if(?!{%_identifier_follow%})' -> :if
+    r'while(?!{%_identifier_follow%})' -> :while
+    r'runtime(?!{%_identifier_follow%})' -> :runtime
+    r'scatter(?!{%_identifier_follow%})' -> :scatter @scatter
+    r'command\s*(?=<<<)' -> :raw_command  @raw_command2
+    r'command\s*(?=\{)' -> :raw_command  @raw_command
+    r'parameter_meta(?!{%_identifier_follow%})' -> :parameter_meta
+    r'meta(?!{%_identifier_follow%})' -> :meta
+    r'(true|false)(?!{%_identifier_follow%})' -> :boolean
+    r'(object)\s*(\{)' -> :object :lbrace
+    r'{%_type%}(?!{%_identifier_follow%})' -> :type
+    r'{%_identifier%}' -> :identifier
+    r'{%_dquote_string%}' -> :string[1]
+    r'{%_squote_string%}' -> :string[1]
+    r':' -> :colon
+    r',' -> :comma
+    r'==' -> :double_equal
+    r'!=' -> :not_equal
+    r'=' -> :equal
+    r'\.' -> :dot
+    r'\{' -> :lbrace
+    r'\}' -> :rbrace
+    r'\(' -> :lparen
+    r'\)' -> :rparen
+    r'\[' -> :lsquare
+    r'\]' -> :rsquare
+    r'\+' -> :plus
+    r'\*' -> :asterisk
+    r'-' -> :dash
+    r'/' -> :slash
+    r'%' -> :percent
+    r'<=' -> :lteq
+    r'<' -> :lt
+    r'>=' -> :gteq
+    r'>' -> :gt
+    r'!' -> :not
+    r'[0-9]+' -> :integer
+    mode<scatter> {
+      r'\s+' -> null
+      r'\)' -> :rparen %pop
+      r'\(' -> :lparen
+      r'\.' -> :dot
+      r'\[' -> :lsquare
+      r'\]' -> :rsquare
+      r'in(?!{%_identifier_follow%})' -> :in
+      r'{%_identifier%}' -> :identifier
+    }
+    mode<raw_command> {
+      r'\{' -> :raw_cmd_start
+      r'\}' -> :raw_cmd_end %pop
+      r'\${' -> :cmd_param_start @cmd_param
+      enum {
+        python: r'(.*?)(?=\$\{|\})' (DOTALL)
+        c: r'(.*?)(?=\$\{|\})' (PCRE_DOTALL)
+        java: r'(.*?)(?=\$\{|\})' (DOTALL)
+        javascript: r'(.*?)(?=\$\{|\})' (m)
+      } -> :cmd_part
+    }
+    mode<raw_command2> {
+      r'<<<' -> :raw_cmd_start
+      r'>>>' -> :raw_cmd_end %pop
+      r'\${' -> :cmd_param_start @cmd_param
+      enum {
+        python: r'(.*?)(?=\$\{|>>>)' (DOTALL)
+        c: r'(.*?)(?=\$\{|>>>)' (PCRE_DOTALL)
+        java: r'(.*?)(?=\$\{|>>>)' (DOTALL)
+        javascript: r'(.*?)(?=\$\{|>>>)' (m)
+      } -> :cmd_part
+    }
+    mode<cmd_param> {
+      r'\s+' -> null
+      r'\}' -> :cmd_param_end %pop
+      r'\[' -> :lsquare
+      r'\]' -> :rsquare
+      r'=' -> :equal
+      r'\?' -> :qmark
+      r'\+' -> :plus
+      r'\*' -> :asterisk
+      r'[0-9]+' -> :integer
+      r'(true|false)(?!{%_identifier_follow%})' -> :boolean
+      r'{%_type%}(?!{%_identifier_follow%})' -> :type
+      r'{%_identifier%}(?=\s*=)' -> :cmd_attr_hint[] :identifier
+      r'{%_identifier%}' -> :identifier
+      r'{%_dquote_string%}' -> :string[1]
+      r'{%_squote_string%}' -> :string[1]
+    }
+  }
+  parser {
+    $document = list($workflow_or_task)
+    $workflow_or_task = $workflow | $task
+
+    $task = :task :identifier :lbrace list($declarations) list($sections) :rbrace -> Task(name=$1, declarations=$3, sections=$4)
+    $sections = $command | $outputs | $runtime | $parameter_meta | $meta
+    $command = :raw_command :raw_cmd_start list($command_part) :raw_cmd_end -> RawCommand(parts=$2)
+    $command_part = :cmd_part | $cmd_param
+    $cmd_param = :cmd_param_start list($cmd_param_kv) optional(:string) optional($type_e) :identifier optional($postfix_qualifier) :cmd_param_end
+        -> CommandParameter(name=$4, type=$3, prefix=$2, attributes=$1, postfix=$5)
+    $cmd_param_kv = :cmd_attr_hint :identifier :equal $e -> CommandParameterAttr(key=$1, value=$3)
+    $postfix_qualifier = :qmark | :plus | :asterisk
+    $outputs = :output :lbrace list($output_kv) :rbrace -> Outputs(attributes=$2)
+    $output_kv = $type_e :identifier :equal $e -> Output(type=$0, var=$1, expression=$3)
+    $runtime = :runtime $map -> Runtime(map=$1)
+    $parameter_meta = :parameter_meta $map -> ParameterMeta(map=$1)
+    $meta = :meta $map -> Meta(map=$1)
+    $map = :lbrace list($kv) :rbrace -> $1
+    $kv = :identifier :colon $e -> RuntimeAttribute(key=$0, value=$2)
+
+    $type_e = parser<expression> {
+      (*:left) $type_e = :type <=> :lsquare list($type_e, :comma) :rsquare -> Type(name=$0, subtype=$2)
+      $type_e = :type
+    }
+
+    $e = parser<expression> {
+      (*:left) $e = $e :double_pipe $e -> LogicalOr(lhs=$0, rhs=$2)
+      (*:left) $e = $e :double_ampersand $e -> LogicalAnd(lhs=$0, rhs=$2)
+      (*:left) $e = $e :double_equal $e -> Equals(lhs=$0, rhs=$2)
+      (-:left) $e = $e :not_equal $e -> NotEquals(lhs=$0, rhs=$2)
+      (*:left) $e = $e :lt $e -> LessThan(lhs=$0, rhs=$2)
+      (-:left) $e = $e :lteq $e -> LessThanOrEqual(lhs=$0, rhs=$2)
+      (-:left) $e = $e :gt $e -> GreaterThan(lhs=$0, rhs=$2)
+      (-:left) $e = $e :gteq $e -> GreaterThanOrEqual(lhs=$0, rhs=$2)
+      (*:left) $e = $e :plus $e -> Add(lhs=$0, rhs=$2)
+      (-:left) $e = $e :dash $e -> Subtract(lhs=$0, rhs=$2)
+      (*:left) $e = $e :asterisk $e -> Multiply(lhs=$0, rhs=$2)
+      (-:left) $e = $e :slash $e -> Divide(lhs=$0, rhs=$2)
+      (-:left) $e = $e :percent $e -> Remainder(lhs=$0, rhs=$2)
+      (*:unary) $e = :not $e -> LogicalNot(expression=$1)
+      (-:unary) $e = :plus $e -> UnaryPlus(expression=$1)
+      (-:unary) $e = :dash $e -> UnaryNegation(expression=$1)
+      (*:left) $e = :identifier <=> :lparen list($e, :comma) :rparen -> FunctionCall(name=$0, params=$2)
+      (*:left) $e = :identifier <=> :lsquare $e :rsquare -> ArrayIndex(lhs=$0, rhs=$2)
+      (*:left) $e = :identifier <=> :dot :identifier -> MemberAccess(lhs=$0, rhs=$2)
+      # TODO: is there a better object literal syntax?
+      (*:left) $e = :object :lbrace list($object_kv, :comma) :rbrace -> ObjectLiteral(map=$2)
+      (*:left) $e = :lparen $e :rparen -> $1
+      $e = :string
+      $e = :identifier
+      $e = :boolean
+      $e = :integer
+      $e = :dquote_string
+      $e = :squote_string
+    }
+
+    $workflow = :workflow :identifier :lbrace list($wf_body_element) :rbrace -> Workflow(name=$1, body=$3)
+    $wf_body_element = $call | $declaration | $while_loop | $if_stmt | $scatter
+    $call = :call :identifier optional($alias) optional($call_body) -> Call(task=$1, alias=$2, body=$3)
+    $call_body = :lbrace list($declaration) list($call_body_element) :rbrace -> CallBody(declarations=$1, io=$2)
+    $call_body_element = $call_input | $call_output
+    $call_input = :input :colon list($mapping, :comma) -> Inputs(map=$2)
+    $call_output = :output :colon list($mapping, :comma) -> Outputs(map=$2)
+    $mapping = :identifier :equal $e -> IOMapping(key=$0, value=$2)
+    $alias = :as :identifier -> $1
+
+    $while_loop = :while :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> WhileLoop(expression=$2, body=$5)
+    $if_stmt = :if :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> If(expression=$2, body=$5)
+
+    $scatter = :scatter :lparen :identifier :in $e :rparen :lbrace list($wf_body_element) :rbrace
+        -> Scatter(item=$2, collection=$4, body=$7)
+
+    $declaration = $type_e :identifier optional($setter) -> Declaration(type=$0, name=$1, expression=$2)
+    $setter = :equal $e -> $1
+    $object_kv = :identifier :colon $e -> ObjectKV(key=$0, value=$2)
+  }
+}

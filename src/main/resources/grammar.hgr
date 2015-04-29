@@ -128,7 +128,7 @@ grammar {
     }
   }
   parser {
-    $document = list($workflow_or_task)
+    $document = list($workflow_or_task) -> Document(definitions=$0)
     $workflow_or_task = $workflow | $task
 
     $task = :task :identifier :lbrace list($declarations) list($sections) :rbrace -> Task(name=$1, declarations=$3, sections=$4)

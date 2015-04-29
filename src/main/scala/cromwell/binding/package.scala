@@ -11,5 +11,5 @@ package cromwell
  */
 
 package object binding {
-
+  type FullyQualifiedName = String
 }

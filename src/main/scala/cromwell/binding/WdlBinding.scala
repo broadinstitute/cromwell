@@ -143,7 +143,7 @@ object WdlBinding {
         }
     }
 
-    private def findAsts(ast: AstNode, name: String): Set[Ast] = {
+    def findAsts(ast: AstNode, name: String): Set[Ast] = {
         ast match {
             case x: Ast =>
                 val thisAst = if (x.getName.equals(name)) Set(x) else Set.empty[Ast]
@@ -170,7 +170,7 @@ object WdlBinding {
     }
 }
 
-class WdlBinding(ast: Ast) {
+case class WdlBinding(ast: Ast) {
     import WdlBinding.AstNodeName
 
     /**

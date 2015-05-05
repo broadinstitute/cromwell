@@ -82,7 +82,7 @@ object WdlBinding {
         val callAsts = WdlBinding.findAsts(ast, AstNodeName.Call)
         val taskAsts = WdlBinding.findAsts(ast, AstNodeName.Task)
         val workflowAsts = WdlBinding.findAsts(ast, AstNodeName.Workflow)
-        if (workflowAsts.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(workflowAsts.asJava))
+        if (workflowAsts.size > 1) throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(workflowAsts.asJava))
         callAsts foreach {callAst =>
             val taskName = sourceString(callAst.getAttribute("task"))
             val taskAst = taskAsts.find{taskAst => sourceString(taskAst.getAttribute("name")) == taskName} getOrElse {

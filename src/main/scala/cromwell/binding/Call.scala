@@ -16,23 +16,24 @@ import cromwell.binding.types.WdlType
  * @todo Validate that the keys in inputMappings correspond to actual parameters in the task
  */
 case class Call(alias: Option[String], task: Task, inputMappings: Map[String, WdlExpression]) extends Scope {
-    val name: String = alias getOrElse task.name
+  val name: String = alias getOrElse task.name
 
-    private var _parent: Option[Scope] = None
-    def parent: Option[Scope] = _parent
+  private var _parent: Option[Scope] = None
 
-    def setParent(parent: Scope) = {
-        if (this._parent == None) this._parent = Option(parent)
-        else throw new UnsupportedOperationException("parent is write-once")
-    }
+  def parent: Option[Scope] = _parent
 
-    /**
-     * Map of task-local input names to type for every input that this
-     * Call needs to execute the task
-     *
-     * @return Map[String, WdlType] representing each task-local input
-     */
-    def unsatisfiedInputs: Map[String, WdlType] = task.inputs.filterNot{case (k,v) => inputMappings.contains(k)}
+  def setParent(parent: Scope) = {
+    if (this._parent == None) this._parent = Option(parent)
+    else throw new UnsupportedOperationException("parent is write-once")
+  }
 
-    override def toString: String = s"[Call name=$name, task=$task]"
- }
+  /**
+   * Map of task-local input names to type for every input that this
+   * Call needs to execute the task
+   *
+   * @return Map[String, WdlType] representing each task-local input
+   */
+  def unsatisfiedInputs: Map[String, WdlType] = task.inputs.filterNot { case (k, v) => inputMappings.contains(k) }
+
+  override def toString: String = s"[Call name=$name, task=$task]"
+}

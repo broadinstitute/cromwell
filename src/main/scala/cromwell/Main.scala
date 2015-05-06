@@ -16,7 +16,7 @@ object Main {
     }
     if (args(0).equals("parse")) {
       val ast = WdlBinding.getAst(new File(args(1)))
-      println(ast.toPrettyString())
+      println(ast.toPrettyString)
     }
     if (args(0).equals("run")) {
       try {

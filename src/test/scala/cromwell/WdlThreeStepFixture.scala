@@ -10,25 +10,25 @@ trait WdlThreeStepFixture {
       |    ps
       |  }
       |  output {
-      |    file procs = "stdout"
+      |    File procs = "stdout"
       |  }
       |}
       |
       |task cgrep {
       |  command {
-      |    grep '${pattern}' ${file in_file} | wc -l
+      |    grep '${pattern}' ${File in_file} | wc -l
       |  }
       |  output {
-      |    int count = read_int("stdout")
+      |    Int count = read_int("stdout")
       |  }
       |}
       |
       |task wc {
       |  command {
-      |    wc -l ${file in_file}
+      |    wc -l ${File in_file}
       |  }
       |  output {
-      |    int count = read_int("stdout")
+      |    Int count = read_int("stdout")
       |  }
       |}
       |

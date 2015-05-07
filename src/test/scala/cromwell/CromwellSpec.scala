@@ -15,6 +15,7 @@ object CromwellSpec {
                  |akka {
                  |  loggers = ["akka.testkit.TestEventListener"]
                  |  loglevel = "WARNING"
+                 |  test.timefactor = 2
                  |}
                """.stripMargin
 }
@@ -31,8 +32,10 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
 
   "A WorkflowActor" should {
 
+    val timeout: FiniteDuration = 500.milliseconds.dilated
+
     "Construct" in {
-      within(500 milliseconds) {
+      within(timeout) {
         val workflowModel = "construct this"
         workflowActor ! Construct(workflowModel)
         expectMsgPF() {
@@ -42,7 +45,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
 
     "Start" in {
-      within(500 milliseconds) {
+      within(timeout) {
         workflowActor ! Start
         expectMsgPF() {
           case Started => ()
@@ -51,7 +54,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
 
     "Stop" in {
-      within(500 milliseconds) {
+      within(timeout) {
         val probe = TestProbe()
         probe watch workflowActor
         workflowActor ! Stop

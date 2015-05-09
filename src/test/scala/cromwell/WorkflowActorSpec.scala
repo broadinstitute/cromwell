@@ -1,29 +1,33 @@
 package cromwell
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
 import akka.actor.SupervisorStrategy.Stop
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
-import cromwell.binding.WdlBinding
-import cromwell.engine.WorkflowActor
+import cromwell.binding.{FullyQualifiedName, WdlBinding, WdlValue}
 import cromwell.engine.WorkflowActor._
+import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object WorkflowActorSpec {
-  val config = """
-                 |akka {
-                 |  loggers = ["akka.testkit.TestEventListener"]
-                 |  loglevel = "WARNING"
-                 |}
-               """.stripMargin
+  val config =
+    """
+      |akka {
+      |  loggers = ["akka.testkit.TestEventListener"]
+      |  loglevel = "DEBUG"
+      |  actor.debug.receive = on
+      |}
+    """.stripMargin
 
   val HelloWdl =
     """
       |task hello {
       |  command {
-      |    echo "Hello ${addressee}"
+      |    echo "Hello ${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string("stdout")
@@ -38,20 +42,15 @@ object WorkflowActorSpec {
 
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
 class WorkflowActorSpec extends CromwellSpec(ActorSystem("WorkflowActorSpec", ConfigFactory.parseString(WorkflowActorSpec.config))) {
-
   import cromwell.binding.WdlImplicits._
 
   val helloBinding = WdlBinding.process(WorkflowActorSpec.HelloWdl)
 
-  def buildWorkflowActor = TestActorRef[WorkflowActor]
-
-  def constructWorkflowActor: TestActorRef[WorkflowActor] = {
-    val workflowActor = buildWorkflowActor
-    workflowActor ! Construct(helloBinding, Map(Addressee -> "world".toWdlValue))
-    expectMsgPF() {
-      case Constructed => ()
-    }
-    workflowActor
+  def buildWorkflowActor(name: String = UUID.randomUUID().toString,
+                         inputs: Map[FullyQualifiedName, WdlValue] = Map(Addressee -> "world".toWdlValue)): TestActorRef[WorkflowActor] = {
+    val binding = WdlBinding.process(WorkflowActorSpec.HelloWdl)
+    val props = WorkflowActor.buildWorkflowActorProps(binding, inputs)
+    TestActorRef(props, "Workflow-" + name)
   }
 
   override def afterAll() {
@@ -63,67 +62,39 @@ class WorkflowActorSpec extends CromwellSpec(ActorSystem("WorkflowActorSpec", Co
 
   "A WorkflowActor" should {
 
-    "fail construction with missing inputs" in {
-      within(TestExecutionTimeout) {
-        buildWorkflowActor ! Construct(helloBinding, Map.empty)
-
-        expectMsgPF() {
-          case ConstructionFailed(unsatisfiedInputs) =>
-            unsatisfiedInputs should have size 1
-            unsatisfiedInputs should contain key Addressee
-        }
-      }
-    }
-
-    "fail construction with inputs of the wrong types" in {
-      within(TestExecutionTimeout) {
-        buildWorkflowActor ! Construct(helloBinding, Map(Addressee -> 3.toWdlValue))
-
-        expectMsgPF() {
-          case ConstructionFailed(unsatisfiedInputs) =>
-            unsatisfiedInputs should have size 1
-            unsatisfiedInputs should contain key Addressee
-        }
-      }
-    }
-
-    "fail construction when already constructed" in {
-      within(TestExecutionTimeout) {
-        constructWorkflowActor ! Construct(helloBinding, Map(Addressee -> "world".toWdlValue))
-        expectMsgPF() {
-          case InvalidOperation(_) => ()
-        }
-      }
-    }
-
-    "construct properly with proper inputs" in {
-      within(TestExecutionTimeout) {
-        constructWorkflowActor
-      }
-    }
-
-    "fail to start when not first constructed" in {
-      within(TestExecutionTimeout) {
-        buildWorkflowActor ! Start
-        expectMsgPF() {
-          case InvalidOperation(_) => ()
-        }
-      }
-    }
-
     "start" in {
       within(TestExecutionTimeout) {
-        val workflowActor = constructWorkflowActor
+        val workflowActor = buildWorkflowActor("started")
         workflowActor ! Start
         expectMsgPF() {
           case Started => ()
         }
+        // TODO this is not examining the result, nor message flow between workflow and task actors.
+        expectMsgPF() {
+          case Failed(t) => fail(t)
+          case Done(outputs) => ()
+        }
       }
     }
 
-    "fail to stop when not first constructed" in {
+    "fail to construct with missing inputs" in {
+      intercept[UnsatisfiedInputsException] {
+        buildWorkflowActor(inputs = Map.empty)
+      }
+    }
+
+    "fail to construct with inputs of the wrong type" in {
+      intercept[UnsatisfiedInputsException] {
+        buildWorkflowActor(inputs = Map(Addressee -> 3.toWdlValue))
+      }
+    }
+
+    "fail to stop when not first started" in {
       within(TestExecutionTimeout) {
-        buildWorkflowActor ! Stop
+        val probe = TestProbe()
+        val workflowActor = buildWorkflowActor("fail to stop")
+        probe watch workflowActor
+        workflowActor ! Stop
         expectMsgPF() {
           case InvalidOperation(_) => ()
         }
@@ -133,12 +104,21 @@ class WorkflowActorSpec extends CromwellSpec(ActorSystem("WorkflowActorSpec", Co
     "stop" in {
       within(TestExecutionTimeout) {
         val probe = TestProbe()
-        val workflowActor = constructWorkflowActor
+        val workflowActor = buildWorkflowActor("stop")
         probe watch workflowActor
+
+        ignoreMsg {
+          case Done(_) => true
+        }
+        workflowActor ! Start
         workflowActor ! Stop
+        expectMsgPF() {
+          case Started => ()
+        }
         expectMsgPF() {
           case Stopped => ()
         }
+
         probe expectTerminated workflowActor
       }
     }

@@ -1,9 +1,9 @@
 task grep {
   command {
-    grep ${pattern} ${flags?} ${file file_name}
+    grep ${pattern} ${flags?} ${File file_name}
   }
   output {
-    file out = "stdout"
+    File out = "stdout"
   }
   runtime {
     memory: "2MB"
@@ -14,15 +14,15 @@ task grep {
 
 task wc {
   command {
-    wc -l ${sep=' ' file files+} | tail -1 | cut -d' ' -f 2
+    wc -l ${sep=' ' File files+} | tail -1 | cut -d' ' -f 2
   }
   output {
-    int count = read_int("stdout")
+    Int count = read_int("stdout")
   }
 }
 
 workflow scatter_gather_grep_wc {
-  array[file] input_files
+  Array[File] input_files
   scatter(f in input_files) {
     call grep {
       input: file_name = f

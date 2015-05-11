@@ -12,4 +12,5 @@ package cromwell
 
 package object binding {
   type FullyQualifiedName = String
+  type WdlObject = Map[String, WdlValue]
 }

@@ -1,10 +1,11 @@
 package cromwell
 
-import cromwell.binding.types.{WdlStringType, WdlIntegerType}
-import cromwell.binding.values._
-import cromwell.binding.{WdlFunctions, WdlExpression}
 import cromwell.binding.WdlImplicits._
+import cromwell.binding.values._
+import cromwell.binding.{WdlExpression, WdlFunctions}
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.util.{Success, Try}
 
 class WdlExpressionSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
@@ -24,11 +25,11 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
   class TestFunctions extends WdlFunctions {
     def getFunction(name: String): WdlFunction = {
-      def b(params: Seq[WdlValue]): WdlValue = {
-        WdlInteger(params.head.asInstanceOf[WdlInteger].value + 1)
+      def b(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
+        Success(WdlInteger(params.head.asInstanceOf[Try[WdlInteger]].get.value + 1))
       }
-      def append(params: Seq[WdlValue]): WdlValue = {
-        WdlString(params.map(_.asInstanceOf[WdlString].value).mkString)
+      def append(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
+        Success(WdlString(params.map(_.asInstanceOf[Try[WdlString]].get.value).mkString))
       }
 
       name match {
@@ -38,8 +39,8 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     }
   }
 
-  def constEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(noopLookup, new NoopFunctions()).asInstanceOf[WdlPrimitive]
-  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestFunctions()).asInstanceOf[WdlPrimitive]
+  def constEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(noopLookup, new NoopFunctions()).asInstanceOf[Try[WdlPrimitive]].get
+  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestFunctions()).asInstanceOf[Try[WdlPrimitive]].get
 
   "Expression Evaluator" should "be able to add two stinkin' integers" in {
     constEval("1+2") shouldEqual WdlInteger(3)

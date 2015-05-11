@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=sprint2)](https://travis-ci.org/broadinstitute/cromwell?branch=sprint2)
-[![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=mlc_coveralls_travis)](https://coveralls.io/r/broadinstitute/cromwell?branch=sprint2)
+[![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
+[![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
 
 
 Cromwell

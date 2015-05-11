@@ -1,52 +1,33 @@
 package cromwell.engine
 
-import akka.actor.Actor
 import akka.actor.SupervisorStrategy.Stop
-import cromwell.binding.{Workflow, WdlBinding, WdlValue}
+import akka.actor.{Actor, ActorRef, Props}
+import akka.event.LoggingReceive
+import cromwell.binding.{Call, FullyQualifiedName, WdlBinding, WdlValue}
 
 /**
  * This model assumes workflow actors are transient, created once per workflow instance.
  */
 object WorkflowActor {
 
-  case class Construct(binding: WdlBinding, inputs: Map[String, WdlValue])
-  case object Constructed
+  sealed trait WorkflowActorMessage
 
-  /**
-   * @param badInputs A `Map` of locally qualified input names to a corresponding diagnostic message.
-   */
-  case class ConstructionFailed(badInputs: Map[String, String])
+  case object Start extends WorkflowActorMessage
 
-  case object Start
-  case object Started
+  case object Started extends WorkflowActorMessage
 
   // Note there is no Stop message defined here, Stop is from Akka.
-  case object Stopped
+  case object Stopped extends WorkflowActorMessage
 
-  case object Done
+  case class Done(outputs: Map[String, WdlValue]) extends WorkflowActorMessage
 
-  case class InvalidOperation(message: String)
-}
+  case class InvalidOperation(message: String) extends WorkflowActorMessage
 
-/** Represents the root of a single workflow instance, not a manager of multiple
-  * workflows.
-  */
-class WorkflowActor extends Actor {
+  case class Failed(throwable: Throwable) extends WorkflowActorMessage
 
-  import WorkflowActor._
-
-  // This var would be unnecessary in a FSM that #becomes constructed.
-  private var _constructed = false
-
-  /**
-   * Check inputs for presence and type compatibility.
-   * @param workflow Workflow
-   * @param actualInputs Map of <b>local</b> input names to `WdlValue`s
-   * @return Map of locally qualified input names to a corresponding diagnostic message.
-   */
-  def checkUnsatisfiedInputs(workflow: Workflow, actualInputs: Map[String, WdlValue]): Map[String, String] =
-    workflow.inputs.collect {
-
+  def buildWorkflowActorProps(binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]): Props = {
+    // Check inputs for presence and type compatibility
+    val diagnostics = binding.workflow.inputs.collect {
       case requiredInput if !actualInputs.contains(requiredInput._1) =>
         requiredInput._1 -> "Required workflow input not specified"
 
@@ -56,30 +37,80 @@ class WorkflowActor extends Actor {
         requiredInput._1 -> s"Incompatible workflow input types, expected $expected, got ${requiredInput._2}"
     }
 
+    if (diagnostics.nonEmpty) throw new UnsatisfiedInputsException(diagnostics)
+
+    Props(new WorkflowActor(binding, actualInputs))
+  }
+}
+
+/** Represents the root of a single workflow instance, not a manager of multiple
+  * workflows.
+  */
+class WorkflowActor private(binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]) extends Actor {
+
+  import WorkflowActor._
+
+  // That which started the workflow, a role which has not yet been defined more specifically.
+  private var _primeMover: Option[ActorRef] = None
+
+  private def isStarted: Boolean = _primeMover.isDefined
+
+  private def primeMover = _primeMover.get
+
   override def receive: Receive = {
+    LoggingReceive {
 
-    case Construct(binding, actualInputs) if !_constructed =>
-      val unsatisfiedInputs = checkUnsatisfiedInputs(binding.workflow, actualInputs)
-      if (unsatisfiedInputs.isEmpty) {
-        _constructed = true
-        sender ! Constructed
-      } else {
-        sender ! ConstructionFailed(unsatisfiedInputs)
-      }
+      case Start =>
+        _primeMover = Option(sender())
+        val executionStatusStore = new ExecutionStatusStore(binding)
+        val symbolStore = new SymbolStore(binding, actualInputs)
+        executionStatusStore.runnableCalls.foreach { call =>
+          startCallActor(symbolStore, call)
+        }
+        primeMover ! Started
 
-    case msg if !_constructed =>
-      sender ! InvalidOperation(s"Received $msg but WorkflowActor not Constructed!")
+      case CallActor.Started =>
+      // TODO update execution status store
 
-    case msg@Construct(_, _) if _constructed =>
-      sender ! InvalidOperation(s"Received $msg but WorkflowActor already Constructed!")
+      case CallActor.Done(taskOutputs) =>
+        // TODO Update execution status and symbol stores, evaluate workflow outputs
+        // TODO There is only one runnable task at the moment, so immediately
+        // TODO report as done to the creator.
+        primeMover ! Done(Map.empty[String, WdlValue])
+      // TODO This should reevaluate runnable tasks, if there are no more
+      // TODO initiate shutdown, including waiting for child Call actors to
+      // TODO report as Stopped (state "SHUTTING_DOWN"?).  Shutting this down
+      // TODO before waiting for child actors to report as stopped
+      // TODO would produce a slew of dead letter warnings as a shutdown
+      // TODO of self would terminate the entire actor hierarchy.
+      // TODO If there are more runnable tasks they should be started and
+      // TODO the stores updated appropriately.
+      // TODO The code needed here is not very different from what Start
+      // TODO should be doing.
 
-    case Start =>
-      sender ! Started
+      case CallActor.Failed(t) =>
+        // TODO update execution status store
+        primeMover ! Failed(t)
 
-    case Stop =>
-      // TODO is this the right way to stop this actor?
-      // TODO http://stackoverflow.com/questions/13847963/akka-kill-vs-stop-vs-poison-pill
-      context.stop(self)
-      sender ! Stopped
+      case CallActor.Stopped =>
+      // TODO update execution status store
+
+      case Stop if !isStarted =>
+        sender ! InvalidOperation("Stop issued against WorkflowActor that appears never to have been started")
+
+      case Stop =>
+        // TODO is this the right way to stop this actor?
+        // TODO http://stackoverflow.com/questions/13847963/akka-kill-vs-stop-vs-poison-pill
+        context.stop(self)
+        primeMover ! Stopped
+
+      case unknown@_ =>
+        primeMover ! InvalidOperation(s"Unknown message '$unknown'")
+    }
+  }
+
+  private def startCallActor(symbolStore: SymbolStore, call: Call): Unit = {
+    val callActor = context.actorOf(CallActor.props, "CallActor-" + call.name)
+    callActor ! CallActor.Start(call, symbolStore)
   }
 }

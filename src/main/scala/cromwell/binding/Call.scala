@@ -34,6 +34,6 @@ case class Call(alias: Option[String], task: Task, inputMappings: Map[String, Wd
    * @return Map[String, WdlType] representing each task-local input
    */
   def unsatisfiedInputs: Map[String, WdlType] = task.inputs.filterNot { case (k, v) => inputMappings.contains(k) }
-
+  
   override def toString: String = s"[Call name=$name, task=$task]"
 }

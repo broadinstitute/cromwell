@@ -148,9 +148,9 @@ object WdlBinding {
 
   private def getWdlType(ast: AstNode): WdlType = {
     ast match {
-      case t: Terminal if t.getSourceString == WdlFileType.toString => WdlFileType
-      case t: Terminal if t.getSourceString == WdlStringType.toString => WdlStringType
-      case t: Terminal if t.getSourceString == WdlIntegerType.toString => WdlIntegerType
+      case t: Terminal if t.getSourceString == WdlFileType.toWdlString => WdlFileType
+      case t: Terminal if t.getSourceString == WdlStringType.toWdlString => WdlStringType
+      case t: Terminal if t.getSourceString == WdlIntegerType.toWdlString => WdlIntegerType
       case null => WdlStringType
       case _ => throw new UnsupportedOperationException("Implement this later for compound types")
     }

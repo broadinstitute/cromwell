@@ -2,6 +2,7 @@ package cromwell.engine
 
 import cromwell.binding.types.WdlType
 import cromwell.binding._
+import cromwell.binding.values.WdlValue
 
 import scala.collection.mutable
 
@@ -23,7 +24,7 @@ object SymbolStoreEntry {
 case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
 
   wdlValue match {
-    case Some (value) => wdlType.checkCompatible(value.value)
+    case Some (value) => if(wdlType != value.wdlType) throw new UnsupportedOperationException("Fix this.")
     case None => // Nothing is always okay for a value.
   }
 

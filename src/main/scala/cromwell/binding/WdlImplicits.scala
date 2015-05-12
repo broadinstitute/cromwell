@@ -2,18 +2,19 @@ package cromwell.binding
 
 import java.io.File
 
-import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType}
+import cromwell.binding.values._
+import cromwell.binding.values.WdlValue
 
 object WdlImplicits {
-  implicit class WdlString(val string: String) extends AnyVal {
-    def toWdlValue: WdlValue = WdlValue(string, WdlStringType)
+  implicit class WdlStringImplicit(val string: String) extends AnyVal {
+    def toWdlValue: WdlValue = WdlString(string)
   }
 
-  implicit class WdlInteger(val int: Int) extends AnyVal {
-    def toWdlValue: WdlValue = WdlValue(int, WdlIntegerType)
+  implicit class WdlIntegerImplicit(val int: Int) extends AnyVal {
+    def toWdlValue: WdlValue = WdlInteger(int)
   }
 
-  implicit class WdlFile(val file: File) extends AnyVal {
-    def toWdlValue: WdlValue = WdlValue(file, WdlFileType)
+  implicit class WdlFileImplicit(val file: File) extends AnyVal {
+    def toWdlValue: WdlValue = WdlFile(file)
   }
 }

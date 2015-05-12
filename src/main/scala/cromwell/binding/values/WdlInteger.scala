@@ -1,29 +1,74 @@
 package cromwell.binding.values
 
+import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlIntegerType
+
+import scala.util.{Failure, Success, Try}
 
 case class WdlInteger(value: Integer) extends WdlPrimitive {
   val wdlType = WdlIntegerType
-  def add(rhs: WdlValue): WdlValue = {
+  override def add(rhs: WdlValue): Try[WdlValue] = {
     rhs match {
-      case r:WdlInteger => WdlInteger(value + r.value)
-      case r:WdlString => WdlString(value + r.value)
+      case r:WdlInteger => Success(WdlInteger(value + r.value))
+      case r:WdlString => Success(WdlString(value + r.value))
+      case r:WdlFloat => Success(WdlFloat(value + r.value))
+      case _ => invalid(s"$value + $rhs")
     }
   }
-  def subtract(rhs: WdlValue): WdlValue = ???
-  def multiply(rhs: WdlValue): WdlValue = ???
-  def divide(rhs: WdlValue): WdlValue = ???
-  def mod(rhs: WdlValue): WdlValue = ???
-  def equals(rhs: WdlValue): WdlValue = ???
-  def notEquals(rhs: WdlValue): WdlValue = ???
-  def lessThan(rhs: WdlValue): WdlValue = ???
-  def lessThanOrEqual(rhs: WdlValue): WdlValue = ???
-  def greaterThan(rhs: WdlValue): WdlValue = ???
-  def greaterThanOrEqual(rhs: WdlValue): WdlValue = ???
-  def or(rhs: WdlValue): WdlValue = ???
-  def and(rhs: WdlValue): WdlValue = ???
-  def not: WdlValue = ???
-  def unaryPlus: WdlValue = ???
-  def unaryMinus: WdlValue = ???
-  def asString = value.toString
+  override def subtract(rhs: WdlValue): Try[WdlValue] = {
+    rhs match {
+      case r:WdlInteger => Success(WdlInteger(value - r.value))
+      case r:WdlFloat => Success(WdlFloat(value - r.value))
+      case _ => invalid(s"$value - $rhs")
+    }
+  }
+  override def multiply(rhs: WdlValue): Try[WdlValue] = {
+    rhs match {
+      case r:WdlInteger => Success(WdlInteger(value * r.value))
+      case r:WdlFloat => Success(WdlFloat(value * r.value))
+      case _ => invalid(s"$value * $rhs")
+    }
+  }
+  override def divide(rhs: WdlValue): Try[WdlValue] = {
+    rhs match {
+      case r:WdlInteger if r.value == 0 => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
+      case r:WdlInteger => Success(WdlInteger(value / r.value))
+      case r:WdlFloat if r.value == 0.toFloat => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
+      case r:WdlFloat => Success(WdlFloat(value / r.value))
+      case _ => invalid(s"$value / $rhs")
+    }
+  }
+  override def mod(rhs: WdlValue): Try[WdlValue] = {
+    rhs match {
+      case r:WdlInteger if r.value == 0 => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
+      case r:WdlInteger => Success(WdlInteger(value % r.value))
+      case r:WdlFloat if r.value == 0.toFloat => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
+      case r:WdlFloat => Success(WdlFloat(value % r.value))
+      case _ => invalid(s"$value % $rhs")
+    }
+  }
+  override def equals(rhs: WdlValue): Try[WdlBoolean] = {
+    rhs match {
+      case r:WdlInteger => Success(WdlBoolean(value == r.value))
+      case r:WdlFloat => Success(WdlBoolean(value == r.value))
+      case _ => invalid(s"$value == $rhs")
+    }
+  }
+  override def lessThan(rhs: WdlValue): Try[WdlBoolean] = {
+    rhs match {
+      case r:WdlInteger => Success(WdlBoolean(value < r.value))
+      case r:WdlFloat => Success(WdlBoolean(value < r.value))
+      case _ => invalid(s"$value < $rhs")
+    }
+  }
+  override def greaterThan(rhs: WdlValue): Try[WdlBoolean] = {
+    rhs match {
+      case r:WdlInteger => Success(WdlBoolean(value > r.value))
+      case r:WdlFloat => Success(WdlBoolean(value > r.value))
+      case _ => invalid(s"$value > $rhs")
+    }
+  }
+  override def unaryPlus: Try[WdlValue] = Success(WdlInteger(math.abs(value)))
+  override def unaryMinus: Try[WdlValue] = Success(WdlInteger(-value))
+  override def asString = value.toString
 }

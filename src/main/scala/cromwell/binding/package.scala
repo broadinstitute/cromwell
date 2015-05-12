@@ -1,5 +1,7 @@
 package cromwell
 
+import cromwell.binding.values.WdlValue
+
 /**
  * ==WDL Bindings for Scala==
  *

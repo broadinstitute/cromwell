@@ -3,7 +3,8 @@ package cromwell.engine
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import cromwell.binding.{Call, WdlValue}
+import cromwell.binding.Call
+import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor._
 import cromwell.engine.WorkflowActor.InvalidOperation
 

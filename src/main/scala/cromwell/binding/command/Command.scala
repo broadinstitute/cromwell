@@ -1,9 +1,8 @@
 package cromwell.binding.command
 
 import java.util.regex.Pattern
-
-import cromwell.binding.WdlValue
 import cromwell.binding.types.WdlType
+import cromwell.binding.values.WdlValue
 
 import scala.annotation.tailrec
 import scala.util.Try

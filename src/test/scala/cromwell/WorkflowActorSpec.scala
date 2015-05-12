@@ -6,7 +6,8 @@ import akka.actor.ActorSystem
 import akka.actor.SupervisorStrategy.Stop
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
-import cromwell.binding.{FullyQualifiedName, WdlBinding, WdlValue}
+import cromwell.binding.values.WdlValue
+import cromwell.binding.{FullyQualifiedName, WdlBinding}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
 

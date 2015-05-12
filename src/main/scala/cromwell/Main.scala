@@ -3,7 +3,8 @@ package cromwell
 import java.io.File
 
 import cromwell.binding.types.{WdlFileType, WdlStringType}
-import cromwell.binding.{WdlBinding, WdlValue}
+import cromwell.binding.WdlBinding
+import cromwell.binding.values.{WdlString, WdlFile, WdlValue}
 import cromwell.parser.WdlParser.SyntaxError
 
 object Main {
@@ -27,8 +28,8 @@ object Main {
         println("")
 
         val params = Map(
-          "in_file" -> new WdlValue(new File("/usr/share/dict/words"), WdlFileType),
-          "pattern" -> new WdlValue("^...$", WdlStringType)
+          "in_file" -> WdlFile(new File("/usr/share/dict/words")),
+          "pattern" -> WdlString("^...$")
         )
 
         binding.workflow.calls.foreach { call =>

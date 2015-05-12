@@ -3,7 +3,8 @@ package cromwell.engine
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
-import cromwell.binding.{Call, FullyQualifiedName, WdlBinding, WdlValue}
+import cromwell.binding.values.WdlValue
+import cromwell.binding.{Call, FullyQualifiedName, WdlBinding}
 
 /**
  * This model assumes workflow actors are transient, created once per workflow instance.

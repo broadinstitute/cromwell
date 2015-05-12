@@ -1,6 +1,7 @@
 package cromwell.engine
 
-import cromwell.binding.{WdlFunctions, WdlValue}
+import cromwell.binding.WdlFunctions
+import cromwell.binding.values.{WdlString, WdlValue}
 
 class EngineFunctions(val ctx: TaskExecutionContext) extends WdlFunctions {
   def getFunction(name: String): WdlFunction = {
@@ -9,7 +10,7 @@ class EngineFunctions(val ctx: TaskExecutionContext) extends WdlFunctions {
       // TODO: Validate parameters
 
       // Just assume the first parameter is a String (example only)
-      val path = params.head.value.asInstanceOf[String]
+      val path = params.head.asInstanceOf[WdlString].value
 
       // For 3-step workflow, path == "stdout"
 

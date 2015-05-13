@@ -6,9 +6,10 @@ import akka.actor.ActorSystem
 import akka.actor.SupervisorStrategy.Stop
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlString, WdlValue}
 import cromwell.binding.{FullyQualifiedName, WdlBinding}
 import cromwell.engine.WorkflowActor._
+import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
 
 import scala.concurrent.duration._
@@ -28,7 +29,7 @@ object WorkflowActorSpec {
     """
       |task hello {
       |  command {
-      |    echo "Hello ${addressee}!"
+      |    echo Hello ${addressee}!
       |  }
       |  output {
       |    String salutation = read_string("stdout")
@@ -66,14 +67,21 @@ class WorkflowActorSpec extends CromwellSpec(ActorSystem("WorkflowActorSpec", Co
     "start" in {
       within(TestExecutionTimeout) {
         val workflowActor = buildWorkflowActor("started")
-        workflowActor ! Start
+        workflowActor ! Start(new LocalBackend)
         expectMsgPF() {
           case Started => ()
         }
-        // TODO this is not examining the result, nor message flow between workflow and task actors.
+        // TODO this is not examining message flow between workflow and task actors.
         expectMsgPF() {
-          case Failed(t) => fail(t)
-          case Done(outputs) => ()
+          case Failed(t) =>
+            fail(t)
+          case Done(symbolStore) =>
+            val maybeOutput = symbolStore.getOutputByFullyQualifiedName("hello.hello.salutation")
+
+            val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
+            val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
+            val actualOutput = wdlValue.asInstanceOf[WdlString].value
+            actualOutput shouldEqual "Hello world!"
         }
       }
     }
@@ -111,7 +119,7 @@ class WorkflowActorSpec extends CromwellSpec(ActorSystem("WorkflowActorSpec", Co
         ignoreMsg {
           case Done(_) => true
         }
-        workflowActor ! Start
+        workflowActor ! Start(new LocalBackend)
         workflowActor ! Stop
         expectMsgPF() {
           case Started => ()

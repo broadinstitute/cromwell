@@ -2,9 +2,11 @@ package cromwell.engine
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Props}
-import akka.event.LoggingReceive
+import akka.event.{Logging, LoggingReceive}
 import cromwell.binding.values.WdlValue
 import cromwell.binding.{Call, FullyQualifiedName, WdlBinding}
+import cromwell.engine.backend.Backend
+import cromwell.util.TryUtil
 
 /**
  * This model assumes workflow actors are transient, created once per workflow instance.
@@ -13,18 +15,14 @@ object WorkflowActor {
 
   sealed trait WorkflowActorMessage
 
-  case object Start extends WorkflowActorMessage
-
+  case class Start(backend: Backend) extends WorkflowActorMessage
   case object Started extends WorkflowActorMessage
 
   // Note there is no Stop message defined here, Stop is from Akka.
   case object Stopped extends WorkflowActorMessage
-
-  case class Done(outputs: Map[String, WdlValue]) extends WorkflowActorMessage
-
+  case class Done(symbolStore: SymbolStore) extends WorkflowActorMessage
   case class InvalidOperation(message: String) extends WorkflowActorMessage
-
-  case class Failed(throwable: Throwable) extends WorkflowActorMessage
+  case class Failed(failure: String) extends WorkflowActorMessage
 
   def buildWorkflowActorProps(binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]): Props = {
     // Check inputs for presence and type compatibility
@@ -54,31 +52,58 @@ class WorkflowActor private(binding: WdlBinding, actualInputs: Map[FullyQualifie
   // That which started the workflow, a role which has not yet been defined more specifically.
   private var _primeMover: Option[ActorRef] = None
 
-  private def isStarted: Boolean = _primeMover.isDefined
+  override def receive = notStarted
 
-  private def primeMover = _primeMover.get
+  private var maybeSymbolStore: Option[SymbolStore] = None
+  private var maybeExecutionStatusStore: Option[ExecutionStatusStore] = None
+  private var maybeBackend: Option[Backend] = None
+  private val log = Logging(context.system, this)
 
-  override def receive: Receive = {
+
+  private def notStarted: Receive = {
     LoggingReceive {
 
-      case Start =>
+      case Start(backend) =>
         _primeMover = Option(sender())
-        val executionStatusStore = new ExecutionStatusStore(binding)
-        val symbolStore = new SymbolStore(binding, actualInputs)
+        maybeExecutionStatusStore = Option(new ExecutionStatusStore(binding))
+        maybeSymbolStore = Option(new SymbolStore(binding, actualInputs))
+        maybeBackend = Option(backend)
         executionStatusStore.runnableCalls.foreach { call =>
           startCallActor(symbolStore, call)
         }
         primeMover ! Started
+        context.become(started)
 
+      case bad @ _ =>
+        sender ! InvalidOperation(s"Received message $bad before any Start message")
+    }
+  }
+
+  private def started: Receive = {
+    LoggingReceive {
       case CallActor.Started =>
       // TODO update execution status store
 
-      case CallActor.Done(taskOutputs) =>
-        // TODO Update execution status and symbol stores, evaluate workflow outputs
+      case CallActor.Done(call, callOutputs) =>
+        // TODO Update execution status and symbol stores.
         // TODO There is only one runnable task at the moment, so immediately
-        // TODO report as done to the creator.
-        primeMover ! Done(Map.empty[String, WdlValue])
-      // TODO This should reevaluate runnable tasks, if there are no more
+        // TODO report as done to the creator, passing back the symbol store.
+        val addedEntries = callOutputs.map { callOutput =>
+          // TODO very broken, assumes there are always output values here, but other code
+          // TODO has them properly Option'ed.
+          // TODO This should be messaging a symbol store actor to synchronize updates
+          symbolStore.addOutputValue(call.fullyQualifiedName, callOutput._1, Some(callOutput._2), callOutput._2.wdlType)
+        }
+
+        val failureMessages = TryUtil.stringifyFailures(addedEntries)
+        if (failureMessages.isEmpty) {
+          primeMover ! Done(symbolStore)
+        } else {
+          val errorMessages = failureMessages.mkString("\n")
+          log.error(errorMessages)
+          primeMover ! Failed(errorMessages)
+        }
+      // TODO This should reevaluate runnable calls, if there are no more
       // TODO initiate shutdown, including waiting for child Call actors to
       // TODO report as Stopped (state "SHUTTING_DOWN"?).  Shutting this down
       // TODO before waiting for child actors to report as stopped
@@ -89,15 +114,11 @@ class WorkflowActor private(binding: WdlBinding, actualInputs: Map[FullyQualifie
       // TODO The code needed here is not very different from what Start
       // TODO should be doing.
 
-      case CallActor.Failed(t) =>
-        // TODO update execution status store
-        primeMover ! Failed(t)
+      case CallActor.Failed(failure) =>
+        primeMover ! Failed(failure)
 
       case CallActor.Stopped =>
       // TODO update execution status store
-
-      case Stop if !isStarted =>
-        sender ! InvalidOperation("Stop issued against WorkflowActor that appears never to have been started")
 
       case Stop =>
         // TODO is this the right way to stop this actor?
@@ -106,12 +127,20 @@ class WorkflowActor private(binding: WdlBinding, actualInputs: Map[FullyQualifie
         primeMover ! Stopped
 
       case unknown@_ =>
-        primeMover ! InvalidOperation(s"Unknown message '$unknown'")
+        primeMover ! InvalidOperation(s"Unknown/invalid message '$unknown'")
     }
   }
 
+  private def primeMover = _primeMover.get
+
   private def startCallActor(symbolStore: SymbolStore, call: Call): Unit = {
     val callActor = context.actorOf(CallActor.props, "CallActor-" + call.name)
-    callActor ! CallActor.Start(call, symbolStore)
+    callActor ! CallActor.Start(call, backend, symbolStore)
   }
+
+  private def symbolStore = maybeSymbolStore.get
+
+  private def executionStatusStore = maybeExecutionStatusStore.get
+
+  private def backend = maybeBackend.get
 }

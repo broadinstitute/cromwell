@@ -1,25 +1,15 @@
 package cromwell.engine
 
 import cromwell.binding.WdlFunctions
-import cromwell.binding.values.{WdlString, WdlValue}
+import cromwell.binding.values.{WdlInteger, WdlString, WdlValue}
 
-class EngineFunctions(val ctx: TaskExecutionContext) extends WdlFunctions {
+import scala.util.Try
+
+trait EngineFunctions extends WdlFunctions {
+  protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger]
+  protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString]
+
   def getFunction(name: String): WdlFunction = {
-
-    def read_int(params: Seq[WdlValue]): WdlValue = {
-      // TODO: Validate parameters
-
-      // Just assume the first parameter is a String (example only)
-      val path = params.head.asInstanceOf[WdlString].value
-
-      // For 3-step workflow, path == "stdout"
-
-      // Use ctx along with path to construct WdlValue
-      ???
-    }
-
-    def read_string(params: Seq[WdlValue]): WdlValue = ???
-
     name match {
       case "read_int" => read_int
       case "read_string" => read_string

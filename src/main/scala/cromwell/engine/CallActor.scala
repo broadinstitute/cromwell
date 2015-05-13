@@ -7,20 +7,23 @@ import cromwell.binding.Call
 import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor._
 import cromwell.engine.WorkflowActor.InvalidOperation
+import cromwell.engine.backend.Backend
+import cromwell.util.TryUtil
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.Success
 
 
 object CallActor {
 
   sealed trait CallActorMessage
 
-  case class Start(call: Call, symbolStore: SymbolStore) extends CallActorMessage
-  case class Run(commandLine: String) extends CallActorMessage
+  case class Start(call: Call, backend: Backend, symbolStore: SymbolStore) extends CallActorMessage
+  // Does this message need to pass along the SymbolStore for output expression evaluation?
+  case class Run(commandLine: String, backend: Backend, call: Call, symbolStore: SymbolStore) extends CallActorMessage
   case object Started extends CallActorMessage
-  case class Done(outputs: Map[String, WdlValue]) extends CallActorMessage
-  case class Failed(throwable: Throwable) extends CallActorMessage
+  case class Done(call: Call, outputs: Map[String, WdlValue]) extends CallActorMessage
+  case class Failed(failure: String) extends CallActorMessage
   case object Stopped extends CallActorMessage
 
   def props: Props = Props(classOf[CallActor])
@@ -41,28 +44,43 @@ class CallActor extends Actor {
 
   private def creator: ActorRef = _creator.get
 
-  override def receive: Receive =
+  private def notStarted: Receive = {
     LoggingReceive {
-      case Start(call, symbolStore) =>
+      case Start(call, backend, symbolStore) =>
         val inputs = symbolStore.locallyQualifiedInputs(call)
         val tryCommandLine = call.task.command.instantiate(inputs)
         tryCommandLine match {
           case Success(commandLine) =>
             _creator = Option(sender())
-            self ! Run(commandLine)
+            self ! Run(commandLine, backend, call, symbolStore)
             creator ! Started
-          case Failure(t) =>
-            sender ! Failed(t)
+            context.become(started)
+          case failure =>
+            sender ! failure
         }
 
-      case bad @_ if !isStarted =>
+      case bad@_ if !isStarted =>
         sender ! InvalidOperation(s"Received message $bad, but not yet Started.")
+    }
+  }
 
-      case Run(commandLine) =>
-        log.info(commandLine)
-        // TODO get actual outputs and send them along in the reply
-        creator ! Done(Map.empty[String, WdlValue])
-        self ! Stop
+  private def started: Receive = {
+    LoggingReceive {
+      case Run(commandLine, backend, call, symbolStore) =>
+        log.info(self + " executing command: " + commandLine)
+        val tryOutputs = backend.executeCommand(commandLine, call, call.task.outputs, symbolStore)
+        val (successes, failures) = tryOutputs.partition { _._2.isSuccess }
+
+        if (failures.isEmpty) {
+          // Materialize the Successes.
+          val outputs = successes.map { case (key, value) => key -> value.get }
+          creator ! Done(call, outputs)
+        } else {
+          val errorMessages = TryUtil.stringifyFailures(failures.values).mkString("\n")
+
+          log.error(errorMessages)
+          creator ! Failed(errorMessages)
+        }
 
       case Stop =>
         context.stop(self)
@@ -71,4 +89,7 @@ class CallActor extends Actor {
       case unknown @_ =>
         sender ! InvalidOperation(s"Unexpected message $unknown.")
     }
+  }
+
+  override def receive = notStarted
 }

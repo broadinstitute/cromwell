@@ -1,6 +1,7 @@
 package cromwell
 
 import java.io.File
+import java.nio.file.Paths
 
 import cromwell.binding.types.{WdlFileType, WdlStringType}
 import cromwell.binding.WdlBinding
@@ -28,7 +29,7 @@ object Main {
         println("")
 
         val params = Map(
-          "in_file" -> WdlFile(new File("/usr/share/dict/words")),
+          "in_file" -> WdlFile(Paths.get("/usr/share/dict/words")),
           "pattern" -> WdlString("^...$")
         )
 

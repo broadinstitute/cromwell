@@ -15,7 +15,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
     assertSingleArgument(params).map {
       case f: WdlFile =>
-        WdlInteger(io.Source.fromFile(f.value).mkString.toInt)
+        WdlInteger(io.Source.fromFile(f.value.toFile).mkString.toInt)
       case e =>
         throw new UnsupportedOperationException("Unsupported value type " + e)
     }
@@ -24,7 +24,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
   override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
     assertSingleArgument(params).map {
       case f: WdlFile =>
-        WdlString(io.Source.fromFile(f.value).mkString)
+        WdlString(io.Source.fromFile(f.value.toFile).mkString)
       case s: WdlString if s.value == "stdout" =>
         read_string(Seq(Success(WdlFile(executionContext.stdout)))).get
       case e =>

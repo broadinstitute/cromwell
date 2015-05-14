@@ -693,4 +693,60 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "bind parenthesized expressions closer" in {
     constEval("(1+2)*3") shouldEqual WdlInteger(9)
   }
+
+  /* String-ification */
+  "Expression Evaluator string-ifier" should "Make strings out of + expressions" in {
+    expr("1 + 2").toString shouldEqual "1 + 2"
+  }
+  it should "Make strings out of - expressions" in {
+    expr("1 - 2").toString shouldEqual "1 - 2"
+  }
+  it should "Make strings out of * expressions" in {
+    expr("1 * 2").toString shouldEqual "1 * 2"
+  }
+  it should "Make strings out of / expressions" in {
+    expr("1 / 2").toString shouldEqual "1 / 2"
+  }
+  it should "Make strings out of % expressions" in {
+    expr("1 % 2").toString shouldEqual "1 % 2"
+  }
+  it should "Make strings out of < expressions" in {
+    expr("1 < 2").toString shouldEqual "1 < 2"
+  }
+  it should "Make strings out of <= expressions" in {
+    expr("1 <= 2").toString shouldEqual "1 <= 2"
+  }
+  it should "Make strings out of > expressions" in {
+    expr("1 > 2").toString shouldEqual "1 > 2"
+  }
+  it should "Make strings out of >= expressions" in {
+    expr("1 >= 2").toString shouldEqual "1 >= 2"
+  }
+  it should "Make strings out of == expressions" in {
+    expr("1 == 2").toString shouldEqual "1 == 2"
+  }
+  it should "Make strings out of != expressions" in {
+    expr("1 != 2").toString shouldEqual "1 != 2"
+  }
+  it should "Make strings out of && expressions" in {
+    expr("1 && 2").toString shouldEqual "1 && 2"
+  }
+  it should "Make strings out of || expressions" in {
+    expr("1 || 2").toString shouldEqual "1 || 2"
+  }
+  it should "Make strings out of expression with strings in it" in {
+    expr("\"a\" + \"b\"").toString shouldEqual "\"a\" + \"b\""
+  }
+  it should "Make strings out of expression with floats in it" in {
+    expr("1.1 + 2.2").toString shouldEqual "1.1 + 2.2"
+  }
+  it should "Make strings out of expression with identifiers in it" in {
+    expr("foo + bar").toString shouldEqual "foo + bar"
+  }
+  it should "Make strings out of member access expressions" in {
+    expr("a.b.c").toString shouldEqual "a.b.c"
+  }
+  it should "Make strings out of function calls" in {
+    expr("a(b, c)").toString shouldEqual "a(b, c)"
+  }
 }

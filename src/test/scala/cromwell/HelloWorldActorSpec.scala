@@ -15,7 +15,7 @@ import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object WorkflowActorSpec {
+object HelloWorldActorSpec {
   val config =
     """
       |akka {
@@ -29,7 +29,7 @@ object WorkflowActorSpec {
     """
       |task hello {
       |  command {
-      |    echo Hello ${addressee}!
+      |    echo "Hello ${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string("stdout")
@@ -43,14 +43,14 @@ object WorkflowActorSpec {
 }
 
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
-class WorkflowActorSpec extends CromwellSpec(ActorSystem("WorkflowActorSpec", ConfigFactory.parseString(WorkflowActorSpec.config))) {
+class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(HelloWorldActorSpec.config))) {
   import cromwell.binding.WdlImplicits._
 
-  val helloBinding = WdlBinding.process(WorkflowActorSpec.HelloWdl)
+  val helloBinding = WdlBinding.process(HelloWorldActorSpec.HelloWdl)
 
   def buildWorkflowActor(name: String = UUID.randomUUID().toString,
                          inputs: Map[FullyQualifiedName, WdlValue] = Map(Addressee -> "world".toWdlValue)): TestActorRef[WorkflowActor] = {
-    val binding = WdlBinding.process(WorkflowActorSpec.HelloWdl)
+    val binding = WdlBinding.process(HelloWorldActorSpec.HelloWdl)
     val props = WorkflowActor.buildWorkflowActorProps(binding, inputs)
     TestActorRef(props, "Workflow-" + name)
   }

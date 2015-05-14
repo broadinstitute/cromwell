@@ -1,6 +1,6 @@
 package cromwell.engine.backend.local
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.{Writer, BufferedWriter, File, FileWriter}
 
 import cromwell.binding.values.WdlValue
 import cromwell.binding.{Call, TaskOutput}
@@ -13,21 +13,35 @@ import scala.util.Try
 class LocalBackend extends Backend {
 
   override def executeCommand(commandLine: String, call: Call, taskOutputs: Set[TaskOutput], symbolStore: SymbolStore): Map[String, Try[WdlValue]] = {
+
+    implicit class FlushingAndClosingWriter(writer: Writer) {
+      /** Convenience method to flush and close in one shot. */
+      def flushAndClose() = {
+        writer.flush()
+        writer.close()
+      }
+    }
+
+    def buildFileAndWriter(filename: String): (File, Writer) = {
+      val file = new File(filename)
+      val writer = new BufferedWriter(new FileWriter(file))
+      (file, writer)
+    }
+
     import sys.process._
 
     // TODO make these proper temp files, but for now it's preferable
-    // TODO to leave these in a deterministic place.
-    val stdoutFile = new File("stdout.txt")
-    val stderrFile = new File("stderr.txt")
-    val stdout = new BufferedWriter(new FileWriter(stdoutFile))
-    val stderr = new BufferedWriter(new FileWriter(stderrFile))
+    // TODO to leave them in a deterministic place.
+    val (stdoutFile, stdoutWriter) = buildFileAndWriter("stdout.txt")
+    val (stderrFile, stderrWriter) = buildFileAndWriter("stderr.txt")
+    val (commandFile, commandWriter) = buildFileAndWriter("command.txt")
 
-    commandLine ! ProcessLogger(stdout write, stderr write)
+    commandWriter.write(commandLine)
+    commandWriter.flushAndClose()
 
-    Seq(stdout, stderr).foreach { writer =>
-      writer.flush()
-      writer.close()
-    }
+    s"/bin/bash ${commandFile.getAbsolutePath}" ! ProcessLogger(stdoutWriter write, stderrWriter write)
+
+    Seq(stdoutWriter, stderrWriter).foreach { _.flushAndClose() }
 
     taskOutputs.map { taskOutput =>
       taskOutput.name -> taskOutput.expression.evaluate(

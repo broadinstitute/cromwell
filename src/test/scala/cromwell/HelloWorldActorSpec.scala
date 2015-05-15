@@ -6,17 +6,17 @@ import akka.actor.ActorSystem
 import akka.actor.SupervisorStrategy.Stop
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
-import cromwell.binding.values.{WdlString, WdlValue}
-import cromwell.binding.{FullyQualifiedName, WdlBinding}
+import cromwell.binding.values.{WdlInteger, WdlString, WdlValue}
+import cromwell.binding.{WorkflowInputs, FullyQualifiedName, WdlBinding}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
-
+import HelloWorldActorSpec._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object HelloWorldActorSpec {
-  val config =
+  val Config =
     """
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
@@ -40,17 +40,20 @@ object HelloWorldActorSpec {
       |  call hello
       |}
     """.stripMargin
+
+  val Addressee = "hello.hello.addressee"
+  val HelloInputs: Map[FullyQualifiedName, WdlValue] = Map(Addressee -> WdlString("world"))
 }
 
-// Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
-class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(HelloWorldActorSpec.config))) {
-  import cromwell.binding.WdlImplicits._
 
-  val helloBinding = WdlBinding.process(HelloWorldActorSpec.HelloWdl)
+// Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
+class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(Config))) {
+
+  val helloBinding = WdlBinding.process(HelloWdl)
 
   def buildWorkflowActor(name: String = UUID.randomUUID().toString,
-                         inputs: Map[FullyQualifiedName, WdlValue] = Map(Addressee -> "world".toWdlValue)): TestActorRef[WorkflowActor] = {
-    val binding = WdlBinding.process(HelloWorldActorSpec.HelloWdl)
+                         inputs: Map[FullyQualifiedName, WdlValue] = HelloInputs): TestActorRef[WorkflowActor] = {
+    val binding = WdlBinding.process(HelloWdl)
     val props = WorkflowActor.buildWorkflowActorProps(binding, inputs)
     TestActorRef(props, "Workflow-" + name)
   }
@@ -59,7 +62,6 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
     shutdown()
   }
 
-  val Addressee = "hello.hello.addressee"
   val TestExecutionTimeout = 500 milliseconds
 
   "A WorkflowActor" should {
@@ -94,7 +96,7 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
 
     "fail to construct with inputs of the wrong type" in {
       intercept[UnsatisfiedInputsException] {
-        buildWorkflowActor(inputs = Map(Addressee -> 3.toWdlValue))
+        buildWorkflowActor(inputs = Map(Addressee -> WdlInteger(3)))
       }
     }
 

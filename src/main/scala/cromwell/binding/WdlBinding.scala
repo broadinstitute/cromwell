@@ -4,6 +4,7 @@ import java.io.File
 
 import cromwell.binding.command._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlType}
+import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 
@@ -22,7 +23,6 @@ import scala.collection.JavaConverters._
  * }}}
  */
 object WdlBinding {
-
   /**
    * Given a pointer to a WDL file, parse the text and build Workflow and Task
    * objects.
@@ -36,9 +36,9 @@ object WdlBinding {
    */
   def process(wdlFile: File): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlFile))
 
-  def process(wdlString: String): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlString, "string"))
+  def process(wdlSource: WdlSource): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlSource, "string"))
 
-  def process(wdlString: String, resource: String): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlString, resource))
+  def process(wdlSource: WdlSource, resource: String): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlSource, resource))
 
   /**
    * Given a WDL file, this will simply parse it and return the syntax tree
@@ -52,10 +52,10 @@ object WdlBinding {
     getAst(wdlContents, wdlFile.getName)
   }
 
-  def getAst(wdlString: String, resource: String): Ast = {
+  def getAst(wdlSource: WdlSource, resource: String): Ast = {
     val parser = new WdlParser()
-    val tokens = parser.lex(wdlString, resource)
-    val syntaxErrorFormatter = new WdlSyntaxErrorFormatter(wdlString)
+    val tokens = parser.lex(wdlSource, resource)
+    val syntaxErrorFormatter = new WdlSyntaxErrorFormatter(wdlSource)
     validateAst(
       parser.parse(tokens, syntaxErrorFormatter).toAst.asInstanceOf[Ast],
       syntaxErrorFormatter

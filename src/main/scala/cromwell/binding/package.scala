@@ -13,5 +13,7 @@ import cromwell.binding.values.WdlValue
  */
 
 package object binding {
+  type WdlSource = String
+  type WorkflowInputs = Map[FullyQualifiedName, WdlValue]
   type FullyQualifiedName = String
 }

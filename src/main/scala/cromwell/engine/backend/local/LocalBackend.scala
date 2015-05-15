@@ -22,7 +22,7 @@ class LocalBackend extends Backend {
     commandWriter.write(commandLine)
     commandWriter.flushAndClose()
 
-    s"/bin/bash ${commandFile.getAbsolutePath}" ! ProcessLogger(stdoutWriter write, stderrWriter write)
+    s"/bin/bash $commandFile" ! ProcessLogger(stdoutWriter write, stderrWriter write)
 
     Seq(stdoutWriter, stderrWriter).foreach {
       _.flushAndClose()

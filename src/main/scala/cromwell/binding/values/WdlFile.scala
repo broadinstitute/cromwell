@@ -1,16 +1,21 @@
 package cromwell.binding.values
 
-import java.io.File
+import java.nio.file.{Paths, Path}
 import cromwell.binding.types.WdlFileType
+
+object WdlFile {
+  def apply(value: String): WdlFile = WdlFile(Paths.get(value))
+}
 
 import scala.util.{Success, Try}
 
-case class WdlFile(value: File) extends WdlPrimitive {
+case class WdlFile(value: Path) extends WdlPrimitive {
   val wdlType = WdlFileType
   override def add(rhs: WdlValue): Try[WdlValue] = {
     rhs match {
-      case r:WdlString => Success(WdlFile(new File(value + r.value)))
-      case r:WdlFile => Success(WdlFile(new File(value + r.value.toString)))
+      // The goofiness with the value.toStrings are because we want concatentation and not Path.resolve() logic
+      case r:WdlString => Success(WdlFile(Paths.get(value.toString, r.value)))
+      case r:WdlFile => Success(WdlFile(Paths.get(value.toString, r.value.toString)))
       case _ => invalid(s"$value + $rhs")
     }
   }
@@ -21,5 +26,5 @@ case class WdlFile(value: File) extends WdlPrimitive {
       case _ => invalid(s"$value == $rhs")
     }
   }
-  override def asString = value.getAbsolutePath
+  override def asString = value.toString
 }

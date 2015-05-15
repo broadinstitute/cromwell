@@ -5,7 +5,6 @@ import java.io.{PrintWriter, StringWriter}
 import scala.util.{Failure, Try}
 
 object TryUtil {
-
   def stringifyFailures[T](failure: Try[T]): String = {
     val writer = new PrintWriter(new StringWriter())
     failure.recover { case e => e.printStackTrace(writer)}

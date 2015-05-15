@@ -1,6 +1,7 @@
 package cromwell
 
 import java.io.File
+import java.nio.file.Paths
 
 import cromwell.binding.types.{WdlStringType, WdlIntegerType}
 import cromwell.binding.values._
@@ -605,34 +606,34 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
 
   "Expression Evaluator with File as LHS" should "File + String = File" in {
-    WdlFile(new File("/etc")).add(WdlString("/sudoers")).get shouldEqual WdlFile(new File("/etc/sudoers"))
+    WdlFile(Paths.get("/etc")).add(WdlString("/sudoers")).get shouldEqual WdlFile(Paths.get("/etc/sudoers"))
   }
   it should "File + File = File" in {
-    WdlFile(new File("/etc")).add(WdlFile(new File("/sudoers"))).get shouldEqual WdlFile(new File("/etc/sudoers"))
+    WdlFile(Paths.get("/etc")).add(WdlFile(Paths.get("/sudoers"))).get shouldEqual WdlFile(Paths.get("/etc/sudoers"))
   }
   it should "File + Integer (error)" in {
-    WdlFile(new File("/etc")).add(WdlInteger(1)) match {
+    WdlFile(Paths.get("/etc")).add(WdlInteger(1)) match {
       case Failure(ex) => // Expected
       case _ => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
   it should "File == File (return true)" in {
-    WdlFile(new File("/etc")).equals(WdlFile(new File("/etc"))).get shouldEqual WdlBoolean.True
+    WdlFile(Paths.get("/etc")).equals(WdlFile(Paths.get("/etc"))).get shouldEqual WdlBoolean.True
   }
   it should "File == File (return false)" in {
-    WdlFile(new File("/etc")).equals(WdlFile(new File("/etc2"))).get shouldEqual WdlBoolean.False
+    WdlFile(Paths.get("/etc")).equals(WdlFile(Paths.get("/etc2"))).get shouldEqual WdlBoolean.False
   }
   it should "File == String (return true)" in {
-    WdlFile(new File("/etc")).equals(WdlString("/etc")).get shouldEqual WdlBoolean.True
+    WdlFile(Paths.get("/etc")).equals(WdlString("/etc")).get shouldEqual WdlBoolean.True
   }
   it should "File == Integer (error)" in {
-    WdlFile(new File("/etc")).equals(WdlInteger(1)) match {
+    WdlFile(Paths.get("/etc")).equals(WdlInteger(1)) match {
       case Failure(ex) => // Expected
       case _ => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
   it should "File != File (return true)" in {
-    WdlFile(new File("/etc")).notEquals(WdlFile(new File("/etc2"))).get shouldEqual WdlBoolean.True
+    WdlFile(Paths.get("/etc")).notEquals(WdlFile(Paths.get("/etc2"))).get shouldEqual WdlBoolean.True
   }
 
   "Expression Evaluator with Object as LHS" should "Lookup object string attribute" in {

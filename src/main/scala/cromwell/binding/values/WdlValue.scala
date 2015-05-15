@@ -1,23 +1,29 @@
 package cromwell.binding.values
 
+import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlType
+
+import scala.util.{Success, Try, Failure}
 
 trait WdlValue {
   val wdlType: WdlType
-  def add(rhs: WdlValue): WdlValue
-  def subtract(rhs: WdlValue): WdlValue
-  def multiply(rhs: WdlValue): WdlValue
-  def divide(rhs: WdlValue): WdlValue
-  def mod(rhs: WdlValue): WdlValue
-  def equals(rhs: WdlValue): WdlValue
-  def notEquals(rhs: WdlValue): WdlValue
-  def lessThan(rhs: WdlValue): WdlValue
-  def lessThanOrEqual(rhs: WdlValue): WdlValue
-  def greaterThan(rhs: WdlValue): WdlValue
-  def greaterThanOrEqual(rhs: WdlValue): WdlValue
-  def or(rhs: WdlValue): WdlValue
-  def and(rhs: WdlValue): WdlValue
-  def not: WdlValue
-  def unaryPlus: WdlValue
-  def unaryMinus: WdlValue
+  def invalid(operation: String) = Failure(new WdlExpressionException(s"Cannot perform operation: $operation"))
+  def add(rhs: WdlValue): Try[WdlValue] = invalid(s"$this + $rhs")
+  def subtract(rhs: WdlValue): Try[WdlValue] = invalid(s"$this - $rhs")
+  def multiply(rhs: WdlValue): Try[WdlValue] = invalid(s"$this * $rhs")
+  def divide(rhs: WdlValue): Try[WdlValue] = invalid(s"$this / $rhs")
+  def mod(rhs: WdlValue): Try[WdlValue] = invalid(s"$this % $rhs")
+  def equals(rhs: WdlValue): Try[WdlBoolean] = invalid(s"$this == $rhs")
+  def notEquals(rhs: WdlValue): Try[WdlBoolean] = equals(rhs).map{x => WdlBoolean(!x.value)}
+  def lessThan(rhs: WdlValue): Try[WdlBoolean] = invalid(s"$this < $rhs")
+  def lessThanOrEqual(rhs: WdlValue): Try[WdlBoolean] =
+    Try(WdlBoolean(Seq(lessThan _, equals _).exists{ p => p(rhs).get == WdlBoolean.True }))
+  def greaterThan(rhs: WdlValue): Try[WdlBoolean] = invalid(s"$this > $rhs")
+  def greaterThanOrEqual(rhs: WdlValue): Try[WdlBoolean] =
+    Try(WdlBoolean(Seq(greaterThan _, equals _).exists{ p => p(rhs).get == WdlBoolean.True }))
+  def or(rhs: WdlValue): Try[WdlBoolean] = invalid(s"$this || $rhs")
+  def and(rhs: WdlValue): Try[WdlBoolean] = invalid(s"$this && $rhs")
+  def not: Try[WdlValue] = invalid(s"!$this")
+  def unaryPlus: Try[WdlValue] = invalid(s"+$this")
+  def unaryMinus: Try[WdlValue] = invalid(s"-$this")
 }

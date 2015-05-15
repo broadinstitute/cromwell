@@ -90,6 +90,10 @@ object WdlBinding {
    * 1) All `Call` blocks reference tasks that exist
    * 2) All `Call` inputs reference actual variables on the corresponding task
    * 3) Tasks do not have duplicate inputs
+   * 4) `Call` input expressions (right-hand side) should only use the MemberAccess
+   *    syntax (e.g: x.y) on WdlObjects (which include other `Call` invocations)
+   * 5) `Call` input expressions (right-hand side) should only reference identifiers
+   *    that will resolve when evaluated
    *
    * @param ast AST to validate
    */

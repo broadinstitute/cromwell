@@ -76,9 +76,11 @@ object WdlExpression {
     }
   }
 
-  def fromString(expression: String): WdlExpression = {
+  def fromString(expression: WdlSource): WdlExpression = {
     val tokens = parser.lex(expression, "string")
-    new WdlExpression(parser.parse_e(tokens, new WdlSyntaxErrorFormatter(expression)).toAst)
+    val terminalMap = (tokens.asScala.toVector map {(_, expression)}).toMap
+    val parseTree = parser.parse_e(tokens, new WdlSyntaxErrorFormatter(terminalMap))
+    new WdlExpression(parseTree.toAst)
   }
 }
 

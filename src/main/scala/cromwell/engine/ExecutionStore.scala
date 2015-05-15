@@ -17,7 +17,7 @@ class ExecutionStore(binding: WdlBinding) {
 
   def updateStatus(call: Call, status: ExecutionStatus.Value): Unit = table += (call -> status)
 
-  var table = binding.workflow.calls.map { call => call -> ExecutionStatus.NotStarted }.toMap
+  var table = binding.workflows.head.calls.map { call => call -> ExecutionStatus.NotStarted }.toMap
 
   /**
    * Return all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,

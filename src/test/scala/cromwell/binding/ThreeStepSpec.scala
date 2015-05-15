@@ -1,31 +1,43 @@
-package cromwell
+package cromwell.binding
 
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType}
-import cromwell.binding.values.{WdlString, WdlFile}
+import cromwell.binding.values.{WdlFile, WdlString}
 import org.scalatest.{FlatSpec, Matchers}
 
-class BindingSpec extends FlatSpec with Matchers with WdlThreeStepFixture {
-  "Binding Workflow" should "Have correct name for workflow" in {
-    binding.workflow.name shouldEqual "three_step"
+class ThreeStepSpec extends FlatSpec with Matchers with ThreeStepFixture {
+  "Binding Workflow" should "Have one workflow definition" in {
+    binding.workflows.size shouldEqual 1
+  }
+  it should "Have zero imported workflow definition" in {
+    binding.importedWorkflows.size shouldEqual 0
+  }
+  it should "Have correct name for workflow" in {
+    binding.workflows.head.name shouldEqual "three_step"
   }
   it should "Have correct FQN" in {
-    binding.workflow.fullyQualifiedName shouldEqual "three_step"
+    binding.workflows.head.fullyQualifiedName shouldEqual "three_step"
   }
   it should "Have no parent" in {
-    binding.workflow.parent shouldEqual None
+    binding.workflows.head.parent shouldEqual None
   }
   it should "Have three 'Call' objects" in {
-    binding.workflow.calls.size shouldEqual 3
+    binding.workflows.head.calls.size shouldEqual 3
+  }
+  it should "Have three outputs" in {
+    binding.workflows.head.outputs.size shouldEqual 3
   }
 
   "Binding Tasks" should "Have three task definitions" in {
     binding.tasks.size shouldEqual 3
   }
+  it should "Have zero imported tasks" in {
+    binding.importedTasks.size shouldEqual 0
+  }
   it should "Have a task with name 'wc'" in {
     val task = binding.findTask("wc") getOrElse fail("No 'wc' task found")
     task.name shouldEqual "wc"
     task.inputs shouldEqual Map("in_file" -> WdlFileType)
-    task.command.instantiate(Map("in_file" -> WdlFile("/path/to/file"))).get shouldEqual "wc -l /path/to/file"
+    task.command.instantiate(Map("in_file" -> WdlFile("/path/to/file"))).get shouldEqual "cat /path/to/file | wc -l"
     task.outputs.size shouldEqual 1
     task.outputs.head.name shouldEqual "count"
     task.outputs.head.wdlType shouldEqual WdlIntegerType

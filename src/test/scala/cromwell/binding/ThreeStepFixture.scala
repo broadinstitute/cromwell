@@ -1,8 +1,6 @@
-package cromwell
+package cromwell.binding
 
-import cromwell.binding.WdlBinding
-
-trait WdlThreeStepFixture {
+trait ThreeStepFixture {
   val binding = WdlBinding.process(
     """
       |task ps {
@@ -25,7 +23,7 @@ trait WdlThreeStepFixture {
       |
       |task wc {
       |  command {
-      |    wc -l ${File in_file}
+      |    cat ${File in_file} | wc -l
       |  }
       |  output {
       |    Int count = read_int("stdout")

@@ -54,7 +54,7 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
   def buildWorkflowActor(name: String = UUID.randomUUID().toString,
                          inputs: Map[FullyQualifiedName, WdlValue] = HelloInputs): TestActorRef[WorkflowActor] = {
     val binding = WdlBinding.process(HelloWdl)
-    val props = WorkflowActor.buildWorkflowActorProps(binding, inputs)
+    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, inputs)
     TestActorRef(props, "Workflow-" + name)
   }
 

@@ -24,7 +24,7 @@ object WorkflowActor {
   case class InvalidOperation(message: String) extends WorkflowActorMessage
   case class Failed(failure: String) extends WorkflowActorMessage
 
-  def buildWorkflowActorProps(binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]): Props = {
+  def buildWorkflowActorProps(id: WorkflowId, binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]): Props = {
     // Check inputs for presence and type compatibility
     val diagnostics = binding.workflow.inputs.collect {
       case requiredInput if !actualInputs.contains(requiredInput._1) =>
@@ -38,14 +38,14 @@ object WorkflowActor {
 
     if (diagnostics.nonEmpty) throw new UnsatisfiedInputsException(diagnostics)
 
-    Props(new WorkflowActor(binding, actualInputs))
+    Props(new WorkflowActor(id, binding, actualInputs))
   }
 }
 
 /** Represents the root of a single workflow instance, not a manager of multiple
   * workflows.
   */
-class WorkflowActor private(binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]) extends Actor {
+case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]) extends Actor {
 
   import WorkflowActor._
 

@@ -17,7 +17,7 @@ class TestWorkflowManager extends WorkflowManager {
   override type Workflow = String
   override val backend = new LocalBackend
 
-  override def generateWorkflow(wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow] = { Try(TestWorkflowManager.WorkflowString)}
+  override def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow] = { Try(TestWorkflowManager.WorkflowString)}
   override def workflowStatus(id: WorkflowId): Option[WorkflowState] = {Option(WorkflowRunning)}
 }
 

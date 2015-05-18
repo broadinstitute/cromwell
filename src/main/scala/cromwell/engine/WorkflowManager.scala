@@ -2,7 +2,7 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorSystem, ActorRef}
+import akka.actor.{Props, Actor, ActorSystem, ActorRef}
 import akka.pattern.pipe
 import cromwell.util.WriteOnceStore
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -48,7 +48,7 @@ trait WorkflowManager {
 trait ActorWorkflowManager extends WorkflowManager {
   override type Workflow = ActorRef // TODO: In a world where Akka Typed is no longer experimental switch to that
   override val backend = new LocalBackend
-  val actorSystem = ActorSystem("cromwell")
+  implicit def actorSystem: ActorSystem
 
   override def generateWorkflow(wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow] = {
     val binding = Try(WdlBinding.process(wdl))
@@ -71,6 +71,8 @@ object WorkflowManagerActor {
   sealed trait WorkflowManagerMessage
   case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
+
+  def props(actorSystem: ActorSystem): Props = Props(classOf[WorkflowManagerActor], actorSystem)
 }
 
 /**
@@ -80,7 +82,7 @@ object WorkflowManagerActor {
  *
  * FIXME: It might be nice to have a notion of a actor-based workflow manager which didn't have actor-based workflows but I doubt we'll care any time soon
  */
-class WorkflowManagerActor extends Actor with ActorWorkflowManager {
+case class WorkflowManagerActor(actorSystem: ActorSystem) extends Actor with ActorWorkflowManager {
   def receive = {
     case SubmitWorkflow(wdl, inputs) => handleRequest(sender(), Future {submitWorkflow(wdl, inputs)})
     case WorkflowStatus(id) => handleRequest(sender(), Future {workflowStatus(id)})

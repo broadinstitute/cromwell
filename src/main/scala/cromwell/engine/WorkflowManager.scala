@@ -74,7 +74,7 @@ object WorkflowManagerActor {
   case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
-  def props(actorSystem: ActorSystem): Props = Props(classOf[WorkflowManagerActor], actorSystem)
+  def props: Props = Props(classOf[WorkflowManagerActor])
 }
 
 /**
@@ -84,7 +84,9 @@ object WorkflowManagerActor {
  *
  * FIXME: It might be nice to have a notion of a actor-based workflow manager which didn't have actor-based workflows but I doubt we'll care any time soon
  */
-case class WorkflowManagerActor(actorSystem: ActorSystem) extends Actor with ActorWorkflowManager {
+class WorkflowManagerActor extends Actor with ActorWorkflowManager {
+  override val actorSystem = context.system
+  
   def receive = {
     case SubmitWorkflow(wdl, inputs) => handleRequest(sender(), Future {submitWorkflow(wdl, inputs)})
     case WorkflowStatus(id) => handleRequest(sender(), Future {workflowStatus(id)})

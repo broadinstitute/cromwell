@@ -25,7 +25,7 @@ trait WorkflowManager {
 
   val backend: Backend
 
-  def generateWorkflow(wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow]
+  def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow]
   def workflowStatus(id: WorkflowId): Option[WorkflowState]
 
   private val workflowStore = new WriteOnceStore[WorkflowId, Workflow]
@@ -34,9 +34,11 @@ trait WorkflowManager {
    * Generates a workflow with an ID, inserts it into the store and returns the pair.
    */
   def submitWorkflow(wdl: WdlSource, inputs: WorkflowInputs): Try[ManagedWorkflow] = {
-    val managedWorkflow = generateWorkflow(wdl, inputs) map {x => ManagedWorkflow(UUID.randomUUID(), x)}
-    // If we successfully generated a workflow and successfully inserted it into the store, return the workflow/id combo
-    for (wf <- managedWorkflow; m <- workflowStore.insert(wf.id, wf.workflow)) yield wf
+    val workflowId = UUID.randomUUID()
+    for {
+      wf <- generateWorkflow(workflowId, wdl, inputs)
+      x <- workflowStore.insert(workflowId, wf) // Come for the side effect, stay for the Try
+    } yield ManagedWorkflow(workflowId, wf)
   }
 
   def workflowById(id: WorkflowId): Option[Workflow] = workflowStore.toMap.get(id)
@@ -50,9 +52,9 @@ trait ActorWorkflowManager extends WorkflowManager {
   override val backend = new LocalBackend
   implicit def actorSystem: ActorSystem
 
-  override def generateWorkflow(wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow] = {
+  override def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow] = {
     val binding = Try(WdlBinding.process(wdl))
-    binding map {x => actorSystem.actorOf(WorkflowActor.buildWorkflowActorProps(x, inputs))}
+    binding map {x => actorSystem.actorOf(WorkflowActor.buildWorkflowActorProps(id, x, inputs))}
   }
 
   override def workflowStatus(id: WorkflowId): Option[WorkflowState] = workflowById(id) map {x => workflowState(x)}

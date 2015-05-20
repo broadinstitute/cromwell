@@ -10,6 +10,7 @@ import cromwell.util.TryUtil
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Try
 
 
 /**
@@ -25,6 +26,9 @@ object WorkflowActor {
   case class InvalidOperation(message: String) extends WorkflowActorMessage
   case class Failed(failure: String) extends WorkflowActorMessage
   case object CheckExecutionStatus extends WorkflowActorMessage
+  case object GetOutputs extends WorkflowActorMessage
+  case object GetStatus extends WorkflowActorMessage
+  case class Status(status: WorkflowState) extends WorkflowActorMessage
 
   def buildWorkflowActorProps(id: WorkflowId, binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]): Props = {
     // Check inputs for presence and type compatibility
@@ -51,9 +55,6 @@ case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInpu
 
   import WorkflowActor._
 
-  // That which started the workflow, a role which has not yet been defined more specifically.
-  private var _primeMover: Option[ActorRef] = None
-
   override def receive = notStarted
 
   private var maybeSymbolStore: Option[SymbolStore] = None
@@ -61,12 +62,9 @@ case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInpu
   private var maybeBackend: Option[Backend] = None
   private val log = Logging(context.system, this)
 
-
   private def notStarted: Receive = {
     LoggingReceive {
-
       case Start(backend) =>
-        _primeMover = Option(sender())
         maybeExecutionStore = Option(new ExecutionStore(binding))
         maybeSymbolStore = Option(new SymbolStore(binding, actualInputs))
         maybeBackend = Option(backend)
@@ -78,8 +76,7 @@ case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInpu
           message = CheckExecutionStatus)(context.system.dispatcher)
 
         context.become(started)
-        primeMover ! Started
-
+        context.parent ! Started
 
       case bad@_ =>
         sender ! InvalidOperation(s"Received message $bad before any Start message")
@@ -99,9 +96,11 @@ case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInpu
   private def started: Receive = {
     LoggingReceive {
 
+      // TODO: I'd prefer that receive partial functions are expressable in one (perhaps 2) lines, even if that means pulling stuff into a func
+
       case CheckExecutionStatus =>
         if (executionStore.isDone) {
-          primeMover ! Done(symbolStore)
+          context.parent ! Done(symbolStore)
         } else {
           val runnableCalls = executionStore.runnableCalls
           if (runnableCalls.nonEmpty) {
@@ -121,9 +120,7 @@ case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInpu
         // TODO This should message store actors to synchronize updates.
         // TODO It doesn't seem right to write back any outputs if writing back some
         // TODO outputs fails.
-        val addedEntries = callOutputs.map { callOutput =>
-          symbolStore.addOutputValue(call.fullyQualifiedName, callOutput._1, Some(callOutput._2), callOutput._2.wdlType)
-        }
+        val addedEntries = callOutputs map {o => addOutputValueToSymbolStore(call, o)}
 
         val failureMessages = TryUtil.stringifyFailures(addedEntries)
         if (failureMessages.isEmpty) {
@@ -137,14 +134,17 @@ case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInpu
 
       case CallActor.Failed(call, failure) =>
         executionStore.updateStatus(call, ExecutionStatus.Failed)
-        primeMover ! Failed(failure)
+        context.parent ! Failed(failure)
 
-      case unknown@_ =>
-        primeMover ! InvalidOperation(s"Unknown/invalid message '$unknown'")
+      case GetOutputs => sender() ! symbolStore.getOutputs
+
+      case unknown@_ => context.parent ! InvalidOperation(s"Unknown/invalid message '$unknown'")
     }
   }
 
-  private def primeMover = _primeMover.get
+  private def addOutputValueToSymbolStore(call: Call, callOutput: (FullyQualifiedName, WdlValue)): Try[Unit] = {
+    symbolStore.addOutputValue(call.fullyQualifiedName, callOutput._1, Some(callOutput._2), callOutput._2.wdlType)
+  }
 
   private def startCallActor(symbolStore: SymbolStore, call: Call): Unit = {
     val callActor = context.actorOf(CallActor.props, "CallActor-" + call.name)

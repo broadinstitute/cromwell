@@ -1,6 +1,6 @@
 package cromwell.util
 
-import java.io.{BufferedWriter, Writer, FileWriter, File}
+import java.io.{BufferedWriter, File, FileWriter, Writer}
 import java.nio.file.Path
 
 object FileUtil {
@@ -24,5 +24,14 @@ object FileUtil {
       writer.flush()
       writer.close()
     }
+  }
+
+  /** Read an entire file into a string, closing the underlying stream. */
+  def slurp(path: Path): String = slurp(path.toFile)
+
+  /** Read an entire file into a string, closing the underlying stream. */
+  def slurp(file: File): String = {
+    val source = io.Source.fromFile(file)
+    try source.mkString finally source.close()
   }
 }

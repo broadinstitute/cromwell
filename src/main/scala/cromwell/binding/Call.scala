@@ -1,6 +1,7 @@
 package cromwell.binding
 
 import cromwell.binding.types.WdlType
+import cromwell.parser.WdlParser.Terminal
 
 /**
  * Represents a `call` block in a WDL workflow.  Calls wrap tasks
@@ -34,6 +35,36 @@ case class Call(alias: Option[String], task: Task, inputMappings: Map[String, Wd
    * @return Map[String, WdlType] representing each task-local input
    */
   def unsatisfiedInputs: Map[String, WdlType] = task.inputs.filterNot { case (k, v) => inputMappings.contains(k) }
-  
+
   override def toString: String = s"[Call name=$name, task=$task]"
+
+  /**
+   * Find all calls upon which this call immediately depends, i.e. the result of this
+   * does not include transitive dependencies.  Currently this only works for member
+   * access expressions with a literal LHS, e.g.:
+   *
+   * {{{
+   *   call cgrep {
+   *     input: in_file=ps.procs
+   *   }
+   * }}}
+   *
+   * Here `ps` would be the prerequisite call for `cgrep`.
+   *
+   * Calls are de-duplicated into a returned `Set`, so if one call expresses dependencies on
+   * a prerequisite call multiple times (i.e. has multiple inputs depending on multiple outputs
+   * of a prerequisite call), that prerequisite call will appear only once in the output.
+   */
+  def prerequisiteCalls(): Set[Call] = {
+    val allCalls = parent.get.asInstanceOf[Workflow].calls
+
+    val prerequisiteCalls = for {
+      inputExpression <- inputMappings.values
+      inputAst <- WdlBinding.findAsts(inputExpression.ast, "MemberAccess")
+      prerequisiteCallName = inputAst.getAttribute("lhs").asInstanceOf[Terminal].getSourceString
+      prerequisiteCall <- allCalls if prerequisiteCall.name == prerequisiteCallName
+    } yield prerequisiteCall
+
+    prerequisiteCalls.toSet
+  }
 }

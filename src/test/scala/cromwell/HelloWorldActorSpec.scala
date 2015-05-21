@@ -3,15 +3,15 @@ package cromwell
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import akka.actor.SupervisorStrategy.Stop
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
+import cromwell.HelloWorldActorSpec._
 import cromwell.binding.values.{WdlInteger, WdlString, WdlValue}
-import cromwell.binding.{WorkflowInputs, FullyQualifiedName, WdlBinding}
+import cromwell.binding.{FullyQualifiedName, WdlBinding}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
-import HelloWorldActorSpec._
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -69,21 +69,22 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
     "start" in {
       within(TestExecutionTimeout) {
         val workflowActor = buildWorkflowActor("started")
-        workflowActor ! Start(new LocalBackend)
-        expectMsgPF() {
-          case Started => ()
-        }
-        // TODO this is not examining message flow between workflow and task actors.
-        expectMsgPF() {
-          case Failed(t) =>
-            fail(t)
-          case Done(symbolStore) =>
-            val maybeOutput = symbolStore.getOutputByFullyQualifiedName("hello.hello.salutation")
+        startingCallsFilter("hello").intercept {
+          workflowActor ! Start(new LocalBackend)
+          expectMsgPF() {
+            case Started => ()
+          }
+          expectMsgPF() {
+            case Failed(t) =>
+              fail(t)
+            case Done(symbolStore) =>
+              val maybeOutput = symbolStore.getOutputByFullyQualifiedName("hello.hello.salutation")
 
-            val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
-            val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
-            val actualOutput = wdlValue.asInstanceOf[WdlString].value
-            actualOutput shouldEqual "Hello world!"
+              val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
+              val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
+              val actualOutput = wdlValue.asInstanceOf[WdlString].value.trim
+              actualOutput shouldEqual "Hello world!"
+          }
         }
       }
     }
@@ -97,40 +98,6 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
     "fail to construct with inputs of the wrong type" in {
       intercept[UnsatisfiedInputsException] {
         buildWorkflowActor(inputs = Map(Addressee -> WdlInteger(3)))
-      }
-    }
-
-    "fail to stop when not first started" in {
-      within(TestExecutionTimeout) {
-        val probe = TestProbe()
-        val workflowActor = buildWorkflowActor("fail to stop")
-        probe watch workflowActor
-        workflowActor ! Stop
-        expectMsgPF() {
-          case InvalidOperation(_) => ()
-        }
-      }
-    }
-
-    "stop" in {
-      within(TestExecutionTimeout) {
-        val probe = TestProbe()
-        val workflowActor = buildWorkflowActor("stop")
-        probe watch workflowActor
-
-        ignoreMsg {
-          case Done(_) => true
-        }
-        workflowActor ! Start(new LocalBackend)
-        workflowActor ! Stop
-        expectMsgPF() {
-          case Started => ()
-        }
-        expectMsgPF() {
-          case Stopped => ()
-        }
-
-        probe expectTerminated workflowActor
       }
     }
   }

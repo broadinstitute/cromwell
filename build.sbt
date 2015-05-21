@@ -55,4 +55,6 @@ val customMergeStrategy: String => MergeStrategy = {
 
 mergeStrategy in assembly := customMergeStrategy
 
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+
 

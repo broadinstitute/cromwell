@@ -6,11 +6,12 @@ import scala.util.{Failure, Try}
 
 object TryUtil {
   def stringifyFailures[T](failure: Try[T]): String = {
-    val writer = new PrintWriter(new StringWriter())
+    val stringWriter = new StringWriter()
+    val writer = new PrintWriter(stringWriter)
     failure.recover { case e => e.printStackTrace(writer)}
     writer.flush()
     writer.close()
-    writer.toString
+    stringWriter.toString
   }
 
   def stringifyFailures[T](possibleFailures: Traversable[Try[T]]): Traversable[String] =

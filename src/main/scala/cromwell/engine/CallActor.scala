@@ -1,6 +1,5 @@
 package cromwell.engine
 
-import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import cromwell.binding.Call
@@ -21,10 +20,9 @@ object CallActor {
   case class Start(call: Call, backend: Backend, symbolStore: SymbolStore) extends CallActorMessage
   // Does this message need to pass along the SymbolStore for output expression evaluation?
   case class Run(commandLine: String, backend: Backend, call: Call, symbolStore: SymbolStore) extends CallActorMessage
-  case object Started extends CallActorMessage
+  case class Started(call: Call) extends CallActorMessage
   case class Done(call: Call, outputs: Map[String, WdlValue]) extends CallActorMessage
-  case class Failed(failure: String) extends CallActorMessage
-  case object Stopped extends CallActorMessage
+  case class Failed(call: Call, failure: String) extends CallActorMessage
 
   def props: Props = Props(classOf[CallActor])
 }
@@ -53,7 +51,7 @@ class CallActor extends Actor {
           case Success(commandLine) =>
             _creator = Option(sender())
             self ! Run(commandLine, backend, call, symbolStore)
-            creator ! Started
+            creator ! Started(call)
             context.become(started)
           case failure =>
             sender ! failure
@@ -79,12 +77,8 @@ class CallActor extends Actor {
           val errorMessages = TryUtil.stringifyFailures(failures.values).mkString("\n")
 
           log.error(errorMessages)
-          creator ! Failed(errorMessages)
+          creator ! Failed(call, errorMessages)
         }
-
-      case Stop =>
-        context.stop(self)
-        creator ! Stopped
 
       case unknown @_ =>
         sender ! InvalidOperation(s"Unexpected message $unknown.")

@@ -4,9 +4,9 @@ import java.io.File
 
 import cromwell.binding.command._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlType}
-import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
+import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
 
@@ -46,11 +46,7 @@ object WdlBinding {
    * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
    * @throws WdlParser.SyntaxError if there was a problem parsing the source code
    */
-  def getAst(wdlFile: File): Ast = {
-    val wdlFileHandle = io.Source.fromFile(wdlFile)
-    val wdlContents = try wdlFileHandle.mkString finally wdlFileHandle.close()
-    getAst(wdlContents, wdlFile.getName)
-  }
+  def getAst(wdlFile: File): Ast = getAst(FileUtil.slurp(wdlFile), wdlFile.getName)
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {
     val parser = new WdlParser()
@@ -105,7 +101,7 @@ object WdlBinding {
     callAsts foreach { callAst =>
       val taskName = sourceString(callAst.getAttribute("task"))
       val taskAst = taskAsts.find { taskAst => sourceString(taskAst.getAttribute("name")) == taskName } getOrElse {
-        throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName));
+        throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName))
       }
 
       /* TODO: This is only counting inputs that are defined on the command line */
@@ -222,5 +218,5 @@ case class WdlBinding(ast: Ast) {
     new Call(alias, task, inputs.toMap)
   }
 
-  def findTask(name: String): Option[Task] = tasks.find(_.name.equals(name))
+  def findTask(name: String): Option[Task] = tasks.find(_.name == name)
 }

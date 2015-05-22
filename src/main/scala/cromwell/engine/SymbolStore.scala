@@ -14,6 +14,8 @@ case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Opt
 
   def isInput: Boolean = key.input
 
+  def isOutput: Boolean = !isInput
+
   def scope: String = key.scope
 }
 
@@ -76,4 +78,6 @@ class SymbolStore(binding: WdlBinding, inputs: Map[FullyQualifiedName, WdlValue]
     val key = SymbolStoreKey(scope, name, iteration = None, input = false)
     store.find(_.key == key)
   }
+
+  def getOutputs: Set[SymbolStoreEntry] = store.toSet filter {_.isOutput}
 }

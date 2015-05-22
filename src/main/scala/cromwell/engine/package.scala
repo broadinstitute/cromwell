@@ -15,6 +15,7 @@ package object engine {
   type WorkflowId = UUID
 
   sealed trait WorkflowState
+  case object WorkflowSubmitted extends WorkflowState
   case object WorkflowRunning extends WorkflowState
   case object WorkflowFailed extends WorkflowState
   case object WorkflowSucceeded extends WorkflowState

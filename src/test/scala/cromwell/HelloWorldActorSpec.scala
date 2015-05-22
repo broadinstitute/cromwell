@@ -55,7 +55,7 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
                          inputs: Map[FullyQualifiedName, WdlValue] = HelloInputs): TestActorRef[WorkflowActor] = {
     val binding = WdlBinding.process(HelloWdl)
     val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, inputs)
-    TestActorRef(props, "Workflow-" + name)
+    TestActorRef(props, self, "Workflow-" + name)
   }
 
   override def afterAll() {
@@ -66,28 +66,28 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
 
   "A WorkflowActor" should {
 
-//    "start" in {
-//      within(TestExecutionTimeout) {
-//        val workflowActor = buildWorkflowActor("started")
-//        startingCallsFilter("hello").intercept {
-//          workflowActor ! Start(new LocalBackend)
-//          expectMsgPF() {
-//            case Started => ()
-//          }
-//          expectMsgPF() {
-//            case Failed(t) =>
-//              fail(t)
-//            case Done(symbolStore) =>
-//              val maybeOutput = symbolStore.getOutputByFullyQualifiedName("hello.hello.salutation")
-//
-//              val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
-//              val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
-//              val actualOutput = wdlValue.asInstanceOf[WdlString].value.trim
-//              actualOutput shouldEqual "Hello world!"
-//          }
-//        }
-//      }
-//    }
+    "start" in {
+      within(TestExecutionTimeout) {
+        val workflowActor = buildWorkflowActor("started")
+        startingCallsFilter("hello").intercept {
+          workflowActor ! Start(new LocalBackend)
+          expectMsgPF() {
+            case Started => ()
+          }
+          expectMsgPF() {
+            case Failed(t) =>
+              fail(t)
+            case Done(symbolStore) =>
+              val maybeOutput = symbolStore.getOutputByFullyQualifiedName("hello.hello.salutation")
+
+              val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
+              val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
+              val actualOutput = wdlValue.asInstanceOf[WdlString].value.trim
+              actualOutput shouldEqual "Hello world!"
+          }
+        }
+      }
+    }
 
     "fail to construct with missing inputs" in {
       intercept[UnsatisfiedInputsException] {

@@ -55,9 +55,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   def actorRefFactory = system
   val workflowManagerActorRef = system.actorOf(Props(new MockWorkflowManagerActor()))
 
-
   "CromwellApiService" should "return 404 for get of unknown workflow" in {
-    Get(s"/workflows/${MockWorkflowManagerActor.unknownId}") ~>
+    Get(s"/workflow/${MockWorkflowManagerActor.unknownId}") ~>
       sealRoute(queryRoute) ~>
       check {
         assertResult(StatusCodes.NotFound) {
@@ -67,7 +66,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 400 for get of a malformed workflow id" in {
-    Get(s"/workflows/foobar") ~>
+    Get(s"/workflow/foobar/status") ~>
       queryRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {
@@ -77,7 +76,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 200 for get of a known workflow id" in {
-    Get(s"/workflows/${MockWorkflowManagerActor.runningWorkflowId}") ~>
+    Get(s"/workflow/${MockWorkflowManagerActor.runningWorkflowId}/status") ~>
       queryRoute ~>
       check {
         assertResult(StatusCodes.OK) {

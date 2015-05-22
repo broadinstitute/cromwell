@@ -1,6 +1,7 @@
 package cromwell.webservice
 
-import akka.actor.{Actor, ActorRef, Props}
+import java.util.UUID
+import akka.actor.{ActorRef, Actor, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding.{WdlSource, WorkflowRawInputs}
@@ -10,7 +11,6 @@ import cromwell.parser.WdlParser.SyntaxError
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
-
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -18,17 +18,18 @@ object CromwellApiHandler {
   sealed trait WorkflowManagerMessage
   case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
+  case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
 
   def props(workflowManagerActorRef : ActorRef): Props = {
     Props(new CromwellApiHandler(workflowManagerActorRef))
   }
 }
 
-class CromwellApiHandler(workflowManagerActorRef : ActorRef) extends Actor {
+class CromwellApiHandler(workflowManager : ActorRef) extends Actor {
   import context.dispatcher
+  implicit val timeout = Timeout(2.seconds)
 
   override def receive = {
-
     case WorkflowStatus(id) =>
       implicit val timeout = Timeout(2.seconds)
       val workflowManagerResponseFuture = ask(workflowManagerActorRef, WorkflowManagerActor.WorkflowStatus(id)).mapTo[Option[WorkflowState]]
@@ -62,5 +63,16 @@ class CromwellApiHandler(workflowManagerActorRef : ActorRef) extends Actor {
           }
       }
 
+    case WorkflowOutputs(id) =>
+      val eventualWorkflowOutputs = ask(workflowManager, WorkflowManagerActor.WorkflowOutputs(id)).mapTo[Option[binding.WorkflowOutputs]]
+      eventualWorkflowOutputs onComplete {
+        case Success(outputs) => outputs match {
+          case Some(x) =>
+            val outputMap = x mapValues {_.toString}
+            context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputMap))
+          case None => context.parent ! RequestComplete(StatusCodes.NotFound, None)
+        }
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
   }
 }

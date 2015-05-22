@@ -134,6 +134,6 @@ class ActorWorkflowManager extends WorkflowManagerActor {
      * Given a Future of Set[SymbolStoreEntry], reach in to the Future and then for each SymbolStoreEntry convert it to a
      * mapping from FullyQualifiedName to WdlValue and then convert the collection of those mappings to a Map
      */
-    eventualSymbolStoreEntries map {_ map {s => s"${s.key.scope}.${s.key.name}" -> s.wdlValue.get} toMap}
+    eventualSymbolStoreEntries.map(_.map(s => s"${s.key.scope}.${s.key.name}" -> s.wdlValue.get).toMap)
   }
 }

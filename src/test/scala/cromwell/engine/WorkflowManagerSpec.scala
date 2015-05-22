@@ -22,7 +22,7 @@ class TestWorkflowManager extends WorkflowManager {
 
   override def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: WorkflowInputs): Try[Workflow] = Try(TestWorkflowManager.WorkflowString)
   override def workflowStatus(id: WorkflowId): Option[WorkflowState] = Option(WorkflowRunning) // FIXME
-  override def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]] = {Map.empty()} // FIXME
+  override def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]] = {Future {Option(Map.empty)}} // FIXME
   override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowInputs): Future[Try[WorkflowId]] = Future {Success(UUID.randomUUID())}
   override def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit = {} // FIXME: This doesn't do anything
 }

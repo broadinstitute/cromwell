@@ -108,7 +108,7 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
 
     val binding = WdlBinding.process(ThreeStepActorSpec.WdlSource)
     val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, workflowInputs)
-    TestActorRef(props, "ThreeStep")
+    TestActorRef(props, self, "ThreeStep")
   }
 
   private def getCounts(symbolStore: SymbolStore, outputFqns: String*): Seq[Int] = {
@@ -122,24 +122,24 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
 
   import ThreeStepActorSpec._
 
-//  "A three step workflow" should {
-//    "best get to (three) steppin'" in {
-//      within(TestExecutionTimeout) {
-//        filterEvents(startingCallsFilter("ps"), startingCallsFilter("cgrep", "wc")) {
-//          buildWorkflowActor ! Start(new LocalBackend)
-//          expectMsgPF() {
-//            case Started => ()
-//          }
-//          expectMsgPF() {
-//            case Failed(t) =>
-//              fail(t)
-//            case Done(symbolStore) =>
-//              val Seq(cgrepCount, wcCount) = getCounts(symbolStore, "three_step.cgrep.count", "three_step.wc.count")
-//              cgrepCount shouldEqual 3
-//              wcCount shouldEqual 6
-//          }
-//        }
-//      }
-//    }
-//  }
+  "A three step workflow" should {
+    "best get to (three) steppin'" in {
+      within(TestExecutionTimeout) {
+        filterEvents(startingCallsFilter("ps"), startingCallsFilter("cgrep", "wc")) {
+          buildWorkflowActor ! Start(new LocalBackend)
+          expectMsgPF() {
+            case Started => ()
+          }
+          expectMsgPF() {
+            case Failed(t) =>
+              fail(t)
+            case Done(symbolStore) =>
+              val Seq(cgrepCount, wcCount) = getCounts(symbolStore, "three_step.cgrep.count", "three_step.wc.count")
+              cgrepCount shouldEqual 3
+              wcCount shouldEqual 6
+          }
+        }
+      }
+    }
+  }
 }

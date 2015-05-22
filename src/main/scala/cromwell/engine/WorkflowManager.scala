@@ -84,7 +84,7 @@ trait WorkflowManagerActor extends Actor with WorkflowManager {
     case WorkflowStatus(id) =>
       val origSender = sender()
       origSender ! workflowStatus(id)
-    case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender()
+    case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender() // FIXME: What if the workflow isn't done? How best to handle?
     case WorkflowActor.Started => updateWorkflowState(sender(), WorkflowRunning)
     case WorkflowActor.Done(symbolStore) => updateWorkflowState(sender(), WorkflowSucceeded)
     case WorkflowActor.Failed(failures) => updateWorkflowState(sender(), WorkflowFailed)

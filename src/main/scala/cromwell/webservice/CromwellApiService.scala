@@ -7,6 +7,7 @@ import com.gettyimages.spray.swagger.SwaggerHttpService
 import com.wordnik.swagger.annotations._
 import com.wordnik.swagger.model.ApiInfo
 import cromwell.engine.WorkflowId
+import cromwell.webservice.CromwellApiHandler.WorkflowOutputs
 import spray.http.StatusCodes
 import spray.routing.Directive.pimpApply
 import spray.routing._
@@ -30,7 +31,7 @@ class SwaggerService(override val apiVersion: String,
                     (implicit val actorRefFactory: ActorRefFactory)
   extends SwaggerHttpService
 
-class CromwellApiServiceActor(val workflowManagerActorRef : ActorRef, swaggerService: SwaggerService) extends Actor with CromwellApiService {
+class CromwellApiServiceActor(val workflowManager : ActorRef, swaggerService: SwaggerService) extends Actor with CromwellApiService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
@@ -45,14 +46,14 @@ class CromwellApiServiceActor(val workflowManagerActorRef : ActorRef, swaggerSer
 
 }
 
-@Api(value = "/workflows", description = "Workflow", produces = "application/json", position = 1)
+@Api(value = "/workflow", description = "Workflow", produces = "application/json", position = 1)
 trait CromwellApiService extends HttpService with PerRequestCreator  {
-  val workflowManagerActorRef : ActorRef
+  val workflowManager: ActorRef
 
-  val workflowRoutes = queryRoute
+  val workflowRoutes = queryRoute ~ outputsRoute
 
-  @ApiOperation(value = "Query for workflow based on workflow id.",
-    nickname = "query",
+  @ApiOperation(value = "Query for workflow status based on workflow id.",
+    nickname = "status",
     httpMethod = "GET",
     produces = "application/json",
     response = classOf[WorkflowStatusResponse]
@@ -66,13 +67,39 @@ trait CromwellApiService extends HttpService with PerRequestCreator  {
     new ApiResponse(code = 500, message = "Internal Error")
   ))
   def queryRoute =
-    path("workflows" / Segment) { id =>
+    path("workflow" / Segment / "status") { id =>
       Try(UUID.fromString(id)) match {
         case Success(workflowId) =>
           requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowManagerActorRef), CromwellApiHandler.WorkflowStatus(workflowId))
+            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(workflowId))
         case Failure(ex) =>
           complete(StatusCodes.BadRequest)
       }
     }
+
+  @ApiOperation(value = "Query for workflow outputs based on workflow id.",
+    nickname = "outputs",
+    httpMethod = "GET",
+    produces = "application/json",
+    response = classOf[WorkflowOutputs]
+  )
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "string", paramType = "path", value = "workflow")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Successful Request"),
+    new ApiResponse(code = 404, message = "Workflow ID Not Found"),
+    new ApiResponse(code = 500, message = "Internal Error")
+  ))
+  def outputsRoute =
+    path("workflow" / Segment / "outputs") { id =>
+      // FIXME: Can we abstract the boilerplate? My experience doing that in Spray has generally been not so good
+      Try(UUID.fromString(id)) match {
+        case Success(workflowId) =>
+          requestContext =>
+            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowOutputs(workflowId))
+        case Failure(ex) =>
+          complete(StatusCodes.BadRequest)
+    }
+  }
 }

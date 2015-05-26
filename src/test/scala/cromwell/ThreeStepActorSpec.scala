@@ -106,7 +106,7 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
 
     val binding = WdlBinding.process(ThreeStepActorSpec.WdlSource)
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
-    val coercedInputs = binding.confirmAndCoerceRawInputs(workflowInputs).get
+    val coercedInputs = binding.coerceRawInputs(workflowInputs).get
     val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, coercedInputs)
     TestActorRef(props, self, "ThreeStep")
   }

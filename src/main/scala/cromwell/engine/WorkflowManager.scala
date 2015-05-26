@@ -106,7 +106,7 @@ class ActorWorkflowManager extends WorkflowManagerActor {
   override def generateWorkflow(id: WorkflowId, wdl: WdlSource, rawInputs: binding.WorkflowRawInputs): Try[Workflow] = {
     val binding = WdlBinding.process(wdl)
     for {
-      coercedInputs <- binding.confirmAndCoerceRawInputs(rawInputs)
+      coercedInputs <- binding.coerceRawInputs(rawInputs)
     } yield context.actorOf(WorkflowActor.buildWorkflowActorProps(id, binding, coercedInputs))
   }
 

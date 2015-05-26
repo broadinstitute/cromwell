@@ -3,7 +3,7 @@ package cromwell.engine
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{Call, FullyQualifiedName, WdlBinding}
+import cromwell.binding.{WorkflowCoercedInputs, Call, FullyQualifiedName, WdlBinding}
 import cromwell.engine.backend.Backend
 import cromwell.parser.WdlParser.{Ast, Terminal}
 import cromwell.util.TryUtil
@@ -30,7 +30,7 @@ object WorkflowActor {
   case object GetStatus extends WorkflowActorMessage
   case class Status(status: WorkflowState) extends WorkflowActorMessage
 
-  def buildWorkflowActorProps(id: WorkflowId, binding: WdlBinding, coercedInputs: Map[FullyQualifiedName, WdlValue]) = {
+  def buildWorkflowActorProps(id: WorkflowId, binding: WdlBinding, coercedInputs: WorkflowCoercedInputs) = {
     Props(new WorkflowActor(id, binding, coercedInputs))
   }
 }
@@ -38,7 +38,7 @@ object WorkflowActor {
 /** Represents the root of a single workflow instance, not a manager of multiple
   * workflows.
   */
-case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]) extends Actor {
+case class WorkflowActor private(id: WorkflowId, binding: WdlBinding, actualInputs: WorkflowCoercedInputs) extends Actor {
 
   import WorkflowActor._
 

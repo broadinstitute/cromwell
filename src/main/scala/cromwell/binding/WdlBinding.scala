@@ -89,9 +89,9 @@ object WdlBinding {
    * 2) All `Call` inputs reference actual variables on the corresponding task
    * 3) Tasks do not have duplicate inputs
    * 4) `Call` input expressions (right-hand side) should only use the MemberAccess
-   *    syntax (e.g: x.y) on WdlObjects (which include other `Call` invocations)
+   * syntax (e.g: x.y) on WdlObjects (which include other `Call` invocations)
    * 5) `Call` input expressions (right-hand side) should only reference identifiers
-   *    that will resolve when evaluated
+   * that will resolve when evaluated
    *
    * @param ast AST to validate
    */
@@ -174,6 +174,7 @@ object WdlBinding {
     val IOMapping = "IOMapping"
     val Inputs = "Inputs"
   }
+
 }
 
 case class WdlBinding(ast: Ast) {
@@ -227,14 +228,15 @@ case class WdlBinding(ast: Ast) {
    * This can fail if required raw inputs are missing or if the values for a specified raw input
    * cannot be coerced to the target type of the input as specified in the binding.
    */
-  def confirmAndCoerceRawInputs(rawInputs: Map[FullyQualifiedName, Any]): Try[Map[FullyQualifiedName, WdlValue]] = {
+  def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
+
+    def coerceRawInput(fqn: FullyQualifiedName, wdlType: WdlType): Try[WdlValue] = fqn match {
+      case _ if rawInputs.contains(fqn) => wdlType.coerceRawValue(rawInputs.get(fqn).get)
+      case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
+    }
+
     val tryCoercedValues = workflow.inputs.map { case (fqn, wdlType) =>
-      val tryValue = if (!rawInputs.contains(fqn)) {
-        Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
-      } else {
-        wdlType.coerceRawValue(rawInputs.get(fqn).get)
-      }
-      fqn -> tryValue
+      fqn -> coerceRawInput(fqn, wdlType)
     }
 
     val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }

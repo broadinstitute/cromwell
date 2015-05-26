@@ -33,7 +33,7 @@ case class WdlInteger(value: Integer) extends WdlPrimitive {
     rhs match {
       case r:WdlInteger if r.value == 0 => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
       case r:WdlInteger => Success(WdlInteger(value / r.value))
-      case r:WdlFloat if r.value == 0.toFloat => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
+      case r:WdlFloat if r.value == 0.toDouble => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
       case r:WdlFloat => Success(WdlFloat(value / r.value))
       case _ => invalid(s"$value / $rhs")
     }
@@ -42,7 +42,7 @@ case class WdlInteger(value: Integer) extends WdlPrimitive {
     rhs match {
       case r:WdlInteger if r.value == 0 => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
       case r:WdlInteger => Success(WdlInteger(value % r.value))
-      case r:WdlFloat if r.value == 0.toFloat => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
+      case r:WdlFloat if r.value == 0.toDouble => Failure(new WdlExpressionException(s"Divide by zero error: $value / $rhs"))
       case r:WdlFloat => Success(WdlFloat(value % r.value))
       case _ => invalid(s"$value % $rhs")
     }

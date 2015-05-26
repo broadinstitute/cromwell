@@ -4,11 +4,10 @@ import java.io.{File, FileWriter}
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import akka.testkit.filterEvents
-import akka.testkit.TestActorRef
+import akka.testkit.{TestActorRef, filterEvents}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
-import cromwell.binding.values.{WdlInteger, WdlString}
+import cromwell.binding.values.WdlInteger
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.{SymbolStore, WorkflowActor}
@@ -102,12 +101,13 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
   private def buildWorkflowActor: TestActorRef[WorkflowActor] = {
     import ThreeStepActorSpec._
     val workflowInputs = Map(
-      Inputs.Pattern -> WdlString("joeblaux"),
-      // TODO would this work as a WdlFile?
-      Inputs.DummyPsFileName -> WdlString(createDummyPsFile.getAbsolutePath))
+      Inputs.Pattern ->"joeblaux",
+      Inputs.DummyPsFileName -> createDummyPsFile.getAbsolutePath)
 
     val binding = WdlBinding.process(ThreeStepActorSpec.WdlSource)
-    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, workflowInputs)
+    // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
+    val coercedInputs = binding.confirmAndCoerceRawInputs(workflowInputs).get
+    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, coercedInputs)
     TestActorRef(props, self, "ThreeStep")
   }
 

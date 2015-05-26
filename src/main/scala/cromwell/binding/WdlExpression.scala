@@ -27,7 +27,7 @@ object WdlExpression {
     ast match {
       case t: Terminal if t.getTerminalStr == "identifier" => Success(lookup(t.getSourceString))
       case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
-      case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toFloat))
+      case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
       case t: Terminal if t.getTerminalStr == "string" => Success(WdlString(t.getSourceString))
       case a: Ast if binaryOperators.contains(a.getName) =>

@@ -5,7 +5,7 @@ import cromwell.binding.types.WdlFloatType
 
 import scala.util.{Try, Success, Failure}
 
-case class WdlFloat(value: Float) extends WdlPrimitive {
+case class WdlFloat(value: Double) extends WdlPrimitive {
   val wdlType = WdlFloatType
   override def add(rhs: WdlValue): Try[WdlValue] = {
     rhs match {

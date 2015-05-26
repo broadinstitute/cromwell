@@ -4,11 +4,13 @@ import java.io.File
 
 import cromwell.binding.command._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlType}
+import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Try}
 
 /**
  * Main interface into the `cromwell.binding` package.
@@ -219,4 +221,28 @@ case class WdlBinding(ast: Ast) {
   }
 
   def findTask(name: String): Option[Task] = tasks.find(_.name == name)
+
+  /**
+   * Confirm all required inputs are present and attempt to coerce raw inputs to `WdlValue`s.
+   * This can fail if required raw inputs are missing or if the values for a specified raw input
+   * cannot be coerced to the target type of the input as specified in the binding.
+   */
+  def confirmAndCoerceRawInputs(rawInputs: Map[FullyQualifiedName, Any]): Try[Map[FullyQualifiedName, WdlValue]] = {
+    val tryCoercedValues = workflow.inputs.map { case (fqn, wdlType) =>
+      val tryValue = if (!rawInputs.contains(fqn)) {
+        Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
+      } else {
+        wdlType.coerceRawValue(rawInputs.get(fqn).get)
+      }
+      fqn -> tryValue
+    }
+
+    val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
+    if (failures.isEmpty) {
+      Try(successes.map { case (key, tryValue) => key -> tryValue.get })
+    } else {
+      val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
+      Failure(new UnsatisfiedInputsException(message))
+    }
+  }
 }

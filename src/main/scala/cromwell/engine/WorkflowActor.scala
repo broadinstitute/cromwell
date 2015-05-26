@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import cromwell.binding.values.WdlValue
 import cromwell.binding.{Call, FullyQualifiedName, WdlBinding}
@@ -30,21 +30,8 @@ object WorkflowActor {
   case object GetStatus extends WorkflowActorMessage
   case class Status(status: WorkflowState) extends WorkflowActorMessage
 
-  def buildWorkflowActorProps(id: WorkflowId, binding: WdlBinding, actualInputs: Map[FullyQualifiedName, WdlValue]): Props = {
-    // Check inputs for presence and type compatibility
-    val diagnostics = binding.workflow.inputs.collect {
-      case requiredInput if !actualInputs.contains(requiredInput._1) =>
-        requiredInput._1 -> "Required workflow input not specified"
-
-      case requiredInput if actualInputs.get(requiredInput._1).get.wdlType != requiredInput._2 =>
-        val expected = actualInputs.get(requiredInput._1).get.wdlType
-        // FIXME formatting
-        requiredInput._1 -> s"Incompatible workflow input types, expected $expected, got ${requiredInput._2}"
-    }
-
-    if (diagnostics.nonEmpty) throw new UnsatisfiedInputsException(diagnostics)
-
-    Props(new WorkflowActor(id, binding, actualInputs))
+  def buildWorkflowActorProps(id: WorkflowId, binding: WdlBinding, coercedInputs: Map[FullyQualifiedName, WdlValue]) = {
+    Props(new WorkflowActor(id, binding, coercedInputs))
   }
 }
 

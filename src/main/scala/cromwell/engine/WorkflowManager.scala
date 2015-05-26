@@ -2,22 +2,21 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.actor.{Props, Actor, ActorSystem, ActorRef}
-import akka.pattern.{pipe, ask}
-import scala.collection.concurrent.TrieMap
-import scala.concurrent.duration._
-
+import akka.actor.{Actor, ActorRef, Props}
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import cromwell.binding
-import cromwell.util.WriteOnceStore
-import scala.concurrent.ExecutionContext.Implicits.global
 import cromwell.binding.{WdlBinding, WdlSource}
 import cromwell.engine.WorkflowActor._
-import cromwell.engine.WorkflowManagerActor.{WorkflowOutputs, SubmitWorkflow, WorkflowStatus}
+import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.util.WriteOnceStore
 
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Try
 
 /**
@@ -30,11 +29,11 @@ trait WorkflowManager {
 
   val backend: Backend
 
-  def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: binding.WorkflowInputs): Try[Workflow]
+  def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: binding.WorkflowRawInputs): Try[Workflow]
 
   def workflowStatus(id: WorkflowId): Option[WorkflowState] = workflowStates.get(id)
   def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]]
-  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowInputs): Future[Try[WorkflowId]]
+  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[WorkflowId]]
   def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit
 
   def idByWorkflow(workflow: Workflow): Option[WorkflowId] = {
@@ -47,11 +46,11 @@ trait WorkflowManager {
   /**
    * Generates a workflow with an ID, inserts it into the store and returns the pair.
    */
-  protected def addWorkflow(wdl: WdlSource, inputs: binding.WorkflowInputs): Future[Try[ManagedWorkflow]] = Future {
+  protected def addWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[ManagedWorkflow]] = Future {
       val workflowId = UUID.randomUUID()
       val managedWorkflow = for {
         wf <- generateWorkflow(workflowId, wdl, inputs)
-        x <- workflowStore.insert(workflowId, wf) // Come for the side effect, stay for the Try
+        _ <- workflowStore.insert(workflowId, wf) // Come for the side effect, stay for the Try
       } yield ManagedWorkflow(workflowId, wf)
       managedWorkflow foreach {m => workflowStates.put(m.id, WorkflowSubmitted)}
       managedWorkflow
@@ -62,7 +61,7 @@ trait WorkflowManager {
 
 object WorkflowManagerActor {
   sealed trait WorkflowManagerMessage
-  case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowInputs) extends WorkflowManagerMessage
+  case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
 }
@@ -104,9 +103,11 @@ class ActorWorkflowManager extends WorkflowManagerActor {
   override val backend = new LocalBackend
   implicit val timeout = Timeout(30.seconds)
 
-  override def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: binding.WorkflowInputs): Try[Workflow] = {
-    val binding = Try(WdlBinding.process(wdl))
-    binding map {x => context.actorOf(WorkflowActor.buildWorkflowActorProps(id, x, inputs))}
+  override def generateWorkflow(id: WorkflowId, wdl: WdlSource, rawInputs: binding.WorkflowRawInputs): Try[Workflow] = {
+    val binding = WdlBinding.process(wdl)
+    for {
+      coercedInputs <- binding.confirmAndCoerceRawInputs(rawInputs)
+    } yield context.actorOf(WorkflowActor.buildWorkflowActorProps(id, binding, coercedInputs))
   }
 
   override def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]] = {
@@ -118,7 +119,7 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     symbolsToWorkflowOutputs(eventualSymbolStoreEntries) map {Option(_)}
   }
 
-  override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowInputs): Future[Try[WorkflowId]] = {
+  override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[WorkflowId]] = {
     val eventualTriedManagedWorkflow = addWorkflow(wdl, inputs)
     // Side effecting code to send this workflow a message to start, and then return the Future
     eventualTriedManagedWorkflow foreach {_ foreach {_.workflow ? Start(backend)}} // Needs to be an ask and not a tell as this isn't an Actor

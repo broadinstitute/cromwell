@@ -48,6 +48,8 @@ grammar {
     r':' -> :colon
     r',' -> :comma
     r'==' -> :double_equal
+    r'\|\|' -> :double_pipe
+    r'\&\&' -> :double_ampersand
     r'!=' -> :not_equal
     r'=' -> :equal
     r'\.' -> :dot
@@ -67,6 +69,7 @@ grammar {
     r'>=' -> :gteq
     r'>' -> :gt
     r'!' -> :not
+    r'-?[0-9]+\.[0-9]+' -> :float
     r'[0-9]+' -> :integer
     mode<scatter> {
       r'\s+' -> null
@@ -179,6 +182,7 @@ grammar {
       $e = :identifier
       $e = :boolean
       $e = :integer
+      $e = :float
       $e = :dquote_string
       $e = :squote_string
     }
@@ -186,10 +190,8 @@ grammar {
     $workflow = :workflow :identifier :lbrace list($wf_body_element) :rbrace -> Workflow(name=$1, body=$3)
     $wf_body_element = $call | $declaration | $while_loop | $if_stmt | $scatter
     $call = :call :identifier optional($alias) optional($call_body) -> Call(task=$1, alias=$2, body=$3)
-    $call_body = :lbrace list($declaration) list($call_body_element) :rbrace -> CallBody(declarations=$1, io=$2)
-    $call_body_element = $call_input | $call_output
+    $call_body = :lbrace list($declaration) list($call_input) :rbrace -> CallBody(declarations=$1, io=$2)
     $call_input = :input :colon list($mapping, :comma) -> Inputs(map=$2)
-    $call_output = :output :colon list($mapping, :comma) -> Outputs(map=$2)
     $mapping = :identifier :equal $e -> IOMapping(key=$0, value=$2)
     $alias = :as :identifier -> $1
 

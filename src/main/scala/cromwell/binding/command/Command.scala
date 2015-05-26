@@ -1,11 +1,11 @@
 package cromwell.binding.command
 
 import java.util.regex.Pattern
-
-import cromwell.binding.WdlValue
 import cromwell.binding.types.WdlType
+import cromwell.binding.values.WdlValue
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 /**
  * Represents the `command` section of a `task` definition in a WDL file.
@@ -44,12 +44,38 @@ case class Command(parts: Seq[CommandPart]) {
 
   /**
    * Given a map of task-local parameter names and WdlValues,
-   * create a command String
+   * create a command String.
+   *
+   * Instantiating a command line is the process of taking a command in this form:
+   *
+   * {{{
+   *   sh script.sh ${var1} -o ${var2}
+   * }}}
+   *
+   * This command is stored as a `Seq[CommandPart]` in the `Command` class (e.g. [sh script.sh, ${var1}, -o, ${var2}]).
+   * Then, given a map of variable -> value:
+   *
+   * {{{
+   * {
+   *   "var1": "foo",
+   *   "var2": "bar"
+   * }
+   * }}}
+   *
+   * It calls instantiate() on each part, and passes this map. The ParameterCommandPart are the ${var1} and ${var2}
+   * pieces and they lookup var1 and var2 in that map.
+   *
+   * The command that's returned from Command.instantiate() is:
+   *
+   *
+   * {{{sh script.sh foo -o bar}}}
    *
    * @param parameters Parameter values
    * @return String instantiation of the command
    */
-  def instantiate(parameters: Map[String, WdlValue]): String = normalize(parts.map { part => part.instantiate(parameters) }.mkString(""))
+  def instantiate(parameters: Map[String, WdlValue]): Try[String] = {
+    Try(normalize(parts.map { _.instantiate(parameters) }.mkString("")))
+  }
 
   /**
    * 1) Remove all leading newline chars

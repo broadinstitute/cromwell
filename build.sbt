@@ -11,10 +11,19 @@ scalaVersion := "2.11.6"
 val sprayV = "1.3.2"
 
 libraryDependencies ++= Seq(
+  "com.gettyimages" %% "spray-swagger" % "0.5.0",
+  "org.webjars" % "swagger-ui" % "2.0.24",
+  "io.spray"            %%  "spray-can"     % sprayV,
+  "io.spray"            %%  "spray-routing" % sprayV,
+  "io.spray"            %%  "spray-client"  % sprayV,
+  "io.spray"            %%  "spray-http"    % sprayV,
+  "io.spray"            %%  "spray-json"    % "1.3.1",
   "com.typesafe.akka" %% "akka-actor" % "2.3.4",
-  "com.typesafe.akka" %% "akka-testkit" % "2.3.4" % Test,
   "commons-codec" % "commons-codec" % "1.10",
-  "org.scalatest" %% "scalatest" % "2.2.4" % Test
+  //---------- Test libraries -------------------//
+  "io.spray" %% "spray-testkit" % sprayV % Test,
+  "org.scalatest" %% "scalatest" % "2.2.4" % Test,
+  "com.typesafe.akka" %% "akka-testkit" % "2.3.4" % Test
 )
 
 releaseSettings
@@ -54,5 +63,7 @@ val customMergeStrategy: String => MergeStrategy = {
 }
 
 mergeStrategy in assembly := customMergeStrategy
+
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
 

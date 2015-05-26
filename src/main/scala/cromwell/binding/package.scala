@@ -1,5 +1,7 @@
 package cromwell
 
+import cromwell.binding.values.WdlValue
+
 /**
  * ==WDL Bindings for Scala==
  *
@@ -11,5 +13,8 @@ package cromwell
  */
 
 package object binding {
+  type WdlSource = String
+  type WorkflowInputs = Map[FullyQualifiedName, WdlValue]
+  type WorkflowOutputs = Map[FullyQualifiedName, WdlValue]
   type FullyQualifiedName = String
 }

@@ -1,42 +1,89 @@
 package cromwell.engine
 
-import akka.actor.{ActorRef, Actor}
-import cromwell.binding.{Call, WdlValue}
-import cromwell.engine.CallActor.{Done, Started, Run, Start}
+import akka.actor.{Actor, ActorRef, Props}
+import akka.event.{Logging, LoggingReceive}
+import cromwell.binding.Call
+import cromwell.binding.values.WdlValue
+import cromwell.engine.CallActor._
+import cromwell.engine.WorkflowActor.InvalidOperation
+import cromwell.engine.backend.Backend
+import cromwell.util.TryUtil
+
 import scala.language.postfixOps
-import sys.process._
+import scala.util.Success
+
 
 object CallActor {
 
-  case class Start(call: Call, parameters: Map[String, WdlValue])
+  sealed trait CallActorMessage
 
-  case class Run(commandLine: String, workflowActor: ActorRef)
+  case class Start(call: Call, backend: Backend, symbolStore: SymbolStore) extends CallActorMessage
+  // Does this message need to pass along the SymbolStore for output expression evaluation?
+  case class Run(commandLine: String, backend: Backend, call: Call, symbolStore: SymbolStore) extends CallActorMessage
+  case class Started(call: Call) extends CallActorMessage
+  case class Done(call: Call, outputs: Map[String, WdlValue]) extends CallActorMessage
+  case class Failed(call: Call, failure: String) extends CallActorMessage
 
-  case object Started
-
-  case object Done
-
+  def props: Props = Props(classOf[CallActor])
 }
 
 /**
  * Probably not the right level of abstraction for a system that supports richer
  * control structures like loops, conditionals, scatter etc., but this should be
- * sufficient for Sprint 2.
+ * sufficient for Sprint 2/3.
  */
 class CallActor extends Actor {
 
-  override def receive: Receive = {
+  private val log = Logging(context.system, this)
 
-    case Start(call, parameters) =>
-      // Assuming there is no check required here for presence and type of
-      // parameters, that can be added if needed.
-      val commandLine = call.task.command.instantiate(parameters)
-      self ! Run(commandLine, sender())
-      sender ! Started
+  private var _creator: Option[ActorRef] = None
 
-    case Run(commandLine, workflowActor) =>
-      // TODO This is an "EchoBackend", need to decouple from a particular backend
-      s"echo $commandLine" !!;
-      workflowActor ! Done
+  private def isStarted: Boolean = _creator.isDefined
+
+  private def creator: ActorRef = _creator.get
+
+  private def notStarted: Receive = {
+    LoggingReceive {
+      case Start(call, backend, symbolStore) =>
+        val inputs = symbolStore.locallyQualifiedInputs(call)
+        val tryCommandLine = call.task.command.instantiate(inputs)
+        tryCommandLine match {
+          case Success(commandLine) =>
+            _creator = Option(sender())
+            self ! Run(commandLine, backend, call, symbolStore)
+            creator ! Started(call)
+            context.become(started)
+          case failure =>
+            sender ! failure
+        }
+
+      case bad@_ if !isStarted =>
+        sender ! InvalidOperation(s"Received message $bad, but not yet Started.")
+    }
   }
+
+  private def started: Receive = {
+    LoggingReceive {
+      case Run(commandLine, backend, call, symbolStore) =>
+        log.info(self + " executing command: " + commandLine)
+        val tryOutputs = backend.executeCommand(commandLine, call, call.task.outputs, symbolStore)
+        val (successes, failures) = tryOutputs.partition { _._2.isSuccess }
+
+        if (failures.isEmpty) {
+          // Materialize the Successes.
+          val outputs = successes.map { case (key, value) => key -> value.get }
+          creator ! Done(call, outputs)
+        } else {
+          val errorMessages = TryUtil.stringifyFailures(failures.values).mkString("\n")
+
+          log.error(errorMessages)
+          creator ! Failed(call, errorMessages)
+        }
+
+      case unknown @_ =>
+        sender ! InvalidOperation(s"Unexpected message $unknown.")
+    }
+  }
+
+  override def receive = notStarted
 }

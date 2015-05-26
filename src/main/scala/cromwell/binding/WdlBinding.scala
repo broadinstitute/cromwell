@@ -6,6 +6,7 @@ import cromwell.binding.command._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlType}
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
+import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
 
@@ -22,7 +23,6 @@ import scala.collection.JavaConverters._
  * }}}
  */
 object WdlBinding {
-
   /**
    * Given a pointer to a WDL file, parse the text and build Workflow and Task
    * objects.
@@ -36,9 +36,9 @@ object WdlBinding {
    */
   def process(wdlFile: File): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlFile))
 
-  def process(wdlString: String): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlString, "string"))
+  def process(wdlSource: WdlSource): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlSource, "string"))
 
-  def process(wdlString: String, resource: String): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlString, resource))
+  def process(wdlSource: WdlSource, resource: String): WdlBinding = new WdlBinding(WdlBinding.getAst(wdlSource, resource))
 
   /**
    * Given a WDL file, this will simply parse it and return the syntax tree
@@ -46,16 +46,12 @@ object WdlBinding {
    * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
    * @throws WdlParser.SyntaxError if there was a problem parsing the source code
    */
-  def getAst(wdlFile: File): Ast = {
-    val wdlFileHandle = io.Source.fromFile(wdlFile)
-    val wdlContents = try wdlFileHandle.mkString finally wdlFileHandle.close()
-    getAst(wdlContents, wdlFile.getName)
-  }
+  def getAst(wdlFile: File): Ast = getAst(FileUtil.slurp(wdlFile), wdlFile.getName)
 
-  def getAst(wdlString: String, resource: String): Ast = {
+  def getAst(wdlSource: WdlSource, resource: String): Ast = {
     val parser = new WdlParser()
-    val tokens = parser.lex(wdlString, resource)
-    val syntaxErrorFormatter = new WdlSyntaxErrorFormatter(wdlString)
+    val tokens = parser.lex(wdlSource, resource)
+    val syntaxErrorFormatter = new WdlSyntaxErrorFormatter(wdlSource)
     validateAst(
       parser.parse(tokens, syntaxErrorFormatter).toAst.asInstanceOf[Ast],
       syntaxErrorFormatter
@@ -90,6 +86,10 @@ object WdlBinding {
    * 1) All `Call` blocks reference tasks that exist
    * 2) All `Call` inputs reference actual variables on the corresponding task
    * 3) Tasks do not have duplicate inputs
+   * 4) `Call` input expressions (right-hand side) should only use the MemberAccess
+   *    syntax (e.g: x.y) on WdlObjects (which include other `Call` invocations)
+   * 5) `Call` input expressions (right-hand side) should only reference identifiers
+   *    that will resolve when evaluated
    *
    * @param ast AST to validate
    */
@@ -101,7 +101,7 @@ object WdlBinding {
     callAsts foreach { callAst =>
       val taskName = sourceString(callAst.getAttribute("task"))
       val taskAst = taskAsts.find { taskAst => sourceString(taskAst.getAttribute("name")) == taskName } getOrElse {
-        throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName));
+        throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName))
       }
 
       /* TODO: This is only counting inputs that are defined on the command line */
@@ -148,9 +148,9 @@ object WdlBinding {
 
   private def getWdlType(ast: AstNode): WdlType = {
     ast match {
-      case t: Terminal if t.getSourceString == WdlFileType.toString => WdlFileType
-      case t: Terminal if t.getSourceString == WdlStringType.toString => WdlStringType
-      case t: Terminal if t.getSourceString == WdlIntegerType.toString => WdlIntegerType
+      case t: Terminal if t.getSourceString == WdlFileType.toWdlString => WdlFileType
+      case t: Terminal if t.getSourceString == WdlStringType.toWdlString => WdlStringType
+      case t: Terminal if t.getSourceString == WdlIntegerType.toWdlString => WdlIntegerType
       case null => WdlStringType
       case _ => throw new UnsupportedOperationException("Implement this later for compound types")
     }
@@ -218,5 +218,5 @@ case class WdlBinding(ast: Ast) {
     new Call(alias, task, inputs.toMap)
   }
 
-  def findTask(name: String): Option[Task] = tasks.find(_.name.equals(name))
+  def findTask(name: String): Option[Task] = tasks.find(_.name == name)
 }

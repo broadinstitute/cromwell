@@ -1,9 +1,7 @@
 package cromwell
 
-import java.io.File
-
-import cromwell.binding.WdlValue
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType}
+import cromwell.binding.values.{WdlString, WdlFile}
 import org.scalatest.{FlatSpec, Matchers}
 
 class BindingSpec extends FlatSpec with Matchers with WdlThreeStepFixture {
@@ -27,7 +25,7 @@ class BindingSpec extends FlatSpec with Matchers with WdlThreeStepFixture {
     val task = binding.findTask("wc") getOrElse fail("No 'wc' task found")
     task.name shouldEqual "wc"
     task.inputs shouldEqual Map("in_file" -> WdlFileType)
-    task.command.instantiate(Map("in_file" -> new WdlValue(new File("/path/to/file"), WdlFileType))) shouldEqual "wc -l /path/to/file"
+    task.command.instantiate(Map("in_file" -> WdlFile("/path/to/file"))).get shouldEqual "wc -l /path/to/file"
     task.outputs.size shouldEqual 1
     task.outputs.head.name shouldEqual "count"
     task.outputs.head.wdlType shouldEqual WdlIntegerType
@@ -37,8 +35,8 @@ class BindingSpec extends FlatSpec with Matchers with WdlThreeStepFixture {
     task.name shouldEqual "cgrep"
     task.inputs shouldEqual Map("pattern" -> WdlStringType, "in_file" -> WdlFileType)
     task.command.instantiate(
-      Map("pattern" -> new WdlValue("^...$", WdlStringType), "in_file" -> new WdlValue(new File("/path/to/file"), WdlFileType))
-    ) shouldEqual "grep '^...$' /path/to/file | wc -l"
+      Map("pattern" -> WdlString("^...$"), "in_file" -> WdlFile("/path/to/file"))
+    ).get shouldEqual "grep '^...$' /path/to/file | wc -l"
     task.outputs.size shouldEqual 1
     task.outputs.head.name shouldEqual "count"
     task.outputs.head.wdlType shouldEqual WdlIntegerType
@@ -47,7 +45,7 @@ class BindingSpec extends FlatSpec with Matchers with WdlThreeStepFixture {
     val task = binding.findTask("ps") getOrElse fail("No 'ps' task found")
     task.name shouldEqual "ps"
     task.inputs shouldEqual Map()
-    task.command.instantiate(Map()) shouldEqual "ps"
+    task.command.instantiate(Map()).get shouldEqual "ps"
     task.outputs.size shouldEqual 1
     task.outputs.head.name shouldEqual "procs"
     task.outputs.head.wdlType shouldEqual WdlFileType

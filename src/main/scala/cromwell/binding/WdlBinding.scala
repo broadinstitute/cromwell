@@ -4,11 +4,13 @@ import java.io.File
 
 import cromwell.binding.command._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlType}
+import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Try}
 
 /**
  * Main interface into the `cromwell.binding` package.
@@ -87,9 +89,9 @@ object WdlBinding {
    * 2) All `Call` inputs reference actual variables on the corresponding task
    * 3) Tasks do not have duplicate inputs
    * 4) `Call` input expressions (right-hand side) should only use the MemberAccess
-   *    syntax (e.g: x.y) on WdlObjects (which include other `Call` invocations)
+   * syntax (e.g: x.y) on WdlObjects (which include other `Call` invocations)
    * 5) `Call` input expressions (right-hand side) should only reference identifiers
-   *    that will resolve when evaluated
+   * that will resolve when evaluated
    *
    * @param ast AST to validate
    */
@@ -172,6 +174,7 @@ object WdlBinding {
     val IOMapping = "IOMapping"
     val Inputs = "Inputs"
   }
+
 }
 
 case class WdlBinding(ast: Ast) {
@@ -219,4 +222,29 @@ case class WdlBinding(ast: Ast) {
   }
 
   def findTask(name: String): Option[Task] = tasks.find(_.name == name)
+
+  /**
+   * Confirm all required inputs are present and attempt to coerce raw inputs to `WdlValue`s.
+   * This can fail if required raw inputs are missing or if the values for a specified raw input
+   * cannot be coerced to the target type of the input as specified in the binding.
+   */
+  def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
+
+    def coerceRawInput(fqn: FullyQualifiedName, wdlType: WdlType): Try[WdlValue] = fqn match {
+      case _ if rawInputs.contains(fqn) => wdlType.coerceRawValue(rawInputs.get(fqn).get)
+      case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
+    }
+
+    val tryCoercedValues = workflow.inputs.map { case (fqn, wdlType) =>
+      fqn -> coerceRawInput(fqn, wdlType)
+    }
+
+    val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
+    if (failures.isEmpty) {
+      Try(successes.map { case (key, tryValue) => key -> tryValue.get })
+    } else {
+      val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
+      Failure(new UnsatisfiedInputsException(message))
+    }
+  }
 }

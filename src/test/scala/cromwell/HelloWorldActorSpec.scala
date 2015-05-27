@@ -6,11 +6,11 @@ import akka.actor.ActorSystem
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.HelloWorldActorSpec._
-import cromwell.binding.values.{WdlInteger, WdlString, WdlValue}
-import cromwell.binding.{FullyQualifiedName, WdlBinding}
+import cromwell.binding.{UnsatisfiedInputsException, WdlBinding}
+import cromwell.binding.values.WdlString
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.{UnsatisfiedInputsException, WorkflowActor}
+import cromwell.engine.WorkflowActor
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -42,7 +42,7 @@ object HelloWorldActorSpec {
     """.stripMargin
 
   val Addressee = "hello.hello.addressee"
-  val HelloInputs: Map[FullyQualifiedName, WdlValue] = Map(Addressee -> WdlString("world"))
+  val HelloRawInputs = Map(Addressee -> "world")
 }
 
 
@@ -52,9 +52,10 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
   val helloBinding = WdlBinding.process(HelloWdl)
 
   def buildWorkflowActor(name: String = UUID.randomUUID().toString,
-                         inputs: Map[FullyQualifiedName, WdlValue] = HelloInputs): TestActorRef[WorkflowActor] = {
+                         rawInputs: binding.WorkflowRawInputs = HelloRawInputs): TestActorRef[WorkflowActor] = {
     val binding = WdlBinding.process(HelloWdl)
-    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, inputs)
+    val coercedInputs = binding.coerceRawInputs(rawInputs).get
+    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, coercedInputs)
     TestActorRef(props, self, "Workflow-" + name)
   }
 
@@ -91,13 +92,13 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
 
     "fail to construct with missing inputs" in {
       intercept[UnsatisfiedInputsException] {
-        buildWorkflowActor(inputs = Map.empty)
+        buildWorkflowActor(rawInputs = Map.empty)
       }
     }
 
     "fail to construct with inputs of the wrong type" in {
       intercept[UnsatisfiedInputsException] {
-        buildWorkflowActor(inputs = Map(Addressee -> WdlInteger(3)))
+        buildWorkflowActor(rawInputs = Map(Addressee -> 3))
       }
     }
   }

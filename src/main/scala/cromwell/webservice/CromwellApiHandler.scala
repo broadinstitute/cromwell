@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import akka.actor.{ActorRef, Actor, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding._
@@ -9,13 +9,12 @@ import cromwell.webservice.CromwellApiHandler.WorkflowStatus
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object CromwellApiHandler {
   sealed trait WorkflowManagerMessage
-  case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowInputs) extends WorkflowManagerMessage
+  case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
   def props(workflowManagerActorRef : ActorRef): Props = {

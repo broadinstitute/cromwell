@@ -16,7 +16,7 @@ import scala.concurrent.Future
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage
-  case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowInputs) extends WorkflowManagerMessage
+  case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
   val runningWorkflowId = UUID.randomUUID()

@@ -6,11 +6,13 @@ import akka.actor.ActorSystem
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.HelloWorldActorSpec._
-import cromwell.binding.{UnsatisfiedInputsException, WdlBinding}
 import cromwell.binding.values.WdlString
+import cromwell.binding.{UnsatisfiedInputsException, WdlBinding}
+import cromwell.engine.WorkflowActor
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.WorkflowActor
+import cromwell.util.SampleWdl.HelloWorld
+import cromwell.util.SampleWdl.HelloWorld.Addressee
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -24,36 +26,15 @@ object HelloWorldActorSpec {
       |  actor.debug.receive = on
       |}
     """.stripMargin
-
-  val HelloWdl =
-    """
-      |task hello {
-      |  command {
-      |    echo "Hello ${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string("stdout")
-      |  }
-      |}
-      |
-      |workflow hello {
-      |  call hello
-      |}
-    """.stripMargin
-
-  val Addressee = "hello.hello.addressee"
-  val HelloRawInputs = Map(Addressee -> "world")
 }
 
 
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
 class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(Config))) {
 
-  val helloBinding = WdlBinding.process(HelloWdl)
-
   def buildWorkflowActor(name: String = UUID.randomUUID().toString,
-                         rawInputs: binding.WorkflowRawInputs = HelloRawInputs): TestActorRef[WorkflowActor] = {
-    val binding = WdlBinding.process(HelloWdl)
+                         rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
+    val binding = WdlBinding.process(HelloWorld.WdlSource)
     val coercedInputs = binding.coerceRawInputs(rawInputs).get
     val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, coercedInputs)
     TestActorRef(props, self, "Workflow-" + name)

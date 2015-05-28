@@ -2,10 +2,10 @@ package cromwell.engine.backend.local
 
 import java.io.Writer
 
+import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
 import cromwell.binding.{Call, TaskOutput}
-import cromwell.engine.SymbolStore
 import cromwell.engine.backend.Backend
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
@@ -28,10 +28,10 @@ object LocalBackend {
 class LocalBackend extends Backend {
 
   /**
-   * Executes the specified command line, using the supplied call and symbol store for expression evaluation.
+   * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(commandLine: String, call: Call, taskOutputs: Seq[TaskOutput], symbolStore: SymbolStore): Map[String, Try[WdlValue]] = {
+  override def executeCommand(commandLine: String, call: Call, taskOutputs: Seq[TaskOutput], scopedLookupFunction: ScopedLookupFunction): Map[String, Try[WdlValue]] = {
     import LocalBackend._
 
     val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout")
@@ -71,7 +71,7 @@ class LocalBackend extends Backend {
 
     taskOutputs.map { taskOutput =>
       val rawValue = taskOutput.expression.evaluate(
-        scopedLookupFunction(call, symbolStore),
+        scopedLookupFunction,
         new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile)))
 
       taskOutput.name -> rawValue.map { possiblyAutoConvertedValue(taskOutput, _) }

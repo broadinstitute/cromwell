@@ -7,10 +7,10 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, filterEvents}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
-import cromwell.binding.values.WdlInteger
+import cromwell.binding.values.{WdlInteger, WdlValue}
+import cromwell.engine.WorkflowActor
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.{SymbolStore, WorkflowActor}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -107,15 +107,13 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
     val binding = WdlBinding.process(ThreeStepActorSpec.WdlSource)
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = binding.coerceRawInputs(workflowInputs).get
-    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, coercedInputs)
+    val props = WorkflowActor.props(UUID.randomUUID(), binding, coercedInputs, new LocalBackend)
     TestActorRef(props, self, "ThreeStep")
   }
 
-  private def getCounts(symbolStore: SymbolStore, outputFqns: String*): Seq[Int] = {
+  private def getCounts(outputs: Map[String, WdlValue], outputFqns: String*): Seq[Int] = {
     outputFqns.toSeq.map { outputFqn =>
-      val maybeOutput = symbolStore.getOutputByFullyQualifiedName(outputFqn)
-      val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
-      val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
+      val wdlValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
       wdlValue.asInstanceOf[WdlInteger].value.toInt
     }
   }
@@ -126,15 +124,15 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
     "best get to (three) steppin'" in {
       within(TestExecutionTimeout) {
         filterEvents(startingCallsFilter("ps"), startingCallsFilter("cgrep", "wc")) {
-          buildWorkflowActor ! Start(new LocalBackend)
+          buildWorkflowActor ! Start
           expectMsgPF() {
             case Started => ()
           }
-          expectMsgPF() {
+          expectMsgPF(max = 10 seconds) {
             case Failed(t) =>
               fail(t)
-            case Done(symbolStore) =>
-              val Seq(cgrepCount, wcCount) = getCounts(symbolStore, "three_step.cgrep.count", "three_step.wc.count")
+            case Done(outputs) =>
+              val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
               cgrepCount shouldEqual 3
               wcCount shouldEqual 6
           }

@@ -58,7 +58,7 @@ class ActorWorkflowManagerSpec extends CromwellSpec(ActorSystem("ActorWorkflowMa
       implicit val workflowManagerActor = TestActorRef(ActorWorkflowManager.props, self, "Test the ActorWorkflowManager")
       implicit val timeout = Timeout(5 seconds)
 
-      val workflowId = waitForHandledMessage(named = "Done") {
+      val workflowId = waitForHandledMessage(named = "Completed") {
         messageAndWait(SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.RawInputs), _.mapTo[WorkflowId])
       }
 

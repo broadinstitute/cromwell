@@ -18,7 +18,7 @@ task cgrep {
 
 task wc {
   command {
-    wc -l ${File in_file}
+    cat ${File in_file} | wc -l
   }
   output {
     Int count = read_int("stdout")

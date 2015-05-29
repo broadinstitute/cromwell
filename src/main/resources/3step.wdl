@@ -1,6 +1,6 @@
 task ps {
   command {
-    ps
+    ps && exit 1
   }
   output {
     File procs = "stdout"

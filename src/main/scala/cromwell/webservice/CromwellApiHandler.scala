@@ -5,14 +5,14 @@ import akka.actor.{ActorRef, Actor, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding.{WdlSource, WorkflowRawInputs}
-import cromwell.engine
+import cromwell.{binding, engine}
 import cromwell.engine._
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 object CromwellApiHandler {
   sealed trait WorkflowManagerMessage
@@ -31,8 +31,7 @@ class CromwellApiHandler(workflowManager : ActorRef) extends Actor {
 
   override def receive = {
     case WorkflowStatus(id) =>
-      implicit val timeout = Timeout(2.seconds)
-      val workflowManagerResponseFuture = ask(workflowManagerActorRef, WorkflowManagerActor.WorkflowStatus(id)).mapTo[Option[WorkflowState]]
+      val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.WorkflowStatus(id)).mapTo[Option[WorkflowState]]
 
       workflowManagerResponseFuture.onComplete {
         case Success(state) =>
@@ -47,9 +46,7 @@ class CromwellApiHandler(workflowManager : ActorRef) extends Actor {
       }
 
     case SubmitWorkflow(wdl, inputs) =>
-      implicit val timeout = Timeout(2.seconds)
-      val workflowManagerResponseFuture = ask(workflowManagerActorRef, WorkflowManagerActor.SubmitWorkflow(wdl, inputs)).mapTo[WorkflowId]
-
+      val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(wdl, inputs)).mapTo[WorkflowId]
       workflowManagerResponseFuture.onComplete {
         case Success(id) =>
           context.parent ! RequestComplete (StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))

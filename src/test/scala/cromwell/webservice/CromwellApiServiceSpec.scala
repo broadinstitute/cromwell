@@ -53,7 +53,7 @@ object CromwellApiServiceSpec {
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   def actorRefFactory = system
-  val workflowManagerActorRef = system.actorOf(Props(new MockWorkflowManagerActor()))
+  val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
 
   "CromwellApiService" should "return 404 for get of unknown workflow" in {
     Get(s"/workflow/${MockWorkflowManagerActor.unknownId}") ~>

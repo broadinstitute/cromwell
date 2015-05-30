@@ -33,7 +33,7 @@ trait WorkflowManager {
 
   def workflowStatus(id: WorkflowId): Option[WorkflowState] = workflowStates.get(id)
   def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]]
-  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[WorkflowId]]
+  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId]
   def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit
 
   def idByWorkflow(workflow: Workflow): Option[WorkflowId] = {
@@ -119,11 +119,19 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     symbolsToWorkflowOutputs(eventualSymbolStoreEntries) map {Option(_)}
   }
 
-  override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[WorkflowId]] = {
-    val eventualTriedManagedWorkflow = addWorkflow(wdl, inputs)
-    // Side effecting code to send this workflow a message to start, and then return the Future
-    eventualTriedManagedWorkflow foreach {_ foreach {_.workflow ? Start(backend)}} // Needs to be an ask and not a tell as this isn't an Actor
-    eventualTriedManagedWorkflow map {_ map {_.id}} // Convert the Future[Try[ManagedWorkflow]] to Future[Try[WorkflowId]]
+  override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId] = {
+    def startAndExtractId(workflow: ManagedWorkflow): WorkflowId = {
+      // This needs to be an ask and not a tell as this isn't an Actor.
+      // The Future result is deliberately ignored.
+      workflow.workflow ? Start(backend)
+      workflow.id
+    }
+
+    for {
+      // Flatten what would otherwise be a Future[Try[]] into a Future[].
+      tryWorkflow <- addWorkflow(wdl, inputs)
+      workflow <- Future.fromTry(tryWorkflow)
+    } yield startAndExtractId(workflow)
   }
 
   override def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit = {

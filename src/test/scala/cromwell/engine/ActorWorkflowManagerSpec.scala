@@ -15,7 +15,6 @@ import cromwell.util.SampleWdl.HelloWorld
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
-import scala.util.Try
 
 
 class ActorWorkflowManagerSpec extends CromwellSpec(ActorSystem("ActorWorkflowManagerSpec", ConfigFactory.parseString(Config))) {
@@ -35,9 +34,23 @@ class ActorWorkflowManagerSpec extends CromwellSpec(ActorSystem("ActorWorkflowMa
    * (formally, a structural type) having a `get` method returning a `U`.
    *
    */
-  def waitAndGet[U, M[U] <: {def get : U}](message: AnyRef, downcast: Future[_] => Future[M[U]])(implicit actorRef: ActorRef): U = {
+  def messageWaitAndGet[U, M[U] <: {def get : U}](message: AnyRef, downcast: Future[_] => Future[M[U]])(implicit actorRef: ActorRef): U =
+    messageAndWait(message, downcast)(actorRef).get
+
+  /**
+   * Performs the following steps:
+   *
+   * <ol>
+   * <li> Sends the specified message to the implicitly passed `ActorRef` via an `ask`.
+   * <li> Collects the `Future[Any]` response.
+   * <li> Invokes the downcasting function `downcast` on that `Future[Any]`.
+   * <li> Issues a blocking `Await.result` on the `Future`.
+   * </ol>
+   *
+   */
+  def messageAndWait[M](message: AnyRef, downcast: Future[_] => Future[M])(implicit actorRef: ActorRef): M = {
     val futureAny = actorRef ? message
-    Await.result(downcast(futureAny), 5 seconds).get
+    Await.result(downcast(futureAny), 5 seconds)
   }
 
   "An ActorWorkflowManager" should {
@@ -46,13 +59,13 @@ class ActorWorkflowManagerSpec extends CromwellSpec(ActorSystem("ActorWorkflowMa
       implicit val timeout = Timeout(5 seconds)
 
       val workflowId = waitForHandledMessage(named = "Done") {
-        waitAndGet(SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.RawInputs), _.mapTo[Try[WorkflowId]])
+        messageAndWait(SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.RawInputs), _.mapTo[WorkflowId])
       }
 
-      val status = waitAndGet(WorkflowStatus(workflowId), _.mapTo[Option[WorkflowState]])
+      val status = messageWaitAndGet(WorkflowStatus(workflowId), _.mapTo[Option[WorkflowState]])
       status shouldEqual WorkflowSucceeded
 
-      val outputs = waitAndGet(WorkflowOutputs(workflowId), _.mapTo[Option[Map[FullyQualifiedName, WdlValue]]])
+      val outputs = messageWaitAndGet(WorkflowOutputs(workflowId), _.mapTo[Option[Map[FullyQualifiedName, WdlValue]]])
 
       val actual = outputs.map { case (k, WdlString(string)) => k -> string }
       actual shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)

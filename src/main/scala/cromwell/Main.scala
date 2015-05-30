@@ -1,14 +1,10 @@
 package cromwell
 
 import java.io.File
-import java.nio.file.Paths
 
 import cromwell.binding._
-import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.CromwellServer
-
-import scala.util.{Failure, Success, Try}
 
 
 object Actions extends Enumeration {
@@ -23,6 +19,7 @@ object Main extends App {
     case Some(x) if x == Actions.validate => validateIt(args.tail)
     case Some(x) if x == Actions.run => runIt(args.tail)
     case Some(x) if x == Actions.server => CromwellServer // Mention it so it gets instantiated
+    case None => CromwellServer
     case _ => usageAndExit()
   }
 

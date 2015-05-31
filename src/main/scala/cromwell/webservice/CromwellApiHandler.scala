@@ -3,10 +3,9 @@ package cromwell.webservice
 import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import cromwell.binding._
 import cromwell.engine
 import cromwell.engine._
-import cromwell.webservice.CromwellApiHandler.{SubmitWorkflow, WorkflowStatus}
+import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 
@@ -46,20 +45,12 @@ class CromwellApiHandler(workflowManagerActorRef : ActorRef) extends Actor {
 
     case SubmitWorkflow(wdl, inputs) =>
       implicit val timeout = Timeout(2.seconds)
-      val workflowManagerResponseFuture = ask(workflowManagerActorRef, WorkflowManagerActor.SubmitWorkflow(wdl, inputs)).mapTo[Try[WorkflowId]]
+      val workflowManagerResponseFuture = ask(workflowManagerActorRef, WorkflowManagerActor.SubmitWorkflow(wdl, inputs)).mapTo[WorkflowId]
 
       workflowManagerResponseFuture.onComplete {
-        case Success(tryId) =>
-          tryId match {
-            case Success(id) =>
-              println(s"Got in here with $id")
-              context.parent ! RequestComplete (StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
-
-              // TODO: how to parse the various subtypes of exception here???
-            case Failure(ex) =>
-              println(s"Failure1 -> $ex")
-              context.parent ! RequestComplete (StatusCodes.BadRequest, ex)
-          }
+        case Success(id) =>
+          println(s"Got in here with $id")
+          context.parent ! RequestComplete (StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
 
         case Failure(ex) =>
           println(s"Failure2 -> $ex")

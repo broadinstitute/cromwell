@@ -15,10 +15,6 @@ import akka.pattern.pipe
 import spray.json._
 import DefaultJsonProtocol._
 
-import scala.util.Try
-
-// if you don't supply your own Protocol (see below)
-
 import scala.concurrent.Future
 
 object MockWorkflowManagerActor {
@@ -40,7 +36,7 @@ class MockWorkflowManagerActor extends Actor  {
   def receive = {
     case SubmitWorkflow(wdl, inputs) =>
       Future {
-            Try(MockWorkflowManagerActor.submittedWorkflowId)
+            MockWorkflowManagerActor.submittedWorkflowId
       }.pipeTo(sender())
 
     case WorkflowStatus(id) =>
@@ -85,7 +81,6 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   def actorRefFactory = system
 
   val workflowManagerActorRef = system.actorOf(Props(new MockWorkflowManagerActor()))
-  //  val workflowManagerActorRef = system.actorOf(ActorWorkflowManager.props)
   val unknownId = UUID.randomUUID().toString
 
   "CromwellApiService" should "return 404 for get of unknown workflow" in {

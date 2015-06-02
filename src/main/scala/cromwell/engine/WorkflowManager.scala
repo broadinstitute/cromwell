@@ -8,7 +8,7 @@ import akka.util.Timeout
 import cromwell.binding
 import cromwell.binding.{WdlBinding, WdlSource}
 import cromwell.engine.WorkflowActor._
-import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.engine.WorkflowManagerActor._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.WriteOnceStore
@@ -31,9 +31,10 @@ trait WorkflowManager {
 
   def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: binding.WorkflowRawInputs): Try[Workflow]
 
+  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId]
+  def notifyCompletion(obj: Option[AnyRef]): Unit
   def workflowStatus(id: WorkflowId): Option[WorkflowState] = workflowStates.get(id)
   def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]]
-  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[WorkflowId]]
   def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit
 
   def idByWorkflow(workflow: Workflow): Option[WorkflowId] = {
@@ -62,8 +63,10 @@ trait WorkflowManager {
 object WorkflowManagerActor {
   sealed trait WorkflowManagerMessage
   case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends WorkflowManagerMessage
+  case class NotifyCompletion(caller: AnyRef) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
+  case class Shutdown() extends WorkflowManagerMessage
 }
 
 /**
@@ -76,6 +79,7 @@ object WorkflowManagerActor {
 trait WorkflowManagerActor extends Actor with WorkflowManager {
   override type Workflow = ActorRef // TODO: In a world where Akka Typed is no longer experimental switch to that
   val actorSystem = context.system
+  private var caller: Option[AnyRef] = None
 
   def receive = {
     case SubmitWorkflow(wdl, inputs) =>
@@ -84,10 +88,16 @@ trait WorkflowManagerActor extends Actor with WorkflowManager {
     case WorkflowStatus(id) =>
       val origSender = sender()
       origSender ! workflowStatus(id)
+    case NotifyCompletion(obj) => caller = Some(obj)
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender() // FIXME: What if the workflow isn't done? How best to handle?
+    case Shutdown() => context.system.shutdown
     case WorkflowActor.Started => updateWorkflowState(sender(), WorkflowRunning)
-    case WorkflowActor.Done(symbolStore) => updateWorkflowState(sender(), WorkflowSucceeded)
-    case WorkflowActor.Failed(failures) => updateWorkflowState(sender(), WorkflowFailed)
+    case WorkflowActor.Done(symbolStore) =>
+      notifyCompletion(caller)
+      updateWorkflowState(sender(), WorkflowSucceeded)
+    case WorkflowActor.Failed(failures) =>
+      notifyCompletion(caller)
+      updateWorkflowState(sender(), WorkflowFailed)
   }
 }
 
@@ -110,6 +120,12 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     } yield context.actorOf(WorkflowActor.buildWorkflowActorProps(id, binding, coercedInputs))
   }
 
+  override def notifyCompletion(obj: Option[AnyRef]): Unit = {
+    obj match {
+      case Some(o) => o.synchronized{o.notify()}
+      case _ =>
+    }
+  }
   override def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]] = {
     workflowById(id) map workflowToOutputs getOrElse Future{None}
   }
@@ -119,11 +135,19 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     symbolsToWorkflowOutputs(eventualSymbolStoreEntries) map {Option(_)}
   }
 
-  override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[Try[WorkflowId]] = {
-    val eventualTriedManagedWorkflow = addWorkflow(wdl, inputs)
-    // Side effecting code to send this workflow a message to start, and then return the Future
-    eventualTriedManagedWorkflow foreach {_ foreach {_.workflow ? Start(backend)}} // Needs to be an ask and not a tell as this isn't an Actor
-    eventualTriedManagedWorkflow map {_ map {_.id}} // Convert the Future[Try[ManagedWorkflow]] to Future[Try[WorkflowId]]
+  override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId] = {
+    def startAndExtractId(workflow: ManagedWorkflow): WorkflowId = {
+      // This needs to be an ask and not a tell as this isn't an Actor.
+      // The Future result is deliberately ignored.
+      workflow.workflow ? Start(backend)
+      workflow.id
+    }
+
+    for {
+      // Flatten what would otherwise be a Future[Try[]] into a Future[].
+      tryWorkflow <- addWorkflow(wdl, inputs)
+      workflow <- Future.fromTry(tryWorkflow)
+    } yield startAndExtractId(workflow)
   }
 
   override def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit = {

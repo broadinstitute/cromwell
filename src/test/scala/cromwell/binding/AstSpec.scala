@@ -1,9 +1,8 @@
-package cromwell
+package cromwell.binding
 
-import cromwell.binding.WdlBinding
 import org.scalatest.{FlatSpec, Matchers}
 
-class AstSpec extends FlatSpec with Matchers with WdlThreeStepFixture {
+class AstSpec extends FlatSpec with Matchers with ThreeStepFixture {
   "Parser" should "produce AST with 3 Task nodes" in {
     WdlBinding.findAsts(binding.ast, "Task").size shouldEqual 3
   }

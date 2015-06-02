@@ -1,4 +1,4 @@
-package cromwell
+package cromwell.binding
 
 import java.nio.file.Paths
 

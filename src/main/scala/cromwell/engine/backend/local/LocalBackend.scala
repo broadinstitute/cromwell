@@ -31,7 +31,7 @@ class LocalBackend extends Backend {
    * Executes the specified command line, using the supplied call and symbol store for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(commandLine: String, call: Call, taskOutputs: Set[TaskOutput], symbolStore: SymbolStore): Map[String, Try[WdlValue]] = {
+  override def executeCommand(commandLine: String, call: Call, taskOutputs: Seq[TaskOutput], symbolStore: SymbolStore): Map[String, Try[WdlValue]] = {
     import LocalBackend._
 
     val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout")

@@ -1,6 +1,6 @@
 package cromwell.binding
 
-import cromwell.binding.command.Command
+import cromwell.binding.command.{CommandPart, Command}
 import cromwell.binding.types.WdlType
 
 /**
@@ -10,7 +10,7 @@ import cromwell.binding.types.WdlType
  * @param command Abstract command defined in the `command` section
  * @param outputs Set of defined outputs in the `output` section of the task
  */
-case class Task(name: String, command: Command, outputs: Set[TaskOutput]) {
+case class Task(name: String, command: Command, outputs: Seq[TaskOutput]) extends Executable {
   /**
    * Inputs to this task, as task-local names (i.e. not fully-qualified)
    *

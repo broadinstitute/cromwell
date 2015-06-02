@@ -3,18 +3,20 @@ package cromwell.webservice
 import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import cromwell.binding.{WdlSource, WorkflowRawInputs}
 import cromwell.engine
 import cromwell.engine._
+import cromwell.parser.WdlParser.SyntaxError
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 
 import scala.concurrent.duration._
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success}
 
 object CromwellApiHandler {
   sealed trait WorkflowManagerMessage
-  case class SubmitWorkflow(wdl: String, inputs: Map[String, String]) extends WorkflowManagerMessage
+  case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
   def props(workflowManagerActorRef : ActorRef): Props = {
@@ -49,12 +51,15 @@ class CromwellApiHandler(workflowManagerActorRef : ActorRef) extends Actor {
 
       workflowManagerResponseFuture.onComplete {
         case Success(id) =>
-          println(s"Got in here with $id")
           context.parent ! RequestComplete (StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
 
         case Failure(ex) =>
-          println(s"Failure2 -> $ex")
-          context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+          ex match {
+            case _:SyntaxError =>
+              context.parent ! RequestComplete(StatusCodes.BadRequest, ex.getMessage)
+            case _ =>
+              context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+          }
       }
 
   }

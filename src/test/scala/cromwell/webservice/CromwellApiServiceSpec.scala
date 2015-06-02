@@ -2,7 +2,8 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import cromwell.util.SampleWdl.HelloWorld
+
 import akka.actor.{Actor, Props}
 import cromwell.binding._
 import cromwell.engine.WorkflowManagerActor.{WorkflowStatus, SubmitWorkflow}
@@ -10,12 +11,9 @@ import cromwell.engine._
 import org.scalatest.{Matchers, FlatSpec}
 import spray.http._
 import spray.testkit.ScalatestRouteTest
-import akka.pattern.pipe
 
 import spray.json._
 import DefaultJsonProtocol._
-
-import scala.concurrent.Future
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage
@@ -35,53 +33,28 @@ class MockWorkflowManagerActor extends Actor  {
 
   def receive = {
     case SubmitWorkflow(wdl, inputs) =>
-      Future {
-            MockWorkflowManagerActor.submittedWorkflowId
-      }.pipeTo(sender())
+      sender ! MockWorkflowManagerActor.submittedWorkflowId
 
     case WorkflowStatus(id) =>
-      Future {
-        id match {
-          case MockWorkflowManagerActor.runningWorkflowId =>
-            Some(WorkflowRunning)
-          case _ =>
-            None
-        }
-      }.pipeTo(sender())
-
+      val msg = id match {
+        case MockWorkflowManagerActor.runningWorkflowId =>
+          Some(WorkflowRunning)
+        case _ =>
+          None
+      }
+      sender ! msg
   }
 }
 
 object CromwellApiServiceSpec {
-  val HelloWdl =
-    """
-      |task hello {
-      |  command {
-      |    echo "Hello ${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string("stdout")
-      |  }
-      |}
-      |
-      |workflow hello {
-      |  call hello
-      |}
-    """.stripMargin
-
-  val HelloInputs: Map[String, String] = Map("hello.hello.addressee" -> "world")
-  val HelloInputsJson : String = HelloInputs.toJson.toString()
-
   val MalformedInputsJson : String = "foobar bad json!"
   val MalformedWdl : String = "foobar bad wdl!"
 }
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
-
   def actorRefFactory = system
-
   val workflowManagerActorRef = system.actorOf(Props(new MockWorkflowManagerActor()))
-  val unknownId = UUID.randomUUID().toString
+
 
   "CromwellApiService" should "return 404 for get of unknown workflow" in {
     Get(s"/workflows/${MockWorkflowManagerActor.unknownId}") ~>
@@ -119,7 +92,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
 
   "Cromwell submit workflow API" should "return 201 for a succesful workfow submission " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> CromwellApiServiceSpec.HelloWdl, "workflowInputs" -> CromwellApiServiceSpec.HelloInputsJson))) ~>
+    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.WdlSource, "workflowInputs" -> HelloWorld.RawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.Created) {
@@ -132,7 +105,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 400 for a malformed JSON " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> CromwellApiServiceSpec.HelloWdl, "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
+    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.WdlSource, "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {

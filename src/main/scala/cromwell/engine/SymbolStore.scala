@@ -80,4 +80,10 @@ class SymbolStore(binding: WdlBinding, inputs: Map[FullyQualifiedName, WdlValue]
   }
 
   def getOutputs: Set[SymbolStoreEntry] = store.toSet filter {_.isOutput}
+
+  def readOnly = store.toSet
+
+  override def toString: String = {
+    store.map{e => s"${e.key.scope}\t${e.key.name}\t${e.key.input}\t${e.wdlType}\t${e.wdlValue}"}.mkString("\n")
+  }
 }

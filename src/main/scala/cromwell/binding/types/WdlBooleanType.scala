@@ -12,8 +12,7 @@ case object WdlBooleanType extends WdlType {
     case s: String if s.equalsIgnoreCase("false") => WdlBoolean.False
     case s: JsString if s.value.equalsIgnoreCase("true") => WdlBoolean.True
     case s: JsString if s.value.equalsIgnoreCase("false") => WdlBoolean.False
-    case s: JsBoolean if s.value => WdlBoolean.True
-    case s: JsBoolean if !s.value => WdlBoolean.False
+    case s: JsBoolean => WdlBoolean(s.value)
   }
 }
 

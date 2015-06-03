@@ -3,6 +3,7 @@ package cromwell.engine
 import java.util.UUID
 
 import akka.actor.{Actor, ActorRef, Props}
+import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
 import cromwell.binding
 import cromwell.binding.{WdlBinding, WdlSource}
@@ -14,7 +15,7 @@ import cromwell.util.WriteOnceStore
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Promise, Future}
 import scala.util.Try
 
 /**
@@ -30,7 +31,6 @@ trait WorkflowManager {
   def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: binding.WorkflowRawInputs): Try[Workflow]
 
   def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId]
-  def notifyCompletion(obj: Option[AnyRef]): Unit
   def workflowStatus(id: WorkflowId): Option[WorkflowState] = workflowStates.get(id)
   def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]]
   def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit
@@ -61,7 +61,7 @@ trait WorkflowManager {
 object WorkflowManagerActor {
   sealed trait WorkflowManagerMessage
   case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends WorkflowManagerMessage
-  case class NotifyCompletion(caller: AnyRef) extends WorkflowManagerMessage
+  case class NotifyCompletion(caller: Promise[Unit]) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
   case class Shutdown() extends WorkflowManagerMessage
@@ -77,24 +77,32 @@ object WorkflowManagerActor {
 trait WorkflowManagerActor extends Actor with WorkflowManager {
   override type Workflow = ActorRef // TODO: In a world where Akka Typed is no longer experimental switch to that
   val actorSystem = context.system
-  private var caller: Option[AnyRef] = None
+  import scala.collection.mutable
+  val listeners = mutable.Set.empty[Promise[Unit]]
+  private val log = Logging(context.system, this)
 
-  def receive = {
+  def notifyCompletion(): Unit = {
+    listeners foreach {l =>
+      if (!l.isCompleted) l.success(())
+    }
+  }
+
+  def receive = LoggingReceive {
     case SubmitWorkflow(wdl, inputs) =>
       val origSender = sender() // I don't think I have to do this, but better safe than sorry
       submitWorkflow(wdl, inputs) pipeTo origSender
     case WorkflowStatus(id) =>
       val origSender = sender()
       origSender ! workflowStatus(id)
-    case NotifyCompletion(obj) => caller = Some(obj)
+    case NotifyCompletion(promise) => listeners += promise
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender() // FIXME: What if the workflow isn't done? How best to handle?
     case Shutdown() => context.system.shutdown
     case WorkflowActor.Started => updateWorkflowState(sender(), WorkflowRunning)
     case WorkflowActor.Done(symbolStore) =>
-      notifyCompletion(caller)
+      notifyCompletion()
       updateWorkflowState(sender(), WorkflowSucceeded)
     case WorkflowActor.Failed(failures) =>
-      notifyCompletion(caller)
+      notifyCompletion()
       updateWorkflowState(sender(), WorkflowFailed)
   }
 }
@@ -117,12 +125,6 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     } yield context.actorOf(WorkflowActor.props(id, binding, coercedInputs, backend))
   }
 
-  override def notifyCompletion(obj: Option[AnyRef]): Unit = {
-    obj match {
-      case Some(o) => o.synchronized{o.notify()}
-      case _ =>
-    }
-  }
   override def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]] = {
     workflowById(id) map workflowToOutputs getOrElse Future{None}
   }

@@ -91,7 +91,7 @@ task ps {
     ps
   }
   output {
-    File procs = "stdout"
+    File procs = stdout()
   }
 }
 
@@ -100,7 +100,7 @@ task cgrep {
     grep '${pattern}' ${File in_file} | wc -l
   }
   output {
-    Int count = read_int("stdout")
+    Int count = read_int(stdout())
   }
 }
 
@@ -109,7 +109,7 @@ task wc {
     cat ${File in_file} | wc -l
   }
   output {
-    Int count = read_int("stdout")
+    Int count = read_int(stdout())
   }
 }
 
@@ -144,11 +144,11 @@ Server: spray-can/1.3.3
 
 {
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
-    "status": "WorkflowSubmitted"
+    "status": "Submitted"
 }
 ```
 
-### GET /workflow/<id>/status
+### GET /workflow/:id/status
 
 ```
 http http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/status
@@ -166,27 +166,28 @@ Server: spray-can/1.3.3
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
     "status": "WorkflowSucceeded"
 }
+```
 
-### GET /workflow/<id>/outputs
+### GET /workflow/:id/outputs
 
 ```
-http http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/outputs
+http http://localhost:8000/workflow/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 Response:
 ```
 HTTP/1.1 200 OK
-Content-Length: 250
+Content-Length: 241
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 02 Jun 2015 18:07:04 GMT
+Date: Thu, 04 Jun 2015 12:15:33 GMT
 Server: spray-can/1.3.3
 
 {
-    "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
+    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
     "outputs": {
-        "three_step.cgrep.count": "WdlInteger(11)",
-        "three_step.ps.procs": "WdlFile(/var/folders/kg/c7vgxnn902lc3qvc2z2g81s89xhzdz/T/stdout4640266685582409635.tmp)",
-        "three_step.wc.count": "WdlInteger(11)"
+        "three_step.cgrep.count": 8,
+        "three_step.ps.procs": "/var/folders/kg/c7vgxnn902lc3qvc2z2g81s89xhzdz/T/stdout2814345504446060277.tmp",
+        "three_step.wc.count": 8
     }
 }
 ```

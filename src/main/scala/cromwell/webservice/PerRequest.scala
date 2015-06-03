@@ -1,19 +1,20 @@
 package cromwell.webservice
 
+import akka.actor._
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{OneForOneStrategy, _}
 import cromwell.webservice.PerRequest._
 import spray.http.StatusCodes._
-import spray.http._
-import spray.httpx.marshalling._
-import spray.routing.RequestContext
 import spray.httpx.marshalling.ToResponseMarshaller
-
+import spray.routing.RequestContext
+import akka.actor.OneForOneStrategy
 import scala.concurrent.duration._
+import spray.http._
+
+import scala.language.postfixOps
 
 /**
  * This actor controls the lifecycle of a request. It is responsible for forwarding the initial message
- * to a target handling actor. This actor waits for the target actor signal completion (via a message),
+ * to a target handling actor. This actor waits for the target actor to signal completion (via a message),
  * timeout, or handle an exception. It is this actors responsibility to respond to the request and
  * shutdown itself and child actors.
  *
@@ -21,27 +22,6 @@ import scala.concurrent.duration._
  * 1) with just a response object
  * 2) with a RequestComplete message which can specify http status code as well as the response
  */
-
-/*object ImplicitMarshallers {
-  implicit val OutputsMarshaller =
-    Marshaller.of[(StatusCode, WorkflowOutputResponse)](MediaTypes.`application/json`) { (value, contentType, ctx) =>
-      ctx.marshalTo(HttpEntity(contentType, "something"))
-    }
-  implicit val StatusMarshaller =
-    Marshaller.of[(StatusCode, WorkflowStatusResponse)](MediaTypes.`application/json`) { (value, contentType, ctx) =>
-      //value._2.toJson.prettyPrint
-      ctx.marshalTo(HttpEntity(contentType, "something2"))
-    }
-  implicit val SubmitMarshaller =
-    Marshaller.of[(StatusCode, WorkflowSubmitResponse)](MediaTypes.`application/json`) { (value, contentType, ctx) =>
-      ctx.marshalTo(HttpEntity(contentType, "something2"))
-    }
-  implicit val NoneMarshaller =
-    Marshaller.of[(StatusCode, None.type)](MediaTypes.`application/json`) { (value, contentType, ctx) =>
-      ctx.marshalTo(HttpEntity(contentType, ""))
-    }
-}*/
-
 trait PerRequest extends Actor {
   import context._
 
@@ -54,8 +34,10 @@ trait PerRequest extends Actor {
   target ! message
 
   def receive = {
-    case RequestComplete_(response, marshaller) => complete(response)(marshaller)
-    case RequestCompleteWithHeaders_(response, headers, marshaller) => complete(response, headers:_*)(marshaller)
+    // The [Any] type parameter appears to be required for version of Scala > 2.11.2,
+    // the @ unchecked is required to muzzle erasure warnings.
+    case message: RequestComplete[Any] @ unchecked => complete(message.response)(message.marshaller)
+    case message: RequestCompleteWithHeaders[Any] @ unchecked => complete(message.response, message.headers:_*)(message.marshaller)
     case ReceiveTimeout => complete(GatewayTimeout)
     case x =>
       system.log.error("Unsupported response message sent to PreRequest actor: " + Option(x).getOrElse("null").toString)

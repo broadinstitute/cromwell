@@ -10,6 +10,7 @@ import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{binding, engine}
 import spray.http.StatusCodes
+import spray.httpx.SprayJsonSupport._
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -31,6 +32,8 @@ object CromwellApiHandler {
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
 
+  import WorkflowJsonSupport._
+  import cromwell.binding.values.WdlValueJsonFormatter._
   import context.dispatcher
 
   implicit val timeout = Timeout(2.seconds)
@@ -44,7 +47,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
           state match {
             case Some(x) =>
               context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, x.toString))
-            case None => context.parent ! RequestComplete(StatusCodes.NotFound, None)
+            case None => context.parent ! RequestComplete(StatusCodes.NotFound)
           }
 
         case Failure(ex) =>
@@ -72,7 +75,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Success(outputs) => outputs match {
           case Some(x) =>
             context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, x))
-          case None => context.parent ! RequestComplete(StatusCodes.NotFound, None)
+          case None => context.parent ! RequestComplete(StatusCodes.NotFound)
         }
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }

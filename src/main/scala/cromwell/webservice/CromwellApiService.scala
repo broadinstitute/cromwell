@@ -2,22 +2,18 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, Actor, ActorRefFactory, Props}
-import akka.pattern.ask
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.gettyimages.spray.swagger.SwaggerHttpService
 import com.wordnik.swagger.annotations._
 import com.wordnik.swagger.model.ApiInfo
 import spray.http.StatusCodes
+import spray.json._
+import spray.httpx.SprayJsonSupport._
 import spray.routing.Directive.pimpApply
 import spray.routing._
-import spray.json._
-import scala.util.{Success, Failure}
 
 import scala.reflect.runtime.universe._
-import scala.util.Try
-
-import spray.json._
-import DefaultJsonProtocol._
+import scala.util.{Failure, Success, Try}
 
 
 object CromwellApiServiceActor {
@@ -76,8 +72,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator  {
     path("workflow" / Segment / "status") { id =>
       Try(UUID.fromString(id)) match {
         case Success(workflowId) =>
-          requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(workflowId))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(workflowId))
         case Failure(ex) =>
           complete(StatusCodes.BadRequest)
       }
@@ -107,8 +102,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator  {
           val tryMap = Try(workflowInputs.parseJson)
           tryMap match {
             case Success(JsObject(obj)) =>
-              requestContext =>
-                perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.SubmitWorkflow(wdlSource, obj))
+              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.SubmitWorkflow(wdlSource, obj))
             case Success(o) =>
               complete(StatusCodes.BadRequest, "Expecting JSON object as workflow inputs")
             case Failure(ex) =>
@@ -136,11 +130,9 @@ trait CromwellApiService extends HttpService with PerRequestCreator  {
   ))
   def outputsRoute =
     path("workflow" / Segment / "outputs") { id =>
-      // FIXME: Can we abstract the boilerplate? My experience doing that in Spray has generally been not so good
       Try(UUID.fromString(id)) match {
         case Success(workflowId) =>
-          requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowOutputs(workflowId))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowOutputs(workflowId))
         case Failure(ex) =>
           complete(StatusCodes.BadRequest)
     }

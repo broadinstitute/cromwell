@@ -79,11 +79,11 @@ Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
 Content-Length: 730
-Content-Type: multipart/form-data; boundary=f1a9bd3079b14946bd1264efaa545c45
+Content-Type: multipart/form-data; boundary=64128d499e9e4616adea7d281f695dca
 Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
---f1a9bd3079b14946bd1264efaa545c45
+--64128d499e9e4616adea7d281f695dca
 Content-Disposition: form-data; name="wdlSource"
 
 task ps {
@@ -109,7 +109,6 @@ task wc {
     cat ${File in_file} | wc -l
   }
   output {
-### POST /workflows
     Int count = read_int("stdout")
   }
 }
@@ -124,14 +123,14 @@ workflow three_step {
   }
 }
 
---f1a9bd3079b14946bd1264efaa545c45
+--64128d499e9e4616adea7d281f695dca
 Content-Disposition: form-data; name="workflowInputs"; filename="inputs.json"
 
 {
     "three_step.cgrep.pattern": "..."
 }
 
---f1a9bd3079b14946bd1264efaa545c45--
+--64128d499e9e4616adea7d281f695dca--
 ```
 
 Response:

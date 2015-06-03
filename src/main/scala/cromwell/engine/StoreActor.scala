@@ -79,14 +79,18 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
     }
   }
 
+  /**
+   * Updates outputs for the completed call and returns a `Future[Boolean]` which is true
+   * if the workflow is now "done".  Current "done" for a workflow means all calls are done.
+   */
   private def handleCallCompleted(call: Call, callOutputs: Map[String, WdlValue]): Future[Boolean] =
     for {
       _ <- updateOutputs(call, callOutputs)
-    } yield executionStore.isDone
+    } yield executionStore.isWorkflowDone
 
   private def handlePrepareToStartCalls(calls: Iterable[Call]): Future[Unit] = Future {
-    calls.foreach { call =>
-      call.inputMappings.foreach { case (inputName, expression) =>
+    def copyOutputsToInputs(call: Call) = {
+      def copyOutputToInput(inputName: String, expression: WdlExpression) = {
         val ast = expression.ast.asInstanceOf[Ast]
         val Seq(lhs, rhs) = Seq("lhs", "rhs").map {
           ast.getAttribute(_).asInstanceOf[Terminal].getSourceString
@@ -95,6 +99,11 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
         val inputFqn = Seq(call.parent.get.name, call.name, inputName).mkString(".")
         symbolStore.copyOutputToInput(outputFqn, inputFqn)
       }
+
+      call.inputMappings.foreach { case (inputName, expression) =>
+        copyOutputToInput(inputName, expression)
+      }
     }
+    calls.foreach { call => copyOutputsToInputs(call) }
   }
 }

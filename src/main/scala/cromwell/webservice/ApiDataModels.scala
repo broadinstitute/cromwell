@@ -1,7 +1,11 @@
 package cromwell.webservice
 
 import com.wordnik.swagger.annotations.{ApiModel, ApiModelProperty}
+import cromwell.binding.FullyQualifiedName
+import cromwell.binding.values.WdlValue
+import spray.json.JsValue
 import scala.annotation.meta.field
+import cromwell.binding.values.WdlValueJsonFormatter._
 
 
 @ApiModel(value = "WorkflowStatus")
@@ -26,5 +30,5 @@ case class WorkflowOutputResponse (
                                     @(ApiModelProperty@field)(required = true, value = "The identifier of the workflow")
                                     id: String,
                                     @(ApiModelProperty@field)(required = true, value = "The outputs of the workflow")
-                                    outputs: Map[String, String] // FIXME: We might want to better type this, e.g. numbers
+                                    outputs: Map[FullyQualifiedName, WdlValue]
                                   )

@@ -4,7 +4,6 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.{ask, pipe}
-import akka.util.Timeout
 import cromwell.binding
 import cromwell.binding.{WdlBinding, WdlSource}
 import cromwell.engine.WorkflowActor._
@@ -16,7 +15,6 @@ import cromwell.util.WriteOnceStore
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration._
 import scala.util.Try
 
 /**
@@ -111,13 +109,12 @@ object ActorWorkflowManager {
 
 class ActorWorkflowManager extends WorkflowManagerActor {
   override val backend = new LocalBackend
-  implicit val timeout = Timeout(30.seconds)
 
   override def generateWorkflow(id: WorkflowId, wdl: WdlSource, rawInputs: binding.WorkflowRawInputs): Try[Workflow] = {
     val binding = WdlBinding.process(wdl)
     for {
       coercedInputs <- binding.coerceRawInputs(rawInputs)
-    } yield context.actorOf(WorkflowActor.buildWorkflowActorProps(id, binding, coercedInputs))
+    } yield context.actorOf(WorkflowActor.props(id, binding, coercedInputs, backend))
   }
 
   override def notifyCompletion(obj: Option[AnyRef]): Unit = {
@@ -130,16 +127,14 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     workflowById(id) map workflowToOutputs getOrElse Future{None}
   }
 
-  private def workflowToOutputs(workflow: Workflow): Future[Option[binding.WorkflowOutputs]] = {
-    val eventualSymbolStoreEntries = {workflow ? GetOutputs}.mapTo[Set[SymbolStoreEntry]]
-    symbolsToWorkflowOutputs(eventualSymbolStoreEntries) map {Option(_)}
-  }
+  private def workflowToOutputs(workflow: Workflow): Future[Option[binding.WorkflowOutputs]] =
+    (workflow ? GetOutputs).mapTo[binding.WorkflowOutputs] map { Option(_) }
 
   override def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId] = {
     def startAndExtractId(workflow: ManagedWorkflow): WorkflowId = {
       // This needs to be an ask and not a tell as this isn't an Actor.
       // The Future result is deliberately ignored.
-      workflow.workflow ? Start(backend)
+      workflow.workflow ? Start
       workflow.id
     }
 
@@ -154,11 +149,4 @@ class ActorWorkflowManager extends WorkflowManagerActor {
     idByWorkflow(workflow) map {w => workflowStates.put(w, state)}
   }
 
-  private def symbolsToWorkflowOutputs(eventualSymbolStoreEntries: Future[Set[SymbolStoreEntry]]): Future[binding.WorkflowOutputs] = {
-    /*
-     * Given a Future of Set[SymbolStoreEntry], reach in to the Future and then for each SymbolStoreEntry convert it to a
-     * mapping from FullyQualifiedName to WdlValue and then convert the collection of those mappings to a Map
-     */
-    eventualSymbolStoreEntries.map(_.map(s => s"${s.key.scope}.${s.key.name}" -> s.wdlValue.get).toMap)
-  }
 }

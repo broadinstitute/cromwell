@@ -36,7 +36,7 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
                          rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
     val binding = WdlBinding.process(HelloWorld.WdlSource)
     val coercedInputs = binding.coerceRawInputs(rawInputs).get
-    val props = WorkflowActor.buildWorkflowActorProps(UUID.randomUUID(), binding, coercedInputs)
+    val props = WorkflowActor.props(UUID.randomUUID(), binding, coercedInputs, new LocalBackend)
     TestActorRef(props, self, "Workflow-" + name)
   }
 
@@ -52,19 +52,17 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
       within(TestExecutionTimeout) {
         val workflowActor = buildWorkflowActor("started")
         startingCallsFilter("hello").intercept {
-          workflowActor ! Start(new LocalBackend)
+          workflowActor ! Start
           expectMsgPF() {
             case Started => ()
           }
           expectMsgPF() {
             case Failed(t) =>
               fail(t)
-            case Done(symbolStore) =>
-              val maybeOutput = symbolStore.getOutputByFullyQualifiedName("hello.hello.salutation")
-
-              val symbolStoreEntry = maybeOutput.getOrElse(throw new RuntimeException("No symbol store entry found!"))
-              val wdlValue = symbolStoreEntry.wdlValue.getOrElse(throw new RuntimeException("No workflow output found!"))
-              val actualOutput = wdlValue.asInstanceOf[WdlString].value.trim
+            case Done(outputs) =>
+              val outputName = "hello.hello.salutation"
+              val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
+              val actualOutput = salutation.asInstanceOf[WdlString].value.trim
               actualOutput shouldEqual "Hello world!"
           }
         }

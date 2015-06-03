@@ -13,7 +13,7 @@ object ExecutionStatus extends Enumeration {
  */
 class ExecutionStore(binding: WdlBinding) {
 
-  def isDone: Boolean = table.forall(_._2 == ExecutionStatus.Done)
+  def isWorkflowDone: Boolean = table.forall(_._2 == ExecutionStatus.Done)
 
   def updateStatus(call: Call, status: ExecutionStatus.Value): Unit = table += (call -> status)
 

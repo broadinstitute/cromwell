@@ -18,13 +18,13 @@ libraryDependencies ++= Seq(
   "io.spray" %% "spray-client" % sprayV,
   "io.spray" %% "spray-http" % sprayV,
   "io.spray" %% "spray-json" % sprayV,
-  "com.typesafe.akka" %% "akka-actor" % "2.4-M1",
+  "com.typesafe.akka" %% "akka-actor" % "2.3.4",
   "commons-codec" % "commons-codec" % "1.10",
 
   //---------- Test libraries -------------------//
-  "io.spray" % "spray-testkit_2.11" % sprayV % Test,
-  "org.scalatest" % "scalatest_2.11" % "2.2.5" % Test,
-  "com.typesafe.akka" %% "akka-testkit" % "2.4-M1" % Test
+  "io.spray" %% "spray-testkit" % sprayV % Test,
+  "org.scalatest" %% "scalatest" % "2.2.5" % Test,
+  "com.typesafe.akka" %% "akka-testkit" % "2.3.4" % Test
 )
 
 releaseSettings

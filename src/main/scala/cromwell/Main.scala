@@ -7,6 +7,7 @@ import cromwell.engine.{WorkflowManagerActor, SingleWorkflowRunner}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.CromwellServer
 import spray.json._
+
 import scala.util.{Failure, Success}
 
 object Actions extends Enumeration {
@@ -54,7 +55,7 @@ object Main extends App {
         import cromwell.binding.values.WdlValueJsonFormatter._
         println("Workflow Completed.  Outputs are:")
         println(o.toJson.prettyPrint)
-        runner.workflowManagerActor ! WorkflowManagerActor.Shutdown()
+        runner.workflowManagerActor ! WorkflowManagerActor.Shutdown
       case Failure(f) => println(f.printStackTrace())
     }
   }

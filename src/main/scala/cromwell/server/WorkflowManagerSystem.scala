@@ -1,7 +1,7 @@
 package cromwell.server
 
 import akka.actor.ActorSystem
-import cromwell.engine.ActorWorkflowManager
+import cromwell.engine.WorkflowManagerActor
 
 trait WorkflowManagerSystem {
   val systemName = "cromwell-system"
@@ -9,5 +9,5 @@ trait WorkflowManagerSystem {
 
   actorSystem.registerOnTermination {actorSystem.log.info(s"$systemName shutting down")}
 
-  val workflowManagerActor = actorSystem.actorOf(ActorWorkflowManager.props)
+  val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props)
 }

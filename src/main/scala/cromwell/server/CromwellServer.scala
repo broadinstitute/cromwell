@@ -7,7 +7,7 @@ import akka.util.Timeout
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
 import com.wordnik.swagger.model.ApiInfo
-import cromwell.engine.ActorWorkflowManager
+import cromwell.engine.WorkflowManagerActor
 import cromwell.webservice.{CromwellApiServiceActor, CromwellApiService, SwaggerService}
 import spray.can.Http
 import scala.concurrent.duration._

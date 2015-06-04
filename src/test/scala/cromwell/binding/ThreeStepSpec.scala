@@ -2,9 +2,12 @@ package cromwell.binding
 
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType}
 import cromwell.binding.values.{WdlFile, WdlString}
+import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
-class ThreeStepSpec extends FlatSpec with Matchers with ThreeStepFixture {
+class ThreeStepSpec extends FlatSpec with Matchers {
+  val binding = WdlBinding.process(SampleWdl.ThreeStep.WdlSource)
+
   "Binding Workflow" should "Have one workflow definition" in {
     binding.workflows.size shouldEqual 1
   }

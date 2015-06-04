@@ -34,9 +34,7 @@ object CromwellServer extends WorkflowManagerSystem {
       swaggerConfig.getString("licenseUrl"))
     ))
 
-  val workflowManager = actorSystem.actorOf(ActorWorkflowManager.props)
-
-  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManager, swaggerService), "cromwell-service")
+  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, swaggerService), "cromwell-service")
 
   implicit val timeout = Timeout(5.seconds)
 

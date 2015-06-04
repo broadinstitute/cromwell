@@ -40,7 +40,7 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
   override def receive: Receive = LoggingReceive {
 
     case CallCompleted(call, callOutputs) =>
-      handleCallCompleted(call, callOutputs) pipeTo sender
+      sender ! handleCallCompleted(call, callOutputs)
 
     case FindRunnableCalls =>
       sender ! executionStore.runnableCalls
@@ -61,7 +61,7 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
   private def symbolStoreEntryToMapEntry(e: SymbolStoreEntry): (String, WdlValue) =
     e.key.scope + "." + e.key.name -> e.wdlValue.get
 
-  private def updateOutputs(call: Call, callOutputs: Map[String, WdlValue]): Future[Unit] = Future {
+  private def updateOutputs(call: Call, callOutputs: Map[String, WdlValue]): Unit = {
 
     def addOutputValueToSymbolStore(callOutput: (String, WdlValue)): Try[Unit] =
       symbolStore.addOutputValue(call.fullyQualifiedName, callOutput._1, Some(callOutput._2), callOutput._2.wdlType)
@@ -83,10 +83,10 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
    * Updates outputs for the completed call and returns a `Future[Boolean]` which is true
    * if the workflow is now "done".  Current "done" for a workflow means all calls are done.
    */
-  private def handleCallCompleted(call: Call, callOutputs: Map[String, WdlValue]): Future[Boolean] =
-    for {
-      _ <- updateOutputs(call, callOutputs)
-    } yield executionStore.isWorkflowDone
+  private def handleCallCompleted(call: Call, callOutputs: Map[String, WdlValue]): Boolean = {
+    updateOutputs(call, callOutputs)
+    executionStore.isWorkflowDone
+  }
 
   private def handlePrepareToStartCalls(calls: Iterable[Call]): Future[Unit] = Future {
     def copyOutputsToInputs(call: Call) = {

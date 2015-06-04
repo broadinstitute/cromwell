@@ -15,8 +15,16 @@ package object engine {
   type WorkflowId = UUID
 
   sealed trait WorkflowState
-  case object WorkflowSubmitted extends WorkflowState
-  case object WorkflowRunning extends WorkflowState
-  case object WorkflowFailed extends WorkflowState
-  case object WorkflowSucceeded extends WorkflowState
+  case object WorkflowSubmitted extends WorkflowState {
+    override def toString: String = "Submitted"
+  }
+  case object WorkflowRunning extends WorkflowState {
+    override def toString: String = "Running"
+  }
+  case object WorkflowFailed extends WorkflowState {
+    override def toString: String = "Failed"
+  }
+  case object WorkflowSucceeded extends WorkflowState {
+    override def toString: String = "Succeeded"
+  }
 }

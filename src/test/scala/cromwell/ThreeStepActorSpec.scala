@@ -76,7 +76,7 @@ object ThreeStepActorSpec {
       |joeblaux          6440   1.4  2.2  4496164 362136   ??  S    Sun09PM  74:29.40 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
     """.stripMargin.trim
 
-  val TestExecutionTimeout = 500 milliseconds
+  val TestExecutionTimeout = 1500 milliseconds
 
   object Inputs {
     val Pattern = "three_step.cgrep.pattern"

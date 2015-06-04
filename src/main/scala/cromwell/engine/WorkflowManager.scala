@@ -3,18 +3,19 @@ package cromwell.engine
 import java.util.UUID
 
 import akka.actor.{Actor, ActorRef, Props}
+import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
 import cromwell.binding
 import cromwell.binding.{WdlBinding, WdlSource}
 import cromwell.engine.WorkflowActor._
-import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.engine.WorkflowManagerActor._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.WriteOnceStore
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Promise, Future}
 import scala.util.Try
 
 /**
@@ -29,9 +30,9 @@ trait WorkflowManager {
 
   def generateWorkflow(id: WorkflowId, wdl: WdlSource, inputs: binding.WorkflowRawInputs): Try[Workflow]
 
+  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId]
   def workflowStatus(id: WorkflowId): Option[WorkflowState] = workflowStates.get(id)
   def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]]
-  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId]
   def updateWorkflowState(workflow: Workflow, state: WorkflowState): Unit
 
   def idByWorkflow(workflow: Workflow): Option[WorkflowId] = {
@@ -60,8 +61,10 @@ trait WorkflowManager {
 object WorkflowManagerActor {
   sealed trait WorkflowManagerMessage
   case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends WorkflowManagerMessage
+  case class NotifyCompletion(caller: Promise[Unit]) extends WorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
+  case class Shutdown() extends WorkflowManagerMessage
 }
 
 /**
@@ -74,18 +77,33 @@ object WorkflowManagerActor {
 trait WorkflowManagerActor extends Actor with WorkflowManager {
   override type Workflow = ActorRef // TODO: In a world where Akka Typed is no longer experimental switch to that
   val actorSystem = context.system
+  import scala.collection.mutable
+  val listeners = mutable.Set.empty[Promise[Unit]]
+  private val log = Logging(context.system, this)
 
-  def receive = {
+  def notifyCompletion(): Unit = {
+    listeners foreach {l =>
+      if (!l.isCompleted) l.success(())
+    }
+  }
+
+  def receive = LoggingReceive {
     case SubmitWorkflow(wdl, inputs) =>
       val origSender = sender() // I don't think I have to do this, but better safe than sorry
       submitWorkflow(wdl, inputs) pipeTo origSender
     case WorkflowStatus(id) =>
       val origSender = sender()
       origSender ! workflowStatus(id)
-    case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender()
+    case NotifyCompletion(promise) => listeners += promise
+    case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender() // FIXME: What if the workflow isn't done? How best to handle?
+    case Shutdown() => context.system.shutdown
     case WorkflowActor.Started => updateWorkflowState(sender(), WorkflowRunning)
-    case WorkflowActor.Done(symbolStore) => updateWorkflowState(sender(), WorkflowSucceeded)
-    case WorkflowActor.Failed(failures) => updateWorkflowState(sender(), WorkflowFailed)
+    case WorkflowActor.Done(symbolStore) =>
+      notifyCompletion()
+      updateWorkflowState(sender(), WorkflowSucceeded)
+    case WorkflowActor.Failed(failures) =>
+      notifyCompletion()
+      updateWorkflowState(sender(), WorkflowFailed)
   }
 }
 

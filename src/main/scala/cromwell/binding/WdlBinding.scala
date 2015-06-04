@@ -4,8 +4,8 @@ import java.io.File
 
 import cromwell.binding.WdlBinding.ImportResolver
 import cromwell.binding.command._
-import cromwell.binding.values.WdlValue
 import cromwell.binding.types._
+import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil

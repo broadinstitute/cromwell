@@ -4,16 +4,17 @@ import akka.actor._
 import akka.actor.SupervisorStrategy.Stop
 import cromwell.webservice.PerRequest._
 import spray.http.StatusCodes._
+import spray.httpx.marshalling.ToResponseMarshaller
 import spray.routing.RequestContext
 import akka.actor.OneForOneStrategy
-import spray.httpx.Json4sSupport
 import scala.concurrent.duration._
-import org.json4s.DefaultFormats
-import spray.http.StatusCode
+import spray.http._
+
+import scala.language.postfixOps
 
 /**
  * This actor controls the lifecycle of a request. It is responsible for forwarding the initial message
- * to a target handling actor. This actor waits for the target actor signal completion (via a message),
+ * to a target handling actor. This actor waits for the target actor to signal completion (via a message),
  * timeout, or handle an exception. It is this actors responsibility to respond to the request and
  * shutdown itself and child actors.
  *
@@ -21,11 +22,8 @@ import spray.http.StatusCode
  * 1) with just a response object
  * 2) with a RequestComplete message which can specify http status code as well as the response
  */
-trait PerRequest extends Actor with Json4sSupport {
-
+trait PerRequest extends Actor {
   import context._
-
-  val json4sFormats = DefaultFormats
 
   def r: RequestContext
   def target: ActorRef
@@ -36,30 +34,64 @@ trait PerRequest extends Actor with Json4sSupport {
   target ! message
 
   def receive = {
-    case RequestComplete(statusCode, response) => complete(statusCode, response)
-    case ReceiveTimeout => complete(GatewayTimeout, "Request timeout")
-    case response: AnyRef => complete(OK, response)
+    // The [Any] type parameter appears to be required for version of Scala > 2.11.2,
+    // the @ unchecked is required to muzzle erasure warnings.
+    case message: RequestComplete[Any] @ unchecked => complete(message.response)(message.marshaller)
+    case message: RequestCompleteWithHeaders[Any] @ unchecked => complete(message.response, message.headers:_*)(message.marshaller)
+    case ReceiveTimeout => complete(GatewayTimeout)
+    case x =>
+      system.log.error("Unsupported response message sent to PreRequest actor: " + Option(x).getOrElse("null").toString)
+      complete(InternalServerError)
   }
 
-  def complete[T <: AnyRef](status: StatusCode, obj: T) = {
-    r.complete(status, obj)
+  /**
+   * Complete the request sending the given response and status code
+   * @param response to send to the caller
+   * @param marshaller to use for marshalling the response
+   * @tparam T the type of the response
+   * @return
+   */
+  private def complete[T](response: T, headers: HttpHeader*)(implicit marshaller: ToResponseMarshaller[T]) = {
+    val additionalHeaders = None
+    r.withHttpResponseHeadersMapped(h => h ++ headers ++ additionalHeaders).complete(response)
     stop(self)
   }
 
   override val supervisorStrategy =
     OneForOneStrategy() {
       case e => {
-        complete(InternalServerError, e.getMessage)
+        system.log.error(e, "error processing request: " + r.request.uri)
+        r.complete(InternalServerError, e.getMessage)
         Stop
       }
     }
 }
 
 object PerRequest {
+  sealed trait PerRequestMessage
   /**
-   * Message used to control the http status code sent to client
+   * Report complete, follows same pattern as spray.routing.RequestContext.complete; examples of how to call
+   * that method should apply here too. E.g. even though this method has only one parameter, it can be called
+   * with 2 where the first is a StatusCode: RequestComplete(StatusCode.Created, response)
    */
-  case class RequestComplete(statusCode: StatusCode, response: AnyRef)
+  case class RequestComplete[T](response: T)(implicit val marshaller: ToResponseMarshaller[T]) extends PerRequestMessage
+
+  /**
+   * Report complete with response headers. To response with a special status code the first parameter can be a
+   * tuple where the first element is StatusCode: RequestCompleteWithHeaders((StatusCode.Created, results), header).
+   * Note that this is here so that RequestComplete above can behave like spray.routing.RequestContext.complete.
+   */
+  case class RequestCompleteWithHeaders[T](response: T, headers: HttpHeader*)(implicit val marshaller: ToResponseMarshaller[T]) extends PerRequestMessage
+
+  /** allows for pattern matching with extraction of marshaller */
+  private object RequestComplete_ {
+    def unapply[T](requestComplete: RequestComplete[T]) = Some((requestComplete.response, requestComplete.marshaller))
+  }
+
+  /** allows for pattern matching with extraction of marshaller */
+  private object RequestCompleteWithHeaders_ {
+    def unapply[T](requestComplete: RequestCompleteWithHeaders[T]) = Some((requestComplete.response, requestComplete.headers, requestComplete.marshaller))
+  }
 
   case class WithProps(r: RequestContext, props: Props, message: AnyRef, timeout: Duration) extends PerRequest {
     lazy val target = context.actorOf(props)
@@ -72,6 +104,6 @@ object PerRequest {
 trait PerRequestCreator {
   implicit def actorRefFactory: ActorRefFactory
 
-  def perRequest(r: RequestContext, props: Props, message: AnyRef, timeout: Duration = 1.minutes) =
+  def perRequest(r: RequestContext, props: Props, message: AnyRef, timeout: Duration = 1 minutes) =
     actorRefFactory.actorOf(Props(new WithProps(r, props, message, timeout)))
 }

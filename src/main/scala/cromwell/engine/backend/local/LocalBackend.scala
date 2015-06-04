@@ -59,8 +59,6 @@ class LocalBackend extends Backend {
           taskOutput.wdlType match {
             case WdlFileType =>
               v.value match {
-                case "stdout" => WdlFile(stdoutFile)
-                case "stderr" => WdlFile(stderrFile)
                 case _ => WdlFile(v.value)
               }
             case _ => v

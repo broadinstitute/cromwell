@@ -33,7 +33,7 @@ object ThreeStepActorSpec {
       |    cat ${filename}
       |  }
       |  output {
-      |    File procs = "stdout"
+      |    File procs = stdout()
       |  }
       |}
       |
@@ -42,7 +42,7 @@ object ThreeStepActorSpec {
       |    grep '${pattern}' ${File in_file} | wc -l
       |  }
       |  output {
-      |    Int count = read_int("stdout")
+      |    Int count = read_int(stdout())
       |  }
       |}
       |
@@ -51,7 +51,7 @@ object ThreeStepActorSpec {
       |    cat ${File in_file} | wc -l
       |  }
       |  output {
-      |    Int count = read_int("stdout")
+      |    Int count = read_int(stdout())
       |  }
       |}
       |

@@ -4,7 +4,7 @@ import cromwell.binding.values.{WdlFile, WdlInteger, WdlString, WdlValue}
 import cromwell.engine.EngineFunctions
 import cromwell.util.FileUtil
 
-import scala.util.{Failure, Try}
+import scala.util.{Success, Failure, Try}
 
 
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
@@ -29,7 +29,6 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
   private def fileContentsToString(value: WdlValue): String = {
     value match {
       case f: WdlFile => FileUtil.slurp(f.value)
-      case s: WdlString if s.value == "stdout" => FileUtil.slurp(executionContext.stdout.toFile)
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
   }
@@ -49,4 +48,20 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
     read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
+
+  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    if (params.nonEmpty) {
+      Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
+    } else {
+      Success(WdlFile(executionContext.stdout))
+    }
+  }
+
+  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    if (params.nonEmpty) {
+      Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
+    } else {
+      Success(WdlFile(executionContext.stderr))
+    }
+  }
 }

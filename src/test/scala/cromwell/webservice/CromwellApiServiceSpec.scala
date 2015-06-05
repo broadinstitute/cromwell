@@ -2,19 +2,17 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import cromwell.binding.values.{WdlFile, WdlInteger}
-import cromwell.util.SampleWdl.{ThreeStep, HelloWorld}
-
 import akka.actor.{Actor, Props}
 import cromwell.binding._
-import cromwell.engine.WorkflowManagerActor._
+import cromwell.binding.values.{WdlFile, WdlInteger}
+import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.engine._
-import org.scalatest.{Matchers, FlatSpec}
+import cromwell.util.SampleWdl.HelloWorld
+import org.scalatest.{FlatSpec, Matchers}
 import spray.http._
-import spray.testkit.ScalatestRouteTest
-
+import spray.json.DefaultJsonProtocol._
 import spray.json._
-import DefaultJsonProtocol._
+import spray.testkit.ScalatestRouteTest
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage

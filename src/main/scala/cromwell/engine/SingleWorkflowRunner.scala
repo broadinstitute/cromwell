@@ -2,25 +2,20 @@ package cromwell.engine
 
 import java.io.File
 
-import akka.actor.{ActorRef, Actor}
-import akka.event.{LoggingReceive, Logging}
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding._
-import cromwell.binding.types._
 import cromwell.binding.values.WdlValue
-import cromwell.engine.StoreActor.UpdateStatus
-import cromwell.engine.WorkflowManagerActor.WorkflowOutputs
-import cromwell.engine.WorkflowManagerActor._
-import cromwell.engine.backend.Backend
+import cromwell.engine.WorkflowManagerActor.{WorkflowOutputs, _}
 import cromwell.server.WorkflowManagerSystem
-import cromwell.util.{ActorUtil, FileUtil}
+import cromwell.util.FileUtil
 import spray.json._
-import scala.concurrent.{Await, Promise, ExecutionContext, Future}
-import scala.util.{Success, Try, Failure}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
+import scala.util.Try
 
 class SingleWorkflowRunner extends WorkflowManagerSystem {
   implicit val timeout = Timeout(5 seconds)
@@ -36,7 +31,7 @@ class SingleWorkflowRunner extends WorkflowManagerSystem {
 
         val futureOutputs = for {
           status <- (workflowManagerActor ? WorkflowStatus(id)).mapTo[Option[WorkflowState]]
-          if status == Some(WorkflowSucceeded)
+          if status.contains(WorkflowSucceeded)
           outputs <- (workflowManagerActor ? WorkflowOutputs(id)).mapTo[Option[Map[FullyQualifiedName, WdlValue]]]
         } yield outputs
 

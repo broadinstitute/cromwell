@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import cromwell.engine.ActorWorkflowManager
+import cromwell.engine.WorkflowManagerActor
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{FormData, StatusCodes}
@@ -11,7 +11,7 @@ import spray.testkit.ScalatestRouteTest
 
 class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   def actorRefFactory = system
-  val workflowManager = system.actorOf(ActorWorkflowManager.props)
+  val workflowManager = system.actorOf(WorkflowManagerActor.props)
 
   it should "return 400 for a malformed WDL " in {
     Post("/workflows", FormData(Seq("wdlSource" -> CromwellApiServiceSpec.MalformedWdl , "workflowInputs" -> HelloWorld.RawInputs.toJson.toString() ))) ~>

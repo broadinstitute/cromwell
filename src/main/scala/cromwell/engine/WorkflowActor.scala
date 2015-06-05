@@ -89,7 +89,7 @@ case class WorkflowActor private(id: WorkflowId,
       runnableCalls <- (storeActor ? FindRunnableCalls).mapTo[Iterable[Call]]
       _ <- storeActor ? PrepareToStartCalls(runnableCalls)
     } yield {
-      if (runnableCalls.size > 0) {
+      if (runnableCalls.nonEmpty) {
         log.info("Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))
       }
       runnableCalls foreach startCallActor
@@ -129,7 +129,7 @@ case class WorkflowActor private(id: WorkflowId,
             } yield WorkflowActor.Done(outputs)
             futureDoneMessage pipeTo context.parent
 
-          case x => startRunnableCalls()
+          case _ => startRunnableCalls()
         }
       case Failure(t) =>
         log.error(t, t.getMessage)

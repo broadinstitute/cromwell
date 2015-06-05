@@ -8,7 +8,7 @@ import cromwell.HelloWorldActorSpec._
 import cromwell.binding.FullyQualifiedName
 import cromwell.binding.values.{WdlString, WdlValue}
 import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
-import cromwell.util.ActorUtil
+import cromwell.util.ActorTestUtil
 import cromwell.util.SampleWdl.HelloWorld
 
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
@@ -18,16 +18,16 @@ class ActorWorkflowManagerSpec extends CromwellSpec(ActorSystem("ActorWorkflowMa
 
   "An ActorWorkflowManager" should {
     "run the Hello World workflow" in {
-      implicit val workflowManagerActor = TestActorRef(ActorWorkflowManager.props, self, "Test the ActorWorkflowManager")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props, self, "Test the ActorWorkflowManager")
 
       val workflowId = waitForHandledMessage(named = "Completed") {
-        ActorUtil.messageAndWait(SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.RawInputs), _.mapTo[WorkflowId])
+        ActorTestUtil.messageAndWait(SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.RawInputs), _.mapTo[WorkflowId])
       }
 
-      val status = ActorUtil.messageWaitAndGet(WorkflowStatus(workflowId), _.mapTo[Option[WorkflowState]])
+      val status = ActorTestUtil.messageAndWait(WorkflowStatus(workflowId), _.mapTo[Option[WorkflowState]]).get
       status shouldEqual WorkflowSucceeded
 
-      val outputs = ActorUtil.messageWaitAndGet(WorkflowOutputs(workflowId), _.mapTo[Option[Map[FullyQualifiedName, WdlValue]]])
+      val outputs = ActorTestUtil.messageAndWait(WorkflowOutputs(workflowId), _.mapTo[Option[Map[FullyQualifiedName, WdlValue]]]).get
 
       val actual = outputs.map { case (k, WdlString(string)) => k -> string }
       actual shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)

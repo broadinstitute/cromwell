@@ -2,7 +2,6 @@ package cromwell.engine
 
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.pipe
 import akka.util.Timeout
 import cromwell.binding.values.WdlValue
 import cromwell.binding.{WdlBinding, _}
@@ -10,8 +9,6 @@ import cromwell.engine.StoreActor._
 import cromwell.parser.WdlParser.{Ast, Terminal}
 import cromwell.util.TryUtil
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
@@ -31,7 +28,10 @@ object StoreActor {
   implicit val ActorTimeout = Timeout(5 seconds)
 }
 
-/** Actor to hold symbol and execution status data for a single workflow. */
+/**
+ * Actor to hold symbol and execution status data for a single workflow.  This actor
+ * guards mutable state over the symbol and execution stores, and must therefore not
+ * pass back `Future`s over updates or reads of those stores. */
 class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Actor {
   private val symbolStore = new SymbolStore(binding, inputs)
   private val executionStore = new ExecutionStore(binding)
@@ -46,7 +46,7 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
       sender ! executionStore.runnableCalls
 
     case PrepareToStartCalls(calls) =>
-      handlePrepareToStartCalls(calls) pipeTo sender
+      sender ! handlePrepareToStartCalls(calls)
 
     case GetOutputs =>
       sender ! (symbolStore.getOutputs map symbolStoreEntryToMapEntry).toMap
@@ -88,7 +88,7 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
     executionStore.isWorkflowDone
   }
 
-  private def handlePrepareToStartCalls(calls: Iterable[Call]): Future[Unit] = Future {
+  private def handlePrepareToStartCalls(calls: Iterable[Call]): Unit = {
     def copyOutputsToInputs(call: Call) = {
       def copyOutputToInput(inputName: String, expression: WdlExpression) = {
         val ast = expression.ast.asInstanceOf[Ast]

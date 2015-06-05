@@ -33,7 +33,6 @@ object CromwellApiHandler {
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
 
   import WorkflowJsonSupport._
-  import cromwell.binding.values.WdlValueJsonFormatter._
   import context.dispatcher
 
   implicit val timeout = Timeout(2.seconds)

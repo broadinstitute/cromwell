@@ -14,12 +14,14 @@ import scala.util.Try
 
 
 object StoreActor {
-  def props(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) =
+  def props(namespace: WdlNamespace, inputs: WorkflowCoercedInputs): Props = {
     Props(new StoreActor(namespace, inputs))
-
+  }
+  
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
   case object FindRunnableCalls extends StoreActorMessage
+  case class RunnableCalls(calls: Iterable[Call]) extends StoreActorMessage
   case class UpdateStatus(call: Call, status: ExecutionStatus.Value) extends StoreActorMessage
   case object GetOutputs extends StoreActorMessage
   case class GetLocallyQualifiedInputs(call: Call) extends StoreActorMessage
@@ -36,28 +38,26 @@ class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends
   private val log = Logging(context.system, this)
 
   override def receive: Receive = LoggingReceive {
-
     case CallCompleted(call, callOutputs) =>
-      sender ! handleCallCompleted(call, callOutputs)
+      updateOutputs(call, callOutputs)
+      val msg = if (executionStore.isWorkflowDone) WorkflowActor.Complete else buildRunnableCalls
+      sender ! msg
 
-    case FindRunnableCalls =>
-      sender ! executionStore.runnableCalls
+    case FindRunnableCalls => sender ! buildRunnableCalls
 
     case GetOutputs =>
       sender ! (symbolStore.getOutputs map symbolStoreEntryToMapEntry).toMap
 
-    case GetLocallyQualifiedInputs(call) =>
-      sender ! symbolStore.locallyQualifiedInputs(call)
+    case GetLocallyQualifiedInputs(call) => sender ! symbolStore.locallyQualifiedInputs(call)
 
-    case UpdateStatus(call, status) =>
-      executionStore.updateStatus(call, status)
+    case UpdateStatus(call, status) => executionStore.updateStatus(call, status)
   }
 
-  private def symbolStoreEntryToMapEntry(e: SymbolStoreEntry): (String, WdlValue) =
+  private def symbolStoreEntryToMapEntry(e: SymbolStoreEntry): (String, WdlValue) = {
     e.key.scope + "." + e.key.name -> e.wdlValue.get
-
+  }
+  
   private def updateOutputs(call: Call, callOutputs: Map[String, WdlValue]): Unit = {
-
     def addOutputValueToSymbolStore(callOutput: (String, WdlValue)): Try[Unit] =
       symbolStore.addOutputValue(call.fullyQualifiedName, callOutput._1, Some(callOutput._2), callOutput._2.wdlType)
 
@@ -74,13 +74,5 @@ class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends
     }
   }
 
-  /**
-   * Updates outputs for the completed call and returns a `Future[Boolean]` which is true
-   * if the workflow is now "done".  Current "done" for a workflow means all calls are done.
-   */
-  private def handleCallCompleted(call: Call, callOutputs: Map[String, WdlValue]): Boolean = {
-    updateOutputs(call, callOutputs)
-    executionStore.isWorkflowDone
-  }
-
+  private def buildRunnableCalls: RunnableCalls = RunnableCalls(executionStore.runnableCalls)
 }

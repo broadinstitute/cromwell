@@ -1,12 +1,14 @@
 package cromwell
 
 import java.io.File
+import java.nio.file.Paths
 
 import cromwell.binding._
+import cromwell.engine.{WorkflowManagerActor, SingleWorkflowRunnerActor}
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
-import cromwell.engine.{SingleWorkflowRunner, WorkflowManagerActor}
 import cromwell.parser.WdlParser.SyntaxError
-import cromwell.server.CromwellServer
+import cromwell.server.{WorkflowManagerSystem, CromwellServer}
+import cromwell.util.FileUtil
 import spray.json._
 
 import scala.util.{Failure, Success}
@@ -56,15 +58,24 @@ object Main extends App {
 
   def run(args: Array[String]): Unit = {
     if (args.length != 2) usageAndExit()
-    val runner = new SingleWorkflowRunner
-    val outputs = runner.run(new File(args(0)), new File(args(1)))
-    outputs match {
-      case Success(o) =>
-        import cromwell.binding.values.WdlValueJsonFormatter._
-        println("Workflow Completed.  Outputs are:")
-        println(o.toJson.prettyPrint)
-        runner.workflowManagerActor ! WorkflowManagerActor.Shutdown
-      case Failure(f) => println(f.printStackTrace())
+
+    try {
+      val wdl = FileUtil.slurp(Paths.get(args(0)))
+      val jsValue = FileUtil.slurp(Paths.get(args(1))).parseJson
+
+      val inputs: binding.WorkflowRawInputs = jsValue match {
+        case JsObject(rawInputs) => rawInputs
+        case _ => throw new RuntimeException("Expecting a JSON object")
+      }
+
+      val workflowManagerSystem = new WorkflowManagerSystem {}
+      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdl, inputs, workflowManagerSystem.workflowManagerActor)
+      val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
+      // And now we just wait for the magic to happen
+    } catch {
+      case e: Exception =>
+        println("Unable to process inputs")
+        e.printStackTrace()
     }
   }
 

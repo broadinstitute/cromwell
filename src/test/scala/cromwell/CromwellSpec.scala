@@ -11,8 +11,15 @@ with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with 
   def startingCallsFilter(callNames: String*): EventFilter =
     EventFilter.info(message = s"Starting calls: ${callNames.mkString(", ")}", occurrences = 1)
 
-  def waitForHandledMessage[T](named: String)(block: => T): T =
-    EventFilter.debug(start = s"received handled message $named", occurrences = 1).intercept {
+  def waitForHandledMessage[T](named: String)(block: => T): T = {
+    waitForHandledMessagePattern(s"^received handled message $named")(block)
+  }
+
+  def waitForHandledMessagePattern[T](pattern: String)(block: => T): T = {
+    EventFilter.debug(pattern=pattern, occurrences = 1).intercept {
       block
     }
+  }
+
+  protected def getActorSystem = actorSystem
 }

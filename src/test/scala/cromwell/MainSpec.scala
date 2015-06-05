@@ -28,16 +28,6 @@ class MainSpec extends FlatSpec with Matchers {
     stream.toString.length shouldEqual 0
   }
 
-  it should "run" in {
-    val stream = new java.io.ByteArrayOutputStream()
-    Console.withOut(stream) {
-      Main.run(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString, inputsJsonPathAndWriter._1.toAbsolutePath.toString))
-    }
-    assert(stream.toString.contains("\"three_step.ps.procs\""))
-    assert(stream.toString.contains("\"three_step.cgrep.count\""))
-    assert(stream.toString.contains("\"three_step.wc.count\""))
-  }
-
   it should "parse" in {
     val stream = new java.io.ByteArrayOutputStream()
     Console.withOut(stream) {

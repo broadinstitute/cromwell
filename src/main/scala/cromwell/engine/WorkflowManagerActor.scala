@@ -2,6 +2,7 @@ package cromwell.engine
 
 import java.util.UUID
 
+import akka.actor.FSM.{Transition, CurrentState, SubscribeTransitionCallBack}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.pattern.{ask, pipe}
@@ -12,18 +13,20 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.WriteOnceStore
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.{Set => MutableSet}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 
 
 object WorkflowManagerActor {
+  class WorkflowNotFoundException extends RuntimeException
+
   sealed trait ActorWorkflowManagerMessage
   case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends ActorWorkflowManagerMessage
-  case class NotifyCompletion(caller: Promise[Unit]) extends ActorWorkflowManagerMessage
   case class WorkflowStatus(id: WorkflowId) extends ActorWorkflowManagerMessage
   case class WorkflowOutputs(id: WorkflowId) extends ActorWorkflowManagerMessage
   case object Shutdown extends ActorWorkflowManagerMessage
+  case class SubscribeToWorkflow(id: WorkflowId) extends ActorWorkflowManagerMessage
+
   def props: Props = Props(classOf[WorkflowManagerActor])
 }
 
@@ -43,48 +46,26 @@ class WorkflowManagerActor extends Actor {
   private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
   // This *should* be persisted
   private val workflowStates = TrieMap.empty[WorkflowId, WorkflowState]
-  private val listeners = MutableSet.empty[Promise[Unit]]
 
   def receive = LoggingReceive {
-    case SubmitWorkflow(wdl, inputs) =>
-      submitWorkflow(wdl, inputs) pipeTo sender
-
-    case WorkflowStatus(id) =>
-      sender ! workflowStates.get(id)
-
-    case NotifyCompletion(promise) =>
-      listeners += promise
-
-    case WorkflowOutputs(id) =>
-      // FIXME: What if the workflow isn't done? How best to handle?
-      workflowOutputs(id) pipeTo sender
-
-    case Shutdown =>
-      context.system.shutdown()
-
-    case WorkflowActor.Started =>
-      updateWorkflowState(sender(), WorkflowRunning)
-
-    case WorkflowActor.Done(outputs) =>
-      updateTerminalWorkflowState(WorkflowSucceeded)
-
-    case WorkflowActor.Failed(failures) =>
-      updateTerminalWorkflowState(WorkflowFailed)
+    case SubmitWorkflow(wdl, inputs) => submitWorkflow(wdl, inputs) pipeTo sender
+    case WorkflowStatus(id) => sender ! workflowStates.get(id)
+    case Shutdown => context.system.shutdown()
+    case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
+    case CurrentState(actor, state: WorkflowState) => updateWorkflowState(actor, state)
+    case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
+    case SubscribeToWorkflow(id) =>
+      //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
+      workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
   }
 
-  private def updateTerminalWorkflowState(state: WorkflowState): Unit = {
-    listeners foreach { listener =>
-      if (!listener.isCompleted) listener.success(())
-    }
-    updateWorkflowState(sender(), state)
+  private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
+   workflowStore.toMap.get(id) map workflowToOutputs getOrElse Future.failed(new WorkflowNotFoundException)
   }
 
-  private def workflowOutputs(id: WorkflowId): Future[Option[binding.WorkflowOutputs]] = {
-    workflowStore.toMap.get(id) map workflowToOutputs getOrElse Future{None}
+  private def workflowToOutputs(workflow: WorkflowActorRef): Future[binding.WorkflowOutputs] = {
+    workflow.ask(GetOutputs).mapTo[binding.WorkflowOutputs]
   }
-
-  private def workflowToOutputs(workflow: WorkflowActorRef): Future[Option[binding.WorkflowOutputs]] =
-    (workflow ? GetOutputs).mapTo[binding.WorkflowOutputs] map { Option(_) }
 
   /**
    * Processes input WDL, creates and starts a workflow actor, inserts it into the store and returns its ID.
@@ -99,6 +80,7 @@ class WorkflowManagerActor extends Actor {
     } yield {
       workflowStates.put(workflowId, WorkflowSubmitted)
       workflowActor ! Start
+      workflowActor ! SubscribeTransitionCallBack(self)
       workflowId
     }
   }

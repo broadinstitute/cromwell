@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding.{WdlSource, WorkflowRawInputs}
+import cromwell.engine.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine._
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.webservice.CromwellApiHandler._
@@ -12,6 +13,7 @@ import cromwell.{binding, engine}
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -69,13 +71,10 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       }
 
     case WorkflowOutputs(id) =>
-      val eventualWorkflowOutputs = ask(workflowManager, WorkflowManagerActor.WorkflowOutputs(id)).mapTo[Option[binding.WorkflowOutputs]]
+      val eventualWorkflowOutputs = ask(workflowManager, WorkflowManagerActor.WorkflowOutputs(id)).mapTo[binding.WorkflowOutputs]
       eventualWorkflowOutputs onComplete {
-        case Success(outputs) => outputs match {
-          case Some(x) =>
-            context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, x))
-          case None => context.parent ! RequestComplete(StatusCodes.NotFound)
-        }
+        case Success(outputs) => context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputs))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
   }

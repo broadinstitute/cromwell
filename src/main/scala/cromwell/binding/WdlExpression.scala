@@ -124,7 +124,8 @@ object WdlExpression {
   }
 }
 
-case class WdlExpression(ast: AstNode) {
+case class WdlExpression(ast: AstNode) extends WdlValue {
+  override val wdlType = WdlExpressionType
   def evaluate(lookup: String => WdlValue, functions: WdlFunctions): Try[WdlValue] =
     WdlExpression.evaluate(ast, lookup, functions)
   def toString(highlighter: SyntaxHighlighter): String = {

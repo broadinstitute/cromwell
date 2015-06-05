@@ -60,7 +60,7 @@ class MainSpec extends FlatSpec with Matchers {
          |    ps
          |  }
          |  output {
-         |    \u001b[38;5;33mFile\u001b[0m \u001b[38;5;112mprocs\u001b[0m = "stdout"
+         |    \u001b[38;5;33mFile\u001b[0m \u001b[38;5;112mprocs\u001b[0m = \033[38;5;13mstdout\033[0m()
          |  }
          |}
          |
@@ -69,7 +69,7 @@ class MainSpec extends FlatSpec with Matchers {
          |    grep '$${\u001b[38;5;33mString\u001b[0m \u001b[38;5;112mpattern\u001b[0m}' $${\u001b[38;5;33mFile\u001b[0m \u001b[38;5;112min_file\u001b[0m} | wc -l
          |  }
          |  output {
-         |    \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mcount\u001b[0m = \u001b[38;5;13mread_int\u001b[0m("stdout")
+         |    \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mcount\u001b[0m = \u001b[38;5;13mread_int\u001b[0m(\033[38;5;13mstdout\033[0m())
          |  }
          |}
          |
@@ -78,7 +78,7 @@ class MainSpec extends FlatSpec with Matchers {
          |    cat $${\u001b[38;5;33mFile\u001b[0m \u001b[38;5;112min_file\u001b[0m} | wc -l
          |  }
          |  output {
-         |    \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mcount\u001b[0m = \u001b[38;5;13mread_int\u001b[0m("stdout")
+         |    \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mcount\u001b[0m = \u001b[38;5;13mread_int\u001b[0m(\033[38;5;13mstdout\033[0m())
          |  }
          |}
          |

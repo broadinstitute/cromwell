@@ -9,7 +9,7 @@ abstract class CromwellSpec(actorSystem: ActorSystem) extends TestKit(actorSyste
 with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures {
 
   def startingCallsFilter(callNames: String*): EventFilter =
-    EventFilter.info(message = "Starting calls: " + callNames.mkString(", "), occurrences = 1)
+    EventFilter.info(message = s"Starting calls: ${callNames.mkString(", ")}", occurrences = 1)
 
   def waitForHandledMessage[T](named: String)(block: => T): T =
     EventFilter.debug(start = s"received handled message $named", occurrences = 1).intercept {

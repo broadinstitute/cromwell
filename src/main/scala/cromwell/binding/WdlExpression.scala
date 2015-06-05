@@ -1,6 +1,7 @@
 package cromwell.binding
 
 import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
+import cromwell.binding.types.WdlExpressionType
 import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
@@ -123,7 +124,8 @@ object WdlExpression {
   }
 }
 
-case class WdlExpression(ast: AstNode) {
+case class WdlExpression(ast: AstNode) extends WdlValue {
+  override val wdlType = WdlExpressionType
   def evaluate(lookup: String => WdlValue, functions: WdlFunctions): Try[WdlValue] =
     WdlExpression.evaluate(ast, lookup, functions)
   def toString(highlighter: SyntaxHighlighter): String = {

@@ -21,19 +21,20 @@ trait SyntaxHighlighter {
 
 object NullSyntaxHighlighter extends SyntaxHighlighter
 
-object TerminalSyntaxHighlighter extends SyntaxHighlighter {
-  override def keyword(s: String): String = s"\033[38;5;214m$s\033[0m"
-  override def name(s: String): String = s"\033[38;5;253m$s\033[0m"
+object AnsiSyntaxHighlighter extends SyntaxHighlighter {
+  def highlight(string: String, color: Int) = s"\033[38;5;${color}m${string}\033[0m"
+  override def keyword(s: String): String = highlight(s, 214)
+  override def name(s: String): String = highlight(s, 253)
   override def section(s: String): String = s
-  override def wdlType(t: WdlType): String = s"\033[38;5;33m${t.toWdlString}\033[0m"
-  override def variable(s: String): String = s"\033[38;5;112m$s\033[0m"
+  override def wdlType(t: WdlType): String = highlight(t.toWdlString, 33)
+  override def variable(s: String): String = highlight(s, 112)
   override def alias(s: String): String = s
-  override def command(s: String): String = s //s"\033[48;5;243m$s\033[0m"
-  override def function(s: String): String = s"\033[38;5;13m$s\033[0m"
+  override def command(s: String): String = s
+  override def function(s: String): String = highlight(s, 13)
 }
 
 object SyntaxFormatter {
-  def highlighter = TerminalSyntaxHighlighter
+  def highlighter = AnsiSyntaxHighlighter
   val indent = 2
   def format(binding: WdlBinding): String = {
     val imports = binding.imports.map(formatImport) match {
@@ -51,14 +52,11 @@ object SyntaxFormatter {
     s"$imports${definitions.mkString("\n\n")}"
   }
   private def formatImport(imp: Import): String = {
-    val namespace = imp.namespace match {
-      case Some(ns) => s" as $ns"
-      case None => ""
-    }
+    val namespace = imp.namespace.map{ns => s" as $ns"}.getOrElse("")
     s"${highlighter.keyword("import")} '${imp.uri}'$namespace"
   }
   private def formatTask(task: Task): String = {
-    val outputs = if(task.outputs.size > 0) formatOutputs(task.outputs, 1) else ""
+    val outputs = if(task.outputs.nonEmpty) formatOutputs(task.outputs, 1) else ""
     val command = formatCommandSection(task.command, 1)
     val sections = List(command, outputs)
     val header = s"""${highlighter.keyword("task")} ${highlighter.name(task.name)} {
@@ -87,17 +85,16 @@ object SyntaxFormatter {
     indentText(section.stripMargin, level)
   }
   private def formatOutput(output: TaskOutput, level:Int): String = {
-    s"${in(level)}${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.expression.toString(highlighter)}"
+    indentText(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.expression.toString(highlighter)}", level)
   }
   private def formatWorkflow(workflow: Workflow): String = {
-    val section = s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.name)} {
+    s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.name)} {
         |${workflow.calls.map{formatCall(_, 1)}.mkString("\n")}
-        |}"""
-    section.stripMargin
+        |}""".stripMargin
   }
   private def formatCall(call: Call, level:Int): String = {
     val header = s"${highlighter.keyword("call")} ${highlighter.name(call.task.name)}${formatCallAlias(call)}"
-    if (call.inputMappings.size == 0) {
+    if (call.inputMappings.isEmpty) {
       indentText(header, level)
     } else {
       val inputString = call.inputMappings.map{ case (k, v) =>
@@ -109,14 +106,10 @@ object SyntaxFormatter {
     }
   }
   private def formatCallAlias(call: Call): String = {
-    call.alias match {
-      case Some(s:String) => s" as ${highlighter.alias(s)}"
-      case None => ""
-    }
+    call.alias.map {a => s" as ${highlighter.alias(a)}"}.getOrElse("")
   }
   private def text(astNode: AstNode) = astNode.asInstanceOf[Terminal].getSourceString
   private def indentText(s: String, i: Int): String = {
-    s.split("\n").map{in(i) + _}.mkString("\n")
+    s.split("\n").map {" " * (i * indent) + _}.mkString("\n")
   }
-  private def in(i: Int): String = " " * (i * indent)
 }

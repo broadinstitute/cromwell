@@ -60,15 +60,15 @@ object WdlExpression {
           case _ => throw new WdlExpressionException(s"Invalid operator: ${a.getName}")
         }
       case a: Ast if a.getName == "MemberAccess" =>
-        val lhs = evaluate(a.getAttribute("lhs"), lookup, functions).map {
-          case x: WdlObject => x
-          case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject")
-        }
         val rhs = a.getAttribute("rhs") match {
           case x:Terminal if x.getTerminalStr == "identifier" => x.getSourceString
           case _ => throw new WdlExpressionException("Right-hand side of expression must be identifier")
         }
-        lhs.map { _.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs")) }
+        evaluate(a.getAttribute("lhs"), lookup, functions).map {
+          case o: WdlObject => o.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs"))
+          case ns: WdlBinding => lookup(ns.namespace.map {n => s"$n.$rhs"}.getOrElse(rhs))
+          case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
+        }
       case a: Ast if a.getName == "FunctionCall" =>
         val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
         val params = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector map {

@@ -42,8 +42,33 @@ class SymbolStore(binding: WdlBinding, inputs: Map[FullyQualifiedName, WdlValue]
     callEntries(call).filter {entry => entry.isInput}
 
   def locallyQualifiedInputs(call: Call): Map[String, WdlValue] = {
-    store.collect { case entry if entry.scope == call.fullyQualifiedName && entry.isInput =>
-      entry.key.name -> entry.wdlValue.get
+    def lookup(identifierString: String): WdlValue = {
+      val workflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
+        throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent")
+      }
+      val namespaces = call.binding.importedBindings.filter{_.namespace == Some(identifierString)}
+      namespaces.headOption.getOrElse{
+        val matchedCall = workflow.calls.find {_.name == identifierString}.getOrElse {
+          throw new WdlExpressionException(s"Expecting to find a call with name '$identifierString'")
+        }
+        val callOutputs = callOutputEntries(matchedCall) map { entry =>
+          val value = entry.wdlValue match {
+            case Some(v) => v
+            case _ => throw new WdlExpressionException(s"Could not evaluate call '${matchedCall.name}', because '${entry.key.name}' is undefined")
+          }
+          entry.key.name -> value
+        }
+        WdlObject(callOutputs.toMap)
+      }
+    }
+
+    callInputEntries(call).map {entry =>
+      val value = entry.wdlValue match {
+        case Some(e: WdlExpression) => e.evaluate(lookup, SymbolStore.CallInputWdlFunctions).get
+        case Some(v) => v
+        case _ => throw new WdlExpressionException("Unknown error")
+      }
+      entry.key.name -> value
     }.toMap
   }
 

@@ -11,7 +11,7 @@ import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Try}
+import scala.util.{Success, Failure, Try}
 
 /**
  * Main interface into the `cromwell.binding` package.
@@ -26,7 +26,6 @@ import scala.util.{Failure, Try}
  * }}}
  */
 object WdlBinding {
-
   type ImportResolver = String => WdlSource
   def localImportResolver(path: String): WdlSource = readFile(new File(path))
 
@@ -115,6 +114,11 @@ object WdlBinding {
     }
   }
 
+  /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
+  def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = WdlBinding.findAstsWithTrail(expr, "MemberAccess").filter {
+    case(k, v) => !v.exists{case a:Ast => a.getName == "MemberAccess"}
+  }.keys
+
   def terminalMap(ast: Ast, source: WdlSource) = (findTerminals(ast) map {(_, source)}).toMap
 
   def getCallInput(ast: Ast): Map[String, WdlExpression] = getCallInputAsts(ast).map(processCallInput).toMap
@@ -180,7 +184,8 @@ object WdlBinding {
 
 }
 
-case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String]) {
+case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String]) extends WdlValue {
+  val wdlType = WdlNamespaceType
 
   import WdlBinding.AstNodeName
 
@@ -309,7 +314,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
     val taskName = sourceString(ast.getAttribute("task"))
     val task = findTask(taskName) getOrElse invalidTask
     val inputs = WdlBinding.getCallInput(ast)
-    new Call(alias, task, inputs.toMap)
+    new Call(alias, taskName, task, inputs.toMap, this)
   }
 
   /**
@@ -404,7 +409,9 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
         val task = findTask(taskName) getOrElse {
           throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName))
         }
-        val callName = if(callAst.getAttribute("alias") != null) sourceString(callAst.getAttribute("alias")) else task.name
+
+        val callName = sourceString(Option(callAst.getAttribute("alias")).getOrElse(callAst.getAttribute("task")))
+
         val call = workflow.calls.find{_.name == callName} getOrElse {
           throw new SyntaxError(s"Cannot find call with name $callName")
         }
@@ -420,42 +427,53 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
           }
 
           /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
-          val memberAccesses = WdlBinding.findAstsWithTrail(inputKv._2.ast, "MemberAccess") filter {
-            case (k, v) => !(v map {case a:Ast => a.getName} contains "MemberAccess")
-          }
-          memberAccesses.keys map validateMemberAccess
+          WdlBinding.findTopLevelMemberAccesses(inputKv._2.ast).map(getCallFromMemberAccessAst).map {_.get}
         }
       }
     }
   }
 
   /* Partially evaluate MemberAccess ASTs to make sure they're not nonsense at compile time */
-  def validateMemberAccess(ast: Ast): Any = {
-    val rhs = sourceString(ast.getAttribute("rhs"))
-    val lhs = ast.getAttribute("lhs") match {
-      case a: Ast => validateMemberAccess(a)
-      case terminal: Terminal =>
-        val name = sourceString(terminal)
-        val bindings = importedBindings filter {b => b.namespace == Some(name)}
-        val taskList = tasks filter {task => task.name == name}
-        val all = bindings ++ taskList
-        if (all.size == 0) throw new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(ast))
-        all.head
+  def getCallFromMemberAccessAst(ast: Ast): Try[Call] = {
+    def callFromName(name: String): Try[Call] = {
+      workflows.head.calls.find(_.name == name) match {
+        case Some(c:Call) => Success(c)
+        case _ => Failure(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(ast)))
+      }
     }
+    val rhs = sourceString(ast.getAttribute("rhs"))
+
+    /**
+     * The left-hand side of a member-access AST should always be interpreted as a String
+     * Sometimes, the left-hand side is itself a MemberAccess AST, like in the expression
+     * for `call t1` below.  In that example, callFromName("ns.ns2.task_name") would be
+     * called.  In the `call t2` example, callFromName("alias") is called
+     *
+     * import "test.wdl" as ns
+     * workflow w {
+     *  call ns.ns2.task_name
+     *  call t1 {
+     *    input: x=ns.ns2.task_name.output
+     *  }
+     *
+     *  call ns.ns2.task_name as alias
+     *  call t2 {
+     *    input: y=alias.output
+     *  }
+     *}
+     */
+    val lhs = callFromName(ast.getAttribute("lhs") match {
+      case a: Ast => WdlExpression.toString(a)
+      case terminal: Terminal => sourceString(terminal)
+    })
 
     lhs match {
-      case b:WdlBinding =>
-        val all = b.executables find {
-          case w:Workflow => w.name == rhs
-          case t:Task => t.name == rhs
-        }
-        if (all.size == 0) throw new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(ast))
-        all.head
-      case t:Task =>
-        val wdlValue = t.outputs find{p => p.name == rhs}
-        wdlValue getOrElse {
+      case Success(c:Call) =>
+        c.task.outputs.find {_.name == rhs}.getOrElse {
           throw new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(ast))
         }
+        Success(c)
+      case f => f
     }
   }
 

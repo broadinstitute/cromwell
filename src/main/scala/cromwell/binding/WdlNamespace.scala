@@ -2,7 +2,7 @@ package cromwell.binding
 
 import java.io.File
 
-import cromwell.binding.WdlBinding.ImportResolver
+import cromwell.binding.WdlNamespace.ImportResolver
 import cromwell.binding.command._
 import cromwell.binding.types._
 import cromwell.binding.values.WdlValue
@@ -11,7 +11,7 @@ import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
  * Main interface into the `cromwell.binding` package.
@@ -19,13 +19,14 @@ import scala.util.{Success, Failure, Try}
  * Example usage:
  *
  * {{{
- * val binding = WdlBinding.process(new File("/path/to/file.wdl"))
+ * val namespace = WdlNamespace.process(new File("/path/to/file.wdl"))
  * binding.workflow.calls foreach { call =>
  *      println(call)
  * }
  * }}}
  */
-object WdlBinding {
+
+object WdlNamespace {
   type ImportResolver = String => WdlSource
   def localImportResolver(path: String): WdlSource = readFile(new File(path))
 
@@ -40,154 +41,35 @@ object WdlBinding {
    *                                       Workflow and Task objects
    *
    */
-  def process(wdlFile: File): WdlBinding =
-    process(readFile(wdlFile), wdlFile.toString, localImportResolver, None)
+  def load(wdlFile: File): WdlNamespace =
+    load(readFile(wdlFile), wdlFile.toString, localImportResolver, None)
 
-  def process(wdlFile: File, importResolver: ImportResolver): WdlBinding =
-    process(readFile(wdlFile), wdlFile.toString, importResolver, None)
+  def load(wdlFile: File, importResolver: ImportResolver): WdlNamespace =
+    load(readFile(wdlFile), wdlFile.toString, importResolver, None)
+
+  def load(wdlSource: WdlSource): WdlNamespace =
+    load(wdlSource, "string", localImportResolver, None)
+
+  def load(wdlSource: WdlSource, importResolver: ImportResolver): WdlNamespace =
+    load(wdlSource, "string", importResolver, None)
+
+  def load(wdlSource: WdlSource, resource: String): WdlNamespace =
+    load(wdlSource, resource, localImportResolver, None)
+
+  def load(wdlSource: WdlSource, resource: String, importResolver: ImportResolver): WdlNamespace =
+    load(wdlSource, resource, importResolver, None)
+
+  private def load(wdlSource: WdlSource, resource: String, importResolver: ImportResolver, namespace: Option[String]): WdlNamespace =
+    new WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, namespace)
 
   def readFile(wdlFile: File): WdlSource = FileUtil.slurp(wdlFile)
 
-  def process(wdlSource: WdlSource): WdlBinding =
-    process(wdlSource, "string", localImportResolver, None)
-
-  def process(wdlSource: WdlSource, importResolver: ImportResolver): WdlBinding =
-    process(wdlSource, "string", importResolver, None)
-
-  def process(wdlSource: WdlSource, resource: String): WdlBinding =
-    process(wdlSource, resource, localImportResolver, None)
-
-  private def process(wdlSource: WdlSource, resource: String, importResolver: ImportResolver, namespace: Option[String]): WdlBinding =
-    new WdlBinding(WdlBinding.getAst(wdlSource, resource), wdlSource, importResolver, namespace)
-
-  def getAst(wdlSource: WdlSource, resource: String): Ast = {
-    val parser = new WdlParser()
-    val tokens = parser.lex(wdlSource, resource)
-    val terminalMap = (tokens.asScala.toVector map {(_, wdlSource)}).toMap
-    val syntaxErrorFormatter = new WdlSyntaxErrorFormatter(terminalMap)
-    parser.parse(tokens, syntaxErrorFormatter).toAst.asInstanceOf[Ast]
-  }
-
-  def process(wdlSource: WdlSource, resource: String, importResolver: ImportResolver): WdlBinding =
-    process(wdlSource, resource, importResolver, None)
-
-  /**
-   * Given a WDL file, this will simply parse it and return the syntax tree
-   * @param wdlFile The file to parse
-   * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
-   * @throws WdlParser.SyntaxError if there was a problem parsing the source code
-   */
-  def getAst(wdlFile: File): Ast = getAst(FileUtil.slurp(wdlFile), wdlFile.getName)
-
-  def findAsts(ast: AstNode, name: String): Seq[Ast] = {
-    ast match {
-      case x: Ast =>
-        val thisAst = if (x.getName.equals(name)) Seq(x) else Seq.empty[Ast]
-        x.getAttributes.values.asScala.flatMap(findAsts(_, name)).toSeq ++ thisAst
-      case x: AstList => x.asScala.toVector.flatMap(findAsts(_, name)).toSeq
-      case x: Terminal => Seq.empty[Ast]
-      case _ => Seq.empty[Ast]
-    }
-  }
-
-  private def combine[T, U](map1: Map[T, Seq[U]], map2: Map[T, Seq[U]]): Map[T, Seq[U]] = {
-    map1 ++ map2.map{ case (k,v) => k -> (v ++ map1.getOrElse(k, Seq.empty)) }
-  }
-
-  def findAstsWithTrail(ast: AstNode, name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
-    ast match {
-      case x: Ast =>
-        val thisAst = if (x.getName.equals(name)) Map(x -> trail) else Map.empty[Ast, Seq[AstNode]]
-        combine(x.getAttributes.values.asScala.flatMap{y => findAstsWithTrail(y, name, trail :+ x)}.toMap, thisAst)
-      case x: AstList => x.asScala.toVector.flatMap{y => findAstsWithTrail(y, name, trail :+ x)}.toMap
-      case x: Terminal => Map.empty[Ast, Seq[AstNode]]
-      case _ => Map.empty[Ast, Seq[AstNode]]
-    }
-  }
-
-  def findTerminals(ast: AstNode): Seq[Terminal] = {
-    ast match {
-      case x: Ast => x.getAttributes.values.asScala.flatMap(findTerminals).toSeq
-      case x: AstList => x.asScala.toVector.flatMap(findTerminals).toSeq
-      case x: Terminal => Seq(x)
-      case _ => Seq.empty[Terminal]
-    }
-  }
-
-  /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
-  def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = WdlBinding.findAstsWithTrail(expr, "MemberAccess").filter {
-    case(k, v) => !v.exists{case a:Ast => a.getName == "MemberAccess"}
-  }.keys
-
-  def terminalMap(ast: Ast, source: WdlSource) = (findTerminals(ast) map {(_, source)}).toMap
-
-  def getCallInput(ast: Ast): Map[String, WdlExpression] = getCallInputAsts(ast).map(processCallInput).toMap
-
-  def getCallInputAsts(ast: Ast): Seq[Ast] = {
-    findAsts(ast, AstNodeName.Inputs) match {
-      case x: Seq[Ast] if x.size == 1 => WdlBinding.findAsts(x.head.getAttribute("map"), AstNodeName.IOMapping)
-      case _ => Seq.empty[Ast]
-    }
-  }
-
-  private def getTaskOutput(ast: Ast): TaskOutput = {
-    val wdlType = getWdlType(ast.getAttribute("type"))
-    val name = ast.getAttribute("var").asInstanceOf[Terminal].getSourceString
-    val expression = ast.getAttribute("expression")
-    new TaskOutput(name, wdlType, new WdlExpression(expression))
-  }
-
-  private def getCommand(astList: AstList): Command = {
-    val parts = astList.asScala.toVector.map {
-      case x: Terminal => new StringCommandPart(x.getSourceString)
-      case x: Ast => getCommandParameter(x)
-    }
-    new Command(parts)
-  }
-
-  private def getCommandParameter(ast: Ast): ParameterCommandPart = {
-    val wdlType = getWdlType(ast.getAttribute("type"))
-    val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    new ParameterCommandPart(wdlType, name)
-  }
-
-  private def getWdlType(ast: AstNode): WdlType = {
-    ast match {
-      case t: Terminal if t.getSourceString == WdlFileType.toWdlString => WdlFileType
-      case t: Terminal if t.getSourceString == WdlStringType.toWdlString => WdlStringType
-      case t: Terminal if t.getSourceString == WdlIntegerType.toWdlString => WdlIntegerType
-      case t: Terminal if t.getSourceString == WdlFloatType.toWdlString => WdlFloatType
-      case t: Terminal if t.getSourceString == WdlBooleanType.toWdlString => WdlBooleanType
-      case t: Terminal if t.getSourceString == WdlObjectType.toWdlString => WdlObjectType
-      case null => WdlStringType
-      case _ => throw new UnsupportedOperationException("Implement this later for compound types")
-    }
-  }
-
-  private def processCallInput(ast: Ast): (String, WdlExpression) = {
-    val key = ast.getAttribute("key").asInstanceOf[Terminal].getSourceString
-    val expression = new WdlExpression(ast.getAttribute("value"))
-    (key, expression)
-  }
-
-  object AstNodeName {
-    val Task = "Task"
-    val Workflow = "Workflow"
-    val Command = "RawCommand"
-    val Output = "Output"
-    val CommandParameter = "CommandParameter"
-    val Call = "Call"
-    val IOMapping = "IOMapping"
-    val Inputs = "Inputs"
-    val MemberAccess = "MemberAccess"
-  }
-
 }
 
-case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String]) extends WdlValue {
+case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String]) extends WdlValue {
   val wdlType = WdlNamespaceType
 
-  import WdlBinding.AstNodeName
+  import AstTools.AstNodeName
 
   val invalidTask = Task("INVALID", Command(Seq.empty[CommandPart]), Seq.empty[TaskOutput])
 
@@ -202,28 +84,28 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
   }
 
   /* WdlBinding objects for each import statement */
-  val importedBindings = for {
+  val namespaces = for {
     i <- imports
     source = importResolver(i.uri)
     if source.length > 0
-  } yield WdlBinding.process(source, i.uri, importResolver, i.namespace)
+  } yield WdlNamespace.load(source, i.uri, importResolver, i.namespace)
 
   /* Create a map of Terminal -> WdlBinding */
-  val terminalMap = WdlBinding.terminalMap(ast, source)
-  val combinedTerminalMap = ((importedBindings map {x => x.terminalMap}) ++ Seq(terminalMap)) reduce (_ ++ _)
+  val terminalMap = AstTools.terminalMap(ast, source)
+  val combinedTerminalMap = ((namespaces map {x => x.terminalMap}) ++ Seq(terminalMap)) reduce (_ ++ _)
   val wdlSyntaxErrorFormatter = new WdlSyntaxErrorFormatter(combinedTerminalMap)
 
   /**
    * All imported `task` definitions for `import` statements without a namespace (e.g. no `as` clause)
    * These tasks are considered to be in this current workspace
    */
-  val importedTaskAsts: Seq[Ast] = importedBindings flatMap { b =>
+  val importedTaskAsts: Seq[Ast] = namespaces flatMap { b =>
     b.namespace match {
       case None => b.taskAsts
       case _ => Seq.empty[Ast]
     }
   }
-  val importedTasks: Seq[Task] = importedBindings flatMap { b =>
+  val importedTasks: Seq[Task] = namespaces flatMap { b =>
     b.namespace match {
       case None => b.tasks
       case _ => Seq.empty[Task]
@@ -233,7 +115,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
   /**
    * All `task` definitions defined in the WDL file (i.e. not imported)
    */
-  val localTaskAsts = WdlBinding.findAsts(ast, AstNodeName.Task)
+  val localTaskAsts = AstTools.findAsts(ast, AstNodeName.Task)
   val localTasks = localTaskAsts.map(processTask)
 
   /**
@@ -245,7 +127,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
   /**
    * All imported `Workflow`s
    */
-  val importedWorkflows: Seq[Workflow] = importedBindings flatMap { b =>
+  val importedWorkflows: Seq[Workflow] = namespaces flatMap { b =>
     b.namespace match {
       case None => b.workflows
       case _ => Seq.empty[Workflow]
@@ -255,7 +137,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
   /**
    * All `Workflow`s defined in the WDL file (i.e. not imported)
    */
-  val localWorkflows = WdlBinding.findAsts(ast, AstNodeName.Workflow).map(processWorkflow)
+  val localWorkflows = AstTools.findAsts(ast, AstNodeName.Workflow).map(processWorkflow)
 
   /**
    * All `Workflow` definitions, including local and imported ones
@@ -274,7 +156,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
   def findTaskAst(name: String): Option[Ast] = {
     if (name.contains(".")) {
       val parts = name.split("\\.", 2)
-      importedBindings find {_.namespace == Some(parts(0))} flatMap {_.findTaskAst(parts(1))}
+      namespaces find {_.namespace == Some(parts(0))} flatMap {_.findTaskAst(parts(1))}
     } else {
       taskAsts.find{t => sourceString(t.getAttribute("name")) == name}
     }
@@ -283,7 +165,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
   def findTask(name: String): Option[Task] = {
     if (name.contains(".")) {
       val parts = name.split("\\.", 2)
-      importedBindings find {_.namespace == Some(parts(0))} flatMap {_.findTask(parts(1))}
+      namespaces find {_.namespace == Some(parts(0))} flatMap {_.findTask(parts(1))}
     } else {
       tasks.find(_.name == name)
     }
@@ -291,19 +173,38 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
 
   private def processWorkflow(ast: Ast): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val calls = WdlBinding.findAsts(ast, AstNodeName.Call).map {
-      processCall
-    }
+    val calls = AstTools.findAsts(ast, AstNodeName.Call).map {processCall}
     new Workflow(name, calls)
   }
 
   private def processTask(ast: Ast): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val commandAsts = WdlBinding.findAsts(ast, AstNodeName.Command)
+    val commandAsts = AstTools.findAsts(ast, AstNodeName.Command)
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
-    val command = WdlBinding.getCommand(commandAsts.head.getAttribute("parts").asInstanceOf[AstList])
-    val outputs = WdlBinding.findAsts(ast, AstNodeName.Output).map(WdlBinding.getTaskOutput)
+    val command = processCommand(commandAsts.head.getAttribute("parts").asInstanceOf[AstList])
+    val outputs = AstTools.findAsts(ast, AstNodeName.Output).map(processTaskOutput)
     new Task(name, command, outputs)
+  }
+
+  private def processCommand(astList: AstList): Command = {
+    val parts = astList.asScala.toVector.map {
+      case x: Terminal => new StringCommandPart(x.getSourceString)
+      case x: Ast => processCommandParameter(x)
+    }
+    new Command(parts)
+  }
+
+  private def processCommandParameter(ast: Ast): ParameterCommandPart = {
+    val wdlType = processWdlType(ast.getAttribute("type"))
+    val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
+    new ParameterCommandPart(wdlType, name)
+  }
+
+  private def processTaskOutput(ast: Ast): TaskOutput = {
+    val wdlType = processWdlType(ast.getAttribute("type"))
+    val name = sourceString(ast.getAttribute("var"))
+    val expression = ast.getAttribute("expression")
+    new TaskOutput(name, wdlType, new WdlExpression(expression))
   }
 
   private def processCall(ast: Ast): Call = {
@@ -313,14 +214,36 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
     }
     val taskName = sourceString(ast.getAttribute("task"))
     val task = findTask(taskName) getOrElse invalidTask
-    val inputs = WdlBinding.getCallInput(ast)
+    val inputs = processCallInput(ast)
     new Call(alias, taskName, task, inputs.toMap, this)
+  }
+
+  private def processCallInput(ast: Ast): Map[String, WdlExpression] = AstTools.getCallInputAsts(ast).map {a =>
+    val key = sourceString(a.getAttribute("key"))
+    val expression = new WdlExpression(a.getAttribute("value"))
+    (key, expression)
+  }.toMap
+
+  private def processWdlType(ast: AstNode): WdlType = {
+    ast match {
+      case t: Terminal =>
+        t.getSourceString match {
+          case WdlFileType.toWdlString => WdlFileType
+          case WdlStringType.toWdlString => WdlStringType
+          case WdlIntegerType.toWdlString => WdlIntegerType
+          case WdlFloatType.toWdlString => WdlFloatType
+          case WdlBooleanType.toWdlString => WdlBooleanType
+          case WdlObjectType.toWdlString => WdlObjectType
+        }
+      case null => WdlStringType
+      case _ => throw new UnsupportedOperationException("Implement this later for compound types")
+    }
   }
 
   /**
    * Confirm all required inputs are present and attempt to coerce raw inputs to `WdlValue`s.
    * This can fail if required raw inputs are missing or if the values for a specified raw input
-   * cannot be coerced to the target type of the input as specified in the binding.
+   * cannot be coerced to the target type of the input as specified in the namespace.
    */
   def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
 
@@ -359,7 +282,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
    * that will resolve when evaluated
    */
   private def validate(): Unit = {
-    val workflowAsts = WdlBinding.findAsts(ast, AstNodeName.Workflow)
+    val workflowAsts = AstTools.findAsts(ast, AstNodeName.Workflow)
 
     if (workflowAsts.size > 1) {
       throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(workflowAsts.asJava))
@@ -372,7 +295,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
         throw new SyntaxError(wdlSyntaxErrorFormatter.duplicateTask(taskAstsWithSameName))
       }
       /* A task can not have duplicated inputs */
-      val commandLineInputs = WdlBinding.findAsts(taskAstsWithSameName.head, AstNodeName.CommandParameter)
+      val commandLineInputs = AstTools.findAsts(taskAstsWithSameName.head, AstNodeName.CommandParameter)
       commandLineInputs foreach {input =>
         val inputName = sourceString(input.getAttribute("name"))
         val inputsWithSameName = commandLineInputs filter {i => sourceString(i.getAttribute("name")) == inputName}
@@ -383,7 +306,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
     }
 
     /* Ensure that no namespaces collide with task/workflow names */
-    ast.getAttribute("imports").asInstanceOf[AstList].asScala.toVector.map {i =>
+    ast.getAttribute("imports").asInstanceOf[AstList].asScala.toVector.foreach {i =>
       val namespaceAst = i.asInstanceOf[Ast].getAttribute("namespace").asInstanceOf[Terminal]
       if (namespaceAst != null) {
         findTaskAst(sourceString(namespaceAst)) match {
@@ -401,7 +324,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
 
     workflowAsts foreach { workflowAst =>
       val workflow = localWorkflows.head
-      WdlBinding.findAsts(workflowAst, AstNodeName.Call) foreach { callAst =>
+      AstTools.findAsts(workflowAst, AstNodeName.Call) foreach { callAst =>
         val taskName = sourceString(callAst.getAttribute("task"))
         val taskAst = findTaskAst(taskName) getOrElse {
           throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName))
@@ -418,7 +341,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
 
         call.inputMappings foreach { inputKv =>
           task.inputs find { taskInput => taskInput._1 == inputKv._1 } getOrElse {
-            val callInput = WdlBinding.getCallInputAsts(callAst) find { p =>
+            val callInput = AstTools.getCallInputAsts(callAst) find { p =>
               sourceString(p.getAttribute("key")) == inputKv._1
             } getOrElse {
               throw new SyntaxError(s"Can't find call input: ${inputKv._1}")
@@ -427,7 +350,7 @@ case class WdlBinding(ast: Ast, source: WdlSource, importResolver: ImportResolve
           }
 
           /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
-          WdlBinding.findTopLevelMemberAccesses(inputKv._2.ast).map(getCallFromMemberAccessAst).map {_.get}
+          AstTools.findTopLevelMemberAccesses(inputKv._2.ast).map(getCallFromMemberAccessAst).map {_.get}
         }
       }
     }

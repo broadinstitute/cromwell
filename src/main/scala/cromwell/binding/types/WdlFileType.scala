@@ -4,7 +4,7 @@ import cromwell.binding.values.WdlFile
 import spray.json.JsString
 
 case object WdlFileType extends WdlType {
-  override def toWdlString: String = "File"
+  val toWdlString: String = "File"
 
   override protected def coercion = {
     case s: String => WdlFile(s)

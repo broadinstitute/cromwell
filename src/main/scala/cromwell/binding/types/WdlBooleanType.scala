@@ -4,7 +4,7 @@ import cromwell.binding.values.WdlBoolean
 import spray.json.{JsBoolean, JsString}
 
 case object WdlBooleanType extends WdlType {
-  override def toWdlString: String = "Boolean"
+  val toWdlString: String = "Boolean"
 
   override protected def coercion = {
     case b: Boolean => WdlBoolean(b)

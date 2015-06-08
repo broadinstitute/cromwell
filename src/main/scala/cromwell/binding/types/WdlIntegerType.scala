@@ -4,7 +4,7 @@ import cromwell.binding.values.WdlInteger
 import spray.json.JsNumber
 
 case object WdlIntegerType extends WdlType {
-  override def toWdlString: String = "Int"
+  val toWdlString: String = "Int"
 
   override protected def coercion = {
     case i: Integer => WdlInteger(i)

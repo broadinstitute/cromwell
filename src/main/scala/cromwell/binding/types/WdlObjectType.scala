@@ -1,7 +1,7 @@
 package cromwell.binding.types
 
 case object WdlObjectType extends WdlType {
-  override def toWdlString: String = "Object"
+  val toWdlString: String = "Object"
 
   override protected def coercion = ???
 }

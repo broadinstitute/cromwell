@@ -1,7 +1,6 @@
 package cromwell.binding
 
 import cromwell.binding.types.WdlType
-import cromwell.parser.WdlParser.Terminal
 
 import scala.util.Success
 
@@ -18,7 +17,7 @@ import scala.util.Success
  *                      value of those inputs
  * @todo Validate that the keys in inputMappings correspond to actual parameters in the task
  */
-case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, inputMappings: Map[String, WdlExpression], binding: WdlBinding) extends Scope {
+case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, inputMappings: Map[String, WdlExpression], namespace: WdlNamespace) extends Scope {
   val name: String = alias getOrElse taskFqn
 
   private var _parent: Option[Scope] = None
@@ -60,8 +59,8 @@ case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, 
   def prerequisiteCalls(): Iterable[Call] = {
     for {
       expr <- inputMappings.values
-      ast <- WdlBinding.findTopLevelMemberAccesses(expr.ast)
-      call <- binding.getCallFromMemberAccessAst(ast) match {
+      ast <- AstTools.findTopLevelMemberAccesses(expr.ast)
+      call <- namespace.getCallFromMemberAccessAst(ast) match {
         case Success(c:Call) => Vector(c)
         case _ => Vector()
       }

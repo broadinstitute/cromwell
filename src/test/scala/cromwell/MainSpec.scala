@@ -1,10 +1,7 @@
 package cromwell
 
-import java.io.File
-
-import cromwell.binding.WdlBinding
+import cromwell.util.FileUtil
 import cromwell.util.SampleWdl.ThreeStep
-import cromwell.util.{FileUtil, SampleWdl}
 import org.scalatest.{FlatSpec, Matchers}
 
 class MainSpec extends FlatSpec with Matchers {

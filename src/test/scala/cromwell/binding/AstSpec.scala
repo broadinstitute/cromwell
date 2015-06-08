@@ -4,19 +4,19 @@ import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class AstSpec extends FlatSpec with Matchers {
-  val binding = WdlBinding.process(SampleWdl.ThreeStep.WdlSource)
+  val namespace = WdlNamespace.load(SampleWdl.ThreeStep.WdlSource)
 
   "Parser" should "produce AST with 3 Task nodes" in {
-    WdlBinding.findAsts(binding.ast, "Task").size shouldEqual 3
+    AstTools.findAsts(namespace.ast, "Task").size shouldEqual 3
   }
 
   it should "produce AST with 1 Workflow node" in {
-    WdlBinding.findAsts(binding.ast, "Workflow").size shouldEqual 1
+    AstTools.findAsts(namespace.ast, "Workflow").size shouldEqual 1
   }
 
   it should "produce AST with 3 Call nodes in the Workflow node" in {
-    WdlBinding.findAsts(
-      WdlBinding.findAsts(binding.ast, "Workflow").head,
+    AstTools.findAsts(
+      AstTools.findAsts(namespace.ast, "Workflow").head,
       "Call"
     ).size shouldEqual 3
   }

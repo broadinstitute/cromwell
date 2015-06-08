@@ -21,7 +21,6 @@ object StoreActor {
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
   case object FindRunnableCalls extends StoreActorMessage
-  case class PrepareToStartCalls(runnableCalls: Iterable[Call]) extends StoreActorMessage
   case class UpdateStatus(call: Call, status: ExecutionStatus.Value) extends StoreActorMessage
   case object GetOutputs extends StoreActorMessage
   case class GetLocallyQualifiedInputs(call: Call) extends StoreActorMessage
@@ -44,9 +43,6 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
 
     case FindRunnableCalls =>
       sender ! executionStore.runnableCalls
-
-    case PrepareToStartCalls(calls) =>
-      sender ! handlePrepareToStartCalls(calls)
 
     case GetOutputs =>
       sender ! (symbolStore.getOutputs map symbolStoreEntryToMapEntry).toMap
@@ -88,22 +84,4 @@ class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Act
     executionStore.isWorkflowDone
   }
 
-  private def handlePrepareToStartCalls(calls: Iterable[Call]): Unit = {
-    def copyOutputsToInputs(call: Call) = {
-      def copyOutputToInput(inputName: String, expression: WdlExpression) = {
-        val ast = expression.ast.asInstanceOf[Ast]
-        val Seq(lhs, rhs) = Seq("lhs", "rhs").map {
-          ast.getAttribute(_).asInstanceOf[Terminal].getSourceString
-        }
-        val outputFqn = Seq(call.parent.get.name, lhs, rhs).mkString(".")
-        val inputFqn = Seq(call.parent.get.name, call.name, inputName).mkString(".")
-        symbolStore.copyOutputToInput(outputFqn, inputFqn)
-      }
-
-      call.inputMappings.foreach { case (inputName, expression) =>
-        copyOutputToInput(inputName, expression)
-      }
-    }
-    calls.foreach { call => copyOutputsToInputs(call) }
-  }
 }

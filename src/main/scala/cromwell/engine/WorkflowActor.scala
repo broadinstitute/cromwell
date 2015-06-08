@@ -87,7 +87,6 @@ case class WorkflowActor private(id: WorkflowId,
   private def startRunnableCalls(): Unit = {
     for {
       runnableCalls <- (storeActor ? FindRunnableCalls).mapTo[Iterable[Call]]
-      _ <- storeActor ? PrepareToStartCalls(runnableCalls)
     } yield {
       if (runnableCalls.nonEmpty) {
         log.info("Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))

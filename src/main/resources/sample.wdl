@@ -3,7 +3,7 @@ task grep {
     grep ${pattern} ${flags?} ${File file_name}
   }
   output {
-    File out = "stdout"
+    File out = stdout()
   }
   runtime {
     memory: "2MB"
@@ -17,7 +17,7 @@ task wc {
     wc -l ${sep=' ' File files+} | tail -1 | cut -d' ' -f 2
   }
   output {
-    Int count = read_int("stdout")
+    Int count = read_int(stdout())
   }
 }
 

@@ -4,6 +4,7 @@ import java.io.File
 
 import cromwell.binding._
 import cromwell.engine.{WorkflowManagerActor, SingleWorkflowRunner}
+import cromwell.binding.formatter.{TerminalSyntaxHighlighter, SyntaxFormatter}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.CromwellServer
 import spray.json._
@@ -11,13 +12,14 @@ import spray.json._
 import scala.util.{Failure, Success}
 
 object Actions extends Enumeration {
-  val Parse, Validate, Run, Inputs, Server = Value
+  val Parse, Validate, Highlight, Run, Inputs, Server = Value
 }
 
 object Main extends App {
 
   getAction(args.headOption map { _.capitalize }) match {
     case Some(x) if x == Actions.Validate => validate(args.tail)
+    case Some(x) if x == Actions.Highlight => highlight(args.tail)
     case Some(x) if x == Actions.Inputs => inputs(args.tail)
     case Some(x) if x == Actions.Run => run(args.tail)
     case Some(x) if x == Actions.Parse => parse(args.tail)
@@ -33,6 +35,12 @@ object Main extends App {
     } catch {
       case e:SyntaxError => println(e)
     }
+  }
+
+  def highlight(args: Array[String]) {
+    val binding = WdlBinding.process(new File(args(0)))
+    val formatter = new SyntaxFormatter(TerminalSyntaxHighlighter)
+    println(formatter.format(binding))
   }
 
   def inputs(args: Array[String]): Unit = {

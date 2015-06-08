@@ -9,7 +9,7 @@ object SampleWdl {
         |    echo "Hello ${addressee}!"
         |  }
         |  output {
-        |    String salutation = read_string("stdout")
+        |    String salutation = read_string(stdout())
         |  }
         |}
         |
@@ -32,7 +32,7 @@ object SampleWdl {
         |    ps
         |  }
         |  output {
-        |    File procs = "stdout"
+        |    File procs = stdout()
         |  }
         |}
         |
@@ -41,7 +41,7 @@ object SampleWdl {
         |    grep '${pattern}' ${File in_file} | wc -l
         |  }
         |  output {
-        |    Int count = read_int("stdout")
+        |    Int count = read_int(stdout())
         |  }
         |}
         |
@@ -50,7 +50,7 @@ object SampleWdl {
         |    cat ${File in_file} | wc -l
         |  }
         |  output {
-        |    Int count = read_int("stdout")
+        |    Int count = read_int(stdout())
         |  }
         |}
         |

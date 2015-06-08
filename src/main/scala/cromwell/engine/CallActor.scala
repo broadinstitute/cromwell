@@ -68,7 +68,9 @@ class CallActor(call: Call, backend: Backend, storeActor: ActorRef) extends Acto
       commandLine <- Future.fromTry(call.task.command.instantiate(inputs))
     } yield {
       originalSender ! CallActor.Started(call)
-      log.info(s"Launching: $commandLine")
+      def lookup(s:String): WdlValue = {
+        inputs.get(s).get
+      }
       val tryOutputs = backend.executeCommand(commandLine, call, call.task.outputs, s => inputs.get(s).get)
       val (successes, failures) = tryOutputs.partition {
         _._2.isSuccess

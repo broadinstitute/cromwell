@@ -2,7 +2,7 @@ package cromwell.engine
 
 import cromwell.binding._
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlObject, WdlValue}
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
@@ -26,9 +26,49 @@ class SymbolStore(binding: WdlBinding, inputs: Map[FullyQualifiedName, WdlValue]
     assignSymbolStoreEntry(fullyQualifiedName, value, input = true)
   }
 
+  for {
+    workflow <- binding.workflows
+    call <- workflow.calls
+    (k, v) <- call.inputMappings
+  } yield assignSymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
+
+  private def callEntries(call: Call): Set[SymbolStoreEntry] =
+    store.filter {entry => entry.scope == call.fullyQualifiedName}.toSet
+
+  private def callOutputEntries(call: Call): Set[SymbolStoreEntry] =
+    callEntries(call).filter {entry => entry.isOutput}
+
+  private def callInputEntries(call: Call): Set[SymbolStoreEntry] =
+    callEntries(call).filter {entry => entry.isInput}
+
   def locallyQualifiedInputs(call: Call): Map[String, WdlValue] = {
-    store.collect { case entry if entry.scope == call.fullyQualifiedName && entry.isInput =>
-      entry.key.name -> entry.wdlValue.get
+    def lookup(identifierString: String): WdlValue = {
+      val workflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
+        throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent")
+      }
+      val namespaces = call.binding.importedBindings.filter{_.namespace == Some(identifierString)}
+      namespaces.headOption.getOrElse{
+        val matchedCall = workflow.calls.find {_.name == identifierString}.getOrElse {
+          throw new WdlExpressionException(s"Expecting to find a call with name '$identifierString'")
+        }
+        val callOutputs = callOutputEntries(matchedCall) map { entry =>
+          val value = entry.wdlValue match {
+            case Some(v) => v
+            case _ => throw new WdlExpressionException(s"Could not evaluate call '${matchedCall.name}', because '${entry.key.name}' is undefined")
+          }
+          entry.key.name -> value
+        }
+        WdlObject(callOutputs.toMap)
+      }
+    }
+
+    callInputEntries(call).map {entry =>
+      val value = entry.wdlValue match {
+        case Some(e: WdlExpression) => e.evaluate(lookup, SymbolStore.CallInputWdlFunctions).get
+        case Some(v) => v
+        case _ => throw new WdlExpressionException("Unknown error")
+      }
+      entry.key.name -> value
     }.toMap
   }
 
@@ -58,32 +98,19 @@ class SymbolStore(binding: WdlBinding, inputs: Map[FullyQualifiedName, WdlValue]
     }
   }
 
-  def addInputValue(scope: String, name: String, entry: SymbolStoreEntry): Unit = {
-    val key = SymbolStoreKey(scope, name, iteration = None, input = true)
-    store.add(SymbolStoreEntry(key, entry.wdlType, entry.wdlValue))
-  }
-
-  def copyOutputToInput(outputFqn: String, inputFqn: String): Try[Unit] = {
-    getOutputByFullyQualifiedName(outputFqn) match {
-      case None =>
-        Failure(new IllegalArgumentException(s"Did not find expected output '$outputFqn'"))
-      case Some(entry) =>
-        val (inputScope, inputName) = splitFqn(inputFqn)
-        Success(addInputValue(inputScope, inputName, entry))
-    }
-  }
-
-  def getOutputByFullyQualifiedName(fqn: FullyQualifiedName): Option[SymbolStoreEntry] = {
-    val (scope, name) = splitFqn(fqn)
-    val key = SymbolStoreKey(scope, name, iteration = None, input = false)
-    store.find(_.key == key)
-  }
-
   def getOutputs: Set[SymbolStoreEntry] = store.toSet filter {_.isOutput}
 
   def readOnly = store.toSet
 
   override def toString: String = {
     store.map{e => s"${e.key.scope}\t${e.key.name}\t${e.key.input}\t${e.wdlType}\t${e.wdlValue}"}.mkString("\n")
+  }
+}
+
+object SymbolStore {
+  object CallInputWdlFunctions extends WdlFunctions {
+    def getFunction(name: String): WdlFunction = {
+      throw new WdlExpressionException("TODO: Some functions may be allowed in this context")
+    }
   }
 }

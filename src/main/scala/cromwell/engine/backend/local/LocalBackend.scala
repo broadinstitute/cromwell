@@ -5,7 +5,7 @@ import java.io.Writer
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
-import cromwell.binding.{Call, TaskOutput}
+import cromwell.binding.{WdlExpression, Call, TaskOutput}
 import cromwell.engine.backend.Backend
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
@@ -59,8 +59,6 @@ class LocalBackend extends Backend {
           taskOutput.wdlType match {
             case WdlFileType =>
               v.value match {
-                case "stdout" => WdlFile(stdoutFile)
-                case "stderr" => WdlFile(stderrFile)
                 case _ => WdlFile(v.value)
               }
             case _ => v
@@ -72,8 +70,8 @@ class LocalBackend extends Backend {
     taskOutputs.map { taskOutput =>
       val rawValue = taskOutput.expression.evaluate(
         scopedLookupFunction,
-        new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile)))
-
+        new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
+      )
       taskOutput.name -> rawValue.map { possiblyAutoConvertedValue(taskOutput, _) }
     }.toMap
   }

@@ -4,7 +4,7 @@ import java.io.File
 
 import cromwell.binding._
 import cromwell.engine.{WorkflowManagerActor, SingleWorkflowRunner}
-import cromwell.binding.formatter.{TerminalSyntaxHighlighter, SyntaxFormatter}
+import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.CromwellServer
 import spray.json._
@@ -39,7 +39,7 @@ object Main extends App {
 
   def highlight(args: Array[String]) {
     val binding = WdlBinding.process(new File(args(0)))
-    val formatter = new SyntaxFormatter(TerminalSyntaxHighlighter)
+    val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
     println(formatter.format(binding))
   }
 

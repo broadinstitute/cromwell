@@ -1,6 +1,6 @@
 package cromwell.binding
 
-import cromwell.binding.formatter.{HtmlSyntaxHighlighter, TerminalSyntaxHighlighter, SyntaxFormatter}
+import cromwell.binding.formatter.{HtmlSyntaxHighlighter, AnsiSyntaxHighlighter, SyntaxFormatter}
 import org.scalatest.{FlatSpec, Matchers}
 
 class SyntaxHighlightTest extends FlatSpec with Matchers {
@@ -34,7 +34,7 @@ class SyntaxHighlightTest extends FlatSpec with Matchers {
   }
 
   it should "produce ANSI terminal output" in {
-    val formatter = new SyntaxFormatter(TerminalSyntaxHighlighter)
+    val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
     val actual = formatter.format(binding)
     val expected = s"""\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mt\u001b[0m {
       |  command {

@@ -41,10 +41,10 @@ class ThreeStepImportNamespaceAliasSpec extends FlatSpec with Matchers {
     |workflow three_step {
     |  call ns1.ps as a1
     |  call ns2.cgrep as a2 {
-    |    input: in_file=ns1.ps.procs
+    |    input: in_file=a1.procs
     |  }
     |  call ns3.wc {
-    |    input: in_file=ns1.ps.procs
+    |    input: in_file=a1.procs
     |  }
     |}""".stripMargin
 
@@ -96,7 +96,7 @@ class ThreeStepImportNamespaceAliasSpec extends FlatSpec with Matchers {
     binding.importedBindings flatMap {_.tasks} map {_.name} shouldEqual Seq("ps", "cgrep", "wc")
   }
   it should "Have 3 calls in the workflow, 2 of them aliased" in {
-    binding.workflows flatMap {_.calls} map {_.name} shouldEqual Seq("a1", "a2", "wc")
+    binding.workflows flatMap {_.calls} map {_.name} shouldEqual Seq("a1", "a2", "ns3.wc")
   }
   it should "Throw an exception if the import resolver fails to resolve an import" in {
     def badResolver(s: String): String = {

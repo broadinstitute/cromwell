@@ -27,10 +27,13 @@ class ExecutionStore(binding: WdlBinding) {
     for {
       callEntry <- table if callEntry._2 == ExecutionStatus.NotStarted
       call = callEntry._1
-      if call.prerequisiteCalls().forall(table.get(_).get == ExecutionStatus.Done)
+      if call.prerequisiteCalls().forall {
+        case c:Call => table.get(c).get == ExecutionStatus.Done
+        case _ => false
+      }
     } yield call
   }
   override def toString: String = {
-    table.map{case(k, v) => s"${k.fullyQualifiedName}\t$v"}.mkString("\n")
+    table.map {case(k, v) => s"${k.fullyQualifiedName}\t$v"}.mkString("\n")
   }
 }

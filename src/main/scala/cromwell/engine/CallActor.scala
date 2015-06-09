@@ -16,7 +16,6 @@ import scala.language.postfixOps
 
 
 object CallActor {
-
   sealed trait CallActorMessage
   case object Start extends CallActorMessage
   case class Started(call: Call) extends CallActorMessage

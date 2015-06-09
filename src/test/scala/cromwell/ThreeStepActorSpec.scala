@@ -2,16 +2,17 @@ package cromwell
 
 import java.io.{File, FileWriter}
 import java.util.UUID
-
+import akka.pattern.ask
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, filterEvents}
+import akka.testkit.{TestFSMRef, TestActorRef, filterEvents}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
-import cromwell.engine.WorkflowActor
+import cromwell.engine.{WorkflowRunning, WorkflowSucceeded, WorkflowSubmitted, WorkflowActor}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -93,21 +94,30 @@ object ThreeStepActorSpec {
   }
 }
 
-
 class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
-
-  val namespace = WdlNamespace.load(ThreeStepActorSpec.WdlSource)
-
   private def buildWorkflowActor: TestActorRef[WorkflowActor] = {
+    val (namespace, coercedInputs) = buildWorkflowBindingAndInputs()
+    val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
+    TestActorRef(props, self, "ThreeStep")
+  }
+
+  private def buildWorkflowActorFsm() = {
+    val (binding, coercedInputs) = buildWorkflowBindingAndInputs()
+    TestFSMRef(new WorkflowActor(UUID.randomUUID(), binding, coercedInputs, new LocalBackend))
+  }
+
+  private def buildWorkflowBindingAndInputs() = {
     import ThreeStepActorSpec._
     val workflowInputs = Map(
       Inputs.Pattern ->"joeblaux",
       Inputs.DummyPsFileName -> createDummyPsFile.getAbsolutePath)
 
+    val namespace = WdlNamespace.load(ThreeStepActorSpec.WdlSource)
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
     val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
     TestActorRef(props, self, "ThreeStep")
+    (namespace, coercedInputs)
   }
 
   private def getCounts(outputs: Map[String, WdlValue], outputFqns: String*): Seq[Int] = {
@@ -120,22 +130,17 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
   import ThreeStepActorSpec._
 
   "A three step workflow" should {
-    "best get to (three) steppin'" in {
+      "best get to (three) steppin'" in {
+      val fsm = buildWorkflowActorFsm()
+      assert(fsm.stateName == WorkflowSubmitted)
+      fsm ! Start
       within(TestExecutionTimeout) {
-        filterEvents(startingCallsFilter("ps"), startingCallsFilter("cgrep", "wc")) {
-          buildWorkflowActor ! Start
-          expectMsgPF() {
-            case Started => ()
-          }
-          expectMsgPF(max = 10 seconds) {
-            case Failed(t) =>
-              fail(t)
-            case Done(outputs) =>
-              val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
-              cgrepCount shouldEqual 3
-              wcCount shouldEqual 6
-          }
-        }
+        awaitCond(fsm.stateName == WorkflowRunning)
+        awaitCond(fsm.stateName == WorkflowSucceeded)
+        val outputs = Await.result(fsm.ask(GetOutputs)(ActorTimeout).mapTo[WorkflowOutputs], 5 seconds)
+        val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
+        cgrepCount shouldEqual 3
+        wcCount shouldEqual 6
       }
     }
   }

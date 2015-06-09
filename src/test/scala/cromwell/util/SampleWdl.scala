@@ -65,6 +65,7 @@ object SampleWdl {
         |}
         |
       """.stripMargin
+
     val RawInputs =  Map("three_step.cgrep.pattern" -> "...")
   }
 }

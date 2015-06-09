@@ -44,11 +44,11 @@ class MockWorkflowManagerActor extends Actor  {
       sender ! msg
 
     case WorkflowOutputs(id) =>
-      val msg = Some(Map(
+      val msg = Map(
         "three_step.cgrep.count" -> WdlInteger(8),
         "three_step.ps.procs" -> WdlFile("/tmp/ps.stdout.tmp"),
         "three_step.wc.count" -> WdlInteger(8)
-      ))
+      )
       sender ! msg
   }
 }

@@ -26,13 +26,14 @@ class ExecutionStore(namespace: WdlNamespace) {
   def runnableCalls: Iterable[Call] = {
     for {
       callEntry <- table if callEntry._2 == ExecutionStatus.NotStarted
-      call = callEntry._1
-      if call.prerequisiteCalls().forall {
-        case c:Call => table.get(c).get == ExecutionStatus.Done
-        case _ => false
-      }
+      call = callEntry._1 if callIsRunnable(call)
     } yield call
   }
+
+  private def callIsRunnable(call: Call): Boolean = {
+    call.prerequisiteCalls().forall(table.get(_).get == ExecutionStatus.Done)
+  }
+
   override def toString: String = {
     table.map {case(k, v) => s"${k.fullyQualifiedName}\t$v"}.mkString("\n")
   }

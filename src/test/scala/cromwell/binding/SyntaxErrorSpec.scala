@@ -35,7 +35,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
 
   private def expectError(wdl: String) = {
     try {
-      val binding = WdlBinding.process(wdl, resolver _)
+      val namespace = WdlNamespace.load(wdl, resolver _)
       fail("Exception expected")
     } catch {
       case x: SyntaxError => // expected

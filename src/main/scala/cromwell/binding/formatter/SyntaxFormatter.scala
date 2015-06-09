@@ -1,12 +1,11 @@
 package cromwell.binding.formatter
 
-import cromwell.binding.command.{ParameterCommandPart, StringCommandPart, Command}
+import cromwell.binding._
+import cromwell.binding.command.{Command, ParameterCommandPart, StringCommandPart}
 import cromwell.binding.types.WdlType
+import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 
 import scala.collection.JavaConverters._
-
-import cromwell.binding._
-import cromwell.parser.WdlParser.{Terminal, AstList, AstNode, Ast}
 
 trait SyntaxHighlighter {
   def keyword(s: String): String = s
@@ -47,15 +46,15 @@ object HtmlSyntaxHighlighter extends SyntaxHighlighter {
 
 class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   val indent = 2
-  def format(binding: WdlBinding): String = {
-    val imports = binding.imports.map(formatImport) match {
+  def format(namespace: WdlNamespace): String = {
+    val imports = namespace.imports.map(formatImport) match {
       case v if v.size > 0 => v.mkString("\n") + "\n\n"
       case v => ""
     }
-    val definitions = for(node <- binding.ast.getAttribute("definitions").asInstanceOf[AstList].asScala.toVector) yield {
+    val definitions = for(node <- namespace.ast.getAttribute("definitions").asInstanceOf[AstList].asScala.toVector) yield {
       node match {
-        case a:Ast if a.getName == "Workflow" => formatWorkflow(binding.workflows.head)
-        case a:Ast if a.getName == "Task" => formatTask(binding.findTask(text(a.getAttribute("name"))).getOrElse {
+        case a:Ast if a.getName == "Workflow" => formatWorkflow(namespace.workflows.head)
+        case a:Ast if a.getName == "Task" => formatTask(namespace.findTask(text(a.getAttribute("name"))).getOrElse {
           throw new UnsupportedOperationException("Shouldn't happen")
         })
       }

@@ -57,50 +57,50 @@ class ThreeStepImportSpec extends FlatSpec with Matchers {
     }
   }
 
-  val binding = WdlBinding.process(workflowWdl, resolver _)
+  val namespace = WdlNamespace.load(workflowWdl, resolver _)
 
   "WDL file with imports" should "Have 4 executables (3 tasks, 1 workflow)" in {
-    binding.executables.size shouldEqual 4
+    namespace.executables.size shouldEqual 4
   }
   it should "Have 3 tasks" in {
-    binding.tasks.size shouldEqual 3
+    namespace.tasks.size shouldEqual 3
   }
   it should "Have 3 task ASTs" in {
-    binding.taskAsts.size shouldEqual 3
+    namespace.taskAsts.size shouldEqual 3
   }
   it should "Have 0 local tasks" in {
-    binding.localTasks.size shouldEqual 0
+    namespace.localTasks.size shouldEqual 0
   }
   it should "Have 0 local task ASTs" in {
-    binding.localTaskAsts.size shouldEqual 0
+    namespace.localTaskAsts.size shouldEqual 0
   }
   it should "Have 3 imported tasks" in {
-    binding.importedTasks.size shouldEqual 3
+    namespace.importedTasks.size shouldEqual 3
   }
   it should "Have 3 imported task ASTs" in {
-    binding.importedTaskAsts.size shouldEqual 3
+    namespace.importedTaskAsts.size shouldEqual 3
   }
   it should "Have 1 workflow" in {
-    binding.workflows.size shouldEqual 1
+    namespace.workflows.size shouldEqual 1
   }
   it should "Have 1 local workflow" in {
-    binding.localWorkflows.size shouldEqual 1
+    namespace.localWorkflows.size shouldEqual 1
   }
   it should "Have 0 imported workflow" in {
-    binding.importedWorkflows.size shouldEqual 0
+    namespace.importedWorkflows.size shouldEqual 0
   }
   it should "Have 3 imported WdlBindings" in {
-    binding.importedBindings.size shouldEqual 3
+    namespace.namespaces.size shouldEqual 3
   }
   it should "Have tasks with the names 'ps', 'cgrep' and 'wc'" in {
-    binding.tasks map {_.name} shouldEqual Seq("ps", "cgrep", "wc")
+    namespace.tasks map {_.name} shouldEqual Seq("ps", "cgrep", "wc")
   }
   it should "Throw an exception if the import resolver fails to resolve an import" in {
     def badResolver(s: String): String = {
       throw new RuntimeException(s"Can't Resolve")
     }
     try {
-      val badBinding = WdlBinding.process(workflowWdl, badResolver _)
+      val badBinding = WdlNamespace.load(workflowWdl, badResolver _)
       fail("Expecting an exception to be thrown when using badResolver")
     } catch {
       case _: RuntimeException =>

@@ -58,6 +58,19 @@ Contains implementations of an interface to launch jobs.  `cromwell.engine` will
 
 Contains the Akka code and actor system to execute a workflow.  This layer should operate entirely on objects returned from the `cromwell.binding` layer.
 
+Scala API Usage
+---------------
+
+The main entry point into the parser is the `WdlNamespace` object.  A WDL file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
+
+```scala
+val ns = WdlNamespace.load(new File("test.wdl"))
+val ns2 = WdlNamespace.load("workflow wf {}")
+val workflows = ns.workflows
+val tasks = ns.tasks
+val commands = ns.tasks.map{_.command}
+```
+
 Web Server
 ----------
 
@@ -164,7 +177,7 @@ Server: spray-can/1.3.3
 
 {
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
-    "status": "WorkflowSucceeded"
+    "status": "Succeeded"
 }
 ```
 

@@ -3,8 +3,8 @@ package cromwell
 import java.io.File
 
 import cromwell.binding._
-import cromwell.engine.{WorkflowManagerActor, SingleWorkflowRunner}
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
+import cromwell.engine.{SingleWorkflowRunner, WorkflowManagerActor}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.CromwellServer
 import spray.json._
@@ -31,24 +31,24 @@ object Main extends App {
   def validate(args: Array[String]): Unit = {
     if (args.length != 1) usageAndExit()
     try {
-      WdlBinding.process(new File(args(0)))
+      WdlNamespace.load(new File(args(0)))
     } catch {
       case e:SyntaxError => println(e)
     }
   }
 
   def highlight(args: Array[String]) {
-    val binding = WdlBinding.process(new File(args(0)))
+    val namespace = WdlNamespace.load(new File(args(0)))
     val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
-    println(formatter.format(binding))
+    println(formatter.format(namespace))
   }
 
   def inputs(args: Array[String]): Unit = {
     if (args.length != 1) usageAndExit()
     try {
       import cromwell.binding.types.WdlTypeJsonFormatter._
-      val binding = WdlBinding.process(new File(args(0)))
-      println(binding.workflows.head.inputs.toJson.prettyPrint)
+      val namespace = WdlNamespace.load(new File(args(0)))
+      println(namespace.workflows.head.inputs.toJson.prettyPrint)
     } catch {
       case e:SyntaxError => println(e)
     }
@@ -70,7 +70,7 @@ object Main extends App {
 
   def parse(args: Array[String]): Unit = {
     if (args.length != 1) usageAndExit()
-    else println(WdlBinding.getAst(new File(args(0))).toPrettyString)
+    else println(AstTools.getAst(new File(args(0))).toPrettyString)
   }
 
   def usageAndExit(exit: Boolean = true): Unit = {

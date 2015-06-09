@@ -3,10 +3,9 @@ package cromwell.engine
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.util.Timeout
+import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{WdlBinding, _}
 import cromwell.engine.StoreActor._
-import cromwell.parser.WdlParser.{Ast, Terminal}
 import cromwell.util.TryUtil
 
 import scala.concurrent.duration._
@@ -15,8 +14,8 @@ import scala.util.Try
 
 
 object StoreActor {
-  def props(binding: WdlBinding, inputs: WorkflowCoercedInputs) =
-    Props(new StoreActor(binding, inputs))
+  def props(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) =
+    Props(new StoreActor(namespace, inputs))
 
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
@@ -31,9 +30,9 @@ object StoreActor {
  * Actor to hold symbol and execution status data for a single workflow.  This actor
  * guards mutable state over the symbol and execution stores, and must therefore not
  * pass back `Future`s over updates or reads of those stores. */
-class StoreActor(binding: WdlBinding, inputs: WorkflowCoercedInputs) extends Actor {
-  private val symbolStore = new SymbolStore(binding, inputs)
-  private val executionStore = new ExecutionStore(binding)
+class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends Actor {
+  private val symbolStore = new SymbolStore(namespace, inputs)
+  private val executionStore = new ExecutionStore(namespace)
   private val log = Logging(context.system, this)
 
   override def receive: Receive = LoggingReceive {

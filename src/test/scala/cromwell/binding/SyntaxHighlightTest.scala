@@ -1,10 +1,10 @@
 package cromwell.binding
 
-import cromwell.binding.formatter.{HtmlSyntaxHighlighter, AnsiSyntaxHighlighter, SyntaxFormatter}
+import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import org.scalatest.{FlatSpec, Matchers}
 
 class SyntaxHighlightTest extends FlatSpec with Matchers {
-  val binding = WdlBinding.process(
+  val namespace = WdlNamespace.load(
     s"""task t {command{./cmd $${f} $${Int p}}}
        |workflow w {
        |  call t
@@ -17,7 +17,7 @@ class SyntaxHighlightTest extends FlatSpec with Matchers {
 
   "SyntaxFormatter" should "produce tagged HTML" in {
     val formatter = new SyntaxFormatter(HtmlSyntaxHighlighter)
-    val actual = formatter.format(binding)
+    val actual = formatter.format(namespace)
     val expected = s"""<span class="keyword">task</span> <span class="name">t</span> {
       |  <span class="section">command</span> {
       |    <span class="command">./cmd $${<span class="type">String</span> <span class="variable">f</span>} $${<span class="type">Int</span> <span class="variable">p</span>}</span>
@@ -35,7 +35,7 @@ class SyntaxHighlightTest extends FlatSpec with Matchers {
 
   it should "produce ANSI terminal output" in {
     val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
-    val actual = formatter.format(binding)
+    val actual = formatter.format(namespace)
     val expected = s"""\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mt\u001b[0m {
       |  command {
       |    ./cmd $${\u001b[38;5;33mString\u001b[0m \u001b[38;5;112mf\u001b[0m} $${\u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mp\u001b[0m}

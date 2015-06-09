@@ -7,7 +7,7 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.HelloWorldActorSpec._
 import cromwell.binding.values.WdlString
-import cromwell.binding.{UnsatisfiedInputsException, WdlBinding}
+import cromwell.binding.{UnsatisfiedInputsException, WdlNamespace}
 import cromwell.engine.WorkflowActor
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
@@ -34,9 +34,9 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
 
   def buildWorkflowActor(name: String = UUID.randomUUID().toString,
                          rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
-    val binding = WdlBinding.process(HelloWorld.WdlSource)
-    val coercedInputs = binding.coerceRawInputs(rawInputs).get
-    val props = WorkflowActor.props(UUID.randomUUID(), binding, coercedInputs, new LocalBackend)
+    val namespace = WdlNamespace.load(HelloWorld.WdlSource)
+    val coercedInputs = namespace.coerceRawInputs(rawInputs).get
+    val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
     TestActorRef(props, self, "Workflow-" + name)
   }
 

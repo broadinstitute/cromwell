@@ -6,38 +6,38 @@ import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class ThreeStepSpec extends FlatSpec with Matchers {
-  val binding = WdlBinding.process(SampleWdl.ThreeStep.WdlSource)
+  val namespace = WdlNamespace.load(SampleWdl.ThreeStep.WdlSource)
 
   "Binding Workflow" should "Have one workflow definition" in {
-    binding.workflows.size shouldEqual 1
+    namespace.workflows.size shouldEqual 1
   }
   it should "Have zero imported workflow definition" in {
-    binding.importedWorkflows.size shouldEqual 0
+    namespace.importedWorkflows.size shouldEqual 0
   }
   it should "Have correct name for workflow" in {
-    binding.workflows.head.name shouldEqual "three_step"
+    namespace.workflows.head.name shouldEqual "three_step"
   }
   it should "Have correct FQN" in {
-    binding.workflows.head.fullyQualifiedName shouldEqual "three_step"
+    namespace.workflows.head.fullyQualifiedName shouldEqual "three_step"
   }
   it should "Have no parent" in {
-    binding.workflows.head.parent shouldEqual None
+    namespace.workflows.head.parent shouldEqual None
   }
   it should "Have three 'Call' objects" in {
-    binding.workflows.head.calls.size shouldEqual 3
+    namespace.workflows.head.calls.size shouldEqual 3
   }
   it should "Have three outputs" in {
-    binding.workflows.head.outputs.size shouldEqual 3
+    namespace.workflows.head.outputs.size shouldEqual 3
   }
 
   "Binding Tasks" should "Have three task definitions" in {
-    binding.tasks.size shouldEqual 3
+    namespace.tasks.size shouldEqual 3
   }
   it should "Have zero imported tasks" in {
-    binding.importedTasks.size shouldEqual 0
+    namespace.importedTasks.size shouldEqual 0
   }
   it should "Have a task with name 'wc'" in {
-    val task = binding.findTask("wc") getOrElse fail("No 'wc' task found")
+    val task = namespace.findTask("wc") getOrElse fail("No 'wc' task found")
     task.name shouldEqual "wc"
     task.inputs shouldEqual Map("in_file" -> WdlFileType)
     task.command.instantiate(Map("in_file" -> WdlFile("/path/to/file"))).get shouldEqual "cat /path/to/file | wc -l"
@@ -46,7 +46,7 @@ class ThreeStepSpec extends FlatSpec with Matchers {
     task.outputs.head.wdlType shouldEqual WdlIntegerType
   }
   it should "Have a task with name 'cgrep'" in {
-    val task = binding.findTask("cgrep") getOrElse fail("No 'cgrep' task found")
+    val task = namespace.findTask("cgrep") getOrElse fail("No 'cgrep' task found")
     task.name shouldEqual "cgrep"
     task.inputs shouldEqual Map("pattern" -> WdlStringType, "in_file" -> WdlFileType)
     task.command.instantiate(
@@ -57,7 +57,7 @@ class ThreeStepSpec extends FlatSpec with Matchers {
     task.outputs.head.wdlType shouldEqual WdlIntegerType
   }
   it should "Have a task with name 'ps'" in {
-    val task = binding.findTask("ps") getOrElse fail("No 'ps' task found")
+    val task = namespace.findTask("ps") getOrElse fail("No 'ps' task found")
     task.name shouldEqual "ps"
     task.inputs shouldEqual Map()
     task.command.instantiate(Map()).get shouldEqual "ps"

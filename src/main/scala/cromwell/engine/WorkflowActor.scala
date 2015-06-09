@@ -4,8 +4,8 @@ import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
+import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{Call, WdlBinding, WorkflowCoercedInputs, WorkflowOutputs}
 import cromwell.engine.StoreActor._
 import cromwell.engine.backend.Backend
 
@@ -13,7 +13,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
-
 
 object WorkflowActor {
 
@@ -25,8 +24,8 @@ object WorkflowActor {
   case class Failed(failure: String) extends WorkflowActorMessage
   case object GetOutputs extends WorkflowActorMessage
 
-  def props(id: WorkflowId, binding: WdlBinding, coercedInputs: WorkflowCoercedInputs, backend: Backend) =
-    Props(new WorkflowActor(id, binding, coercedInputs, backend))
+  def props(id: WorkflowId, namespace: WdlNamespace, coercedInputs: WorkflowCoercedInputs, backend: Backend) =
+    Props(new WorkflowActor(id, namespace, coercedInputs, backend))
 
   implicit val ActorTimeout = Timeout(5 seconds)
 }
@@ -35,13 +34,13 @@ object WorkflowActor {
  * Actor to manage the execution of a single workflow.
  */
 case class WorkflowActor private(id: WorkflowId,
-                                 binding: WdlBinding,
+                                 namespace: WdlNamespace,
                                  actualInputs: WorkflowCoercedInputs,
                                  backend: Backend) extends Actor {
 
   private val log = Logging(context.system, this)
 
-  private val storeActor = context.actorOf(StoreActor.props(binding, actualInputs))
+  private val storeActor = context.actorOf(StoreActor.props(namespace, actualInputs))
 
   def receive: Receive = unstarted
 

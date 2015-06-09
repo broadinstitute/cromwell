@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import cromwell.binding.{Call, WdlBinding}
+import cromwell.binding.{Call, WdlNamespace}
 
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value
@@ -11,13 +11,13 @@ object ExecutionStatus extends Enumeration {
 /**
  * Corresponds to the "execution table" of our discussions.
  */
-class ExecutionStore(binding: WdlBinding) {
+class ExecutionStore(namespace: WdlNamespace) {
 
   def isWorkflowDone: Boolean = table.forall(_._2 == ExecutionStatus.Done)
 
   def updateStatus(call: Call, status: ExecutionStatus.Value): Unit = table += (call -> status)
 
-  var table = binding.workflows.head.calls.map { call => call -> ExecutionStatus.NotStarted }.toMap
+  var table = namespace.workflows.head.calls.map { call => call -> ExecutionStatus.NotStarted }.toMap
 
   /**
    * Return all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,

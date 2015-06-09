@@ -96,7 +96,7 @@ object ThreeStepActorSpec {
 
 class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
 
-  val binding = WdlBinding.process(ThreeStepActorSpec.WdlSource)
+  val namespace = WdlNamespace.load(ThreeStepActorSpec.WdlSource)
 
   private def buildWorkflowActor: TestActorRef[WorkflowActor] = {
     import ThreeStepActorSpec._
@@ -104,10 +104,9 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
       Inputs.Pattern ->"joeblaux",
       Inputs.DummyPsFileName -> createDummyPsFile.getAbsolutePath)
 
-    val binding = WdlBinding.process(ThreeStepActorSpec.WdlSource)
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
-    val coercedInputs = binding.coerceRawInputs(workflowInputs).get
-    val props = WorkflowActor.props(UUID.randomUUID(), binding, coercedInputs, new LocalBackend)
+    val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
+    val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
     TestActorRef(props, self, "ThreeStep")
   }
 

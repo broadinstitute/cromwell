@@ -10,7 +10,7 @@ import cromwell.binding.types.WdlType
  * @param name The name of the workflow
  * @param calls The set of `call` declarations
  */
-case class Workflow(name: String, calls: Set[Call]) extends Scope {
+case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scope {
   /** Parent node for this workflow.  Since we do not support nested
     * workflows currently, this is always `None`
     */

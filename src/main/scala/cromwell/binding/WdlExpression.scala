@@ -1,5 +1,7 @@
 package cromwell.binding
 
+import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
+import cromwell.binding.types.WdlExpressionType
 import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
@@ -27,7 +29,7 @@ object WdlExpression {
     ast match {
       case t: Terminal if t.getTerminalStr == "identifier" => Success(lookup(t.getSourceString))
       case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
-      case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toFloat))
+      case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
       case t: Terminal if t.getTerminalStr == "string" => Success(WdlString(t.getSourceString))
       case a: Ast if binaryOperators.contains(a.getName) =>
@@ -58,15 +60,15 @@ object WdlExpression {
           case _ => throw new WdlExpressionException(s"Invalid operator: ${a.getName}")
         }
       case a: Ast if a.getName == "MemberAccess" =>
-        val lhs = evaluate(a.getAttribute("lhs"), lookup, functions).map {
-          case x: WdlObject => x
-          case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject")
-        }
         val rhs = a.getAttribute("rhs") match {
           case x:Terminal if x.getTerminalStr == "identifier" => x.getSourceString
           case _ => throw new WdlExpressionException("Right-hand side of expression must be identifier")
         }
-        lhs.map { _.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs")) }
+        evaluate(a.getAttribute("lhs"), lookup, functions).map {
+          case o: WdlObject => o.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs"))
+          case ns: WdlNamespace => lookup(ns.namespace.map {n => s"$n.$rhs"}.getOrElse(rhs))
+          case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
+        }
       case a: Ast if a.getName == "FunctionCall" =>
         val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
         val params = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector map {
@@ -76,15 +78,60 @@ object WdlExpression {
     }
   }
 
-  def fromString(expression: String): WdlExpression = {
+  def fromString(expression: WdlSource): WdlExpression = {
     val tokens = parser.lex(expression, "string")
-    new WdlExpression(parser.parse_e(tokens, new WdlSyntaxErrorFormatter(expression)).toAst)
+    val terminalMap = (tokens.asScala.toVector map {(_, expression)}).toMap
+    val parseTree = parser.parse_e(tokens, new WdlSyntaxErrorFormatter(terminalMap))
+    new WdlExpression(parseTree.toAst)
+  }
+
+  def toString(ast: AstNode, highlighter: SyntaxHighlighter = NullSyntaxHighlighter): String = {
+    ast match {
+      case t: Terminal if t.getTerminalStr == "identifier" => t.getSourceString
+      case t: Terminal if t.getTerminalStr == "integer" => t.getSourceString
+      case t: Terminal if t.getTerminalStr == "float" => t.getSourceString
+      case t: Terminal if t.getTerminalStr == "string" => s""""${t.getSourceString}""""
+      case a:Ast if binaryOperators.contains(a.getName) => {
+        val lhs = toString(a.getAttribute("lhs"), highlighter)
+        val rhs = toString(a.getAttribute("rhs"), highlighter)
+        a.getName match {
+          case "Add" => s"$lhs + $rhs"
+          case "Subtract" => s"$lhs - $rhs"
+          case "Multiply" => s"$lhs * $rhs"
+          case "Divide" => s"$lhs / $rhs"
+          case "Remainder" => s"$lhs % $rhs"
+          case "Equals" => s"$lhs == $rhs"
+          case "NotEquals" => s"$lhs != $rhs"
+          case "LessThan" => s"$lhs < $rhs"
+          case "LessThanOrEqual" => s"$lhs <= $rhs"
+          case "GreaterThan" => s"$lhs > $rhs"
+          case "GreaterThanOrEqual" => s"$lhs >= $rhs"
+          case "LogicalOr" => s"$lhs || $rhs"
+          case "LogicalAnd" => s"$lhs && $rhs"
+        }
+      }
+      case a:Ast if a.getName == "FunctionCall" => {
+        val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
+        val params = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector.map {a => toString(a, highlighter)}
+        s"${highlighter.function(name)}(${params.mkString(", ")})"
+      }
+      case a:Ast if a.getName == "MemberAccess" => {
+        val lhs = toString(a.getAttribute("lhs"), highlighter)
+        val rhs = toString(a.getAttribute("rhs"), highlighter)
+        s"$lhs.$rhs"
+      }
+    }
   }
 }
 
-case class WdlExpression(ast: AstNode) {
+case class WdlExpression(ast: AstNode) extends WdlValue {
+  override val wdlType = WdlExpressionType
   def evaluate(lookup: String => WdlValue, functions: WdlFunctions): Try[WdlValue] =
     WdlExpression.evaluate(ast, lookup, functions)
+  def toString(highlighter: SyntaxHighlighter): String = {
+    WdlExpression.toString(ast, highlighter)
+  }
+  override def toString: String = toString(NullSyntaxHighlighter)
 }
 
 trait WdlFunctions {

@@ -1,15 +1,11 @@
-package cromwell
+package cromwell.binding
 
-import java.io.File
 import java.nio.file.Paths
 
-import cromwell.binding.types.{WdlStringType, WdlIntegerType}
 import cromwell.binding.values._
-import cromwell.binding.{WdlExpressionException, WdlFunctions, WdlExpression}
-import cromwell.binding.{WdlExpression, WdlFunctions}
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class WdlExpressionSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
@@ -65,8 +61,8 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int + String = String" in {
     constEval(""" 1 + "String" """) shouldEqual WdlString("1String")
   }
-  it should "Int + float = float" in {
-    constEval("1+2.3") shouldEqual WdlFloat(3.3.toFloat)
+  it should "Int + Float = Float" in {
+    constEval("1+2.3") shouldEqual WdlFloat(3.3)
   }
   it should "Int + Boolean = error" in {
     constEvalError("1+true")
@@ -74,8 +70,8 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int - Int = Int" in {
     constEval("3-5") shouldEqual WdlInteger(-2)
   }
-  it should "Int - float = float" in {
-    constEval("10-6.6") shouldEqual WdlFloat(3.4.toFloat)
+  it should "Int - Float = Float" in {
+    constEval("10-6.7") shouldEqual WdlFloat(3.3)
   }
   it should "Int - Boolean = error" in {
     constEvalError("1-true")
@@ -86,8 +82,8 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int * Int = Int" in {
     constEval("8 * 7") shouldEqual WdlInteger(56)
   }
-  it should "Int * float = float" in {
-    constEval("5 * 7.2") shouldEqual WdlFloat(36.toFloat)
+  it should "Int * Float = Float" in {
+    constEval("5 * 7.2") shouldEqual WdlFloat(36.toDouble)
   }
   it should "Int * Boolean = error" in {
     constEvalError("1*true")
@@ -98,8 +94,17 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int / Int = Int" in {
     constEval("80 / 6") shouldEqual WdlInteger(13)
   }
-  it should "Int / float = float" in {
-    constEval("25/2.0") shouldEqual WdlFloat(12.5.toFloat)
+  it should "Int / Int (0) = error" in {
+    constEvalError("1 / 0")
+  }
+  it should "Int / Float = Float" in {
+    constEval("25/2.0") shouldEqual WdlFloat(12.5)
+  }
+  it should "Int / Float (0) = error" in {
+    constEvalError("1 / 0.0")
+  }
+  it should "Int / Float (0.0) = error" in {
+    constEvalError("25/0.0")
   }
   it should "Int / Boolean = error" in {
     constEvalError("1/true")
@@ -110,14 +115,17 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int % Int = Int" in {
     constEval("10 % 3") shouldEqual WdlInteger(1)
   }
-  it should "Int & float = float" in {
-    constEval("10 % 3.5") shouldEqual WdlFloat(3.0.toFloat)
+  it should "Int & Float = Float" in {
+    constEval("10 % 3.5") shouldEqual WdlFloat(3.0)
   }
   it should "Int % Boolean = error" in {
     constEvalError("1%false")
   }
   it should "Int % String = error" in {
     constEvalError(""" 1%"s"  """)
+  }
+  it should "Int % Int (0) = error" in {
+    constEvalError("1%0")
   }
   it should "Int == Int (return true)" in {
     constEval(" 24 == 24 ") shouldEqual WdlBoolean.True
@@ -149,7 +157,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int < Int (return true)" in {
     constEval("3 < 4") shouldEqual WdlBoolean.True
   }
-  it should "Int < float" in {
+  it should "Int < Float" in {
     constEval("4 < 5.0") shouldEqual WdlBoolean.True
   }
   it should "Int < Boolean (false)" in {
@@ -161,7 +169,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int <= Int (return true)" in {
     constEval("3 <= 4") shouldEqual WdlBoolean.True
   }
-  it should "Int <= float (return true)" in {
+  it should "Int <= Float (return true)" in {
     constEval("3 <= 3.0") shouldEqual WdlBoolean.True
   }
   it should "Int <= Boolean (error)" in {
@@ -173,7 +181,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int > Int (return true)" in {
     constEval("4 > 3") shouldEqual WdlBoolean.True
   }
-  it should "Int > float (return true)" in {
+  it should "Int > Float (return true)" in {
     constEval("4 > 3.0") shouldEqual WdlBoolean.True
   }
   it should "Int > Boolean (error)" in {
@@ -185,7 +193,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Int >= Int (return true)" in {
     constEval("4 >= 4") shouldEqual WdlBoolean.True
   }
-  it should "Int >= float (return true)" in {
+  it should "Int >= Float (return true)" in {
     constEval("4 >= 4.0") shouldEqual WdlBoolean.True
   }
   it should "Int >= Boolean (error)" in {
@@ -197,25 +205,31 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "-Int + -Int = Int" in {
     constEval("-1 + -3") shouldEqual WdlInteger(-4)
   }
+  it should "+Int" in {
+    constEval("+1") shouldEqual WdlInteger(1)
+  }
+  it should "Int asString" in {
+    WdlInteger(42).asString shouldEqual "42"
+  }
 
   /* Floats */
   "Expression Evaluator with LHS Float" should "Float + Int = Float" in {
-    constEval("1.0+2") shouldEqual WdlFloat(3.toFloat)
+    constEval("1.0+2") shouldEqual WdlFloat(3.toDouble)
   }
   it should "Float + String = String" in {
     constEval(""" 1.0 + "String" """) shouldEqual WdlString("1.0String")
   }
-  it should "Float + float = float" in {
-    constEval("1.0+2.3") shouldEqual WdlFloat(3.3.toFloat)
+  it should "Float + Float = Float" in {
+    constEval("1.0+2.3") shouldEqual WdlFloat(3.3)
   }
   it should "Float + Boolean = error" in {
     constEvalError("1.0+true")
   }
   it should "Float - Int = Float" in {
-    constEval("3.0-5") shouldEqual WdlFloat(-2.toFloat)
+    constEval("3.0-5") shouldEqual WdlFloat(-2.toDouble)
   }
-  it should "Float - Float = float" in {
-    constEval("10.0-6.6") shouldEqual WdlFloat(3.4.toFloat)
+  it should "Float - Float = Float" in {
+    constEval("10.0-6.7") shouldEqual WdlFloat(3.3)
   }
   it should "Float - Boolean = error" in {
     constEvalError("1.0-true")
@@ -224,10 +238,10 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEvalError(""" 1.0-"s"  """)
   }
   it should "Float * Int = Float" in {
-    constEval("8.0 * 7") shouldEqual WdlFloat(56.toFloat)
+    constEval("8.0 * 7") shouldEqual WdlFloat(56.toDouble)
   }
-  it should "Float * Float = float" in {
-    constEval("5.0 * 7.2") shouldEqual WdlFloat(36.toFloat)
+  it should "Float * Float = Float" in {
+    constEval("5.0 * 7.2") shouldEqual WdlFloat(36.toDouble)
   }
   it should "Float * Boolean = error" in {
     constEvalError("1.0*true")
@@ -236,10 +250,10 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEvalError(""" 1.0*"s"  """)
   }
   it should "Float / Int = Float" in {
-    constEval("25.0 / 4") shouldEqual WdlFloat(6.25.toFloat)
+    constEval("25.0 / 4") shouldEqual WdlFloat(6.25)
   }
-  it should "Float / float = float" in {
-    constEval("25.0/2.0") shouldEqual WdlFloat(12.5.toFloat)
+  it should "Float / Float = Float" in {
+    constEval("25.0/2.0") shouldEqual WdlFloat(12.5)
   }
   it should "Float / Boolean = error" in {
     constEvalError("1.0/true")
@@ -247,17 +261,23 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Float / 0.0 = error" in {
     constEvalError("1.0/0.0")
   }
+  it should "Float / 0 = error" in {
+    constEvalError("1.0/0")
+  }
   it should "Float / String = error" in {
     constEvalError(""" 1.0/"s"  """)
   }
   it should "Float % Int = Float" in {
-    constEval("10.0 % 3") shouldEqual WdlFloat(1.toFloat)
+    constEval("10.0 % 3") shouldEqual WdlFloat(1.toDouble)
   }
   it should "Float % 0 = error" in {
     constEvalError("10.0 % 0")
   }
-  it should "Float & float = float" in {
-    constEval("10.0 % 3.5") shouldEqual WdlFloat(3.0.toFloat)
+  it should "Float % 0.0 = error" in {
+    constEvalError("10.0 % 0.0")
+  }
+  it should "Float % Float = Float" in {
+    constEval("10.0 % 3.5") shouldEqual WdlFloat(3.0)
   }
   it should "Float % Boolean = error" in {
     constEvalError("1.0%false")
@@ -350,10 +370,13 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEvalError(""" 1.0 >= "s"  """)
   }
   it should "+Float" in {
-    constEval("+1.0") shouldEqual WdlFloat(1.0.toFloat)
+    constEval("+1.0") shouldEqual WdlFloat(1.0)
   }
   it should "-Float" in {
-    constEval("-1.0") shouldEqual WdlFloat(-1.0.toFloat)
+    constEval("-1.0") shouldEqual WdlFloat(-1.0)
+  }
+  it should "Float asString" in {
+    WdlFloat(33.3).asString shouldEqual "33.3"
   }
 
   /* Booleans */
@@ -363,7 +386,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Boolean + String = error" in {
     constEvalError(""" true + "String" """)
   }
-  it should "Boolean + float = error" in {
+  it should "Boolean + Float = error" in {
     constEvalError("true+2.3")
   }
   it should "Boolean + Boolean = error" in {
@@ -396,7 +419,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Boolean / Int = error" in {
     constEvalError("false / 4")
   }
-  it should "Boolean / float = error" in {
+  it should "Boolean / Float = error" in {
     constEvalError("false/2.0")
   }
   it should "Boolean / Boolean = error" in {
@@ -408,7 +431,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Boolean % Int = error" in {
     constEvalError("true % 3")
   }
-  it should "Boolean & float = error" in {
+  it should "Boolean % Float = error" in {
     constEvalError("true % 3.5")
   }
   it should "Boolean % Boolean = error" in {
@@ -669,5 +692,61 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
   it should "bind parenthesized expressions closer" in {
     constEval("(1+2)*3") shouldEqual WdlInteger(9)
+  }
+
+  /* String-ification */
+  "Expression Evaluator string-ifier" should "Make strings out of + expressions" in {
+    expr("1 + 2").toString shouldEqual "1 + 2"
+  }
+  it should "Make strings out of - expressions" in {
+    expr("1 - 2").toString shouldEqual "1 - 2"
+  }
+  it should "Make strings out of * expressions" in {
+    expr("1 * 2").toString shouldEqual "1 * 2"
+  }
+  it should "Make strings out of / expressions" in {
+    expr("1 / 2").toString shouldEqual "1 / 2"
+  }
+  it should "Make strings out of % expressions" in {
+    expr("1 % 2").toString shouldEqual "1 % 2"
+  }
+  it should "Make strings out of < expressions" in {
+    expr("1 < 2").toString shouldEqual "1 < 2"
+  }
+  it should "Make strings out of <= expressions" in {
+    expr("1 <= 2").toString shouldEqual "1 <= 2"
+  }
+  it should "Make strings out of > expressions" in {
+    expr("1 > 2").toString shouldEqual "1 > 2"
+  }
+  it should "Make strings out of >= expressions" in {
+    expr("1 >= 2").toString shouldEqual "1 >= 2"
+  }
+  it should "Make strings out of == expressions" in {
+    expr("1 == 2").toString shouldEqual "1 == 2"
+  }
+  it should "Make strings out of != expressions" in {
+    expr("1 != 2").toString shouldEqual "1 != 2"
+  }
+  it should "Make strings out of && expressions" in {
+    expr("1 && 2").toString shouldEqual "1 && 2"
+  }
+  it should "Make strings out of || expressions" in {
+    expr("1 || 2").toString shouldEqual "1 || 2"
+  }
+  it should "Make strings out of expression with strings in it" in {
+    expr("\"a\" + \"b\"").toString shouldEqual "\"a\" + \"b\""
+  }
+  it should "Make strings out of expression with floats in it" in {
+    expr("1.1 + 2.2").toString shouldEqual "1.1 + 2.2"
+  }
+  it should "Make strings out of expression with identifiers in it" in {
+    expr("foo + bar").toString shouldEqual "foo + bar"
+  }
+  it should "Make strings out of member access expressions" in {
+    expr("a.b.c").toString shouldEqual "a.b.c"
+  }
+  it should "Make strings out of function calls" in {
+    expr("a(b, c)").toString shouldEqual "a(b, c)"
   }
 }

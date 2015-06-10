@@ -3,7 +3,7 @@ task ps {
     ps
   }
   output {
-    File procs = "stdout"
+    File procs = stdout()
   }
 }
 
@@ -12,16 +12,16 @@ task cgrep {
     grep '${pattern}' ${File in_file} | wc -l
   }
   output {
-    Int count = read_int("stdout")
+    Int count = read_int(stdout())
   }
 }
 
 task wc {
   command {
-    wc -l ${File in_file}
+    cat ${File in_file} | wc -l
   }
   output {
-    Int count = read_int("stdout")
+    Int count = read_int(stdout())
   }
 }
 

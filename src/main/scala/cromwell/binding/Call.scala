@@ -1,7 +1,8 @@
 package cromwell.binding
 
 import cromwell.binding.types.WdlType
-import cromwell.parser.WdlParser.Terminal
+
+import scala.util.Success
 
 /**
  * Represents a `call` block in a WDL workflow.  Calls wrap tasks
@@ -16,8 +17,8 @@ import cromwell.parser.WdlParser.Terminal
  *                      value of those inputs
  * @todo Validate that the keys in inputMappings correspond to actual parameters in the task
  */
-case class Call(alias: Option[String], task: Task, inputMappings: Map[String, WdlExpression]) extends Scope {
-  val name: String = alias getOrElse task.name
+case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, inputMappings: Map[String, WdlExpression], namespace: WdlNamespace) extends Scope {
+  val name: String = alias getOrElse taskFqn
 
   private var _parent: Option[Scope] = None
 
@@ -55,16 +56,14 @@ case class Call(alias: Option[String], task: Task, inputMappings: Map[String, Wd
    * a prerequisite call multiple times (i.e. has multiple inputs depending on multiple outputs
    * of a prerequisite call), that prerequisite call will appear only once in the output.
    */
-  def prerequisiteCalls(): Set[Call] = {
-    val allCalls = parent.get.asInstanceOf[Workflow].calls
-
-    val prerequisiteCalls = for {
-      inputExpression <- inputMappings.values
-      inputAst <- WdlBinding.findAsts(inputExpression.ast, "MemberAccess")
-      prerequisiteCallName = inputAst.getAttribute("lhs").asInstanceOf[Terminal].getSourceString
-      prerequisiteCall <- allCalls if prerequisiteCall.name == prerequisiteCallName
-    } yield prerequisiteCall
-
-    prerequisiteCalls.toSet
+  def prerequisiteCalls(): Iterable[Call] = {
+    for {
+      expr <- inputMappings.values
+      ast <- AstTools.findTopLevelMemberAccesses(expr.ast)
+      call <- namespace.getCallFromMemberAccessAst(ast) match {
+        case Success(c:Call) => Vector(c)
+        case _ => Vector()
+      }
+    } yield call
   }
 }

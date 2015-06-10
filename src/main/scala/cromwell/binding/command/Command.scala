@@ -100,7 +100,7 @@ case class Command(parts: Seq[CommandPart]) {
    * @param s String to process
    * @return String which has common leading whitespace removed from each line
    */
-  private def normalize(s: String): String = {
+  def normalize(s: String): String = {
     val trimmed = stripAll(s, "\r\n", "\r\n \t")
     val parts = trimmed.split("[\\r\\n]+")
     val indent = parts.map(leadingWhitespaceCount).min

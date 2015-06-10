@@ -3,7 +3,7 @@ package cromwell.binding.values
 import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlType
 
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Try}
 
 trait WdlValue {
   val wdlType: WdlType

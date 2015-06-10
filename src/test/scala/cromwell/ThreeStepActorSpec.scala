@@ -2,10 +2,8 @@ package cromwell
 
 import java.io.{File, FileWriter}
 
-import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.TestFSMRef
-import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DockerTest
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
@@ -18,15 +16,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object ThreeStepActorSpec {
-  val Config =
-    """
-      |akka {
-      |  loggers = ["akka.testkit.TestEventListener"]
-      |  loglevel = "DEBUG"
-      |  actor.debug.receive = on
-      |}
-    """.stripMargin
-
   def wdlSource(runtime: String): WdlSource =
     """
       |task ps {
@@ -82,7 +71,14 @@ object ThreeStepActorSpec {
       |joeblaux          6440   1.4  2.2  4496164 362136   ??  S    Sun09PM  74:29.40 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
     """.stripMargin.trim
 
-  val TestExecutionTimeout = 5000 milliseconds
+  def createDummyPsFile: File = {
+    val file = File.createTempFile("dummy_ps", ".out")
+    val writer = new FileWriter(file)
+    writer.write(DummyProcessOutput)
+    writer.flush()
+    writer.close()
+    file
+  }
 
   object Inputs {
     val Pattern = "three_step.cgrep.pattern"
@@ -93,26 +89,17 @@ object ThreeStepActorSpec {
     val DummyPs3File = "three_step.ps3.dummy_ps_file"
   }
 
-  def createDummyPsFile: File = {
-    val file = File.createTempFile("dummy_ps", ".out")
-    val writer = new FileWriter(file)
-    writer.write(DummyProcessOutput)
-    writer.flush()
-    writer.close()
-    file
-  }
 }
 
-class ThreeStepActorSpec extends CromwellTestkitSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
+class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   import ThreeStepActorSpec._
-
   private def buildWorkflowActorFsm(runtime: String) = {
-    import ThreeStepActorSpec._
     val workflowInputs = Map(
       Inputs.Pattern -> "joeblaux",
       Inputs.DummyPsFile -> createDummyPsFile.getAbsolutePath,
       Inputs.DummyPs2File -> createDummyPsFile.getAbsolutePath,
-      Inputs.DummyPs3File -> createDummyPsFile.getAbsolutePath)
+      Inputs.DummyPs3File -> createDummyPsFile.getAbsolutePath
+    )
 
     val namespace = WdlNamespace.load(ThreeStepActorSpec.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
@@ -133,7 +120,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec(ActorSystem("ThreeStepActor
     assert(fsm.stateName == WorkflowSubmitted)
     startingCallsFilter("cgrep", "wc").intercept {
       fsm ! Start
-      within(TestExecutionTimeout) {
+      within(5000 milliseconds) {
         awaitCond(fsm.stateName == WorkflowRunning)
         awaitCond(fsm.stateName == WorkflowSucceeded)
         val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)

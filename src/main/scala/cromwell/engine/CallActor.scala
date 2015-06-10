@@ -12,25 +12,24 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-
 object CallActor {
   sealed trait CallActorMessage
   case object Start extends CallActorMessage
 
-  def props(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef, name: String): Props =
+  def props(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef): Props =
     Props(new CallActor(call, backend, workflowDescriptor, storeActor))
 }
 
 
 /** Actor to manage the execution of a single call. */
 class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef) extends Actor with CromwellActor {
-
-  private val log = Logging(context.system, this)
+  private val log = Logging(context.system, classOf[CallActor])
+  val tag = s"CallActor [UUID(${workflowDescriptor.shortId}):${call.name}]"
 
   override def receive = LoggingReceive {
     case CallActor.Start => handleStart()
     case badMessage =>
-      val diagnostic = s"Received unexpected message $badMessage."
+      val diagnostic = s"$tag: unexpected message $badMessage."
       log.error(diagnostic)
       context.parent ! WorkflowActor.CallFailed(call, diagnostic)
   }
@@ -58,6 +57,7 @@ class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescri
       backendInputs = backend.adjustInputPaths(call, inputs)
       commandLine <- Future.fromTry(call.instantiateCommandLine(backendInputs))
     } yield {
+      log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
       val tryOutputs = backend.executeCommand(commandLine, workflowDescriptor, call, s => inputs.get(s).get)
       val (successes, failures) = tryOutputs.partition {
@@ -67,12 +67,17 @@ class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescri
       if (failures.isEmpty) {
         // Materialize the Successes.
         val outputs = successes.map { case (key, value) => key -> value.get }
+        log.info(s"$tag: success")
         context.parent ! WorkflowActor.CallCompleted(call, outputs)
       } else {
-        val errorMessages = TryUtil.stringifyFailures(failures.values).mkString("\n")
+        val errorMessages = TryUtil.stringifyFailures(failures.values)
+        log.error(s"$tag: failed")
+        errorMessages foreach {m =>
+          log.error(s"$tag: $m")
+        }
 
-        log.error(errorMessages)
-        context.parent ! WorkflowActor.CallFailed(call, errorMessages)
+        log.error(errorMessages.mkString("\n"))
+        context.parent ! WorkflowActor.CallFailed(call, errorMessages.mkString("\n"))
       }
     }
   }

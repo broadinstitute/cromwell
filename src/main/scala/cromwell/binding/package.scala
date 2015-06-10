@@ -40,6 +40,7 @@ package object binding {
    */
   case class WorkflowDescriptor(namespace: WdlNamespace, actualInputs: WorkflowCoercedInputs) {
     val id = UUID.randomUUID()
+    val shortId = id.toString.split("-")(0)
     val name = namespace.workflows.head.name
   }
 }

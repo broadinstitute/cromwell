@@ -370,18 +370,6 @@ Contains implementations of an interface to launch jobs.  `cromwell.engine` will
 
 ### cromwell.engine
 
-![Engine Actors](http://i.imgur.com/ByFUakW.png)
+![Engine Actors](http://i.imgur.com/sF9vMt2.png)
 
 Contains the Akka code and actor system to execute a workflow.  This layer should operate entirely on objects returned from the `cromwell.binding` layer.
-
-|Start|End|Message|Parameters|State Change|
-|-----|---|-------|----------|------------|
-|![WMA](http://i.imgur.com/98ugXkZ.png)|![WA](http://i.imgur.com/eJxn3wu.png)|Start||
-|![WMA](http://i.imgur.com/98ugXkZ.png)|![WA](http://i.imgur.com/eJxn3wu.png)|SubscribeTransitionCallback|WorkflowManagerActor|
-|![WA](http://i.imgur.com/eJxn3wu.png)|![SA](http://i.imgur.com/JzNNe64.png)|UpdateStatus|Call,status|
-|![WA](http://i.imgur.com/eJxn3wu.png)|![SA](http://i.imgur.com/JzNNe64.png)|CallCompleted|Call,outputs|
-|![WA](http://i.imgur.com/eJxn3wu.png)|![SA](http://i.imgur.com/JzNNe64.png)|GetOutputs||
-|![WA](http://i.imgur.com/eJxn3wu.png)|![CA](http://i.imgur.com/Nyoln74.png)|Start||
-
-> **TODO**: This table is not complete.
-

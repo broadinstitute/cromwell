@@ -26,7 +26,7 @@ object Main extends App {
     case Some(x) if x == Actions.Run => run(args.tail)
     case Some(x) if x == Actions.Parse => parse(args.tail)
     case Some(x) if x == Actions.Server => CromwellServer
-    case None => CromwellServer
+    case None => usageAndExit(true)
     case _ => usageAndExit()
   }
 
@@ -120,9 +120,6 @@ object Main extends App {
         |
         |  Starts a web server on port 8000.  See the web server
         |  documentation for more details about the API endpoints.
-        |
-        |If no action is specified on the command line, the default
-        |action is 'server'.
       """.stripMargin)
     if(exit) System.exit(-1)
   }

@@ -1,5 +1,7 @@
 package cromwell
 
+import java.util.UUID
+
 import cromwell.binding.values.WdlValue
 
 /**
@@ -20,6 +22,8 @@ package object binding {
   type FullyQualifiedName = String
   type RuntimeAttributes = Map[String, String]
   type RuntimeAttribute = (String, String)
+  type CallInputs = Map[String, WdlValue]
+  type HostInputs = Map[String, WdlValue]
 
   /**
    * Provides a few convenience methods for specific runtime attribute keys which were defined in the WDL spec
@@ -29,5 +33,13 @@ package object binding {
     def memory: Option[String] = attribute("memory")
     def serialize: Option[String] = attribute("serialize")
     def attribute(attr: String): Option[String] = runtimeAttributes.get(attr)
+  }
+
+  /**
+   * Core data identifying a workflow including its unique ID, its namespace, and strongly typed inputs.
+   */
+  case class WorkflowDescriptor(namespace: WdlNamespace, actualInputs: WorkflowCoercedInputs) {
+    val id = UUID.randomUUID()
+    val name = namespace.workflows.head.name
   }
 }

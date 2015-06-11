@@ -2,6 +2,8 @@ package cromwell
 
 import java.util.UUID
 
+import cromwell.binding.{WdlNamespace, WorkflowCoercedInputs}
+
 /**
  * ==Cromwell Execution Engine==
  *

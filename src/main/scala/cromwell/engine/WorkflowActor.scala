@@ -20,33 +20,29 @@ object WorkflowActor {
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
   case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
-  def props(id: WorkflowId, namespace: WdlNamespace, coercedInputs: WorkflowCoercedInputs, backend: Backend): Props = {
-    Props(new WorkflowActor(id, namespace, coercedInputs, backend))
-  }
+  def props(descriptor: WorkflowDescriptor, backend: Backend) = Props(new WorkflowActor(descriptor, backend))
 
   sealed trait WorkflowFailure
   case object NoFailureMessage extends WorkflowFailure
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 }
 
-case class WorkflowActor(id: WorkflowId,
-                         namespace: WdlNamespace,
-                         actualInputs: WorkflowCoercedInputs,
-                         backend: Backend) extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
-  private val storeActor = context.actorOf(StoreActor.props(namespace, actualInputs))
+case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
+
+  private val storeActor = context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow)))
 
   startWith(WorkflowSubmitted, NoFailureMessage)
 
   when(WorkflowSubmitted) {
-    case Event(WorkflowActor.Start, NoFailureMessage) => goto(WorkflowRunning)
+    case Event(Start, NoFailureMessage) => goto(WorkflowRunning)
   }
 
   when(WorkflowRunning) {
     case Event(CallStarted(call), NoFailureMessage) =>
       storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Running)
       stay()
-    case Event(CallCompleted(completedCall, callOutputs), NoFailureMessage) =>
-      storeActor ! StoreActor.CallCompleted(completedCall, callOutputs)
+    case Event(CallCompleted(call, callOutputs), NoFailureMessage) =>
+      storeActor ! StoreActor.CallCompleted(call, callOutputs)
       stay()
     case Event(RunnableCalls(runnableCalls), NoFailureMessage) =>
       if (runnableCalls.nonEmpty) {
@@ -57,7 +53,7 @@ case class WorkflowActor(id: WorkflowId,
     case Event(CallFailed(call, failure), NoFailureMessage) =>
       storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Failed)
       goto(WorkflowFailed) using FailureMessage(failure)
-    case Event(WorkflowActor.Complete, NoFailureMessage) => goto(WorkflowSucceeded)
+    case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
   }
 
   when(WorkflowFailed) {
@@ -70,7 +66,7 @@ case class WorkflowActor(id: WorkflowId,
   when(WorkflowSucceeded)(FSM.NullFunction)
 
   whenUnhandled {
-    case Event(WorkflowActor.GetOutputs, _) =>
+    case Event(GetOutputs, _) =>
       storeActor.ask(StoreActor.GetOutputs) pipeTo sender
       stay()
     case Event(e, _) =>
@@ -85,7 +81,7 @@ case class WorkflowActor(id: WorkflowId,
   /** Create a per-call `CallActor` for the specified `Call` and send it a `Start` message to
     * begin execution. */
   private def startCallActor(call: Call): Unit = {
-    val callActorProps = CallActor.props(call, backend, storeActor, "CallActor-" + call.name)
+    val callActorProps = CallActor.props(call, backend, workflow, storeActor, "CallActor-" + call.name)
     context.actorOf(callActorProps) ! CallActor.Start
   }
 }

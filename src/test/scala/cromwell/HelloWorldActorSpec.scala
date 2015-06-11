@@ -8,8 +8,8 @@ import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
 import cromwell.HelloWorldActorSpec._
 import cromwell.binding.values.WdlString
-import cromwell.binding.{WorkflowOutputs, UnsatisfiedInputsException, WdlNamespace}
-import cromwell.engine.{WorkflowSucceeded, WorkflowRunning, WorkflowSubmitted, WorkflowActor}
+import cromwell.binding.{WorkflowDescriptor, WorkflowOutputs, UnsatisfiedInputsException, WdlNamespace}
+import cromwell.engine._
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.SampleWdl.HelloWorld
@@ -36,7 +36,8 @@ class HelloWorldActorSpec extends CromwellTestkitSpec(ActorSystem("HelloWorldAct
                          rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
     val namespace = WdlNamespace.load(HelloWorld.WdlSource)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
+    val descriptor = WorkflowDescriptor(namespace, coercedInputs)
+    val props = WorkflowActor.props(descriptor, new LocalBackend)
     TestActorRef(props, self, "Workflow-" + name)
   }
 
@@ -54,7 +55,8 @@ class HelloWorldActorSpec extends CromwellTestkitSpec(ActorSystem("HelloWorldAct
         The TestFSMRef is kind of quirky, defining it here instead of the buildWorkflowActor function. It could
         be generalized a bit but it is probably not worth the hassle for a test class
        */
-      val fsm = TestFSMRef(new WorkflowActor(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend))
+      val descriptor = WorkflowDescriptor(namespace, coercedInputs)
+      val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("hello").intercept {
         fsm ! Start

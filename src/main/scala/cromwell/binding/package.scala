@@ -18,4 +18,16 @@ package object binding {
   type WorkflowCoercedInputs = Map[FullyQualifiedName, WdlValue]
   type WorkflowOutputs = Map[FullyQualifiedName, WdlValue]
   type FullyQualifiedName = String
+  type RuntimeAttributes = Map[String, String]
+  type RuntimeAttribute = (String, String)
+
+  /**
+   * Provides a few convenience methods for specific runtime attribute keys which were defined in the WDL spec
+   */
+  implicit class EnhancedRuntimeAttributes(val runtimeAttributes: RuntimeAttributes) extends AnyVal {
+    def docker: Option[String] = attribute("docker")
+    def memory: Option[String] = attribute("memory")
+    def serialize: Option[String] = attribute("serialize")
+    def attribute(attr: String): Option[String] = runtimeAttributes.get(attr)
+  }
 }

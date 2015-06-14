@@ -12,6 +12,7 @@ import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
+import scala.language.postfixOps
 
 /**
  * Main interface into the `cromwell.binding` package.
@@ -71,7 +72,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
 
   import AstTools.AstNodeName
 
-  val invalidTask = Task("INVALID", Command(Seq.empty[CommandPart]), Seq.empty[TaskOutput])
+  val invalidTask = Task("INVALID", Command(Seq.empty[CommandPart]), Seq.empty[TaskOutput], Map.empty[String, String])
 
   /**
    * All `import` statement strings at the top of the document
@@ -183,7 +184,22 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
     val command = processCommand(commandAsts.head.getAttribute("parts").asInstanceOf[AstList])
     val outputs = AstTools.findAsts(ast, AstNodeName.Output).map(processTaskOutput)
-    new Task(name, command, outputs)
+    new Task(name, command, outputs, buildRuntimeAttributes(ast))
+  }
+
+  private def buildRuntimeAttributes(ast: Ast): RuntimeAttributes = {
+    val asts = AstTools.findAsts(ast, AstNodeName.Runtime)
+    if (asts.size > 1) throw new UnsupportedOperationException("Only one runtime block may be defined per task")
+    val astList = asts.headOption map {_.getAttribute("map").asInstanceOf[AstList]}
+    astList map processRuntimeAttributes getOrElse Map.empty[String, String]
+  }
+
+  private def processRuntimeAttributes(astList: AstList): RuntimeAttributes = {
+    astList.asScala.toVector map {a => processRuntimeAttribute(a.asInstanceOf[Ast])} toMap
+  }
+
+  private def processRuntimeAttribute(ast: Ast): RuntimeAttribute = {
+    (sourceString(ast.getAttribute("key")), sourceString(ast.getAttribute("value")))
   }
 
   private def processCommand(astList: AstList): Command = {

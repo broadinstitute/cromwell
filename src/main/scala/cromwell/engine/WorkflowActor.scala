@@ -1,32 +1,27 @@
 package cromwell.engine
 
 import akka.actor.{LoggingFSM, FSM, Props}
-import akka.event.Logging
 import akka.pattern.{ask, pipe}
-import akka.util.Timeout
-import cromwell.binding.values.WdlValue
 import cromwell.binding._
-import cromwell.engine.StoreActor._
 import cromwell.engine.backend.Backend
 import WorkflowActor._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object WorkflowActor {
   sealed trait WorkflowActorMessage
-  case object Complete extends WorkflowActorMessage
   case object Start extends WorkflowActorMessage
-  case class Failed(failure: String) extends WorkflowActorMessage
-  case object GetOutputs extends WorkflowActorMessage
+  case object Complete extends WorkflowActorMessage
   case object GetFailureMessage extends WorkflowActorMessage
-  
+  case object GetOutputs extends WorkflowActorMessage
+  case class CallStarted(call: Call) extends WorkflowActorMessage
+  case class CallCompleted(call: Call, outputs: WorkflowOutputs) extends WorkflowActorMessage
+  case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
+  case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
   def props(id: WorkflowId, namespace: WdlNamespace, coercedInputs: WorkflowCoercedInputs, backend: Backend): Props = {
     Props(new WorkflowActor(id, namespace, coercedInputs, backend))
   }
-
-  implicit val ActorTimeout = Timeout(5 seconds)
 
   sealed trait WorkflowFailure
   case object NoFailureMessage extends WorkflowFailure
@@ -36,9 +31,7 @@ object WorkflowActor {
 case class WorkflowActor(id: WorkflowId,
                          namespace: WdlNamespace,
                          actualInputs: WorkflowCoercedInputs,
-                         backend: Backend) extends LoggingFSM[WorkflowState, WorkflowFailure] {
-  implicit val timeout = Timeout(5 seconds)
-
+                         backend: Backend) extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
   private val storeActor = context.actorOf(StoreActor.props(namespace, actualInputs))
 
   startWith(WorkflowSubmitted, NoFailureMessage)
@@ -48,20 +41,20 @@ case class WorkflowActor(id: WorkflowId,
   }
 
   when(WorkflowRunning) {
-    case Event(CallActor.Started(call), NoFailureMessage) =>
-      storeActor ! UpdateStatus(call, ExecutionStatus.Running)
+    case Event(CallStarted(call), NoFailureMessage) =>
+      storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Running)
       stay()
-    case Event(CallActor.Completed(completedCall, callOutputs), NoFailureMessage) =>
-      storeActor ! CallCompleted(completedCall, callOutputs)
+    case Event(CallCompleted(completedCall, callOutputs), NoFailureMessage) =>
+      storeActor ! StoreActor.CallCompleted(completedCall, callOutputs)
       stay()
-    case Event(StoreActor.RunnableCalls(runnableCalls), NoFailureMessage) =>
+    case Event(RunnableCalls(runnableCalls), NoFailureMessage) =>
       if (runnableCalls.nonEmpty) {
         log.info("Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))
       }
       runnableCalls foreach startCallActor
       stay()
-    case Event(CallActor.Failed(call, failure), NoFailureMessage) =>
-      storeActor ! UpdateStatus(call, ExecutionStatus.Failed)
+    case Event(CallFailed(call, failure), NoFailureMessage) =>
+      storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Failed)
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(WorkflowActor.Complete, NoFailureMessage) => goto(WorkflowSucceeded)
   }
@@ -85,7 +78,7 @@ case class WorkflowActor(id: WorkflowId,
   }
 
   onTransition {
-    case WorkflowSubmitted -> WorkflowRunning => storeActor ! FindRunnableCalls
+    case WorkflowSubmitted -> WorkflowRunning => storeActor ! StoreActor.FindRunnableCalls
   }
 
   /** Create a per-call `CallActor` for the specified `Call` and send it a `Start` message to

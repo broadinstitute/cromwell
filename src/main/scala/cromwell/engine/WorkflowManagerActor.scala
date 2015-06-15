@@ -1,7 +1,6 @@
 package cromwell.engine
 
 import java.util.UUID
-
 import akka.actor.FSM.{Transition, CurrentState, SubscribeTransitionCallBack}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
@@ -11,7 +10,7 @@ import cromwell.binding.{WdlNamespace, WdlSource}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.WriteOnceStore
-
+import scala.language.postfixOps
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,7 +36,7 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor extends Actor {
+class WorkflowManagerActor extends Actor with CromwellActor {
   import WorkflowManagerActor._
 
   type WorkflowActorRef = ActorRef

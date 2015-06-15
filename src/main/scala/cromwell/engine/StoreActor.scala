@@ -12,7 +12,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
-
 object StoreActor {
   def props(namespace: WdlNamespace, inputs: WorkflowCoercedInputs): Props = {
     Props(new StoreActor(namespace, inputs))
@@ -21,18 +20,16 @@ object StoreActor {
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
   case object FindRunnableCalls extends StoreActorMessage
-  case class RunnableCalls(calls: Iterable[Call]) extends StoreActorMessage
-  case class UpdateStatus(call: Call, status: ExecutionStatus.Value) extends StoreActorMessage
   case object GetOutputs extends StoreActorMessage
   case class GetLocallyQualifiedInputs(call: Call) extends StoreActorMessage
-  implicit val ActorTimeout = Timeout(5 seconds)
+  case class UpdateStatus(call: Call, status: ExecutionStatus.Value) extends StoreActorMessage
 }
 
 /**
  * Actor to hold symbol and execution status data for a single workflow.  This actor
  * guards mutable state over the symbol and execution stores, and must therefore not
  * pass back `Future`s over updates or reads of those stores. */
-class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends Actor {
+class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends Actor with CromwellActor {
   private val symbolStore = new SymbolStore(namespace, inputs)
   private val executionStore = new ExecutionStore(namespace)
   private val log = Logging(context.system, this)
@@ -42,14 +39,10 @@ class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends
       updateOutputs(call, callOutputs)
       val msg = if (executionStore.isWorkflowDone) WorkflowActor.Complete else buildRunnableCalls
       sender ! msg
-
     case FindRunnableCalls => sender ! buildRunnableCalls
-
     case GetOutputs =>
       sender ! (symbolStore.getOutputs map symbolStoreEntryToMapEntry).toMap
-
     case GetLocallyQualifiedInputs(call) => sender ! symbolStore.locallyQualifiedInputs(call)
-
     case UpdateStatus(call, status) => executionStore.updateStatus(call, status)
   }
 
@@ -74,5 +67,5 @@ class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends
     }
   }
 
-  private def buildRunnableCalls: RunnableCalls = RunnableCalls(executionStore.runnableCalls)
+  private def buildRunnableCalls: WorkflowActor.RunnableCalls = WorkflowActor.RunnableCalls(executionStore.runnableCalls)
 }

@@ -16,7 +16,6 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 object ThreeStepActorSpec {
   val Config =
     """
@@ -137,7 +136,7 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
       within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowRunning)
         awaitCond(fsm.stateName == WorkflowSucceeded)
-        val outputs = Await.result(fsm.ask(GetOutputs)(ActorTimeout).mapTo[WorkflowOutputs], 5 seconds)
+        val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
         val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
         cgrepCount shouldEqual 3
         wcCount shouldEqual 6

@@ -17,6 +17,7 @@ object AstTools {
     val IOMapping = "IOMapping"
     val Inputs = "Inputs"
     val MemberAccess = "MemberAccess"
+    val Runtime = "Runtime"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {

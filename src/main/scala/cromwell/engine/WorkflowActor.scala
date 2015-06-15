@@ -1,10 +1,11 @@
 package cromwell.engine
 
-import akka.actor.{LoggingFSM, FSM, Props}
+import akka.actor.{FSM, LoggingFSM, Props}
 import akka.pattern.{ask, pipe}
 import cromwell.binding._
+import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.Backend
-import WorkflowActor._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
 
@@ -78,7 +79,7 @@ case class WorkflowActor(id: WorkflowId,
   }
 
   onTransition {
-    case WorkflowSubmitted -> WorkflowRunning => storeActor ! StoreActor.FindRunnableCalls
+    case WorkflowSubmitted -> WorkflowRunning => storeActor ! StoreActor.StartRunnableCalls
   }
 
   /** Create a per-call `CallActor` for the specified `Call` and send it a `Start` message to

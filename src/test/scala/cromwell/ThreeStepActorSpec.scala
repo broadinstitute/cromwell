@@ -2,15 +2,16 @@ package cromwell
 
 import java.io.{File, FileWriter}
 import java.util.UUID
-import akka.pattern.ask
+
 import akka.actor.ActorSystem
-import akka.testkit.{TestFSMRef, TestActorRef, filterEvents}
+import akka.pattern.ask
+import akka.testkit.{TestActorRef, TestFSMRef}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
-import cromwell.engine.{WorkflowRunning, WorkflowSucceeded, WorkflowSubmitted, WorkflowActor}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.{WorkflowActor, WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -57,6 +58,8 @@ object ThreeStepActorSpec {
       |
       |workflow three_step {
       |  call ps
+      |  call ps as ps2
+      |  call ps as ps3
       |  call cgrep {
       |    input: in_file=ps.procs
       |  }
@@ -81,6 +84,10 @@ object ThreeStepActorSpec {
   object Inputs {
     val Pattern = "three_step.cgrep.pattern"
     val DummyPsFileName = "three_step.ps.filename"
+    // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
+    // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
+    val DummyPs2FileName = "three_step.ps2.filename"
+    val DummyPs3FileName = "three_step.ps3.filename"
   }
 
   def createDummyPsFile: File = {
@@ -109,7 +116,9 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
     import ThreeStepActorSpec._
     val workflowInputs = Map(
       Inputs.Pattern ->"joeblaux",
-      Inputs.DummyPsFileName -> createDummyPsFile.getAbsolutePath)
+      Inputs.DummyPsFileName -> createDummyPsFile.getAbsolutePath,
+      Inputs.DummyPs2FileName -> createDummyPsFile.getAbsolutePath,
+      Inputs.DummyPs3FileName -> createDummyPsFile.getAbsolutePath)
 
     val namespace = WdlNamespace.load(ThreeStepActorSpec.WdlSource)
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.

@@ -31,7 +31,7 @@ object HelloWorldActorSpec {
 }
 
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
-class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(Config))) {
+class HelloWorldActorSpec extends CromwellTestkitSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(Config))) {
   private def buildWorkflowActor(name: String = UUID.randomUUID().toString,
                          rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
     val namespace = WdlNamespace.load(HelloWorld.WdlSource)

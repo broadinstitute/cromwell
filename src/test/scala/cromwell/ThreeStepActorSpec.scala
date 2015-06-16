@@ -100,7 +100,7 @@ object ThreeStepActorSpec {
   }
 }
 
-class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
+class ThreeStepActorSpec extends CromwellTestkitSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
   private def buildWorkflowActor: TestActorRef[WorkflowActor] = {
     val (namespace, coercedInputs) = buildWorkflowBindingAndInputs()
     val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)

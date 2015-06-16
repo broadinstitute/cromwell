@@ -69,4 +69,15 @@ mergeStrategy in assembly := customMergeStrategy
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
+lazy val DockerTest = config("docker") extend(Test)
 
+lazy val NoDockerTest = config("nodocker") extend(Test)
+
+lazy val root = (project in file("."))
+  .configs(DockerTest).configs(NoDockerTest)
+  .settings(inConfig(DockerTest)(Defaults.testTasks): _*)
+  .settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)  
+
+testOptions in DockerTest := Seq(Tests.Argument("-n", "DockerTest"))
+
+testOptions in NoDockerTest := Seq(Tests.Argument("-l", "DockerTest"))

@@ -3,7 +3,7 @@ package cromwell.engine
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
-import cromwell.{binding, CromwellSpec}
+import cromwell.{binding, CromwellTestkitSpec}
 import cromwell.HelloWorldActorSpec._
 import cromwell.binding.FullyQualifiedName
 import cromwell.binding.values.{WdlString, WdlValue}
@@ -14,7 +14,7 @@ import cromwell.util.SampleWdl.HelloWorld
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 
 
-class ActorWorkflowManagerSpec extends CromwellSpec(ActorSystem("ActorWorkflowManagerSpec", ConfigFactory.parseString(Config))) {
+class ActorWorkflowManagerSpec extends CromwellTestkitSpec(ActorSystem("ActorWorkflowManagerSpec", ConfigFactory.parseString(Config))) {
 
   "An ActorWorkflowManager" should {
     "run the Hello World workflow" in {

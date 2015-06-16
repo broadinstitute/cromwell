@@ -26,7 +26,6 @@ object LocalBackend {
 
 
 class LocalBackend extends Backend {
-
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.

@@ -129,17 +129,19 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
   import ThreeStepActorSpec._
 
   "A three step workflow" should {
-      "best get to (three) steppin'" in {
+    "best get to (three) steppin'" in {
       val fsm = buildWorkflowActorFsm()
       assert(fsm.stateName == WorkflowSubmitted)
-      fsm ! Start
-      within(TestExecutionTimeout) {
-        awaitCond(fsm.stateName == WorkflowRunning)
-        awaitCond(fsm.stateName == WorkflowSucceeded)
-        val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
-        val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
-        cgrepCount shouldEqual 3
-        wcCount shouldEqual 6
+      startingCallsFilter("cgrep", "wc").intercept {
+        fsm ! Start
+        within(TestExecutionTimeout) {
+          awaitCond(fsm.stateName == WorkflowRunning)
+          awaitCond(fsm.stateName == WorkflowSucceeded)
+          val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
+          val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
+          cgrepCount shouldEqual 3
+          wcCount shouldEqual 6
+        }
       }
     }
   }

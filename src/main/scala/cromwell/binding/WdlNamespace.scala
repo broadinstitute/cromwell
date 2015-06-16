@@ -9,7 +9,7 @@ import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
-
+import cromwell.binding.AstTools.EnhancedAstNode
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
@@ -64,7 +64,6 @@ object WdlNamespace {
     new WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, namespace)
 
   def readFile(wdlFile: File): WdlSource = FileUtil.slurp(wdlFile)
-
 }
 
 case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String]) extends WdlValue {
@@ -78,9 +77,9 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
    * All `import` statement strings at the top of the document
    */
   val imports = ast.getAttribute("imports").asInstanceOf[AstList].asScala.toVector.map { i =>
-    val uri = sourceString(i.asInstanceOf[Ast].getAttribute("uri"))
+    val uri = i.asInstanceOf[Ast].getAttribute("uri").sourceString()
     val namespaceAst = i.asInstanceOf[Ast].getAttribute("namespace")
-    val namespace = if (namespaceAst == null) None else Option(sourceString(namespaceAst))
+    val namespace = if (namespaceAst == null) None else Option(namespaceAst.sourceString())
     Import(uri, namespace)
   }
 
@@ -116,7 +115,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   /**
    * All `task` definitions defined in the WDL file (i.e. not imported)
    */
-  val localTaskAsts = AstTools.findAsts(ast, AstNodeName.Task)
+  val localTaskAsts = ast.findAsts(AstNodeName.Task)
   val localTasks = localTaskAsts.map(processTask)
 
   /**
@@ -138,7 +137,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   /**
    * All `Workflow`s defined in the WDL file (i.e. not imported)
    */
-  val localWorkflows = AstTools.findAsts(ast, AstNodeName.Workflow).map(processWorkflow)
+  val localWorkflows = ast.findAsts(AstNodeName.Workflow).map(processWorkflow)
 
   /**
    * All `Workflow` definitions, including local and imported ones
@@ -159,7 +158,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
       val parts = name.split("\\.", 2)
       namespaces find {_.namespace == Some(parts(0))} flatMap {_.findTaskAst(parts(1))}
     } else {
-      taskAsts.find{t => sourceString(t.getAttribute("name")) == name}
+      taskAsts.find{t => t.getAttribute("name").sourceString == name}
     }
   }
 
@@ -174,21 +173,21 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
 
   private def processWorkflow(ast: Ast): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val calls = AstTools.findAsts(ast, AstNodeName.Call).map {processCall}
+    val calls = ast.findAsts(AstNodeName.Call) map processCall
     new Workflow(name, calls)
   }
 
   private def processTask(ast: Ast): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val commandAsts = AstTools.findAsts(ast, AstNodeName.Command)
+    val commandAsts = ast.findAsts(AstNodeName.Command)
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
     val command = processCommand(commandAsts.head.getAttribute("parts").asInstanceOf[AstList])
-    val outputs = AstTools.findAsts(ast, AstNodeName.Output).map(processTaskOutput)
+    val outputs = ast.findAsts(AstNodeName.Output) map processTaskOutput
     new Task(name, command, outputs, buildRuntimeAttributes(ast))
   }
 
   private def buildRuntimeAttributes(ast: Ast): RuntimeAttributes = {
-    val asts = AstTools.findAsts(ast, AstNodeName.Runtime)
+    val asts = ast.findAsts(AstNodeName.Runtime)
     if (asts.size > 1) throw new UnsupportedOperationException("Only one runtime block may be defined per task")
     val astList = asts.headOption map {_.getAttribute("map").asInstanceOf[AstList]}
     astList map processRuntimeAttributes getOrElse Map.empty[String, String]
@@ -199,7 +198,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   }
 
   private def processRuntimeAttribute(ast: Ast): RuntimeAttribute = {
-    (sourceString(ast.getAttribute("key")), sourceString(ast.getAttribute("value")))
+    (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
   }
 
   private def processCommand(astList: AstList): Command = {
@@ -218,7 +217,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
 
   private def processTaskOutput(ast: Ast): TaskOutput = {
     val wdlType = processWdlType(ast.getAttribute("type"))
-    val name = sourceString(ast.getAttribute("var"))
+    val name = ast.getAttribute("var").sourceString()
     val expression = ast.getAttribute("expression")
     new TaskOutput(name, wdlType, new WdlExpression(expression))
   }
@@ -228,14 +227,14 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
       case x: Terminal => Option(x.getSourceString)
       case _ => None
     }
-    val taskName = sourceString(ast.getAttribute("task"))
+    val taskName = ast.getAttribute("task").sourceString()
     val task = findTask(taskName) getOrElse invalidTask
     val inputs = processCallInput(ast)
     new Call(alias, taskName, task, inputs.toMap, this)
   }
 
-  private def processCallInput(ast: Ast): Map[String, WdlExpression] = AstTools.getCallInputAsts(ast).map {a =>
-    val key = sourceString(a.getAttribute("key"))
+  private def processCallInput(ast: Ast): Map[String, WdlExpression] = AstTools.callInputAsts(ast).map {a =>
+    val key = a.getAttribute("key").sourceString()
     val expression = new WdlExpression(a.getAttribute("value"))
     (key, expression)
   }.toMap
@@ -281,8 +280,6 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
     }
   }
 
-  private def sourceString(astNode: AstNode): String = astNode.asInstanceOf[Terminal].getSourceString
-
   /**
    * Validate the following things about the AST:
    *
@@ -298,23 +295,23 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
    * that will resolve when evaluated
    */
   private def validate(): Unit = {
-    val workflowAsts = AstTools.findAsts(ast, AstNodeName.Workflow)
+    val workflowAsts = ast.findAsts(AstNodeName.Workflow)
 
     if (workflowAsts.size > 1) {
       throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(workflowAsts.asJava))
     }
 
     tasks foreach {task =>
-      val taskAstsWithSameName = taskAsts filter {a => sourceString(a.getAttribute("name")) == task.name}
+      val taskAstsWithSameName = taskAsts filter {_.getAttribute("name").sourceString == task.name}
       /* No two tasks can have the same name */
       if (taskAstsWithSameName.size > 1) {
         throw new SyntaxError(wdlSyntaxErrorFormatter.duplicateTask(taskAstsWithSameName))
       }
       /* A task can not have duplicated inputs */
-      val commandLineInputs = AstTools.findAsts(taskAstsWithSameName.head, AstNodeName.CommandParameter)
+      val commandLineInputs = taskAstsWithSameName.head.findAsts(AstNodeName.CommandParameter)
       commandLineInputs foreach {input =>
-        val inputName = sourceString(input.getAttribute("name"))
-        val inputsWithSameName = commandLineInputs filter {i => sourceString(i.getAttribute("name")) == inputName}
+        val inputName = input.getAttribute("name").sourceString()
+        val inputsWithSameName = commandLineInputs filter {_.getAttribute("name").sourceString == inputName}
         if (inputsWithSameName.size > 1) {
           throw new SyntaxError(wdlSyntaxErrorFormatter.taskHasDuplicatedInputs(taskAstsWithSameName.head, inputsWithSameName))
         }
@@ -325,13 +322,13 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
     ast.getAttribute("imports").asInstanceOf[AstList].asScala.toVector.foreach {i =>
       val namespaceAst = i.asInstanceOf[Ast].getAttribute("namespace").asInstanceOf[Terminal]
       if (namespaceAst != null) {
-        findTaskAst(sourceString(namespaceAst)) match {
+        findTaskAst(namespaceAst.sourceString()) match {
           case Some(taskAst) =>
             throw new SyntaxError(wdlSyntaxErrorFormatter.taskAndNamespaceHaveSameName(taskAst, namespaceAst))
           case _ =>
         }
         workflowAsts foreach {workflowAst =>
-          if (sourceString(namespaceAst) == sourceString(workflowAst.getAttribute("name"))) {
+          if (namespaceAst.sourceString == workflowAst.getAttribute("name").sourceString) {
             throw new SyntaxError(wdlSyntaxErrorFormatter.workflowAndNamespaceHaveSameName(workflowAst, namespaceAst))
           }
         }
@@ -340,8 +337,8 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
 
     workflowAsts foreach { workflowAst =>
       val workflow = localWorkflows.head
-      AstTools.findAsts(workflowAst, AstNodeName.Call) foreach { callAst =>
-        val taskName = sourceString(callAst.getAttribute("task"))
+      workflowAst.findAsts(AstNodeName.Call) foreach { callAst =>
+        val taskName = callAst.getAttribute("task").sourceString()
         val taskAst = findTaskAst(taskName) getOrElse {
           throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName))
         }
@@ -349,7 +346,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
           throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(callAst, taskName))
         }
 
-        val callName = sourceString(Option(callAst.getAttribute("alias")).getOrElse(callAst.getAttribute("task")))
+        val callName = Option(callAst.getAttribute("alias")).getOrElse(callAst.getAttribute("task")).sourceString()
 
         val call = workflow.calls.find{_.name == callName} getOrElse {
           throw new SyntaxError(s"Cannot find call with name $callName")
@@ -357,8 +354,8 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
 
         call.inputMappings foreach { inputKv =>
           task.inputs find { taskInput => taskInput._1 == inputKv._1 } getOrElse {
-            val callInput = AstTools.getCallInputAsts(callAst) find { p =>
-              sourceString(p.getAttribute("key")) == inputKv._1
+            val callInput = AstTools.callInputAsts(callAst) find {
+              _.getAttribute("key").sourceString == inputKv._1
             } getOrElse {
               throw new SyntaxError(s"Can't find call input: ${inputKv._1}")
             }
@@ -366,7 +363,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
           }
 
           /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
-          AstTools.findTopLevelMemberAccesses(inputKv._2.ast).map(getCallFromMemberAccessAst).map {_.get}
+          inputKv._2.ast.findTopLevelMemberAccesses().map(getCallFromMemberAccessAst).map {_.get}
         }
       }
     }
@@ -380,7 +377,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
         case _ => Failure(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(ast)))
       }
     }
-    val rhs = sourceString(ast.getAttribute("rhs"))
+    val rhs = ast.getAttribute("rhs").sourceString()
 
     /**
      * The left-hand side of a member-access AST should always be interpreted as a String
@@ -403,7 +400,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
      */
     val lhs = callFromName(ast.getAttribute("lhs") match {
       case a: Ast => WdlExpression.toString(a)
-      case terminal: Terminal => sourceString(terminal)
+      case terminal: Terminal => terminal.sourceString
     })
 
     lhs match {

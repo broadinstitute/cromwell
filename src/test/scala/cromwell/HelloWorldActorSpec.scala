@@ -56,15 +56,17 @@ class HelloWorldActorSpec extends CromwellSpec(ActorSystem("HelloWorldActorSpec"
        */
       val fsm = TestFSMRef(new WorkflowActor(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend))
       assert(fsm.stateName == WorkflowSubmitted)
-      fsm ! Start
-      within(TestExecutionTimeout) {
-        awaitCond(fsm.stateName == WorkflowRunning)
-        awaitCond(fsm.stateName == WorkflowSucceeded)
-        val outputName = "hello.hello.salutation"
-        val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
-        val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
-        val actualOutput = salutation.asInstanceOf[WdlString].value.trim
-        actualOutput shouldEqual "Hello world!"
+      startingCallsFilter("hello").intercept {
+        fsm ! Start
+        within(TestExecutionTimeout) {
+          awaitCond(fsm.stateName == WorkflowRunning)
+          awaitCond(fsm.stateName == WorkflowSucceeded)
+          val outputName = "hello.hello.salutation"
+          val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
+          val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
+          val actualOutput = salutation.asInstanceOf[WdlString].value.trim
+          actualOutput shouldEqual "Hello world!"
+        }
       }
     }
 

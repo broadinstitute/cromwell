@@ -2,13 +2,11 @@ package cromwell.engine
 
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.util.Timeout
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.StoreActor._
 import cromwell.util.TryUtil
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
@@ -19,10 +17,10 @@ object StoreActor {
   
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
-  case object FindRunnableCalls extends StoreActorMessage
+  case object StartRunnableCalls extends StoreActorMessage
+  case class UpdateStatus(call: Call, status: ExecutionStatus.Value) extends StoreActorMessage
   case object GetOutputs extends StoreActorMessage
   case class GetLocallyQualifiedInputs(call: Call) extends StoreActorMessage
-  case class UpdateStatus(call: Call, status: ExecutionStatus.Value) extends StoreActorMessage
 }
 
 /**
@@ -37,9 +35,9 @@ class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends
   override def receive: Receive = LoggingReceive {
     case CallCompleted(call, callOutputs) =>
       updateOutputs(call, callOutputs)
-      val msg = if (executionStore.isWorkflowDone) WorkflowActor.Complete else buildRunnableCalls
+      val msg = if (executionStore.isWorkflowDone) WorkflowActor.Complete else startRunnableCalls
       sender ! msg
-    case FindRunnableCalls => sender ! buildRunnableCalls
+    case StartRunnableCalls => sender ! startRunnableCalls
     case GetOutputs =>
       sender ! (symbolStore.getOutputs map symbolStoreEntryToMapEntry).toMap
     case GetLocallyQualifiedInputs(call) => sender ! symbolStore.locallyQualifiedInputs(call)
@@ -67,5 +65,5 @@ class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends
     }
   }
 
-  private def buildRunnableCalls: WorkflowActor.RunnableCalls = WorkflowActor.RunnableCalls(executionStore.runnableCalls)
+  private def startRunnableCalls: WorkflowActor.RunnableCalls = WorkflowActor.RunnableCalls(executionStore.startRunnableCalls)
 }

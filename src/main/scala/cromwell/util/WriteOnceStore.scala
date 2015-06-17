@@ -11,6 +11,7 @@ class WriteOnceStore[K, V] {
    * a Success containing an immutable copy of the current store w/ the key inserted
    */
   def insert(key: K, value: V): Try[Map[K, V]] = {
+    println(s"$key => $value")
     writeOnceStore.putIfAbsent(key, value) match {
       case Some(x) => Failure(new IllegalStateException(s"$key was already present in the store"))
       case None => Success(toMap)

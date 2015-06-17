@@ -177,8 +177,19 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
 
   private def processWorkflow(ast: Ast): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
+    val declarations = ast.findAsts(AstNodeName.Declaration) map processDeclaration
     val calls = ast.findAsts(AstNodeName.Call) map processCall
-    new Workflow(name, calls)
+    new Workflow(name, declarations, calls)
+  }
+
+  private def processDeclaration(ast: Ast): Declaration = {
+    val wdlType = processWdlType(ast.getAttribute("type"))
+    val name = ast.getAttribute("name").sourceString()
+    val expression = ast.getAttribute("expression") match {
+      case null => None
+      case x => Some(WdlExpression(x))
+    }
+    new Declaration(wdlType, name, expression)
   }
 
   private def processTask(ast: Ast): Task = {
@@ -216,7 +227,22 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   private def processCommandParameter(ast: Ast): ParameterCommandPart = {
     val wdlType = processWdlType(ast.getAttribute("type"))
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    new ParameterCommandPart(wdlType, name)
+    val prefix = ast.getAttribute("prefix") match {
+      case t:Terminal => Some(t.sourceString())
+      case _ => None
+    }
+    val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.map { a =>
+      processCommandParameterAttr(a.asInstanceOf[Ast])
+    }.toMap
+    val postfixQuantifier = ast.getAttribute("postfix") match {
+      case t:Terminal => Some(t.sourceString())
+      case _ => None
+    }
+    new ParameterCommandPart(wdlType, name, prefix, attributes, postfixQuantifier)
+  }
+
+  private def processCommandParameterAttr(ast: Ast): (String, String) = {
+    (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
   }
 
   private def processTaskOutput(ast: Ast): TaskOutput = {
@@ -254,8 +280,29 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
           case WdlBooleanType.toWdlString => WdlBooleanType
           case WdlObjectType.toWdlString => WdlObjectType
         }
+      case a: Ast =>
+        val subtypes = a.getAttribute("subtype").asInstanceOf[AstList].asScala.toSeq
+        val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
+        a.getAttribute("name").sourceString() match {
+          case "Array" =>
+            if (subtypes.size != 1) {
+              throw new SyntaxError(wdlSyntaxErrorFormatter.arrayHasOneTypeParameter(typeTerminal))
+            }
+            val member = processWdlType(subtypes.head)
+            WdlArrayType(member)
+          case "Map" =>
+            if (subtypes.size != 2) {
+              throw new SyntaxError(wdlSyntaxErrorFormatter.mapHasTwoTypeParameters(typeTerminal))
+            }
+            val keyType = processWdlType(subtypes.head) match {
+              case t:WdlPrimitiveType => t
+              case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.mapKeyMustBeAPrimitive(typeTerminal))
+            }
+            val valueType = processWdlType(subtypes(1))
+            WdlMapType(keyType, valueType)
+        }
       case null => WdlStringType
-      case _ => throw new UnsupportedOperationException("Implement this later for compound types")
+      case t => throw new UnsupportedOperationException(s"Type not supported: $t")
     }
   }
 
@@ -266,25 +313,37 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
    */
   def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
 
-    def coerceRawInput(fqn: FullyQualifiedName, wdlType: WdlType): Try[WdlValue] = fqn match {
-      case _ if rawInputs.contains(fqn) =>
-        val rawInput = rawInputs.get(fqn).get
-        wdlType.coerceRawValue(rawInput).recoverWith {
-          case e => Failure(new UnsatisfiedInputsException(s"Failed to coerce input $fqn value $rawInput of ${rawInput.getClass} to $wdlType."))
+    def coerceRawInput(input: WorkflowInput): Try[Option[WdlValue]] = input.fqn match {
+      case _ if rawInputs.contains(input.fqn) =>
+        /* Workflow inputs can sometimes have multiple types.  For example, `${sep="," var+}`
+         * can accept a `String` or `Array[String]`.  This coercion tries to coerce to ALL valid types
+         * and just chooses the first one that works, or returns a Failure.
+         */
+        input.types.map {t => t.coerceRawValue(rawInputs.get(input.fqn).get)}.find {y => y.isSuccess} match {
+          case Some(value) => Success(Some(value.get))
+          case None => Failure(new UnsatisfiedInputsException(s"Could not coerce value for '${input.fqn}' into: ${input.types.mkString(", ")}"))
         }
-      case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
+      case _ =>
+        input.optional match {
+          case true => Success(None)
+          case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '${input.fqn}' not specified."))
+        }
     }
 
-    val tryCoercedValues = workflows.head.inputs.map { case (fqn, wdlType) =>
-      fqn -> coerceRawInput(fqn, wdlType)
-    }
+    val tryCoercedValues = workflows.head.inputs.map {input =>
+      input.fqn -> coerceRawInput(input)
+    }.toMap
 
     val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
     if (failures.isEmpty) {
-      Try(successes.map { case (key, tryValue) => key -> tryValue.get })
+      Try(successes.map {
+        case (key, tryValue) => key -> tryValue.get
+      }.filter {y => y._2.isDefined}.map {
+        case (key, optionValue) => key -> optionValue.get
+      })
     } else {
       val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
-      Failure(new UnsatisfiedInputsException(message))
+      Failure(new UnsatisfiedInputsException(s"The following errors occurred while processing your inputs:\n\n$message"))
     }
   }
 
@@ -361,7 +420,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
         }
 
         call.inputMappings foreach { inputKv =>
-          task.inputs find { taskInput => taskInput._1 == inputKv._1 } getOrElse {
+          task.inputs find { taskInput => taskInput.name == inputKv._1 } getOrElse {
             val callInput = AstTools.callInputAsts(callAst) find {
               _.getAttribute("key").sourceString == inputKv._1
             } getOrElse {

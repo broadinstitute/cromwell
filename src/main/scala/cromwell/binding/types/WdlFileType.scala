@@ -3,7 +3,7 @@ package cromwell.binding.types
 import cromwell.binding.values.WdlFile
 import spray.json.JsString
 
-case object WdlFileType extends WdlType {
+case object WdlFileType extends WdlPrimitiveType {
   val toWdlString: String = "File"
 
   override protected def coercion = {

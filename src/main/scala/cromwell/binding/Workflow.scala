@@ -10,7 +10,7 @@ import cromwell.binding.types.WdlType
  * @param name The name of the workflow
  * @param calls The set of `call` declarations
  */
-case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scope {
+case class Workflow(name: String, declarations: Seq[Declaration], calls: Seq[Call]) extends Executable with Scope {
   /** Parent node for this workflow.  Since we do not support nested
     * workflows currently, this is always `None`
     */
@@ -19,12 +19,19 @@ case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scop
   /**
    * All inputs for this workflow and their associated types.
    *
-   * @return a Map[FullyQualifiedName, WdlType] representing the
+   * @return a Seq[WorkflowInput] representing the
    *         inputs that the user needs to provide to this workflow
    */
-  def inputs: Map[FullyQualifiedName, WdlType] = {
-    val inputs = for (call <- calls; input <- call.unsatisfiedInputs) yield (s"${call.fullyQualifiedName}.${input._1}", input._2)
-    inputs.toMap
+  def inputs: Seq[WorkflowInput] = {
+    val callInputs = for {
+      call <- calls
+      input <- call.unsatisfiedInputs
+    } yield input
+    val declInputs = for {
+      decl <- declarations
+      if decl.expression.isEmpty
+    } yield WorkflowInput(s"$fullyQualifiedName.${decl.name}", Seq(decl.wdlType), None)
+    callInputs ++ declInputs
   }
 
   /**

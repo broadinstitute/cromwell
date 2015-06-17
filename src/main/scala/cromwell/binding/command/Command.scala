@@ -1,9 +1,9 @@
 package cromwell.binding.command
 
 import java.util.regex.Pattern
-import cromwell.binding.CallInputs
-import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
+
+import cromwell.binding.types.WdlArrayType
+import cromwell.binding.{CallInputs, TaskInput}
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -40,9 +40,16 @@ import scala.util.Try
  */
 case class Command(parts: Seq[CommandPart]) {
   val ws = Pattern.compile("[\\ \\t]+")
-
-  def inputs: Map[String, WdlType] = parts.collect({ case p: ParameterCommandPart => (p.name, p.wdlType) }).toMap
-
+  def inputs: Seq[TaskInput] = {
+    parts.collect {case p: ParameterCommandPart => p}.map {p =>
+      // TODO: if postfix quantifier is + or *, then the type must be a primitive.
+      val wdlType = p.postfixQuantifier match {
+        case Some(x) if ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(x) => WdlArrayType(p.wdlType)
+        case _ => p.wdlType
+      }
+      TaskInput(p.name, wdlType, p.postfixQuantifier)
+    }
+  }
   /**
    * Given a map of task-local parameter names and WdlValues,
    * create a command String.

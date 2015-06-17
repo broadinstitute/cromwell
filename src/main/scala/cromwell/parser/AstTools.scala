@@ -30,6 +30,7 @@ object AstTools {
     val Inputs = "Inputs"
     val MemberAccess = "MemberAccess"
     val Runtime = "Runtime"
+    val Declaration = "Declaration"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {

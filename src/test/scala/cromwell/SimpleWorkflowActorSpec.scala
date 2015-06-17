@@ -21,8 +21,6 @@ import scala.language.postfixOps
 
 class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSpec") {
 
-  private val dataAccess = DataAccess()
-
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: Option[WorkflowRawInputs] = None):
   TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor] = {
 
@@ -31,13 +29,6 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
-  }
-
-  override def afterAll() {
-    // TODO: Is this shutting down `system`?
-    shutdown()
-    super.afterAll()
-    Await.result(dataAccess.shutdown(), Duration.Inf)
   }
 
   val TestExecutionTimeout = 5000 milliseconds

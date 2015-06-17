@@ -70,5 +70,5 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
   }
   override def unaryPlus: Try[WdlValue] = Success(WdlFloat(math.abs(value)))
   override def unaryMinus: Try[WdlValue] = Success(WdlFloat(-value))
-  override def asString = value.toString
+  override def toWdlString = value.toString
 }

@@ -19,13 +19,11 @@ case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scop
   /**
    * All inputs for this workflow and their associated types.
    *
-   * @return a Map[FullyQualifiedName, WdlType] representing the
+   * @return a Seq[WorkflowInput] representing the
    *         inputs that the user needs to provide to this workflow
    */
-  def inputs: Map[FullyQualifiedName, WdlType] = {
-    val inputs = for (call <- calls; input <- call.unsatisfiedInputs) yield (s"${call.fullyQualifiedName}.${input._1}", input._2)
-    inputs.toMap
-  }
+  def inputs: Seq[WorkflowInput] =
+    for {call <- calls; input <- call.unsatisfiedInputs} yield input
 
   /**
    * All outputs for this workflow and their associated types

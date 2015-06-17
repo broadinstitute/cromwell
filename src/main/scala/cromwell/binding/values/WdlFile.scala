@@ -26,5 +26,5 @@ case class WdlFile(value: Path) extends WdlPrimitive {
       case _ => invalid(s"$value == $rhs")
     }
   }
-  override def asString = value.toString
+  override def toWdlString = value.toString
 }

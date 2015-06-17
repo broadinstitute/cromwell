@@ -3,7 +3,7 @@ package cromwell.binding.types
 import cromwell.binding.values.WdlBoolean
 import spray.json.{JsBoolean, JsString}
 
-case object WdlBooleanType extends WdlType {
+case object WdlBooleanType extends WdlPrimitiveType {
   val toWdlString: String = "Boolean"
 
   override protected def coercion = {

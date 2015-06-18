@@ -1,6 +1,6 @@
 package cromwell.binding
 
-import cromwell.binding.command.{CommandPart, Command}
+import cromwell.binding.command.Command
 import cromwell.binding.types.WdlType
 
 /**

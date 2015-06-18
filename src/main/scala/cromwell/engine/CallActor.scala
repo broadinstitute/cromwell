@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.ask
 import cromwell.binding.values.WdlValue
-import cromwell.binding.Call
+import cromwell.binding.{WorkflowDescriptor, Call}
 import cromwell.engine.backend.Backend
 import cromwell.util.TryUtil
 
@@ -17,13 +17,14 @@ object CallActor {
   sealed trait CallActorMessage
   case object Start extends CallActorMessage
 
-  def props(call: Call, backend: Backend, storeActor: ActorRef, name: String): Props =
-    Props(new CallActor(call, backend, storeActor))
+  def props(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef, name: String): Props =
+    Props(new CallActor(call, backend, workflowDescriptor, storeActor))
 }
 
 
 /** Actor to manage the execution of a single call. */
-class CallActor(call: Call, backend: Backend, storeActor: ActorRef) extends Actor with CromwellActor {
+class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef) extends Actor with CromwellActor {
+
   private val log = Logging(context.system, this)
 
   override def receive = LoggingReceive {
@@ -45,7 +46,6 @@ class CallActor(call: Call, backend: Backend, storeActor: ActorRef) extends Acto
    *   <li>Collects outputs in a `Map[String, Try[WdlValue]]`.</li>
    *   <li>If there are no `Failure`s among the outputs, messages the parent actor
    *   with `Completed`, otherwise messages `Failed`.</li>
-
    * </ol>
    */
   private def handleStart(): Unit = {
@@ -55,10 +55,11 @@ class CallActor(call: Call, backend: Backend, storeActor: ActorRef) extends Acto
 
     for {
       inputs <- (storeActor ? StoreActor.GetLocallyQualifiedInputs(call)).mapTo[Map[String, WdlValue]]
-      commandLine <- Future.fromTry(call.task.command.instantiate(inputs))
+      backendInputs = backend.adjustInputPaths(call, inputs)
+      commandLine <- Future.fromTry(call.instantiateCommandLine(backendInputs))
     } yield {
       originalSender ! WorkflowActor.CallStarted(call)
-      val tryOutputs = backend.executeCommand(commandLine, call, call.task.outputs, s => inputs.get(s).get)
+      val tryOutputs = backend.executeCommand(commandLine, workflowDescriptor, call, s => inputs.get(s).get)
       val (successes, failures) = tryOutputs.partition {
         _._2.isSuccess
       }

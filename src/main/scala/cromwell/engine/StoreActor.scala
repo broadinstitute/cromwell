@@ -11,10 +11,8 @@ import scala.language.postfixOps
 import scala.util.Try
 
 object StoreActor {
-  def props(namespace: WdlNamespace, inputs: WorkflowCoercedInputs): Props = {
-    Props(new StoreActor(namespace, inputs))
-  }
-  
+  def props(namespace: WdlNamespace, hostInputs: HostInputs) = Props(new StoreActor(namespace, hostInputs))
+
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
   case object StartRunnableCalls extends StoreActorMessage
@@ -25,10 +23,9 @@ object StoreActor {
 
 /**
  * Actor to hold symbol and execution status data for a single workflow.  This actor
- * guards mutable state over the symbol and execution stores, and must therefore not
- * pass back `Future`s over updates or reads of those stores. */
-class StoreActor(namespace: WdlNamespace, inputs: WorkflowCoercedInputs) extends Actor with CromwellActor {
-  private val symbolStore = new SymbolStore(namespace, inputs)
+ * guards mutable state over the symbol and execution stores. */
+class StoreActor(namespace: WdlNamespace, hostInputs: HostInputs) extends Actor with CromwellActor {
+  private val symbolStore = new SymbolStore(namespace, hostInputs)
   private val executionStore = new ExecutionStore(namespace)
   private val log = Logging(context.system, this)
 

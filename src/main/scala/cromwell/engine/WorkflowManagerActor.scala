@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.pattern.{ask, pipe}
 import cromwell.binding
-import cromwell.binding.{WdlNamespace, WdlSource}
+import cromwell.binding.{WorkflowDescriptor, WdlNamespace, WdlSource}
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.WriteOnceStore
@@ -74,7 +74,8 @@ class WorkflowManagerActor extends Actor with CromwellActor {
     for {
       namespace <- Future(WdlNamespace.load(wdl))
       coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
-      workflowActor = context.actorOf(WorkflowActor.props(workflowId, namespace, coercedInputs, backend))
+      descriptor = new WorkflowDescriptor(namespace, coercedInputs)
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend))
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
       workflowStates.put(workflowId, WorkflowSubmitted)
@@ -85,7 +86,7 @@ class WorkflowManagerActor extends Actor with CromwellActor {
   }
 
   private def updateWorkflowState(workflow: WorkflowActorRef, state: WorkflowState): Unit = {
-    idByWorkflow(workflow) map { w => workflowStates.put(w, state) }
+    idByWorkflow(workflow) foreach { id => workflowStates.put(id, state) }
   }
 
   private def idByWorkflow(workflow: WorkflowActorRef): Option[WorkflowId] = {

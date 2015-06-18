@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "io.spray" %% "spray-json" % DowngradedSprayV,
   "com.typesafe.akka" %% "akka-actor" % akkaV,
   "commons-codec" % "commons-codec" % "1.10",
-
+  "ch.qos.logback" % "logback-classic" % "1.1.3",
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,

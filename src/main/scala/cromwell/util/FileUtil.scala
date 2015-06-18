@@ -13,8 +13,8 @@ object FileUtil {
 
   /** Build a temp file with the specified base name and an associated writer,
     * return the tuple of both. */
-  def tempFileAndWriter(baseName: String, extension: String = ".tmp"): (Path, Writer) = {
-    val file = File.createTempFile(baseName, extension).toPath
+  def tempFileAndWriter(baseName: String, directory: File = null): (Path, Writer) = {
+    val file = File.createTempFile(baseName, ".tmp", directory).toPath
     fileAndWriter(file)
   }
 

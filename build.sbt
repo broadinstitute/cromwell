@@ -21,14 +21,17 @@ libraryDependencies ++= Seq(
   "io.spray" %% "spray-http" % sprayV,
   "io.spray" %% "spray-json" % DowngradedSprayV,
   "com.typesafe.akka" %% "akka-actor" % akkaV,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaV,
   "commons-codec" % "commons-codec" % "1.10",
   "ch.qos.logback" % "logback-classic" % "1.1.3",
-  "ch.qos.logback" % "logback-access" % "1.1.3",
-  "org.codehaus.janino" % "janino" % "2.7.8",
+  "com.typesafe.slick" %% "slick" % "3.0.0",
+  "com.zaxxer" % "HikariCP" % "2.3.3",
+  "mysql" % "mysql-connector-java" % "5.1.35",
+  //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,
-  "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
+  "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+  "org.hsqldb" % "hsqldb" % "2.3.2" % "test",
+  "org.liquibase" % "liquibase-core" % "3.3.5" % "test"
 )
 
 releaseSettings
@@ -75,6 +78,9 @@ lazy val DockerTest = config("docker") extend(Test)
 
 lazy val NoDockerTest = config("nodocker") extend(Test)
 
+// NOTE: The following block may cause problems with IntelliJ IDEA
+// by creating multiple test configurations.
+// May need to comment out when importing the project.
 lazy val root = (project in file("."))
   .configs(DockerTest).configs(NoDockerTest)
   .settings(inConfig(DockerTest)(Defaults.testTasks): _*)
@@ -83,5 +89,3 @@ lazy val root = (project in file("."))
 testOptions in DockerTest := Seq(Tests.Argument("-n", "DockerTest"))
 
 testOptions in NoDockerTest := Seq(Tests.Argument("-l", "DockerTest"))
-
-test in assembly := {}

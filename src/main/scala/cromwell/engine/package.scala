@@ -19,7 +19,14 @@ package object engine {
   sealed trait WorkflowState {
     def isTerminal: Boolean
   }
-  
+
+  private lazy val workflowStates = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded)
+
+  object WorkflowState {
+    def fromString(str: String): WorkflowState = workflowStates.find(_.toString == str).getOrElse(
+      throw new NoSuchElementException(s"No such WorkflowState: $str"))
+  }
+
   case object WorkflowSubmitted extends WorkflowState {
     override def toString: String = "Submitted"
     override val isTerminal = false

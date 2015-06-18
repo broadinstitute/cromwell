@@ -29,3 +29,14 @@ trait WdlType {
 
   def toWdlString: String
 }
+
+object WdlType {
+
+  private lazy val wdlTypes = Seq(
+    WdlBooleanType, WdlExpressionType, WdlFileType, WdlFloatType,
+    WdlIntegerType, WdlNamespaceType, WdlObjectType, WdlStringType
+  )
+
+  def fromWdlString(wdlString: String): WdlType = wdlTypes.find(_.toWdlString == wdlString).getOrElse(
+    throw new NoSuchElementException(s"No such WdlType: $wdlString"))
+}

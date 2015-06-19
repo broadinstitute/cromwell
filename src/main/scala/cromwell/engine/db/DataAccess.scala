@@ -3,7 +3,8 @@ package cromwell.engine.db
 import java.util.Date
 
 import cromwell.binding.Call
-import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
+import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine.{WorkflowId, WorkflowState}
 
 object DataAccess {
   // Will stamp the start_dt column with DateTime.Now.

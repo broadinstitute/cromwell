@@ -1,11 +1,13 @@
 package cromwell.engine
 
 import akka.actor.{FSM, LoggingFSM, Props}
-import akka.event.Logging
 import akka.pattern.{ask, pipe}
 import cromwell.binding._
+import cromwell.engine.StoreActor.InitialStore
+import cromwell.engine.SymbolStore.SymbolStoreEntry
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.Backend
+import cromwell.engine.db.CallInfo
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
@@ -21,18 +23,23 @@ object WorkflowActor {
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
   case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
-  def props(descriptor: WorkflowDescriptor, backend: Backend) = Props(new WorkflowActor(descriptor, backend))
+  def props(descriptor: WorkflowDescriptor,
+            backend: Backend,
+            initialStore: InitialStore = InitialStore(Set.empty[SymbolStoreEntry], Set.empty[CallInfo])) = {
+    Props(WorkflowActor(descriptor, backend, initialStore))
+  }
 
   sealed trait WorkflowFailure
   case object NoFailureMessage extends WorkflowFailure
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 }
 
-case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends FSM[WorkflowState, WorkflowFailure] with CromwellActor {
+case class WorkflowActor(workflow: WorkflowDescriptor,
+                         backend: Backend,
+                         ininitalStore: InitialStore = InitialStore(Set.empty[SymbolStoreEntry], Set.empty[CallInfo]))
+  extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
 
-  private val storeActor = context.actorOf(StoreActor.props(workflow, backend.initializeForWorkflow(workflow)))
-  val tag: String = s"WorkflowActor [UUID(${workflow.shortId})]"
-  override val log = Logging(context.system, classOf[WorkflowActor])
+  private val storeActor = context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow), ininitalStore))
 
   startWith(WorkflowSubmitted, NoFailureMessage)
 
@@ -41,11 +48,22 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends
   }
 
   when(WorkflowRunning) {
-    case Event(CallStarted(call), NoFailureMessage) => updateCallStatusToRunning(call)
-    case Event(CallCompleted(completedCall, callOutputs), NoFailureMessage) => updateCallStatusToCompleted(completedCall, callOutputs)
-    case Event(RunnableCalls(runnableCalls), NoFailureMessage) => receiveRunnableCalls(runnableCalls)
-    case Event(CallFailed(call, failure), NoFailureMessage) => updateCallStatusToFailed(call, failure)
-    case Event(WorkflowActor.Complete, NoFailureMessage) => goto(WorkflowSucceeded)
+    case Event(CallStarted(call), NoFailureMessage) =>
+      storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Running)
+      stay()
+    case Event(CallCompleted(call, callOutputs), NoFailureMessage) =>
+      storeActor ! StoreActor.CallCompleted(call, callOutputs)
+      stay()
+    case Event(RunnableCalls(runnableCalls), NoFailureMessage) =>
+      if (runnableCalls.nonEmpty) {
+        log.info("Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))
+      }
+      runnableCalls foreach startCallActor
+      stay()
+    case Event(CallFailed(call, failure), NoFailureMessage) =>
+      storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Failed)
+      goto(WorkflowFailed) using FailureMessage(failure)
+    case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
   }
 
   when(WorkflowFailed) {
@@ -70,38 +88,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends
     case WorkflowSubmitted -> WorkflowRunning => storeActor ! StoreActor.StartRunnableCalls
   }
 
-  private def updateCallStatusToRunning(call: Call) = {
-    log.info(s"$tag: call '${call.name}' running")
-    storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Running)
-    stay()
-  }
-
-  private def updateCallStatusToCompleted(call: Call, outputs: WorkflowOutputs) = {
-    log.info(s"$tag: call '${call.name}' completed")
-    storeActor ! StoreActor.CallCompleted(call, outputs)
-    stay()
-  }
-
-  private def updateCallStatusToFailed(call: Call, failure: String) = {
-    log.info(s"$tag: call '${call.name}' failed ($failure)")
-    storeActor ! StoreActor.UpdateStatus(call, ExecutionStatus.Failed)
-    goto(WorkflowFailed) using FailureMessage(failure)
-  }
-
-  private def unknownMessage(e: Any) = {
-    log.warning(s"$tag: Unexpected message: $e")
-    stay()
-  }
-
-  private def receiveRunnableCalls(calls: Iterable[Call]) = {
-    if (calls.nonEmpty) {
-      log.info(s"$tag: starting " + calls.map {_.name}.toSeq.sorted.mkString(", "))
-    }
-    calls foreach { call =>
-      log.info(s"$tag: launching CallActor for '${call.name}'")
-      val callActorProps = CallActor.props(call, backend, workflow, storeActor)
-      context.actorOf(callActorProps) ! CallActor.Start
-    }
-    stay()
+  /** Create a per-call `CallActor` for the specified `Call` and send it a `Start` message to
+    * begin execution. */
+  private def startCallActor(call: Call): Unit = {
+    val callActorProps = CallActor.props(call, backend, workflow, storeActor, "CallActor-" + call.name)
+    context.actorOf(callActorProps) ! CallActor.Start
   }
 }

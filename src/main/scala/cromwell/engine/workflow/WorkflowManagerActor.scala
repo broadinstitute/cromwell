@@ -1,4 +1,4 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
 import java.util.UUID
 
@@ -8,9 +8,10 @@ import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
 import cromwell.binding
 import cromwell.binding.{WdlNamespace, WdlSource, WorkflowDescriptor}
-import cromwell.engine.WorkflowActor._
+import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.{QueryWorkflowExecutionResult, DataAccess}
+import cromwell.engine.db.{DataAccess, QueryWorkflowExecutionResult}
+import cromwell.engine.workflow.WorkflowActor.{Start, GetOutputs}
 import cromwell.util.WriteOnceStore
 import spray.json._
 

@@ -5,8 +5,8 @@ import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
-import cromwell.engine.SingleWorkflowRunnerActor
 import cromwell.engine.db.{DataAccess, RealDataAccess}
+import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil

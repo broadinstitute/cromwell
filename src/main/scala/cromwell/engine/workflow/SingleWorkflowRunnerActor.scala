@@ -1,19 +1,21 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
-import akka.actor.FSM.{Transition, CurrentState}
-import akka.actor.{ActorRef, Props, Actor}
+import akka.actor.FSM.{CurrentState, Transition}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding
 import cromwell.binding.WdlSource
-import cromwell.engine.WorkflowManagerActor._
+import cromwell.engine._
+import cromwell.engine.workflow.WorkflowManagerActor.{SubscribeToWorkflow, WorkflowOutputs, SubmitWorkflow}
 import spray.json._
-import scala.concurrent.duration._
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 object SingleWorkflowRunnerActor {
   def props(wdl: WdlSource, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {

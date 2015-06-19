@@ -1,8 +1,8 @@
 package cromwell.server
 
 import akka.actor.ActorSystem
-import cromwell.engine.WorkflowManagerActor
 import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.WorkflowManagerActor
 
 trait WorkflowManagerSystem {
   val systemName = "cromwell-system"

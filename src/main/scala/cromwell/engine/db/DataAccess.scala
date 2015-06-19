@@ -3,7 +3,7 @@ package cromwell.engine.db
 import java.util.Date
 
 import cromwell.binding.Call
-import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine.store.SymbolStoreEntry
 import cromwell.engine.{WorkflowId, WorkflowState}
 
 trait DataAccess {

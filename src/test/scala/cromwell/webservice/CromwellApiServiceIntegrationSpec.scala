@@ -1,7 +1,7 @@
 package cromwell.webservice
 
-import cromwell.engine.WorkflowManagerActor
 import cromwell.engine.db.DummyDataAccess
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{FormData, StatusCodes}

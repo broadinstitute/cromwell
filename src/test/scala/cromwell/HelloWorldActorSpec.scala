@@ -8,7 +8,8 @@ import akka.pattern.ask
 import cromwell.binding.values.WdlString
 import cromwell.binding.{WorkflowDescriptor, WorkflowOutputs, UnsatisfiedInputsException, WdlNamespace}
 import cromwell.engine._
-import cromwell.engine.WorkflowActor._
+import cromwell.engine.workflow.WorkflowActor
+import WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.util.SampleWdl.HelloWorld.Addressee

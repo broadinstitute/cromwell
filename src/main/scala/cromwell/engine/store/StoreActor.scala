@@ -1,15 +1,18 @@
-package cromwell.engine
+package cromwell.engine.store
 
+import scala.language.postfixOps
+import scala.util.Try
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.engine.StoreActor._
-import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine._
 import cromwell.engine.db.CallInfo
+import cromwell.engine.store.ExecutionStore.ExecutionStatus
+import cromwell.engine.store.StoreActor.InitialStore
+import cromwell.engine.workflow.WorkflowActor
 import cromwell.util.TryUtil
-import scala.language.postfixOps
-import scala.util.Try
+import StoreActor._
 
 object StoreActor {
   case class InitialStore(symbolStore: Set[SymbolStoreEntry], executionStore: Set[CallInfo])
@@ -41,7 +44,7 @@ object StoreActor {
       sender ! msg
     case StartRunnableCalls => sender ! startRunnableCalls
     case GetOutputs =>
-      sender ! (symbolStore.getOutputs map symbolStoreEntryToMapEntry).toMap
+      sender ! (symbolStore.outputs map symbolStoreEntryToMapEntry).toMap
     case GetLocallyQualifiedInputs(call) => sender ! symbolStore.locallyQualifiedInputs(call)
     case UpdateStatus(call, status) => executionStore.updateStatus(call, status)
   }

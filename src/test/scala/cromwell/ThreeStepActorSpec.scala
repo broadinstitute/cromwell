@@ -7,7 +7,8 @@ import akka.testkit.TestFSMRef
 import cromwell.CromwellSpec.DockerTest
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
-import cromwell.engine.WorkflowActor._
+import cromwell.engine.workflow.WorkflowActor
+import WorkflowActor._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 

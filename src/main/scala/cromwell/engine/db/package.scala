@@ -1,6 +1,7 @@
 package cromwell.engine
 
-import cromwell.engine.ExecutionStatus._
+import cromwell.engine.store.ExecutionStore
+import ExecutionStore.ExecutionStatus.ExecutionStatus
 
 package object db {
   // CallStatus doesn't exist as an enum already, or reuse ExecutionStatus?

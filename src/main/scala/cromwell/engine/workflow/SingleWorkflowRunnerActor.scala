@@ -1,4 +1,4 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor.{Actor, ActorRef, Props}
@@ -7,7 +7,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding
 import cromwell.binding.WdlSource
-import cromwell.engine.WorkflowManagerActor._
+import cromwell.engine._
+import cromwell.engine.workflow.WorkflowManagerActor.{SubscribeToWorkflow, WorkflowOutputs, SubmitWorkflow}
 import spray.json._
 
 import scala.concurrent.Await

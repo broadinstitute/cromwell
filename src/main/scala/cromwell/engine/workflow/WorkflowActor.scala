@@ -1,13 +1,15 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
 import akka.actor.{FSM, LoggingFSM, Props}
 import akka.pattern.{ask, pipe}
 import cromwell.binding._
-import cromwell.engine.StoreActor.InitialStore
-import cromwell.engine.SymbolStore.SymbolStoreEntry
-import cromwell.engine.WorkflowActor._
+import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.CallInfo
+import cromwell.engine.store.ExecutionStore.ExecutionStatus
+import cromwell.engine.store.StoreActor.InitialStore
+import cromwell.engine.store.{StoreActor, SymbolStoreEntry}
+import cromwell.engine.workflow.WorkflowActor._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps

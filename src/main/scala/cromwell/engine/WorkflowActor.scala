@@ -3,8 +3,11 @@ package cromwell.engine
 import akka.actor.{FSM, LoggingFSM, Props}
 import akka.pattern.{ask, pipe}
 import cromwell.binding._
+import cromwell.engine.StoreActor.InitialStore
+import cromwell.engine.SymbolStore.SymbolStoreEntry
 import cromwell.engine.WorkflowActor._
 import cromwell.engine.backend.Backend
+import cromwell.engine.db.CallInfo
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
@@ -20,16 +23,23 @@ object WorkflowActor {
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
   case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
-  def props(descriptor: WorkflowDescriptor, backend: Backend) = Props(new WorkflowActor(descriptor, backend))
+  def props(descriptor: WorkflowDescriptor,
+            backend: Backend,
+            initialStore: InitialStore = InitialStore(Set.empty[SymbolStoreEntry], Set.empty[CallInfo])) = {
+    Props(WorkflowActor(descriptor, backend, initialStore))
+  }
 
   sealed trait WorkflowFailure
   case object NoFailureMessage extends WorkflowFailure
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 }
 
-case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
+case class WorkflowActor(workflow: WorkflowDescriptor,
+                         backend: Backend,
+                         ininitalStore: InitialStore = InitialStore(Set.empty[SymbolStoreEntry], Set.empty[CallInfo]))
+  extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
 
-  private val storeActor = context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow)))
+  private val storeActor = context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow), ininitalStore))
 
   startWith(WorkflowSubmitted, NoFailureMessage)
 

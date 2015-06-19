@@ -5,13 +5,18 @@ import akka.event.{Logging, LoggingReceive}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.StoreActor._
+import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine.db.CallInfo
 import cromwell.util.TryUtil
-
 import scala.language.postfixOps
 import scala.util.Try
 
 object StoreActor {
-  def props(namespace: WdlNamespace, hostInputs: HostInputs) = Props(new StoreActor(namespace, hostInputs))
+  case class InitialStore(symbolStore: Set[SymbolStoreEntry], executionStore: Set[CallInfo])
+
+  def props(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: InitialStore) = {
+    Props(new StoreActor(namespace, hostInputs, initialStore))
+  }
 
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
@@ -24,9 +29,9 @@ object StoreActor {
 /**
  * Actor to hold symbol and execution status data for a single workflow.  This actor
  * guards mutable state over the symbol and execution stores. */
-class StoreActor(namespace: WdlNamespace, hostInputs: HostInputs) extends Actor with CromwellActor {
-  private val symbolStore = new SymbolStore(namespace, hostInputs)
-  private val executionStore = new ExecutionStore(namespace)
+ class StoreActor(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: InitialStore) extends Actor with CromwellActor {
+  private val symbolStore = new SymbolStore(namespace, hostInputs, initialStore.symbolStore)
+  private val executionStore = ExecutionStore(namespace, initialStore.executionStore)
   private val log = Logging(context.system, this)
 
   override def receive: Receive = LoggingReceive {
@@ -62,5 +67,5 @@ class StoreActor(namespace: WdlNamespace, hostInputs: HostInputs) extends Actor 
     }
   }
 
-  private def startRunnableCalls: WorkflowActor.RunnableCalls = WorkflowActor.RunnableCalls(executionStore.startRunnableCalls)
+  private def startRunnableCalls = WorkflowActor.RunnableCalls(executionStore.startRunnableCalls)
 }

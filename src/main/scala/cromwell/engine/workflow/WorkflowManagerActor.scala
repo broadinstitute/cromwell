@@ -109,7 +109,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
       result.wdlRawInputs.parseJson match {
         case JsObject(rawInputs) => Option(rawInputs)
         case x =>
-          log.error(s"Error restarting workflow ${result.workflowId}: expected JSON inputs, got '$x'")
+          log.error(s"Error restarting workflow ${result.workflowId}: expected JSON inputs, got '$x'.")
           None
       }
     }
@@ -121,6 +121,16 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
       jsonInputs = clobToJsonInputs(workflow)
       if jsonInputs.isDefined
     } yield (workflow, jsonInputs.get)
+
+    val num = restartableWorkflows.length
+    val displayNum = if (num == 0) "no" else num
+    val plural = if (num == 1) "" else "s"
+    log.info(s"Found $displayNum workflow$plural to restart.")
+
+    if (num > 0) {
+      val ids = restartableWorkflows.map { _._1.workflowId.toString }.sorted
+      log.info(s"Starting workflow ID$plural: " + ids.mkString(", "))
+    }
 
     restartableWorkflows foreach { case (workflow, jsonInputs) =>
       submitWorkflow(workflow.wdlSource, jsonInputs, workflow.workflowId)

@@ -3,6 +3,7 @@ package cromwell.engine
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.db.DummyDataAccess
 import cromwell.{binding, CromwellTestkitSpec}
 import cromwell.HelloWorldActorSpec._
 import cromwell.binding.FullyQualifiedName
@@ -18,7 +19,7 @@ class ActorWorkflowManagerSpec extends CromwellTestkitSpec(ActorSystem("ActorWor
 
   "An ActorWorkflowManager" should {
     "run the Hello World workflow" in {
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props, self, "Test the ActorWorkflowManager")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(DummyDataAccess), self, "Test the ActorWorkflowManager")
 
       val workflowId = waitForHandledMessagePattern(pattern = "Transition\\(.*,Running,Succeeded\\)$") {
         ActorTestUtil.messageAndWait(SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.RawInputs), _.mapTo[WorkflowId])

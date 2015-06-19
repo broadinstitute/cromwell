@@ -3,14 +3,14 @@ package cromwell.engine
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.db.DummyDataAccess
-import cromwell.{binding, CromwellTestkitSpec}
 import cromwell.HelloWorldActorSpec._
-import cromwell.binding.FullyQualifiedName
-import cromwell.binding.values.{WdlString, WdlValue}
-import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.binding.values.WdlString
+import cromwell.engine.db.DummyDataAccess
+import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.util.ActorTestUtil
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.{CromwellTestkitSpec, binding}
 
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 

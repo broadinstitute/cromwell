@@ -1,12 +1,13 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
-import cromwell.HelloWorldActorSpec._
-import cromwell.engine.db.DummyDataAccess
-import cromwell.util.SampleWdl.ThreeStep
 import akka.actor.ActorSystem
 import akka.testkit.EventFilter
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
+import cromwell.HelloWorldActorSpec._
+import cromwell.engine.db.DummyDataAccess
+import cromwell.util.SampleWdl.ThreeStep
+
 import scala.language.postfixOps
 
 class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec(ActorSystem("ActorWorkflowManagerSpec", ConfigFactory.parseString(Config))) {

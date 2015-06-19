@@ -3,7 +3,7 @@ package cromwell.engine.db
 import java.util.Date
 
 import cromwell.binding.Call
-import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine.store.{SymbolStoreEntry, SymbolStore}
 import cromwell.engine.{WorkflowId, WorkflowState}
 
 case object DummyDataAccess extends DataAccess {

@@ -3,7 +3,7 @@ package cromwell.engine.db
 import java.util.Date
 
 import cromwell.binding.WdlSource
-import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine.store.SymbolStoreEntry
 import cromwell.engine.{WorkflowId, WorkflowState}
 
 case class QueryWorkflowExecutionResult(workflowId: WorkflowId, wdlUri: String, state: WorkflowState,

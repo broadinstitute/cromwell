@@ -30,7 +30,7 @@ class SymbolStoreSpec extends FlatSpec with Matchers {
   val namespace = WdlNamespace.load(wdl)
   "A SymbolStore" should "acquire local inputs for a task" in {
     val inputs = Map("wf.a.message" -> WdlString("hello"))
-    val store = new SymbolStore(namespace, inputs)
+    val store = SymbolStore(namespace, inputs)
     val callAInputs = store.locallyQualifiedInputs(namespace.workflows.head.calls.find{c => c.name == "a"}.get)
     callAInputs.mapValues{v => v.wdlType} shouldEqual Map("message" -> WdlStringType)
     store.addOutputValue("wf.a", "constant", Some(WdlInteger(5)), WdlIntegerType)

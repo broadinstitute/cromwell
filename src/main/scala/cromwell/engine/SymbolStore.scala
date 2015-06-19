@@ -1,26 +1,33 @@
 package cromwell.engine
 
+import scala.collection.{mutable, breakOut}
+import scala.util.{Failure, Success, Try}
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.{WdlObject, WdlValue}
+import SymbolStore._
 
-import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
+object SymbolStore {
+  case class SymbolStoreKey(scope: String, name: String, iteration: Option[Int], input: Boolean)
 
+  case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
+    def isInput: Boolean = key.input
+    def isOutput: Boolean = !isInput
+    def scope: String = key.scope
+  }
 
-case class SymbolStoreKey(scope: String, name: String, iteration: Option[Int], input: Boolean)
+  object CallInputWdlFunctions extends WdlFunctions {
+    def getFunction(name: String): WdlFunction = {
+      throw new WdlExpressionException("TODO: Some functions may be allowed in this context")
+    }
+  }
 
-case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
-
-  def isInput: Boolean = key.input
-
-  def isOutput: Boolean = !isInput
-
-  def scope: String = key.scope
+  def apply(namespace: WdlNamespace, inputs: HostInputs): SymbolStore = new SymbolStore(namespace, inputs, Set.empty[SymbolStoreEntry])
 }
 
-class SymbolStore(namespace: WdlNamespace, inputs: HostInputs) {
-  private val store = mutable.Set[SymbolStoreEntry]()
+case class SymbolStore(namespace: WdlNamespace, inputs: HostInputs, initialStore: Set[SymbolStoreEntry]) {
+  // Convert the incoming Seq to a mutable Set
+  private val store: mutable.Set[SymbolStoreEntry] = initialStore.map(identity)(breakOut)
 
   inputs.foreach { case (fullyQualifiedName, value) =>
     assignSymbolStoreEntry(fullyQualifiedName, value, input = true)
@@ -107,10 +114,4 @@ class SymbolStore(namespace: WdlNamespace, inputs: HostInputs) {
   }
 }
 
-object SymbolStore {
-  object CallInputWdlFunctions extends WdlFunctions {
-    def getFunction(name: String): WdlFunction = {
-      throw new WdlExpressionException("TODO: Some functions may be allowed in this context")
-    }
-  }
-}
+

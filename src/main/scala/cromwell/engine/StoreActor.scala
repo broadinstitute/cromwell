@@ -4,15 +4,20 @@ import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.StoreActor._
+import cromwell.engine.SymbolStore.SymbolStoreEntry
+import cromwell.engine.db.CallInfo
 import cromwell.util.TryUtil
-
 import scala.language.postfixOps
 import scala.util.Try
 
 object StoreActor {
-  def props(workflow: WorkflowDescriptor, hostInputs: HostInputs) = Props(new StoreActor(workflow, hostInputs))
+  case class InitialStore(symbolStore: Set[SymbolStoreEntry], executionStore: Set[CallInfo])
+
+  def props(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: InitialStore) = {
+    Props(new StoreActor(namespace, hostInputs, initialStore))
+  }
+
   sealed trait StoreActorMessage
   case class CallCompleted(call: Call, callOutputs: Map[String, WdlValue]) extends StoreActorMessage
   case object StartRunnableCalls extends StoreActorMessage
@@ -24,11 +29,10 @@ object StoreActor {
 /**
  * Actor to hold symbol and execution status data for a single workflow.  This actor
  * guards mutable state over the symbol and execution stores. */
-class StoreActor(workflow: WorkflowDescriptor, hostInputs: HostInputs) extends Actor with CromwellActor {
-  private val symbolStore = new SymbolStore(workflow.namespace, hostInputs)
-  private val executionStore = new ExecutionStore(workflow)
+ class StoreActor(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: InitialStore) extends Actor with CromwellActor {
+  private val symbolStore = new SymbolStore(namespace, hostInputs, initialStore.symbolStore)
+  private val executionStore = ExecutionStore(namespace, initialStore.executionStore)
   private val log = Logging(context.system, this)
-  val tag = s"StoreActor [UUID(${workflow.shortId})]"
 
   override def receive: Receive = LoggingReceive {
     case CallCompleted(call, callOutputs) =>
@@ -45,14 +49,10 @@ class StoreActor(workflow: WorkflowDescriptor, hostInputs: HostInputs) extends A
   private def symbolStoreEntryToMapEntry(e: SymbolStoreEntry): (String, WdlValue) = {
     e.key.scope + "." + e.key.name -> e.wdlValue.get
   }
-
+  
   private def updateOutputs(call: Call, callOutputs: Map[String, WdlValue]): Unit = {
     def addOutputValueToSymbolStore(callOutput: (String, WdlValue)): Try[Unit] =
       symbolStore.addOutputValue(call.fullyQualifiedName, callOutput._1, Some(callOutput._2), callOutput._2.wdlType)
-
-    callOutputs foreach {case (k, v) =>
-      log.info(s"$tag: set ${call.fullyQualifiedName}.$k => $v")
-    }
 
     val addedEntries = callOutputs map addOutputValueToSymbolStore
     val failureMessages = TryUtil.stringifyFailures(addedEntries)
@@ -67,5 +67,5 @@ class StoreActor(workflow: WorkflowDescriptor, hostInputs: HostInputs) extends A
     }
   }
 
-  private def startRunnableCalls: WorkflowActor.RunnableCalls = WorkflowActor.RunnableCalls(executionStore.startRunnableCalls)
+  private def startRunnableCalls = WorkflowActor.RunnableCalls(executionStore.startRunnableCalls)
 }

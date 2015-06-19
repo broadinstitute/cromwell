@@ -11,57 +11,14 @@ import cromwell.engine.workflow.WorkflowActor
 import WorkflowActor._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.util.SampleWdl
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object ThreeStepActorSpec {
-  def wdlSource(runtime: String): WdlSource =
-    """
-      |task ps {
-      |  command {
-      |    cat ${File dummy_ps_file}
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |  RUNTIME
-      |}
-      |
-      |task cgrep {
-      |  command {
-      |    grep '${pattern}' ${File in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |  RUNTIME
-      |}
-      |
-      |task wc {
-      |  command {
-      |    cat ${File in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |  RUNTIME
-      |}
-      |
-      |workflow three_step {
-      |  call ps
-      |  call ps as ps2
-      |  call ps as ps3
-      |  call cgrep {
-      |    input: in_file=ps.procs
-      |  }
-      |  call wc {
-      |    input: in_file=ps.procs
-      |  }
-      |}
-    """.stripMargin.replaceAll("RUNTIME", runtime)
 
+object ThreeStepActorSpec {
   val DummyProcessOutput =
     """
       |USER              PID  %CPU %MEM      VSZ    RSS   TT  STAT STARTED      TIME COMMAND
@@ -72,6 +29,8 @@ object ThreeStepActorSpec {
       |joeblaux          6440   1.4  2.2  4496164 362136   ??  S    Sun09PM  74:29.40 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
     """.stripMargin.trim
 
+  val TestExecutionTimeout = 5000 milliseconds
+
   def createDummyPsFile: File = {
     val file = File.createTempFile("dummy_ps", ".out")
     val writer = new FileWriter(file)
@@ -80,29 +39,20 @@ object ThreeStepActorSpec {
     writer.close()
     file
   }
-
-  object Inputs {
-    val Pattern = "three_step.cgrep.pattern"
-    // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
-    // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
-    val DummyPsFile = "three_step.ps.dummy_ps_file"
-    val DummyPs2File = "three_step.ps2.dummy_ps_file"
-    val DummyPs3File = "three_step.ps3.dummy_ps_file"
-  }
-
 }
 
 class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   import ThreeStepActorSpec._
-  private def buildWorkflowActorFsm(runtime: String) = {
-    val workflowInputs = Map(
-      Inputs.Pattern -> "joeblaux",
-      Inputs.DummyPsFile -> createDummyPsFile.getAbsolutePath,
-      Inputs.DummyPs2File -> createDummyPsFile.getAbsolutePath,
-      Inputs.DummyPs3File -> createDummyPsFile.getAbsolutePath
-    )
 
-    val namespace = WdlNamespace.load(ThreeStepActorSpec.wdlSource(runtime))
+  private def buildWorkflowActorFsm(runtime: String) = {
+    import SampleWdl.FauxThreeStep.InputKeys._
+    val workflowInputs = Map(
+      Pattern -> "joeblaux",
+      DummyPsFile -> createDummyPsFile.getAbsolutePath,
+      DummyPs2File -> createDummyPsFile.getAbsolutePath,
+      DummyPs3File -> createDummyPsFile.getAbsolutePath)
+
+    val namespace = WdlNamespace.load(SampleWdl.FauxThreeStep.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
     val descriptor = WorkflowDescriptor(namespace, coercedInputs)
@@ -121,7 +71,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
     assert(fsm.stateName == WorkflowSubmitted)
     startingCallsFilter("cgrep", "wc").intercept {
       fsm ! Start
-      within(5000 milliseconds) {
+      within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowRunning)
         awaitCond(fsm.stateName == WorkflowSucceeded)
         val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)

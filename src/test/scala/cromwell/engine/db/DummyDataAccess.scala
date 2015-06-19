@@ -6,7 +6,7 @@ import cromwell.binding.Call
 import cromwell.engine.store.{SymbolStoreEntry, SymbolStore}
 import cromwell.engine.{WorkflowId, WorkflowState}
 
-case object DummyDataAccess extends DataAccess {
+case class DummyDataAccess() extends DataAccess {
   // Will stamp the start_dt column with DateTime.Now.
   override def createWorkflow(id: WorkflowId, wdlUri: String, symbols: Seq[SymbolStoreEntry]): Unit = ???
 
@@ -14,5 +14,11 @@ case object DummyDataAccess extends DataAccess {
 
   override def updateWorkflow(id: WorkflowId, state: WorkflowState): Unit = ???
 
-  override def query(workflowId: Option[Seq[WorkflowId]], wdlUris: Option[Seq[String]], states: Option[Seq[WorkflowState]], beforeStart: Option[Date], afterStart: Option[Date], beforeEnd: Option[Date], afterEnd: Option[Date]): Seq[QueryWorkflowExecutionResult] = Seq.empty
+  override def query(workflowId: Option[Seq[WorkflowId]], wdlUris: Option[Seq[String]], states: Option[Seq[WorkflowState]], beforeStart: Option[Date], afterStart: Option[Date], beforeEnd: Option[Date], afterEnd: Option[Date]): Seq[QueryWorkflowExecutionResult] = queryHelper()
+
+  /**
+   * None of the arguments to query matter for the current tests, so provide a convenient
+   * no-arg method that can be overridden.
+   */
+  def queryHelper(): Seq[QueryWorkflowExecutionResult] = Seq.empty
 }

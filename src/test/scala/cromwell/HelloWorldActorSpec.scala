@@ -2,9 +2,8 @@ package cromwell
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
-import akka.testkit._
 import akka.pattern.ask
+import akka.testkit._
 import cromwell.binding.values.WdlString
 import cromwell.binding.{WorkflowDescriptor, WorkflowOutputs, UnsatisfiedInputsException, WdlNamespace}
 import cromwell.engine._
@@ -17,6 +16,7 @@ import cromwell.util.SampleWdl.HelloWorld.Addressee
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
+
 
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
 class HelloWorldActorSpec extends CromwellTestkitSpec("HelloWorldActorSpec") {
@@ -47,8 +47,8 @@ class HelloWorldActorSpec extends CromwellTestkitSpec("HelloWorldActorSpec") {
       val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("hello").intercept {
+        fsm ! Start
         within(TestExecutionTimeout) {
-          fsm ! Start
           awaitCond(fsm.stateName == WorkflowRunning)
           awaitCond(fsm.stateName == WorkflowSucceeded)
           val outputName = "hello.hello.salutation"

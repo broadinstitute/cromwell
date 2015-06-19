@@ -6,6 +6,8 @@ import akka.pattern.ask
 import cromwell.binding.values.WdlValue
 import cromwell.binding.{WorkflowDescriptor, Call}
 import cromwell.engine.backend.Backend
+import cromwell.engine.store.StoreActor
+import cromwell.engine.workflow.WorkflowActor
 import cromwell.util.TryUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global

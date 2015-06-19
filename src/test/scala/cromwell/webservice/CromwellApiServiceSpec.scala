@@ -5,7 +5,8 @@ import java.util.UUID
 import akka.actor.{Actor, Props}
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
-import cromwell.engine.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.engine.workflow.WorkflowManagerActor
+import WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.engine._
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}

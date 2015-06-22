@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.{FSM, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.pattern.{ask, pipe}
 import cromwell.binding._
 import cromwell.engine._
@@ -25,9 +25,7 @@ object WorkflowActor {
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
   case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
-  def props(descriptor: WorkflowDescriptor,
-            backend: Backend,
-            initialStore: InitialStore = InitialStore(Set.empty[SymbolStoreEntry], Set.empty[CallInfo])) = {
+  def props(descriptor: WorkflowDescriptor, backend: Backend, initialStore: Option[InitialStore] = None): Props = {
     Props(WorkflowActor(descriptor, backend, initialStore))
   }
 
@@ -38,10 +36,9 @@ object WorkflowActor {
 
 case class WorkflowActor(workflow: WorkflowDescriptor,
                          backend: Backend,
-                         ininitalStore: InitialStore = InitialStore(Set.empty[SymbolStoreEntry], Set.empty[CallInfo]))
+                         initialStore: Option[InitialStore] = None)
   extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
-
-  private val storeActor = context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow), ininitalStore))
+  private val storeActor = createStoreActor
 
   startWith(WorkflowSubmitted, NoFailureMessage)
 
@@ -95,5 +92,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def startCallActor(call: Call): Unit = {
     val callActorProps = CallActor.props(call, backend, workflow, storeActor, "CallActor-" + call.name)
     context.actorOf(callActorProps) ! CallActor.Start
+  }
+
+  private def createStoreActor: ActorRef = {
+    context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow), initialStore))
   }
 }

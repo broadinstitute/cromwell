@@ -24,10 +24,7 @@ object SampleWdl {
     val RawInputs =  Map(Addressee -> "world")
     val OutputKey = "hello.hello.salutation"
     val OutputValue = "Hello world!\n"
-    val JsonInputs =
-      """
-        |{ "hello.hello.addressee": "world" }
-      """.stripMargin
+    val JsonInputs = s""" { "$Addressee" : "world" } """
   }
 
   object ThreeStep {

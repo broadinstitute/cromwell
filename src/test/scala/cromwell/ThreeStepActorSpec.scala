@@ -69,7 +69,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   private def runAndAssertCorrectness(runtime: String = ""): Unit = {
     val fsm = buildWorkflowActorFsm(runtime)
     assert(fsm.stateName == WorkflowSubmitted)
-    startingCallsFilter("cgrep", "wc").intercept {
+    startingCallsFilter("cgrep", "wc") {
       fsm ! Start
       within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowRunning)

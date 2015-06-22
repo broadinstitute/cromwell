@@ -17,12 +17,20 @@ object SymbolStore {
   }
 
   def apply(namespace: WdlNamespace, inputs: HostInputs): SymbolStore = {
-    new SymbolStore(namespace, inputs, Set.empty[SymbolStoreEntry])
+    // FIXME: Is this terminology correct?
+    val inputSymbols = inputs.map {case (name, value) => SymbolStoreEntry(name, value, input = true)}
+    val callSymbols = for {
+      workflow <- namespace.workflows
+      call <- workflow.calls
+      (k, v) <- call.inputMappings
+    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
+
+    new SymbolStore(inputSymbols.toSet ++ callSymbols.toSet)
   }
 }
 
-case class SymbolStore(namespace: WdlNamespace, inputs: HostInputs, initialStore: Set[SymbolStoreEntry]) {
-  private var store: Set[SymbolStoreEntry] = createStore()
+case class SymbolStore(initialStore: Set[SymbolStoreEntry]) {
+  private var store: Set[SymbolStoreEntry] = initialStore
 
   def locallyQualifiedInputs(call: Call): Map[String, WdlValue] = {
     def lookup(identifierString: String): WdlValue = {
@@ -69,20 +77,6 @@ case class SymbolStore(namespace: WdlNamespace, inputs: HostInputs, initialStore
   private def callEntries(call: Call) = store.filter {_.scope == call.fullyQualifiedName}
   private def callOutputEntries(call: Call) = callEntries(call).filter {entry => entry.isOutput}
   private def callInputEntries(call: Call) = callEntries(call).filter {entry => entry.isInput}
-
-  private def createStore(): Set[SymbolStoreEntry] = if (initialStore.nonEmpty) initialStore else createInitialStore
-
-  private def createInitialStore: Set[SymbolStoreEntry] = {
-    // FIXME: Is this terminology correct?
-    val inputSymbols = inputs.map {case (name, value) => SymbolStoreEntry(name, value, input = true)}
-    val callSymbols = for {
-      workflow <- namespace.workflows
-      call <- workflow.calls
-      (k, v) <- call.inputMappings
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
-
-    inputSymbols.toSet ++ callSymbols.toSet
-  }
 
   override def toString: String = {
     store.map{e => s"${e.key.scope}\t${e.key.name}\t${e.key.input}\t${e.wdlType}\t${e.wdlValue}"}.mkString("\n")

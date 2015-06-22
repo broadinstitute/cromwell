@@ -11,7 +11,7 @@ import cromwell.binding.{WdlNamespace, WdlSource, WorkflowDescriptor}
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.{DataAccess, QueryWorkflowExecutionResult}
-import cromwell.engine.workflow.WorkflowActor.{Start, GetOutputs}
+import cromwell.engine.workflow.WorkflowActor.{GetOutputs, Start}
 import cromwell.util.WriteOnceStore
 import spray.json._
 
@@ -24,12 +24,12 @@ import scala.language.postfixOps
 object WorkflowManagerActor {
   class WorkflowNotFoundException extends RuntimeException
 
-  sealed trait ActorWorkflowManagerMessage
-  case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends ActorWorkflowManagerMessage
-  case class WorkflowStatus(id: WorkflowId) extends ActorWorkflowManagerMessage
-  case class WorkflowOutputs(id: WorkflowId) extends ActorWorkflowManagerMessage
-  case object Shutdown extends ActorWorkflowManagerMessage
-  case class SubscribeToWorkflow(id: WorkflowId) extends ActorWorkflowManagerMessage
+  sealed trait WorkflowManagerActorMessage
+  case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends WorkflowManagerActorMessage
+  case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
+  case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
+  case object Shutdown extends WorkflowManagerActorMessage
+  case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess): Props = Props(new WorkflowManagerActor(dataAccess))
 }
@@ -113,14 +113,16 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
           None
       }
     }
-    val RestartableStates = Some(Seq(WorkflowSubmitted, WorkflowRunning))
+    val restartableStates = Some(Seq(WorkflowSubmitted, WorkflowRunning))
     // Attempt to restart all the workflows in restartable states whose clob raw inputs
     // can successfully be converted to JSON.
+    case class RestartableWorkflow(id: WorkflowId, source: WdlSource, inputs: binding.WorkflowRawInputs)
+
     val restartableWorkflows = for {
-      workflow <- dataAccess.query(states = RestartableStates)
+      workflow <- dataAccess.query(states = restartableStates)
       jsonInputs = clobToJsonInputs(workflow)
       if jsonInputs.isDefined
-    } yield (workflow, jsonInputs.get)
+    } yield RestartableWorkflow(workflow.workflowId, workflow.wdlSource, jsonInputs.get)
 
     val num = restartableWorkflows.length
     val displayNum = if (num == 0) "no" else num
@@ -128,12 +130,10 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
     log.info(s"Found $displayNum workflow$plural to restart.")
 
     if (num > 0) {
-      val ids = restartableWorkflows.map { _._1.workflowId.toString }.sorted
+      val ids = restartableWorkflows.map { _.id.toString }.sorted
       log.info(s"Starting workflow ID$plural: " + ids.mkString(", "))
     }
 
-    restartableWorkflows foreach { case (workflow, jsonInputs) =>
-      submitWorkflow(workflow.wdlSource, jsonInputs, workflow.workflowId)
-    }
+    restartableWorkflows foreach { w => submitWorkflow(w.source, w.inputs, w.id) }
   }
 }

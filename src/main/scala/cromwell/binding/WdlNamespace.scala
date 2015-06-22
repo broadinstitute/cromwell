@@ -6,10 +6,10 @@ import cromwell.binding.WdlNamespace.ImportResolver
 import cromwell.binding.command._
 import cromwell.binding.types._
 import cromwell.binding.values.WdlValue
-import cromwell.parser.WdlParser
+import cromwell.parser.{AstTools, WdlParser}
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
-import cromwell.binding.AstTools.EnhancedAstNode
+import AstTools.EnhancedAstNode
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps

@@ -1,10 +1,12 @@
-package cromwell.binding
+package cromwell.parser
 
 import java.io.File
-import scala.collection.JavaConverters._
-import cromwell.parser.WdlParser
-import cromwell.parser.WdlParser.{AstList, AstNode, Ast, Terminal}
+
+import cromwell.binding._
+import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import cromwell.util.FileUtil
+
+import scala.collection.JavaConverters._
 
 object AstTools {
   implicit class EnhancedAstNode(val ast: AstNode) extends AnyVal {

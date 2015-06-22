@@ -1,5 +1,6 @@
 package cromwell.binding
 
+import cromwell.parser.AstTools
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 

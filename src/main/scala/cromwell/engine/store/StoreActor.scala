@@ -17,8 +17,23 @@ import StoreActor._
 object StoreActor {
   case class InitialStore(symbolStore: Set[SymbolStoreEntry], executionStore: Set[CallInfo])
 
-  def props(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: InitialStore) = {
-    Props(new StoreActor(namespace, hostInputs, initialStore))
+  /** Creates a StoreActor from previous data */
+  def props(namespace: WdlNamespace, initialStore: InitialStore): Props = {
+    Props(new StoreActor(namespace, SymbolStore(initialStore.symbolStore), ExecutionStore(namespace, initialStore.executionStore)))
+  }
+
+  /** Constructs a StoreActor from scratch */
+  def props(namespace: WdlNamespace, hostInputs: HostInputs): Props = {
+    Props(new StoreActor(namespace, SymbolStore(namespace, hostInputs), ExecutionStore(namespace)))
+  }
+
+  /**
+   * If initialStore is defined uses that otherwise hostInputs. Never uses information from both arguments.
+   *
+   * FIXME: Perhaps the two args should be an Either?
+   */
+  def props(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: Option[InitialStore]): Props =  {
+    initialStore map {props(namespace, _)} getOrElse props(namespace, hostInputs)
   }
 
   sealed trait StoreActorMessage
@@ -32,9 +47,9 @@ object StoreActor {
 /**
  * Actor to hold symbol and execution status data for a single workflow.  This actor
  * guards mutable state over the symbol and execution stores. */
- class StoreActor(namespace: WdlNamespace, hostInputs: HostInputs, initialStore: InitialStore) extends Actor with CromwellActor {
-  private val symbolStore = new SymbolStore(namespace, hostInputs, initialStore.symbolStore)
-  private val executionStore = ExecutionStore(namespace, initialStore.executionStore)
+ class StoreActor(namespace: WdlNamespace,
+                  private val symbolStore: SymbolStore,
+                  private val executionStore: ExecutionStore) extends Actor with CromwellActor {
   private val log = Logging(context.system, this)
 
   override def receive: Receive = LoggingReceive {

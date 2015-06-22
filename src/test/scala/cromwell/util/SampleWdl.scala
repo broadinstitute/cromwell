@@ -27,6 +27,28 @@ object SampleWdl {
     val JsonInputs = s""" { "$Addressee" : "world" } """
   }
 
+  object SubtractionWorkflow {
+    val WdlSource =
+      """
+        |task a {
+        |  command { echo '${message}' }
+        |  output {
+        |    String message = read_string(stdout())
+        |    Int constant = 100
+        |  }
+        |}
+        |task b {
+        |  command { echo '${message} - ${Int integer}' }
+        |}
+        |workflow wf {
+        |  call a
+        |  call b {
+        |    input: message=a.message, integer=a.constant - 75
+        |  }
+        |}
+      """.stripMargin
+  }
+
   object ThreeStep {
       val WdlSource =
         """

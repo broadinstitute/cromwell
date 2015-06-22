@@ -15,6 +15,7 @@ import cromwell.{CromwellTestkitSpec, binding}
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
 
   "An ActorWorkflowManager" should {
+
     "run the Hello World workflow" in {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(DummyDataAccess()), self, "Test the WorkflowManagerActor")
 
@@ -30,24 +31,13 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       val actual = outputs.map { case (k, WdlString(string)) => k -> string }
       actual shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
     }
-  }
 
-  it should {
     "Not try to restart any workflows when there are no workflows in restartable states" in {
       waitForPattern("Found no workflows to restart.") {
         TestActorRef(WorkflowManagerActor.props(DummyDataAccess()), self, "No workflows")
       }
     }
-  }
 
-  def result(workflowState: WorkflowState,
-             wdlSource: String = SampleWdl.HelloWorld.WdlSource,
-             wdlInputs: String = SampleWdl.HelloWorld.JsonInputs): QueryWorkflowExecutionResult = {
-    QueryWorkflowExecutionResult(
-      UUID.randomUUID(), "http://wdl.me", workflowState, Calendar.getInstance().getTime, None, Set.empty, Set.empty, wdlSource, wdlInputs)
-  }
-
-  "An WorkflowManagerActor" should {
     "Try to restart workflows when there are workflows in restartable states" in {
       val workflows = Seq(result(WorkflowSubmitted), result(WorkflowRunning))
       val ids = workflows.map { _.workflowId.toString }.sorted
@@ -62,5 +52,12 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         }
       }
     }
+  }
+
+  def result(workflowState: WorkflowState,
+             wdlSource: String = SampleWdl.HelloWorld.WdlSource,
+             wdlInputs: String = SampleWdl.HelloWorld.JsonInputs): QueryWorkflowExecutionResult = {
+    QueryWorkflowExecutionResult(
+      UUID.randomUUID(), "http://wdl.me", workflowState, Calendar.getInstance().getTime, None, Set.empty, Set.empty, wdlSource, wdlInputs)
   }
 }

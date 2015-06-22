@@ -46,7 +46,7 @@ class HelloWorldActorSpec extends CromwellTestkitSpec("HelloWorldActorSpec") {
       val descriptor = WorkflowDescriptor(namespace, coercedInputs)
       val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
       assert(fsm.stateName == WorkflowSubmitted)
-      startingCallsFilter("hello").intercept {
+      startingCallsFilter("hello") {
         fsm ! Start
         within(TestExecutionTimeout) {
           awaitCond(fsm.stateName == WorkflowRunning)

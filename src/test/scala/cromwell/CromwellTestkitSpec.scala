@@ -30,8 +30,8 @@ object CromwellTestkitSpec {
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures {
 
-  def startingCallsFilter(callNames: String*): EventFilter =
-    EventFilter.info(message = s"Starting calls: ${callNames.mkString(", ")}", occurrences = 1)
+  def startingCallsFilter[T](callNames: String*)(block: => T): T =
+    waitForPattern(s"^Starting calls: ${callNames.mkString(", ")}$$")(block)
 
   def waitForHandledMessage[T](named: String)(block: => T): T = {
     waitForHandledMessagePattern(s"^received handled message $named")(block)
@@ -63,7 +63,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
    * Wait for exactly one occurrence of the specified pattern in the specified block.  The block
    * is in its own parameter list for usage syntax reasons.
    */
-  def waitForPattern(pattern: String)(block: => Unit): Unit = {
+  def waitForPattern[T](pattern: String)(block: => T): T = {
     EventFilter.info(pattern = pattern, occurrences = 1).intercept {
       block
     }

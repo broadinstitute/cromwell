@@ -1,9 +1,17 @@
 package cromwell.engine.db.slick
 
 import java.sql.Timestamp
-import java.util.UUID
+import java.util.{Date, UUID}
 
+import cromwell.binding.command.Command
+import cromwell.binding.{Task, Call}
+import cromwell.binding.types.WdlStringType
+import cromwell.binding.values.WdlString
+import cromwell.engine.db.LocalCallInfo
+import cromwell.engine.{WorkflowRunning, WorkflowSubmitted}
 import cromwell.engine.store.ExecutionStore.ExecutionStatus
+import cromwell.engine.store.SymbolStore.SymbolStoreKey
+import cromwell.engine.store.SymbolStoreEntry
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -11,10 +19,101 @@ import scala.concurrent.Future
 
 class DataAccessControllerSpec extends FlatSpec with Matchers with ScalaFutures {
   SlickTestDatabase.checkInitialized()
+
   import DataAccessController.dataAccess.driver.api._
 
   "DataAccessController" should "access the database" in {
     DataAccessController.database.close()
+  }
+
+  val workflowIdForCreate = UUID.randomUUID()
+
+  it should "create a workflow for just reading" in {
+    val key = new SymbolStoreKey("myScope", "myName", None, true)
+    val entries = Seq(new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue"))))
+    DataAccessController.createWorkflow(workflowIdForCreate, "createUri", entries)
+  }
+
+  it should "retrieve the workflow for just reading" in {
+    val results = DataAccessController.query(workflowId = Some(Seq(workflowIdForCreate)))
+    results.size should be(1)
+
+    val workflowResult = results.head
+    workflowResult.state should be(WorkflowSubmitted)
+    workflowResult.wdlUri should be("createUri")
+    workflowResult.startTime.getTime should be(new Date().getTime +- (60 * 1000L))
+    workflowResult.endTime should be(empty)
+    //workflowResult.wdlSource should be(???)
+    //workflowResult.wdlRawInputs should be(???)
+
+    val resultCalls = workflowResult.calls
+    resultCalls should be(empty)
+
+    val resultSymbols = workflowResult.symbols
+    resultSymbols.size should be(1)
+    val resultSymbol = resultSymbols.head
+    val resultSymbolStoreKey = resultSymbol.key
+    resultSymbolStoreKey.scope should be("myScope")
+    resultSymbolStoreKey.name should be("myName")
+    resultSymbolStoreKey.iteration should be(None)
+    resultSymbolStoreKey.input should be(right = true) // Inteillj highlighting
+    resultSymbol.wdlType should be(WdlStringType)
+    resultSymbol.wdlValue shouldNot be(empty)
+    resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
+  }
+
+  it should "update a workflow state" in {
+    val workflowId = UUID.randomUUID()
+    val key = new SymbolStoreKey("myScope", "myName", None, true)
+    val entries = Seq(new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue"))))
+    DataAccessController.createWorkflow(workflowId, "createUri", entries)
+    DataAccessController.updateWorkflow(workflowId, WorkflowRunning)
+    val results = DataAccessController.query(workflowId = Some(Seq(workflowId)))
+    results.size should be(1)
+    results.head.state should be(WorkflowRunning)
+  }
+
+  it should "add and update a workflow call" in {
+    val workflowId = UUID.randomUUID()
+    val key = new SymbolStoreKey("myScope", "myName", None, true)
+    val entries = Seq(new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue"))))
+    val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
+    val call = new Call(None, "fully.qualified.name", task, Map.empty, null)
+
+    DataAccessController.createWorkflow(workflowId, "createUri", entries)
+    DataAccessController.updateWorkflow(workflowId, WorkflowRunning)
+
+    val callInfoInsert = new LocalCallInfo(call.fullyQualifiedName, ExecutionStatus.NotStarted, -1, "test command", -1)
+    DataAccessController.updateCall(workflowId, call, None, Option(callInfoInsert), None)
+    val insertResults = DataAccessController.query(workflowId = Some(Seq(workflowId)))
+    insertResults.size should be(1)
+    insertResults.head.state should be(WorkflowRunning)
+    val insertResultCalls = insertResults.head.calls
+    insertResultCalls.size should be(1)
+    val insertResultCall = insertResultCalls.toSeq.head
+    insertResultCall should be (a [LocalCallInfo])
+    val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallInfo]
+    insertResultLocalCall.callFqn should be("fully.qualified.name")
+    insertResultLocalCall.status should be(ExecutionStatus.NotStarted)
+    insertResultLocalCall.processId should be(-1)
+    insertResultLocalCall.command should be("test command")
+    insertResultLocalCall.resultCode should be(-1)
+
+    val callInfoUpdate = new LocalCallInfo(call.fullyQualifiedName, ExecutionStatus.Running, 123, "test updated", 1234)
+    DataAccessController.updateCall(workflowId, call, None, Option(callInfoUpdate), None)
+    val updateResults = DataAccessController.query(workflowId = Some(Seq(workflowId)))
+    updateResults.size should be(1)
+    updateResults.head.state should be(WorkflowRunning)
+    val updateResultCalls = updateResults.head.calls
+    updateResultCalls.size should be(1)
+    val updateResultCall = updateResultCalls.toSeq.head
+    updateResultCall should be (a [LocalCallInfo])
+    val updateResultLocalCall = updateResultCall.asInstanceOf[LocalCallInfo]
+    updateResultLocalCall.callFqn should be("fully.qualified.name")
+    updateResultLocalCall.status should be(ExecutionStatus.Running)
+    updateResultLocalCall.processId should be(123)
+    updateResultLocalCall.command should be("test updated")
+    updateResultLocalCall.resultCode should be(1234)
   }
 
   var workflowExecutionId: Option[Int] = None

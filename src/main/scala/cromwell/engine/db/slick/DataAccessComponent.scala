@@ -10,7 +10,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with JesJobComponent
   with LocalJobComponent
   with SymbolComponent
-  with WorkflowExecutionComponent {
+  with WorkflowExecutionComponent
+  with WorkflowExecutionAuxComponent {
 
   import driver.api._
 
@@ -20,6 +21,10 @@ class DataAccessComponent(val driver: JdbcProfile)
 
   def insertWorkflowExecution(workflowExecution: WorkflowExecution): DBIO[WorkflowExecution] = {
     workflowExecutionsAutoInc += workflowExecution
+  }
+
+  def insertWorkflowExecutionAux(workflowExecutionAux: WorkflowExecutionAux): DBIO[WorkflowExecutionAux] = {
+    workflowExecutionAuxesAutoInc += workflowExecutionAux
   }
 
   def insertSymbols(symbols: Seq[Symbol]): DBIO[Seq[Symbol]] = {

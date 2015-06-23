@@ -9,4 +9,4 @@ import cromwell.engine.{WorkflowId, WorkflowState}
 case class QueryWorkflowExecutionResult(workflowId: WorkflowId, wdlUri: String, state: WorkflowState,
                                         startTime: Date, endTime: Option[Date],
                                         calls: Set[CallInfo], symbols: Set[SymbolStoreEntry],
-                                        wdlSource: WdlSource, wdlRawInputs: String)
+                                        wdlSource: WdlSource, jsonInputs: String)

@@ -3,14 +3,15 @@ package cromwell.server
 import java.io.File
 
 import akka.io.IO
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import com.wordnik.swagger.model.ApiInfo
-import cromwell.engine.db.{DataAccess, RealDataAccess}
-import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.webservice.{CromwellApiServiceActor, CromwellApiService, SwaggerService}
+import cromwell.engine.db.DataAccess
+import cromwell.engine.db.slick.DataAccessController
+import cromwell.webservice.{CromwellApiService, CromwellApiServiceActor, SwaggerService}
 import spray.can.Http
+
 import scala.concurrent.duration._
 import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success}
@@ -18,7 +19,7 @@ import scala.util.{Failure, Success}
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer extends WorkflowManagerSystem {
   val conf = ConfigFactory.parseFile(new File("/etc/cromwell.conf"))
-  private lazy val realDataAccess = new RealDataAccess
+  private lazy val realDataAccess = DataAccessController
 
   val swaggerConfig = conf.getConfig("swagger")
   val swaggerService = new SwaggerService(

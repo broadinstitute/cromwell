@@ -2,14 +2,14 @@ package cromwell.engine.db
 
 import java.util.Date
 
-import cromwell.binding.Call
+import cromwell.binding.{Call, WdlSource}
 import cromwell.engine.store.SymbolStoreEntry
 import cromwell.engine.{WorkflowId, WorkflowState}
 
 trait DataAccess {
   // Will stamp the start_dt column with DateTime.Now.
   // Will stamp the WorkflowState as Submitted.
-  def createWorkflow(id: WorkflowId, wdlUri: String, symbols: Seq[SymbolStoreEntry]): Unit
+  def createWorkflow(id: WorkflowId, wdlUri: String, wdlSource: WdlSource, jsonInputs: String, symbols: Seq[SymbolStoreEntry]): Unit
 
   def updateWorkflow(id: WorkflowId, state: WorkflowState): Unit
 

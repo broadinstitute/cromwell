@@ -106,7 +106,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
     // If the clob inputs for this workflow can be converted to JSON, return the JSON
     // version of those inputs in a Some().  Otherwise return None.
     def clobToJsonInputs(result: QueryWorkflowExecutionResult): Option[binding.WorkflowRawInputs] = {
-      result.wdlRawInputs.parseJson match {
+      result.jsonInputs.parseJson match {
         case JsObject(rawInputs) => Option(rawInputs)
         case x =>
           log.error(s"Error restarting workflow ${result.workflowId}: expected JSON inputs, got '$x'.")

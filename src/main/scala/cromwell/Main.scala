@@ -5,7 +5,7 @@ import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
-import cromwell.engine.db.{DataAccess, RealDataAccess}
+import cromwell.engine.db.slick.DataAccessController
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
@@ -67,9 +67,8 @@ object Main extends App {
         case _ => throw new RuntimeException("Expecting a JSON object")
       }
 
-      lazy val realDataAccess = new RealDataAccess
       val workflowManagerSystem = new WorkflowManagerSystem {
-        override def dataAccess = realDataAccess
+        override def dataAccess = DataAccessController
       }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdl, inputs, workflowManagerSystem.workflowManagerActor)
       val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)

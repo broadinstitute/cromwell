@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+    <changeSet author="scottfrazer" id="db_schema_other_table_alldb">
+        <createTable tableName="WORKFLOW_EXECUTION">
+            <column autoIncrement="true" name="WORKFLOW_EXECUTION_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_EXECUTION"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WDL_URI" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STATUS" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="START_DT" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="END_DT" type="datetime"/>
+        </createTable>
+
+        <createTable tableName="EXECUTION">
+            <column autoIncrement="true" name="EXECUTION_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_EXECUTION"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FQN" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STATUS" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="JES_JOB">
+            <column autoIncrement="true" name="JES_JOB_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_JES_JOB"/>
+            </column>
+            <column name="EXECUTION_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JES_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JES_STATUS" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="LOCAL_JOB">
+            <column autoIncrement="true" name="LOCAL_JOB_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_LOCAL_JOB"/>
+            </column>
+            <column name="EXECUTION_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="COMMAND" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="RC" type="INT"/>
+        </createTable>
+
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet id="db_schema_symbol_table_mysql" author="scottfrazer" dbms="mysql">
+        <createTable tableName="SYMBOL">
+            <column autoIncrement="true" name="SYMBOL_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_SYMBOL"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SCOPE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="NAME" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ITERATION" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="IO" type="ENUM('INPUT', 'OUTPUT')">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WDL_TYPE" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WDL_VALUE" type="TEXT"/>
+        </createTable>
+
+        <modifySql>
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet id="db_schema_symbol_table_otherdb" author="scottfrazer" dbms="!mysql">
+        <createTable tableName="SYMBOL">
+            <column autoIncrement="true" name="SYMBOL_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_SYMBOL"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SCOPE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="NAME" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ITERATION" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="IO" type="VARCHAR(6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WDL_TYPE" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WDL_VALUE" type="TEXT"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="scottfrazer" id="db_schema_constraints">
+        <createIndex indexName="STATUS_IDX"
+                     tableName="WORKFLOW_EXECUTION" unique="false">
+            <column name="STATUS"/>
+        </createIndex>
+
+        <addForeignKeyConstraint constraintName="FK_SYMBOL_WORKFLOW_EXECUTION_ID"
+                                 baseTableName="SYMBOL" baseColumnNames="WORKFLOW_EXECUTION_ID"
+                                 referencedTableName="WORKFLOW_EXECUTION"
+                                 referencedColumnNames="WORKFLOW_EXECUTION_ID"/>
+
+        <addForeignKeyConstraint constraintName="FK_EXECUTION_WORKFLOW_EXECUTION_ID"
+                                 baseTableName="EXECUTION" baseColumnNames="WORKFLOW_EXECUTION_ID"
+                                 referencedTableName="WORKFLOW_EXECUTION"
+                                 referencedColumnNames="WORKFLOW_EXECUTION_ID"/>
+
+        <addForeignKeyConstraint constraintName="FK_JES_JOB_EXECUTION_ID"
+                                 baseTableName="JES_JOB" baseColumnNames="EXECUTION_ID"
+                                 referencedTableName="EXECUTION" referencedColumnNames="EXECUTION_ID"/>
+
+        <addForeignKeyConstraint constraintName="FK_LOCAL_JOB_EXECUTION_ID"
+                                 baseTableName="LOCAL_JOB" baseColumnNames="EXECUTION_ID"
+                                 referencedTableName="EXECUTION" referencedColumnNames="EXECUTION_ID"/>
+    </changeSet>
+</databaseChangeLog>

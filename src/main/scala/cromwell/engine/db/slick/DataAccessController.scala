@@ -4,6 +4,7 @@ import java.util.{UUID, Date}
 
 import cromwell.binding.Call
 import cromwell.binding.types.WdlType
+import cromwell.binding.values.{WdlPrimitive, WdlValue}
 import cromwell.engine.db._
 import cromwell.engine.store.ExecutionStore.ExecutionStatus
 import cromwell.engine.store.SymbolStore.SymbolStoreKey
@@ -29,6 +30,15 @@ object DataAccessController extends DataAccess {
   private implicit def date2timestamp(date: java.util.Date): java.sql.Timestamp =
     new java.sql.Timestamp(date.getTime)
 
+  // WdlValues have multiple ways they coerce back. This currently decoerces for a proper round trip.
+  // TODO: Refactor into the type?
+  private def wdlValueToString(wdlValue: WdlValue) = {
+    wdlValue match {
+      case wdlPrimitive: WdlPrimitive => wdlPrimitive.asString
+      case other => other.toString
+    }
+  }
+
   // Will stamp the start_dt column with DateTime.Now.
   // Will stamp the WorkflowState as Submitted.
   override def createWorkflow(id: WorkflowId, wdlUri: String, symbols: Seq[SymbolStoreEntry]): Unit = {
@@ -42,7 +52,7 @@ object DataAccessController extends DataAccess {
             workflowExecutionInsert.workflowExecutionId.get,
             symbol.key.scope, symbol.key.name, symbol.key.iteration,
             if (symbol.isInput) "INPUT" else "OUTPUT",
-            symbol.wdlType.toWdlString, symbol.wdlValue.map(_.toString).orNull)
+            symbol.wdlType.toWdlString, symbol.wdlValue.map(wdlValueToString).orNull)
         }
       )
     } yield ()).transactionally)
@@ -54,8 +64,10 @@ object DataAccessController extends DataAccess {
                           callInfoOption: Option[CallInfo], symbolsOption: Option[Seq[SymbolStoreEntry]]): Unit = {
     val workflowExecutionSelect = dataAccess.workflowExecutions.filter(
       _.workflowExecutionUuid === workflowId.toString).result.head
+
     val callInsertsOrUpdates = callInfoOption map { callInfo =>
 
+      // Run a query to look for a call row with our FQN
       val callSelect = workflowExecutionSelect flatMap { workflowExecutionRow =>
         dataAccess.executions.filter(executionRow =>
           executionRow.workflowExecutionId === workflowExecutionRow.workflowExecutionId &&
@@ -63,7 +75,8 @@ object DataAccessController extends DataAccess {
         ).result.headOption
       }
 
-      callSelect map {
+      // Check the query, and return a return inserts or updates
+      callSelect flatMap {
 
         case Some(executionRow) =>
           // The select found an existing execution row. Do updates.
@@ -82,30 +95,28 @@ object DataAccessController extends DataAccess {
               columns.update(localCallInfo.processId, localCallInfo.command, localCallInfo.resultCode)
           }
 
-          Seq(executionUpdate, callUpdate)
+          DBIO.seq(executionUpdate, callUpdate)
 
         case None =>
-          // The select found no existing execution row. Do inserts.
-          workflowExecutionSelect map { workflowExecution =>
-            val executionInsert = dataAccess.executionsAutoInc += new Execution(
+          for {
+            workflowExecution <- workflowExecutionSelect
+            executionInsert <- dataAccess.executionsAutoInc += new Execution(
               workflowExecution.workflowExecutionId.get, call.taskFqn, callInfo.status.toString)
-
-            val callInsert = executionInsert map { executionRow =>
-              callInfo match {
-                case jesCallInfo: JesCallInfo =>
-                  dataAccess.jesJobsAutoInc += new JesJob(
-                    executionRow.executionId.get,
-                    jesCallInfo.jesId, jesCallInfo.jesStatus)
-                case localCallInfo: LocalCallInfo =>
-                  dataAccess.localJobsAutoInc += new LocalJob(
-                    executionRow.executionId.get,
-                    localCallInfo.processId, localCallInfo.command, localCallInfo.resultCode)
-              }
+            localCallInfo = callInfo.asInstanceOf[LocalCallInfo]
+            callInsert <- callInfo match {
+              case jesCallInfo: JesCallInfo =>
+                dataAccess.jesJobsAutoInc += new JesJob(
+                  executionInsert.executionId.get,
+                  jesCallInfo.jesId, jesCallInfo.jesStatus)
+              case localCallInfo: LocalCallInfo =>
+                dataAccess.localJobsAutoInc += new LocalJob(
+                  executionInsert.executionId.get,
+                  localCallInfo.processId, localCallInfo.command, localCallInfo.resultCode)
             }
+          } yield (executionInsert, callInsert)
 
-            Seq(executionInsert, callInsert)
-          }
-      }
+      } // callSelect flatMap
+
     }
 
     val symbolInsertOrUpdates = symbolsOption map {
@@ -126,14 +137,14 @@ object DataAccessController extends DataAccess {
             // Select found a row. Update.
             val query = dataAccess.symbols.filter(_.symbolId === symbolRow.symbolId)
             val columns = query.map(_.wdlValue) // NOTE: Not allowing updating of the type, just the value
-            columns.update(symbol.wdlValue.map(_.toString).orNull)
+            columns.update(symbol.wdlValue.map(wdlValueToString).orNull)
           case None =>
             // Select did not find a row. Insert.
             workflowExecutionSelect flatMap { workflowExecutionRow =>
               dataAccess.symbolsAutoInc += new Symbol(workflowExecutionRow.workflowExecutionId.get,
                 symbol.key.scope, symbol.key.name, symbol.key.iteration,
                 if (symbol.isInput) "INPUT" else "OUTPUT",
-                symbol.wdlType.toString, symbol.wdlValue.map(_.toString).orNull)
+                symbol.wdlType.toString, symbol.wdlValue.map(wdlValueToString).orNull)
             }
         }
 

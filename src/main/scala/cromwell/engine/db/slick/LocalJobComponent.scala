@@ -19,7 +19,7 @@ trait LocalJobComponent {
 
     def executionId = column[Int]("EXECUTION_ID")
 
-    def pid = column[Int]("LOCAL_ID")
+    def pid = column[Int]("PID")
 
     def command = column[String]("COMMAND")
 

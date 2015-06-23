@@ -5,4 +5,5 @@
 
     <include file="changesets/db_schema.xml" relativeToChangelogFile="true" />
     <include file="changesets/symbol_iteration_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/wdl_and_inputs.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

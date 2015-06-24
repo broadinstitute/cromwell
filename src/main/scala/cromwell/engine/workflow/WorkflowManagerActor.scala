@@ -1,32 +1,37 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
 import java.util.UUID
-import akka.actor.FSM.{Transition, CurrentState, SubscribeTransitionCallBack}
+
+import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
-import akka.event.LoggingReceive
+import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
 import cromwell.binding
-import cromwell.binding.{WorkflowDescriptor, WdlNamespace, WdlSource}
-import cromwell.engine.WorkflowActor._
+import cromwell.binding.{WdlNamespace, WdlSource, WorkflowDescriptor}
+import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.db.{DataAccess, QueryWorkflowExecutionResult}
+import cromwell.engine.workflow.WorkflowActor.{GetOutputs, Start}
 import cromwell.util.WriteOnceStore
-import scala.language.postfixOps
+import spray.json._
+
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.language.postfixOps
 
 
 object WorkflowManagerActor {
   class WorkflowNotFoundException extends RuntimeException
 
-  sealed trait ActorWorkflowManagerMessage
-  case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends ActorWorkflowManagerMessage
-  case class WorkflowStatus(id: WorkflowId) extends ActorWorkflowManagerMessage
-  case class WorkflowOutputs(id: WorkflowId) extends ActorWorkflowManagerMessage
-  case object Shutdown extends ActorWorkflowManagerMessage
-  case class SubscribeToWorkflow(id: WorkflowId) extends ActorWorkflowManagerMessage
+  sealed trait WorkflowManagerActorMessage
+  case class SubmitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs) extends WorkflowManagerActorMessage
+  case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
+  case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
+  case object Shutdown extends WorkflowManagerActorMessage
+  case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
 
-  def props: Props = Props(classOf[WorkflowManagerActor])
+  def props(dataAccess: DataAccess): Props = Props(new WorkflowManagerActor(dataAccess))
 }
 
 /**
@@ -36,8 +41,9 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor extends Actor with CromwellActor {
+class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellActor {
   import WorkflowManagerActor._
+  private val log = Logging(context.system, this)
 
   type WorkflowActorRef = ActorRef
 
@@ -45,6 +51,10 @@ class WorkflowManagerActor extends Actor with CromwellActor {
   private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
   // This *should* be persisted
   private val workflowStates = TrieMap.empty[WorkflowId, WorkflowState]
+
+  override def preStart() {
+    restartIncompleteWorkflows()
+  }
 
   def receive = LoggingReceive {
     case SubmitWorkflow(wdl, inputs) => submitWorkflow(wdl, inputs) pipeTo sender
@@ -69,8 +79,7 @@ class WorkflowManagerActor extends Actor with CromwellActor {
   /**
    * Processes input WDL, creates and starts a workflow actor, inserts it into the store and returns its ID.
    */
-  private def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs): Future[WorkflowId] = {
-    val workflowId = UUID.randomUUID()
+  def submitWorkflow(wdl: WdlSource, inputs: binding.WorkflowRawInputs, workflowId: UUID = UUID.randomUUID()): Future[WorkflowId] = {
     for {
       namespace <- Future(WdlNamespace.load(wdl))
       coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
@@ -91,5 +100,40 @@ class WorkflowManagerActor extends Actor with CromwellActor {
 
   private def idByWorkflow(workflow: WorkflowActorRef): Option[WorkflowId] = {
     workflowStore.toMap collectFirst {case (k, v) if v == workflow => k}
+  }
+
+  private def restartIncompleteWorkflows(): Unit = {
+    // If the clob inputs for this workflow can be converted to JSON, return the JSON
+    // version of those inputs in a Some().  Otherwise return None.
+    def clobToJsonInputs(result: QueryWorkflowExecutionResult): Option[binding.WorkflowRawInputs] = {
+      result.jsonInputs.parseJson match {
+        case JsObject(rawInputs) => Option(rawInputs)
+        case x =>
+          log.error(s"Error restarting workflow ${result.workflowId}: expected JSON inputs, got '$x'.")
+          None
+      }
+    }
+    val restartableStates = Some(Seq(WorkflowSubmitted, WorkflowRunning))
+    // Attempt to restart all the workflows in restartable states whose clob raw inputs
+    // can successfully be converted to JSON.
+    case class RestartableWorkflow(id: WorkflowId, source: WdlSource, inputs: binding.WorkflowRawInputs)
+
+    val restartableWorkflows = for {
+      workflow <- dataAccess.query(states = restartableStates)
+      jsonInputs = clobToJsonInputs(workflow)
+      if jsonInputs.isDefined
+    } yield RestartableWorkflow(workflow.workflowId, workflow.wdlSource, jsonInputs.get)
+
+    val num = restartableWorkflows.length
+    val displayNum = if (num == 0) "no" else num
+    val plural = if (num == 1) "" else "s"
+    log.info(s"Found $displayNum workflow$plural to restart.")
+
+    if (num > 0) {
+      val ids = restartableWorkflows.map { _.id.toString }.sorted
+      log.info(s"Starting workflow ID$plural: " + ids.mkString(", "))
+    }
+
+    restartableWorkflows foreach { w => submitWorkflow(w.source, w.inputs, w.id) }
   }
 }

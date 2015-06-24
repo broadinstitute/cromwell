@@ -4,14 +4,13 @@ import java.io.File
 import java.nio.file.Paths
 
 import cromwell.binding._
-import cromwell.engine.{WorkflowManagerActor, SingleWorkflowRunnerActor}
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
+import cromwell.engine.db.slick.DataAccessController
+import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.WdlParser.SyntaxError
-import cromwell.server.{WorkflowManagerSystem, CromwellServer}
+import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil
 import spray.json._
-
-import scala.util.{Failure, Success}
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -68,7 +67,9 @@ object Main extends App {
         case _ => throw new RuntimeException("Expecting a JSON object")
       }
 
-      val workflowManagerSystem = new WorkflowManagerSystem {}
+      val workflowManagerSystem = new WorkflowManagerSystem {
+        override def dataAccess = DataAccessController
+      }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdl, inputs, workflowManagerSystem.workflowManagerActor)
       val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
       // And now we just wait for the magic to happen

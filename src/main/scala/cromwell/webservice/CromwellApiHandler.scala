@@ -4,7 +4,8 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding.{WdlSource, WorkflowRawInputs}
-import cromwell.engine.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.WorkflowManagerActor
+import WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine._
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.webservice.CromwellApiHandler._

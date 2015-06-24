@@ -2,15 +2,13 @@ package cromwell
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
-import akka.testkit._
 import akka.pattern.ask
-import com.typesafe.config.ConfigFactory
-import cromwell.HelloWorldActorSpec._
+import akka.testkit._
 import cromwell.binding.values.WdlString
 import cromwell.binding.{WorkflowDescriptor, WorkflowOutputs, UnsatisfiedInputsException, WdlNamespace}
 import cromwell.engine._
-import cromwell.engine.WorkflowActor._
+import cromwell.engine.workflow.WorkflowActor
+import WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.util.SampleWdl.HelloWorld.Addressee
@@ -19,19 +17,9 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object HelloWorldActorSpec {
-  val Config =
-    """
-      |akka {
-      |  loggers = ["akka.testkit.TestEventListener"]
-      |  loglevel = "DEBUG"
-      |  actor.debug.receive = on
-      |}
-    """.stripMargin
-}
 
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
-class HelloWorldActorSpec extends CromwellTestkitSpec(ActorSystem("HelloWorldActorSpec", ConfigFactory.parseString(Config))) {
+class HelloWorldActorSpec extends CromwellTestkitSpec("HelloWorldActorSpec") {
   private def buildWorkflowActor(name: String = UUID.randomUUID().toString,
                          rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
     val namespace = WdlNamespace.load(HelloWorld.WdlSource)
@@ -58,7 +46,7 @@ class HelloWorldActorSpec extends CromwellTestkitSpec(ActorSystem("HelloWorldAct
       val descriptor = WorkflowDescriptor(namespace, coercedInputs)
       val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
       assert(fsm.stateName == WorkflowSubmitted)
-      startingCallsFilter("hello").intercept {
+      startingCallsFilter("hello") {
         fsm ! Start
         within(TestExecutionTimeout) {
           awaitCond(fsm.stateName == WorkflowRunning)

@@ -1,10 +1,15 @@
-package cromwell.engine
+package cromwell.engine.workflow
 
-import akka.actor.{FSM, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.pattern.{ask, pipe}
 import cromwell.binding._
-import cromwell.engine.WorkflowActor._
+import cromwell.engine._
 import cromwell.engine.backend.Backend
+import cromwell.engine.db.CallInfo
+import cromwell.engine.store.ExecutionStore.ExecutionStatus
+import cromwell.engine.store.StoreActor.InitialStore
+import cromwell.engine.store.{StoreActor, SymbolStoreEntry}
+import cromwell.engine.workflow.WorkflowActor._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
@@ -20,16 +25,20 @@ object WorkflowActor {
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
   case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
-  def props(descriptor: WorkflowDescriptor, backend: Backend) = Props(new WorkflowActor(descriptor, backend))
+  def props(descriptor: WorkflowDescriptor, backend: Backend, initialStore: Option[InitialStore] = None): Props = {
+    Props(WorkflowActor(descriptor, backend, initialStore))
+  }
 
   sealed trait WorkflowFailure
   case object NoFailureMessage extends WorkflowFailure
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 }
 
-case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
-
-  private val storeActor = context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow)))
+case class WorkflowActor(workflow: WorkflowDescriptor,
+                         backend: Backend,
+                         initialStore: Option[InitialStore] = None)
+  extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
+  private val storeActor = createStoreActor
 
   startWith(WorkflowSubmitted, NoFailureMessage)
 
@@ -83,5 +92,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend) extends
   private def startCallActor(call: Call): Unit = {
     val callActorProps = CallActor.props(call, backend, workflow, storeActor, "CallActor-" + call.name)
     context.actorOf(callActorProps) ! CallActor.Start
+  }
+
+  private def createStoreActor: ActorRef = {
+    context.actorOf(StoreActor.props(workflow.namespace, backend.initializeForWorkflow(workflow), initialStore))
   }
 }

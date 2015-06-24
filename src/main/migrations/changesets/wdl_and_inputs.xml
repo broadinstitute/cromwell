@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
+    <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+
+    <changeSet author="mcovarr" id="WORKFLOW_EXECUTION_AUX">
+        <comment>
+            Auxiliary data related to a workflow execution not stored with the workflow execution itself
+            for size reasons.
+        </comment>
+        <createTable tableName="WORKFLOW_EXECUTION_AUX">
+            <column autoIncrement="true" name="WORKFLOW_EXECUTION_AUX_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_WE_AUX"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_ID" type="INT"/>
+            <column name="WDL_SOURCE" type="${clob.type}"/>
+            <column name="JSON_INPUTS" type="${clob.type}"/>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="WE_AUX_CONSTRAINTS">
+        <comment>
+            This adds:
+            A foreign key constraint from WORKFLOW_EXECUTION_ID to WORKFLOW_EXECUTION.WORKFLOW_EXECUTION_ID.
+            A unique constraint on WORKFLOW_EXECUTION_ID as WORKFLOW_EXECUTION_AUX is one-to-one with WORKFLOW_EXECUTION.
+        </comment>
+        <addForeignKeyConstraint constraintName="FK_WE_AUX_WORKFLOW_EXECUTION_ID"
+                                 baseTableName="WORKFLOW_EXECUTION_AUX"
+                                 baseColumnNames="WORKFLOW_EXECUTION_ID"
+                                 referencedTableName="WORKFLOW_EXECUTION"
+                                 referencedColumnNames="WORKFLOW_EXECUTION_ID"/>
+
+        <addUniqueConstraint constraintName="UK_WE_AUX_WORKFLOW_EXECUTION_ID"
+                             tableName="WORKFLOW_EXECUTION_AUX"
+                             columnNames="WORKFLOW_EXECUTION_ID" />
+     </changeSet>
+
+</databaseChangeLog>

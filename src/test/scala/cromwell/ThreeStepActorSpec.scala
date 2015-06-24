@@ -2,76 +2,23 @@ package cromwell
 
 import java.io.{File, FileWriter}
 
-import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.TestFSMRef
-import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DockerTest
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
-import cromwell.engine.WorkflowActor._
+import cromwell.engine.workflow.WorkflowActor
+import WorkflowActor._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.util.SampleWdl
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+
 object ThreeStepActorSpec {
-  val Config =
-    """
-      |akka {
-      |  loggers = ["akka.testkit.TestEventListener"]
-      |  loglevel = "DEBUG"
-      |  actor.debug.receive = on
-      |}
-    """.stripMargin
-
-  def wdlSource(runtime: String): WdlSource =
-    """
-      |task ps {
-      |  command {
-      |    cat ${File dummy_ps_file}
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |  RUNTIME
-      |}
-      |
-      |task cgrep {
-      |  command {
-      |    grep '${pattern}' ${File in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |  RUNTIME
-      |}
-      |
-      |task wc {
-      |  command {
-      |    cat ${File in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |  RUNTIME
-      |}
-      |
-      |workflow three_step {
-      |  call ps
-      |  call ps as ps2
-      |  call ps as ps3
-      |  call cgrep {
-      |    input: in_file=ps.procs
-      |  }
-      |  call wc {
-      |    input: in_file=ps.procs
-      |  }
-      |}
-    """.stripMargin.replaceAll("RUNTIME", runtime)
-
   val DummyProcessOutput =
     """
       |USER              PID  %CPU %MEM      VSZ    RSS   TT  STAT STARTED      TIME COMMAND
@@ -84,15 +31,6 @@ object ThreeStepActorSpec {
 
   val TestExecutionTimeout = 5000 milliseconds
 
-  object Inputs {
-    val Pattern = "three_step.cgrep.pattern"
-    // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
-    // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
-    val DummyPsFile = "three_step.ps.dummy_ps_file"
-    val DummyPs2File = "three_step.ps2.dummy_ps_file"
-    val DummyPs3File = "three_step.ps3.dummy_ps_file"
-  }
-
   def createDummyPsFile: File = {
     val file = File.createTempFile("dummy_ps", ".out")
     val writer = new FileWriter(file)
@@ -103,18 +41,18 @@ object ThreeStepActorSpec {
   }
 }
 
-class ThreeStepActorSpec extends CromwellTestkitSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
+class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   import ThreeStepActorSpec._
 
   private def buildWorkflowActorFsm(runtime: String) = {
-    import ThreeStepActorSpec._
+    import SampleWdl.FauxThreeStep.InputKeys._
     val workflowInputs = Map(
-      Inputs.Pattern -> "joeblaux",
-      Inputs.DummyPsFile -> createDummyPsFile.getAbsolutePath,
-      Inputs.DummyPs2File -> createDummyPsFile.getAbsolutePath,
-      Inputs.DummyPs3File -> createDummyPsFile.getAbsolutePath)
+      Pattern -> "joeblaux",
+      DummyPsFile -> createDummyPsFile.getAbsolutePath,
+      DummyPs2File -> createDummyPsFile.getAbsolutePath,
+      DummyPs3File -> createDummyPsFile.getAbsolutePath)
 
-    val namespace = WdlNamespace.load(ThreeStepActorSpec.wdlSource(runtime))
+    val namespace = WdlNamespace.load(SampleWdl.FauxThreeStep.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
     val descriptor = WorkflowDescriptor(namespace, coercedInputs)
@@ -131,7 +69,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec(ActorSystem("ThreeStepActor
   private def runAndAssertCorrectness(runtime: String = ""): Unit = {
     val fsm = buildWorkflowActorFsm(runtime)
     assert(fsm.stateName == WorkflowSubmitted)
-    startingCallsFilter("cgrep", "wc").intercept {
+    startingCallsFilter("cgrep", "wc") {
       fsm ! Start
       within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowRunning)

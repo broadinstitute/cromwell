@@ -1,0 +1,30 @@
+<configuration>
+  <if condition='property("CROMWELL_LOGGER").equals("SERVER")'>
+    <then>
+      <appender name="SERVER_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Support multiple-JVM writing to the same log file -->
+        <prudent>true</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+          <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+          <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+      </appender>
+      <root level="TRACE">
+        <appender-ref ref="SERVER_APPENDER" />
+      </root>
+    </then>
+    <else>
+      <appender name="CONSOLE_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+          <layout class="cromwell.logging.TerminalLayout" />
+        </encoder>
+      </appender>
+      <root level="INFO">
+        <appender-ref ref="CONSOLE_APPENDER" />
+      </root>
+    </else>
+  </if>
+</configuration>

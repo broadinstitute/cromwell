@@ -2,13 +2,13 @@ package cromwell.engine.db
 
 import java.util.Date
 
-import cromwell.binding.Call
-import cromwell.engine.store.{SymbolStoreEntry, SymbolStore}
+import cromwell.binding.{Call, WdlSource}
+import cromwell.engine.store.SymbolStoreEntry
 import cromwell.engine.{WorkflowId, WorkflowState}
 
 case class DummyDataAccess() extends DataAccess {
   // Will stamp the start_dt column with DateTime.Now.
-  override def createWorkflow(id: WorkflowId, wdlUri: String, symbols: Seq[SymbolStoreEntry]): Unit = ???
+  override def createWorkflow(id: WorkflowId, wdlUri: String, wdlSource: WdlSource, jsonInputs: String, entries: Seq[SymbolStoreEntry]): Unit = ???
 
   override def updateCall(id: WorkflowId, call: Call, callStatus: Option[CallStatus], callInfo: Option[CallInfo], symbols: Option[Seq[SymbolStoreEntry]]): Unit = ???
 

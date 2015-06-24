@@ -4,14 +4,15 @@ import java.sql.Timestamp
 import java.util.{Date, UUID}
 
 import cromwell.binding.command.Command
-import cromwell.binding.{Task, Call}
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
+import cromwell.binding.{Call, Task}
 import cromwell.engine.db.LocalCallInfo
-import cromwell.engine.{WorkflowRunning, WorkflowSubmitted}
 import cromwell.engine.store.ExecutionStore.ExecutionStatus
 import cromwell.engine.store.SymbolStore.SymbolStoreKey
 import cromwell.engine.store.SymbolStoreEntry
+import cromwell.engine.{WorkflowRunning, WorkflowSubmitted}
+import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -31,23 +32,23 @@ class DataAccessControllerSpec extends FlatSpec with Matchers with ScalaFutures 
   it should "create a workflow for just reading" in {
     val key = new SymbolStoreKey("myScope", "myName", None, true)
     val entries = Seq(new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue"))))
-    DataAccessController.createWorkflow(workflowIdForCreate, "createUri", entries)
+    DataAccessController.createWorkflow(workflowIdForCreate, "createUri", HelloWorld.WdlSource, HelloWorld.JsonInputs, entries)
   }
 
   it should "retrieve the workflow for just reading" in {
     val results = DataAccessController.query(workflowId = Some(Seq(workflowIdForCreate)))
-    results.size should be(1)
+    results should have size 1
 
     val workflowResult = results.head
     workflowResult.state should be(WorkflowSubmitted)
     workflowResult.wdlUri should be("createUri")
     workflowResult.startTime.getTime should be(new Date().getTime +- (60 * 1000L))
     workflowResult.endTime should be(empty)
-    //workflowResult.wdlSource should be(???)
-    //workflowResult.wdlRawInputs should be(???)
+    workflowResult.wdlSource shouldEqual HelloWorld.WdlSource
+    workflowResult.jsonInputs shouldEqual HelloWorld.JsonInputs
 
     val resultCalls = workflowResult.calls
-    resultCalls should be(empty)
+    resultCalls shouldBe empty
 
     val resultSymbols = workflowResult.symbols
     resultSymbols.size should be(1)
@@ -56,7 +57,7 @@ class DataAccessControllerSpec extends FlatSpec with Matchers with ScalaFutures 
     resultSymbolStoreKey.scope should be("myScope")
     resultSymbolStoreKey.name should be("myName")
     resultSymbolStoreKey.iteration should be(None)
-    resultSymbolStoreKey.input should be(right = true) // Inteillj highlighting
+    resultSymbolStoreKey.input should be(right = true) // IntelliJ highlighting
     resultSymbol.wdlType should be(WdlStringType)
     resultSymbol.wdlValue shouldNot be(empty)
     resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
@@ -66,7 +67,7 @@ class DataAccessControllerSpec extends FlatSpec with Matchers with ScalaFutures 
     val workflowId = UUID.randomUUID()
     val key = new SymbolStoreKey("myScope", "myName", None, true)
     val entries = Seq(new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue"))))
-    DataAccessController.createWorkflow(workflowId, "createUri", entries)
+    DataAccessController.createWorkflow(workflowId, "createUri", HelloWorld.WdlSource, HelloWorld.JsonInputs, entries)
     DataAccessController.updateWorkflow(workflowId, WorkflowRunning)
     val results = DataAccessController.query(workflowId = Some(Seq(workflowId)))
     results.size should be(1)
@@ -80,7 +81,7 @@ class DataAccessControllerSpec extends FlatSpec with Matchers with ScalaFutures 
     val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
     val call = new Call(None, "fully.qualified.name", task, Map.empty, null)
 
-    DataAccessController.createWorkflow(workflowId, "createUri", entries)
+    DataAccessController.createWorkflow(workflowId, "createUri", HelloWorld.WdlSource, HelloWorld.JsonInputs, entries)
     DataAccessController.updateWorkflow(workflowId, WorkflowRunning)
 
     val callInfoInsert = new LocalCallInfo(call.fullyQualifiedName, ExecutionStatus.NotStarted, -1, "test command", -1)

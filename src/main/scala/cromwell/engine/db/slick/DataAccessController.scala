@@ -2,7 +2,7 @@ package cromwell.engine.db.slick
 
 import java.util.{UUID, Date}
 
-import cromwell.binding.Call
+import cromwell.binding.{WdlSource, Call}
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.{WdlPrimitive, WdlValue}
 import cromwell.engine.db._
@@ -39,9 +39,8 @@ object DataAccessController extends DataAccess {
     }
   }
 
-  // Will stamp the start_dt column with DateTime.Now.
-  // Will stamp the WorkflowState as Submitted.
-  override def createWorkflow(id: WorkflowId, wdlUri: String, symbols: Seq[SymbolStoreEntry]): Unit = {
+  /** Stamp the start_dt column with DateTime.Now, WorkflowState as Submitted. */
+  override def createWorkflow(id: WorkflowId, wdlUri: String, wdlSource: WdlSource, jsonInputs: String, symbols: Seq[SymbolStoreEntry]): Unit = {
     val insertFuture: Future[Unit] = database.run((for {
       workflowExecutionInsert <- dataAccess.insertWorkflowExecution(
         new WorkflowExecution(id.toString, wdlUri, WorkflowSubmitted.toString, new Date())
@@ -55,6 +54,9 @@ object DataAccessController extends DataAccess {
             symbol.wdlType.toWdlString, symbol.wdlValue.map(wdlValueToString).orNull)
         }
       )
+      workflowExecutionAuxInsert <- dataAccess.insertWorkflowExecutionAux(
+        WorkflowExecutionAux(workflowExecutionInsert.workflowExecutionId.get, wdlSource, jsonInputs))
+
     } yield ()).transactionally)
     // TODO: Return Future[Unit] instead of Unit?
     Await.result(insertFuture, Duration.Inf)
@@ -228,6 +230,10 @@ object DataAccessController extends DataAccess {
 
       val results = workflowExecutionRows map { workflowExecutionRow =>
 
+        val workflowExecutionAuxesQuery = dataAccess.workflowExecutionAuxes.filter(
+          _.workflowExecutionId === workflowExecutionRow.workflowExecutionId.get)
+        val workflowExecutionAuxesFuture = database.run(workflowExecutionAuxesQuery.result.transactionally)
+
         // Query all the symbol store entries
         val symbolsQuery = dataAccess.symbols.filter(
           _.workflowExecutionId === workflowExecutionRow.workflowExecutionId.get)
@@ -252,10 +258,11 @@ object DataAccessController extends DataAccess {
         val jesJobQueryFuture = database.run(jesJobQuery.result.transactionally)
 
         val rowTuples = for {
+          workflowExecutionAux <- workflowExecutionAuxesFuture
           symbols <- symbolsFuture
           jesJobs <- jesJobQueryFuture
           localJobs <- localJobQueryFuture
-        } yield (symbols, jesJobs, localJobs)
+        } yield (symbols, jesJobs, localJobs, workflowExecutionAux)
 
         rowTuples map { rowTuple =>
 
@@ -288,6 +295,8 @@ object DataAccessController extends DataAccess {
               jesJobRow.jesStatus)
           }
 
+          val workflowExecutionAux = rowTuple._4.head
+
           new QueryWorkflowExecutionResult(
             UUID.fromString(workflowExecutionRow.workflowExecutionUuid),
             workflowExecutionRow.wdlUri,
@@ -296,8 +305,8 @@ object DataAccessController extends DataAccess {
             workflowExecutionRow.endDt,
             (localJobInfos ++ jesJobInfos).toSet,
             symbolStoreEntries.toSet,
-            """{"TODO": "need wdl source"}""", // TODO: Is this in the database schema? If not, add it.
-            """{"TODO": "need wdl raw inputs"}""") // TODO: Is this in the database schema? If not, add it.
+            workflowExecutionAux.wdlSource,
+            workflowExecutionAux.jsonInputs)
         }
       }
 

@@ -19,6 +19,9 @@
             <column name="WDL_SOURCE" type="${clob.type}"/>
             <column name="JSON_INPUTS" type="${clob.type}"/>
         </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
     </changeSet>
 
     <changeSet author="mcovarr" id="WE_AUX_CONSTRAINTS">

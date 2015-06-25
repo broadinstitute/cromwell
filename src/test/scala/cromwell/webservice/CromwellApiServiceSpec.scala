@@ -32,7 +32,7 @@ object MockWorkflowManagerActor {
 class MockWorkflowManagerActor extends Actor  {
 
   def receive = {
-    case SubmitWorkflow(wdl, inputs) =>
+    case SubmitWorkflow(wdlSource, wdlJson, rawInputs) =>
       sender ! MockWorkflowManagerActor.submittedWorkflowId
 
     case WorkflowStatus(id) =>

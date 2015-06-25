@@ -7,10 +7,11 @@ import akka.testkit.TestFSMRef
 import cromwell.CromwellSpec.DockerTest
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
-import cromwell.engine.workflow.WorkflowActor
-import WorkflowActor._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.db.DummyDataAccess
+import cromwell.engine.workflow.WorkflowActor
+import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
 
 import scala.concurrent.Await
@@ -52,11 +53,15 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
       DummyPs2File -> createDummyPsFile.getAbsolutePath,
       DummyPs3File -> createDummyPsFile.getAbsolutePath)
 
+    val json = "{" +
+    workflowInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
+
     val namespace = WdlNamespace.load(SampleWdl.FauxThreeStep.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
-    val descriptor = WorkflowDescriptor(namespace, coercedInputs)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
+    val descriptor = WorkflowDescriptor(namespace, SampleWdl.FauxThreeStep.wdlSource(runtime), json, coercedInputs)
+    val dataAccess = new DummyDataAccess()
+    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
 
   private def getCounts(outputs: Map[String, WdlValue], outputFqns: String*): Seq[Int] = {

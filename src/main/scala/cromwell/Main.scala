@@ -59,8 +59,9 @@ object Main extends App {
     if (args.length != 2) usageAndExit()
 
     try {
-      val wdl = FileUtil.slurp(Paths.get(args(0)))
-      val jsValue = FileUtil.slurp(Paths.get(args(1))).parseJson
+      val wdlSource = FileUtil.slurp(Paths.get(args(0)))
+      val wdlJson = FileUtil.slurp(Paths.get(args(1)))
+      val jsValue = wdlJson.parseJson
 
       val inputs: binding.WorkflowRawInputs = jsValue match {
         case JsObject(rawInputs) => rawInputs
@@ -70,7 +71,7 @@ object Main extends App {
       val workflowManagerSystem = new WorkflowManagerSystem {
         override def dataAccess = DataAccessController
       }
-      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdl, inputs, workflowManagerSystem.workflowManagerActor)
+      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
       val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
       // And now we just wait for the magic to happen
     } catch {

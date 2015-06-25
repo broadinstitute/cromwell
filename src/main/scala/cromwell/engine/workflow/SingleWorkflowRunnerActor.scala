@@ -6,9 +6,9 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding
-import cromwell.binding.WdlSource
+import cromwell.binding.{WdlJson, WdlSource}
 import cromwell.engine._
-import cromwell.engine.workflow.WorkflowManagerActor.{SubscribeToWorkflow, WorkflowOutputs, SubmitWorkflow}
+import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, SubscribeToWorkflow, WorkflowOutputs}
 import spray.json._
 
 import scala.concurrent.Await
@@ -18,8 +18,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object SingleWorkflowRunnerActor {
-  def props(wdl: WdlSource, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
-    Props(new SingleWorkflowRunnerActor(wdl, inputs, workflowManager))
+  def props(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
+    Props(new SingleWorkflowRunnerActor(wdlSource, wdlJson, inputs, workflowManager))
   }
 }
 
@@ -28,7 +28,8 @@ object SingleWorkflowRunnerActor {
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
  */
-case class SingleWorkflowRunnerActor(wdl: WdlSource,
+case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
+                                     wdlJson: WdlJson,
                                      inputs: binding.WorkflowRawInputs,
                                      workflowManager: ActorRef) extends Actor {
   private val log = Logging(context.system, this)
@@ -37,7 +38,7 @@ case class SingleWorkflowRunnerActor(wdl: WdlSource,
   private var id: WorkflowId = _
 
   override def preStart(): Unit = {
-    val eventualId = workflowManager.ask(SubmitWorkflow(wdl, inputs)).mapTo[WorkflowId]
+    val eventualId = workflowManager.ask(SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
     eventualId onComplete {
       case Success(x) => subscribeToWorkflow(x)
       case Failure(e) =>

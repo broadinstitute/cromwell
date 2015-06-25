@@ -1,31 +1,27 @@
 package cromwell.engine
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.ask
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{WorkflowDescriptor, Call}
+import cromwell.binding.{Call, CallInputs, WorkflowDescriptor}
 import cromwell.engine.backend.Backend
-import cromwell.engine.store.StoreActor
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.util.TryUtil
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.language.postfixOps
 
 
 object CallActor {
   sealed trait CallActorMessage
-  case object Start extends CallActorMessage
+  case class Start(inputs: CallInputs) extends CallActorMessage
 
-  def props(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef, name: String): Props =
-    Props(new CallActor(call, backend, workflowDescriptor, storeActor))
+  def props(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor, name: String): Props =
+    Props(new CallActor(call, locallyQualifiedInputs, backend, workflowDescriptor))
 }
 
 
 /** Actor to manage the execution of a single call. */
-class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescriptor, storeActor: ActorRef) extends Actor with CromwellActor {
+class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor) extends Actor with CromwellActor {
 
   private val log = Logging(context.system, this)
 
@@ -40,7 +36,6 @@ class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescri
   /**
    * Performs the following steps:
    * <ol>
-   *   <li>Collects the locally qualified inputs from the store actor.</li>
    *   <li>Instantiates the command line using these inputs.</li>
    *   <li>If the above completes successfully, messages the sender with `Started`,
    *   otherwise messages `Failed`.</li>
@@ -53,15 +48,18 @@ class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescri
   private def handleStart(): Unit = {
     // Record the original sender here and not in the yield over the `Future`, as the
     // value of sender() when that code executes may be different than what it is here.
+    log.info("In handleStart for " + call.fullyQualifiedName)
     val originalSender = sender()
+    val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
+    log.info("Got backend inputs for " + call.fullyQualifiedName + ": " + backendInputs)
 
-    for {
-      inputs <- (storeActor ? StoreActor.GetLocallyQualifiedInputs(call)).mapTo[Map[String, WdlValue]]
-      backendInputs = backend.adjustInputPaths(call, inputs)
-      commandLine <- Future.fromTry(call.instantiateCommandLine(backendInputs))
+    val tryCommand = for {
+      commandLine <- call.instantiateCommandLine(backendInputs)
     } yield {
+      log.info("Command line for " + call.fullyQualifiedName + ": " + commandLine)
       originalSender ! WorkflowActor.CallStarted(call)
-      val tryOutputs = backend.executeCommand(commandLine, workflowDescriptor, call, s => inputs.get(s).get)
+      val tryOutputs = backend.executeCommand(commandLine, workflowDescriptor, call, s => locallyQualifiedInputs.get(s).get)
+      log.info(s"Executed command '$commandLine'")
       val (successes, failures) = tryOutputs.partition {
         _._2.isSuccess
       }
@@ -76,6 +74,9 @@ class CallActor(call: Call, backend: Backend, workflowDescriptor: WorkflowDescri
         log.error(errorMessages)
         context.parent ! WorkflowActor.CallFailed(call, errorMessages)
       }
+    }
+    tryCommand.recover {
+      case e: Throwable => log.error(e, s"Call '${call.fullyQualifiedName}' failed to execute command: " + e.getMessage)
     }
   }
 }

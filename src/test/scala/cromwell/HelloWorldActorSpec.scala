@@ -7,9 +7,11 @@ import akka.testkit._
 import cromwell.binding.values.WdlString
 import cromwell.binding.{WorkflowDescriptor, WorkflowOutputs, UnsatisfiedInputsException, WdlNamespace}
 import cromwell.engine._
+import cromwell.engine.db.DummyDataAccess
 import cromwell.engine.workflow.WorkflowActor
 import WorkflowActor._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 
@@ -21,11 +23,12 @@ import scala.language.postfixOps
 // Copying from http://doc.akka.io/docs/akka/snapshot/scala/testkit-example.html#testkit-example
 class HelloWorldActorSpec extends CromwellTestkitSpec("HelloWorldActorSpec") {
   private def buildWorkflowActor(name: String = UUID.randomUUID().toString,
-                         rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
+                                 dataAccess: DummyDataAccess = DummyDataAccess(),
+                                 rawInputs: binding.WorkflowRawInputs = HelloWorld.RawInputs): TestActorRef[WorkflowActor] = {
     val namespace = WdlNamespace.load(HelloWorld.WdlSource)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val descriptor = WorkflowDescriptor(namespace, coercedInputs)
-    val props = WorkflowActor.props(descriptor, new LocalBackend)
+    val descriptor = WorkflowDescriptor(namespace, SampleWdl.HelloWorld.WdlSource, SampleWdl.HelloWorld.WdlJson, coercedInputs)
+    val props = WorkflowActor.props(descriptor, new LocalBackend, dataAccess)
     TestActorRef(props, self, "Workflow-" + name)
   }
 
@@ -43,8 +46,10 @@ class HelloWorldActorSpec extends CromwellTestkitSpec("HelloWorldActorSpec") {
         The TestFSMRef is kind of quirky, defining it here instead of the buildWorkflowActor function. It could
         be generalized a bit but it is probably not worth the hassle for a test class
        */
-      val descriptor = WorkflowDescriptor(namespace, coercedInputs)
-      val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
+      val descriptor = WorkflowDescriptor(namespace, SampleWdl.HelloWorld.WdlSource, SampleWdl.HelloWorld.WdlJson, coercedInputs)
+      val dataAccess = new DummyDataAccess()
+
+      val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("hello") {
         fsm ! Start

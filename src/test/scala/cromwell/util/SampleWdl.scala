@@ -24,7 +24,7 @@ object SampleWdl {
     val RawInputs =  Map(Addressee -> "world")
     val OutputKey = "hello.hello.salutation"
     val OutputValue = "Hello world!\n"
-    val JsonInputs = s""" { "$Addressee" : "world" } """
+    val WdlJson = s""" { "$Addressee" : "world" } """
   }
 
   object SubtractionWorkflow {
@@ -90,8 +90,9 @@ object SampleWdl {
         |}
         |
       """.stripMargin
-
-    val RawInputs =  Map("three_step.cgrep.pattern" -> "...")
+    val PatternKey = "three_step.cgrep.pattern"
+    val WdlJson = s"""{ $PatternKey: "..." } """
+    val RawInputs =  Map(PatternKey -> "...")
   }
 
   object FauxThreeStep {

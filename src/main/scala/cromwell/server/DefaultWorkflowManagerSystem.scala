@@ -1,15 +1,9 @@
 package cromwell.server
 
-import akka.actor.ActorSystem
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.db.slick.DataAccessController
 
-trait WorkflowManagerSystem {
-  val systemName = "cromwell-system"
-  def dataAccess: DataAccess
-  implicit val actorSystem = ActorSystem(systemName)
 
-  actorSystem.registerOnTermination {actorSystem.log.info(s"$systemName shutting down")}
-
-  val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess))
+case class DefaultWorkflowManagerSystem() extends WorkflowManagerSystem {
+  def dataAccess: DataAccess = DataAccessController
 }

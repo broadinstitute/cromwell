@@ -32,17 +32,19 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
                                      wdlJson: WdlJson,
                                      inputs: binding.WorkflowRawInputs,
                                      workflowManager: ActorRef) extends Actor {
-  private val log = Logging(context.system, this)
+  val log = Logging(context.system, classOf[SingleWorkflowRunnerActor])
+  val tag = "SingleWorkflowRunnerActor"
   private implicit val timeout = Timeout(5 seconds)
   // Note that id isn't used until *after* the submitWorkflow Future is complete
   private var id: WorkflowId = _
 
   override def preStart(): Unit = {
+    log.info(s"$tag: launching workflow")
     val eventualId = workflowManager.ask(SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
     eventualId onComplete {
       case Success(x) => subscribeToWorkflow(x)
       case Failure(e) =>
-        log.error(e.getMessage)
+        log.error(s"$tag: ${e.getMessage}")
         terminate()
     }
   }
@@ -50,11 +52,12 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
   def receive = {
     case CurrentState(_, state: WorkflowState) if state.isTerminal => handleTermination(state)
     case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
-    case m => log.debug(s"Received unexpected message: $m")
+    case CurrentState(_, state: WorkflowState) => log.info(s"$tag: received CurrentState($state)")
+    case m => log.warning(s"$tag: received unexpected message: $m")
   }
 
   private def handleTermination(state: WorkflowState): Unit = {
-    log.info(s"Workflow complete: $state")
+    log.info(s"$tag: workflow finished with status '$state'.")
 
     // If this is a successful termination, retrieve & print out the outputs
     if (state == WorkflowSucceeded) {
@@ -75,7 +78,7 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
    */
   private def subscribeToWorkflow(workflowId: WorkflowId): Unit = {
     id = workflowId
-    log.info(s"Workflow ID: $id")
+    log.info(s"SingleWorkflowRunnerActor: workflow ID UUID($id)")
     workflowManager ! SubscribeToWorkflow(id)
   }
 

@@ -17,7 +17,7 @@ import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
-object CromwellServer extends WorkflowManagerSystem {
+object CromwellServer extends DefaultWorkflowManagerSystem {
   val conf = ConfigFactory.parseFile(new File("/etc/cromwell.conf"))
   private lazy val realDataAccess = DataAccessController
 

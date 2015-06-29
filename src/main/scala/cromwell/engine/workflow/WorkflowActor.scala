@@ -1,6 +1,7 @@
 package cromwell.engine.workflow
 
 import akka.actor.{FSM, LoggingFSM, Props}
+import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlObject, WdlValue}
@@ -47,6 +48,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
 
   private var executionStore: ExecutionStore = _
+
+  val tag: String = s"WorkflowActor [UUID(${workflow.shortId})]"
+  override val log = Logging(context.system, classOf[WorkflowActor])
 
   startWith(WorkflowSubmitted, NoFailureMessage)
   
@@ -116,7 +120,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   // This handler will update workflow state for all transitions.
   onTransition {
     case fromState -> toState =>
-      log.info(s"Workflow ${workflow.id} transitioning from $fromState to $toState.")
+      log.info(s"$tag transitioning from $fromState to $toState.")
       dataAccess.updateWorkflowState(workflow.id, toState)
   }
 
@@ -124,17 +128,20 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     case WorkflowSubmitted -> WorkflowRunning => startRunnableCalls()
   }
 
-  private def persistStatus(call: Call, callStatus: CallStatus): Future[Unit] = persistStatus(Iterable(call), callStatus)
+  private def persistStatus(call: Call, callStatus: CallStatus): Future[Unit] = {
+    log.info(s"$tag: persisting status of '${call.fullyQualifiedName}' to $callStatus.")
+    persistStatus(Iterable(call), callStatus)
+  }
 
   private def persistStatus(calls: Traversable[Call], callStatus: CallStatus): Future[Unit] = {
     executionStore ++= calls.map { _ -> callStatus}.toMap
-    log.info("Before status persist " + callStatus + " for calls " + calls.map(_.fullyQualifiedName).mkString(", "))
+    log.info(s"$tag persisting status of calls ${calls.map(_.fullyQualifiedName).mkString(", ")} to $callStatus.")
     val future = dataAccess.setStatus(workflow.id, calls, callStatus)
-    log.info("After async status persist " + callStatus)
     future
   }
 
   private def handleCallCompleted(call: Call, outputs: CallOutputs): Future[Unit] = {
+    log.info(s"$tag handling completion of call '${call.fullyQualifiedName}'.")
     for {
       _ <- dataAccess.setOutputs(workflow.id, call, outputs)
       _ <- persistStatus(call, Done)
@@ -142,12 +149,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def startActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue]): Unit = {
-    val callActorProps = CallActor.props(call, locallyQualifiedInputs, backend, workflow, "CallActor-" + call.name)
-    log.info("Before actor creation for " + call.fullyQualifiedName)
+    val callActorProps = CallActor.props(call, locallyQualifiedInputs, backend, workflow)
+    log.info(s"$tag creating call actor for ${call.fullyQualifiedName}.")
     val callActor = context.actorOf(callActorProps)
-    log.info("Before actor messaging for " + call.fullyQualifiedName)
     callActor ! CallActor.Start
-    log.info("Started actor for " + call.fullyQualifiedName)
+    log.info(s"$tag created call actor for ${call.fullyQualifiedName}.")
   }
 
   /**
@@ -172,9 +178,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
     val runnableCalls = findRunnableCalls
     if (runnableCalls.isEmpty) {
-      log.info("No runnable calls to start.")
+      log.info(s"$tag No runnable calls to start.")
     } else {
-      log.info("Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))
+      log.info(s"$tag Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))
       val futureCallsAndInputs = for {
         _ <- persistStatus(runnableCalls, Starting)
         allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)
@@ -217,7 +223,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       }
     }
 
-    log.info("Fetching locally qualified inputs for " + call.fullyQualifiedName)
+    log.info(s"$tag fetching locally qualified inputs for " + call.fullyQualifiedName)
     fetchCallInputEntries(call).map { entries =>
       entries.map { entry =>
         val value = entry.wdlValue match {

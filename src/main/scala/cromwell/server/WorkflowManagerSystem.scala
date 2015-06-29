@@ -6,10 +6,8 @@ import cromwell.engine.workflow.WorkflowManagerActor
 
 trait WorkflowManagerSystem {
   val systemName = "cromwell-system"
-  def dataAccess: DataAccess
   implicit val actorSystem = ActorSystem(systemName)
+  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess))
 
-  actorSystem.registerOnTermination {actorSystem.log.info(s"$systemName shutting down")}
-
-  val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess))
+  def dataAccess: DataAccess
 }

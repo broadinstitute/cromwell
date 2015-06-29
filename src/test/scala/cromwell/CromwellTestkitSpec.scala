@@ -16,11 +16,15 @@ import scala.reflect.ClassTag
 
 object CromwellTestkitSpec {
   val ConfigText =
-    """
+        """
       |akka {
-      |  loggers = ["akka.testkit.TestEventListener"]
+      |  loggers = ["akka.event.slf4j.Slf4jLogger", "akka.testkit.TestEventListener"]
       |  loglevel = "DEBUG"
-      |  actor.debug.receive = on
+      |  actor {
+      |    debug {
+      |       receive = on
+      |    }
+      |  }
       |}
     """.stripMargin
 
@@ -31,7 +35,7 @@ abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(nam
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures {
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
-    waitForPattern(s"^Starting calls: ${callNames.mkString(", ")}$$")(block)
+    waitForPattern(s"Starting calls: ${callNames.mkString(", ")}$$")(block)
 
   def waitForHandledMessage[T](named: String)(block: => T): T = {
     waitForHandledMessagePattern(s"^received handled message $named")(block)

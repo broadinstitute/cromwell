@@ -1,6 +1,5 @@
 package cromwell.engine.workflow
 
-import akka.testkit.EventFilter
 import cromwell.CromwellTestkitSpec
 import cromwell.binding.FullyQualifiedName
 import cromwell.engine.ExecutionStatus.NotStarted
@@ -22,7 +21,7 @@ class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec("SingleWorkflowR
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {
-      EventFilter.info(message = "Workflow complete: Succeeded", occurrences = 1) intercept {
+      waitForPattern("workflow finished with status 'Succeeded'.") {
         system.actorOf(props)
       }
     }

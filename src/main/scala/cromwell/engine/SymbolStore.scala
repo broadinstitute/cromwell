@@ -20,7 +20,6 @@ case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Opt
 }
 
 class SymbolStore(namespace: WdlNamespace, inputs: HostInputs) {
-
   private val store = mutable.Set[SymbolStoreEntry]()
 
   inputs.foreach { case (fullyQualifiedName, value) =>

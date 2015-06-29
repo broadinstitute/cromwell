@@ -1,6 +1,8 @@
 package cromwell.engine
 
-import cromwell.binding.{Call, WdlNamespace}
+import akka.event.Logging
+import cromwell.binding.{WorkflowDescriptor, Call, WdlNamespace}
+import org.slf4j.LoggerFactory
 
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value
@@ -11,13 +13,16 @@ object ExecutionStatus extends Enumeration {
 /**
  * Corresponds to the "execution table" of our discussions.
  */
-class ExecutionStore(namespace: WdlNamespace) {
-
+class ExecutionStore(workflow: WorkflowDescriptor) {
+  val log = LoggerFactory.getLogger("ExecutionStore")
+  val tag = s"ExecutionStore [UUID(${workflow.shortId})]"
+  var table = workflow.namespace.workflows.head.calls.map { call => call -> ExecutionStatus.NotStarted }.toMap
   def isWorkflowDone: Boolean = table.forall(_._2 == ExecutionStatus.Done)
 
-  def updateStatus(call: Call, status: ExecutionStatus.Value): Unit = table += (call -> status)
-
-  var table = namespace.workflows.head.calls.map { call => call -> ExecutionStatus.NotStarted }.toMap
+  def updateStatus(call: Call, status: ExecutionStatus.Value): Unit = {
+    log.info(s"$tag: ${call.name} update to $status")
+    table += (call -> status)
+  }
 
   /**
    * Start all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,

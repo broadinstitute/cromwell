@@ -8,7 +8,6 @@ import slick.dbio.{NoStream, Effect}
 case class WorkflowExecution
 (
   workflowExecutionUuid: String,
-  wdlUri: String,
   status: String,
   startDt: Timestamp,
   workflowExecutionId: Option[Int] = None,
@@ -25,15 +24,13 @@ trait WorkflowExecutionComponent {
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
 
-    def wdlUri = column[String]("WDL_URI")
-
     def status = column[String]("STATUS")
 
     def startDt = column[Timestamp]("START_DT")
 
-    def endDt = column[Timestamp]("END_DT")
+    def endDt = column[Option[Timestamp]]("END_DT")
 
-    override def * = (workflowExecutionUuid, wdlUri, status, startDt, workflowExecutionId.?, endDt.?) <>
+    override def * = (workflowExecutionUuid, status, startDt, workflowExecutionId.?, endDt) <>
       (WorkflowExecution.tupled, WorkflowExecution.unapply)
   }
 

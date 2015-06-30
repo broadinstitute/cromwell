@@ -4,7 +4,6 @@ case class LocalJob
 (
   executionId: Int,
   pid: Int,
-  command: String,
   rc: Int,
   localJobId: Option[Int] = None
   )
@@ -21,11 +20,9 @@ trait LocalJobComponent {
 
     def pid = column[Int]("PID")
 
-    def command = column[String]("COMMAND")
-
     def rc = column[Int]("RC")
 
-    override def * = (executionId, pid, command, rc, localJobId.?) <>
+    override def * = (executionId, pid, rc, localJobId.?) <>
       (LocalJob.tupled, LocalJob.unapply)
 
     def execution = foreignKey(

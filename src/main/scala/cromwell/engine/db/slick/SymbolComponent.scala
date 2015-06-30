@@ -26,7 +26,7 @@ trait SymbolComponent {
 
     def name = column[String]("NAME")
 
-    def iteration = column[Int]("ITERATION")
+    def iteration = column[Option[Int]]("ITERATION")
 
     def io = column[String]("IO")
 
@@ -34,7 +34,7 @@ trait SymbolComponent {
 
     def wdlValue = column[String]("WDL_VALUE")
 
-    override def * = (workflowExecutionId, scope, name, iteration.?, io, wdlType, wdlValue, symbolId.?) <>
+    override def * = (workflowExecutionId, scope, name, iteration, io, wdlType, wdlValue, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)
 
     def workflow = foreignKey(

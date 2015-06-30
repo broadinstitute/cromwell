@@ -2,13 +2,14 @@ package cromwell.engine.db
 
 import cromwell.binding.values.WdlValue
 import cromwell.binding.{Call, FullyQualifiedName, WdlJson, WdlSource}
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
-import cromwell.engine.{SymbolStoreKey, SymbolStoreEntry, WorkflowId, WorkflowState}
+import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
 import scala.concurrent.Future
 
 object DataAccess {
+  def apply() = new slick.SlickDataAccess()
+
   // TODO PLEASE RENAME ME
   case class WorkflowInfo(workflowId: WorkflowId, wdlSource: WdlSource, wdlJson: WdlJson)
 }

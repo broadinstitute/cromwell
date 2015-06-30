@@ -1,5 +1,6 @@
 package cromwell.engine.db.slick
 
+import java.sql.SQLException
 import java.util.UUID
 
 import cromwell.binding._
@@ -15,6 +16,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   implicit val ec = ExecutionContext.global
@@ -35,7 +37,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     lazy val testDatabase = new TestSlickDatabase(DatabaseConfig.rootDatabaseConfig.getConfig(path))
     lazy val dataAccess = testDatabase.slickDataAccess
     lazy val canConnect = {
-      DatabaseConfig.rootDatabaseConfig.hasPath(path) && dataAccess.isValidConnection(1).futureValue
+      DatabaseConfig.rootDatabaseConfig.hasPath(path) && dataAccess.isValidConnection(1.second).futureValue
     }
 
     it should "setup via liquibase if necessary" in {
@@ -44,26 +46,35 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         testDatabase.setupLiquibase()
     }
 
-    val workflowIdForCreate = UUID.randomUUID()
-    val workflowInfoForCreate = new WorkflowInfo(workflowIdForCreate, "source", "{}")
-
-    it should "create a workflow for just reading" in {
+    it should "create and retrieve the workflow for just reading" in {
       assume(canConnect || testRequired)
-      dataAccess.createWorkflow(workflowInfoForCreate, Seq.empty, Seq.empty, new LocalBackend).futureValue
-    }
+      val workflowId = UUID.randomUUID()
+      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
 
-    it should "retrieve the workflow for just reading" in {
-      assume(canConnect || testRequired)
       (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, new LocalBackend)
         _ <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted)) map { results =>
           results shouldNot be(empty)
 
-          val workflowResultOption = results.find(_.workflowId == workflowIdForCreate)
+          val workflowResultOption = results.find(_.workflowId == workflowId)
           workflowResultOption shouldNot be(empty)
           val workflowResult = workflowResultOption.get
-          workflowResult.workflowId should be(workflowIdForCreate)
+          workflowResult.workflowId should be(workflowId)
           workflowResult.wdlSource should be("source")
           workflowResult.wdlJson should be("{}")
+        }
+      } yield ()).futureValue
+    }
+
+    it should "fail when saving a workflow twice" in {
+      assume(canConnect || testRequired)
+      val workflowId = UUID.randomUUID()
+      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, new LocalBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, new LocalBackend).failed map { ex =>
+          ex should be(a[SQLException])
         }
       } yield ()).futureValue
     }
@@ -95,7 +106,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val symbolFqn = "symbol.fully.qualified.scope"
       val workflowId = UUID.randomUUID()
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
-      val key = new SymbolStoreKey(callFqn, symbolFqn, None, true)
+      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
       val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
       val call = new Call(None, callFqn, task, Map.empty, null)
@@ -122,7 +133,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       assume(canConnect || testRequired)
       val workflowId = UUID.randomUUID()
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
-      val key = new SymbolStoreKey("myScope", "myName", None, true)
+      val key = new SymbolStoreKey("myScope", "myName", None, input = true)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
 
       (for {
@@ -174,10 +185,21 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
+    it should "fail to get an non-existent execution status" in {
+      assume(canConnect || testRequired)
+      val workflowIdNotSaved = UUID.randomUUID()
+
+      (for {
+        _ <- dataAccess.getExecutionStatuses(workflowIdNotSaved).failed map { ex =>
+          ex should be(a[NoSuchElementException])
+        }
+      } yield ()).futureValue
+    }
+
     it should "set and get an output" in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
-      val symbolFqn = "symbol.fully.qualified.scope"
+      val symbolLqn = "symbol"
       val workflowId = UUID.randomUUID()
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
@@ -186,13 +208,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, new LocalBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolFqn -> new WdlString("testStringValue")))
+        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolLqn -> new WdlString("testStringValue")))
         _ <- dataAccess.getOutputs(workflowId) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-          resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
+          resultSymbolStoreKey.name should be("call.fully.qualified.scope.symbol")
           resultSymbolStoreKey.iteration should be(None)
           resultSymbolStoreKey.input should be(right = false) // Inteillj highlighting
           resultSymbol.wdlType should be(WdlStringType)
@@ -205,7 +227,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     it should "set and get an output by call" in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
-      val symbolFqn = "symbol.fully.qualified.scope"
+      val symbolLqn = "symbol"
       val workflowId = UUID.randomUUID()
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
@@ -214,18 +236,71 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, new LocalBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolFqn -> new WdlString("testStringValue")))
+        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolLqn -> new WdlString("testStringValue")))
         _ <- dataAccess.getOutputs(workflowId, call) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-          resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
+          resultSymbolStoreKey.name should be("call.fully.qualified.scope.symbol")
           resultSymbolStoreKey.iteration should be(None)
           resultSymbolStoreKey.input should be(right = false) // Inteillj highlighting
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)
           resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
+        }
+      } yield ()).futureValue
+    }
+
+    it should "set and get the same symbol with IO as input then output" in {
+      assume(canConnect || testRequired)
+      val callFqn = "call.fully.qualified.scope"
+      val symbolLqn = "symbol"
+      val symbolFqn = callFqn + "." + symbolLqn
+      val workflowId = UUID.randomUUID()
+      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
+      val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
+      val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, null)
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, new LocalBackend)
+        _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
+        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolLqn -> new WdlString("testStringValue")))
+        _ <- dataAccess.getOutputs(workflowId, call) map { results =>
+          results.size should be(1)
+          val resultSymbol = results.head
+          val resultSymbolStoreKey = resultSymbol.key
+          resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
+          resultSymbolStoreKey.name should be("call.fully.qualified.scope.symbol")
+          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.input should be(right = false) // Inteillj highlighting
+          resultSymbol.wdlType should be(WdlStringType)
+          resultSymbol.wdlValue shouldNot be(empty)
+          resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
+        }
+      } yield ()).futureValue
+    }
+
+    it should "fail when setting an existing symbol output" in {
+      assume(canConnect || testRequired)
+      val callFqn = "call.fully.qualified.scope"
+      val symbolLqn = "symbol"
+      val symbolFqn = callFqn + "." + symbolLqn
+      val workflowId = UUID.randomUUID()
+      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = false)
+      val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
+      val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, null)
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, new LocalBackend)
+        _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
+        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolLqn -> new WdlString("testStringValue"))).failed map {
+          ex =>
+            ex should be(a[SQLException])
         }
       } yield ()).futureValue
     }
@@ -236,7 +311,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
       val call = new Call(None, "fully.qualified.name", task, Map.empty, null)
-      val backendInfo = new LocalCallBackendInfo(ExecutionStatus.Running, 123, 456)
+      val backendInfo = new LocalCallBackendInfo(ExecutionStatus.Running, Option(123), Option(456))
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq(call), new LocalBackend)
@@ -246,8 +321,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.status should be(ExecutionStatus.Running)
-          insertResultLocalCall.processId should be(123)
-          insertResultLocalCall.resultCode should be(456)
+          insertResultLocalCall.processId shouldNot be(empty)
+          insertResultLocalCall.processId.get should be(123)
+          insertResultLocalCall.resultCode shouldNot be(empty)
+          insertResultLocalCall.resultCode.get should be(456)
         }
       } yield ()).futureValue
     }

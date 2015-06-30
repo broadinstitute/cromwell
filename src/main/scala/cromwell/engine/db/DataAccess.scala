@@ -8,7 +8,7 @@ import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 import scala.concurrent.Future
 
 object DataAccess {
-  def apply() = new slick.SlickDataAccess()
+  def apply(): DataAccess = new slick.SlickDataAccess()
 
   // TODO PLEASE RENAME ME
   case class WorkflowInfo(workflowId: WorkflowId, wdlSource: WdlSource, wdlJson: WdlJson)

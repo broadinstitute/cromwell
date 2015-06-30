@@ -32,6 +32,9 @@ trait WorkflowExecutionComponent {
 
     override def * = (workflowExecutionUuid, status, startDt, workflowExecutionId.?, endDt) <>
       (WorkflowExecution.tupled, WorkflowExecution.unapply)
+
+    def uniqueKey = index("UK_WE_WORKFLOW_EXECUTION_UUID",
+      workflowExecutionUuid, unique = true)
   }
 
   val workflowExecutions = TableQuery[WorkflowExecutions]

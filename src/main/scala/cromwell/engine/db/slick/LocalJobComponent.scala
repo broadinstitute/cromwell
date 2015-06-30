@@ -3,8 +3,8 @@ package cromwell.engine.db.slick
 case class LocalJob
 (
   executionId: Int,
-  pid: Int,
-  rc: Int,
+  pid: Option[Int],
+  rc: Option[Int],
   localJobId: Option[Int] = None
   )
 
@@ -18,15 +18,18 @@ trait LocalJobComponent {
 
     def executionId = column[Int]("EXECUTION_ID")
 
-    def pid = column[Int]("PID")
+    def pid = column[Option[Int]]("PID")
 
-    def rc = column[Int]("RC")
+    def rc = column[Option[Int]]("RC")
 
     override def * = (executionId, pid, rc, localJobId.?) <>
       (LocalJob.tupled, LocalJob.unapply)
 
     def execution = foreignKey(
       "FK_LOCAL_JOB_EXECUTION_ID", executionId, executions)(_.executionId)
+
+    def uniqueKey = index("UK_LJ_EXECUTION_UUID",
+      executionId, unique = true)
   }
 
   val localJobs = TableQuery[LocalJobs]

@@ -1,41 +1,31 @@
 package cromwell
 
 import java.io.{File, FileWriter}
-import java.util.UUID
+
 import akka.pattern.ask
-import akka.actor.ActorSystem
-import akka.testkit.{TestFSMRef, TestActorRef, filterEvents}
-import com.typesafe.config.ConfigFactory
+import akka.testkit.TestFSMRef
+import cromwell.CromwellSpec.DockerTest
 import cromwell.binding._
 import cromwell.binding.values.{WdlInteger, WdlValue}
-import cromwell.engine.{WorkflowRunning, WorkflowSucceeded, WorkflowSubmitted, WorkflowActor}
 import cromwell.engine.WorkflowActor._
+import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 object ThreeStepActorSpec {
-  val Config =
-    """
-      |akka {
-      |  loggers = ["akka.testkit.TestEventListener"]
-      |  loglevel = "DEBUG"
-      |  actor.debug.receive = on
-      |}
-    """.stripMargin
-
-  val WdlSource =
+  def wdlSource(runtime: String): WdlSource =
     """
       |task ps {
       |  command {
-      |    cat ${filename}
+      |    cat ${File dummy_ps_file}
       |  }
       |  output {
       |    File procs = stdout()
       |  }
+      |  RUNTIME
       |}
       |
       |task cgrep {
@@ -45,6 +35,7 @@ object ThreeStepActorSpec {
       |  output {
       |    Int count = read_int(stdout())
       |  }
+      |  RUNTIME
       |}
       |
       |task wc {
@@ -54,10 +45,13 @@ object ThreeStepActorSpec {
       |  output {
       |    Int count = read_int(stdout())
       |  }
+      |  RUNTIME
       |}
       |
       |workflow three_step {
       |  call ps
+      |  call ps as ps2
+      |  call ps as ps3
       |  call cgrep {
       |    input: in_file=ps.procs
       |  }
@@ -65,7 +59,7 @@ object ThreeStepActorSpec {
       |    input: in_file=ps.procs
       |  }
       |}
-    """.stripMargin
+    """.stripMargin.replaceAll("RUNTIME", runtime)
 
   val DummyProcessOutput =
     """
@@ -77,13 +71,6 @@ object ThreeStepActorSpec {
       |joeblaux          6440   1.4  2.2  4496164 362136   ??  S    Sun09PM  74:29.40 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
     """.stripMargin.trim
 
-  val TestExecutionTimeout = 1500 milliseconds
-
-  object Inputs {
-    val Pattern = "three_step.cgrep.pattern"
-    val DummyPsFileName = "three_step.ps.filename"
-  }
-
   def createDummyPsFile: File = {
     val file = File.createTempFile("dummy_ps", ".out")
     val writer = new FileWriter(file)
@@ -92,32 +79,33 @@ object ThreeStepActorSpec {
     writer.close()
     file
   }
+
+  object Inputs {
+    val Pattern = "three_step.cgrep.pattern"
+    // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
+    // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
+    val DummyPsFile = "three_step.ps.dummy_ps_file"
+    val DummyPs2File = "three_step.ps2.dummy_ps_file"
+    val DummyPs3File = "three_step.ps3.dummy_ps_file"
+  }
+
 }
 
-class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", ConfigFactory.parseString(ThreeStepActorSpec.Config))) {
-  private def buildWorkflowActor: TestActorRef[WorkflowActor] = {
-    val (namespace, coercedInputs) = buildWorkflowBindingAndInputs()
-    val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
-    TestActorRef(props, self, "ThreeStep")
-  }
-
-  private def buildWorkflowActorFsm() = {
-    val (binding, coercedInputs) = buildWorkflowBindingAndInputs()
-    TestFSMRef(new WorkflowActor(UUID.randomUUID(), binding, coercedInputs, new LocalBackend))
-  }
-
-  private def buildWorkflowBindingAndInputs() = {
-    import ThreeStepActorSpec._
+class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
+  import ThreeStepActorSpec._
+  private def buildWorkflowActorFsm(runtime: String) = {
     val workflowInputs = Map(
-      Inputs.Pattern ->"joeblaux",
-      Inputs.DummyPsFileName -> createDummyPsFile.getAbsolutePath)
+      Inputs.Pattern -> "joeblaux",
+      Inputs.DummyPsFile -> createDummyPsFile.getAbsolutePath,
+      Inputs.DummyPs2File -> createDummyPsFile.getAbsolutePath,
+      Inputs.DummyPs3File -> createDummyPsFile.getAbsolutePath
+    )
 
-    val namespace = WdlNamespace.load(ThreeStepActorSpec.WdlSource)
+    val namespace = WdlNamespace.load(ThreeStepActorSpec.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
-    val props = WorkflowActor.props(UUID.randomUUID(), namespace, coercedInputs, new LocalBackend)
-    TestActorRef(props, self, "ThreeStep")
-    (namespace, coercedInputs)
+    val descriptor = WorkflowDescriptor(namespace, coercedInputs)
+    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
   }
 
   private def getCounts(outputs: Map[String, WdlValue], outputFqns: String*): Seq[Int] = {
@@ -127,21 +115,36 @@ class ThreeStepActorSpec extends CromwellSpec(ActorSystem("ThreeStepActorSpec", 
     }
   }
 
-  import ThreeStepActorSpec._
-
-  "A three step workflow" should {
-      "best get to (three) steppin'" in {
-      val fsm = buildWorkflowActorFsm()
-      assert(fsm.stateName == WorkflowSubmitted)
+  private def runAndAssertCorrectness(runtime: String = ""): Unit = {
+    val fsm = buildWorkflowActorFsm(runtime)
+    assert(fsm.stateName == WorkflowSubmitted)
+    startingCallsFilter("cgrep", "wc").intercept {
       fsm ! Start
-      within(TestExecutionTimeout) {
+      within(5000 milliseconds) {
         awaitCond(fsm.stateName == WorkflowRunning)
         awaitCond(fsm.stateName == WorkflowSucceeded)
-        val outputs = Await.result(fsm.ask(GetOutputs)(ActorTimeout).mapTo[WorkflowOutputs], 5 seconds)
+        val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
         val Seq(cgrepCount, wcCount) = getCounts(outputs, "three_step.cgrep.count", "three_step.wc.count")
         cgrepCount shouldEqual 3
         wcCount shouldEqual 6
       }
+    }
+  }
+
+  "A three step workflow" should {
+    "best get to (three) steppin'" in {
+      runAndAssertCorrectness()
+    }
+  }
+
+  "A Dockerized three step workflow" should {
+    "best get to Dockerized (three) steppin'" taggedAs DockerTest in {
+      runAndAssertCorrectness(
+        """
+          |runtime {
+          |  docker: "ubuntu:latest"
+          |}
+        """.stripMargin)
     }
   }
 }

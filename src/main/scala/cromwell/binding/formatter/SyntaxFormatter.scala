@@ -4,6 +4,7 @@ import cromwell.binding._
 import cromwell.binding.command.{Command, ParameterCommandPart, StringCommandPart}
 import cromwell.binding.types.WdlType
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import cromwell.util.TerminalUtil
 
 import scala.collection.JavaConverters._
 
@@ -21,15 +22,14 @@ trait SyntaxHighlighter {
 object NullSyntaxHighlighter extends SyntaxHighlighter
 
 object AnsiSyntaxHighlighter extends SyntaxHighlighter {
-  def highlight(string: String, color: Int) = s"\033[38;5;${color}m${string}\033[0m"
-  override def keyword(s: String): String = highlight(s, 214)
-  override def name(s: String): String = highlight(s, 253)
+  override def keyword(s: String): String = TerminalUtil.highlight(214, s)
+  override def name(s: String): String = TerminalUtil.highlight(253, s)
   override def section(s: String): String = s
-  override def wdlType(t: WdlType): String = highlight(t.toWdlString, 33)
-  override def variable(s: String): String = highlight(s, 112)
+  override def wdlType(t: WdlType): String = TerminalUtil.highlight(33, t.toWdlString)
+  override def variable(s: String): String = TerminalUtil.highlight(112, s)
   override def alias(s: String): String = s
   override def command(s: String): String = s
-  override def function(s: String): String = highlight(s, 13)
+  override def function(s: String): String = TerminalUtil.highlight(13, s)
 }
 
 object HtmlSyntaxHighlighter extends SyntaxHighlighter {

@@ -7,6 +7,16 @@ import cromwell.parser.WdlParser.{AstList, AstNode, Ast, Terminal}
 import cromwell.util.FileUtil
 
 object AstTools {
+  implicit class EnhancedAstNode(val ast: AstNode) extends AnyVal {
+    def findAsts(name: String): Seq[Ast] = AstTools.findAsts(ast, name)
+    def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
+      AstTools.findAstsWithTrail(ast, name, trail)
+    }
+    def findTerminals(): Seq[Terminal] = AstTools.findTerminals(ast)
+    def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(ast)
+    def sourceString(): String = ast.asInstanceOf[Terminal].getSourceString
+  }
+
   object AstNodeName {
     val Task = "Task"
     val Workflow = "Workflow"
@@ -17,6 +27,7 @@ object AstTools {
     val IOMapping = "IOMapping"
     val Inputs = "Inputs"
     val MemberAccess = "MemberAccess"
+    val Runtime = "Runtime"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {
@@ -50,8 +61,8 @@ object AstTools {
     ast match {
       case x: Ast =>
         val thisAst = if (x.getName.equals(name)) Map(x -> trail) else Map.empty[Ast, Seq[AstNode]]
-        combine(x.getAttributes.values.asScala.flatMap{y => findAstsWithTrail(y, name, trail :+ x)}.toMap, thisAst)
-      case x: AstList => x.asScala.toVector.flatMap{y => findAstsWithTrail(y, name, trail :+ x)}.toMap
+        combine(x.getAttributes.values.asScala.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap, thisAst)
+      case x: AstList => x.asScala.toVector.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap
       case x: Terminal => Map.empty[Ast, Seq[AstNode]]
       case _ => Map.empty[Ast, Seq[AstNode]]
     }
@@ -67,13 +78,13 @@ object AstTools {
   }
 
   /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
-  def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = AstTools.findAstsWithTrail(expr, "MemberAccess").filter {
-    case(k, v) => !v.exists{case a:Ast => a.getName == "MemberAccess"}
+  def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = expr.findAstsWithTrail("MemberAccess").filterNot {
+    case(k, v) => v.exists{case a:Ast => a.getName == "MemberAccess"}
   }.keys
 
-  def getCallInputAsts(ast: Ast): Seq[Ast] = {
+  def callInputAsts(ast: Ast): Seq[Ast] = {
     findAsts(ast, AstNodeName.Inputs) match {
-      case x: Seq[Ast] if x.size == 1 => AstTools.findAsts(x.head.getAttribute("map"), AstNodeName.IOMapping)
+      case x: Seq[Ast] if x.size == 1 => x.head.getAttribute("map").findAsts(AstNodeName.IOMapping)
       case _ => Seq.empty[Ast]
     }
   }

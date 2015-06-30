@@ -3,5 +3,5 @@ scala:
   - 2.11.6
 jdk:
   - oraclejdk8
-script: sbt clean coverage test
+script: sbt clean coverage nodocker:test
 after_success: sbt coveralls

@@ -1,6 +1,7 @@
 package cromwell.binding.command
 
 import java.util.regex.Pattern
+import cromwell.binding.CallInputs
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
 
@@ -73,7 +74,7 @@ case class Command(parts: Seq[CommandPart]) {
    * @param parameters Parameter values
    * @return String instantiation of the command
    */
-  def instantiate(parameters: Map[String, WdlValue]): Try[String] = {
+  def instantiate(parameters: CallInputs): Try[String] = {
     Try(normalize(parts.map { _.instantiate(parameters) }.mkString("")))
   }
 

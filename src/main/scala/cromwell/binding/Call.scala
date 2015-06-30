@@ -1,8 +1,9 @@
 package cromwell.binding
 
 import cromwell.binding.types.WdlType
+import cromwell.binding.values.WdlValue
 
-import scala.util.Success
+import scala.util.{Success, Try}
 
 /**
  * Represents a `call` block in a WDL workflow.  Calls wrap tasks
@@ -25,7 +26,7 @@ case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, 
   def parent: Option[Scope] = _parent
 
   def setParent(parent: Scope) = {
-    if (this._parent == None) this._parent = Option(parent)
+    if (this._parent.isEmpty) this._parent = Option(parent)
     else throw new UnsupportedOperationException("parent is write-once")
   }
 
@@ -66,4 +67,14 @@ case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, 
       }
     } yield call
   }
+
+  /**
+   * Instantiate the abstract command line corresponding to this call using the specified inputs.
+   */
+  def instantiateCommandLine(inputs: CallInputs): Try[String] = task.command.instantiate(inputs)
+
+  /**
+   * Return the docker configuration value associated with this `Call`, if any.
+   */
+  def docker: Option[String] = task.runtimeAttributes.docker
 }

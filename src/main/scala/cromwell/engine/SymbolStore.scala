@@ -19,7 +19,7 @@ case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Opt
   def scope: String = key.scope
 }
 
-class SymbolStore(namespace: WdlNamespace, inputs: Map[FullyQualifiedName, WdlValue]) {
+class SymbolStore(namespace: WdlNamespace, inputs: HostInputs) {
   private val store = mutable.Set[SymbolStoreEntry]()
 
   inputs.foreach { case (fullyQualifiedName, value) =>
@@ -46,7 +46,7 @@ class SymbolStore(namespace: WdlNamespace, inputs: Map[FullyQualifiedName, WdlVa
       val workflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
         throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent")
       }
-      val namespaces = call.namespace.namespaces.filter{_.namespace == Some(identifierString)}
+      val namespaces = call.namespace.namespaces.filter{_.namespace.contains(identifierString)}
       namespaces.headOption.getOrElse{
         val matchedCall = workflow.calls.find {_.name == identifierString}.getOrElse {
           throw new WdlExpressionException(s"Expecting to find a call with name '$identifierString'")

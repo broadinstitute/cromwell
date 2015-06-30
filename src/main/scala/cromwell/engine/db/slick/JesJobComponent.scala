@@ -27,6 +27,9 @@ trait JesJobComponent {
 
     def execution = foreignKey(
       "FK_JES_JOB_EXECUTION_ID", executionId, executions)(_.executionId)
+
+    def uniqueKey = index("UK_JJ_EXECUTION_UUID",
+      executionId, unique = true)
   }
 
   val jesJobs = TableQuery[JesJobs]

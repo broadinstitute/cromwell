@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="kshakir" id="local_job_allow_null">
+        <comment>
+            The local jobs don't have process ID and result codes at the start.
+        </comment>
+        <dropNotNullConstraint tableName="LOCAL_JOB" columnName="PID" columnDataType="INT" />
+        <dropNotNullConstraint tableName="LOCAL_JOB" columnName="RC" columnDataType="INT" />
+    </changeSet>
+
+</databaseChangeLog>

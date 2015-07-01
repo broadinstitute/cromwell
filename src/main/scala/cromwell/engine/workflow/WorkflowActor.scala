@@ -244,9 +244,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    * restarted, or started for the first time.
    */
   private def createStore: Future[Map[Call, ExecutionStatus.Value]] = {
-    for {
-      statuses <- dataAccess.getExecutionStatuses(workflow.id)
-    } yield {
+    dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
       // FIXME in a world with call aliases, *task*Fqn doesn't seem like the right key for this map.
       workflow.namespace.calls.map {call =>
         call -> statuses.get(call.taskFqn).get}.toMap

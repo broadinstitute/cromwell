@@ -9,6 +9,7 @@ import akka.pattern.{ask, pipe}
 import cromwell.binding
 import cromwell.binding._
 import cromwell.engine._
+import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.WorkflowInfo
@@ -32,8 +33,6 @@ object WorkflowManagerActor {
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess): Props = Props(new WorkflowManagerActor(dataAccess))
-
-  case class RestartableWorkflow(id: WorkflowId, source: WdlSource, json: WdlJson, inputs: binding.WorkflowRawInputs)
 }
 
 /**
@@ -46,6 +45,7 @@ object WorkflowManagerActor {
 class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellActor {
   import WorkflowManagerActor._
   private val log = Logging(context.system, this)
+  private val tag = "WorkflowManagerActor"
 
   type WorkflowActorRef = ActorRef
 
@@ -58,7 +58,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
 
   def receive = LoggingReceive {
     case SubmitWorkflow(wdlSource, wdlJson, inputs) =>
-      submitWorkflow(wdlSource, wdlJson, inputs, isRestart = false, maybeWorkflowId = None) pipeTo sender
+      submitWorkflow(wdlSource, wdlJson, inputs, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => dataAccess.getWorkflowState(id) pipeTo sender
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
@@ -77,16 +77,19 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
     workflow.ask(GetOutputs).mapTo[binding.WorkflowOutputs]
   }
 
-  private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs,
-                             isRestart: Boolean, maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
+  private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,
+                             maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
+
+    val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
+    log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     for {
       namespace <- Future(WdlNamespace.load(wdlSource))
       coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
-      descriptor = new WorkflowDescriptor(namespace, wdlSource, wdlJson, coercedInputs)
+      descriptor = new WorkflowDescriptor(workflowId, namespace, wdlSource, wdlJson, coercedInputs)
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
-      workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
+      val isRestart = maybeWorkflowId.isDefined
       workflowActor ! (if (isRestart) Restart else Start)
       workflowActor ! SubscribeTransitionCallBack(self)
       workflowId
@@ -94,8 +97,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
   }
 
   private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Future[WorkflowId] = {
-    submitWorkflow(restartableWorkflow.source, restartableWorkflow.json, restartableWorkflow.inputs,
-      isRestart = true, Option(restartableWorkflow.id))
+    submitWorkflow(restartableWorkflow.source, restartableWorkflow.json, restartableWorkflow.inputs, Option(restartableWorkflow.id))
   }
 
   private def updateWorkflowState(workflow: WorkflowActorRef, state: WorkflowState): Future[Unit] = {
@@ -114,7 +116,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
       workflowInfo.wdlJson.parseJson match {
         case JsObject(rawInputs) => Option(rawInputs)
         case x =>
-          log.error(s"Error restarting workflow ${workflowInfo.workflowId}: expected JSON inputs, got '$x'.")
+          log.error(s"$tag Error restarting workflow ${workflowInfo.workflowId}: expected JSON inputs, got '$x'.")
           None
       }
     }
@@ -124,22 +126,26 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
       (if (num == 0) "no" else num.toString, if (num == 1) "" else "s")
     }
 
+    def buildRestartableWorkflows(workflowInfos: Traversable[WorkflowInfo]): Seq[RestartableWorkflow] = {
+      (for {
+        workflowInfo <- workflowInfos
+        jsonInputs = clobToJsonInputs(workflowInfo)
+        if jsonInputs.isDefined
+      } yield RestartableWorkflow(workflowInfo.workflowId, workflowInfo.wdlSource, workflowInfo.wdlJson, jsonInputs.get)).toSeq
+    }
+
     val result = for {
       workflowInfos <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      restartableWorkflows = buildRestartableWorkflows(workflowInfos)
+      _ <- backend.handleCallRestarts(restartableWorkflows, dataAccess)
     } yield {
-        val restartableWorkflows = (for {
-          workflowInfo <- workflowInfos
-          jsonInputs = clobToJsonInputs(workflowInfo)
-          if jsonInputs.isDefined
-        } yield RestartableWorkflow(workflowInfo.workflowId, workflowInfo.wdlSource, workflowInfo.wdlJson, jsonInputs.get)).toSeq
-
         val num = restartableWorkflows.length
         val (displayNum, plural) = pluralize(num)
-        log.info(s"Found $displayNum workflow$plural to restart.")
+        log.info(s"$tag Found $displayNum workflow$plural to restart.")
 
         if (num > 0) {
           val ids = restartableWorkflows.map { _.id.toString }.sorted
-          log.info(s"Restarting workflow ID$plural: " + ids.mkString(", "))
+          log.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
         }
 
         restartableWorkflows foreach restartWorkflow

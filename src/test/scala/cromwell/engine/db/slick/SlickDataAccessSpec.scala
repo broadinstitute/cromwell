@@ -174,7 +174,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq(call), new LocalBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setStatus(workflowId, Seq(call), ExecutionStatus.Running)
+        _ <- dataAccess.setStatus(workflowId, Seq(call.fullyQualifiedName), ExecutionStatus.Running)
         _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
           result.size should be(1)
           val (fqn, status) = result.head

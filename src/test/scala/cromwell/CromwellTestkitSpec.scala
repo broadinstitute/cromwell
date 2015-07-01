@@ -67,8 +67,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
    * Wait for exactly one occurrence of the specified pattern in the specified block.  The block
    * is in its own parameter list for usage syntax reasons.
    */
-  def waitForPattern[T](pattern: String)(block: => T): T = {
-    EventFilter.info(pattern = pattern, occurrences = 1).intercept {
+  def waitForPattern[T](pattern: String, occurrences: Int = 1)(block: => T): T = {
+    EventFilter.info(pattern = pattern, occurrences = occurrences).intercept {
       block
     }
   }

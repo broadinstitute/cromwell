@@ -50,7 +50,7 @@ trait DataAccess {
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: Map[String, WdlValue]): Future[Unit]
 
-  def setStatus(workflowId: WorkflowId, calls: Traversable[Call], callStatus: CallStatus): Future[Unit]
+  def setStatus(workflowId: WorkflowId, calls: Traversable[FullyQualifiedName], callStatus: CallStatus): Future[Unit]
 
   def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]]
 

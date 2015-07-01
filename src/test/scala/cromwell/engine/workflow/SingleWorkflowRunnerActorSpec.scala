@@ -13,7 +13,7 @@ import scala.language.postfixOps
 class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec("SingleWorkflowRunnerActorSpec") {
   val dataAccess = new DummyDataAccess() {
     override def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]] = {
-      Future.successful(Seq("ps", "cgrep", "wc").map { _ -> NotStarted}.toMap)
+      Future.successful(Seq("ps", "cgrep", "wc").map { "three_step." + _ -> NotStarted}.toMap)
     }
   }
   val workflowManagerActor = system.actorOf(WorkflowManagerActor.props(dataAccess))

@@ -112,7 +112,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       futureOutputs pipeTo sender
       stay()
     case Event(e, _) =>
-      log.debug(s"Received unhandled event $e while in state $stateName")
+      log.debug(s"$tag received unhandled event $e while in state $stateName")
       stay()
   }
 
@@ -135,9 +135,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   private def persistStatus(calls: Traversable[Call], callStatus: CallStatus): Future[Unit] = {
     executionStore ++= calls.map { _ -> callStatus}.toMap
-    log.info(s"$tag persisting status of calls ${calls.map(_.fullyQualifiedName).mkString(", ")} to $callStatus.")
-    val future = dataAccess.setStatus(workflow.id, calls, callStatus)
-    future
+    val callFqns = calls.map(_.fullyQualifiedName)
+    log.info(s"$tag persisting status of calls ${callFqns.mkString(", ")} to $callStatus.")
+    dataAccess.setStatus(workflow.id, callFqns, callStatus)
   }
 
   private def handleCallCompleted(call: Call, outputs: CallOutputs): Future[Unit] = {
@@ -180,13 +180,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     if (runnableCalls.isEmpty) {
       log.info(s"$tag No runnable calls to start.")
     } else {
-      log.info(s"$tag Starting calls: " + runnableCalls.map {_.name}.toSeq.sorted.mkString(", "))
+      log.info(s"$tag Starting calls: " + runnableCalls.map {_.fullyQualifiedName}.toSeq.sorted.mkString(", "))
       val futureCallsAndInputs = for {
         _ <- persistStatus(runnableCalls, Starting)
         allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)
       } yield runnableCalls zip allInputs
       val callsAndInputs = Await.result(futureCallsAndInputs, DatabaseTimeout)
-      log.info("Calls and inputs are " + callsAndInputs)
+      log.info(s"$tag calls and inputs are " + callsAndInputs)
       callsAndInputs foreach { case (call, inputs) => startActor(call, inputs)}
     }
   }
@@ -245,9 +245,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def createStore: Future[Map[Call, ExecutionStatus.Value]] = {
     dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
-      // FIXME in a world with call aliases, *task*Fqn doesn't seem like the right key for this map.
       workflow.namespace.calls.map {call =>
-        call -> statuses.get(call.taskFqn).get}.toMap
+        call -> statuses.get(call.fullyQualifiedName).get}.toMap
     }
   }
 

@@ -10,6 +10,7 @@ import cromwell.engine.workflow.WorkflowActor.CallFailed
 import cromwell.util.TryUtil
 
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 
 object CallActor {
@@ -53,9 +54,13 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
     val originalSender = sender()
     val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
 
-    val tryCommand = for {
-      commandLine <- call.instantiateCommandLine(backendInputs)
-    } yield {
+    def handleFailedInstantiation(e: Throwable): Unit = {
+      val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
+      log.error(s"$tag: $message")
+      context.parent ! CallFailed(call, message)
+    }
+
+    def handleSuccessfulInstantiation(commandLine: String): Unit = {
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
       val tryOutputs = backend.executeCommand(commandLine, workflowDescriptor, call, s => locallyQualifiedInputs.get(s).get)
@@ -79,11 +84,10 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
         context.parent ! WorkflowActor.CallFailed(call, errorMessages.mkString("\n"))
       }
     }
-    tryCommand.recover {
-      case e: Throwable =>
-        val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
-        log.error(s"$tag: $message")
-        context.parent ! CallFailed(call, message)
+
+    call.instantiateCommandLine(backendInputs) match {
+      case Success(commandLine) => handleSuccessfulInstantiation(commandLine)
+      case Failure(e) => handleFailedInstantiation(e)
     }
   }
 }

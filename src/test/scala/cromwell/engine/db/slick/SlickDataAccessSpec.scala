@@ -16,7 +16,6 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 
 class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   implicit val ec = ExecutionContext.global
@@ -34,10 +33,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
   def databaseWithConfig(path: => String, testRequired: => Boolean): Unit = {
 
-    lazy val testDatabase = new TestSlickDatabase(DatabaseConfig.rootDatabaseConfig.getConfig(path))
+    lazy val testDatabase = new TestSlickDatabase(path)
     lazy val dataAccess = testDatabase.slickDataAccess
     lazy val canConnect = {
-      DatabaseConfig.rootDatabaseConfig.hasPath(path) && dataAccess.isValidConnection(1.second).futureValue
+      testRequired || (DatabaseConfig.rootDatabaseConfig.hasPath(path) && testDatabase.isValidConnection.futureValue)
     }
 
     it should "setup via liquibase if necessary" in {

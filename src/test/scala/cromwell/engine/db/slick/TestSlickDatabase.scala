@@ -3,14 +3,46 @@ package cromwell.engine.db.slick
 import java.sql.Connection
 
 import _root_.slick.util.ConfigExtensionMethods._
-import com.typesafe.config.Config
 import liquibase.Liquibase
 import liquibase.database.DatabaseConnection
 import liquibase.resource.{FileSystemResourceAccessor, ResourceAccessor}
+import org.slf4j.LoggerFactory
 
-class TestSlickDatabase(databaseConfig: Config) {
+import scala.concurrent.{ExecutionContext, Future}
 
-  lazy val slickDataAccess = new SlickDataAccess(databaseConfig)
+class TestSlickDatabase(configPath: String) {
+
+  private lazy val databaseConfig = DatabaseConfig.rootDatabaseConfig.getConfig(configPath)
+  private lazy val log = LoggerFactory.getLogger(classOf[TestSlickDatabase])
+
+  val dataAccessComponent: DataAccessComponent = new DataAccessComponent(databaseConfig.getString("slick.driver"))
+
+  import dataAccessComponent.driver.api._
+
+  /**
+   * Check the database connection.
+   * Can be run before operations that use slickDataAccess,
+   * but creates a whole new connection pool to do so.
+   */
+  def isValidConnection: Future[Boolean] = {
+    implicit val executionContext = ExecutionContext.global
+    Future {
+      log.debug("Opening test connection setup for " + configPath)
+      Database.forConfig("", databaseConfig)
+    } flatMap { database =>
+      database.run(SimpleDBIO(_.connection.isValid(1))) recover {
+        case ex =>
+          log.error("Unable to connect to database under config: " + configPath, ex)
+          false
+      } andThen {
+        case _ =>
+          log.debug("Closing test connection setup for " + configPath)
+          database.close()
+      }
+    }
+  }
+
+  lazy val slickDataAccess = new SlickDataAccess(databaseConfig, dataAccessComponent)
 
   def useLiquibase = databaseConfig.hasPath("liquibase")
 

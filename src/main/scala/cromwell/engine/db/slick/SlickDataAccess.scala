@@ -3,6 +3,7 @@ package cromwell.engine.db.slick
 import java.sql.Timestamp
 import java.util.{Date, UUID}
 
+import _root_.slick.util.ConfigExtensionMethods._
 import com.typesafe.config.Config
 import cromwell.binding._
 import cromwell.binding.types.WdlType
@@ -14,7 +15,7 @@ import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.implicitConversions
 
 object SlickDataAccess {
@@ -39,16 +40,19 @@ object SlickDataAccess {
 
 // Still needs compiled slick-queries too http://slick.typesafe.com/doc/3.0.0/queries.html#compiled-queries
 
-class SlickDataAccess(databaseConfig: Config) extends DataAccess {
+class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
 
-  def this() = this(DatabaseConfig.databaseConfig)
+  def this(databaseConfig: Config) = this(
+    databaseConfig,
+    new DataAccessComponent(databaseConfig.getString("slick.driver")))
+
+  def this() = this(
+    DatabaseConfig.databaseConfig)
 
   // NOTE: Used for slick flatMap. May switch to custom ExecutionContext the future
   private implicit val executionContext = ExecutionContext.global
 
   import SlickDataAccess._
-
-  val dataAccess = new DataAccessComponent(databaseConfig.getString("slick.driver"))
 
   // Allows creation of a Database, plus implicits for running transactions
   import dataAccess.driver.api._
@@ -56,25 +60,16 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
   val database = Database.forConfig("", databaseConfig)
 
-  // Check the database connection. Can be run before operations that actually use the database.
-  def isValidConnection(timeout: Duration): Future[Boolean] = {
-    database.run(SimpleDBIO(_.connection.isValid(timeout.toSeconds.toInt))) recover { case _ => false }
-  }
-
-  // Lazily, possibly create the database, returning the result in the future
-  private lazy val createDatabase: Future[Unit] = {
-    import _root_.slick.util.ConfigExtensionMethods._
+  // Possibly create the database
+  {
     if (databaseConfig.getBooleanOr("slick.createSchema")) {
-      database.run(dataAccess.schema.create)
-    } else Future.successful(())
+      Await.result(database.run(dataAccess.schema.create), Duration.Inf)
+    }
   }
 
-  // Run action with an outer transaction. Also if we need to, create the in memory database!
+  // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {
-    for {
-      _ <- createDatabase // If not created
-      result <- database.run(action.transactionally)
-    } yield result
+    database.run(action.transactionally)
   }
 
   /**

@@ -44,7 +44,9 @@ class LocalBackend extends Backend with LazyLogging {
     import LocalBackend._
 
     val callDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
-    callDirectory.mkdir()
+    // FIXME mkdir*s* should not be required here, the directory structure up to the call should
+    // FIXME already exist and must recently have been perturbed.
+    callDirectory.mkdirs()
 
     val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout", callDirectory)
     val (stderrFile, stderrWriter) = FileUtil.tempFileAndWriter("stderr", callDirectory)

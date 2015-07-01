@@ -101,8 +101,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator  {
 
           val tryMap = Try(workflowInputs.parseJson)
           tryMap match {
-            case Success(JsObject(obj)) =>
-              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.SubmitWorkflow(wdlSource, obj))
+            case Success(JsObject(json)) =>
+              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.SubmitWorkflow(wdlSource, workflowInputs, json))
             case Success(o) =>
               complete(StatusCodes.BadRequest, "Expecting JSON object as workflow inputs")
             case Failure(ex) =>

@@ -6,9 +6,9 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding
-import cromwell.binding.WdlSource
+import cromwell.binding.{WdlJson, WdlSource}
 import cromwell.engine._
-import cromwell.engine.workflow.WorkflowManagerActor.{SubscribeToWorkflow, WorkflowOutputs, SubmitWorkflow}
+import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, SubscribeToWorkflow, WorkflowOutputs}
 import spray.json._
 
 import scala.concurrent.Await
@@ -18,8 +18,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object SingleWorkflowRunnerActor {
-  def props(wdl: WdlSource, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
-    Props(new SingleWorkflowRunnerActor(wdl, inputs, workflowManager))
+  def props(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
+    Props(new SingleWorkflowRunnerActor(wdlSource, wdlJson, inputs, workflowManager))
   }
 }
 
@@ -28,20 +28,23 @@ object SingleWorkflowRunnerActor {
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
  */
-case class SingleWorkflowRunnerActor(wdl: WdlSource,
+case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
+                                     wdlJson: WdlJson,
                                      inputs: binding.WorkflowRawInputs,
                                      workflowManager: ActorRef) extends Actor {
-  private val log = Logging(context.system, this)
+  val log = Logging(context.system, classOf[SingleWorkflowRunnerActor])
+  val tag = "SingleWorkflowRunnerActor"
   private implicit val timeout = Timeout(5 seconds)
   // Note that id isn't used until *after* the submitWorkflow Future is complete
   private var id: WorkflowId = _
 
   override def preStart(): Unit = {
-    val eventualId = workflowManager.ask(SubmitWorkflow(wdl, inputs)).mapTo[WorkflowId]
+    log.info(s"$tag: launching workflow")
+    val eventualId = workflowManager.ask(SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
     eventualId onComplete {
       case Success(x) => subscribeToWorkflow(x)
       case Failure(e) =>
-        log.error(e.getMessage)
+        log.error(s"$tag: ${e.getMessage}")
         terminate()
     }
   }
@@ -49,11 +52,12 @@ case class SingleWorkflowRunnerActor(wdl: WdlSource,
   def receive = {
     case CurrentState(_, state: WorkflowState) if state.isTerminal => handleTermination(state)
     case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
-    case m => log.debug(s"Received unexpected message: $m")
+    case CurrentState(_, state: WorkflowState) => log.info(s"$tag: received CurrentState($state)")
+    case m => log.warning(s"$tag: received unexpected message: $m")
   }
 
   private def handleTermination(state: WorkflowState): Unit = {
-    log.info(s"Workflow complete: $state")
+    log.info(s"$tag: workflow finished with status '$state'.")
 
     // If this is a successful termination, retrieve & print out the outputs
     if (state == WorkflowSucceeded) {
@@ -74,7 +78,7 @@ case class SingleWorkflowRunnerActor(wdl: WdlSource,
    */
   private def subscribeToWorkflow(workflowId: WorkflowId): Unit = {
     id = workflowId
-    log.info(s"Workflow ID: $id")
+    log.info(s"SingleWorkflowRunnerActor: workflow ID UUID($id)")
     workflowManager ! SubscribeToWorkflow(id)
   }
 

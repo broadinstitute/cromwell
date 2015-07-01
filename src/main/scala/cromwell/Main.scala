@@ -5,11 +5,12 @@ import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
-import cromwell.engine.db.slick.DataAccessController
+import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.WdlParser.SyntaxError
-import cromwell.server.{CromwellServer, WorkflowManagerSystem}
+import cromwell.server.{DefaultWorkflowManagerSystem, CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil
+import org.slf4j.LoggerFactory
 import spray.json._
 
 object Actions extends Enumeration {
@@ -18,11 +19,23 @@ object Actions extends Enumeration {
 
 object Main extends App {
 
+  val props = System.getProperties
+  val loggerProperty = "CROMWELL_LOGGER"
+  Option(props.getProperty(loggerProperty)) match {
+    case None => args.headOption.map {_.capitalize}.find {_ == "SERVER"} match {
+      case Some(x) => props.setProperty(loggerProperty, "SERVER")
+      case _ =>
+    }
+    case _ =>
+  }
+
+  lazy val log = LoggerFactory.getLogger("main")
+
   getAction(args.headOption map { _.capitalize }) match {
     case Some(x) if x == Actions.Validate => validate(args.tail)
     case Some(x) if x == Actions.Highlight => highlight(args.tail)
     case Some(x) if x == Actions.Inputs => inputs(args.tail)
-    case Some(x) if x == Actions.Run => run(args.tail)
+    case Some(x) if x == Actions.Run => run(args.tail, DefaultWorkflowManagerSystem())
     case Some(x) if x == Actions.Parse => parse(args.tail)
     case Some(x) if x == Actions.Server => CromwellServer
     case None => usageAndExit(true)
@@ -34,7 +47,7 @@ object Main extends App {
     try {
       WdlNamespace.load(new File(args(0)))
     } catch {
-      case e:SyntaxError => println(e)
+      case e: SyntaxError => println(e)
     }
   }
 
@@ -55,23 +68,27 @@ object Main extends App {
     }
   }
 
-  def run(args: Array[String]): Unit = {
+  def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
 
+    log.info(s"RUN sub-command")
+    log.info(s"  WDL file: ${args(0)}")
+    log.info(s"  Inputs: ${args(1)}")
+
     try {
-      val wdl = FileUtil.slurp(Paths.get(args(0)))
-      val jsValue = FileUtil.slurp(Paths.get(args(1))).parseJson
+      val wdlSource = FileUtil.slurp(Paths.get(args(0)))
+      val wdlJson = FileUtil.slurp(Paths.get(args(1)))
+      val jsValue = wdlJson.parseJson
 
       val inputs: binding.WorkflowRawInputs = jsValue match {
         case JsObject(rawInputs) => rawInputs
         case _ => throw new RuntimeException("Expecting a JSON object")
       }
 
-      val workflowManagerSystem = new WorkflowManagerSystem {
-        override def dataAccess = DataAccessController
-      }
-      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdl, inputs, workflowManagerSystem.workflowManagerActor)
+      inputs foreach { case (k, v) => log.info(s"input: $k => $v") }
+      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
       val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
+      workflowManagerSystem.actorSystem.awaitTermination()
       // And now we just wait for the magic to happen
     } catch {
       case e: Exception =>
@@ -122,7 +139,7 @@ object Main extends App {
         |  Starts a web server on port 8000.  See the web server
         |  documentation for more details about the API endpoints.
       """.stripMargin)
-    if(exit) System.exit(-1)
+    if (exit) System.exit(-1)
   }
 
   def getAction(firstArg: Option[String]): Option[Actions.Value] = for {

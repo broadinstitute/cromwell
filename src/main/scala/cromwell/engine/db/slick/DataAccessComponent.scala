@@ -6,12 +6,12 @@ import scala.reflect.runtime._
 
 class DataAccessComponent(val driver: JdbcProfile)
   extends DriverComponent
+  with WorkflowExecutionComponent
+  with WorkflowExecutionAuxComponent
+  with SymbolComponent
   with ExecutionComponent
   with JesJobComponent
-  with LocalJobComponent
-  with SymbolComponent
-  with WorkflowExecutionComponent
-  with WorkflowExecutionAuxComponent {
+  with LocalJobComponent {
 
   import driver.api._
 
@@ -19,17 +19,13 @@ class DataAccessComponent(val driver: JdbcProfile)
     this(DataAccessComponent.getObject[JdbcProfile](driverName))
   }
 
-  def insertWorkflowExecution(workflowExecution: WorkflowExecution): DBIO[WorkflowExecution] = {
-    workflowExecutionsAutoInc += workflowExecution
-  }
-
-  def insertWorkflowExecutionAux(workflowExecutionAux: WorkflowExecutionAux): DBIO[WorkflowExecutionAux] = {
-    workflowExecutionAuxesAutoInc += workflowExecutionAux
-  }
-
-  def insertSymbols(symbols: Seq[Symbol]): DBIO[Seq[Symbol]] = {
-    symbolsAutoInc ++= symbols
-  }
+  lazy val schema =
+    workflowExecutions.schema ++
+      workflowExecutionAuxes.schema ++
+      symbols.schema ++
+      executions.schema ++
+      localJobs.schema ++
+      jesJobs.schema
 }
 
 object DataAccessComponent {

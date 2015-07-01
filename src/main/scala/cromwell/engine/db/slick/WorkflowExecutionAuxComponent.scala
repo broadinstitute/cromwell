@@ -27,6 +27,8 @@ trait WorkflowExecutionAuxComponent {
     def workflow = foreignKey(
       "FK_WE_AUX_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
+    def uniqueKey = index("UK_WE_AUX_WORKFLOW_EXECUTION_ID",
+      workflowExecutionId, unique = true)
   }
 
   val workflowExecutionAuxes = TableQuery[WorkflowExecutionAuxes]

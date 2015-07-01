@@ -92,3 +92,5 @@ lazy val root = (project in file("."))
 testOptions in DockerTest := Seq(Tests.Argument("-n", "DockerTest"))
 
 testOptions in NoDockerTest := Seq(Tests.Argument("-l", "DockerTest"))
+
+test in assembly := {}

@@ -5,10 +5,9 @@ import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.WdlParser.SyntaxError
-import cromwell.server.{DefaultWorkflowManagerSystem, CromwellServer, WorkflowManagerSystem}
+import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
 import cromwell.util.FileUtil
 import org.slf4j.LoggerFactory
 import spray.json._
@@ -87,7 +86,7 @@ object Main extends App {
 
       inputs foreach { case (k, v) => log.info(s"input: $k => $v") }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
-      val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
+      workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
       workflowManagerSystem.actorSystem.awaitTermination()
       // And now we just wait for the magic to happen
     } catch {

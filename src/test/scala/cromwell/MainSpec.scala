@@ -1,8 +1,20 @@
 package cromwell
 
+import akka.actor.ActorSystem
+import akka.testkit.EventFilter
+import com.typesafe.config.ConfigFactory
+import cromwell.engine.db.DummyDataAccess
+import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.server.WorkflowManagerSystem
 import cromwell.util.FileUtil
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.{FlatSpec, Matchers}
+
+class TestWorkflowManagerSystem extends WorkflowManagerSystem {
+  override def dataAccess = DummyDataAccess()
+  override implicit val actorSystem = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
+  override lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess))
+}
 
 class MainSpec extends FlatSpec with Matchers {
   val wdlFilePathAndWriter = FileUtil.tempFileAndWriter("wdl")
@@ -87,6 +99,15 @@ class MainSpec extends FlatSpec with Matchers {
       Main.inputs(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString))
     }
     assert(stream.toString.contains("\"three_step.cgrep.pattern\""))
+  }
+
+  it should "run" in {
+    val stream = new java.io.ByteArrayOutputStream()
+    val workflowManagerSystem = new TestWorkflowManagerSystem
+    implicit val system = workflowManagerSystem.actorSystem
+    EventFilter.info(pattern = s"workflow finished", occurrences = 1).intercept {
+      Main.run(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString, inputsJsonPathAndWriter._1.toAbsolutePath.toString), workflowManagerSystem)
+    }
   }
 
   it should "print usage" in {

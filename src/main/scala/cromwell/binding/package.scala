@@ -16,6 +16,7 @@ import cromwell.binding.values.WdlValue
 
 package object binding {
   type WdlSource = String
+  type WdlJson = String
   type WorkflowRawInputs = Map[FullyQualifiedName, Any]
   type WorkflowCoercedInputs = Map[FullyQualifiedName, WdlValue]
   type WorkflowOutputs = Map[FullyQualifiedName, WdlValue]
@@ -23,6 +24,7 @@ package object binding {
   type RuntimeAttributes = Map[String, String]
   type RuntimeAttribute = (String, String)
   type CallInputs = Map[String, WdlValue]
+  type CallOutputs = Map[FullyQualifiedName, WdlValue]
   type HostInputs = Map[String, WdlValue]
 
   /**
@@ -38,9 +40,9 @@ package object binding {
   /**
    * Core data identifying a workflow including its unique ID, its namespace, and strongly typed inputs.
    */
-  case class WorkflowDescriptor(namespace: WdlNamespace, actualInputs: WorkflowCoercedInputs) {
-    val id = UUID.randomUUID()
-    val shortId = id.toString.split("-")(0)
+  case class WorkflowDescriptor(namespace: WdlNamespace, wdlSource: WdlSource, wdlJson: WdlJson,
+                                actualInputs: WorkflowCoercedInputs, id: UUID = UUID.randomUUID()) {
     val name = namespace.workflows.head.name
+    val shortId = id.toString.split("-")(0)
   }
 }

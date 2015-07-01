@@ -144,6 +144,10 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
    */
   val workflows = importedWorkflows ++ localWorkflows
 
+  lazy val workflow = workflows.head
+
+  lazy val calls = workflow.calls
+
   /* All `Task`s and `Workflow`s */
   val executables = workflows ++ tasks
 

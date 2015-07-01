@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+    <changeSet author="kshakir" id="symbol_iteration_not_null">
+        <comment>
+            Thanks to "Not a bug" https://bugs.mysql.com/bug.php?id=8173,
+            Need to store flag values in the db to make the unique constraint work
+        </comment>
+        <addNotNullConstraint
+                tableName="SYMBOL" columnName="ITERATION"
+                columnDataType="INT" defaultNullValue="-1"/>
+    </changeSet>
+</databaseChangeLog>

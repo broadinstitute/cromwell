@@ -5,7 +5,7 @@ import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
-import cromwell.engine.SingleWorkflowRunnerActor
+import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
 import cromwell.util.FileUtil
@@ -30,13 +30,11 @@ object Main extends App {
 
   lazy val log = LoggerFactory.getLogger("main")
 
-  getAction(args.headOption map {
-    _.capitalize
-  }) match {
+  getAction(args.headOption map { _.capitalize }) match {
     case Some(x) if x == Actions.Validate => validate(args.tail)
     case Some(x) if x == Actions.Highlight => highlight(args.tail)
     case Some(x) if x == Actions.Inputs => inputs(args.tail)
-    case Some(x) if x == Actions.Run => run(args.tail)
+    case Some(x) if x == Actions.Run => run(args.tail, DefaultWorkflowManagerSystem())
     case Some(x) if x == Actions.Parse => parse(args.tail)
     case Some(x) if x == Actions.Server => CromwellServer
     case None => usageAndExit(true)
@@ -65,11 +63,11 @@ object Main extends App {
       val namespace = WdlNamespace.load(new File(args(0)))
       println(namespace.workflows.head.inputs.toJson.prettyPrint)
     } catch {
-      case e: SyntaxError => println(e)
+      case e:SyntaxError => println(e)
     }
   }
 
-  def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem = new DefaultWorkflowManagerSystem): Unit = {
+  def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
 
     log.info(s"RUN sub-command")
@@ -77,8 +75,9 @@ object Main extends App {
     log.info(s"  Inputs: ${args(1)}")
 
     try {
-      val wdl = FileUtil.slurp(Paths.get(args(0)))
-      val jsValue = FileUtil.slurp(Paths.get(args(1))).parseJson
+      val wdlSource = FileUtil.slurp(Paths.get(args(0)))
+      val wdlJson = FileUtil.slurp(Paths.get(args(1)))
+      val jsValue = wdlJson.parseJson
 
       val inputs: binding.WorkflowRawInputs = jsValue match {
         case JsObject(rawInputs) => rawInputs
@@ -86,9 +85,8 @@ object Main extends App {
       }
 
       inputs foreach { case (k, v) => log.info(s"input: $k => $v") }
-      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdl, inputs, workflowManagerSystem.workflowManagerActor)
-
-      val actor = workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
+      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
+      workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
       workflowManagerSystem.actorSystem.awaitTermination()
       // And now we just wait for the magic to happen
     } catch {
@@ -145,8 +143,6 @@ object Main extends App {
 
   def getAction(firstArg: Option[String]): Option[Actions.Value] = for {
     arg <- firstArg
-    a <- Actions.values find {
-      _.toString == arg
-    }
+    a <- Actions.values find { _.toString == arg }
   } yield a
 }

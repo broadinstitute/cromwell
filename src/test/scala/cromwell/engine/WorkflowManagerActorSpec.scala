@@ -4,21 +4,23 @@ import java.util.{Calendar, UUID}
 
 import akka.testkit.TestActorRef
 import cromwell.binding.FullyQualifiedName
+import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
+import cromwell.engine.ExecutionStatus.{Done, NotStarted, Running}
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{CallStatus, QueryWorkflowExecutionResult, DummyDataAccess}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld
-import cromwell.{CromwellTestkitSpec, binding}
+import cromwell.{engine, CromwellTestkitSpec, binding}
 
 import scala.concurrent.Future
 
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
 
-  "An ActorWorkflowManager" should {
+  "A WorkflowManagerActor" should {
 
     "run the Hello World workflow" in {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(DummyDataAccess()), self, "Test the WorkflowManagerActor")
@@ -45,27 +47,39 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "Try to restart workflows when there are workflows in restartable states" in {
       val (submitted, running) = (result(WorkflowSubmitted), result(WorkflowRunning))
       val workflows = Seq(submitted, running)
-      val ids = workflows.map { _.workflowId.toString }.sorted
+      val ids = workflows.map {
+        _.workflowId.toString
+      }.sorted
+      val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
+      val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(WdlString("world"))))
+
       val dataAccess = new DummyDataAccess() {
+        workflows foreach { workflow =>
+          val id = workflow.workflowId
+          executionStatuses += (id -> Map("hello.hello" -> (if (id == submitted.workflowId) NotStarted else Running)))
+          symbolStore += (workflow.workflowId -> symbols)
+        }
 
         override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]] = {
-          Future.successful { workflows.map { w =>
+          Future.successful {
+            workflows.map { w =>
               WorkflowInfo(w.workflowId, w.wdlSource, w.jsonInputs)
             }
           }
         }
-
-        override def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]] = {
-          Future.successful { workflows.map { w =>
-            "hello" -> (if (w.workflowId == submitted.workflowId) ExecutionStatus.NotStarted else ExecutionStatus.Running) }.toMap
-          }
-        }
       }
-      waitForPattern("Restarting workflow IDs: "  + ids.mkString(", ")) {
+
+      waitForPattern("Restarting workflow IDs: " + ids.mkString(", ")) {
         waitForPattern("Found 2 workflows to restart.") {
-          // TODO this isn't mocking out any part of the restart logic of the WorkflowManagerActor,
-          // TODO it actually does "restart" these two hello world workflows.
-          TestActorRef(WorkflowManagerActor.props(dataAccess), self, "2 restartable workflows")
+          // Workflows are always set back to Submitted on restart.
+          waitForPattern("transitioning from Submitted to Running.", occurrences = 2) {
+            // Both the previously in-flight call and the never-started call should get started.
+            waitForPattern("Starting calls: hello.hello", occurrences = 2) {
+              waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
+                TestActorRef(WorkflowManagerActor.props(dataAccess), self, "2 restartable workflows")
+              }
+            }
+          }
         }
       }
     }

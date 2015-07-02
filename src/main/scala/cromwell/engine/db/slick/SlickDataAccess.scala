@@ -403,7 +403,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
-  override def setStatus(workflowId: WorkflowId, calls: Traversable[Call], callStatus: CallStatus): Future[Unit] = {
+  override def setStatus(workflowId: WorkflowId, callFqns: Traversable[FullyQualifiedName], callStatus: CallStatus): Future[Unit] = {
 
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutions.filter(
@@ -411,10 +411,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
       count <- dataAccess.executions.filter(execution =>
         (execution.workflowExecutionId === workflowExecutionResult.workflowExecutionId.get) &&
-          (execution.callFqn inSet calls.map(_.fullyQualifiedName))
+          (execution.callFqn inSet callFqns)
       ).map(_.status).update(callStatus.toString)
 
-      callSize = calls.size
+      callSize = callFqns.size
       _ = require(count == callSize, s"Execution update count $count did not match calls size $callSize")
 
     } yield ()

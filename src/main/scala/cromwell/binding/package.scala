@@ -40,8 +40,7 @@ package object binding {
   /**
    * Core data identifying a workflow including its unique ID, its namespace, and strongly typed inputs.
    */
-  case class WorkflowDescriptor(namespace: WdlNamespace, wdlSource: WdlSource, wdlJson: WdlJson,
-                                actualInputs: WorkflowCoercedInputs, id: UUID = UUID.randomUUID()) {
+  case class WorkflowDescriptor(id: UUID, namespace: WdlNamespace, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
     val name = namespace.workflows.head.name
     val shortId = id.toString.split("-")(0)
   }

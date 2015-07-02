@@ -13,9 +13,9 @@ case class DummyDataAccess() extends DataAccess {
 
   private var workflowStates: Map[WorkflowId, WorkflowState] = Map.empty
 
-  private var executionStatuses: Map[WorkflowId, Map[String, ExecutionStatus]] = Map.empty
+  var executionStatuses: Map[WorkflowId, Map[String, ExecutionStatus]] = Map.empty
 
-  private var symbolStore: Map[WorkflowId, Map[SymbolStoreKey, SymbolStoreEntry]] = Map.empty
+  var symbolStore: Map[WorkflowId, Map[SymbolStoreKey, SymbolStoreEntry]] = Map.empty
 
   /**
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
@@ -26,7 +26,7 @@ case class DummyDataAccess() extends DataAccess {
                               calls: Traversable[Call], backend: Backend): Future[Unit] = {
     Future.successful {
       executionStatuses += (workflowInfo.workflowId -> Map.empty)
-      setStatus(workflowInfo.workflowId, calls, ExecutionStatus.NotStarted)
+      setStatus(workflowInfo.workflowId, calls map { _.fullyQualifiedName }, ExecutionStatus.NotStarted)
       val newEntries = symbols map { symbol =>
         symbol.key -> symbol
       }
@@ -39,9 +39,9 @@ case class DummyDataAccess() extends DataAccess {
     Future.successful(workflowStates.collect { case (id, state) if statesSet.contains(state) => WorkflowInfo(id, "", "")})
   }
 
-  override def setStatus(workflowId: WorkflowId, calls: Traversable[Call], callStatus: CallStatus): Future[Unit] = {
+  override def setStatus(workflowId: WorkflowId, callFqns: Traversable[FullyQualifiedName], callStatus: CallStatus): Future[Unit] = {
     Future.successful {
-      executionStatuses += (workflowId -> (executionStatuses(workflowId) ++ calls.map { _.name -> callStatus}.toMap))
+      executionStatuses += (workflowId -> (executionStatuses(workflowId) ++ callFqns.map { _ -> callStatus}.toMap))
     }
   }
 

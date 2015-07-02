@@ -1,6 +1,7 @@
 package cromwell
 
 import java.io.{File, FileWriter}
+import java.util.UUID
 
 import akka.pattern.ask
 import akka.testkit.TestFSMRef
@@ -59,7 +60,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
     val namespace = WdlNamespace.load(SampleWdl.FauxThreeStep.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(workflowInputs).get
-    val descriptor = WorkflowDescriptor(namespace, SampleWdl.FauxThreeStep.wdlSource(runtime), json, coercedInputs)
+    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, SampleWdl.FauxThreeStep.wdlSource(runtime), json, coercedInputs)
     val dataAccess = new DummyDataAccess()
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
@@ -74,7 +75,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   private def runAndAssertCorrectness(runtime: String = ""): Unit = {
     val fsm = buildWorkflowActorFsm(runtime)
     assert(fsm.stateName == WorkflowSubmitted)
-    startingCallsFilter("cgrep", "wc") {
+    startingCallsFilter("three_step.cgrep", "three_step.wc") {
       fsm ! Start
       within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowRunning)

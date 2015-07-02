@@ -8,10 +8,15 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
+import cromwell.engine.{WorkflowId, ExecutionStatus}
+import cromwell.engine.ExecutionStatus.{NotStarted, Failed, Done}
 import cromwell.engine.backend.Backend
+import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.Try
@@ -35,7 +40,6 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 class LocalBackend extends Backend with LazyLogging {
-
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
@@ -175,5 +179,27 @@ class LocalBackend extends Backend with LazyLogging {
 
     // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
     if (call.docker.isDefined) inputs map adjustPath else inputs
+  }
+
+  /**
+   * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
+   */
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
+                                 (implicit ec: ExecutionContext): Future[Any] = {
+    // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
+    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(Failed, Done, NotStarted)
+    def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
+      val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
+      dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
+    }
+
+    val seqOfFutures = restartableWorkflows map { workflow =>
+      for {
+        callsToStatuses <- dataAccess.getExecutionStatuses(workflow.id)
+        _ <- updateNonTerminalCalls(workflow.id, callsToStatuses)
+      } yield ()
+    }
+    // The caller doesn't care about the result value, only that it's a Future.
+    Future.sequence(seqOfFutures)
   }
 }

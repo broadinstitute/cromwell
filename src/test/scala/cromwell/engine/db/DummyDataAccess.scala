@@ -1,21 +1,22 @@
 package cromwell.engine.db
 
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{Call, FullyQualifiedName, WdlNamespace}
+import cromwell.binding.{Call, FullyQualifiedName}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 
 case class DummyDataAccess() extends DataAccess {
 
-  private var workflowStates: Map[WorkflowId, WorkflowState] = Map.empty
+  private val workflowStates: TrieMap[WorkflowId, WorkflowState] = TrieMap.empty
 
-  var executionStatuses: Map[WorkflowId, Map[String, ExecutionStatus]] = Map.empty
+  val executionStatuses: TrieMap[WorkflowId, TrieMap[String, ExecutionStatus]] = TrieMap.empty
 
-  var symbolStore: Map[WorkflowId, Map[SymbolStoreKey, SymbolStoreEntry]] = Map.empty
+  val symbolStore: TrieMap[WorkflowId, TrieMap[SymbolStoreKey, SymbolStoreEntry]] = TrieMap.empty
 
   /**
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
@@ -25,12 +26,13 @@ case class DummyDataAccess() extends DataAccess {
   override def createWorkflow(workflowInfo: WorkflowInfo, symbols: Traversable[SymbolStoreEntry],
                               calls: Traversable[Call], backend: Backend): Future[Unit] = {
     Future.successful {
-      executionStatuses += (workflowInfo.workflowId -> Map.empty)
-      setStatus(workflowInfo.workflowId, calls map { _.fullyQualifiedName }, ExecutionStatus.NotStarted)
-      val newEntries = symbols map { symbol =>
-        symbol.key -> symbol
+      val id = workflowInfo.workflowId
+      executionStatuses += (id -> TrieMap.empty)
+      symbolStore += (id -> TrieMap.empty)
+      setStatus(id, calls map { _.fullyQualifiedName }, ExecutionStatus.NotStarted)
+      symbols foreach { symbol =>
+        symbolStore(id)(symbol.key) = symbol
       }
-      symbolStore += (workflowInfo.workflowId -> newEntries.toMap)
     }
   }
 
@@ -41,7 +43,9 @@ case class DummyDataAccess() extends DataAccess {
 
   override def setStatus(workflowId: WorkflowId, callFqns: Traversable[FullyQualifiedName], callStatus: CallStatus): Future[Unit] = {
     Future.successful {
-      executionStatuses += (workflowId -> (executionStatuses(workflowId) ++ callFqns.map { _ -> callStatus}.toMap))
+      callFqns foreach { callFqn =>
+        executionStatuses(workflowId)(callFqn) = callStatus
+      }
     }
   }
 
@@ -69,17 +73,15 @@ case class DummyDataAccess() extends DataAccess {
   /** The keys in the Map are locally qualified names. */
   override def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: Map[String, WdlValue]): Future[Unit] = {
     Future.successful {
-      val newOutputs = for {
-        callOutput <- callOutputs
-        entry = SymbolStoreEntry(call.fullyQualifiedName + "." + callOutput._1, callOutput._2, input = false)
-      } yield entry.key -> entry
-
-      symbolStore += (workflowId -> (symbolStore(workflowId) ++ newOutputs))
+      callOutputs foreach { case (name, wdlValue) =>
+        val entry = SymbolStoreEntry(call.fullyQualifiedName + "." + name, wdlValue, input = false)
+        symbolStore(workflowId)(entry.key) = entry
+      }
     }
   }
 
   override def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]] = {
-    Future.successful(executionStatuses(workflowId))
+    Future.successful(executionStatuses(workflowId).toMap)
   }
 
   override def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo] = ???

@@ -3,18 +3,18 @@ package cromwell.engine
 import java.util.{Calendar, UUID}
 
 import akka.testkit.TestActorRef
-import cromwell.binding.FullyQualifiedName
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
-import cromwell.engine.ExecutionStatus.{Done, NotStarted, Running}
+import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.db.DataAccess.WorkflowInfo
-import cromwell.engine.db.{CallStatus, QueryWorkflowExecutionResult, DummyDataAccess}
+import cromwell.engine.db.{DummyDataAccess, QueryWorkflowExecutionResult}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld
-import cromwell.{engine, CromwellTestkitSpec, binding}
+import cromwell.{CromwellTestkitSpec, binding}
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 
 
@@ -56,8 +56,12 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       val dataAccess = new DummyDataAccess() {
         workflows foreach { workflow =>
           val id = workflow.workflowId
-          executionStatuses += (id -> Map("hello.hello" -> (if (id == submitted.workflowId) NotStarted else Running)))
-          symbolStore += (workflow.workflowId -> symbols)
+          val status = if (id == submitted.workflowId) NotStarted else Running
+          executionStatuses(id) = TrieMap("hello.hello" -> status)
+          symbolStore(id) = TrieMap.empty
+          symbols foreach { case(symbolStoreKey, symbolStoreEntry) =>
+            symbolStore(id)(symbolStoreKey) = symbolStoreEntry
+          }
         }
 
         override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]] = {

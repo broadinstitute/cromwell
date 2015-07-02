@@ -89,8 +89,8 @@ lazy val root = (project in file("."))
   .settings(inConfig(DockerTest)(Defaults.testTasks): _*)
   .settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)  
 
-testOptions in DockerTest := Seq(Tests.Argument("-n", "DockerTest"))
+testOptions in DockerTest += Tests.Argument("-n", "DockerTest")
 
-testOptions in NoDockerTest := Seq(Tests.Argument("-l", "DockerTest"))
+testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
 
 test in assembly := {}

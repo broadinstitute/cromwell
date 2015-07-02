@@ -1,7 +1,8 @@
 package cromwell.engine.db.slick
 
-import java.sql.Timestamp
+import java.sql.{Clob, Timestamp}
 import java.util.{Date, UUID}
+import javax.sql.rowset.serial.SerialClob
 
 import _root_.slick.util.ConfigExtensionMethods._
 import com.typesafe.config.Config
@@ -26,6 +27,14 @@ object SlickDataAccess {
 
   implicit class DateToTimestamp(val date: Date) extends AnyVal {
     def toTimestamp = new Timestamp(date.getTime)
+  }
+
+  implicit class ClobToRawString(val clob: Clob) extends AnyVal {
+    def toRawString: String = clob.getSubString(1, clob.length.toInt) // yes, it starts at 1
+  }
+
+  implicit class StringToClob(val str: String) extends AnyVal {
+    def toClob: Clob = new SerialClob(str.toCharArray)
   }
 }
 
@@ -62,6 +71,16 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   // Possibly create the database
   {
+    // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
+    //
+    // Not really an issue, since externally run liquibase is standard way of installing / upgrading MySQL.
+    //
+    // Also, creating the unique key on UUID stored as a VARCHAR requires setting the length to O.Length(36) or (100)
+    // for MySQL schema gen to avoid:
+    //   com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException: BLOB/TEXT column 'WORKFLOW_EXECUTION_UUID'
+    //   used in key specification without a key length
+    //
+    // Perhaps we'll use a more optimized data type for UUID's bytes in the future, as a FK, instead auto-inc cols
     if (databaseConfig.getBooleanOr("slick.createSchema")) {
       Await.result(database.run(dataAccess.schema.create), Duration.Inf)
     }
@@ -91,8 +110,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
       _ <- dataAccess.workflowExecutionAuxesAutoInc += new WorkflowExecutionAux(
         workflowExecutionInsert.workflowExecutionId.get,
-        workflowInfo.wdlSource,
-        workflowInfo.wdlJson)
+        workflowInfo.wdlSource.toClob,
+        workflowInfo.wdlJson.toClob)
 
       symbolInsert <- dataAccess.symbolsAutoInc ++= toSymbols(workflowExecutionInsert, workflowInputs)
 
@@ -126,8 +145,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
   private def toCallActions(workflowExecution: WorkflowExecution, backend: Backend,
                             calls: Traversable[Call]): Seq[DBIO[Unit]] = {
-    def toWorfklowExecutionCallAction(call: Call) = toCallAction(workflowExecution, backend, call)
-    calls.toSeq map toWorfklowExecutionCallAction
+    def toWorkflowExecutionCallAction(call: Call) = toCallAction(workflowExecution, backend, call)
+    calls.toSeq map toWorkflowExecutionCallAction
   }
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
@@ -138,7 +157,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       executionInsert <- dataAccess.executionsAutoInc +=
         new Execution(
           workflowExecution.workflowExecutionId.get,
-          call.taskFqn,
+          call.fullyQualifiedName,
           ExecutionStatus.NotStarted.toString)
 
       // Depending on the backend, insert a job specific row
@@ -207,8 +226,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
           workflowExecutionAuxResult map { workflowExecutionAux =>
             new WorkflowInfo(
               UUID.fromString(workflowExecutionResult.workflowExecutionUuid),
-              workflowExecutionAux.wdlSource,
-              workflowExecutionAux.jsonInputs)
+              workflowExecutionAux.wdlSource.toRawString,
+              workflowExecutionAux.jsonInputs.toRawString)
           }
         }
       )

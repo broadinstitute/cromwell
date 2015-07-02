@@ -37,7 +37,7 @@ trait Backend {
    * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
    * a mapping of local task output names to WDL values.
    */
-  def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Map[String, Try[WdlValue]]
+  def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
 
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.

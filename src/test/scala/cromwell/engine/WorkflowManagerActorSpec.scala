@@ -26,7 +26,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(DummyDataAccess()), self, "Test the WorkflowManagerActor")
 
       val workflowId = waitForHandledMessagePattern(pattern = "Transition\\(.*,Running,Succeeded\\)$") {
-        messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.WdlSource, HelloWorld.WdlJson, HelloWorld.RawInputs))
+        messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.wdlSource, HelloWorld.wdlJson, HelloWorld.rawInputs))
       }
 
       val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
@@ -78,7 +78,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           // Workflows are always set back to Submitted on restart.
           waitForPattern("transitioning from Submitted to Running.", occurrences = 2) {
             // Both the previously in-flight call and the never-started call should get started.
-            waitForPattern("Starting calls: hello.hello", occurrences = 2) {
+            waitForPattern("starting calls: hello.hello", occurrences = 2) {
               waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
                 TestActorRef(WorkflowManagerActor.props(dataAccess), self, "2 restartable workflows")
               }
@@ -90,8 +90,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
   }
 
   def result(workflowState: WorkflowState,
-             wdlSource: String = SampleWdl.HelloWorld.WdlSource,
-             wdlInputs: String = SampleWdl.HelloWorld.WdlJson): QueryWorkflowExecutionResult = {
+             wdlSource: String = SampleWdl.HelloWorld.wdlSource,
+             wdlInputs: String = SampleWdl.HelloWorld.wdlJson): QueryWorkflowExecutionResult = {
     QueryWorkflowExecutionResult(
       UUID.randomUUID(), "http://wdl.me", workflowState, Calendar.getInstance().getTime, None, Set.empty, Set.empty, wdlSource, wdlInputs)
   }

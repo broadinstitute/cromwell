@@ -129,7 +129,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def persistStatus(call: Call, callStatus: CallStatus): Future[Unit] = {
-    log.info(s"$tag: persisting status of '${call.fullyQualifiedName}' to $callStatus.")
     persistStatus(Iterable(call), callStatus)
   }
 
@@ -178,9 +177,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
     val runnableCalls = findRunnableCalls
     if (runnableCalls.isEmpty) {
-      log.info(s"$tag No runnable calls to start.")
+      log.info(s"$tag no runnable calls to start.")
     } else {
-      log.info(s"$tag Starting calls: " + runnableCalls.map {_.fullyQualifiedName}.toSeq.sorted.mkString(", "))
+      log.info(s"$tag starting calls: " + runnableCalls.map {_.fullyQualifiedName}.toSeq.sorted.mkString(", "))
       val futureCallsAndInputs = for {
         _ <- persistStatus(runnableCalls, Starting)
         allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)

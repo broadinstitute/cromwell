@@ -15,7 +15,7 @@ class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService
   val workflowManager = system.actorOf(WorkflowManagerActor.props(DummyDataAccess()))
 
   it should "return 400 for a malformed WDL " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> CromwellApiServiceSpec.MalformedWdl , "workflowInputs" -> HelloWorld.RawInputs.toJson.toString() ))) ~>
+    Post("/workflows", FormData(Seq("wdlSource" -> CromwellApiServiceSpec.MalformedWdl , "workflowInputs" -> HelloWorld.rawInputs.toJson.toString() ))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {

@@ -29,12 +29,12 @@ libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick" % "3.0.0",
   "com.zaxxer" % "HikariCP" % "2.3.3",
   "org.hsqldb" % "hsqldb" % "2.3.2",
-  "mysql" % "mysql-connector-java" % "5.1.35",
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,
   "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
-  "org.liquibase" % "liquibase-core" % "3.3.5" % "test"
+  "mysql" % "mysql-connector-java" % "5.1.35" % Test,
+  "org.liquibase" % "liquibase-core" % "3.3.5" % Test
 )
 
 releaseSettings

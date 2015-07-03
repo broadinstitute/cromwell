@@ -6,7 +6,7 @@ import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class ThreeStepSpec extends FlatSpec with Matchers {
-  val namespace = WdlNamespace.load(SampleWdl.ThreeStep.WdlSource)
+  val namespace = WdlNamespace.load(SampleWdl.ThreeStep.wdlSource())
 
   "Binding Workflow" should "Have one workflow definition" in {
     namespace.workflows.size shouldEqual 1

@@ -22,7 +22,7 @@ class MainSpec extends FlatSpec with Matchers {
 
   wdlFilePathAndWriter match {
     case (path, writer) =>
-      writer.write(ThreeStep.WdlSource)
+      writer.write(ThreeStep.wdlSource())
       writer.close()
   }
 

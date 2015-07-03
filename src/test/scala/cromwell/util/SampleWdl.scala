@@ -1,16 +1,23 @@
 package cromwell.util
 
+import java.io.{File, FileWriter}
+
 import cromwell.binding._
 
 trait SampleWdl {
-  val wdlSource: String
+  def wdlSource(runtime: String = ""): String
+
   val rawInputs: Map[String, Any]
-  val wdlJson: String
+
+  def wdlJson: String = {
+    "{" + rawInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
+  }
 }
 
 object SampleWdl {
+
   object HelloWorld extends SampleWdl {
-    val wdlSource =
+    override def wdlSource(runtime: String = "") =
       """
         |task hello {
         |  command {
@@ -27,31 +34,30 @@ object SampleWdl {
       """.stripMargin
 
     val Addressee = "hello.hello.addressee"
-    val rawInputs =  Map(Addressee -> "world")
+    val rawInputs = Map(Addressee -> "world")
     val OutputKey = "hello.hello.salutation"
     val OutputValue = "Hello world!\n"
-    val wdlJson = s""" { "$Addressee" : "world" } """
   }
 
   object GoodbyeWorld extends SampleWdl {
-    val wdlSource =
-    """
-      |task goodbye {
-      |  command {
-      |    sh -c "exit 1"
-      |  }
-      |  output {
-      |    String out = read_string(stdout())
-      |  }
-      |}
-      |
-      |workflow goodbye {
-      |  call goodbye
-      |}
-    """.stripMargin
+    override def wdlSource(runtime: String = "") =
+      """
+        |task goodbye {
+        |  command {
+        |    sh -c "exit 1"
+        |  }
+        |  output {
+        |    String out = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow goodbye {
+        |  call goodbye
+        |}
+      """.stripMargin
+
     val rawInputs = Map.empty[String, Any]
     val OutputKey = "goodbye.goodbye.out"
-    val wdlJson = "{}"
   }
 
   object SubtractionWorkflow {
@@ -76,9 +82,9 @@ object SampleWdl {
       """.stripMargin
   }
 
-  object ThreeStep {
-      val WdlSource =
-        """
+  object ThreeStep extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
         |task ps {
         |  command {
         |    ps
@@ -117,13 +123,23 @@ object SampleWdl {
         |}
         |
       """.stripMargin
+
     val PatternKey = "three_step.cgrep.pattern"
-    val WdlJson = s"""{ $PatternKey: "..." } """
-    val RawInputs =  Map(PatternKey -> "...")
+    override val rawInputs = Map(PatternKey -> "...")
   }
 
-  object FauxThreeStep {
-    def wdlSource(runtime: String): WdlSource =
+  object CannedThreeStep extends SampleWdl {
+    val CannedProcessOutput =
+      """
+        |USER              PID  %CPU %MEM      VSZ    RSS   TT  STAT STARTED      TIME COMMAND
+        |joeblaux         10344   4.5 20.6  7011548 3454616  ??  S    Mon06AM 275:26.10 /Applications/IntelliJ IDEA 14.app/Contents/MacOS/idea
+        |joeblaux           883   2.2  0.5  2716336  85768   ??  S    Sun08AM   0:52.64 /Applications/Utilities/Terminal.app/Contents/MacOS/Terminal
+        |_coreaudiod        577   1.9  0.1  2522428   9572   ??  Ss   Sun08AM  55:39.69 /usr/sbin/coreaudiod
+        |_windowserver      130   1.6  1.9  4535136 319588   ??  Ss   Sun08AM 148:39.39 /System/Library/Frameworks/ApplicationServices.framework/Frameworks/CoreGraphics.framework/Resources/WindowServer -daemon
+        |joeblaux          6440   1.4  2.2  4496164 362136   ??  S    Sun09PM  74:29.40 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+      """.stripMargin.trim
+
+    override def wdlSource(runtime: String): WdlSource =
       """
         |task ps {
         |  command {
@@ -168,14 +184,87 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
+    private def createCannedPsFile: File = {
+      val file = File.createTempFile("canned_ps", ".out")
+      val writer = new FileWriter(file)
+      writer.write(CannedProcessOutput)
+      writer.flush()
+      writer.close()
+      file
+    }
 
-    object InputKeys {
-      val Pattern = "three_step.cgrep.pattern"
-      // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
-      // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
-      val DummyPsFile = "three_step.ps.dummy_ps_file"
-      val DummyPs2File = "three_step.ps2.dummy_ps_file"
-      val DummyPs3File = "three_step.ps3.dummy_ps_file"
+    override val rawInputs = {
+      import InputKeys._
+      Map(
+        Pattern -> "joeblaux",
+        DummyPsFile -> createCannedPsFile.getAbsolutePath,
+        DummyPs2File -> createCannedPsFile.getAbsolutePath,
+        DummyPs3File -> createCannedPsFile.getAbsolutePath)
     }
   }
+
+  object FilePassingThreeStep extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task ps {
+        |  command {
+        |    ps > myfile.txt
+        |  }
+        |  output {
+        |    File procs = "myfile.txt"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |  }
+        |}
+        |
+        |task cgrep {
+        |  command {
+        |    grep '${pattern}' ${File in_file} | wc -l
+        |  }
+        |  output {
+        |    Int count = read_int(stdout())
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |  }
+        |}
+        |
+        |task wc {
+        |  command {
+        |    cat ${File in_file} | wc -l
+        |  }
+        |  output {
+        |    Int count = read_int(stdout())
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |  }
+        |}
+        |
+        |workflow three_step {
+        |  call ps
+        |  call cgrep {
+        |    input: in_file=ps.procs
+        |  }
+        |  call wc {
+        |    input: in_file=ps.procs
+        |  }
+        |}
+        |
+      """.stripMargin
+
+    override val rawInputs: Map[String, Any] = Map(ThreeStep.PatternKey -> "x")
+  }
+
+
+  object InputKeys {
+    val Pattern = "three_step.cgrep.pattern"
+    // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
+    // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
+    val DummyPsFile = "three_step.ps.dummy_ps_file"
+    val DummyPs2File = "three_step.ps2.dummy_ps_file"
+    val DummyPs3File = "three_step.ps3.dummy_ps_file"
+  }
+
 }

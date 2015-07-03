@@ -26,7 +26,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(DummyDataAccess()), self, "Test the WorkflowManagerActor")
 
       val workflowId = waitForHandledMessagePattern(pattern = "Transition\\(.*,Running,Succeeded\\)$") {
-        messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.wdlSource, HelloWorld.wdlJson, HelloWorld.rawInputs))
+        messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.wdlSource(), HelloWorld.wdlJson, HelloWorld.rawInputs))
       }
 
       val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
@@ -90,7 +90,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
   }
 
   def result(workflowState: WorkflowState,
-             wdlSource: String = SampleWdl.HelloWorld.wdlSource,
+             wdlSource: String = SampleWdl.HelloWorld.wdlSource(),
              wdlInputs: String = SampleWdl.HelloWorld.wdlJson): QueryWorkflowExecutionResult = {
     QueryWorkflowExecutionResult(
       UUID.randomUUID(), "http://wdl.me", workflowState, Calendar.getInstance().getTime, None, Set.empty, Set.empty, wdlSource, wdlInputs)

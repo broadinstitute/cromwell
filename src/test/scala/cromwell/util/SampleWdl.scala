@@ -267,4 +267,24 @@ object SampleWdl {
     val DummyPs3File = "three_step.ps3.dummy_ps_file"
   }
 
+  object CurrentDirectory extends SampleWdl {
+    override def wdlSource(runtime: String): String =
+      """
+        |task whereami {
+        |  command {
+        |    pwd
+        |  }
+        |  output {
+        |    String pwd = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow whereami {
+        |  call whereami
+        |}
+      """.stripMargin
+
+    override val rawInputs: Map[String, Any] = Map.empty
+  }
+
 }

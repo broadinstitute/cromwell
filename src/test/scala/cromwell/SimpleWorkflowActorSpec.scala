@@ -24,10 +24,10 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: Option[WorkflowRawInputs] = None):
   TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor] = {
 
-    val namespace = WdlNamespace.load(sampleWdl.wdlSource)
+    val namespace = WdlNamespace.load(sampleWdl.wdlSource())
     val rawInputs = rawInputsOverride.getOrElse(sampleWdl.rawInputs)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource, sampleWdl.wdlJson, coercedInputs)
+    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, DummyDataAccess()))
   }
 
@@ -81,6 +81,23 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
               }
             }
           }
+        }
+      }
+    }
+
+    "run in the correct directory" in {
+      val fsm = buildWorkflowFSMRef(SampleWdl.CurrentDirectory)
+      assert(fsm.stateName == WorkflowSubmitted)
+      startingCallsFilter("whereami.whereami") {
+        fsm ! Start
+        within(TestExecutionTimeout) {
+          awaitCond(fsm.stateName == WorkflowRunning)
+          awaitCond(fsm.stateName == WorkflowSucceeded)
+          val outputName = "whereami.whereami.pwd"
+          val outputs = fsm.ask(GetOutputs).mapTo[WorkflowOutputs].futureValue
+          val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
+          val actualOutput = salutation.asInstanceOf[WdlString].value.trim
+          actualOutput.endsWith("/call-whereami") shouldBe true
         }
       }
     }

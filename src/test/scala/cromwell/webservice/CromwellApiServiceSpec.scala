@@ -103,7 +103,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
 
   "Cromwell submit workflow API" should "return 201 for a succesful workfow submission " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.wdlSource, "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
+    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.Created) {
@@ -120,7 +120,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 400 for a malformed JSON " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.wdlSource, "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
+    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {

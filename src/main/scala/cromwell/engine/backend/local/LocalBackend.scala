@@ -56,11 +56,15 @@ class LocalBackend extends Backend with LazyLogging {
     val (stderrFile, stderrWriter) = FileUtil.tempFileAndWriter("stderr", callDirectory)
     val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", callDirectory)
 
-    commandWriter.write(commandLine)
-    commandWriter.flushAndClose()
-
     val hostWorkflowExecutionFile = hostExecutionPath(workflowDescriptor).toFile
     val containerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
+
+    if (call.docker.isEmpty) {
+      val callDirectory = Paths.get(hostWorkflowExecutionFile.getAbsolutePath, s"call-${call.name}")
+      commandWriter.writeWithNewline(s"cd $callDirectory")
+    }
+    commandWriter.writeWithNewline(commandLine)
+    commandWriter.flushAndClose()
 
     def buildDockerRunCommand(image: String): String =
       // -v maps the host workflow executions directory to /root/<workflow id> on the container.
@@ -69,7 +73,7 @@ class LocalBackend extends Backend with LazyLogging {
       s"docker run -v ${hostWorkflowExecutionFile.getAbsolutePath}:$containerExecutionDir -w $containerExecutionDir/call-${call.name} -i $image"
 
     // Build the docker run command if docker is defined in the RuntimeAttributes, otherwise just the empty string.
-    val dockerRun = call.task.runtimeAttributes.docker.map { buildDockerRunCommand }.getOrElse("")
+    val dockerRun = call.docker.map { buildDockerRunCommand }.getOrElse("")
 
     // The aforementioned shenanigans generate standard output and then a bash invocation that takes
     // commands from standard input.
@@ -181,7 +185,7 @@ class LocalBackend extends Backend with LazyLogging {
         case WdlFile(path) =>
           // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
           // Container path should look like /root/f00ba4/call-ps/stdout.txt
-          val fullPath = path.toString
+          val fullPath = path.toFile.getAbsolutePath
           // Strip out everything before cromwell-executions.
           val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutions) + CromwellExecutions.length)
           // Strip out the workflow name (the first component under cromwell-executions).

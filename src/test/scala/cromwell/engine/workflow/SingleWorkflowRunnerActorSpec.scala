@@ -17,7 +17,7 @@ class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec("SingleWorkflowR
     }
   }
   val workflowManagerActor = system.actorOf(WorkflowManagerActor.props(dataAccess))
-  val props = SingleWorkflowRunnerActor.props(ThreeStep.WdlSource, ThreeStep.WdlJson, ThreeStep.RawInputs, workflowManagerActor)
+  val props = SingleWorkflowRunnerActor.props(ThreeStep.wdlSource(), ThreeStep.wdlJson, ThreeStep.rawInputs, workflowManagerActor)
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {

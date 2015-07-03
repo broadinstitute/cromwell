@@ -75,7 +75,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
     }
 
     "pass files properly" taggedAs DockerTest in {
-
+      runAndAssertCorrectness(sampleWdl = SampleWdl.FilePassingThreeStep)
     }
   }
 }

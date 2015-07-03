@@ -63,25 +63,11 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
     def handleSuccessfulInstantiation(commandLine: String): Unit = {
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
-      val tryOutputs = backend.executeCommand(commandLine, workflowDescriptor, call, s => locallyQualifiedInputs.get(s).get)
-      val (successes, failures) = tryOutputs.partition {
-        _._2.isSuccess
-      }
-
-      if (failures.isEmpty) {
-        // Materialize the Successes.
-        val outputs = successes.map { case (key, value) => key -> value.get }
-        log.info(s"$tag: success")
-        context.parent ! WorkflowActor.CallCompleted(call, outputs)
-      } else {
-        val errorMessages = TryUtil.stringifyFailures(failures.values).mkString("\n")
-        log.error(s"$tag: failed")
-        errorMessages foreach { m =>
-          log.error(s"$tag: $m")
-        }
-
-        log.error(errorMessages.mkString("\n"))
-        context.parent ! WorkflowActor.CallFailed(call, errorMessages.mkString("\n"))
+      backend.executeCommand(commandLine, workflowDescriptor, call, inputName => locallyQualifiedInputs.get(inputName).get) match {
+        case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
+        case Failure(e) =>
+          log.error(e, e.getMessage)
+          context.parent ! WorkflowActor.CallFailed(call, e.getMessage)
       }
     }
 

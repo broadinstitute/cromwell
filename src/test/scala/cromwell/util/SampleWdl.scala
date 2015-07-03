@@ -2,9 +2,15 @@ package cromwell.util
 
 import cromwell.binding._
 
+trait SampleWdl {
+  val wdlSource: String
+  val rawInputs: Map[String, Any]
+  val wdlJson: String
+}
+
 object SampleWdl {
-  object HelloWorld {
-    val WdlSource =
+  object HelloWorld extends SampleWdl {
+    val wdlSource =
       """
         |task hello {
         |  command {
@@ -21,10 +27,31 @@ object SampleWdl {
       """.stripMargin
 
     val Addressee = "hello.hello.addressee"
-    val RawInputs =  Map(Addressee -> "world")
+    val rawInputs =  Map(Addressee -> "world")
     val OutputKey = "hello.hello.salutation"
     val OutputValue = "Hello world!\n"
-    val WdlJson = s""" { "$Addressee" : "world" } """
+    val wdlJson = s""" { "$Addressee" : "world" } """
+  }
+
+  object GoodbyeWorld extends SampleWdl {
+    val wdlSource =
+    """
+      |task goodbye {
+      |  command {
+      |    sh -c "exit 1"
+      |  }
+      |  output {
+      |    String out = read_string(stdout())
+      |  }
+      |}
+      |
+      |workflow goodbye {
+      |  call goodbye
+      |}
+    """.stripMargin
+    val rawInputs = Map.empty[String, Any]
+    val OutputKey = "goodbye.goodbye.out"
+    val wdlJson = "{}"
   }
 
   object SubtractionWorkflow {

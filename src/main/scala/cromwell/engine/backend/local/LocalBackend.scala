@@ -19,7 +19,7 @@ import cromwell.util.FileUtil._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
-import scala.util.Try
+import scala.util.{Success, Failure, Try}
 
 
 object LocalBackend {
@@ -44,7 +44,7 @@ class LocalBackend extends Backend with LazyLogging {
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Map[String, Try[WdlValue]] = {
+  override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     import LocalBackend._
 
     val callDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
@@ -77,8 +77,7 @@ class LocalBackend extends Backend with LazyLogging {
     logger.info("Executing call with argv: " + argv)
 
     // The ! to the ProcessLogger captures standard output and error.
-    argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
-
+    val rc: Int = argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
     Vector(stdoutWriter, stderrWriter).foreach {
       _.flushAndClose()
     }
@@ -100,13 +99,29 @@ class LocalBackend extends Backend with LazyLogging {
       }
     }
 
-    call.task.outputs.map { taskOutput =>
+    val outputMappings = call.task.outputs.map { taskOutput =>
       val rawValue = taskOutput.expression.evaluate(
         scopedLookupFunction,
         new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
       )
-      taskOutput.name -> rawValue.map { possiblyAutoConvertedValue(taskOutput, _) }
-    }.toMap
+      taskOutput.name -> rawValue.map {
+        possiblyAutoConvertedValue(taskOutput, _)
+      }
+    }
+
+    if (rc == 0) {
+      val taskOutputEvaluationFailures = outputMappings.filter { _._2.isFailure }
+
+      if (taskOutputEvaluationFailures.isEmpty) {
+        val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
+        Success(unwrappedMap)
+      } else {
+        val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
+      }
+    } else {
+      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $commandLine"))
+    }
   }
 
   /**

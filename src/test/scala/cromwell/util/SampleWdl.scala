@@ -5,11 +5,11 @@ import java.io.{File, FileWriter}
 import cromwell.binding._
 
 trait SampleWdl {
-  def wdlSource(runtime: String = ""): String
+  def wdlSource(runtime: String = ""): WdlSource
 
-  val rawInputs: Map[String, Any]
+  val rawInputs: WorkflowRawInputs
 
-  def wdlJson: String = {
+  def wdlJson: WdlJson = {
     "{" + rawInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
   }
 }
@@ -126,6 +126,11 @@ object SampleWdl {
 
     val PatternKey = "three_step.cgrep.pattern"
     override val rawInputs = Map(PatternKey -> "...")
+  }
+
+  object ThreeStepLargeJson extends SampleWdl {
+    override def wdlSource(runtime: String = "") = ThreeStep.wdlSource(runtime)
+    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
   object CannedThreeStep extends SampleWdl {

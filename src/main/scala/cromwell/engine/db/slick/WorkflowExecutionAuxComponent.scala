@@ -26,16 +26,21 @@ trait WorkflowExecutionAuxComponent {
     override def * = (workflowExecutionId, wdlSource, jsonInputs, workflowExecutionAuxId.?) <>
       (WorkflowExecutionAux.tupled, WorkflowExecutionAux.unapply)
 
-    def workflow = foreignKey(
+    def workflowExecution = foreignKey(
       "FK_WE_AUX_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
     def uniqueKey = index("UK_WE_AUX_WORKFLOW_EXECUTION_ID",
       workflowExecutionId, unique = true)
   }
 
-  val workflowExecutionAuxes = TableQuery[WorkflowExecutionAuxes]
+  protected val workflowExecutionAuxes = TableQuery[WorkflowExecutionAuxes]
 
   val workflowExecutionAuxesAutoInc = workflowExecutionAuxes returning workflowExecutionAuxes.
     map(_.workflowExecutionAuxId) into ((a, id) => a.copy(workflowExecutionAuxId = Some(id)))
 
+  val workflowExecutionAuxesByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      workflowExecutionAux <- workflowExecutionAuxes
+      if workflowExecutionAux.workflowExecutionId === workflowExecutionId
+    } yield workflowExecutionAux)
 }

@@ -25,21 +25,43 @@ trait ExecutionComponent {
     override def * = (workflowExecutionId, callFqn, status, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
-    def workflow = foreignKey(
+    def workflowExecution = foreignKey(
       "FK_EXECUTION_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
     def uniqueKey = index("UK_EX_WORKFLOW_EXECUTION_ID",
       (workflowExecutionId, callFqn), unique = true)
   }
 
-  val executions = TableQuery[Executions]
+  protected val executions = TableQuery[Executions]
 
   val executionsAutoInc = executions returning executions.
     map(_.executionId) into ((a, id) => a.copy(executionId = Some(id)))
 
-  val executionByID = Compiled(
-    (id: Rep[Int]) => for {
+  val executionCallFqnsAndStatusesByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
-      if execution.executionId === id
+      if execution.workflowExecutionId === workflowExecutionId
+    } yield (execution.callFqn, execution.status))
+
+  val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
+    (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
+      execution <- executions
+      if execution.callFqn === callFqn
+      workflowExecution <- execution.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
+
+  val executionStatusesByExecutionId = Compiled(
+    (executionId: Rep[Int]) => for {
+      execution <- executions
+      if execution.executionId === executionId
+    } yield execution.status)
+
+  // see workflowExecutionsByStatuses
+  def executionStatusesByWorkflowExecutionIdAndCallFqns(workflowExecutionId: Int, callFqns: Traversable[String]) = {
+    for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId && (execution.callFqn inSet callFqns)
+    } yield execution.status
+  }
 }

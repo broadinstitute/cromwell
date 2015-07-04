@@ -42,7 +42,11 @@ class TestSlickDatabase(configPath: String) {
     }
   }
 
-  lazy val slickDataAccess = new SlickDataAccess(databaseConfig, dataAccessComponent)
+  lazy val slickDataAccess =
+    if (this.databaseConfig == DatabaseConfig.databaseConfig)
+      new SlickDataAccess() // Test the no-args constructor
+    else
+      new SlickDataAccess(databaseConfig, dataAccessComponent)
 
   def useLiquibase = databaseConfig.hasPath("liquibase")
 

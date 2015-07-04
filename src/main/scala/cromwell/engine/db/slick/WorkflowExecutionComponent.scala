@@ -37,14 +37,35 @@ trait WorkflowExecutionComponent {
       workflowExecutionUuid, unique = true)
   }
 
-  val workflowExecutions = TableQuery[WorkflowExecutions]
+  protected val workflowExecutions = TableQuery[WorkflowExecutions]
 
   val workflowExecutionsAutoInc = workflowExecutions returning workflowExecutions.
     map(_.workflowExecutionId) into ((a, id) => a.copy(workflowExecutionId = Some(id)))
 
-  val workflowExecutionByID = Compiled(
-    (id: Rep[Int]) => for {
+  val workflowExecutionsByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
       workflowExecution <- workflowExecutions
-      if workflowExecution.workflowExecutionId === id
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowExecution)
+
+  val workflowExecutionStatusesByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowExecution <- workflowExecutions
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield workflowExecution.status)
+
+  // NOTE: No precompile for you!
+  // [Compile] works for all functions ... consisting only of individual columns
+  // - http://slick.typesafe.com/doc/3.0.0/queries.html
+  // - https://groups.google.com/forum/#!topic/scalaquery/2d_r4DEthfY
+  //
+  // On one hand:
+  // a) This should be compilable if we narrowed the API to only get Submitted/Running workflows... BUT
+  // b) It turns out this is currently executed only once at server restart
+  def workflowExecutionsByStatuses(statuses: Traversable[String]) = {
+    for {
+      workflowExecution <- workflowExecutions
+      if workflowExecution.status inSet statuses
+    } yield workflowExecution
+  }
 }

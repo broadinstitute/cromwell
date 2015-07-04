@@ -32,14 +32,20 @@ trait JesJobComponent {
       executionId, unique = true)
   }
 
-  val jesJobs = TableQuery[JesJobs]
+  protected val jesJobs = TableQuery[JesJobs]
 
   val jesJobsAutoInc = jesJobs returning jesJobs.
     map(_.jesJobId) into ((a, id) => a.copy(jesJobId = Some(id)))
 
-  val jesJobByID = Compiled(
-    (id: Rep[Int]) => for {
+  val jesJobsByExecutionId = Compiled(
+    (executionId: Rep[Int]) => for {
       jesJob <- jesJobs
-      if jesJob.jesJobId === id
+      if jesJob.executionId === executionId
     } yield jesJob)
+
+  val jesJobIdsAndJesStatusesByExecutionId = Compiled(
+    (executionId: Rep[Int]) => for {
+      jesJob <- jesJobs
+      if jesJob.executionId === executionId
+    } yield (jesJob.jesJobId, jesJob.jesStatus))
 }

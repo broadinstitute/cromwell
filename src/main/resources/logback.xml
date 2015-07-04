@@ -25,6 +25,8 @@
       <root level="INFO">
         <appender-ref ref="CONSOLE_APPENDER" />
       </root>
+      <logger name="com.zaxxer.hikari" level="ERROR"/>
+      <logger name="HikariPool" level="ERROR"/>
     </else>
   </if>
 </configuration>

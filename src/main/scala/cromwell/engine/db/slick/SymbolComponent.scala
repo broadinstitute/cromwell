@@ -37,21 +37,41 @@ trait SymbolComponent {
     override def * = (workflowExecutionId, scope, name, iteration, io, wdlType, wdlValue, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)
 
-    def workflow = foreignKey(
+    def workflowExecution = foreignKey(
       "FK_SYMBOL_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
     def uniqueKey = index("UK_SYM_WORKFLOW_EXECUTION_ID_SCOPE_NAME_ITERATION_IO",
       (workflowExecutionId, scope, name, iteration, io), unique = true)
   }
 
-  val symbols = TableQuery[Symbols]
+  protected val symbols = TableQuery[Symbols]
 
   val symbolsAutoInc = symbols returning symbols.
     map(_.symbolId) into ((a, id) => a.copy(symbolId = Some(id)))
 
-  val symbolByID = Compiled(
-    (id: Rep[Int]) => for {
+
+  // Convenience function
+  def symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(workflowExecutionUuid: String,
+                                                       io: String, scopeOption: Option[String]) = {
+    scopeOption match {
+      case Some(scope) => symbolsByWorkflowExecutionUuidAndIoAndScope(workflowExecutionUuid, io, scope)
+      case None => symbolsByWorkflowExecutionUuidAndIo(workflowExecutionUuid, io)
+    }
+  }
+
+  val symbolsByWorkflowExecutionUuidAndIo = Compiled(
+    (workflowExecutionUuid: Rep[String], io: Rep[String]) => for {
       symbol <- symbols
-      if symbol.symbolId === id
+      if symbol.io === io
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield symbol)
+
+  val symbolsByWorkflowExecutionUuidAndIoAndScope = Compiled(
+    (workflowExecutionUuid: Rep[String], io: Rep[String], scope: Rep[String]) => for {
+      symbol <- symbols
+      if symbol.io === io && symbol.scope === scope
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)
 }

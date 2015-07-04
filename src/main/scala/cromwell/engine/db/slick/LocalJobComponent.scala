@@ -32,14 +32,20 @@ trait LocalJobComponent {
       executionId, unique = true)
   }
 
-  val localJobs = TableQuery[LocalJobs]
+  protected val localJobs = TableQuery[LocalJobs]
 
   val localJobsAutoInc = localJobs returning localJobs.
     map(_.localJobId) into ((a, id) => a.copy(localJobId = Some(id)))
 
-  val localJobByID = Compiled(
-    (id: Rep[Int]) => for {
+  val localJobsByExecutionId = Compiled(
+    (executionId: Rep[Int]) => for {
       localJob <- localJobs
-      if localJob.localJobId === id
+      if localJob.executionId === executionId
     } yield localJob)
+
+  val localJobPidsAndRcsByExecutionId = Compiled(
+    (executionId: Rep[Int]) => for {
+      localJob <- localJobs
+      if localJob.executionId === executionId
+    } yield (localJob.pid, localJob.rc))
 }

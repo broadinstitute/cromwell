@@ -1,13 +1,15 @@
-package cromwell.engine.backend.local
+package cromwell.engine.backend.jes
 
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
-import cromwell.util.FileUtil
+import cromwell.util.GcsUtil
 
-import scala.util.{Success, Failure, Try}
+import scala.util.{Success, Try}
 
-
-class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
+/**
+ * Implementation of engine functions for the JES backend.
+ */
+class JesEngineFunctions(secretsFile: String) extends EngineFunctions {
 
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
@@ -19,8 +21,8 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => FileUtil.slurp(f.value)
-      case e => throw new UnsupportedOperationException("Unsupported argument " + e)
+      case f: WdlGcsObject => GcsUtil.slurp(f.value, secretsFile)
+      case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
     }
   }
 
@@ -40,19 +42,13 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
     read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
 
-  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    if (params.nonEmpty) {
-      Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
-    } else {
-      Success(WdlFile(executionContext.stdout))
-    }
+  //TODO: Implement correctly
+  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlGcsObject] = {
+    Success(WdlGcsObject("gs://chrisl-dsde-dev/stdout"))
   }
 
-  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    if (params.nonEmpty) {
-      Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
-    } else {
-      Success(WdlFile(executionContext.stderr))
-    }
+  //TODO: Implement correctly
+  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlGcsObject] = {
+    Success(WdlGcsObject("gs://chrisl-dsde-dev/stderr"))
   }
 }

@@ -12,15 +12,6 @@ import scala.util.{Failure, Success, Try}
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
 
   /**
-   * Extract a single `WdlValue` from the specified `Seq`, returning `Failure` if the parameters
-   * represent something other than a single `WdlValue`.
-   */
-  private def extractSingleArgument(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
-    if (params.length != 1) Failure(new UnsupportedOperationException("Expected one argument, got " + params.length))
-    else params.head
-  }
-
-  /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
    * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
    * directly as a `WdlFile`.

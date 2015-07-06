@@ -9,8 +9,8 @@ object WdlFile {
 
 import scala.util.{Success, Try}
 
-case class WdlFile(value: Path) extends WdlPrimitive {
-  val wdlType = WdlFileType
+case class WdlFile(value: Path) extends WdlFileLike {
+
   override def add(rhs: WdlValue): Try[WdlValue] = {
     rhs match {
       // The goofiness with the value.toStrings are because we want concatenation and not Path.resolve() logic

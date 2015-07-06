@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 
 object WorkflowActor {
@@ -62,13 +63,27 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     Await.result(futureStore, DatabaseTimeout)
   }
 
+  /**
+   * Attempt to start all runnable calls.  If successful, go to the `WorkflowRunning` state if not already in that
+   * state, otherwise remain in `WorkflowRunning`.  If not successful, go to `WorkflowFailed`.
+   */
+  private def startRunnableCalls() = {
+      tryStartingRunnableCalls() match {
+        case Success(_) =>
+          goto(WorkflowRunning)
+        case Failure(e) =>
+          log.error(e, e.getMessage)
+          goto(WorkflowFailed)
+      }
+  }
+
   when(WorkflowSubmitted) {
     case Event(Restart, NoFailureMessage) =>
       executionStore = initWorkflow()
-      goto(WorkflowRunning)
+      startRunnableCalls()
     case Event(Start, NoFailureMessage) =>
       executionStore = initWorkflow(createWorkflow())
-      goto(WorkflowRunning)
+      startRunnableCalls()
   }
 
   when(WorkflowRunning) {
@@ -83,7 +98,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         goto(WorkflowSucceeded)
       } else {
         startRunnableCalls()
-        stay()
       }
     case Event(CallFailed(call, failure), NoFailureMessage) =>
       persistStatus(call, ExecutionStatus.Failed)
@@ -124,10 +138,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       dataAccess.updateWorkflowState(workflow.id, toState)
   }
 
-  onTransition {
-    case WorkflowSubmitted -> WorkflowRunning => startRunnableCalls()
-  }
-
   private def persistStatus(call: Call, callStatus: CallStatus): Future[Unit] = {
     persistStatus(Iterable(call), callStatus)
   }
@@ -161,7 +171,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    * start Call actors.  Return a Future of Iterable[Unit] to allow the caller to compose or block.
    */
   type CallAndInputs = (Call, Map[String, WdlValue])
-  private def startRunnableCalls(): Unit = {
+  private def tryStartingRunnableCalls(): Try[Any] = {
 
     def isRunnable(call: Call) = call.prerequisiteCalls().forall(executionStore.get(_).get == ExecutionStatus.Done)
     /**
@@ -178,15 +188,21 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val runnableCalls = findRunnableCalls
     if (runnableCalls.isEmpty) {
       log.info(s"$tag no runnable calls to start.")
+      Success(())
     } else {
       log.info(s"$tag starting calls: " + runnableCalls.map {_.fullyQualifiedName}.toSeq.sorted.mkString(", "))
       val futureCallsAndInputs = for {
         _ <- persistStatus(runnableCalls, Starting)
         allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)
       } yield runnableCalls zip allInputs
-      val callsAndInputs = Await.result(futureCallsAndInputs, DatabaseTimeout)
-      log.info(s"$tag calls and inputs are " + callsAndInputs)
-      callsAndInputs foreach { case (call, inputs) => startActor(call, inputs)}
+      Await.ready(futureCallsAndInputs, DatabaseTimeout)
+      futureCallsAndInputs.value.get match {
+        case Success(callsAndInputs) =>
+          log.info(s"$tag calls and inputs are " + callsAndInputs)
+          callsAndInputs foreach { case (call, inputs) => startActor(call, inputs)}
+          Success(())
+        case failure => failure
+      }
     }
   }
 

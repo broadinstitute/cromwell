@@ -1,12 +1,14 @@
 package cromwell
 
+import java.io.ByteArrayOutputStream
+
 import akka.actor.ActorSystem
 import akka.testkit.EventFilter
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.db.DummyDataAccess
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
-import cromwell.util.FileUtil
+import cromwell.util.{SampleWdl, FileUtil}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -17,41 +19,50 @@ class TestWorkflowManagerSystem extends WorkflowManagerSystem {
 }
 
 class MainSpec extends FlatSpec with Matchers {
-  val wdlFilePathAndWriter = FileUtil.tempFileAndWriter("wdl")
-  val inputsJsonPathAndWriter = FileUtil.tempFileAndWriter("inputs")
 
-  wdlFilePathAndWriter match {
-    case (path, writer) =>
-      writer.write(ThreeStep.wdlSource())
-      writer.close()
+  private def wdlAndInputs(sampleWdl: SampleWdl): (String, String) = {
+    val wdlFilePathAndWriter = FileUtil.tempFileAndWriter("wdl")
+    val inputsJsonPathAndWriter = FileUtil.tempFileAndWriter("inputs")
+
+    wdlFilePathAndWriter match {
+      case (path, writer) =>
+        writer.write(sampleWdl.wdlSource())
+        writer.close()
+    }
+    inputsJsonPathAndWriter match {
+      case (path, writer) =>
+        writer.write(sampleWdl.wdlJson)
+        writer.close()
+    }
+
+    (wdlFilePathAndWriter._1.toFile.getAbsolutePath, inputsJsonPathAndWriter._1.toFile.getAbsolutePath)
   }
 
-  inputsJsonPathAndWriter match {
-    case (path, writer) =>
-      writer.write("""{"three_step.cgrep.pattern": "..."}""")
-      writer.close()
-  }
+  def baos = new ByteArrayOutputStream()
 
   "Main" should "validate" in {
-    val stream = new java.io.ByteArrayOutputStream()
+    val stream = baos
     Console.withOut(stream) {
-      Main.validate(Array(wdlFilePathAndWriter._1.toFile.getAbsolutePath))
+      val (wdl, _) = wdlAndInputs(ThreeStep)
+      Main.validate(Array(wdl))
     }
     stream.toString.length shouldEqual 0
   }
 
   it should "parse" in {
-    val stream = new java.io.ByteArrayOutputStream()
+    val stream = baos
     Console.withOut(stream) {
-      Main.parse(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString))
+      val (wdl, _) = wdlAndInputs(ThreeStep)
+      Main.parse(Array(wdl))
     }
     assert(stream.toString.contains("(Document:"))
   }
 
   it should "highlight" in {
-    val stream = new java.io.ByteArrayOutputStream()
+    val stream = baos
     Console.withOut(stream) {
-      Main.highlight(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString))
+      val (wdl, _) = wdlAndInputs(ThreeStep)
+      Main.highlight(Array(wdl))
     }
     val expected =
       s"""\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mps\u001b[0m {
@@ -94,24 +105,25 @@ class MainSpec extends FlatSpec with Matchers {
   }
 
   it should "return inputs" in {
-    val stream = new java.io.ByteArrayOutputStream()
+    val stream = baos
     Console.withOut(stream) {
-      Main.inputs(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString))
+      val (wdl, _) = wdlAndInputs(ThreeStep)
+      Main.inputs(Array(wdl))
     }
     assert(stream.toString.contains("\"three_step.cgrep.pattern\""))
   }
 
   it should "run" in {
-    val stream = new java.io.ByteArrayOutputStream()
     val workflowManagerSystem = new TestWorkflowManagerSystem
     implicit val system = workflowManagerSystem.actorSystem
-    EventFilter.info(pattern = s"workflow finished", occurrences = 1).intercept {
-      Main.run(Array(wdlFilePathAndWriter._1.toAbsolutePath.toString, inputsJsonPathAndWriter._1.toAbsolutePath.toString), workflowManagerSystem)
+    EventFilter.info(pattern = s"transitioning from Running to Succeeded.", occurrences = 1).intercept {
+      val (wdl, inputs) = wdlAndInputs(ThreeStep)
+      Main.run(Array(wdl, inputs), workflowManagerSystem)
     }
   }
 
   it should "print usage" in {
-    val stream = new java.io.ByteArrayOutputStream()
+    val stream = baos
     Console.withOut(stream) {
       Main.usageAndExit(false)
     }

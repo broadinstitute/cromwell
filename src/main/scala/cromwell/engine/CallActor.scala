@@ -7,8 +7,7 @@ import cromwell.binding.{Call, CallInputs, WorkflowDescriptor}
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.CallFailed
-import cromwell.util.TryUtil
-
+import cromwell.engine
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -33,7 +32,7 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
     case badMessage =>
       val diagnostic = s"$tag: unexpected message $badMessage."
       log.error(diagnostic)
-      context.parent ! WorkflowActor.CallFailed(call, diagnostic)
+      context.parent ! engine.workflow.WorkflowActor.CallFailed(call, diagnostic)
   }
 
   /**
@@ -60,10 +59,11 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
       context.parent ! CallFailed(call, message)
     }
 
+    // FIXME: Perhaps this could be renamed to "launchCall" or something like that?
     def handleSuccessfulInstantiation(commandLine: String): Unit = {
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
-      backend.executeCommand(commandLine, workflowDescriptor, call, inputName => locallyQualifiedInputs.get(inputName).get) match {
+      backend.executeCommand(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get) match {
         case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
         case Failure(e) =>
           log.error(e, e.getMessage)

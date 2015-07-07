@@ -1,5 +1,6 @@
 package cromwell.engine.backend
 
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
@@ -8,15 +9,25 @@ import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalEngineFunctions
+import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.db.DataAccess
+import cromwell.engine.backend.local.LocalBackend
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-
 object Backend {
+  def from(backendConf: Config): Backend = {
+    backendConf.getString("backend").toLowerCase match {
+      case "local" => new LocalBackend
+      case "jes" => new JesBackend
+      case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
+    }
+  }
+
   case class RestartableWorkflow(id: WorkflowId, source: WdlSource, json: WdlJson, inputs: binding.WorkflowRawInputs)
 }
+
 /**
  * Trait to be implemented by concrete backends.
  */
@@ -27,6 +38,8 @@ trait Backend {
    * been performed for this `Backend` implementation.
    */
   def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs
+
+  def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs
 
   /**
    * Do whatever work is required to initialize the workflow, returning a copy of
@@ -39,7 +52,11 @@ trait Backend {
    * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
    * a mapping of local task output names to WDL values.
    */
-  def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
+  def executeCommand(commandLine: String, 
+                     workflowDescriptor: WorkflowDescriptor, 
+                     call: Call, 
+                     backendInputs: CallInputs,
+                     scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
 
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.

@@ -12,15 +12,6 @@ import scala.util.{Failure, Success, Try}
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
 
   /**
-   * Extract a single `WdlValue` from the specified `Seq`, returning `Failure` if the parameters
-   * represent something other than a single `WdlValue`.
-   */
-  private def extractSingleArgument(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
-    if (params.length != 1) Failure(new UnsupportedOperationException("Expected one argument, got " + params.length))
-    else params.head
-  }
-
-  /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
    * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
    * directly as a `WdlFile`.
@@ -30,7 +21,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => FileUtil.slurp(f.value)
+      case f: WdlFile => FileUtil.slurp(Paths.get(f.value))
       case s: WdlString => FileUtil.slurp(executionContext.cwd.resolve(s.value))
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
@@ -63,7 +54,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stdout))
+      Success(WdlFile(executionContext.stdout.toAbsolutePath.toString))
     }
   }
 
@@ -71,7 +62,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stderr))
+      Success(WdlFile(executionContext.stderr.toAbsolutePath.toString))
     }
   }
 }

@@ -17,7 +17,7 @@ class WdlValueSpec extends FlatSpec with Matchers {
     ("wdlValue", "rawString"),
     (WdlBoolean.False, "false"),
     (WdlBoolean.True, "true"),
-    (WdlFile(Paths.get("hello/world/path")), "\"hello/world/path\""),
+    (WdlFile("hello/world/path"), "\"hello/world/path\""),
     (WdlFile("hello/world/string"), "\"hello/world/string\""),
     (WdlFloat(0.0), "0.0"),
     (WdlFloat(-0.0), "-0.0"),
@@ -50,16 +50,16 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(wdlFloatSpecials) { (wdlValue, rawString, validateFloat) =>
     it should s"convert a special ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val valueAsWdlString = wdlValue.toWdlString
-      valueAsWdlString should be(rawString)
+      val toRawString = wdlValue.toWdlString
+      toRawString should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val wdlStringAsValue = wdlType.fromWdlString(valueAsWdlString)
+      val fromRawString = wdlType.fromWdlString(toRawString)
       // Test that this is a special conversion, and is not
       // expected to be equal after a round-trip conversion.
-      wdlStringAsValue shouldNot be(wdlValue)
-      validateFloat(wdlStringAsValue.value) should be(right = true)
-      wdlStringAsValue.wdlType should be(wdlType)
+      fromRawString shouldNot be(wdlValue)
+      validateFloat(fromRawString.value) should be(right = true)
+      fromRawString.wdlType should be(wdlType)
     }
   }
 
@@ -77,14 +77,14 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(wdlExpressionRawStrings) { (wdlValue, rawString) =>
     it should s"resemble a ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val valueAsWdlString = wdlValue.toWdlString
-      valueAsWdlString should be(rawString)
+      val toRawString = wdlValue.toWdlString
+      toRawString should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val wdlStringAsValue = wdlType.fromWdlString(valueAsWdlString)
-      wdlStringAsValue shouldNot be(wdlValue)
-      wdlStringAsValue.toWdlString should be(wdlValue.toWdlString)
-      wdlStringAsValue.wdlType should be(wdlType)
+      val fromRawString = wdlType.fromWdlString(toRawString)
+      fromRawString shouldNot be(wdlValue)
+      fromRawString.toWdlString should be(wdlValue.toWdlString)
+      fromRawString.wdlType should be(wdlType)
     }
   }
 

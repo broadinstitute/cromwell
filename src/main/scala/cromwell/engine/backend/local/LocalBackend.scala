@@ -9,6 +9,7 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.engine.ExecutionStatus.{Done, Failed, NotStarted}
+import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
@@ -44,7 +45,11 @@ class LocalBackend extends Backend with LazyLogging {
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(instantiatedCommandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+  override def executeCommand(instantiatedCommandLine: String, 
+                              workflowDescriptor: WorkflowDescriptor, 
+                              call: Call, 
+                              backendInputs: CallInputs,
+                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     import LocalBackend._
 
     val hostCallDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
@@ -109,7 +114,7 @@ class LocalBackend extends Backend with LazyLogging {
   override def initializeForWorkflow(descriptor: WorkflowDescriptor): HostInputs = {
     val hostExecutionDirectory = hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
-
+    // FIXME: I don't think we need to do the next line, can't we do Paths.resolve on it 2 lines down?
     val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath
     Array("workflow-inputs", "workflow-outputs") foreach { Paths.get(hostExecutionAbsolutePath, _).toFile.mkdir() }
     stageWorkflowInputs(descriptor)
@@ -135,14 +140,15 @@ class LocalBackend extends Backend with LazyLogging {
     def stageInput(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
       val (name, value) = nameAndValue
       val hostPathAdjustedValue = value match {
-        case WdlFile(originalPath) =>
-          val executionPath = Paths.get(hostInputsPath.toFile.getAbsolutePath, originalPath.getFileName.toString)
+        case WdlFile(p) =>
+          val originalPath = Paths.get(p)
+          val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
           if (Files.isDirectory(originalPath)) {
             FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
           } else {
             FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
           }
-          WdlFile(executionPath)
+          WdlFile(executionPath.toString)
         case x => x
       }
       name -> hostPathAdjustedValue
@@ -163,12 +169,12 @@ class LocalBackend extends Backend with LazyLogging {
         case WdlFile(path) =>
           // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
           // Container path should look like /root/f00ba4/call-ps/stdout.txt
-          val fullPath = path.toFile.getAbsolutePath
+          val fullPath = Paths.get(path).toFile.getAbsolutePath
           // Strip out everything before cromwell-executions.
           val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutions) + CromwellExecutions.length)
           // Strip out the workflow name (the first component under cromwell-executions).
           val pathWithWorkflowName = Paths.get(pathUnderCromwellExecutions)
-          WdlFile(Paths.get("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
+          WdlFile(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
         case x => x
       }
       name -> adjusted
@@ -178,13 +184,15 @@ class LocalBackend extends Backend with LazyLogging {
     if (call.docker.isDefined) inputs map adjustPath else inputs
   }
 
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
   override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
-    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(Failed, Done, NotStarted)
+    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
       dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)

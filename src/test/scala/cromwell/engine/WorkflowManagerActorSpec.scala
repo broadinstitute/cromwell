@@ -15,7 +15,7 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorldWithoutWorkflow, HelloWorld, Incr}
-import cromwell.{CromwellTestkitSpec, binding}
+import cromwell.{CromwellSpec, CromwellTestkitSpec, binding}
 
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -30,7 +30,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
     "run the Hello World workflow" in {
      withDataAccess { dataAccess =>
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess), self, "Test the WorkflowManagerActor")
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test the WorkflowManagerActor")
 
         val workflowId = waitForHandledMessagePattern(pattern = "Transition\\(.*,Running,Succeeded\\)$") {
           messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.wdlSource(), HelloWorld.wdlJson, HelloWorld.rawInputs))
@@ -49,7 +49,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "Not try to restart any workflows when there are no workflows in restartable states" in {
      withDataAccess { dataAccess =>
         waitForPattern("Found no workflows to restart.") {
-          TestActorRef(WorkflowManagerActor.props(dataAccess), self, "No workflows")
+          TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "No workflows")
         }
       }
     }
@@ -70,7 +70,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val wdlInputs = SampleWdl.HelloWorld.wdlJson
             val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
-            val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, Map.empty, null) // FIXME? null AST
+            val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, null) // FIXME? null AST
             val call = new Call(None, key.scope, task, Map.empty)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
@@ -88,7 +88,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
               // Both the previously in-flight call and the never-started call should get started.
               waitForPattern("starting calls: hello.hello", occurrences = 2) {
                 waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
-                  TestActorRef(WorkflowManagerActor.props(dataAccess), self, "2 restartable workflows")
+                  TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "2 restartable workflows")
                 }
               }
             }
@@ -102,7 +102,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "Handle coercion failures gracefully" in {
       withDataAccess { dataAccess =>
         within(TestExecutionTimeout) {
-          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess), self, "Test WorkflowManagerActor coercion failures")
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test WorkflowManagerActor coercion failures")
           waitForErrorWithException("Workflow failed submission") {
             Try {
               messageAndWait[WorkflowId](SubmitWorkflow(Incr.wdlSource(), Incr.wdlJson, Incr.rawInputs))
@@ -118,7 +118,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
    "error when running a workflowless WDL" in {
       withDataAccess { dataAccess =>
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess), self, "Test a workflowless submission")
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test a workflowless submission")
         Try(messageAndWait[WorkflowId](SubmitWorkflow(HelloWorldWithoutWorkflow.wdlSource(),
           HelloWorldWithoutWorkflow.wdlJson, HelloWorldWithoutWorkflow.rawInputs))) match {
           case Success(_) => fail("Expected submission to fail due to no runnable workflows")

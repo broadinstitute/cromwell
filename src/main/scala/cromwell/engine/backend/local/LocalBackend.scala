@@ -10,6 +10,7 @@ import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionStatus.{Done, Failed, NotStarted}
+import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
@@ -45,7 +46,11 @@ class LocalBackend extends Backend with LazyLogging {
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(instantiatedCommandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+  override def executeCommand(instantiatedCommandLine: String, 
+                              workflowDescriptor: WorkflowDescriptor, 
+                              call: Call, 
+                              backendInputs: CallInputs,
+                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     import LocalBackend._
 
     val hostCallDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
@@ -110,7 +115,7 @@ class LocalBackend extends Backend with LazyLogging {
   override def initializeForWorkflow(descriptor: WorkflowDescriptor): HostInputs = {
     val hostExecutionDirectory = hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
-
+    // FIXME: I don't think we need to do the next line, can't we do Paths.resolve on it 2 lines down?
     val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath
     Array("workflow-inputs", "workflow-outputs") foreach { Paths.get(hostExecutionAbsolutePath, _).toFile.mkdir() }
     stageWorkflowInputs(descriptor)
@@ -185,7 +190,7 @@ class LocalBackend extends Backend with LazyLogging {
   override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
-    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(Failed, Done, NotStarted)
+    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
       dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)

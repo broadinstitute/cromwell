@@ -33,23 +33,23 @@ package object engine {
     override def toString: String = "Submitted"
     override val isTerminal = false
   }
+  
   case object WorkflowRunning extends WorkflowState {
     override def toString: String = "Running"
     override val isTerminal = false
   }
+  
   case object WorkflowFailed extends WorkflowState {
     override def toString: String = "Failed"
     override val isTerminal = true
   }
+  
   case object WorkflowSucceeded extends WorkflowState {
     override def toString: String = "Succeeded"
     override val isTerminal = true
   }
 
-  object ExecutionStatus extends Enumeration {
-    type ExecutionStatus = Value
-    val NotStarted, Starting, Running, Failed, Done = Value
-  }
+
 
   object SymbolStoreEntry {
     private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {

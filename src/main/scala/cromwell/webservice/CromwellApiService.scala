@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.gettyimages.spray.swagger.SwaggerHttpService
+import com.typesafe.config.Config
 import com.wordnik.swagger.annotations._
 import com.wordnik.swagger.model.ApiInfo
 import spray.http.StatusCodes
@@ -15,10 +16,27 @@ import spray.routing._
 import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success, Try}
 
-
-object CromwellApiServiceActor {
-  def props(workflowManagerActorRef : ActorRef, swaggerService: SwaggerService): Props = {
-    Props(new CromwellApiServiceActor(workflowManagerActorRef, swaggerService))
+object SwaggerService {
+  /*
+    Because of the implicit arg requirement apply() doesn't work here, so falling back to the less
+    idiomatic (but not unheard of) from().
+   */
+  def from(conf: Config)(implicit actorRefFactory: ActorRefFactory): SwaggerService = {
+    val swaggerConfig = conf.getConfig("swagger")
+    new SwaggerService(
+      swaggerConfig.getString("apiVersion"),
+      swaggerConfig.getString("baseUrl"),
+      swaggerConfig.getString("apiDocs"),
+      swaggerConfig.getString("swaggerVersion"),
+      Vector(typeOf[CromwellApiService]),
+      Option(new ApiInfo(
+        swaggerConfig.getString("info"),
+        swaggerConfig.getString("description"),
+        swaggerConfig.getString("termsOfServiceUrl"),
+        swaggerConfig.getString("contact"),
+        swaggerConfig.getString("license"),
+        swaggerConfig.getString("licenseUrl"))
+      ))
   }
 }
 
@@ -28,8 +46,13 @@ class SwaggerService(override val apiVersion: String,
                      override val swaggerVersion: String,
                      override val apiTypes: Seq[Type],
                      override val apiInfo: Option[ApiInfo])
-                    (implicit val actorRefFactory: ActorRefFactory)
-  extends SwaggerHttpService
+                    (implicit val actorRefFactory: ActorRefFactory) extends SwaggerHttpService
+
+object CromwellApiServiceActor {
+  def props(workflowManagerActorRef : ActorRef, swaggerService: SwaggerService): Props = {
+    Props(new CromwellApiServiceActor(workflowManagerActorRef, swaggerService))
+  }
+}
 
 class CromwellApiServiceActor(val workflowManager : ActorRef, swaggerService: SwaggerService) extends Actor with CromwellApiService {
   implicit def executionContext = actorRefFactory.dispatcher
@@ -43,7 +66,6 @@ class CromwellApiServiceActor(val workflowManager : ActorRef, swaggerService: Sw
     }
 
   def receive = runRoute(possibleRoutes)
-
 }
 
 @Api(value = "/workflow", description = "Workflow", produces = "application/json", position = 1)

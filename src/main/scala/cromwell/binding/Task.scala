@@ -2,13 +2,13 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.command.{Command, ParameterCommandPart}
+import cromwell.parser.BackendType
 import cromwell.parser.WdlParser._
 
-import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
 object Task {
-  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
+  def apply(ast: Ast, backendType: BackendType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, "name", wdlSyntaxErrorFormatter))
 
@@ -17,9 +17,11 @@ object Task {
      * For example having a command line of `./script ${File x} ${String x}` is conflicting.
      */
     val commandParameters = ast.findAsts(AstNodeName.CommandParameter)
-    val parameterNames = commandParameters.map{_.getAttribute("name").sourceString()}.toSet
-    parameterNames.foreach {name =>
-      val paramsWithSameName = commandParameters.filter {_.getAttribute("name").sourceString == name}
+    val parameterNames = commandParameters.map { _.getAttribute("name").sourceString() }.toSet
+    parameterNames.foreach { name =>
+      val paramsWithSameName = commandParameters.filter {
+        _.getAttribute("name").sourceString == name
+      }
       ensureCommandParameterAstsMatch(paramsWithSameName, ast, wdlSyntaxErrorFormatter)
     }
 
@@ -27,15 +29,15 @@ object Task {
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
     val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
     val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_, wdlSyntaxErrorFormatter)}
-    new Task(name, declarations, command, outputs, buildRuntimeAttributes(ast), ast)
+    new Task(name, declarations, command, outputs, ast, backendType)
   }
 
   private def ensureCommandParameterAstsMatch(paramAsts: Seq[Ast], taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
-    paramAsts.headOption.foreach {firstParamAst =>
-      val sentinal = ParameterCommandPart(firstParamAst, wdlSyntaxErrorFormatter)
+    paramAsts.headOption.foreach { firstParamAst =>
+      val sentinel = ParameterCommandPart(firstParamAst, wdlSyntaxErrorFormatter)
       paramAsts.foreach { paramAst =>
         val parsed = ParameterCommandPart(paramAst, wdlSyntaxErrorFormatter)
-        if (parsed != sentinal)
+        if (parsed != sentinel)
           throw new SyntaxError(wdlSyntaxErrorFormatter.parametersWithSameNameMustHaveSameDefinition(
             taskAst.getAttribute("name").asInstanceOf[Terminal],
             paramAst.getAttribute("name").asInstanceOf[Terminal],
@@ -43,22 +45,6 @@ object Task {
           ))
       }
     }
-  }
-
-  // TODO/FIXME: If RuntimeAttributes turned into a real type (i.e. case class) the following crap could go into its construction
-  private def buildRuntimeAttributes(ast: Ast): RuntimeAttributes = {
-    val asts = ast.findAsts(AstNodeName.Runtime)
-    if (asts.size > 1) throw new UnsupportedOperationException("Only one runtime block may be defined per task")
-    val astList = asts.headOption map {_.getAttribute("map").asInstanceOf[AstList]}
-    astList map processRuntimeAttributes getOrElse Map.empty[String, String]
-  }
-
-  private def processRuntimeAttributes(astList: AstList): RuntimeAttributes = {
-    astList.asScala.toVector map {a => processRuntimeAttribute(a.asInstanceOf[Ast])} toMap
-  }
-
-  private def processRuntimeAttribute(ast: Ast): RuntimeAttribute = {
-    (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
   }
 }
 
@@ -73,8 +59,8 @@ case class Task(name: String,
                 declarations: Seq[Declaration],
                 command: Command,
                 outputs: Seq[TaskOutput],
-                runtimeAttributes: RuntimeAttributes,
-                ast: Ast) extends Executable { // FIXME: I dislike bundling AST here, it's only used at WdlNamespace construction time, but for now ...
+                ast: Ast,
+                backendType: BackendType) extends Executable {
   /**
    * Inputs to this task, as task-local names (i.e. not fully-qualified)
    *
@@ -85,6 +71,8 @@ case class Task(name: String,
     val declarationInputs = for(declaration <- declarations; input <- declaration.asTaskInput) yield input
     commandInputs ++ declarationInputs
   }
+
+  val runtimeAttributes = RuntimeAttributes(ast, backendType)
 
   override def toString: String = s"[Task name=$name command=$command]"
 }

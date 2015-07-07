@@ -9,7 +9,7 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case i:WdlInteger => JsNumber(i.value)
       case f:WdlFloat => JsNumber(f.value)
       case b:WdlBoolean => JsBoolean(b.value)
-      case f:WdlFile => JsString(f.value.toAbsolutePath.toString)
+      case f:WdlFile => JsString(f.value)
       case o:WdlObject => JsObject()
     }
     def read(value: JsValue) = ???

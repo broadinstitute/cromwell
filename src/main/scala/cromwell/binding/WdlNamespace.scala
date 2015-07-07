@@ -6,7 +6,7 @@ import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
 import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types._
 import cromwell.binding.values._
-import cromwell.parser.WdlParser
+import cromwell.parser.{BackendType, WdlParser}
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil.EnhancedFile
 import AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
@@ -186,29 +186,33 @@ object WdlNamespace {
    *                                       Workflow and Task objects
    *
    */
-  def load(wdlFile: File): WdlNamespace = {
-    load(readFile(wdlFile), wdlFile.toString, localImportResolver, None)
+  def load(wdlFile: File, backendType: BackendType): WdlNamespace = {
+    load(readFile(wdlFile), wdlFile.toString, localImportResolver, None, backendType)
   }
 
-  def load(wdlFile: File, importResolver: ImportResolver): WdlNamespace = {
-    load(readFile(wdlFile), wdlFile.toString, importResolver, None)
+  def load(wdlFile: File, importResolver: ImportResolver, backendType: BackendType): WdlNamespace = {
+    load(readFile(wdlFile), wdlFile.toString, importResolver, None, backendType)
   }
 
-  def load(wdlSource: WdlSource): WdlNamespace = load(wdlSource, "string", localImportResolver, None)
-
-  def load(wdlSource: WdlSource, importResolver: ImportResolver): WdlNamespace = {
-    load(wdlSource, "string", importResolver, None)
+  def load(wdlSource: WdlSource, backendType: BackendType): WdlNamespace = {
+    load(wdlSource, "string", localImportResolver, None, backendType)
   }
 
-  def load(wdlSource: WdlSource, resource: String): WdlNamespace = load(wdlSource, resource, localImportResolver, None)
+  def load(wdlSource: WdlSource, importResolver: ImportResolver, backendType: BackendType): WdlNamespace = {
+    load(wdlSource, "string", importResolver, None, backendType)
+  }
 
-  def load(wdlSource: WdlSource, resource: String, importResolver: ImportResolver): WdlNamespace = {
-    load(wdlSource, resource, importResolver, None)
+  def load(wdlSource: WdlSource, resource: String, backendType: BackendType): WdlNamespace = {
+    load(wdlSource, resource, localImportResolver, None, backendType)
+  }
+
+  def load(wdlSource: WdlSource, resource: String, importResolver: ImportResolver, backendType: BackendType): WdlNamespace = {
+    load(wdlSource, resource, importResolver, None, backendType)
   }
 
   private def load(wdlSource: WdlSource, resource: String, importResolver: ImportResolver,
-                   importedAs: Option[String]): WdlNamespace = {
-    WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, importedAs)
+                   importedAs: Option[String], backendType: BackendType): WdlNamespace = {
+    WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, importedAs, backendType)
   }
 
   /**
@@ -218,7 +222,7 @@ object WdlNamespace {
    * 2) Tasks in this namespace have unique names
    * 3) Tasks and namespaces don't have overlapping names (FIXME: Likely has to do w/ DSDEEPB-726)
    */
-  def apply(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String]): WdlNamespace = {
+  def apply(ast: Ast, source: WdlSource, importResolver: ImportResolver, namespace: Option[String], backendType: BackendType): WdlNamespace = {
     /**
      * All `import` statement strings at the top of the document
      */
@@ -228,7 +232,7 @@ object WdlNamespace {
     val namespaces: Seq[WdlNamespace] = {for {
       i <- imports
       source = importResolver(i.uri) if source.length > 0
-    } yield WdlNamespace.load(source, i.uri, importResolver, i.namespace)}.toSeq
+    } yield WdlNamespace.load(source, i.uri, importResolver, i.namespace, backendType)}.toSeq
 
     /* Create a map of Terminal -> WdlBinding */
     val terminalMap = AstTools.terminalMap(ast, source)
@@ -249,7 +253,7 @@ object WdlNamespace {
     /**
      * All `task` definitions defined in the WDL file (i.e. not imported)
      */
-    val localTasks: Seq[Task] = ast.findAsts(AstNodeName.Task) map {Task(_, wdlSyntaxErrorFormatter)}
+    val localTasks: Seq[Task] = ast.findAsts(AstNodeName.Task) map {Task(_, backendType, wdlSyntaxErrorFormatter)}
 
     /**
      * All `task` definitions, including local and imported ones
@@ -307,8 +311,10 @@ object WdlNamespace {
 }
 
 object NamespaceWithWorkflow {
-  def load(wdlSource: WdlSource): NamespaceWithWorkflow = from(WdlNamespace.load(wdlSource))
-  def load(wdlSource: WdlSource, importResolver: ImportResolver): NamespaceWithWorkflow = NamespaceWithWorkflow.from(WdlNamespace.load(wdlSource, importResolver))
+  def load(wdlSource: WdlSource, backendType: BackendType): NamespaceWithWorkflow = from(WdlNamespace.load(wdlSource, backendType))
+  def load(wdlSource: WdlSource, importResolver: ImportResolver, backendType: BackendType): NamespaceWithWorkflow = {
+    NamespaceWithWorkflow.from(WdlNamespace.load(wdlSource, importResolver, backendType))
+  }
   /**
    * Used to safely cast a WdlNamespace to a NamespaceWithWorkflow. Throws an IllegalArgumentException if another
    * form of WdlNamespace is passed to it

@@ -3,6 +3,7 @@ package cromwell.binding
 import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types.{WdlIntegerType, WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlInteger, WdlString, WdlValue}
+import cromwell.parser.BackendType
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -66,7 +67,7 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
         """task test {
           |  command { ./script ${stuff*} }
           |}
-        """.stripMargin)
+        """.stripMargin, BackendType.LOCAL)
       fail("Expected an exception")
     } catch {
       case _: SyntaxError => // expected
@@ -79,7 +80,7 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
         """task test {
           |  command { ./script ${default="x" stuff} }
           |}
-        """.stripMargin)
+        """.stripMargin, BackendType.LOCAL)
       fail("Expected an exception")
     } catch {
       case _: SyntaxError => // expected
@@ -92,7 +93,7 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
         """task test {
           |  command { ./script ${default="x" stuff+} }
           |}
-        """.stripMargin)
+        """.stripMargin, BackendType.LOCAL)
       fail("Expected an exception")
     } catch {
       case _: SyntaxError => // expected

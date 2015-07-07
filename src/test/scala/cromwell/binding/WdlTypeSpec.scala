@@ -40,7 +40,7 @@ class WdlTypeSpec extends FlatSpec with Matchers {
   }
 
   "WdlFile" should "support expected coercions" in {
-    WdlFileType.coerceRawValue("/etc/passwd").get shouldEqual WdlFile(Paths.get("/etc/passwd"))
+    WdlFileType.coerceRawValue("/etc/passwd").get shouldEqual WdlFile("/etc/passwd")
     WdlFileType.coerceRawValue(-1).isFailure shouldBe true
   }
 

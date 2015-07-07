@@ -10,7 +10,6 @@ RUN ["/bin/bash", "-c", "/cromwell/docker/install.sh /cromwell"]
 
 # Add Cromwell as a service (it will start when the container starts)
 RUN mkdir /etc/service/cromwell && \
-    cp /cromwell/src/main/resources/reference.conf /etc/cromwell.conf && \
     cp /cromwell/docker/run.sh /etc/service/cromwell/run
 
 # These next 4 commands are for enabling SSH to the container.

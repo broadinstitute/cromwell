@@ -82,7 +82,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
 
     val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
-    for {
+    val futureId = for {
       namespace <- Future(WdlNamespace.load(wdlSource))
       coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
       descriptor = new WorkflowDescriptor(workflowId, namespace, wdlSource, wdlJson, coercedInputs)
@@ -94,9 +94,15 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
       workflowActor ! SubscribeTransitionCallBack(self)
       workflowId
     }
+    futureId onFailure {
+      case e =>
+        val messageOrBlank = Option(e.getMessage).mkString
+        log.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
+    }
+    futureId
   }
 
-  private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Future[WorkflowId] = {
+  private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Unit = {
     submitWorkflow(restartableWorkflow.source, restartableWorkflow.json, restartableWorkflow.inputs, Option(restartableWorkflow.id))
   }
 

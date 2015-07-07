@@ -267,7 +267,11 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
 
     def coerceRawInput(fqn: FullyQualifiedName, wdlType: WdlType): Try[WdlValue] = fqn match {
-      case _ if rawInputs.contains(fqn) => wdlType.coerceRawValue(rawInputs.get(fqn).get)
+      case _ if rawInputs.contains(fqn) =>
+        val rawInput = rawInputs.get(fqn).get
+        wdlType.coerceRawValue(rawInput).recoverWith {
+          case e => Failure(new UnsatisfiedInputsException(s"Failed to coerce input $fqn value $rawInput of ${rawInput.getClass} to $wdlType."))
+        }
       case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
     }
 

@@ -60,6 +60,26 @@ object SampleWdl {
     val OutputKey = "goodbye.goodbye.out"
   }
 
+  object Incr extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+    """
+      |task incr {
+      |  command {
+      |    echo $((${Int val} + 1))
+      |  }
+      |  output {
+      |    Int out = read_int(stdout())
+      |  }
+      |}
+      |
+      |workflow incr {
+      |  call incr
+      |}
+    """.stripMargin
+
+    override val rawInputs: WorkflowRawInputs = Map("incr.incr.val" -> "1")
+  }
+
   object SubtractionWorkflow {
     val WdlSource =
       """

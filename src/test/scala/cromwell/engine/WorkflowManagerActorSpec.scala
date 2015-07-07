@@ -2,7 +2,7 @@ package cromwell.engine
 
 import java.util.{Calendar, UUID}
 
-import akka.testkit.TestActorRef
+import akka.testkit.{EventFilter, TestActorRef}
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
@@ -11,11 +11,14 @@ import cromwell.engine.db.{DummyDataAccess, QueryWorkflowExecutionResult}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.HelloWorld
+import cromwell.util.SampleWdl.{HelloWorld, Incr}
 import cromwell.{CromwellTestkitSpec, binding}
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
@@ -83,6 +86,23 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
                 TestActorRef(WorkflowManagerActor.props(dataAccess), self, "2 restartable workflows")
               }
             }
+          }
+        }
+      }
+    }
+
+    val TestExecutionTimeout = 5000 milliseconds
+
+    "Handle coercion failures gracefully" in {
+      within(TestExecutionTimeout) {
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(DummyDataAccess()), self, "Test WorkflowManagerActor coercion failures")
+        EventFilter.error(pattern = "Workflow failed submission").intercept {
+          Try {
+            messageAndWait[WorkflowId](SubmitWorkflow(Incr.wdlSource(), Incr.wdlJson, Incr.rawInputs))
+          } match {
+            case Success(_) => fail("Expected submission to fail with uncoercable inputs")
+            case Failure(e) =>
+              e.getMessage shouldBe "Failed to coerce input incr.incr.val value 1 of class java.lang.String to WdlIntegerType."
           }
         }
       }

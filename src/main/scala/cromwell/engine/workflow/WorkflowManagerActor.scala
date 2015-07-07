@@ -9,6 +9,7 @@ import akka.pattern.{ask, pipe}
 import cromwell.binding
 import cromwell.binding._
 import cromwell.engine._
+import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
@@ -49,7 +50,6 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
 
   type WorkflowActorRef = ActorRef
 
-  private val backend = new LocalBackend
   private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
 
   override def preStart() {
@@ -86,7 +86,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
       eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource))
       coercedInputs <- Future.fromTry(eventualNamespace.coerceRawInputs(inputs))
       descriptor = new WorkflowDescriptor(workflowId, eventualNamespace, wdlSource, wdlJson, coercedInputs)
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor, Backend.Backend, dataAccess))
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
       val isRestart = maybeWorkflowId.isDefined
@@ -143,7 +143,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
     val result = for {
       workflowInfos <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
       restartableWorkflows = buildRestartableWorkflows(workflowInfos)
-      _ <- backend.handleCallRestarts(restartableWorkflows, dataAccess)
+      _ <- Backend.Backend.handleCallRestarts(restartableWorkflows, dataAccess)
     } yield {
         val num = restartableWorkflows.length
         val (displayNum, plural) = pluralize(num)

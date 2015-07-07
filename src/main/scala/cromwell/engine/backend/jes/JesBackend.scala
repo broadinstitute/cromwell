@@ -20,11 +20,12 @@ import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.local.{TaskExecutionContext, LocalEngineFunctions}
 import cromwell.engine.db.DataAccess
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 import JesBackend._
 
 object JesBackend {
@@ -43,6 +44,7 @@ object JesBackend {
     "https://www.googleapis.com/auth/devstorage.read_write",
     "https://www.googleapis.com/auth/compute"
   )
+
   // NOTE: Used in connection boilerplate. All of that could probably be made cleaner w/ generators or something
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(JesBackend.Scopes.asJava)
 
@@ -103,29 +105,46 @@ class JesBackend extends Backend with LazyLogging {
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = ???
-//  {
-//    val gcsPath = s"${workflowDescriptor.callDir(call)}"
-//
-//    // FIXME: These are only used for that TemporaryEngineFunctions at the moment
-//    val stdout = s"$gcsPath/stdout.txt"
-//    val stderr = s"$gcsPath/stderr.txt"
-//
-//    // FIXME: Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-//    val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
-//
-//    Pipeline(redirectedCommand, workflowDescriptor, call, backendInputs, GoogleProject, GenomicsService).run.waitUntilComplete()
-//
-//    // FIXME: This is *only* going to work w/ my hacked stdout/stderr above, see LocalBackend for more info
-//    call.task.outputs.map { taskOutput =>
-//      val rawValue = taskOutput.expression.evaluate(
-//        scopedLookupFunction,
-//        new TemporaryEngineFunctions(gcsPath, stdout, stderr)
-//      )
-//      println(s"JesBackend setting ${taskOutput.name} to $rawValue")
-//      taskOutput.name -> rawValue
-//    }.toMap
-//  }
+                              scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
+    val gcsPath = s"${workflowDescriptor.callDir(call)}"
 
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = ???
+    // FIXME: These are only used for that TemporaryEngineFunctions at the moment
+    val stdout = s"$gcsPath/stdout.txt"
+    val stderr = s"$gcsPath/stderr.txt"
+
+    // FIXME: Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
+    val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
+
+    // FIXME: Not actually using the RunStatus
+    val status = Pipeline(redirectedCommand, workflowDescriptor, call, backendInputs, GoogleProject, GenomicsService).run.waitUntilComplete()
+
+    // FIXME: This is *only* going to work w/ my hacked stdout/stderr above, see LocalBackend for more info
+    val outputMappings = call.task.outputs.map { taskOutput =>
+      val rawValue = taskOutput.expression.evaluate(
+        scopedLookupFunction,
+        new TemporaryEngineFunctions(gcsPath, stdout, stderr)
+      )
+      println(s"JesBackend setting ${taskOutput.name} to $rawValue")
+      taskOutput.name -> rawValue
+    }.toMap
+
+    status match {
+      case Run.Success(created, started, finished) =>
+        // FIXME: DRY cochise, this is C/P from LocalBackend
+        val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
+        if (taskOutputEvaluationFailures.isEmpty) {
+          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
+          Success(unwrappedMap)
+        } else {
+          val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
+          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
+        }
+      case Run.Failed(created, started, finished, errorCode, errorMessage) =>
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $commandLine. Message: $errorMessage"))
+    }
+
+  }
+
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
+                                  dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 }

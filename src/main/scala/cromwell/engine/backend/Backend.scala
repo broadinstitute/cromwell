@@ -9,6 +9,7 @@ import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalEngineFunctions
+import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.backend.local.LocalBackend
 
@@ -17,8 +18,9 @@ import scala.util.{Failure, Success, Try}
 
 object Backend {
   lazy val BackendConf = ConfigFactory.load.getConfig("backend")
-  lazy val Backend: Backend = BackendConf.getString("backend") match {
-    case "Local" => new LocalBackend
+  lazy val Backend: Backend = BackendConf.getString("backend").toLowerCase match {
+    case "local" => new LocalBackend
+    case "jes" => new JesBackend
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
 

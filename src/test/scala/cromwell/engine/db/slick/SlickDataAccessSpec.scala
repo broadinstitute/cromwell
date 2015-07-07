@@ -42,7 +42,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                                     dataAccess: DataAccess)(implicit ec: ExecutionContext) = Future.successful(())
 
     override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor,
-                                call: Call, scopedLookupFunction: ScopedLookupFunction) = Success(Map.empty)
+                                call: Call, backendInputs: CallInputs, scopedLookupFunction: ScopedLookupFunction) = Success(Map.empty)
   }
 
   // Tests against main database used for command line

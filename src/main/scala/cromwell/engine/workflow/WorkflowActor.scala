@@ -5,8 +5,8 @@ import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlObject, WdlValue}
-import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
+import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{CallStatus, DataAccess}
@@ -17,7 +17,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-
 
 object WorkflowActor {
   sealed trait WorkflowActorMessage
@@ -40,7 +39,7 @@ object WorkflowActor {
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 
   val DatabaseTimeout = 5 seconds
-  type ExecutionStore = Map[Call, ExecutionStatus.Value]
+  // FIXME: I removed a type alias for Execution Store (  type ExecutionStore = Map[Call, ExecutionStatus.Value])
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor,
@@ -48,14 +47,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
                          dataAccess: DataAccess)
   extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
 
-  private var executionStore: ExecutionStore = _
+  private var executionStore: Map[Call, ExecutionStatus.Value] = _
 
   val tag: String = s"WorkflowActor [UUID(${workflow.shortId})]"
   override val log = Logging(context.system, classOf[WorkflowActor])
 
   startWith(WorkflowSubmitted, NoFailureMessage)
   
-  def initWorkflow(initialization: Future[Unit] = Future.successful(())): ExecutionStore = {
+  def initWorkflow(initialization: Future[Unit] = Future.successful(())): Map[Call, ExecutionStatus.Value] = {
     val futureStore = for {
       _ <- initialization
       store <- createStore
@@ -88,7 +87,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   when(WorkflowRunning) {
     case Event(CallStarted(call), NoFailureMessage) =>
-      persistStatus(call, Running)
+      persistStatus(call, ExecutionStatus.Running)
       stay()
     case Event(CallCompleted(call, outputs), NoFailureMessage) =>
       // See DSDEEPB-521 for an example of why potential race conditions in starting runnable calls currently
@@ -153,7 +152,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     log.info(s"$tag handling completion of call '${call.fullyQualifiedName}'.")
     for {
       _ <- dataAccess.setOutputs(workflow.id, call, outputs)
-      _ <- persistStatus(call, Done)
+      _ <- persistStatus(call, ExecutionStatus.Done)
     } yield ()
   }
 
@@ -192,7 +191,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     } else {
       log.info(s"$tag starting calls: " + runnableCalls.map {_.fullyQualifiedName}.toSeq.sorted.mkString(", "))
       val futureCallsAndInputs = for {
-        _ <- persistStatus(runnableCalls, Starting)
+        _ <- persistStatus(runnableCalls, ExecutionStatus.Starting)
         allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)
       } yield runnableCalls zip allInputs
       Await.ready(futureCallsAndInputs, DatabaseTimeout)

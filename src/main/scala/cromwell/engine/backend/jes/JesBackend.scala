@@ -130,6 +130,17 @@ class JesBackend extends Backend with LazyLogging {
       Failure(new IllegalArgumentException(failureMessages.mkString("\n")))
     }
   }
+}
+
+class JesBackend extends Backend with LazyLogging {
+  // FIXME: As of right now this isn't needed, but it probably will be as things get less hacky
+  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs
+
+  // FIXME: Pass through for now, but perhaps not as time goes on
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = {
+    // FIXME: No need to copy GCS inputs for the workflow we should be able to direclty reference them
+    workflow.actualInputs
+  }
 
   override def executeCommand(commandLine: String,
                               workflowDescriptor: WorkflowDescriptor,

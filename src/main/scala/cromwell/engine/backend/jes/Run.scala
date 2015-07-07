@@ -37,14 +37,14 @@ object Run {
     new Run(id, pipeline)
   }
 
-  // Define an ADT to represent the current status a JES job might be in
   sealed trait RunStatus // FIXME: These dates shouldn't be Strings
+  trait TerminalRunStatus extends RunStatus
   final case class Initializing(created: String) extends RunStatus
   final case class Running(created: String, started: String) extends RunStatus
-  final case class Success(created: String, started: String, finished: String) extends RunStatus
+  final case class Success(created: String, started: String, finished: String) extends TerminalRunStatus
   // FIXME: Not capturing the errorDetails map, might want to do that (but .asScala issues exist there))
   // FIXME: Also it's been a while since I looked but there never seemed to be anything in there anyways
-  final case class Failed(created: String, started: String, finished: String, errorCode: Int, errorMessage: String) extends RunStatus
+  final case class Failed(created: String, started: String, finished: String, errorCode: Int, errorMessage: String) extends TerminalRunStatus
 }
 
 case class Run(name: String, pipeline: Pipeline) {
@@ -62,14 +62,14 @@ case class Run(name: String, pipeline: Pipeline) {
   }
 
   @tailrec
-  final def waitUntilComplete(): RunStatus = {
+  final def waitUntilComplete(): TerminalRunStatus = {
     val currentStatus = status()
     println(s"Current status is $currentStatus")
     currentStatus match {
-      case Initializing(_) | Running(_, _) =>
+      case x: TerminalRunStatus => x
+      case _ =>
         Thread.sleep(5000)
         waitUntilComplete()
-      case _ => currentStatus
     }
   }
 }

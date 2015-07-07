@@ -146,45 +146,29 @@ class JesBackend extends Backend with LazyLogging {
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
-    val callGcsPath = s"${workflowDescriptor.callDir(call)}"
+                              scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = ???
+//  {
+//    val gcsPath = s"${workflowDescriptor.callDir(call)}"
+//
+//    // FIXME: These are only used for that TemporaryEngineFunctions at the moment
+//    val stdout = s"$gcsPath/stdout.txt"
+//    val stderr = s"$gcsPath/stderr.txt"
+//
+//    // FIXME: Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
+//    val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
+//
+//    Pipeline(redirectedCommand, workflowDescriptor, call, backendInputs, GoogleProject, GenomicsService).run.waitUntilComplete()
+//
+//    // FIXME: This is *only* going to work w/ my hacked stdout/stderr above, see LocalBackend for more info
+//    call.task.outputs.map { taskOutput =>
+//      val rawValue = taskOutput.expression.evaluate(
+//        scopedLookupFunction,
+//        new TemporaryEngineFunctions(gcsPath, stdout, stderr)
+//      )
+//      println(s"JesBackend setting ${taskOutput.name} to $rawValue")
+//      taskOutput.name -> rawValue
+//    }.toMap
+//  }
 
-    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
-
-    // FIXME: Not particularly robust at the moment
-    val jesInputs: Seq[JesParameter] = backendInputs.collect({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(backendInputs(k).valueString))}).toSeq
-    val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
-    val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
-
-    // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-    val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
-
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
-
-    // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
-    val outputMappings = call.task.outputs.map { taskOutput =>
-      val rawValue = taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions)
-      println(s"JesBackend setting ${taskOutput.name} to $rawValue")
-      taskOutput.name -> rawValue
-    }.toMap
-
-    status match {
-      case Run.Success(created, started, finished) =>
-        // FIXME: DRY cochise, this is C/P from LocalBackend
-        val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
-        if (taskOutputEvaluationFailures.isEmpty) {
-          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
-          Success(unwrappedMap)
-        } else {
-          val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
-          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
-        }
-      case Run.Failed(created, started, finished, errorCode, errorMessage) => // FIXME: errorMessage looks like it's just "pipeline run failed"?
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $commandLine. Message: $errorMessage"))
-    }
-
-  }
-
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
-                                  dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = ???
 }

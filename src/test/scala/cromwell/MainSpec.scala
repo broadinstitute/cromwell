@@ -5,10 +5,11 @@ import java.io.ByteArrayOutputStream
 import akka.actor.ActorSystem
 import akka.testkit.EventFilter
 import com.typesafe.config.ConfigFactory
+import cromwell.binding.WdlExpression
 import cromwell.server.WorkflowManagerSystem
 import cromwell.util.{SampleWdl, FileUtil}
 import cromwell.util.SampleWdl.ThreeStep
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -17,7 +18,13 @@ class TestWorkflowManagerSystem extends WorkflowManagerSystem {
   override implicit val actorSystem = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
 }
 
-class MainSpec extends FlatSpec with Matchers {
+class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    // Hack to force synchronous initialization of the parser to avoid race conditions.
+    WdlExpression.parser.lex("1", "string")
+  }
 
   private def wdlAndInputs(sampleWdl: SampleWdl): (String, String) = {
     val wdlFilePathAndWriter = FileUtil.tempFileAndWriter("wdl")

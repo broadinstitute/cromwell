@@ -1,6 +1,6 @@
 package cromwell.engine.backend.local
 
-import java.io.Writer
+import java.io.{File, Writer}
 import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
@@ -47,30 +47,27 @@ class LocalBackend extends Backend with LazyLogging {
   override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     import LocalBackend._
 
-    val callDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
-    // FIXME mkdir*s* should not be required here, the directory structure up to the call should
-    // FIXME already exist and must recently have been perturbed.
-    callDirectory.mkdirs()
+    val hostCallDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
+    hostCallDirectory.mkdirs()
 
-    val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout", callDirectory)
-    val (stderrFile, stderrWriter) = FileUtil.tempFileAndWriter("stderr", callDirectory)
-    val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", callDirectory)
+    val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout", hostCallDirectory)
+    val (stderrFile, stderrWriter) = FileUtil.tempFileAndWriter("stderr", hostCallDirectory)
+    val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", hostCallDirectory)
 
     val hostWorkflowExecutionFile = hostExecutionPath(workflowDescriptor).toFile
     val containerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
 
-    if (call.docker.isEmpty) {
-      val callDirectory = Paths.get(hostWorkflowExecutionFile.getAbsolutePath, s"call-${call.name}")
-      commandWriter.writeWithNewline(s"cd $callDirectory")
-    }
+    val parentPath = if (call.docker.isDefined) Paths.get(containerExecutionDir).toString else hostWorkflowExecutionFile.getAbsolutePath
+    val callDirectory = Paths.get(parentPath, s"call-${call.name}")
+    commandWriter.writeWithNewline(s"cd $callDirectory")
+
     commandWriter.writeWithNewline(commandLine)
     commandWriter.flushAndClose()
 
     def buildDockerRunCommand(image: String): String =
       // -v maps the host workflow executions directory to /root/<workflow id> on the container.
-      // -w sets the command's working directory on the container to /root/<workflow id>/call-<call name>.
       // -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
-      s"docker run -v ${hostWorkflowExecutionFile.getAbsolutePath}:$containerExecutionDir -w $containerExecutionDir/call-${call.name} -i $image"
+      s"docker run -v ${hostWorkflowExecutionFile.getAbsolutePath}:$containerExecutionDir -i $image"
 
     // Build the docker run command if docker is defined in the RuntimeAttributes, otherwise just the empty string.
     val dockerRun = call.docker.map { buildDockerRunCommand }.getOrElse("")
@@ -87,6 +84,12 @@ class LocalBackend extends Backend with LazyLogging {
     }
 
     /**
+     * Return a host absolute file path.
+     */
+    def hostAbsoluteFilePath(pathString: String): String =
+      if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
+
+    /**
      * Handle possible auto-conversion from string literal to WdlFile.
      */
     def possiblyAutoConvertedValue(taskOutput: TaskOutput, wdlValue: WdlValue): WdlValue = {
@@ -94,9 +97,7 @@ class LocalBackend extends Backend with LazyLogging {
         case v: WdlString =>
           taskOutput.wdlType match {
             case WdlFileType =>
-              v.value match {
-                case _ => WdlFile(v.value)
-              }
+              WdlFile(hostAbsoluteFilePath(v.value))
             case _ => v
           }
         case v => v

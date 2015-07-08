@@ -16,14 +16,10 @@ import scala.util.Try
 
 object Backend {
   def from(backendConf: Config): Backend = {
+    // FIXME: A log message would be a nice touch
     backendConf.getString("backend").toLowerCase match {
-      case "local" =>
-        println("FOO: LOCAL BACKEND")
-        new LocalBackend
-      case "jes" =>
-        println("FOO: JES BACKEND")
-        throw new Exception("BARF")
-        new JesBackend
+      case "local" => new LocalBackend
+      case "jes" => new JesBackend
       case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
     }
   }

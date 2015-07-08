@@ -2,11 +2,24 @@ package cromwell.binding.command
 
 import java.util.regex.Pattern
 
-import cromwell.binding.types.WdlArrayType
 import cromwell.binding.{CallInputs, TaskInput}
+import cromwell.binding.types.WdlArrayType
+import cromwell.parser.WdlParser.{Ast, AstList, Terminal}
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.util.Try
+
+object Command {
+  def apply(ast: Ast): Command = {
+    val parts = ast.getAttribute("parts").asInstanceOf[AstList].asScala.toVector.map {
+      case x: Terminal => new StringCommandPart(x.getSourceString)
+      case x: Ast => ParameterCommandPart(x)
+    }
+
+    new Command(parts)
+  }
+}
 
 /**
  * Represents the `command` section of a `task` definition in a WDL file.
@@ -50,6 +63,7 @@ case class Command(parts: Seq[CommandPart]) {
       TaskInput(p.name, wdlType, p.postfixQuantifier)
     }
   }
+
   /**
    * Given a map of task-local parameter names and WdlValues,
    * create a command String.

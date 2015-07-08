@@ -1,10 +1,57 @@
 package cromwell.binding
 
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
 import cromwell.parser.AstTools
+import cromwell.parser.WdlParser.{SyntaxError, Terminal, Ast}
+import cromwell.parser.AstTools.EnhancedAstNode
 
 import scala.util.{Success, Try}
+
+object Call {
+  def apply(ast: Ast,
+            namespaces: Seq[WdlNamespace],
+            tasks: Seq[Task],
+            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Call = {
+    val alias: Option[String] = ast.getAttribute("alias") match {
+      case x: Terminal => Option(x.getSourceString)
+      case _ => None
+    }
+
+    val taskName = ast.getAttribute("task").sourceString()
+    val task = WdlNamespace.findTask(taskName, namespaces, tasks) getOrElse {
+      throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(ast, taskName))
+    }
+
+    val inputMappings = processCallInput(ast)
+
+    inputMappings foreach { inputKv =>
+      task.inputs find { taskInput => taskInput.name == inputKv._1 } getOrElse {
+        /*
+          FIXME-ish
+          It took me a while to figure out why this next part is necessary and it's kind of hokey.
+          All the syntax highlighting requires ASTs and this is a way to get the input's AST back.
+          Perhaps an intermediary object that contains the AST as well and then the normal Map in the Call?
+
+          FIXME: It'd be good to break this whole thing into smaller chunks
+         */
+        val callInput = AstTools.callInputAsts(ast) find {
+          _.getAttribute("key").sourceString == inputKv._1
+        } getOrElse {
+          throw new SyntaxError(s"Can't find call input: ${inputKv._1}")
+        }
+        throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskInput(callInput, task.ast))
+      }
+    }
+
+    new Call(alias, taskName, task, inputMappings)
+  }
+
+  private def processCallInput(ast: Ast): Map[String, WdlExpression] = AstTools.callInputAsts(ast).map {a =>
+    val key = a.getAttribute("key").sourceString()
+    val expression = new WdlExpression(a.getAttribute("value"))
+    (key, expression)
+  }.toMap
+}
 
 /**
  * Represents a `call` block in a WDL workflow.  Calls wrap tasks
@@ -17,11 +64,18 @@ import scala.util.{Success, Try}
  * @param task The task that this `call` will invoke
  * @param inputMappings A map of task-local input names and corresponding expression for the
  *                      value of those inputs
- * @todo Validate that the keys in inputMappings correspond to actual parameters in the task
  */
-case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, inputMappings: Map[String, WdlExpression], namespace: WdlNamespace) extends Scope {
+case class Call(alias: Option[String],
+                taskFqn: FullyQualifiedName,
+                task: Task,
+                inputMappings: Map[String, WdlExpression]) extends Scope {
   val name: String = alias getOrElse taskFqn
 
+  /*
+    TODO/FIXME: Since a Workflow's Calls *must* have a parent a better way to handle this would be to use an ADT
+    where one type has a parent and one does not, and the Workflow can only take the former. I went down that
+    road a bit but Scope requires parent to be an Option[Scope] so it's turtles all the way down (well, up in this case)
+   */
   private var _parent: Option[Scope] = None
 
   def parent: Option[Scope] = _parent
@@ -61,7 +115,10 @@ case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, 
    * a prerequisite call multiple times (i.e. has multiple inputs depending on multiple outputs
    * of a prerequisite call), that prerequisite call will appear only once in the output.
    */
-  def prerequisiteCalls(): Iterable[Call] = {
+  /*
+    TODO/FIXME: Not happy w/ having to include the namespace but since Calls are now built before there's a namespace the Call loses it's WdlNamespace field.
+   */
+  def prerequisiteCalls(namespace: NamespaceWithWorkflow): Iterable[Call] = {
     for {
       expr <- inputMappings.values
       ast <- AstTools.findTopLevelMemberAccesses(expr.ast)

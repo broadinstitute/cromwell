@@ -2,11 +2,29 @@ package cromwell.binding.command
 
 import cromwell.binding.WdlExpression
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.{WdlArray, WdlPrimitive, WdlString, WdlValue}
+import cromwell.binding.values.{WdlArray, WdlString, WdlPrimitive, WdlValue}
+import cromwell.parser.WdlParser.{AstList, Terminal, Ast}
+import cromwell.parser.AstTools.EnhancedAstNode
+import scala.collection.JavaConverters._
 
 object ParameterCommandPart {
   val PostfixQuantifiersThatAcceptArrays = Set("+", "*")
   val OptionalPostfixQuantifiers = Set("?", "*")
+
+  def apply(ast: Ast): ParameterCommandPart = {
+    val wdlType = ast.getAttribute("type").wdlType
+    val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
+    val prefix = Option(ast.getAttribute("prefix")) map { case t:Terminal => t.sourceString() }
+    val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.map { a =>
+      val ast = a.asInstanceOf[Ast]
+      (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
+    }.toMap
+    val postfixQuantifier = ast.getAttribute("postfix") match {
+      case t:Terminal => Some(t.sourceString())
+      case _ => None
+    }
+    new ParameterCommandPart(wdlType, name, prefix, attributes, postfixQuantifier)
+  }
 }
 
 /**

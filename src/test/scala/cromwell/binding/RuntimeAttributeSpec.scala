@@ -69,20 +69,20 @@ object RuntimeAttributeSpec {
                                  |}
                                """.stripMargin
 
-  val NamespaceWithRuntime = WdlNamespace.load(WorkflowWithRuntime)
-  val NamespaceWithoutRuntime = WdlNamespace.load(WorkflowWithoutRuntime)
+  val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime)
+  val NamespaceWithoutRuntime = NamespaceWithWorkflow.load(WorkflowWithoutRuntime)
 }
 
 class RuntimeAttributeSpec extends FlatSpec with Matchers {
   "WDL file with runtime" should "have runtime information" in {
-    assert(NamespaceWithRuntime.workflows.head.calls.forall {_.task.runtimeAttributes.nonEmpty})
+    assert(NamespaceWithRuntime.workflow.calls.forall {_.task.runtimeAttributes.nonEmpty})
   }
 
   it should "have docker information" in {
-    assert(NamespaceWithRuntime.workflows.head.calls forall {_.task.runtimeAttributes.docker.get == "ubuntu:latest"})
+    assert(NamespaceWithRuntime.workflow.calls forall {_.task.runtimeAttributes.docker.get == "ubuntu:latest"})
   }
 
   "WDL file without runtime" should "not have imported runtime information" in {
-    assert(NamespaceWithoutRuntime.workflows.head.calls.forall {_.task.runtimeAttributes.isEmpty})
+    assert(NamespaceWithoutRuntime.workflow.calls.forall {_.task.runtimeAttributes.isEmpty})
   }
 }

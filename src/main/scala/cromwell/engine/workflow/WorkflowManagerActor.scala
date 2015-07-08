@@ -83,9 +83,9 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
     val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
-      namespace <- Future(WdlNamespace.load(wdlSource))
-      coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
-      descriptor = new WorkflowDescriptor(workflowId, namespace, wdlSource, wdlJson, coercedInputs)
+      eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource))
+      coercedInputs <- Future.fromTry(eventualNamespace.coerceRawInputs(inputs))
+      descriptor = new WorkflowDescriptor(workflowId, eventualNamespace, wdlSource, wdlJson, coercedInputs)
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {

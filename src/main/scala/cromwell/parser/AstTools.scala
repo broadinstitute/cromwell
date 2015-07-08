@@ -3,20 +3,51 @@ package cromwell.parser
 import java.io.File
 
 import cromwell.binding._
-import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import cromwell.binding.types._
+import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
 
 object AstTools {
-  implicit class EnhancedAstNode(val ast: AstNode) extends AnyVal {
-    def findAsts(name: String): Seq[Ast] = AstTools.findAsts(ast, name)
+  implicit class EnhancedAstNode(val astNode: AstNode) extends AnyVal {
+    def findAsts(name: String): Seq[Ast] = AstTools.findAsts(astNode, name)
     def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
-      AstTools.findAstsWithTrail(ast, name, trail)
+      AstTools.findAstsWithTrail(astNode, name, trail)
     }
-    def findTerminals(): Seq[Terminal] = AstTools.findTerminals(ast)
-    def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(ast)
-    def sourceString(): String = ast.asInstanceOf[Terminal].getSourceString
+    def findTerminals(): Seq[Terminal] = AstTools.findTerminals(astNode)
+    def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
+    def sourceString(): String = astNode.asInstanceOf[Terminal].getSourceString
+    
+    def wdlType: WdlType = {
+      astNode match {
+        case t: Terminal =>
+          t.getSourceString match {
+            case WdlFileType.toWdlString => WdlFileType
+            case WdlStringType.toWdlString => WdlStringType
+            case WdlIntegerType.toWdlString => WdlIntegerType
+            case WdlFloatType.toWdlString => WdlFloatType
+            case WdlBooleanType.toWdlString => WdlBooleanType
+            case WdlObjectType.toWdlString => WdlObjectType
+          }
+        case a: Ast =>
+          val subtypes = a.getAttribute("subtype").asInstanceOf[AstList].asScala.toSeq
+          val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
+          a.getAttribute("name").sourceString() match {
+            case "Array" =>
+              val member = subtypes.head.wdlType
+              WdlArrayType(member)
+          }
+        case null => WdlStringType
+        case _ => throw new UnsupportedOperationException("Implement this later for compound types")
+      }
+    }
+  }
+
+  implicit class EnhancedAstSeq(val astSeq: Seq[Ast]) extends AnyVal {
+    def duplicatesByName: Seq[Ast] = {
+      astSeq.groupBy(_.getAttribute("name").sourceString()).collect({case (_ ,v) if v.size > 1 => v.head}).toVector
+    }
   }
 
   object AstNodeName {

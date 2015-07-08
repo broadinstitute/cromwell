@@ -8,7 +8,7 @@ import cromwell.binding._
 import cromwell.binding.values.WdlString
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.DummyDataAccess
+import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
@@ -21,6 +21,8 @@ import scala.language.postfixOps
 
 class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSpec") {
 
+  private val dataAccess = DataAccess()
+
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: Option[WorkflowRawInputs] = None):
   TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor] = {
 
@@ -28,11 +30,14 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     val rawInputs = rawInputsOverride.getOrElse(sampleWdl.rawInputs)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, DummyDataAccess()))
+    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
 
   override def afterAll() {
+    // TODO: Is this shutting down `system`?
     shutdown()
+    super.afterAll()
+    Await.result(dataAccess.shutdown(), Duration.Inf)
   }
 
   val TestExecutionTimeout = 5000 milliseconds

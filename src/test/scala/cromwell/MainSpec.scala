@@ -5,17 +5,16 @@ import java.io.ByteArrayOutputStream
 import akka.actor.ActorSystem
 import akka.testkit.EventFilter
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.db.DummyDataAccess
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
 import cromwell.util.{SampleWdl, FileUtil}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 class TestWorkflowManagerSystem extends WorkflowManagerSystem {
-  override def dataAccess = DummyDataAccess()
   override implicit val actorSystem = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-  override lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess))
 }
 
 class MainSpec extends FlatSpec with Matchers {
@@ -120,6 +119,7 @@ class MainSpec extends FlatSpec with Matchers {
       val (wdl, inputs) = wdlAndInputs(ThreeStep)
       Main.run(Array(wdl, inputs), workflowManagerSystem)
     }
+    Await.result(workflowManagerSystem.shutdown(), Duration.Inf)
   }
 
   it should "print usage" in {

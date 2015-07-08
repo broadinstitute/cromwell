@@ -8,5 +8,6 @@ case object WdlExpressionType extends WdlType {
   override protected def coercion = {
     case s: String if s.startsWith("%expr:") => WdlExpression.fromString(s.replace("%expr:", ""))
   }
-}
 
+  override def fromRawString(rawString: String) = WdlExpression.fromString(rawString)
+}

@@ -8,6 +8,8 @@ case object WdlIntegerType extends WdlType {
 
   override protected def coercion = {
     case i: Integer => WdlInteger(i)
-    case n: JsNumber => WdlInteger(n.value.intValue)
+    case n: JsNumber => WdlInteger(n.value.intValue())
   }
+
+  override def fromRawString(rawString: String) = WdlInteger(rawString.toInt)
 }

@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
@@ -17,11 +17,17 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object Backend {
-  lazy val BackendConf = ConfigFactory.load.getConfig("backend")
-  lazy val Backend: Backend = BackendConf.getString("backend").toLowerCase match {
-    case "local" => new LocalBackend
-    case "jes" => new JesBackend
-    case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
+  def from(backendConf: Config): Backend = {
+    backendConf.getString("backend").toLowerCase match {
+      case "local" =>
+        println("FOO: LOCAL BACKEND")
+        new LocalBackend
+      case "jes" =>
+        println("FOO: JES BACKEND")
+        throw new Exception("BARF")
+        new JesBackend
+      case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
+    }
   }
 
   case class RestartableWorkflow(id: WorkflowId, source: WdlSource, json: WdlJson, inputs: binding.WorkflowRawInputs)

@@ -7,6 +7,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import com.wordnik.swagger.model.ApiInfo
+import cromwell.Main
 import cromwell.webservice.{CromwellApiService, CromwellApiServiceActor, SwaggerService}
 import spray.can.Http
 
@@ -15,7 +16,7 @@ import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
-object CromwellServer extends DefaultWorkflowManagerSystem {
+object CromwellServer extends DefaultWorkflowManagerSystem(Main.BackendInstance) {
   val conf = ConfigFactory.parseFile(new File("/etc/cromwell.conf"))
 
   // NOTE: Currently the this.dataAccess is passed in to this.workflowManagerActor.

@@ -11,7 +11,7 @@ object CromwellSpec {
       |   backend = "local"
       |}
     """.stripMargin
-  val Config = ConfigFactory.parseString(CromwellSpec.BackendConfText)
+  val Config = ConfigFactory.parseString(CromwellSpec.BackendConfText).getConfig("backend")
   val BackendInstance = Backend.from(Config)
 
   object DockerTest extends Tag("DockerTest")

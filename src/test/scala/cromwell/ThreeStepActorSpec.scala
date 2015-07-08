@@ -30,11 +30,6 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
 
   val dataAccess = DataAccess()
 
-  override protected def beforeAll() = {
-    // Hack to force synchronous initialization of the parser to avoid race conditions.
-    WdlExpression.parser.lex("1", "string")
-  }
-
   override protected def afterAll() = {
     super.afterAll()
     dataAccess.shutdown()

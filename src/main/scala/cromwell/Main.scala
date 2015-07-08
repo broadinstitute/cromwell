@@ -6,6 +6,7 @@ import java.nio.file.Paths
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
+import cromwell.parser.AstTools
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
 import cromwell.util.FileUtil

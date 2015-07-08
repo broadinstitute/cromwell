@@ -2,6 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
+import cromwell.parser.AstTools
 
 import scala.util.{Success, Try}
 

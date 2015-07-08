@@ -9,8 +9,16 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 <!---toc start-->
 
 * [Cromwell](#cromwell)
+  * [Requirements](#requirements)
   * [API Documenation](#api-documenation)
   * [Scala API Usage](#scala-api-usage)
+  * [Command Line Usage](#command-line-usage)
+    * [validate](#validate)
+    * [inputs](#inputs)
+    * [run](#run)
+    * [parse](#parse)
+    * [server](#server)
+  * [Running a Workflow at the Command Line](#running-a-workflow-at-the-command-line)
   * [REST API](#rest-api)
     * [POST /workflows](#post-workflows)
     * [GET /workflow/:id/status](#get-workflowidstatus)
@@ -26,6 +34,20 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 
 <!---toc end-->
 
+## Requirements
+
+The following is the toolchain used for development of Cromwell.  Other versions may work, but these are recommended.
+
+* [Scala 2.11.6](http://www.scala-lang.org/news/2.11.6)
+* [SBT 0.13.8](https://github.com/sbt/sbt/releases/tag/v0.13.8)
+* [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
+
+## Building
+
+`sbt assembly` will build a runnable JAR in `target/scala-2.11/`
+
+Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
+
 ## API Documenation
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
@@ -37,31 +59,53 @@ Note that this may not be completely up to date or even useful at this time.
 The main entry point into the parser is the `WdlNamespace` object.  A WDL file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
 ```scala
+import java.io.File
 import cromwell.binding.WdlNamespace
 
-object Main extends App {
-  val ns = WdlNamespace.load(new File("test.wdl"))
-  val ns2 = WdlNamespace.load("workflow wf {}")
-  val workflows = ns.workflows
-  val tasks = ns.tasks
-  val commands = ns.tasks.map{_.command}
+object main {
+  def main(args: Array[String]) {
+    val ns = WdlNamespace.load(new File(args(0)))
+    val ns2 = WdlNamespace.load("workflow wf {}")
+    ns.workflows foreach {wf =>
+      println(s"Workflow: ${wf.name}")
+      wf.calls foreach {call =>
+        println(s"Call: ${call.name}")
+      }
+    }
+    ns.tasks foreach {task =>
+      println(s"Task: ${task.name}")
+      println(s"Command: ${task.command}")
+    }
+  }
 }
 ```
 
 To access only the parser, use the `AstTools` library, as follows:
 
 ```scala
-import cromwell.binding.WdlNamespace
+import java.io.File
+import cromwell.parser.AstTools
+import cromwell.parser.AstTools.EnhancedAstNode
 
-object Main extends App {
-  val ast = AstTools.getAst(new File(args(0)))
+object main {
+  def main(args: Array[String]) {
+    /* Create syntax tree from contents of file */
+    val ast = AstTools.getAst(new File(args(0)))
 
-  // Second parameter is a descriptor about where the first string came from.
-  // Most of the time this would be the URI of where the text was loaded from,
-  // but there are no restrictions on what the string can be.
-  val astFromString = AstTools.getAst("workflow wf {}", "string")
+    /* Second parameter is a descriptor about where the first string came from.
+     * Most of the time this would be the URI of where the text was loaded from,
+     * but there are no restrictions on what the string can be.
+     */
+    val ast2 = AstTools.getAst("workflow simple {}", "string")
 
-  println(ast.toPrettyString)
+    /* Print the AST */
+    println(ast.toPrettyString)
+
+    /* Traverse the tree to find all Task definitions */
+    val taskAsts = AstTools.findAsts(ast, "Task") foreach {ast =>
+      println(s"Task name: ${ast.getAttribute("name").sourceString}")
+    }
+  }
 }
 ```
 
@@ -70,7 +114,7 @@ object Main extends App {
 Run the JAR file with no arguments to get the usage message:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.1-SNAPSHOT.jar
+$ java -jar target/scala-2.11/cromwell-0.5.jar
 
 java -jar cromwell.jar <action> <parameters>
 
@@ -114,7 +158,7 @@ Given a WDL file, this runs the full syntax checker over the file and resolves i
 Error if a `call` references a task that doesn't exist:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.jar validate 2.wdl
+$ java -jar ../target/scala-2.11/cromwell-0.5.jar validate 2.wdl
 ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 
   call BADps
@@ -125,7 +169,7 @@ ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 Error if namespace and task have the same name:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.jar validate 5.wdl
+$ java -jar ../target/scala-2.11/cromwell-0.5.jar validate 5.wdl
 ERROR: Task and namespace have the same name:
 
 Task defined here (line 3, col 6):
@@ -144,7 +188,7 @@ import "ps.wdl" as ps
 Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.jar inputs 3step.wdl
+$ java -jar ../target/scala-2.11/cromwell-0.5.jar inputs 3step.wdl
 {
   "three_step.cgrep.pattern": "String"
 }
@@ -157,7 +201,7 @@ This inputs document is used as input to the `run` subcommand.
 Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workflow and print the outputs:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.jar run 3step.wdl inputs.json
+$ java -jar ../target/scala-2.11/cromwell-0.5.jar run 3step.wdl inputs.json
 [INFO] [06/10/2015 09:20:19.945] [ForkJoinPool-2-worker-13] [akka://cromwell-system/user/$b] Workflow ID: bdcc70e6-e6d7-4483-949b-7c3c2199e26c
 [INFO] [06/10/2015 09:20:19.968] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: ps
 [INFO] [06/10/2015 09:20:20.094] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: cgrep, wc
@@ -174,7 +218,7 @@ $ java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.jar run 3step.wdl inputs.
 Given a WDL file input, this does grammar level syntax checks and prints out the resulting abstract syntax tree.
 
 ```
-$ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.jar parse /dev/stdin
+$ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.5.jar parse /dev/stdin
 (Document:
   imports=[],
   definitions=[
@@ -188,17 +232,73 @@ $ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.1-SNAPSHOT.j
 
 ### server
 
-Start a server on port 8000, the REST API for this server is described in the next section
+Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
+
+## Running a Workflow at the Command Line
+
+If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `target/scala-2.11/cromwell-0.5.jar`.
+
+Then, create a WDL file, for example:
+
+```
+task hello {
+  command {
+    echo 'hello ${name}!'
+  }
+  output {
+    File response = stdout()
+  }
+}
+
+workflow test {
+  call hello
+}
+```
+
+Generate a template `inputs.json` file with the `inputs` subcommand:
+
+```
+$ java -jar target/scala-2.11/cromwell-0.5.jar inputs test.wdl
+{
+  "test.hello.name": "String"
+}
+```
+
+Modify this and save it to `inputs.json`:
+
+```
+{
+  "test.hello.name": "world"
+}
+```
+
+Then, use the `run` subcommand to run the workflow:
+
+```
+$ java -jar target/scala-2.11/cromwell-0.5.jar run test.wdl inputs2.json
+... truncated ...
+{
+  "test.hello.response": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
+}
+```
 
 ## REST API
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
 
-The following sub-sections define which HTTP Requests the web server can accept and what they will return.
+The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jakubroztocil/httpie) and [cURL](http://curl.haxx.se/)
 
 ### POST /workflows
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The two elements in the body must be named `wdl` and `inputs`.  The `wdl` element contains the WDL file to run while the `inputs` contains a JSON file of the inputs to the workflow.
+
+cURL:
+
+```
+$ curl -v "localhost:8000/workflows" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+```
+
+HTTPie:
 
 ```
 $ http --print=hbHB --form POST localhost:8000/workflows wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
@@ -283,8 +383,16 @@ Server: spray-can/1.3.3
 
 ### GET /workflow/:id/status
 
+cURL:
+
 ```
-http http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ curl http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 Response:
@@ -303,8 +411,16 @@ Server: spray-can/1.3.3
 
 ### GET /workflow/:id/outputs
 
+cURL:
+
 ```
-http http://localhost:8000/workflow/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ curl http://localhost:8000/workflow/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflow/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 Response:

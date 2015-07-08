@@ -421,5 +421,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
     }
   }
 
+  override def toRawString = ???
+
   validate()
 }

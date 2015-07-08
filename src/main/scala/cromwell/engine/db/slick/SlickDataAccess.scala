@@ -5,10 +5,9 @@ import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
 import _root_.slick.util.ConfigExtensionMethods._
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.binding._
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.local.LocalBackend
@@ -36,6 +35,32 @@ object SlickDataAccess {
   implicit class StringToClob(val str: String) extends AnyVal {
     def toClob: Clob = new SerialClob(str.toCharArray)
   }
+
+  implicit class ConfigWithUniqueSchema(val config: Config) extends AnyVal {
+    /**
+     * Modifies config.getString("url") to return a unique schema, if the original url contains the text
+     * "${slick.uniqueSchema}".
+     *
+     * This allows each instance of a SlickDataAccess object to use a clean, and different, in memory database.
+     *
+     * @return Config with ${slick.uniqueSchema} in url replaced with a unique string.
+     */
+    def withUniqueSchema: Config = {
+      val url = config.getString("url")
+      if (url.contains("${slick.uniqueSchema}")) {
+        // Config wasn't updating with a simple withValue/withFallback.
+        // So instead, do a bit of extra work to insert the generated schema name in the url.
+        val schema = UUID.randomUUID().toString
+        val newUrl = url.replaceAll("""\$\{slick\.uniqueSchema\}""", schema)
+        val origin = "url with slick.uniqueSchema=" + schema
+        val urlConfigValue = ConfigValueFactory.fromAnyRef(newUrl, origin)
+        val urlConfig = ConfigFactory.empty(origin).withValue("url", urlConfigValue)
+        urlConfig.withFallback(config)
+      } else {
+        config
+      }
+    }
+  }
 }
 
 class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
@@ -56,7 +81,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   import dataAccess.driver.api._
 
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
-  val database = Database.forConfig("", databaseConfig)
+  val database = Database.forConfig("", databaseConfig.withUniqueSchema)
 
   // Possibly create the database
   {
@@ -70,10 +95,17 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     //   used in key specification without a key length
     //
     // Perhaps we'll use a more optimized data type for UUID's bytes in the future, as a FK, instead auto-inc cols
+    //
+    // The value `${slick.uniqueSchema}` may be used in the url, in combination with `slick.createSchema = true`, to
+    // generate unique schema instances that don't conflict.
+    //
+    // Otherwise, create one DataAccess and hold on to the reference.
     if (databaseConfig.getBooleanOr("slick.createSchema")) {
       Await.result(database.run(dataAccess.schema.create), Duration.Inf)
     }
   }
+
+  override def shutdown() = database.shutdown
 
   // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {
@@ -127,7 +159,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         symbol.key.iteration.getOrElse(IterationNone),
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(_.toRawString.get))
+        symbol.wdlValue.map(_.toRawString))
     }
   }
 
@@ -341,8 +373,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         new SymbolStoreEntry(
           symbolStoreKey,
           wdlType,
-          symbolResult.wdlValue.map(wdlType.coerceRawValue(_).get))
-
+          symbolResult.wdlValue.map(wdlType.fromRawString))
       }
 
     } yield symbolStoreEntries
@@ -351,7 +382,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  override def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: Map[String, WdlValue]): Future[Unit] = {
+  override def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: WorkflowOutputs): Future[Unit] = {
 
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
@@ -360,11 +391,11 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
           new Symbol(
             workflowExecution.workflowExecutionId.get,
             call.fullyQualifiedName,
-            call.fullyQualifiedName + "." + symbolLocallyQualifiedName,
+            symbolLocallyQualifiedName,
             IterationNone,
             IoOutput,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValue.toRawString.get))
+            Option(wdlValue.toRawString))
       }
     } yield ()
 

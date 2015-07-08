@@ -57,10 +57,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   def databaseWithConfig(path: => String, testRequired: => Boolean): Unit = {
 
     lazy val testDatabase = new TestSlickDatabase(path)
+    lazy val canConnect = testRequired || testDatabase.isValidConnection.futureValue
     lazy val dataAccess = testDatabase.slickDataAccess
-    lazy val canConnect = {
-      testRequired || (DatabaseConfig.rootDatabaseConfig.hasPath(path) && testDatabase.isValidConnection.futureValue)
-    }
 
     it should "setup via liquibase if necessary" in {
       assume(canConnect || testRequired)
@@ -283,7 +281,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbol = results.head
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-          resultSymbolStoreKey.name should be("call.fully.qualified.scope.symbol")
+          resultSymbolStoreKey.name should be("symbol")
           resultSymbolStoreKey.iteration should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
@@ -311,7 +309,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbol = results.head
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-          resultSymbolStoreKey.name should be("call.fully.qualified.scope.symbol")
+          resultSymbolStoreKey.name should be("symbol")
           resultSymbolStoreKey.iteration should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
@@ -378,7 +376,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbol = results.head
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-          resultSymbolStoreKey.name should be("call.fully.qualified.scope.symbol")
+          resultSymbolStoreKey.name should be("symbol")
           resultSymbolStoreKey.iteration should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
@@ -403,7 +401,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolLqn -> new WdlString("testStringValue")))
+        _ <- dataAccess.setOutputs(workflowId, call, Map(symbolFqn -> new WdlString("testStringValue")))
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 
@@ -483,6 +481,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId, call, null)
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
+    }
+
+    it should "shutdown the database" in {
+      assume(canConnect || testRequired)
+      dataAccess.shutdown().futureValue
     }
   }
 

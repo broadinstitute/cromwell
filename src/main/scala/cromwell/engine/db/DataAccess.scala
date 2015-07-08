@@ -5,10 +5,29 @@ import cromwell.binding.{Call, FullyQualifiedName, WdlJson, WdlSource}
 import cromwell.engine.backend.Backend
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 object DataAccess {
   def apply(): DataAccess = new slick.SlickDataAccess()
+
+  /**
+   * Creates a DataAccess instance, loans it to the function,
+   * and then attempts to shut down the instance.
+   *
+   * @param f Function to run on the data access.
+   * @tparam T Return type of the function.
+   * @return Result of calling the function with the dataAccess instance.
+   */
+  def withDataAccess[T](f: DataAccess => T): T = {
+    val dataAccess = DataAccess()
+    try {
+      f(dataAccess)
+    } finally {
+      // NOTE: shutdown result thrown away
+      Await.ready(dataAccess.shutdown(), Duration.Inf)
+    }
+  }
 
   // TODO PLEASE RENAME ME
   case class WorkflowInfo(workflowId: WorkflowId, wdlSource: WdlSource, wdlJson: WdlJson)
@@ -54,4 +73,6 @@ trait DataAccess {
 
   def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]]
 
+  /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
+  def shutdown(): Future[Unit]
 }

@@ -9,7 +9,7 @@ import cromwell.binding._
 import cromwell.binding.values.WdlInteger
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.DummyDataAccess
+import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
@@ -28,12 +28,18 @@ object ThreeStepActorSpec {
 class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   import ThreeStepActorSpec._
 
+  val dataAccess = DataAccess()
+
+  override protected def afterAll() = {
+    super.afterAll()
+    dataAccess.shutdown()
+  }
+
   private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {
     val namespace = WdlNamespace.load(sampleWdl.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
     val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, coercedInputs)
-    val dataAccess = new DummyDataAccess()
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
 

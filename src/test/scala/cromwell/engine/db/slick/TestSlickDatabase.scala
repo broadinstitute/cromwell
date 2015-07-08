@@ -15,14 +15,18 @@ class TestSlickDatabase(configPath: String) {
   private lazy val databaseConfig = DatabaseConfig.rootDatabaseConfig.getConfig(configPath)
   private lazy val log = LoggerFactory.getLogger(classOf[TestSlickDatabase])
 
-  val dataAccessComponent: DataAccessComponent = new DataAccessComponent(databaseConfig.getString("slick.driver"))
+  // NOTE: Using the import below for isValidConnection, but maybe not the lazy instance if the check fails.
+  lazy val dataAccessComponent: DataAccessComponent = new DataAccessComponent(databaseConfig.getString("slick.driver"))
 
   import dataAccessComponent.driver.api._
 
   /**
    * Check the database connection.
-   * Can be run before operations that use slickDataAccess,
-   * but creates a whole new connection pool to do so.
+   *
+   * This check only produces warnings, not errors. The primary use case is checking if _optional_ tests can be run
+   * against a database configuration.
+   *
+   * Can be run before operations that use slickDataAccess, but creates a whole new connection pool to do so.
    */
   def isValidConnection: Future[Boolean] = {
     implicit val executionContext = ExecutionContext.global
@@ -30,15 +34,15 @@ class TestSlickDatabase(configPath: String) {
       log.debug("Opening test connection setup for " + configPath)
       Database.forConfig("", databaseConfig)
     } flatMap { database =>
-      database.run(SimpleDBIO(_.connection.isValid(1))) recover {
-        case ex =>
-          log.error("Unable to connect to database under config: " + configPath, ex)
-          false
-      } andThen {
+      database.run(SimpleDBIO(_.connection.isValid(1))) andThen {
         case _ =>
           log.debug("Closing test connection setup for " + configPath)
           database.close()
       }
+    } recover {
+      case ex =>
+        log.warn("Unable to connect to database under config: " + configPath, ex)
+        false
     }
   }
 

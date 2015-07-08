@@ -26,5 +26,6 @@ trait WdlValue {
   def not: Try[WdlValue] = invalid(s"!$this")
   def unaryPlus: Try[WdlValue] = invalid(s"+$this")
   def unaryMinus: Try[WdlValue] = invalid(s"-$this")
-  def toRawString: Try[String] = Try(toString)
+  def toRawString: String = toString
+  def typeName: String = wdlType.getClass.getSimpleName
 }

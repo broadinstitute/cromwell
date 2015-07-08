@@ -1,23 +1,22 @@
 package cromwell.engine.workflow
 
 import cromwell.CromwellTestkitSpec
-import cromwell.binding.FullyQualifiedName
-import cromwell.engine.ExecutionStatus.NotStarted
-import cromwell.engine.WorkflowId
-import cromwell.engine.db.{CallStatus, DummyDataAccess}
+import cromwell.engine.db.DataAccess
 import cromwell.util.SampleWdl.ThreeStep
 
-import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 
 class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec("SingleWorkflowRunnerActorSpec") {
-  val dataAccess = new DummyDataAccess() {
-    override def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]] = {
-      Future.successful(Seq("ps", "cgrep", "wc").map { "three_step." + _ -> NotStarted}.toMap)
-    }
-  }
+  val dataAccess = DataAccess()
   val workflowManagerActor = system.actorOf(WorkflowManagerActor.props(dataAccess))
   val props = SingleWorkflowRunnerActor.props(ThreeStep.wdlSource(), ThreeStep.wdlJson, ThreeStep.rawInputs, workflowManagerActor)
+
+  override def afterAll() {
+    super.afterAll()
+    Await.result(dataAccess.shutdown(), Duration.Inf)
+  }
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {

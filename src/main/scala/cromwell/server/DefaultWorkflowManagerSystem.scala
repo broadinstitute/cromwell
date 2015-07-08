@@ -1,4 +1,5 @@
 package cromwell.server
 
-case class DefaultWorkflowManagerSystem() extends WorkflowManagerSystem {
-}
+import cromwell.engine.backend.Backend
+
+case class DefaultWorkflowManagerSystem(backend: Backend) extends WorkflowManagerSystem

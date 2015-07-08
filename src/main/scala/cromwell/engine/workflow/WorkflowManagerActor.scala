@@ -33,7 +33,7 @@ object WorkflowManagerActor {
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
 
-  def props(dataAccess: DataAccess): Props = Props(new WorkflowManagerActor(dataAccess))
+  def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
 }
 
 /**
@@ -43,7 +43,7 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellActor {
+class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Actor with CromwellActor {
   import WorkflowManagerActor._
   private val log = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
@@ -79,14 +79,13 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,
                              maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
-
     val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
       namespace <- Future(WdlNamespace.load(wdlSource))
       coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
       descriptor = new WorkflowDescriptor(workflowId, namespace, wdlSource, wdlJson, coercedInputs)
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, Backend.Backend, dataAccess))
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
       val isRestart = maybeWorkflowId.isDefined
@@ -143,7 +142,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
     val result = for {
       workflowInfos <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
       restartableWorkflows = buildRestartableWorkflows(workflowInfos)
-      _ <- Backend.Backend.handleCallRestarts(restartableWorkflows, dataAccess)
+      _ <- backend.handleCallRestarts(restartableWorkflows, dataAccess)
     } yield {
         val num = restartableWorkflows.length
         val (displayNum, plural) = pluralize(num)

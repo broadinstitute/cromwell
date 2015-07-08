@@ -13,6 +13,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.ServiceAccount
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression._
 import cromwell.binding._
@@ -20,8 +21,6 @@ import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.jes.Run.Failed
-import cromwell.engine.backend.local.{TaskExecutionContext, LocalEngineFunctions}
 import cromwell.engine.db.DataAccess
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
@@ -57,7 +56,7 @@ object JesBackend {
   // NOTE: Used for connection boilerplate, could probably be made cleaner
   lazy val GenomicsService = buildGenomics
 
-  private lazy val JesConf = Backend.BackendConf.getConfig("jes")
+  private lazy val JesConf = ConfigFactory.load.getConfig("jes")
   lazy val GenomicsUrl = new URL(JesConf.getString("rootUrl"))
   lazy val GoogleSecrets = Paths.get(JesConf.getString("secretsFile"))
   lazy val GoogleUser = JesConf.getString("user")

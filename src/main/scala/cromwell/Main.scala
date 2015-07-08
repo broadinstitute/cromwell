@@ -3,8 +3,10 @@ package cromwell
 import java.io.File
 import java.nio.file.Paths
 
+import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
+import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.parser.AstTools
 import cromwell.parser.WdlParser.SyntaxError
@@ -18,24 +20,24 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
+  val Properties = System.getProperties
+  val LoggerProperty = "CROMWELL_LOGGER"
+  lazy val Log = LoggerFactory.getLogger("main")
+  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
 
-  val props = System.getProperties
-  val loggerProperty = "CROMWELL_LOGGER"
-  Option(props.getProperty(loggerProperty)) match {
+  Option(Properties.getProperty(LoggerProperty)) match {
     case None => args.headOption.map {_.capitalize}.find {_ == "SERVER"} match {
-      case Some(x) => props.setProperty(loggerProperty, "SERVER")
+      case Some(x) => Properties.setProperty(LoggerProperty, "SERVER")
       case _ =>
     }
     case _ =>
   }
-
-  lazy val log = LoggerFactory.getLogger("main")
-
+  
   getAction(args.headOption map { _.capitalize }) match {
     case Some(x) if x == Actions.Validate => validate(args.tail)
     case Some(x) if x == Actions.Highlight => highlight(args.tail)
     case Some(x) if x == Actions.Inputs => inputs(args.tail)
-    case Some(x) if x == Actions.Run => run(args.tail, DefaultWorkflowManagerSystem())
+    case Some(x) if x == Actions.Run => run(args.tail, DefaultWorkflowManagerSystem(BackendInstance))
     case Some(x) if x == Actions.Parse => parse(args.tail)
     case Some(x) if x == Actions.Server => CromwellServer
     case None => usageAndExit(true)
@@ -71,9 +73,9 @@ object Main extends App {
   def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
 
-    log.info(s"RUN sub-command")
-    log.info(s"  WDL file: ${args(0)}")
-    log.info(s"  Inputs: ${args(1)}")
+    Log.info(s"RUN sub-command")
+    Log.info(s"  WDL file: ${args(0)}")
+    Log.info(s"  Inputs: ${args(1)}")
 
     try {
       val wdlSource = FileUtil.slurp(Paths.get(args(0)))
@@ -85,7 +87,7 @@ object Main extends App {
         case _ => throw new RuntimeException("Expecting a JSON object")
       }
 
-      inputs foreach { case (k, v) => log.info(s"input: $k => $v") }
+      inputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
       workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
       workflowManagerSystem.actorSystem.awaitTermination()

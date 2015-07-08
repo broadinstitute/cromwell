@@ -102,6 +102,38 @@ object SampleWdl {
       """.stripMargin
   }
 
+  object CoercionNotDefined extends SampleWdl {
+    override def wdlSource(runtime: String = "") = {
+      """
+        |task summary {
+        |  command {
+        |    ~/plink --bfile ${bfile} --missing --hardy --out foo --allow-no-sex
+        |  }
+        |  output {
+        |    File hwe = "foo.hwe"
+        |    File log = "foo.log"
+        |    File imiss = "foo.imiss"
+        |    File lmiss = "foo.lmiss"
+        |  }
+        |  meta {
+        |    author: "Jackie Goldstein"
+        |    email: "jigold@broadinstitute.org"
+        |  }
+        |}
+        |
+        |
+        |workflow test1 {
+        |  String bfile
+        |  call summary {
+        |     input: bfile=bfile
+        |  }
+        |}
+      """.stripMargin
+    }
+
+    override val rawInputs: WorkflowRawInputs = Map("test1.bfile" -> "data/example1")
+  }
+
   object ThreeStep extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """

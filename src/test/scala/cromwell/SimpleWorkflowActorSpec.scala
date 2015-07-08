@@ -101,5 +101,14 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
         }
       }
     }
+
+    "gracefully handle malformed WDL" in {
+      val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined)
+      assert(fsm.stateName == WorkflowSubmitted)
+      fsm ! Start
+      within(TestExecutionTimeout) {
+        awaitCond(fsm.stateName == WorkflowFailed)
+      }
+    }
   }
 }

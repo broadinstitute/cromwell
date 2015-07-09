@@ -12,5 +12,6 @@ java \
   -Djavax.net.ssl.keyStorePassword=${key_store_pass} \
   -Djavax.net.ssl.trustStore=${trust_store_file} \
   -Djavax.net.ssl.trustStorePassword=${trust_store_pass} \
+  -Dconfig.file=/etc/cromwell.conf \
   -jar $(find /cromwell | grep 'cromwell.*\.jar') \
   server

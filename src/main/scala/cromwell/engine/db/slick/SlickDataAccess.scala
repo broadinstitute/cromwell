@@ -13,6 +13,7 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -61,6 +62,8 @@ object SlickDataAccess {
       }
     }
   }
+
+  lazy val log = LoggerFactory.getLogger("slick")
 }
 
 class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
@@ -69,8 +72,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     databaseConfig,
     new DataAccessComponent(databaseConfig.getString("slick.driver")))
 
-  def this() = this(
-    DatabaseConfig.databaseConfig)
+  def this() = this(DatabaseConfig.databaseConfig)
 
   // NOTE: Used for slick flatMap. May switch to custom ExecutionContext the future
   private implicit val executionContext = ExecutionContext.global
@@ -85,6 +87,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   // Possibly create the database
   {
+    import SlickDataAccess._
+    log.info(s"Running with databaseConfig $databaseConfig.")
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
     //
     // Not really an issue, since externally run liquibase is standard way of installing / upgrading MySQL.

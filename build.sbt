@@ -11,6 +11,7 @@ scalaVersion := "2.11.6"
 val sprayV = "1.3.2"
 val DowngradedSprayV = "1.3.1"
 val akkaV = "2.3.6"
+val googleClientApiV = "1.20.0"
 
 libraryDependencies ++= Seq(
   "com.gettyimages" %% "spray-swagger" % "0.5.1",
@@ -31,9 +32,9 @@ libraryDependencies ++= Seq(
   "com.zaxxer" % "HikariCP" % "2.3.3",
   "org.hsqldb" % "hsqldb" % "2.3.2",
   "com.google.gcloud" % "gcloud-java" % "latest.integration",
-  "com.google.api-client" % "google-api-client-java6" % "1.20.0",
-  "com.google.api-client" % "google-api-client-jackson2" % "1.20.0",
-  "com.google.oauth-client" % "google-oauth-client" % "1.20.0",
+  "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
+  "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
+  "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,

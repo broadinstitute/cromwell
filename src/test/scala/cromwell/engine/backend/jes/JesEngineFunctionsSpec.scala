@@ -42,7 +42,7 @@ class JesEngineFunctionsSpec extends FlatSpec with Matchers{
                                      |Rest.
                                      |""".stripMargin
 
-  "JES Engine Functions" should " read strings correctly" in {
+  "JES Engine Functions" should "read strings correctly" in {
     val readString = new JesEngineFunctions(secretsFileLocation).getFunction("read_string")
     val gcsPathTry: Try[WdlGcsObject] = Success(WdlGcsObject(BUCKET_NAME, STRING_FILE))
     readString(Seq(gcsPathTry)) shouldEqual Success(WdlString(STRING_FILE_CONTENTS))

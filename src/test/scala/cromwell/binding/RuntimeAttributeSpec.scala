@@ -69,8 +69,34 @@ object RuntimeAttributeSpec {
                                  |}
                                """.stripMargin
 
+  val WorkflowWithFailOnStderr =
+    """
+      |task echoWithFailOnStderr {
+      |  command {
+      |    echo 66555 >&2
+      |  }
+      |  runtime {
+      |    failOnStderr: "true"
+      |  }
+      |}
+      |task echoWithoutFailOnStderr {
+      |  command {
+      |    echo 66555 >&2
+      |  }
+      |  runtime {
+      |    failOnStderr: "false"
+      |  }
+      |}
+      |
+      |workflow echo_wf {
+      |  call echoWithFailOnStderr
+      |  call echoWithoutFailOnStderr
+      |}
+    """.stripMargin
+
   val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime)
   val NamespaceWithoutRuntime = NamespaceWithWorkflow.load(WorkflowWithoutRuntime)
+  val NamespaceWithFailOnStderr = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr)
 }
 
 class RuntimeAttributeSpec extends FlatSpec with Matchers {
@@ -85,4 +111,16 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
   "WDL file without runtime" should "not have imported runtime information" in {
     assert(NamespaceWithoutRuntime.workflow.calls.forall {_.task.runtimeAttributes.isEmpty})
   }
+
+  "WDL file with failOnStderr runtime" should "identify failOnStderr for (and only for) appropriate tasks" in {
+    val echoWithFailOnStderrIndex = NamespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithFailOnStderr")
+    assert(echoWithFailOnStderrIndex >= 0)
+    assert(NamespaceWithFailOnStderr.workflow.calls(echoWithFailOnStderrIndex).failOnStderr)
+
+    val echoWithoutFailOnStderrIndex = NamespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnStderr")
+    assert(echoWithoutFailOnStderrIndex >= 0)
+    assert(!NamespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
+  }
+  
+  
 }

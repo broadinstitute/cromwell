@@ -3,5 +3,8 @@ scala:
   - 2.11.6
 jdk:
   - oraclejdk8
+before_script:
+  - mysql -e "create database IF NOT EXISTS cromwell_test;"
+
 script: sbt clean coverage nodocker:test
 after_success: sbt coveralls

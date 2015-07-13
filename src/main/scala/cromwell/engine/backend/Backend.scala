@@ -1,11 +1,20 @@
 package cromwell.engine.backend
 
+import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
+import cromwell.engine._
+import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.db.DataAccess
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
+
+object Backend {
+  case class RestartableWorkflow(id: WorkflowId, source: WdlSource, json: WdlJson, inputs: binding.WorkflowRawInputs)
+}
 /**
  * Trait to be implemented by concrete backends.
  */
@@ -28,6 +37,10 @@ trait Backend {
    * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
    * a mapping of local task output names to WDL values.
    */
-  def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Map[String, Try[WdlValue]]
+  def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
 
+  /**
+   * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
+   */
+  def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any]
 }

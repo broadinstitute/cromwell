@@ -6,10 +6,10 @@ import cromwell.binding.WdlNamespace.ImportResolver
 import cromwell.binding.command._
 import cromwell.binding.types._
 import cromwell.binding.values.WdlValue
-import cromwell.parser.WdlParser
+import cromwell.parser.{AstTools, WdlParser}
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
-import cromwell.binding.AstTools.EnhancedAstNode
+import AstTools.EnhancedAstNode
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
@@ -144,6 +144,10 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
    */
   val workflows = importedWorkflows ++ localWorkflows
 
+  lazy val workflow = workflows.head
+
+  lazy val calls = workflow.calls
+
   /* All `Task`s and `Workflow`s */
   val executables = workflows ++ tasks
 
@@ -263,7 +267,11 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
 
     def coerceRawInput(fqn: FullyQualifiedName, wdlType: WdlType): Try[WdlValue] = fqn match {
-      case _ if rawInputs.contains(fqn) => wdlType.coerceRawValue(rawInputs.get(fqn).get)
+      case _ if rawInputs.contains(fqn) =>
+        val rawInput = rawInputs.get(fqn).get
+        wdlType.coerceRawValue(rawInput).recoverWith {
+          case e => Failure(new UnsatisfiedInputsException(s"Failed to coerce input $fqn value $rawInput of ${rawInput.getClass} to $wdlType."))
+        }
       case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
     }
 
@@ -412,6 +420,8 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
       case f => f
     }
   }
+
+  override def toRawString = ???
 
   validate()
 }

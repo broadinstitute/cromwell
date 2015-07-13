@@ -14,5 +14,6 @@ case object WdlBooleanType extends WdlType {
     case s: JsString if s.value.equalsIgnoreCase("false") => WdlBoolean.False
     case s: JsBoolean => WdlBoolean(s.value)
   }
-}
 
+  override def fromRawString(rawString: String) = WdlBoolean(rawString.toBoolean)
+}

@@ -10,5 +10,6 @@ case object WdlFloatType extends WdlType {
     case d: Double => WdlFloat(d)
     case n: JsNumber => WdlFloat(n.value.doubleValue())
   }
-}
 
+  override def fromRawString(rawString: String) = WdlFloat(rawString.toFloat)
+}

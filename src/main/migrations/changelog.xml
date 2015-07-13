@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <include file="changesets/db_schema.xml" relativeToChangelogFile="true" />
+    <include file="changesets/symbol_iteration_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/wdl_and_inputs.xml" relativeToChangelogFile="true" />
+    <include file="changesets/drop_workflow_uri_and_local_command.xml" relativeToChangelogFile="true" />
+    <include file="changesets/local_job_allow_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/symbol_iteration_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_unique_constraints.xml" relativeToChangelogFile="true" />
+</databaseChangeLog>

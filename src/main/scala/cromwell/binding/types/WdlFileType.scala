@@ -10,4 +10,6 @@ case object WdlFileType extends WdlType {
     case s: String => WdlFile(s)
     case s: JsString => WdlFile(s.value)
   }
+
+  override def fromRawString(rawString: String) = WdlFile(rawString)
 }

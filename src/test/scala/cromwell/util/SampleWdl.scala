@@ -185,6 +185,35 @@ object SampleWdl {
     override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
+  object OptionalParamWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task hello {
+        |  command {
+        |    echo "hello ${person?}"
+        |  }
+        |  output {
+        |    String greeting = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow optional {
+        |  call hello
+        |  call hello as hello2
+        |  call hello as hello_person {
+        |    input: person="world"
+        |  }
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+
+    override val rawInputs = {
+      Map(
+        "optional.hello.person" -> "john"
+      )
+    }
+  }
+
   object CannedThreeStep extends SampleWdl {
     val CannedProcessOutput =
       """
@@ -251,12 +280,12 @@ object SampleWdl {
     }
 
     override val rawInputs = {
-      import InputKeys._
       Map(
-        Pattern -> "joeblaux",
-        DummyPsFile -> createCannedPsFile.getAbsolutePath,
-        DummyPs2File -> createCannedPsFile.getAbsolutePath,
-        DummyPs3File -> createCannedPsFile.getAbsolutePath)
+        "three_step.cgrep.pattern" -> "joeblaux",
+        "three_step.ps.dummy_ps_file" -> createCannedPsFile.getAbsolutePath,
+        "three_step.ps2.dummy_ps_file" -> createCannedPsFile.getAbsolutePath,
+        "three_step.ps3.dummy_ps_file" -> createCannedPsFile.getAbsolutePath
+      )
     }
   }
 
@@ -314,16 +343,6 @@ object SampleWdl {
     override val rawInputs: Map[String, Any] = Map(ThreeStep.PatternKey -> "x")
   }
 
-
-  object InputKeys {
-    val Pattern = "three_step.cgrep.pattern"
-    // ps2 and ps3 are not part of the core three-step workflow, but are intended to flush out issues
-    // with incorrectly starting multiple copies of cgrep and wc calls due to race conditions.
-    val DummyPsFile = "three_step.ps.dummy_ps_file"
-    val DummyPs2File = "three_step.ps2.dummy_ps_file"
-    val DummyPs3File = "three_step.ps3.dummy_ps_file"
-  }
-
   object CurrentDirectory extends SampleWdl {
     override def wdlSource(runtime: String): String =
       """
@@ -343,5 +362,4 @@ object SampleWdl {
 
     override val rawInputs: Map[String, Any] = Map.empty
   }
-
 }

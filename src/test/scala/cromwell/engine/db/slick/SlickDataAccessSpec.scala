@@ -194,7 +194,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty)
         val call = new Call(callAlias, "call.name", task, Map.empty, null)
         if (setCallParent)
-          call.setParent(new Workflow("workflow.name", Seq(call)))
+          call.setParent(new Workflow("workflow.name", Seq.empty, Seq(call)))
 
         def optionallyUpdateExecutionStatus() =
           if (updateStatus)

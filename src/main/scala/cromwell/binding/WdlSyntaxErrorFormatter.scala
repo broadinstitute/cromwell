@@ -158,4 +158,25 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      |${pointToSource(rhsAst)}
      """.stripMargin
   }
+
+  def arrayHasOneTypeParameter(arrayDecl: Terminal): String = {
+    s"""ERROR: Array type should only have one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
+     |
+     |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
+  def mapHasTwoTypeParameters(mapDecl: Terminal): String = {
+    s"""ERROR: Map type should have two parameterized types (line ${mapDecl.getLine}, col ${mapDecl.getColumn}):
+     |
+     |${pointToSource(mapDecl)}
+     """.stripMargin
+  }
+
+  def mapKeyMustBeAPrimitive(mapDecl: Terminal): String = {
+    s"""ERROR: Map type must have a primitive as its key (line ${mapDecl.getLine}, col ${mapDecl.getColumn}):
+                                                                                                                |
+                                                                                                                |${pointToSource(mapDecl)}
+     """.stripMargin
+  }
 }

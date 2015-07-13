@@ -3,6 +3,7 @@ package cromwell.engine.backend.local
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
+import org.apache.commons.io.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
@@ -20,7 +21,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Success, Failure, Try}
-
 
 object LocalBackend {
 
@@ -78,7 +78,7 @@ class LocalBackend extends Backend with LazyLogging {
     // The aforementioned shenanigans generate standard output and then a bash invocation that takes
     // commands from standard input.
     val argv = Seq("/bin/bash", "-c", s"cat $commandFile | $dockerRun /bin/bash <&0")
-    logger.info("Executing call with argv: " + argv)
+    logger.debug("Executing call with argv: " + argv)
 
     // The ! to the ProcessLogger captures standard output and error.
     val rc: Int = argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
@@ -163,7 +163,11 @@ class LocalBackend extends Backend with LazyLogging {
       val hostPathAdjustedValue = value match {
         case WdlFile(originalPath) =>
           val executionPath = Paths.get(hostInputsPath.toFile.getAbsolutePath, originalPath.getFileName.toString)
-          Files.copy(originalPath, executionPath)
+          if (Files.isDirectory(originalPath)) {
+            FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
+          } else {
+            FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
+          }
           WdlFile(executionPath)
         case x => x
       }

@@ -3,7 +3,7 @@ package cromwell.binding.types
 import cromwell.binding.values.WdlFloat
 import spray.json.JsNumber
 
-case object WdlFloatType extends WdlType {
+case object WdlFloatType extends WdlPrimitiveType {
   val toWdlString: String = "Float"
 
   override protected def coercion = {

@@ -19,7 +19,7 @@ case class Task(name: String,
    *
    * @return Map of input name to type for that input
    */
-  val inputs: Map[String, WdlType] = command.inputs
+  val inputs: Seq[TaskInput] = command.inputs
 
   override def toString: String = s"[Task name=$name command=$command]"
 }

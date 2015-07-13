@@ -12,11 +12,11 @@ object Run {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesBackend.JesServiceAccount)
 
     /*
-       FIXME: This is seriously crappy and almost certainly isn't the right way to even go about htings going forward even if it was pretty
+       FIXME: This is seriously crappy and almost certainly isn't the right way to even go about things going forward even if it was pretty
 
        We have the root filename (e.g. 'foo.txt') from inputsToLocalize, so we can slap on this call's GCS path.
        However that file came from a different call - but we don't directly know from where. However we have access
-       to this call and can see it's input mappings, nad the two share the same key. So this is grabbing teh original
+       to this call and can see it's input mappings, and the two share the same key. So this is grabbing the original
        call name from those input mappings and replacing the current call name for that.
     */
     rpr.setInputs(pipeline.inputsToLocalize.map {case (k, v) =>

@@ -1,5 +1,7 @@
 package cromwell.engine.backend.local
 
+import java.nio.file.Paths
+
 import cromwell.binding.values.{WdlFile, WdlInteger, WdlString, WdlValue}
 import cromwell.engine.EngineFunctions
 import cromwell.util.FileUtil
@@ -19,7 +21,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => FileUtil.slurp(f.value)
+      case f: WdlFile => FileUtil.slurp(Paths.get(f.value))
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
   }
@@ -44,7 +46,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stdout))
+      Success(WdlFile(executionContext.stdout.toAbsolutePath.toString))
     }
   }
 
@@ -52,7 +54,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stderr))
+      Success(WdlFile(executionContext.stderr.toAbsolutePath.toString))
     }
   }
 }

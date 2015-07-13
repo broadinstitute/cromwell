@@ -17,7 +17,7 @@ class WdlValueSpec extends FlatSpec with Matchers {
     ("wdlValue", "rawString"),
     (WdlBoolean.False, "false"),
     (WdlBoolean.True, "true"),
-    (WdlFile(Paths.get("hello/world/path")), "hello/world/path"),
+    (WdlFile("hello/world/path"), "hello/world/path"),
     (WdlFile("hello/world/string"), "hello/world/string"),
     (WdlFloat(0.0), "0.0"),
     (WdlFloat(-0.0), "-0.0"),

@@ -23,6 +23,7 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.util.TryUtil
+import cromwell.util.GoogleCloudStoragePath
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}
@@ -60,6 +61,7 @@ object JesBackend {
   val LocalStdout = "job.stdout.txt"
   val LocalStderr = "job.stderr.txt"
 
+  // SOME MIGHT BE WRONG
   val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
 
   def gsInputToLocal(gsPath: String): Path = {
@@ -72,6 +74,8 @@ object JesBackend {
     def bucket = s"$CromwellExecutionBucket/${descriptor.name}/${descriptor.id.toString}"
     def callDir(call: Call) = s"$bucket/call-${call.name}"
   }
+  // /SOME MIGHT BE WRONG
+  
 
   // NOTE: Connection boilerplate
   def buildGenomics: Genomics = {
@@ -110,8 +114,42 @@ object JesBackend {
   final case class JesOutput(name: String, gcs: String, local: Path) extends JesParameter
 }
 class JesBackend extends Backend with LazyLogging {
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = ???
 
+  /**
+   * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
+   * @param gcsPath The input path
+   * @return A path which is unique per input path
+   */
+  def localFilePathFromCloudStoragePath(gcsPath: GoogleCloudStoragePath): Path = {
+    Paths.get("/some_unlikely_folder/" + gcsPath.bucket + "/" + gcsPath.objectName)
+  }
+
+  /**
+   * Takes a single input mapping from FQN to WdlValue and maps google cloud storage (GCS) paths into an appropriate local file path.
+   * If the input is not a WdlFile, or the WdlFile is not a GCS path, the mapping is a noop.
+   *
+   * @param fqn the FQN of the input variable
+   * @param wdlValue the value of the input
+   * @return a new FQN to WdlValue pair, with WdlFile paths modified if appropriate.
+   */
+  def mapInputValue(fqn: String, wdlValue: WdlValue): (String, WdlValue) = {
+    wdlValue match {
+      case WdlFile(path) => {
+        GoogleCloudStoragePath.tryParse(path) match {
+          case Success(gcsPath) => (fqn, WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString))
+          case Failure(e) => (fqn, wdlValue)
+        }
+      }
+      case _ => (fqn, wdlValue)
+    }
+  }
+
+  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = {
+    inputs map { case (k,v) => mapInputValue(k,v) }
+  }
+
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+  
   // No need to copy GCS inputs for the workflow we should be able to direclty reference them
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
 
@@ -137,7 +175,6 @@ class JesBackend extends Backend with LazyLogging {
       val failureMessages = TryUtil.stringifyFailures(localizationFailures)
       Failure(new IllegalArgumentException(failureMessages.mkString("\n")))
     }
-    // FIXME: filter failures, if any failures collate message. Else flatten that shit
   }
 
   override def executeCommand(commandLine: String,
@@ -147,7 +184,7 @@ class JesBackend extends Backend with LazyLogging {
                               scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
-    val engineFunctions = new JesEngineFunctions(Paths.get("SOMETHING I MADE UP"))
+    val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath("SOMETHING I MADE UP"))
 
     // FIXME: Not particularly robust at the moment
     val jesInputs: Seq[JesParameter] = backendInputs.map({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, v.toRawString, Paths.get(backendInputs(k).toRawString))}).toSeq

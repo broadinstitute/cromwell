@@ -260,12 +260,12 @@ object SampleWdl {
     }
   }
 
-  object FilePassingThreeStep extends SampleWdl {
+  object CannedFilePassing extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         |task ps {
         |  command {
-        |    ps > myfile.txt
+        |    (echo "x"; echo "y"; echo "z") > myfile.txt
         |  }
         |  output {
         |    File procs = "myfile.txt"
@@ -311,9 +311,10 @@ object SampleWdl {
         |
       """.stripMargin
 
-    override val rawInputs: Map[String, Any] = Map(ThreeStep.PatternKey -> "x")
-  }
+    override val rawInputs = Map(ThreeStep.PatternKey -> "x")
 
+    val Expectations = Map("three_step.wc.count" -> 3, "three_step.cgrep.count" -> 1)
+  }
 
   object InputKeys {
     val Pattern = "three_step.cgrep.pattern"

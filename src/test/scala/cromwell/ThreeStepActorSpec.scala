@@ -80,8 +80,8 @@ class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
         expectations = CannedExpectations)
     }
 
-    "pass files properly" taggedAs DockerTest in {
-      runAndAssertCorrectness(sampleWdl = SampleWdl.FilePassingThreeStep)
+    "pass canned files properly" taggedAs DockerTest in {
+      runAndAssertCorrectness(sampleWdl = SampleWdl.CannedFilePassing, expectations = SampleWdl.CannedFilePassing.Expectations)
     }
   }
 }

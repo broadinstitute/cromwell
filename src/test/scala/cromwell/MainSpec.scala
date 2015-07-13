@@ -6,8 +6,8 @@ import akka.actor.ActorSystem
 import akka.testkit.EventFilter
 import com.typesafe.config.ConfigFactory
 import cromwell.server.WorkflowManagerSystem
-import cromwell.util.{SampleWdl, FileUtil}
 import cromwell.util.SampleWdl.ThreeStep
+import cromwell.util.{FileUtil, SampleWdl}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Await

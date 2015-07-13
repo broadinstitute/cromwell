@@ -4,15 +4,14 @@ import java.nio.file.Path
 
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
-import cromwell.util.GcsUtil
+import cromwell.util.{GoogleCloudStoragePath, GcsUtil}
 
 import scala.util.{Success, Try}
 
 /**
  * Implementation of engine functions for the JES backend.
  */
-class JesEngineFunctions(secretsFile: Path) extends EngineFunctions {
-
+case class JesEngineFunctions(secretsFile: Path, callDir: GoogleCloudStoragePath) extends EngineFunctions {
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
    * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
@@ -23,7 +22,7 @@ class JesEngineFunctions(secretsFile: Path) extends EngineFunctions {
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlGcsObject => GcsUtil.slurp(f.value, secretsFile)
+      case f: WdlFile => GcsUtil.slurp(GoogleCloudStoragePath(f.value), secretsFile)
       case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
     }
   }
@@ -44,13 +43,19 @@ class JesEngineFunctions(secretsFile: Path) extends EngineFunctions {
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
     read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
 
-  //TODO: Implement correctly
-  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlGcsObject] = {
-    Success(WdlGcsObject("gs://chrisl-dsde-dev/stdout"))
+  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    val newPath = GoogleCloudStoragePath(callDir.bucket, callDir.objectName + "/stdout.txt")
+    Success(WdlFile(newPath.toString))
   }
 
-  //TODO: Implement correctly
-  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlGcsObject] = {
-    Success(WdlGcsObject("gs://chrisl-dsde-dev/stderr"))
+  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    val newPath = GoogleCloudStoragePath(callDir.bucket, callDir.objectName + "/stderr.txt")
+    Success(WdlFile(newPath.toString))
+  }
+}
+
+object JesEngineFunctions {
+  def apply(secretsFile: Path, callDir: String): JesEngineFunctions = {
+    JesEngineFunctions(secretsFile, GoogleCloudStoragePath(callDir))
   }
 }

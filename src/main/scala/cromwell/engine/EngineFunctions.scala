@@ -9,8 +9,8 @@ trait EngineFunctions extends WdlFunctions {
   protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray]
   protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger]
   protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString]
-  protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFileLike]
-  protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFileLike]
+  protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile]
+  protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile]
 
   /**
    * Extract a single `WdlValue` from the specified `Seq`, returning `Failure` if the parameters

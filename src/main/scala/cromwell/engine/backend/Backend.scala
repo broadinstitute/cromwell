@@ -40,6 +40,8 @@ trait Backend {
    */
   def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs
 
+  def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs
+
   /**
    * Do whatever work is required to initialize the workflow, returning a copy of
    * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s

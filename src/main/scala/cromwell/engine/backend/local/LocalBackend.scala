@@ -169,12 +169,12 @@ class LocalBackend extends Backend with LazyLogging {
         case WdlFile(path) =>
           // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
           // Container path should look like /root/f00ba4/call-ps/stdout.txt
-          val fullPath = path.toFile.getAbsolutePath
+          val fullPath = Paths.get(path).toFile.getAbsolutePath
           // Strip out everything before cromwell-executions.
           val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutions) + CromwellExecutions.length)
           // Strip out the workflow name (the first component under cromwell-executions).
           val pathWithWorkflowName = Paths.get(pathUnderCromwellExecutions)
-          WdlFile(Paths.get("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
+          WdlFile(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
         case x => x
       }
       name -> adjusted
@@ -183,6 +183,8 @@ class LocalBackend extends Backend with LazyLogging {
     // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
     if (call.docker.isDefined) inputs map adjustPath else inputs
   }
+
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.

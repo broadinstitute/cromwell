@@ -2,7 +2,8 @@ package cromwell.engine.backend.jes
 
 import java.nio.file.{Paths, Path}
 
-import cromwell.binding.values.{WdlInteger, WdlString, WdlGcsObject}
+import cromwell.binding.values.{WdlFile, WdlInteger, WdlString}
+import cromwell.util.GoogleCloudStoragePath
 import org.scalatest.{Matchers, FlatSpec}
 
 import scala.util.{Try, Success}
@@ -43,14 +44,14 @@ class JesEngineFunctionsSpec extends FlatSpec with Matchers{
                                      |""".stripMargin
 
   "JES Engine Functions" should "read strings correctly" in {
-    val readString = new JesEngineFunctions(secretsFileLocation).getFunction("read_string")
-    val gcsPathTry: Try[WdlGcsObject] = Success(WdlGcsObject(BUCKET_NAME, STRING_FILE))
+    val readString = JesEngineFunctions(secretsFileLocation, "gs://a/a").getFunction("read_string")
+    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, STRING_FILE).toString))
     readString(Seq(gcsPathTry)) shouldEqual Success(WdlString(STRING_FILE_CONTENTS))
   }
 
   "JES Engine Functions" should " read ints correctly" in {
-    val readString = new JesEngineFunctions(secretsFileLocation).getFunction("read_int")
-    val gcsPathTry: Try[WdlGcsObject] = Success(WdlGcsObject(BUCKET_NAME, INT_FILE))
+    val readString = JesEngineFunctions(secretsFileLocation, "gs://a/a").getFunction("read_int")
+    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, INT_FILE).toString))
     readString(Seq(gcsPathTry)) shouldEqual Success(WdlInteger(INT_FILE_VALUE))
   }
 }

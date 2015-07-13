@@ -21,7 +21,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => FileUtil.slurp(f.value)
+      case f: WdlFile => FileUtil.slurp(Paths.get(f.value))
       case s: WdlString => FileUtil.slurp(executionContext.cwd.resolve(s.value))
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
@@ -54,7 +54,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stdout))
+      Success(WdlFile(executionContext.stdout.toAbsolutePath.toString))
     }
   }
 
@@ -62,7 +62,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stderr))
+      Success(WdlFile(executionContext.stderr.toAbsolutePath.toString))
     }
   }
 }

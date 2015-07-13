@@ -35,6 +35,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
   object UnknownBackend extends Backend {
     override def adjustInputPaths(call: Call, inputs: CallInputs) = Map.empty
+    override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = Map.empty
 

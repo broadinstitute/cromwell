@@ -16,7 +16,8 @@ object Pipeline {
 
     // We'll need to localize any WdlFiles
     val wdlFileInputs: Map[String, String] = backendInputs collect {case (k, v) if v.isInstanceOf[WdlFile] => k -> v.asInstanceOf[WdlFile].asString}
-    
+    val wdlFileOutputs: Map[String, String] = call.task.outputs
+
     val cpr = new CreatePipelineRequest
     cpr.setProjectId(projectId)
     cpr.setDocker(runtimeInfo.docker)

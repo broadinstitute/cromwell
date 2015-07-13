@@ -56,7 +56,7 @@ object JesBackend {
   // NOTE: Used for connection boilerplate, could probably be made cleaner
   lazy val GenomicsService = buildGenomics
 
-  private lazy val JesConf = ConfigFactory.load.getConfig("jes")
+  private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
   lazy val GenomicsUrl = new URL(JesConf.getString("rootUrl"))
   lazy val GoogleSecrets = Paths.get(JesConf.getString("secretsFile"))
   lazy val GoogleUser = JesConf.getString("user")
@@ -114,8 +114,9 @@ class JesBackend extends Backend with LazyLogging {
     // FIXME: Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
 
-    // FIXME: Not actually using the RunStatus
     val status = Pipeline(redirectedCommand, workflowDescriptor, call, backendInputs, GoogleProject, GenomicsService).run.waitUntilComplete()
+
+    // FIXME: We don't have the possiblyAutoConvertedValue from LocalBackend, I think we need that?
 
     // FIXME: This is *only* going to work w/ my hacked stdout/stderr above, see LocalBackend for more info
     val outputMappings = call.task.outputs.map { taskOutput =>

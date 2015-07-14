@@ -139,7 +139,7 @@ class JesBackend extends Backend with LazyLogging {
           val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
           Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
         }
-      case Run.Failed(created, started, finished, errorCode, errorMessage) =>
+      case Run.Failed(created, started, finished, errorCode, errorMessage) => // FIXME: errorMessage looks like it's just "pipeline run failed"?
         Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $commandLine. Message: $errorMessage"))
     }
 

@@ -59,6 +59,7 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
       context.parent ! CallFailed(call, message)
     }
 
+    // FIXME: Perhaps this could be renamed to "launchCall" or something like that?
     def handleSuccessfulInstantiation(commandLine: String): Unit = {
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)

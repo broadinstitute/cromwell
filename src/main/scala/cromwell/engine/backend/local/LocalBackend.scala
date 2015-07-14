@@ -9,18 +9,18 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
-import cromwell.engine.{WorkflowId, ExecutionStatus}
-import cromwell.engine.ExecutionStatus.{NotStarted, Failed, Done}
+import cromwell.engine.ExecutionStatus.{Done, Failed, NotStarted}
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.engine.{ExecutionStatus, WorkflowId}
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 object LocalBackend {
 
@@ -79,9 +79,7 @@ class LocalBackend extends Backend with LazyLogging {
 
     // The ! to the ProcessLogger captures standard output and error.
     val rc: Int = argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
-    Vector(stdoutWriter, stderrWriter).foreach {
-      _.flushAndClose()
-    }
+    Vector(stdoutWriter, stderrWriter).foreach { _.flushAndClose() }
 
     /**
      * Return a host absolute file path.
@@ -89,41 +87,10 @@ class LocalBackend extends Backend with LazyLogging {
     def hostAbsoluteFilePath(pathString: String): String =
       if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
 
-    /**
-     * Handle possible auto-conversion from string literal to WdlFile.
-     */
-    def possiblyAutoConvertedValue(taskOutput: TaskOutput, wdlValue: WdlValue): WdlValue = {
-      wdlValue match {
-        case v: WdlString =>
-          taskOutput.wdlType match {
-            case WdlFileType =>
-              WdlFile(hostAbsoluteFilePath(v.value))
-            case _ => v
-          }
-        case v => v
-      }
-    }
-
-    val outputMappings = call.task.outputs.map { taskOutput =>
-      val rawValue = taskOutput.expression.evaluate(
-        scopedLookupFunction,
-        new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
-      )
-      taskOutput.name -> rawValue.map {
-        possiblyAutoConvertedValue(taskOutput, _)
-      }
-    }
+    val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
 
     if (rc == 0) {
-      val taskOutputEvaluationFailures = outputMappings.filter { _._2.isFailure }
-
-      if (taskOutputEvaluationFailures.isEmpty) {
-        val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
-        Success(unwrappedMap)
-      } else {
-        val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
-      }
+      evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction)
     } else {
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $commandLine"))
     }

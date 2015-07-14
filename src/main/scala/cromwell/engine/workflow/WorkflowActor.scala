@@ -54,7 +54,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   override val log = Logging(context.system, classOf[WorkflowActor])
 
   startWith(WorkflowSubmitted, NoFailureMessage)
-  
+
   def initWorkflow(initialization: Future[Unit] = Future.successful(())): ExecutionStore = {
     val futureStore = for {
       _ <- initialization
@@ -92,13 +92,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       persistStatus(call, Running)
       stay()
     case Event(CallCompleted(call, outputs), NoFailureMessage) =>
-      // See DSDEEPB-521 for an example of why potential race conditions in starting runnable calls currently
-      // require this. Could Cromwell be smarter about the way it looks for runnable calls?
-      Await.result(handleCallCompleted(call, outputs), DatabaseTimeout)
-      if (isWorkflowDone) {
-        goto(WorkflowSucceeded)
-      } else {
-        startRunnableCalls()
+      awaitCallComplete(call, outputs) match {
+        case Success(_) =>
+          if (isWorkflowDone) goto(WorkflowSucceeded) else startRunnableCalls()
+        case Failure(e) =>
+          log.error(e, e.getMessage)
+          goto(WorkflowFailed)
       }
     case Event(CallFailed(call, failure), NoFailureMessage) =>
       persistStatus(call, ExecutionStatus.Failed)
@@ -148,6 +147,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val callFqns = calls.map(_.fullyQualifiedName)
     log.info(s"$tag persisting status of calls ${callFqns.mkString(", ")} to $callStatus.")
     dataAccess.setStatus(workflow.id, callFqns, callStatus)
+  }
+
+  private def awaitCallComplete(call: Call, outputs: CallOutputs): Try[Unit] = {
+    val callFuture = handleCallCompleted(call, outputs)
+    Await.ready(callFuture, DatabaseTimeout)
+    callFuture.value.get
   }
 
   private def handleCallCompleted(call: Call, outputs: CallOutputs): Future[Unit] = {

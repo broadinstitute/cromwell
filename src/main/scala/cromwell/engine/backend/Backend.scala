@@ -3,13 +3,15 @@ package cromwell.engine.backend
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.values.WdlValue
+import cromwell.binding.types.WdlFileType
+import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.local.LocalEngineFunctions
 import cromwell.engine.db.DataAccess
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 
 object Backend {
@@ -43,4 +45,59 @@ trait Backend {
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
    */
   def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any]
+
+  /**
+   * Presuming successful completion of the specified call, evaluate its outputs.
+   */
+  protected def evaluateCallOutputs(workflowDescriptor: WorkflowDescriptor,
+                                    call: Call,
+                                    hostAbsoluteFilePath: String => String,
+                                    localEngineFunctions: LocalEngineFunctions,
+                                    scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+    /**
+     * Handle possible auto-conversion from an output expression `WdlString` to a `WdlFile` task output.
+     * The following should work:
+     *
+     * <pre>
+     * outputs {
+     *   File bam = "foo.bam"
+     * }
+     * </pre>
+     *
+     * Output values that are not of type `WdlString` and are not being assigned to `WdlFiles` should be passed
+     * through unaltered.  No other output conversions are currently supported and will result in `Failure`s.
+     */
+    def outputAutoConversion(callFqn: String, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
+      rawOutputValue match {
+        // Autoconvert String -> File.
+        case v: WdlString if taskOutput.wdlType == WdlFileType => Success(WdlFile(hostAbsoluteFilePath(v.value)))
+        // Pass through matching types.
+        case v if v.wdlType == taskOutput.wdlType => Success(v)
+        // Fail other mismatched types.
+        case _ =>
+          val message = s"Expression '$rawOutputValue' of type ${rawOutputValue.wdlType.toWdlString} cannot be converted to ${taskOutput.wdlType.toWdlString} for output '$callFqn.${taskOutput.name}'."
+          Failure(new RuntimeException(message))
+      }
+    }
+
+    // Evaluate output expressions, performing conversions from String -> File where required.
+    val outputMappings = call.task.outputs.map { taskOutput =>
+      val tryConvertedValue =
+        for {
+          expressionValue <- taskOutput.expression.evaluate(scopedLookupFunction, localEngineFunctions)
+          convertedValue <- outputAutoConversion(call.fullyQualifiedName, taskOutput, expressionValue)
+        } yield convertedValue
+      taskOutput.name -> tryConvertedValue
+    }
+
+    val taskOutputFailures = outputMappings.filter { _._2.isFailure }
+
+    if (taskOutputFailures.isEmpty) {
+      val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue)) => name -> wdlValue }.toMap
+      Success(unwrappedMap)
+    } else {
+      val message = taskOutputFailures.collect { case (name, Failure(e)) => s"$name: $e" }.mkString("\n")
+      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
+    }
+  }
 }

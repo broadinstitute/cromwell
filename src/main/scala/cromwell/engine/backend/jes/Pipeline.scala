@@ -1,22 +1,27 @@
 package cromwell.engine.backend.jes
 
 import cromwell.binding.{Call, WorkflowDescriptor, CallInputs}
-import cromwell.binding.values.WdlFile
+import cromwell.binding.values.{WdlUri, WdlFile}
 import scala.collection.JavaConverters._
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{Parameter, CreatePipelineRequest}
 import JesBackend._
 
 object Pipeline {
-  def apply(command: String, workflow: WorkflowDescriptor, call: Call, backendInputs: CallInputs, projectId: String, genomicsService: Genomics): Pipeline = {
+  def apply(commandFIXME: String, workflow: WorkflowDescriptor, call: Call, backendInputs: CallInputs, projectId: String, genomicsService: Genomics): Pipeline = {
+    // FIXME: the gs:/ stuff again, but for now ....
+    // FIXME: Also var'd it as we need to replace all of the gs:// paths with the localized name, just getting things working for now
+    var command = commandFIXME.replaceAllLiterally("gs:/", "gs://")
+
     println(s"Command line is $command")
     val runtimeInfo = JesRuntimeInfo(command, call)
 
     val gcsPath = workflow.callDir(call)
 
     // We'll need to localize any WdlFiles
-    val wdlFileInputs: Map[String, String] = backendInputs collect {case (k, v) if v.isInstanceOf[WdlFile] => k -> v.asInstanceOf[WdlFile].asString}
-    val wdlFileOutputs: Map[String, String] = call.task.outputs
+    val wdlFileInputs_orig: Map[String, String] = backendInputs collect {case (k, v) if v.isInstanceOf[WdlFile] => k -> v.asInstanceOf[WdlFile].asString}
+    // FIXME: We're losing a / on the gs:// inputs, track that down. Until now, hack it in
+    val wdlFileInputs = wdlFileInputs_orig map {case (k, v) if v.startsWith("gs:/") => k -> v.replace("gs:/", "gs://")}
 
     val cpr = new CreatePipelineRequest
     cpr.setProjectId(projectId)
@@ -34,9 +39,9 @@ object Pipeline {
 
   // Combine the stdout/stderr with the job's inputs
   def buildParameters(inputs: Map[String, String]): Iterable[Parameter] = {
-     val z =  inputs map {case (name, value) => new Parameter().setName(name).setValue(value).setType("REFERENCE")}
-val x = z.toVector
-    StdParameters ++ x
+    // FIXME: That replace probably won't stand the test of time
+    val params =  inputs.map({case (name, value) => new Parameter().setName(name).setValue(value.replace("gs://", "")).setType("REFERENCE")}).toVector
+    StdParameters ++ params
   }
 
   // FIXME: For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well

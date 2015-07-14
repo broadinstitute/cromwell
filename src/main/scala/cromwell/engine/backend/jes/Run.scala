@@ -19,12 +19,17 @@ object Run {
        to this call and can see it's input mappings, and the two share the same key. So this is grabbing the original
        call name from those input mappings and replacing the current call name for that.
     */
-    rpr.setInputs(pipeline.inputsToLocalize.map {case (k, v) =>
+    val localizedInputs = pipeline.inputsToLocalize.map {case (k, v) =>
       val blah = s"${pipeline.gcsPath}/${v.toString}"
-      val origCall = pipeline.call.inputMappings(k).toString.split("\\.").head
-      val filePath = blah.replace(pipeline.call.name, origCall)
-      k -> filePath
-    }.asJava)
+      val key = pipeline.call.inputMappings.get(k)
+      key map {x =>
+        val origCall = x.toString.split("\\.").head
+        val filePath = blah.replace(pipeline.call.name, origCall)
+        k -> filePath
+      } getOrElse(k -> v)
+    }.asJava
+
+    rpr.setInputs(localizedInputs)
     println(s"Run inputs are ${rpr.getInputs}")
 
     // FIXME: Outputs - these are currently hardcoded, obviously. We'll also need the JesEngineFunctions before outputs are particularly useful

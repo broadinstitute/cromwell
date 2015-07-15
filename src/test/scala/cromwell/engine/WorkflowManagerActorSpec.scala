@@ -103,7 +103,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       withDataAccess { dataAccess =>
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess), self, "Test WorkflowManagerActor coercion failures")
-          EventFilter.error(pattern = "Workflow failed submission").intercept {
+          waitForErrorWithException("Workflow failed submission") {
             Try {
               messageAndWait[WorkflowId](SubmitWorkflow(Incr.wdlSource(), Incr.wdlJson, Incr.rawInputs))
             } match {

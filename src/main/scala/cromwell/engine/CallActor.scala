@@ -56,7 +56,7 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
 
     def handleFailedInstantiation(e: Throwable): Unit = {
       val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
-      log.error(s"$tag: $message")
+      log.error(e, s"$tag: $message")
       context.parent ! CallFailed(call, message)
     }
 

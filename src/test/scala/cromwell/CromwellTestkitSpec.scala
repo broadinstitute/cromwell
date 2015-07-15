@@ -14,7 +14,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.{WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.engine.{WorkflowFailed, WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -123,7 +123,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
       fsm ! Start
       within(5 seconds) {
         awaitCond(fsm.stateName == WorkflowRunning)
-        awaitCond(fsm.stateName == WorkflowSucceeded)
+        awaitCond(fsm.stateName.isTerminal)
+        fsm.stateData should be(NoFailureMessage)
         val outputs = fsm.ask(GetOutputs).mapTo[WorkflowOutputs].futureValue
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>

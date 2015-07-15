@@ -44,7 +44,12 @@ case class Run(name: String, pipeline: Pipeline) {
     if (op.getDone) {
       val error = Option(op.getError)
       error match { // "What is this, amateur hour? ...."
-        case Some(x) => Failed(metadata.created, metadata.started.get, metadata.finished.get, x.getCode, x.getMessage)
+        case Some(x) => Failed(
+          metadata.created,
+          /* metadata.started.get*/ "started",
+          /* metadata.finished.get */ "finished",
+          x.getCode,
+          x.getMessage)
         case None => Success(metadata.created, metadata.started.get, metadata.finished.get)
       }
     } else metadata.started map {s => Running(metadata.created, s)} getOrElse Initializing(metadata.created)

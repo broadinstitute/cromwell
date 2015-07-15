@@ -83,7 +83,7 @@ class WdlValueSpec extends FlatSpec with Matchers {
       val wdlType = wdlValue.wdlType
       val fromRawString = wdlType.fromRawString(toRawString)
       fromRawString shouldNot be(wdlValue)
-      fromRawString.toString should be(wdlValue.toString)
+      fromRawString.toWdlString should be(wdlValue.toWdlString)
       fromRawString.wdlType should be(wdlType)
     }
   }

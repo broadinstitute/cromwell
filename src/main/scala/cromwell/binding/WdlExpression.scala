@@ -132,7 +132,7 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   def toString(highlighter: SyntaxHighlighter): String = {
     WdlExpression.toString(ast, highlighter)
   }
-  override def toString: String = toString(NullSyntaxHighlighter)
+  override def toWdlString: String = toString(NullSyntaxHighlighter)
 }
 
 trait WdlFunctions {

@@ -39,7 +39,7 @@ class ThreeStepSpec extends FlatSpec with Matchers {
   it should "Have a task with name 'wc'" in {
     val task = namespace.findTask("wc") getOrElse fail("No 'wc' task found")
     task.name shouldEqual "wc"
-    task.inputs shouldEqual Map("in_file" -> WdlFileType)
+    task.inputs shouldEqual Vector(TaskInput("in_file", WdlFileType, postfixQuantifier=None))
     task.command.instantiate(Map("in_file" -> WdlFile("/path/to/file"))).get shouldEqual "cat /path/to/file | wc -l"
     task.outputs.size shouldEqual 1
     task.outputs.head.name shouldEqual "count"
@@ -48,7 +48,10 @@ class ThreeStepSpec extends FlatSpec with Matchers {
   it should "Have a task with name 'cgrep'" in {
     val task = namespace.findTask("cgrep") getOrElse fail("No 'cgrep' task found")
     task.name shouldEqual "cgrep"
-    task.inputs shouldEqual Map("pattern" -> WdlStringType, "in_file" -> WdlFileType)
+    task.inputs shouldEqual Vector(
+      TaskInput("pattern", WdlStringType, postfixQuantifier=None),
+      TaskInput("in_file", WdlFileType, postfixQuantifier=None)
+    )
     task.command.instantiate(
       Map("pattern" -> WdlString("^...$"), "in_file" -> WdlFile("/path/to/file"))
     ).get shouldEqual "grep '^...$' /path/to/file | wc -l"
@@ -59,7 +62,7 @@ class ThreeStepSpec extends FlatSpec with Matchers {
   it should "Have a task with name 'ps'" in {
     val task = namespace.findTask("ps") getOrElse fail("No 'ps' task found")
     task.name shouldEqual "ps"
-    task.inputs shouldEqual Map()
+    task.inputs shouldEqual Vector()
     task.command.instantiate(Map()).get shouldEqual "ps"
     task.outputs.size shouldEqual 1
     task.outputs.head.name shouldEqual "procs"

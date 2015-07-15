@@ -158,4 +158,11 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      |${pointToSource(rhsAst)}
      """.stripMargin
   }
+
+  def arrayHasOneTypeParameter(arrayDecl: Terminal): String = {
+    s"""ERROR: Array type should only have one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
+     |
+     |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
 }

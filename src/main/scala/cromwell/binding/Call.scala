@@ -31,13 +31,16 @@ case class Call(alias: Option[String], taskFqn: FullyQualifiedName, task: Task, 
     else throw new UnsupportedOperationException("parent is write-once")
   }
 
+  private def unsatisfiedTaskInputs: Seq[TaskInput] = task.inputs.filterNot {case i => inputMappings.contains(i.name)}
+
   /**
-   * Map of task-local input names to type for every input that this
-   * Call needs to execute the task
-   *
-   * @return Map[String, WdlType] representing each task-local input
+   * Returns a Seq[WorkflowInput] representing the inputs to the call that are
+   * needed before its command can be constructed. This excludes inputs that
+   * are satisfied via the 'input' section of the Call definition.
    */
-  def unsatisfiedInputs: Map[String, WdlType] = task.inputs.filterNot { case (k, v) => inputMappings.contains(k) }
+  def unsatisfiedInputs: Seq[WorkflowInput] = unsatisfiedTaskInputs.map {i =>
+    WorkflowInput(s"$fullyQualifiedName.${i.name}", i.wdlType, i.postfixQuantifier)
+  }
 
   override def toString: String = s"[Call name=$name, task=$task]"
 

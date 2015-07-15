@@ -209,7 +209,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEval("+1") shouldEqual WdlInteger(1)
   }
   it should "Int asString" in {
-    WdlInteger(42).asString shouldEqual "42"
+    WdlInteger(42).toWdlString shouldEqual "42"
   }
 
   /* Floats */
@@ -376,7 +376,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEval("-1.0") shouldEqual WdlFloat(-1.0)
   }
   it should "Float asString" in {
-    WdlFloat(33.3).asString shouldEqual "33.3"
+    WdlFloat(33.3).toWdlString shouldEqual "33.3"
   }
 
   /* Booleans */
@@ -696,57 +696,57 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
 
   /* String-ification */
   "Expression Evaluator string-ifier" should "Make strings out of + expressions" in {
-    expr("1 + 2").toString shouldEqual "1 + 2"
+    expr("1 + 2").toWdlString shouldEqual "1 + 2"
   }
   it should "Make strings out of - expressions" in {
-    expr("1 - 2").toString shouldEqual "1 - 2"
+    expr("1 - 2").toWdlString shouldEqual "1 - 2"
   }
   it should "Make strings out of * expressions" in {
-    expr("1 * 2").toString shouldEqual "1 * 2"
+    expr("1 * 2").toWdlString shouldEqual "1 * 2"
   }
   it should "Make strings out of / expressions" in {
-    expr("1 / 2").toString shouldEqual "1 / 2"
+    expr("1 / 2").toWdlString shouldEqual "1 / 2"
   }
   it should "Make strings out of % expressions" in {
-    expr("1 % 2").toString shouldEqual "1 % 2"
+    expr("1 % 2").toWdlString shouldEqual "1 % 2"
   }
   it should "Make strings out of < expressions" in {
-    expr("1 < 2").toString shouldEqual "1 < 2"
+    expr("1 < 2").toWdlString shouldEqual "1 < 2"
   }
   it should "Make strings out of <= expressions" in {
-    expr("1 <= 2").toString shouldEqual "1 <= 2"
+    expr("1 <= 2").toWdlString shouldEqual "1 <= 2"
   }
   it should "Make strings out of > expressions" in {
-    expr("1 > 2").toString shouldEqual "1 > 2"
+    expr("1 > 2").toWdlString shouldEqual "1 > 2"
   }
   it should "Make strings out of >= expressions" in {
-    expr("1 >= 2").toString shouldEqual "1 >= 2"
+    expr("1 >= 2").toWdlString shouldEqual "1 >= 2"
   }
   it should "Make strings out of == expressions" in {
-    expr("1 == 2").toString shouldEqual "1 == 2"
+    expr("1 == 2").toWdlString shouldEqual "1 == 2"
   }
   it should "Make strings out of != expressions" in {
-    expr("1 != 2").toString shouldEqual "1 != 2"
+    expr("1 != 2").toWdlString shouldEqual "1 != 2"
   }
   it should "Make strings out of && expressions" in {
-    expr("1 && 2").toString shouldEqual "1 && 2"
+    expr("1 && 2").toWdlString shouldEqual "1 && 2"
   }
   it should "Make strings out of || expressions" in {
-    expr("1 || 2").toString shouldEqual "1 || 2"
+    expr("1 || 2").toWdlString shouldEqual "1 || 2"
   }
   it should "Make strings out of expression with strings in it" in {
-    expr("\"a\" + \"b\"").toString shouldEqual "\"a\" + \"b\""
+    expr("\"a\" + \"b\"").toWdlString shouldEqual "\"a\" + \"b\""
   }
   it should "Make strings out of expression with floats in it" in {
-    expr("1.1 + 2.2").toString shouldEqual "1.1 + 2.2"
+    expr("1.1 + 2.2").toWdlString shouldEqual "1.1 + 2.2"
   }
   it should "Make strings out of expression with identifiers in it" in {
-    expr("foo + bar").toString shouldEqual "foo + bar"
+    expr("foo + bar").toWdlString shouldEqual "foo + bar"
   }
   it should "Make strings out of member access expressions" in {
-    expr("a.b.c").toString shouldEqual "a.b.c"
+    expr("a.b.c").toWdlString shouldEqual "a.b.c"
   }
   it should "Make strings out of function calls" in {
-    expr("a(b, c)").toString shouldEqual "a(b, c)"
+    expr("a(b, c)").toWdlString shouldEqual "a(b, c)"
   }
 }

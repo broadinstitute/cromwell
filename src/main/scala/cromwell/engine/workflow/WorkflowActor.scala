@@ -82,6 +82,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       executionStore = initWorkflow()
       startRunnableCalls()
     case Event(Start, NoFailureMessage) =>
+      log.info(s"$tag Start message received")
       executionStore = initWorkflow(createWorkflow())
       startRunnableCalls()
   }
@@ -158,8 +159,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def startActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue]): Unit = {
+    if (locallyQualifiedInputs.nonEmpty) {
+      log.info(s"$tag inputs for call '${call.fullyQualifiedName}':")
+      locallyQualifiedInputs foreach { input =>
+        log.info(s"$tag     ${input._1} -> ${input._2}")
+      }
+    } else {
+      log.info(s"$tag no inputs for call '${call.fullyQualifiedName}'")
+    }
+
     val callActorProps = CallActor.props(call, locallyQualifiedInputs, backend, workflow)
-    log.info(s"$tag creating call actor for ${call.fullyQualifiedName}.")
     val callActor = context.actorOf(callActorProps)
     callActor ! CallActor.Start
     log.info(s"$tag created call actor for ${call.fullyQualifiedName}.")
@@ -198,8 +207,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       Await.ready(futureCallsAndInputs, DatabaseTimeout)
       futureCallsAndInputs.value.get match {
         case Success(callsAndInputs) =>
-          log.info(s"$tag calls and inputs are " + callsAndInputs)
-          callsAndInputs foreach { case (call, inputs) => startActor(call, inputs)}
+          callsAndInputs foreach { case (call, inputs) => startActor(call, inputs) }
           Success(())
         case failure => failure
       }
@@ -238,7 +246,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       }
     }
 
-    log.info(s"$tag fetching locally qualified inputs for " + call.fullyQualifiedName)
     fetchCallInputEntries(call).map { entries =>
       entries.map { entry =>
         val value = entry.wdlValue match {

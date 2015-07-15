@@ -5,7 +5,7 @@ import java.io.File
 import cromwell.binding.WdlNamespace.ImportResolver
 import cromwell.binding.command._
 import cromwell.binding.types._
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlArray, WdlValue}
 import cromwell.parser.{AstTools, WdlParser}
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
@@ -216,7 +216,19 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   private def processCommandParameter(ast: Ast): ParameterCommandPart = {
     val wdlType = processWdlType(ast.getAttribute("type"))
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    new ParameterCommandPart(wdlType, name)
+    val prefix = Option(ast.getAttribute("prefix")) map { case t:Terminal => t.sourceString() }
+    val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.map { a =>
+      processCommandParameterAttr(a.asInstanceOf[Ast])
+    }.toMap
+    val postfixQuantifier = ast.getAttribute("postfix") match {
+      case t:Terminal => Some(t.sourceString())
+      case _ => None
+    }
+    new ParameterCommandPart(wdlType, name, prefix, attributes, postfixQuantifier)
+  }
+
+  private def processCommandParameterAttr(ast: Ast): (String, String) = {
+    (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
   }
 
   private def processTaskOutput(ast: Ast): TaskOutput = {
@@ -254,8 +266,19 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
           case WdlBooleanType.toWdlString => WdlBooleanType
           case WdlObjectType.toWdlString => WdlObjectType
         }
+      case a: Ast =>
+        val subtypes = a.getAttribute("subtype").asInstanceOf[AstList].asScala.toSeq
+        val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
+        a.getAttribute("name").sourceString() match {
+          case "Array" =>
+            if (subtypes.size != 1) {
+              throw new SyntaxError(wdlSyntaxErrorFormatter.arrayHasOneTypeParameter(typeTerminal))
+            }
+            val member = processWdlType(subtypes.head)
+            WdlArrayType(member)
+        }
       case null => WdlStringType
-      case _ => throw new UnsupportedOperationException("Implement this later for compound types")
+      case t => throw new UnsupportedOperationException(s"Type not supported: $t")
     }
   }
 
@@ -266,25 +289,43 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
    */
   def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
 
-    def coerceRawInput(fqn: FullyQualifiedName, wdlType: WdlType): Try[WdlValue] = fqn match {
-      case _ if rawInputs.contains(fqn) =>
-        val rawInput = rawInputs.get(fqn).get
-        wdlType.coerceRawValue(rawInput).recoverWith {
-          case e => Failure(new UnsatisfiedInputsException(s"Failed to coerce input $fqn value $rawInput of ${rawInput.getClass} to $wdlType."))
+    def coerceRawInput(input: WorkflowInput): Try[Option[WdlValue]] = input.fqn match {
+      case _ if rawInputs.contains(input.fqn) =>
+        val rawValue = rawInputs.get(input.fqn).get
+        val coercionFailure = Failure(new UnsatisfiedInputsException(s"Could not coerce value for '${input.fqn}' into: ${input.wdlType}"))
+        input.wdlType.coerceRawValue(rawValue) match {
+          case Success(value) => Success(Some(value))
+          case _ if input.postfixQuantifier.isDefined && input.wdlType.isInstanceOf[WdlArrayType] && ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(input.postfixQuantifier.get) =>
+            val memberType = input.wdlType.asInstanceOf[WdlArrayType].memberType
+            memberType.coerceRawValue(rawValue) match {
+              case Success(value) => Success(Some(WdlArray(WdlArrayType(memberType), Seq(value))))
+              case _ => coercionFailure
+            }
+          case _ => coercionFailure
         }
-      case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '$fqn' not specified."))
+        /* TODO: if coercion fails above, it might be because you tried passing a single value to a parameter that can
+         * take multiple values (e.g. `${sep=" " String var+}`).  If this is the case, coerce to
+         */
+      case _ =>
+        input.optional match {
+          case true => Success(None)
+          case _ => Failure(new UnsatisfiedInputsException(s"Required workflow input '${input.fqn}' not specified."))
+        }
     }
 
-    val tryCoercedValues = workflows.head.inputs.map { case (fqn, wdlType) =>
-      fqn -> coerceRawInput(fqn, wdlType)
-    }
+    val tryCoercedValues = workflows.head.inputs.map {input =>
+      input.fqn -> coerceRawInput(input)
+    }.toMap
 
     val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
     if (failures.isEmpty) {
-      Try(successes.map { case (key, tryValue) => key -> tryValue.get })
+      Try(for {
+        (key, tryValue) <- successes
+        optionValue = tryValue.get if tryValue.get.isDefined
+      } yield (key -> optionValue.get))
     } else {
       val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
-      Failure(new UnsatisfiedInputsException(message))
+      Failure(new UnsatisfiedInputsException(s"The following errors occurred while processing your inputs:\n\n$message"))
     }
   }
 
@@ -361,7 +402,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
         }
 
         call.inputMappings foreach { inputKv =>
-          task.inputs find { taskInput => taskInput._1 == inputKv._1 } getOrElse {
+          task.inputs find { taskInput => taskInput.name == inputKv._1 } getOrElse {
             val callInput = AstTools.callInputAsts(callAst) find {
               _.getAttribute("key").sourceString == inputKv._1
             } getOrElse {
@@ -422,6 +463,7 @@ case class WdlNamespace(ast: Ast, source: WdlSource, importResolver: ImportResol
   }
 
   override def toRawString = ???
+  override def toWdlString = ???
 
   validate()
 }

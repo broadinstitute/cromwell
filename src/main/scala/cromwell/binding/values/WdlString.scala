@@ -32,5 +32,5 @@ case class WdlString(value: String) extends WdlPrimitive {
       case _ => invalid(s"$value > $rhs")
     }
   }
-  override def asString = value
+  override def toWdlString = value
 }

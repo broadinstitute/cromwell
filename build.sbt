@@ -23,6 +23,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaV,
   "com.typesafe.akka" %% "akka-slf4j" % akkaV,
   "commons-codec" % "commons-codec" % "1.10",
+  "commons-io" % "commons-io" % "2.4",
   "ch.qos.logback" % "logback-classic" % "1.1.3",
   "ch.qos.logback" % "logback-access" % "1.1.3",
   "org.codehaus.janino" % "janino" % "2.7.8",
@@ -87,7 +88,7 @@ lazy val NoDockerTest = config("nodocker") extend(Test)
 lazy val root = (project in file("."))
   .configs(DockerTest).configs(NoDockerTest)
   .settings(inConfig(DockerTest)(Defaults.testTasks): _*)
-  .settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)  
+  .settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
 
 testOptions in DockerTest += Tests.Argument("-n", "DockerTest")
 

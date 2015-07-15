@@ -108,7 +108,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             } match {
               case Success(_) => fail("Expected submission to fail with uncoercable inputs")
               case Failure(e) =>
-                e.getMessage shouldBe "Failed to coerce input incr.incr.val value 1 of class java.lang.String to WdlIntegerType."
+                e.getMessage shouldBe "The following errors occurred while processing your inputs:\n\nCould not coerce value for 'incr.incr.val' into: WdlIntegerType"
             }
           }
         }

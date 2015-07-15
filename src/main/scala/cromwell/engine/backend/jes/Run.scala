@@ -1,6 +1,7 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.RunPipelineRequest
+import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -11,35 +12,18 @@ object Run {
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesBackend.JesServiceAccount)
 
-    /*
-       FIXME: This is seriously crappy and almost certainly isn't the right way to even go about things going forward even if it was pretty
-
-       We have the root filename (e.g. 'foo.txt') from inputsToLocalize, so we can slap on this call's GCS path.
-       However that file came from a different call - but we don't directly know from where. However we have access
-       to this call and can see it's input mappings, and the two share the same key. So this is grabbing the original
-       call name from those input mappings and replacing the current call name for that.
-    */
-    val localizedInputs = pipeline.inputsToLocalize.map {case (k, v) =>
-      val blah = s"${pipeline.gcsPath}/${v.toString}"
-      val key = pipeline.call.inputMappings.get(k)
-      key map {x =>
-        val origCall = x.toString.split("\\.").head
-        val filePath = blah.replace(pipeline.call.name, origCall)
-        k -> filePath
-      } getOrElse(k -> v)
-    }.asJava
-
-    rpr.setInputs(localizedInputs)
+    rpr.setInputs(pipeline.jesParameters.filter(_.isInput).toRunMap)
     println(s"Run inputs are ${rpr.getInputs}")
-
-    // FIXME: Outputs - these are currently hardcoded, obviously. We'll also need the JesEngineFunctions before outputs are particularly useful
-    val outputs = Map("stdout" -> s"${pipeline.gcsPath}/stdout.txt", "stderr" -> s"${pipeline.gcsPath}/stderr.txt")
-    println(s"Run outputs are $outputs")
-    rpr.setOutputs(outputs.asJava)
+    rpr.setOutputs(pipeline.jesParameters.filter(_.isOutput).toRunMap)
+    println(s"Run outputs are ${rpr.getOutputs}")
 
     val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
     println(s"Run Id is $id")
     new Run(id, pipeline)
+  }
+
+  implicit class RunJesParameters(val params: Seq[JesParameter]) extends AnyVal {
+    def toRunMap = params.map(p => p.name -> p.gcs).toMap.asJava
   }
 
   sealed trait RunStatus // FIXME: These dates shouldn't be Strings

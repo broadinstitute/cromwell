@@ -186,4 +186,20 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
        |${pointToSource(location)}
      """.stripMargin
   }
+
+  def parametersWithSameNameMustHaveSameDefinition(taskName: Terminal, firstParam: Terminal, secondParam: Terminal) = {
+    s"""ERROR: Task ${taskName.getSourceString} has input '${firstParam.getSourceString}' which is defined twice
+        |with conficting definitions:
+        |
+        |${pointToSource(secondParam)}
+        |
+        |first definition of parameter is here:
+        |
+        |${pointToSource(firstParam)}
+        |
+        |Task defined here (line ${taskName.getLine}, col ${taskName.getColumn}):
+        |
+        |${pointToSource(taskName)}
+     """.stripMargin
+  }
 }

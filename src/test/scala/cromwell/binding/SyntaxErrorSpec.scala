@@ -169,13 +169,21 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |}
         |""".stripMargin)
   }
-  it should "detect if a task has duplicated inputs" in {
+  it should "detect incompatible types for same input" in {
     expectError("""
-        |task ps {command{ps ${bad} ${bad}}}
-        |workflow three_step {
-        |  call ps
-        |}
-        |""".stripMargin)
+      |task test {
+      |  command { ./script ${String x} ${File x} ${x} }
+      |}
+      |workflow wf { call test }
+    """.stripMargin)
+  }
+  it should "detect when an input is defined differently at least once" in {
+    expectError("""
+      |task test {
+      |  command { ./script ${default="bar" String x?} ${String x} ${x} }
+      |}
+      |workflow wf { call test }
+    """.stripMargin)
   }
   it should "detect unexpected EOF" in {
     expectError("workflow")

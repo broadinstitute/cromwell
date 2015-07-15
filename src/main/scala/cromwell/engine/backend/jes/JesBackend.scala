@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.io.{FileInputStream, InputStreamReader, File}
 import java.net.{URI, URL}
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
@@ -12,30 +12,23 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.genomics.Genomics
-import com.google.api.services.genomics.model.ServiceAccount
+import com.google.api.services.genomics.model.{Parameter, ServiceAccount}
+import com.sun.javaws.exceptions.InvalidArgumentException
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.values._
-import cromwell.engine.EngineFunctions
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
+import cromwell.util.TryUtil
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 import JesBackend._
 
 object JesBackend {
-  // FIXME: Until Chris codes up the real ones. For now just braindeadedly store stdout and stderr so we can string it along
-  class TemporaryEngineFunctions(gcsPath: String, stdout: String, stderr: String) extends EngineFunctions {
-    override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = ???
-    override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = ???
-    override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(stdout.stripPrefix(s"$gcsPath/")))
-    override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(stderr.stripPrefix(s"$gcsPath/")))
-  }
-
   // FIXME: WTF is this thing? It's for the connection boilerplate
   val Scopes = Vector( // FIXME: Should be in package object? I believe so
     "https://www.googleapis.com/auth/genomics",
@@ -47,11 +40,7 @@ object JesBackend {
   // NOTE: Used in connection boilerplate. All of that could probably be made cleaner w/ generators or something
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(JesBackend.Scopes.asJava)
 
-  // Decoration around WorkflowDescriptor to generate bucket names and the like
-  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
-    def bucket = s"$CromwellExecutionBucket/${descriptor.name}/${descriptor.id.toString}"
-    def callDir(call: Call) = s"$bucket/call-${call.name}"
-  }
+
 
   // NOTE: Used for connection boilerplate, could probably be made cleaner
   lazy val GenomicsService = buildGenomics
@@ -63,8 +52,6 @@ object JesBackend {
   lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
 
-  val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
-
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
     where stdout.txt is input and output :) Redirect stdout/stderr to a different name, but it'll be localized back
@@ -72,6 +59,19 @@ object JesBackend {
    */
   val LocalStdout = "job.stdout.txt"
   val LocalStderr = "job.stderr.txt"
+
+  val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
+
+  def gsInputToLocal(gsPath: String): Path = {
+    // FIXME: What if it doesn't have a gs?
+    Paths.get(gsPath.replaceFirst("^gs:/", "/tmp"))
+  }
+
+  // Decoration around WorkflowDescriptor to generate bucket names and the like
+  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
+    def bucket = s"$CromwellExecutionBucket/${descriptor.name}/${descriptor.id.toString}"
+    def callDir(call: Call) = s"$bucket/call-${call.name}"
+  }
 
   // NOTE: Connection boilerplate
   def buildGenomics: Genomics = {
@@ -88,16 +88,56 @@ object JesBackend {
     val credential = new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
     new Genomics.Builder(httpTransport, jsonFactory, credential).setApplicationName(GoogleApplicationName).setRootUrl(GenomicsUrl.toString).build
   }
+
+  // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
+  def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
+    JesOutput(LocalStderr, s"$callGcsPath/stderr.txt", Paths.get("stderr.txt")),
+    JesOutput(LocalStdout, s"$callGcsPath/stdout.txt", Paths.get("stdout.txt"))
+  )
+
+  sealed trait JesParameter { // FIXME: Perhaps not the best name
+    def name: String
+    def gcs: String
+    def local: Path
+
+    final def isInput = this.isInstanceOf[JesInput]
+    final def isOutput = !isInput
+    // FIXME: Perhaps not the best name
+    final def toGoogleParamter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
+  }
+
+  final case class JesInput(name: String, gcs: String, local: Path) extends JesParameter
+  final case class JesOutput(name: String, gcs: String, local: Path) extends JesParameter
 }
-
 class JesBackend extends Backend with LazyLogging {
-  // FIXME: As of right now this isn't needed, but it probably will be as things get less hacky
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs
+  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = ???
 
-  // FIXME: Pass through for now, but perhaps not as time goes on
-  override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = {
-    // FIXME: No need to copy GCS inputs for the workflow we should be able to direclty reference them
-    workflow.actualInputs
+  // No need to copy GCS inputs for the workflow we should be able to direclty reference them
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
+
+  // FIXME: signature is weird
+  def localizeTaskOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
+    taskOutput.wdlType match {
+      case f: WdlFile =>
+        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
+          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.toRawString))))
+          case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
+        }
+      case _ => Success(None)
+    }
+  }
+
+  // FIXME: Signature is weird
+  def localizeTaskOutputs(taskOutputs: Seq[TaskOutput], callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Seq[JesOutput]] = {
+    val localizedOutputs = taskOutputs map {localizeTaskOutput(_, callGcsPath, scopedLookupFunction, engineFunctions)}
+    val localizationFailures = localizedOutputs filter {_.isFailure}
+    if (localizationFailures.isEmpty) {
+      Success(localizedOutputs.collect({case Success(x) => x}).flatten)
+    } else {
+      val failureMessages = TryUtil.stringifyFailures(localizationFailures)
+      Failure(new IllegalArgumentException(failureMessages.mkString("\n")))
+    }
+    // FIXME: filter failures, if any failures collate message. Else flatten that shit
   }
 
   override def executeCommand(commandLine: String,
@@ -105,28 +145,28 @@ class JesBackend extends Backend with LazyLogging {
                               call: Call,
                               backendInputs: CallInputs,
                               scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
-    val gcsPath = s"${workflowDescriptor.callDir(call)}"
+    val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
-    // FIXME: These are only used for that TemporaryEngineFunctions at the moment
-    val stdout = s"$gcsPath/stdout.txt"
-    val stderr = s"$gcsPath/stderr.txt"
+    val engineFunctions = new JesEngineFunctions(Paths.get("SOMETHING I MADE UP"))
 
-    // FIXME: Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
+    // FIXME: Not particularly robust at the moment
+    val jesInputs: Seq[JesParameter] = backendInputs.map({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, v.toRawString, Paths.get(backendInputs(k).toRawString))}).toSeq
+    val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
+    val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
+
+    // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
 
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, backendInputs, GoogleProject, GenomicsService).run.waitUntilComplete()
+    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsService).run.waitUntilComplete()
 
-    // FIXME: We don't have the possiblyAutoConvertedValue from LocalBackend, I think we need that?
-
-    // FIXME: This is *only* going to work w/ my hacked stdout/stderr above, see LocalBackend for more info
+    // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
     val outputMappings = call.task.outputs.map { taskOutput =>
-      val rawValue = taskOutput.expression.evaluate(
-        scopedLookupFunction,
-        new TemporaryEngineFunctions(gcsPath, stdout, stderr)
-      )
+      val rawValue = taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions)
       println(s"JesBackend setting ${taskOutput.name} to $rawValue")
       taskOutput.name -> rawValue
     }.toMap
+
+
 
     status match {
       case Run.Success(created, started, finished) =>

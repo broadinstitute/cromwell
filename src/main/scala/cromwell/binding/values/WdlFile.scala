@@ -1,21 +1,14 @@
 package cromwell.binding.values
 
-import java.nio.file.{Paths, Path}
-import cromwell.binding.types.WdlFileType
-
-object WdlFile {
-  def apply(value: String): WdlFile = WdlFile(Paths.get(value))
-}
-
 import scala.util.{Success, Try}
 
-case class WdlFile(value: Path) extends WdlFileLike {
+case class WdlFile(value: String) extends WdlFileLike {
 
   override def add(rhs: WdlValue): Try[WdlValue] = {
     rhs match {
       // The goofiness with the value.toStrings are because we want concatenation and not Path.resolve() logic
-      case r: WdlString => Success(WdlFile(Paths.get(value.toString, r.value)))
-      case r: WdlFile => Success(WdlFile(Paths.get(value.toString, r.value.toString)))
+      case r: WdlString => Success(WdlFile(value.toString + r.value))
+      case r: WdlFile => Success(WdlFile(value.toString + r.value.toString))
       case _ => invalid(s"$value + $rhs")
     }
   }

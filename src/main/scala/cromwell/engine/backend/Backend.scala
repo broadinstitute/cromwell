@@ -54,7 +54,7 @@ trait Backend {
   def executeCommand(commandLine: String, 
                      workflowDescriptor: WorkflowDescriptor, 
                      call: Call, 
-                     backendInputs: CallInputs, 
+                     backendInputs: CallInputs,
                      scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
 
   /**

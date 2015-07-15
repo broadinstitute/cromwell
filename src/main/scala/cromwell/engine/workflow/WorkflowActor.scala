@@ -182,7 +182,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   type CallAndInputs = (Call, Map[String, WdlValue])
   private def tryStartingRunnableCalls(): Try[Any] = {
 
-    def isRunnable(call: Call) = call.prerequisiteCalls().forall(executionStore.get(_).get == ExecutionStatus.Done)
+    def isRunnable(call: Call) = call.prerequisiteCalls(workflow.namespace).forall(executionStore.get(_).get == ExecutionStatus.Done)
     /**
      * Start all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,
      * i.e. the calls which should now be eligible to run.
@@ -216,7 +216,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   // FIXME FIXME FIXME this needs to be refactored but I don't understand it.
   def fetchLocallyQualifiedInputs(call: Call): Future[Map[String, WdlValue]] = {
-    val workflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
+    // FIXME: How the F did we get a Call for this Workflow that's doesn't have a Workflow parent?
+    // FIXME: See my FIXME in Call, this should be handled via sum types
+    val parentWorkflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
       throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent.")
     }
 
@@ -227,9 +229,15 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
 
     def lookup(identifierString: String): WdlValue = {
-      val namespaces = call.namespace.namespaces filter {_.namespace.contains(identifierString)}
+      // FIXME: As part of ongoing FIXME FIXME FIXME I believe the following does this:
+      // Find a namespace which has this identifier as it's `namespace` Option[String]
+      // Return that if there is one, else:
+      //    - find a call in the workflow named this OR exception
+      //    - create an object w/ the outputs of this
+
+      val namespaces = workflow.namespace.namespaces filter {_.importedAs.contains(identifierString)}
       namespaces.headOption.getOrElse {
-        val matchedCall = workflow.calls.find {_.name == identifierString}.getOrElse {
+        val matchedCall = parentWorkflow.calls.find {_.name == identifierString}.getOrElse {
           throw new WdlExpressionException(s"Expecting to find a call with name '$identifierString'")
         }
         val futureValue = fetchCallOutputEntries(matchedCall).map { entries =>
@@ -267,17 +275,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def createStore: Future[Map[Call, ExecutionStatus.Value]] = {
     dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
-      workflow.namespace.calls.map {call =>
+      workflow.namespace.workflow.calls.map {call =>
         call -> statuses.get(call.fullyQualifiedName).get}.toMap
     }
   }
 
-  private def buildSymbolStoreEntries(namespace: WdlNamespace, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
+  private def buildSymbolStoreEntries(namespace: NamespaceWithWorkflow, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
     val inputSymbols = inputs.map {case (name, value) => SymbolStoreEntry(name, value, input = true)}
 
     val callSymbols = for {
-      workflow <- namespace.workflows
-      call <- workflow.calls
+      call <- namespace.workflow.calls
       (k, v) <- call.inputMappings
     } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
 
@@ -290,7 +297,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
     val adjustedInputs = backend.initializeForWorkflow(workflow)
-    dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.calls, backend)
+    dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.workflow.calls, backend)
   }
 
   private def isWorkflowDone: Boolean = executionStore.forall(_._2 == ExecutionStatus.Done)

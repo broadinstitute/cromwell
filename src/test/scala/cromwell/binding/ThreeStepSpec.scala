@@ -6,36 +6,28 @@ import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class ThreeStepSpec extends FlatSpec with Matchers {
-  val namespace = WdlNamespace.load(SampleWdl.ThreeStep.wdlSource())
+  val namespace = NamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource())
 
-  "Binding Workflow" should "Have one workflow definition" in {
-    namespace.workflows.size shouldEqual 1
-  }
-  it should "Have zero imported workflow definition" in {
-    namespace.importedWorkflows.size shouldEqual 0
-  }
-  it should "Have correct name for workflow" in {
-    namespace.workflows.head.name shouldEqual "three_step"
+  "Binding Workflow" should "Have correct name for workflow" in {
+    namespace.workflow.name shouldEqual "three_step"
   }
   it should "Have correct FQN" in {
-    namespace.workflows.head.fullyQualifiedName shouldEqual "three_step"
+    namespace.workflow.fullyQualifiedName shouldEqual "three_step"
   }
   it should "Have no parent" in {
-    namespace.workflows.head.parent shouldEqual None
+    namespace.workflow.parent shouldEqual None
   }
   it should "Have three 'Call' objects" in {
-    namespace.workflows.head.calls.size shouldEqual 3
+    namespace.workflow.calls.size shouldEqual 3
   }
   it should "Have three outputs" in {
-    namespace.workflows.head.outputs.size shouldEqual 3
+    namespace.workflow.outputs.size shouldEqual 3
   }
 
   "Binding Tasks" should "Have three task definitions" in {
     namespace.tasks.size shouldEqual 3
   }
-  it should "Have zero imported tasks" in {
-    namespace.importedTasks.size shouldEqual 0
-  }
+
   it should "Have a task with name 'wc'" in {
     val task = namespace.findTask("wc") getOrElse fail("No 'wc' task found")
     task.name shouldEqual "wc"

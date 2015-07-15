@@ -18,18 +18,17 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
+  val Properties = System.getProperties
+  val LoggerProperty = "CROMWELL_LOGGER"
+  lazy val Log = LoggerFactory.getLogger("main")
 
-  val props = System.getProperties
-  val loggerProperty = "CROMWELL_LOGGER"
-  Option(props.getProperty(loggerProperty)) match {
+  Option(Properties.getProperty(LoggerProperty)) match {
     case None => args.headOption.map {_.capitalize}.find {_ == "SERVER"} match {
-      case Some(x) => props.setProperty(loggerProperty, "SERVER")
+      case Some(x) => Properties.setProperty(LoggerProperty, "SERVER")
       case _ =>
     }
     case _ =>
   }
-
-  lazy val log = LoggerFactory.getLogger("main")
 
   getAction(args.headOption map { _.capitalize }) match {
     case Some(x) if x == Actions.Validate => validate(args.tail)
@@ -62,7 +61,10 @@ object Main extends App {
     try {
       import cromwell.binding.types.WdlTypeJsonFormatter._
       val namespace = WdlNamespace.load(new File(args(0)))
-      println(namespace.workflows.head.inputs.toJson.prettyPrint)
+      namespace match {
+        case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
+        case _ => println("WDL does not have a local workflow")
+      }
     } catch {
       case e:SyntaxError => println(e)
     }
@@ -71,9 +73,9 @@ object Main extends App {
   def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
 
-    log.info(s"RUN sub-command")
-    log.info(s"  WDL file: ${args(0)}")
-    log.info(s"  Inputs: ${args(1)}")
+    Log.info(s"RUN sub-command")
+    Log.info(s"  WDL file: ${args(0)}")
+    Log.info(s"  Inputs: ${args(1)}")
 
     try {
       val wdlSource = FileUtil.slurp(Paths.get(args(0)))
@@ -85,7 +87,7 @@ object Main extends App {
         case _ => throw new RuntimeException("Expecting a JSON object")
       }
 
-      inputs foreach { case (k, v) => log.info(s"input: $k => $v") }
+      inputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
       workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
       workflowManagerSystem.actorSystem.awaitTermination()

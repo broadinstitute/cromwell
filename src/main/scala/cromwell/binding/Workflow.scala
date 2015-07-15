@@ -1,6 +1,14 @@
 package cromwell.binding
 
 import cromwell.binding.types.WdlType
+import cromwell.parser.WdlParser.{Terminal, Ast}
+
+object Workflow {
+  def apply(ast: Ast, calls: Seq[Call]): Workflow = {
+    val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
+    new Workflow(name, calls)
+  }
+}
 
 /**
  * Represents a `workflow` definition in WDL which currently
@@ -11,6 +19,8 @@ import cromwell.binding.types.WdlType
  * @param calls The set of `call` declarations
  */
 case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scope {
+  calls foreach {c => c.setParent(this)}
+
   /** Parent node for this workflow.  Since we do not support nested
     * workflows currently, this is always `None`
     */

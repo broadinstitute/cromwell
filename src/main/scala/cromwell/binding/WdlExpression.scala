@@ -67,7 +67,7 @@ object WdlExpression {
         }
         evaluate(a.getAttribute("lhs"), lookup, functions).map {
           case o: WdlObject => o.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs"))
-          case ns: WdlNamespace => lookup(ns.namespace.map {n => s"$n.$rhs"}.getOrElse(rhs))
+          case ns: WdlNamespace => lookup(ns.importedAs.map {n => s"$n.$rhs"}.getOrElse(rhs))
           case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
         }
       case a: Ast if a.getName == "FunctionCall" =>

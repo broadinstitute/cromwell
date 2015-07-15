@@ -27,8 +27,12 @@ package object binding {
   type CallOutputs = Map[FullyQualifiedName, WdlValue]
   type HostInputs = Map[String, WdlValue]
 
+  type ImportResolver = String => WdlSource
+
   /**
    * Provides a few convenience methods for specific runtime attribute keys which were defined in the WDL spec
+   *
+   * FIXME: If we made RuntimeAttributes into a proper class w/ the attr map as it's field we'd A: get better typing and B: Not need the implicit class
    */
   implicit class EnhancedRuntimeAttributes(val runtimeAttributes: RuntimeAttributes) extends AnyVal {
     def docker: Option[String] = attribute("docker")
@@ -40,8 +44,8 @@ package object binding {
   /**
    * Core data identifying a workflow including its unique ID, its namespace, and strongly typed inputs.
    */
-  case class WorkflowDescriptor(id: UUID, namespace: WdlNamespace, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
-    val name = namespace.workflows.head.name
+  case class WorkflowDescriptor(id: UUID, namespace: NamespaceWithWorkflow, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
+    val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)
   }
 }

@@ -17,6 +17,7 @@ object ThreeStepActorSpec {
 
 class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
   import ThreeStepActorSpec._
+
   "A three step workflow" should {
     "best get to (three) steppin'" in {
       runWdlAndAssertOutputs(

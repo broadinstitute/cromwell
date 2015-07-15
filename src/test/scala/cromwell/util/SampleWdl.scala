@@ -39,6 +39,25 @@ object SampleWdl {
     val OutputValue = "Hello world!\n"
   }
 
+  object HelloWorldWithoutWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task hello {
+        |  command {
+        |    echo "Hello ${addressee}!"
+        |  }
+        |  output {
+        |    String salutation = read_string(stdout())
+        |  }
+        |}
+      """.stripMargin
+
+    val Addressee = "hello.hello.addressee"
+    val rawInputs = Map(Addressee -> "world")
+    val OutputKey = "hello.hello.salutation"
+    val OutputValue = "Hello world!\n"
+  }
+
   object GoodbyeWorld extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """

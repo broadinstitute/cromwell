@@ -83,12 +83,13 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   import dataAccess.driver.api._
 
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
-  val database = Database.forConfig("", databaseConfig.withUniqueSchema)
+  private val configWithUniqueSchema = databaseConfig.withUniqueSchema
+  val database = Database.forConfig("", configWithUniqueSchema)
 
   // Possibly create the database
   {
     import SlickDataAccess._
-    log.info(s"Running with databaseConfig $databaseConfig.")
+    log.info(s"Running with databaseConfig $configWithUniqueSchema")
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
     //
     // Not really an issue, since externally run liquibase is standard way of installing / upgrading MySQL.

@@ -1,7 +1,7 @@
 package cromwell.engine.backend.jes
 
 import java.io.{FileInputStream, InputStreamReader, File}
-import java.net.{URI, URL}
+import java.net.URL
 import java.nio.file.{Path, Paths}
 
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
@@ -13,7 +13,6 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{Parameter, ServiceAccount}
-import com.sun.javaws.exceptions.InvalidArgumentException
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression._
@@ -24,6 +23,7 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.util.TryUtil
 import cromwell.util.GoogleCloudStoragePath
+import cromwell.binding.types.WdlFileType
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}
@@ -40,8 +40,6 @@ object JesBackend {
 
   // NOTE: Used in connection boilerplate. All of that could probably be made cleaner w/ generators or something
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(JesBackend.Scopes.asJava)
-
-
 
   // NOTE: Used for connection boilerplate, could probably be made cleaner
   lazy val GenomicsService = buildGenomics
@@ -66,11 +64,6 @@ object JesBackend {
 
   // SOME MIGHT BE WRONG
   val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
-
-  def gsInputToLocal(gsPath: String): Path = {
-    // FIXME: What if it doesn't have a gs?
-    Paths.get(gsPath.replaceFirst("^gs:/", "/tmp"))
-  }
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
@@ -158,7 +151,7 @@ class JesBackend extends Backend with LazyLogging {
   // FIXME: signature is weird
   def localizeTaskOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
     taskOutput.wdlType match {
-      case f: WdlFile =>
+      case WdlFileType =>
         taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
           case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.toRawString))))
           case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
@@ -167,7 +160,7 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  // FIXME: Signature is weird
+  // FIXME: Signature is weird. Also should rename to "collect" task outputs - they're being UNlocalised
   def localizeTaskOutputs(taskOutputs: Seq[TaskOutput], callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Seq[JesOutput]] = {
     val localizedOutputs = taskOutputs map {localizeTaskOutput(_, callGcsPath, scopedLookupFunction, engineFunctions)}
     val localizationFailures = localizedOutputs filter {_.isFailure}
@@ -188,8 +181,11 @@ class JesBackend extends Backend with LazyLogging {
 
     val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath(callGcsPath))
 
-    // FIXME: Not particularly robust at the moment. Also incorrect w.r.t GS paths
-    val jesInputs: Seq[JesParameter] = backendInputs.map({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).toRawString, Paths.get(v.toRawString))}).toSeq
+    // FIXME: Not particularly robust at the moment.
+    val jesInputs: Seq[JesParameter] = backendInputs.collect({
+      case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).toRawString, Paths.get(v.toRawString))
+
+    }).toSeq
     val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
 

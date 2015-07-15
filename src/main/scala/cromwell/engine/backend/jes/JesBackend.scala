@@ -58,8 +58,11 @@ object JesBackend {
     where stdout.txt is input and output :) Redirect stdout/stderr to a different name, but it'll be localized back
     in GCS as stdout/stderr. Yes, it's hacky.
    */
-  val LocalStdout = "job.stdout.txt"
-  val LocalStderr = "job.stderr.txt"
+  val LocalStdoutParamName = "job_stdout"
+  val LocalStderrParamName = "job_stderr"
+
+  val LocalStdoutValue = "job.stdout.txt"
+  val LocalStderrValue = "job.stderr.txt"
 
   // SOME MIGHT BE WRONG
   val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
@@ -95,8 +98,8 @@ object JesBackend {
 
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
-    JesOutput(LocalStderr, s"$callGcsPath/stderr.txt", Paths.get("stderr.txt")),
-    JesOutput(LocalStdout, s"$callGcsPath/stdout.txt", Paths.get("stdout.txt"))
+    JesOutput(LocalStderrParamName, s"$callGcsPath/stderr.txt", Paths.get(LocalStderrValue)),
+    JesOutput(LocalStdoutParamName, s"$callGcsPath/stdout.txt", Paths.get(LocalStdoutValue))
   )
 
   sealed trait JesParameter { // FIXME: Perhaps not the best name
@@ -134,12 +137,11 @@ class JesBackend extends Backend with LazyLogging {
    */
   def mapInputValue(fqn: String, wdlValue: WdlValue): (String, WdlValue) = {
     wdlValue match {
-      case WdlFile(path) => {
+      case WdlFile(path) =>
         GoogleCloudStoragePath.tryParse(path) match {
           case Success(gcsPath) => (fqn, WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString))
           case Failure(e) => (fqn, wdlValue)
         }
-      }
       case _ => (fqn, wdlValue)
     }
   }
@@ -184,15 +186,15 @@ class JesBackend extends Backend with LazyLogging {
                               scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
-    val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath("SOMETHING I MADE UP"))
+    val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath(callGcsPath))
 
-    // FIXME: Not particularly robust at the moment
-    val jesInputs: Seq[JesParameter] = backendInputs.map({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, v.toRawString, Paths.get(backendInputs(k).toRawString))}).toSeq
+    // FIXME: Not particularly robust at the moment. Also incorrect w.r.t GS paths
+    val jesInputs: Seq[JesParameter] = backendInputs.map({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).toRawString, Paths.get(v.toRawString))}).toSeq
     val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
 
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-    val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
+    val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
 
     val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsService).run.waitUntilComplete()
 
@@ -203,14 +205,12 @@ class JesBackend extends Backend with LazyLogging {
       taskOutput.name -> rawValue
     }.toMap
 
-
-
     status match {
       case Run.Success(created, started, finished) =>
         // FIXME: DRY cochise, this is C/P from LocalBackend
         val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
         if (taskOutputEvaluationFailures.isEmpty) {
-          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
+          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }
           Success(unwrappedMap)
         } else {
           val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")

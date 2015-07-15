@@ -122,7 +122,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       val futureOutputs = for {
         symbols <- dataAccess.getOutputs(workflow.id)
       } yield (symbols map symbolStoreEntryToMapEntry).toMap
-
       futureOutputs pipeTo sender
       stay()
     case Event(e, _) =>
@@ -219,10 +218,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  // FIXME FIXME FIXME this needs to be refactored but I don't understand it.
   def fetchLocallyQualifiedInputs(call: Call): Future[Map[String, WdlValue]] = {
-    // FIXME: How the F did we get a Call for this Workflow that's doesn't have a Workflow parent?
-    // FIXME: See my FIXME in Call, this should be handled via sum types
+    /* TODO: This assumes that each Call has a parent that's a Workflow, but with scatter-gather that might not be the case */
     val parentWorkflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
       throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent.")
     }
@@ -234,11 +231,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
 
     def lookup(identifierString: String): WdlValue = {
-      // FIXME: As part of ongoing FIXME FIXME FIXME I believe the following does this:
-      // Find a namespace which has this identifier as it's `namespace` Option[String]
-      // Return that if there is one, else:
-      //    - find a call in the workflow named this OR exception
-      //    - create an object w/ the outputs of this
+      /* Start by assuming the identifierString is a Namespace reference, and if it is return that reference.
+       * Otherwise, assume it's referencing a Call and return the value of that call as a WdlObject,
+       * which represents the outputs of the Call (WdlObject only returned if outputs are present)
+       */
 
       val namespaces = workflow.namespace.namespaces filter {_.importedAs.contains(identifierString)}
       namespaces.headOption.getOrElse {
@@ -308,6 +304,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def isWorkflowDone: Boolean = executionStore.forall(_._2 == ExecutionStatus.Done)
 
   private def symbolStoreEntryToMapEntry(e: SymbolStoreEntry): (String, WdlValue) = {
-     e.key.scope + "." + e.key.name -> e.wdlValue.get
+    e.key.scope + "." + e.key.name -> e.wdlValue.get
   }
 }

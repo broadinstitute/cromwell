@@ -2,7 +2,8 @@ package cromwell.binding
 
 import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlString, WdlInteger, WdlValue}
+import cromwell.binding.values.{WdlArray, WdlInteger, WdlString, WdlValue}
+import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
 class ParameterCommandPartSpec extends FlatSpec with Matchers {
@@ -47,6 +48,19 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
       fail("Expected an exception")
     } catch {
       case _: UnsupportedOperationException => // expected
+    }
+  }
+
+  it should "raise exception if a parameter has a * or + postfix quantifier but no 'sep' attribute set" in {
+    try {
+      WdlNamespace.load(
+        """task test {
+          |  command { ./script ${stuff*} }
+          |}
+        """.stripMargin)
+      fail("Expected an exception")
+    } catch {
+      case _: SyntaxError => // expected
     }
   }
 }

@@ -40,7 +40,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     for {
       singleArgument <- extractSingleArgument(params)
       string = fileContentsToString(singleArgument)
-    } yield WdlString(string)
+    } yield WdlString(string.stripSuffix("\n"))
   }
 
   /**

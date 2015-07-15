@@ -1,18 +1,19 @@
 package cromwell.binding.command
 
-import cromwell.binding.WdlExpression
+import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.{WdlArray, WdlString, WdlPrimitive, WdlValue}
-import cromwell.parser.WdlParser.{AstList, Terminal, Ast}
-import cromwell.parser.AstTools.EnhancedAstNode
+import cromwell.binding.values.{WdlArray, WdlPrimitive, WdlString, WdlValue}
+import cromwell.binding.{AstTools, WdlExpression, WdlSyntaxErrorFormatter}
+import cromwell.parser.WdlParser.{Ast, AstList, SyntaxError, Terminal}
+
 import scala.collection.JavaConverters._
 
 object ParameterCommandPart {
   val PostfixQuantifiersThatAcceptArrays = Set("+", "*")
   val OptionalPostfixQuantifiers = Set("?", "*")
 
-  def apply(ast: Ast): ParameterCommandPart = {
-    val wdlType = ast.getAttribute("type").wdlType
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): ParameterCommandPart = {
+    val wdlType = ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter)
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val prefix = Option(ast.getAttribute("prefix")) map { case t:Terminal => t.sourceString() }
     val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.map { a =>
@@ -22,6 +23,10 @@ object ParameterCommandPart {
     val postfixQuantifier = ast.getAttribute("postfix") match {
       case t:Terminal => Some(t.sourceString())
       case _ => None
+    }
+    postfixQuantifier.foreach {quantifier =>
+      if (PostfixQuantifiersThatAcceptArrays.contains(quantifier) && !attributes.contains("sep"))
+        throw new SyntaxError(wdlSyntaxErrorFormatter.postfixQualifierRequiresSeparator(ast.getAttribute("postfix").asInstanceOf[Terminal]))
     }
     new ParameterCommandPart(wdlType, name, prefix, attributes, postfixQuantifier)
   }
@@ -70,11 +75,11 @@ case class ParameterCommandPart(wdlType: WdlType, name: String,
      * turned into strings, but a more sophisticated solution will be
      * needed for compound types */
     paramValueEvaluated match {
-      case param:WdlPrimitive => s"${prefix.getOrElse("")}${param.toWdlString}"
+      case param:WdlPrimitive => s"${prefix.getOrElse("")}${param.valueString}"
       case arr:WdlArray =>
         postfixQuantifier match {
           case Some(x) if ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(x) && attributes.contains("sep") =>
-            val concatValue = arr.value.map {_.toWdlString}.mkString(attributes.get("sep").head)
+            val concatValue = arr.value.map {_.valueString}.mkString(attributes.get("sep").head)
             s"${prefix.getOrElse("")}$concatValue"
           case _ => throw new UnsupportedOperationException()
         }

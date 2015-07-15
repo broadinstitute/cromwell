@@ -2,7 +2,7 @@ package cromwell.binding.command
 
 import java.util.regex.Pattern
 
-import cromwell.binding.{CallInputs, TaskInput}
+import cromwell.binding.{WdlSyntaxErrorFormatter, CallInputs, TaskInput}
 import cromwell.binding.types.WdlArrayType
 import cromwell.parser.WdlParser.{Ast, AstList, Terminal}
 
@@ -11,10 +11,10 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 object Command {
-  def apply(ast: Ast): Command = {
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Command = {
     val parts = ast.getAttribute("parts").asInstanceOf[AstList].asScala.toVector.map {
       case x: Terminal => new StringCommandPart(x.getSourceString)
-      case x: Ast => ParameterCommandPart(x)
+      case x: Ast => ParameterCommandPart(x, wdlSyntaxErrorFormatter)
     }
 
     new Command(parts)

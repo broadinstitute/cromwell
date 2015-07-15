@@ -159,7 +159,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         symbol.key.iteration.getOrElse(IterationNone),
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(_.toRawString))
+        symbol.wdlValue.map(_.toWdlString))
     }
   }
 
@@ -373,7 +373,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         new SymbolStoreEntry(
           symbolStoreKey,
           wdlType,
-          symbolResult.wdlValue.map(wdlType.fromRawString))
+          symbolResult.wdlValue.map(wdlType.fromWdlString))
       }
 
     } yield symbolStoreEntries
@@ -395,7 +395,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
             IterationNone,
             IoOutput,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValue.toRawString))
+            Option(wdlValue.toWdlString))
       }
     } yield ()
 

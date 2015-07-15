@@ -13,9 +13,9 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec("OptionalParamWorkfl
         sampleWdl = SampleWdl.OptionalParamWorkflow,
         EventFilter.info(pattern = s"starting calls: optional.hello, optional.hello2, optional.hello_person", occurrences = 1),
         expectedOutputs = Map(
-          "optional.hello.greeting" -> WdlString("hello john\n"),
-          "optional.hello2.greeting" -> WdlString("hello \n"),
-          "optional.hello_person.greeting" -> WdlString("hello world\n")
+          "optional.hello.greeting" -> WdlString("hello john"),
+          "optional.hello2.greeting" -> WdlString("hello "),
+          "optional.hello_person.greeting" -> WdlString("hello world")
         )
       )
     }

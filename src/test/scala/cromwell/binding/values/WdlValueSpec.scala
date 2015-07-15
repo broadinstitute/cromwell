@@ -17,8 +17,8 @@ class WdlValueSpec extends FlatSpec with Matchers {
     ("wdlValue", "rawString"),
     (WdlBoolean.False, "false"),
     (WdlBoolean.True, "true"),
-    (WdlFile(Paths.get("hello/world/path")), "hello/world/path"),
-    (WdlFile("hello/world/string"), "hello/world/string"),
+    (WdlFile(Paths.get("hello/world/path")), "\"hello/world/path\""),
+    (WdlFile("hello/world/string"), "\"hello/world/string\""),
     (WdlFloat(0.0), "0.0"),
     (WdlFloat(-0.0), "-0.0"),
     (WdlFloat(Double.PositiveInfinity), "Infinity"),
@@ -26,18 +26,18 @@ class WdlValueSpec extends FlatSpec with Matchers {
     (WdlInteger(0), "0"),
     (WdlInteger(Int.MaxValue), "2147483647"),
     (WdlInteger(Int.MinValue), "-2147483648"),
-    (WdlString(""), ""),
-    (WdlString("test\\'/string"), "test\\'/string"))
+    (WdlString(""), "\"\""),
+    (WdlString("test\\'/string"), "\"test\\'/string\""))
 
   forAll(wdlValueRawStrings) { (wdlValue, rawString) =>
-    it should s"exactly convert a ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val toRawString = wdlValue.toRawString
-      toRawString should be(rawString)
+    it should s"exactly convert a ${wdlValue.typeName} to/from WDL source '$rawString'" in {
+      val valueAsWdlSource = wdlValue.toWdlString
+      valueAsWdlSource should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val fromRawString = wdlType.fromRawString(toRawString)
-      fromRawString should be(wdlValue)
-      fromRawString.wdlType should be(wdlType)
+      val wdlSourceAsValue = wdlType.fromWdlString(valueAsWdlSource)
+      wdlSourceAsValue should be(wdlValue)
+      wdlSourceAsValue.wdlType should be(wdlType)
     }
   }
 
@@ -50,16 +50,16 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(wdlFloatSpecials) { (wdlValue, rawString, validateFloat) =>
     it should s"convert a special ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val toRawString = wdlValue.toRawString
-      toRawString should be(rawString)
+      val valueAsWdlString = wdlValue.toWdlString
+      valueAsWdlString should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val fromRawString = wdlType.fromRawString(toRawString)
+      val wdlStringAsValue = wdlType.fromWdlString(valueAsWdlString)
       // Test that this is a special conversion, and is not
       // expected to be equal after a round-trip conversion.
-      fromRawString shouldNot be(wdlValue)
-      validateFloat(fromRawString.value) should be(right = true)
-      fromRawString.wdlType should be(wdlType)
+      wdlStringAsValue shouldNot be(wdlValue)
+      validateFloat(wdlStringAsValue.value) should be(right = true)
+      wdlStringAsValue.wdlType should be(wdlType)
     }
   }
 
@@ -77,14 +77,14 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(wdlExpressionRawStrings) { (wdlValue, rawString) =>
     it should s"resemble a ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val toRawString = wdlValue.toRawString
-      toRawString should be(rawString)
+      val valueAsWdlString = wdlValue.toWdlString
+      valueAsWdlString should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val fromRawString = wdlType.fromRawString(toRawString)
-      fromRawString shouldNot be(wdlValue)
-      fromRawString.toWdlString should be(wdlValue.toWdlString)
-      fromRawString.wdlType should be(wdlType)
+      val wdlStringAsValue = wdlType.fromWdlString(valueAsWdlString)
+      wdlStringAsValue shouldNot be(wdlValue)
+      wdlStringAsValue.toWdlString should be(wdlValue.toWdlString)
+      wdlStringAsValue.wdlType should be(wdlType)
     }
   }
 
@@ -95,9 +95,9 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(notImplementRawString) { wdlValue =>
     it should s"not implement a ${wdlValue.typeName} raw string" in {
-      a [NotImplementedError] should be thrownBy wdlValue.toRawString
+      a [NotImplementedError] should be thrownBy wdlValue.toWdlString
       val wdlType = wdlValue.wdlType
-      a [NotImplementedError] should be thrownBy wdlType.fromRawString("")
+      a [NotImplementedError] should be thrownBy wdlType.fromWdlString("")
     }
   }
 }

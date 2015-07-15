@@ -26,7 +26,18 @@ trait WdlValue {
   def not: Try[WdlValue] = invalid(s"!$this")
   def unaryPlus: Try[WdlValue] = invalid(s"+$this")
   def unaryMinus: Try[WdlValue] = invalid(s"-$this")
-  def toRawString: String = toWdlString
   def typeName: String = wdlType.getClass.getSimpleName
-  def toWdlString: String
+
+  /* This emits valid WDL source.  WdlString("foobar") -> "foobar" (quotes included) */
+  def toWdlString: String = ???
+
+  /* This emits the value as a string.  In other words, the String value that
+   * would be inserted into the command line.
+   *
+   * WdlString("foobar") -> foobar
+   *
+   * toWdlString is a good approximate implementation, though not sufficient
+   * for types like WdlString where extra syntax is added on
+   */
+  def valueString: String = toWdlString
 }

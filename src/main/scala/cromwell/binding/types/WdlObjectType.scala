@@ -5,5 +5,5 @@ case object WdlObjectType extends WdlType {
 
   override protected def coercion = ???
 
-  override def fromRawString(rawString: String) = ???
+  override def fromWdlString(rawString: String) = ???
 }

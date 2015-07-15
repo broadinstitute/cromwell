@@ -11,5 +11,5 @@ case object WdlIntegerType extends WdlPrimitiveType {
     case n: JsNumber => WdlInteger(n.value.intValue())
   }
 
-  override def fromRawString(rawString: String) = WdlInteger(rawString.toInt)
+  override def fromWdlString(rawString: String) = WdlInteger(rawString.toInt)
 }

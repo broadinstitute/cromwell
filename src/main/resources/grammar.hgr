@@ -41,12 +41,12 @@ grammar {
 
     # TODO: these should probably be partials...
     enum {
-      python: r'"([^\"]+)"'
-      java: "\"([^\"]+)\""
+      python: r'"([^\"]*)"'
+      java: "\"([^\"]*)\""
     } -> :string[1]
     enum {
-      python: r'\'([^\']+)\''
-      java: "'([^']+)'"
+      python: r'\'([^\']*)\''
+      java: "'([^']*)'"
     } -> :string[1]
 
     r':' -> :colon

@@ -9,5 +9,5 @@ case object WdlExpressionType extends WdlType {
     case s: String if s.startsWith("%expr:") => WdlExpression.fromString(s.replace("%expr:", ""))
   }
 
-  override def fromRawString(rawString: String) = WdlExpression.fromString(rawString)
+  override def fromWdlString(rawString: String) = WdlExpression.fromString(rawString)
 }

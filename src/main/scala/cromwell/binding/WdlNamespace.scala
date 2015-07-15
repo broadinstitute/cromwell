@@ -5,10 +5,10 @@ import java.io.File
 import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types._
 import cromwell.binding.values.{WdlArray, WdlValue}
-import cromwell.parser.{AstTools, WdlParser}
+import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
-import cromwell.parser.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
+import AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
@@ -30,9 +30,6 @@ sealed trait WdlNamespace extends WdlValue {
 
   // Convenience method for findTask in the context of this namespace
   def findTask(name: String): Option[Task] = WdlNamespace.findTask(name, namespaces, tasks)
-
-  override def toRawString = ???
-  override def toWdlString = ???
 }
 
 /**

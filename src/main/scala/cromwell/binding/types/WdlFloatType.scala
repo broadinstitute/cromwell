@@ -11,5 +11,5 @@ case object WdlFloatType extends WdlPrimitiveType {
     case n: JsNumber => WdlFloat(n.value.doubleValue())
   }
 
-  override def fromRawString(rawString: String) = WdlFloat(rawString.toFloat)
+  override def fromWdlString(rawString: String) = WdlFloat(rawString.toFloat)
 }

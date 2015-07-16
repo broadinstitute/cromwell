@@ -21,15 +21,6 @@ trait EngineFunctions extends WdlFunctions {
     else params.head
   }
 
-  /**
-   * Extract a single `WdlValue` from the specified `Seq`, returning `Failure` if the parameters
-   * represent something other than a single `WdlValue`.
-   */
-  protected def extractSingleArgument(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
-    if (params.length != 1) Failure(new UnsupportedOperationException("Expected one argument, got " + params.length))
-    else params.head
-  }
-
   def getFunction(name: String): WdlFunction = {
     name match {
       case "read_lines" => read_lines

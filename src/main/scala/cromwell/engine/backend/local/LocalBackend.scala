@@ -40,11 +40,12 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 class LocalBackend extends Backend with LazyLogging {
+
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+  override def executeCommand(instantiatedCommandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     import LocalBackend._
 
     val hostCallDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
@@ -61,7 +62,7 @@ class LocalBackend extends Backend with LazyLogging {
     val callDirectory = Paths.get(parentPath, s"call-${call.name}")
     commandWriter.writeWithNewline(s"cd $callDirectory")
 
-    commandWriter.writeWithNewline(commandLine)
+    commandWriter.writeWithNewline(instantiatedCommandLine)
     commandWriter.flushAndClose()
 
     def buildDockerRunCommand(image: String): String =
@@ -89,10 +90,16 @@ class LocalBackend extends Backend with LazyLogging {
 
     val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
 
-    if (rc == 0) {
-      evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction)
+    val stderrFileLength = new File(stderrFile.toString).length
+
+    if(call.failOnStderr && stderrFileLength > 0) {
+      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
     } else {
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $commandLine"))
+      if (rc == 0) {
+        evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction)
+      } else {
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine"))
+      }
     }
   }
 

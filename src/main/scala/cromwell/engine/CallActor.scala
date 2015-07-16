@@ -43,7 +43,7 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
    *   <li>If the above completes successfully, messages the sender with `Started`,
    *   otherwise messages `Failed`.</li>
    *   <li>Executes the command with these inputs.</li>
-   *   <li>Collects outputs in a `Map[String, Try[WdlValue]]`.</li>
+   *   <li>Collects outputs in a `Try[Map[String, WdlValue]]`.</li>
    *   <li>If there are no `Failure`s among the outputs, messages the parent actor
    *   with `Completed`, otherwise messages `Failed`.</li>
    * </ol>

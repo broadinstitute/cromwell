@@ -138,4 +138,9 @@ case class Call(alias: Option[String],
    * Return the docker configuration value associated with this `Call`, if any.
    */
   def docker: Option[String] = task.runtimeAttributes.docker
+
+  /**
+   * Whether the call should be considered to have failed if any stderr is generated.
+   */
+  def failOnStderr: Boolean = task.runtimeAttributes.failOnStderr
 }

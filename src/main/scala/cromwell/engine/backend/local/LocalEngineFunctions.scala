@@ -6,7 +6,6 @@ import cromwell.util.FileUtil
 
 import scala.util.{Success, Failure, Try}
 
-
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
 
   /**

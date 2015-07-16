@@ -35,10 +35,12 @@ package object binding {
    * FIXME: If we made RuntimeAttributes into a proper class w/ the attr map as it's field we'd A: get better typing and B: Not need the implicit class
    */
   implicit class EnhancedRuntimeAttributes(val runtimeAttributes: RuntimeAttributes) extends AnyVal {
+    def attribute(attr: String): Option[String] = runtimeAttributes.get(attr)
+
     def docker: Option[String] = attribute("docker")
+    def failOnStderr: Boolean = attribute("failOnStderr") exists { _.equalsIgnoreCase("true") }
     def memory: Option[String] = attribute("memory")
     def serialize: Option[String] = attribute("serialize")
-    def attribute(attr: String): Option[String] = runtimeAttributes.get(attr)
   }
 
   /**

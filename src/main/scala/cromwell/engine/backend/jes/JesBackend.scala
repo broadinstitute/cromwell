@@ -26,7 +26,7 @@ object JesBackend {
   val CromwellExecutionBucket = "gs://cromwell-dev/cromwell-executions"
 
   lazy val GoogleProject = JesConf.getString("project")
-  lazy val JesConnection = JesConnection(GoogleApplicationName,JacksonFactory.getDefaultInstance, GoogleNetHttpTransport.newTrustedTransport )
+  lazy val JesInterface = JesConnection(GoogleApplicationName,JacksonFactory.getDefaultInstance, GoogleNetHttpTransport.newTrustedTransport )
 
   // FIXME: If this is still here after setting up the service acct and if it doesn't need to be, move to Run
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
@@ -132,7 +132,7 @@ class JesBackend extends Backend with LazyLogging {
                               scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
-    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
+    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesInterface)
 
     // FIXME: Not particularly robust at the moment.
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
@@ -145,7 +145,7 @@ class JesBackend extends Backend with LazyLogging {
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
 
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsInterface).run.waitUntilComplete()
+    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesInterface).run.waitUntilComplete()
 
     // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
     val outputMappings = call.task.outputs.map { taskOutput =>

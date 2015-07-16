@@ -4,7 +4,6 @@ import java.nio.file.Path
 
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
-import cromwell.util.GcsUtil
 import cromwell.util.google.GoogleCloudStoragePath
 
 import scala.util.{Success, Try}
@@ -23,7 +22,7 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => GcsUtil.slurp(GoogleCloudStoragePath(f.value), secretsFile)
+      case f: WdlFile => jesConnection.storage.slurpFile(GoogleCloudStoragePath("FIXMEBUCKET", f.value)) // FIXME
       case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
     }
   }
@@ -55,8 +54,8 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
   }
 }
 
-object JesEngineFunctions {
-  def apply(secretsFile: Path, callDir: String): JesEngineFunctions = {
-    JesEngineFunctions(secretsFile, GoogleCloudStoragePath(callDir))
-  }
-}
+//object JesEngineFunctions {
+//  def apply(secretsFile: Path, callDir: String): JesEngineFunctions = {
+//    JesEngineFunctions(secretsFile, GoogleCloudStoragePath(callDir))
+//  }
+//}

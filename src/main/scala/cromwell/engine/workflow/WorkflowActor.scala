@@ -39,7 +39,8 @@ object WorkflowActor {
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 
   val DatabaseTimeout = 5 seconds
-  // FIXME: I removed a type alias for Execution Store (  type ExecutionStore = Map[Call, ExecutionStatus.Value])
+
+  type ExecutionStore = Map[Call, ExecutionStatus.Value]
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor,

@@ -12,9 +12,6 @@ import scala.util.{Try, Success}
  * Specification for the JES Engine Functions
  */
 class JesEngineFunctionsSpec extends FlatSpec with Matchers{
-
-  val secretsFileLocation: Path = Paths.get("/Users/chrisl/client_secrets.json")
-
   final val BUCKET_NAME = "chrisl-dsde-dev"
 
   final val INT_FILE = "intfile"
@@ -43,15 +40,15 @@ class JesEngineFunctionsSpec extends FlatSpec with Matchers{
                                      |Rest.
                                      |""".stripMargin
 
-  "JES Engine Functions" should "read strings correctly" in {
-    val readString = JesEngineFunctions(secretsFileLocation, "gs://a/a").getFunction("read_string")
-    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, STRING_FILE).toString))
-    readString(Seq(gcsPathTry)) shouldEqual Success(WdlString(STRING_FILE_CONTENTS))
-  }
-
-  "JES Engine Functions" should " read ints correctly" in {
-    val readString = JesEngineFunctions(secretsFileLocation, "gs://a/a").getFunction("read_int")
-    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, INT_FILE).toString))
-    readString(Seq(gcsPathTry)) shouldEqual Success(WdlInteger(INT_FILE_VALUE))
-  }
+//  "JES Engine Functions" should "read strings correctly" in {
+//    val readString = JesEngineFunctions("gs://a/a").getFunction("read_string")
+//    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, STRING_FILE).toString))
+//    readString(Seq(gcsPathTry)) shouldEqual Success(WdlString(STRING_FILE_CONTENTS))
+//  }
+//
+//  "JES Engine Functions" should " read ints correctly" in {
+//    val readString = JesEngineFunctions("gs://a/a").getFunction("read_int")
+//    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, INT_FILE).toString))
+//    readString(Seq(gcsPathTry)) shouldEqual Success(WdlInteger(INT_FILE_VALUE))
+//  }
 }

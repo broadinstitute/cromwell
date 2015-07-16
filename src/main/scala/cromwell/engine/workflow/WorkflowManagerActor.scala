@@ -6,7 +6,7 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
-import cromwell.binding
+import cromwell.{Main, binding}
 import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.Backend
@@ -85,7 +85,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource))
       coercedInputs <- Future.fromTry(eventualNamespace.coerceRawInputs(inputs))
       descriptor = new WorkflowDescriptor(workflowId, eventualNamespace, wdlSource, wdlJson, coercedInputs)
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, Backend.Backend, dataAccess))
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
       val isRestart = maybeWorkflowId.isDefined
@@ -142,7 +142,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     val result = for {
       workflowInfos <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
       restartableWorkflows = buildRestartableWorkflows(workflowInfos)
-      _ <- Backend.Backend.handleCallRestarts(restartableWorkflows, dataAccess)
+      _ <- backend.handleCallRestarts(restartableWorkflows, dataAccess)
     } yield {
         val num = restartableWorkflows.length
         val (displayNum, plural) = pluralize(num)

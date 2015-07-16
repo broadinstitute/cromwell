@@ -10,7 +10,7 @@ import JesBackend._
 
 
 object Pipeline {
-  def apply(command: String, workflow: WorkflowDescriptor, call: Call, jesParameters: Seq[JesParameter], projectId: String, genomicsService: Genomics): Pipeline = {
+  def apply(command: String, workflow: WorkflowDescriptor, call: Call, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesConnection): Pipeline = {
     println(s"Command line is $command")
     val runtimeInfo = JesRuntimeInfo(command, call)
 
@@ -25,9 +25,9 @@ object Pipeline {
     cpr.setParameters(jesParameters.map(_.toGoogleParamter).toVector.asJava)
 
     println(s"Pipeline parameters are ${cpr.getParameters}")
-    val pipelineId = genomicsService.pipelines().create(cpr).execute().getPipelineId
+    val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
     println(s"Pipeline ID is $pipelineId")
-    new Pipeline(command, pipelineId, projectId, gcsPath, call, jesParameters, genomicsService)
+    new Pipeline(command, pipelineId, projectId, gcsPath, call, jesParameters, jesConnection.genomics)
   }
 }
 

@@ -141,14 +141,15 @@ class LocalBackend extends Backend with LazyLogging {
     def stageInput(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
       val (name, value) = nameAndValue
       val hostPathAdjustedValue = value match {
-        case WdlFile(originalPath) =>
-          val executionPath = Paths.get(hostInputsPath.toFile.getAbsolutePath, originalPath.getFileName.toString)
+        case WdlFile(p) =>
+          val originalPath = Paths.get(p)
+          val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
           if (Files.isDirectory(originalPath)) {
             FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
           } else {
             FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
           }
-          WdlFile(executionPath)
+          WdlFile(executionPath.toString)
         case x => x
       }
       name -> hostPathAdjustedValue

@@ -53,7 +53,7 @@ case class GoogleCloudStorage(client: Storage) {
     outputStream.toByteArray
   }
 
-  def slurpFile(file: GoogleCloudStoragePath, clientSecretsFile: Path): String = {
+  def slurpFile(file: GoogleCloudStoragePath): String = {
     new String(downloadObject(file), "UTF-8")
   }
 }

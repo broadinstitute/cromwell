@@ -14,7 +14,7 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.util.TryUtil
 import cromwell.binding.types.WdlFileType
-import cromwell.util.google.{GoogleScopes, GoogleGenomics, GoogleCloudStoragePath}
+import cromwell.util.google.{GoogleScopes, GoogleCloudStoragePath}
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}

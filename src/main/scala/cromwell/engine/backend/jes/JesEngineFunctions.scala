@@ -22,7 +22,7 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => jesConnection.storage.slurpFile(GoogleCloudStoragePath("FIXMEBUCKET", f.value)) // FIXME
+      case f: WdlFile => jesConnection.storage.slurpFile(GoogleCloudStoragePath(f.value))
       case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
     }
   }
@@ -45,17 +45,11 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
     val newPath = GoogleCloudStoragePath(callDir.bucket, callDir.objectName + "/stdout.txt")
-    Success(WdlFile(newPath.toString))
+    Success(WdlFile(newPath.toString()))
   }
 
   override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
     val newPath = GoogleCloudStoragePath(callDir.bucket, callDir.objectName + "/stderr.txt")
-    Success(WdlFile(newPath.toString))
+    Success(WdlFile(newPath.toString()))
   }
 }
-
-//object JesEngineFunctions {
-//  def apply(secretsFile: Path, callDir: String): JesEngineFunctions = {
-//    JesEngineFunctions(secretsFile, GoogleCloudStoragePath(callDir))
-//  }
-//}

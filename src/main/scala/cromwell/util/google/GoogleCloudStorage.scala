@@ -6,13 +6,18 @@ import java.nio.file.Path
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.http.{HttpTransport, InputStreamContent}
 import com.google.api.client.json.JsonFactory
+import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket
+import com.google.api.services.storage.model.Bucket.Owner
+import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
 
 object GoogleCloudStorage {
   def apply(appName: String, credential: Credential, jsonFactory: JsonFactory, httpTransport: HttpTransport): GoogleCloudStorage = {
     GoogleCloudStorage(new Storage.Builder(httpTransport, jsonFactory, credential).setApplicationName(appName).build())
   }
+
+  case class GcsBucketInfo(bucketName: String, location: String, timeCreated: DateTime, owner: Owner)
 }
 
 /**

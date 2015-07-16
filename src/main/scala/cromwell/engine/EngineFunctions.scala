@@ -30,4 +30,11 @@ trait EngineFunctions extends WdlFunctions {
       case "stderr" => stderr
     }
   }
+
+  /**
+   * All functions which can be evaluated *before* any operation is actually run.
+   */
+  def functionsEvaluableBeforeRun(): Seq[WdlFunction] = {
+    Seq(stdout, stderr)
+  }
 }

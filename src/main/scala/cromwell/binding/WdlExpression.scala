@@ -26,13 +26,12 @@ object WdlExpression {
 
   val unaryOperators = Set("LogicalNot", "UnaryPlus", "UnaryNegation")
 
-  /*
-  @annotation.tailrec
-  def evaluableFiles(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions, functionCallDepth: Int): Try[Seq[WdlFile]] = {
+  //@annotation.tailrec
+  def anonFiles(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] = {
     case t: Terminal =>  ???
 
     ???
-  }*/
+  }
 
   def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions): Try[WdlValue] = {
     ast match {
@@ -137,8 +136,8 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   override val wdlType = WdlExpressionType
   def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[WdlValue] =
     WdlExpression.evaluate(ast, lookup, functions)
-//  def evaluableFiles(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] =
-//    WdlExpression.evaluableFiles(ast, lookup, functions)
+  def anonFiles(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] =
+    WdlExpression.anonFiles(ast, lookup: ScopedLookupFunction, functions: WdlFunctions)
   def toString(highlighter: SyntaxHighlighter): String = {
     WdlExpression.toString(ast, highlighter)
   }

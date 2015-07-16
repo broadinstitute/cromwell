@@ -50,11 +50,11 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(wdlFloatSpecials) { (wdlValue, rawString, validateFloat) =>
     it should s"convert a special ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val toRawString = wdlValue.toRawString
+      val toRawString = wdlValue.toWdlString
       toRawString should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val fromRawString = wdlType.fromRawString(toRawString)
+      val fromRawString = wdlType.fromWdlString(toRawString)
       // Test that this is a special conversion, and is not
       // expected to be equal after a round-trip conversion.
       fromRawString shouldNot be(wdlValue)
@@ -77,11 +77,11 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(wdlExpressionRawStrings) { (wdlValue, rawString) =>
     it should s"resemble a ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val toRawString = wdlValue.toRawString
+      val toRawString = wdlValue.toWdlString
       toRawString should be(rawString)
 
       val wdlType = wdlValue.wdlType
-      val fromRawString = wdlType.fromRawString(toRawString)
+      val fromRawString = wdlType.fromWdlString(toRawString)
       fromRawString shouldNot be(wdlValue)
       fromRawString.toWdlString should be(wdlValue.toWdlString)
       fromRawString.wdlType should be(wdlType)
@@ -95,9 +95,9 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   forAll(notImplementRawString) { wdlValue =>
     it should s"not implement a ${wdlValue.typeName} raw string" in {
-      a [NotImplementedError] should be thrownBy wdlValue.toRawString
+      a [NotImplementedError] should be thrownBy wdlValue.toWdlString
       val wdlType = wdlValue.wdlType
-      a [NotImplementedError] should be thrownBy wdlType.fromRawString("")
+      a [NotImplementedError] should be thrownBy wdlType.fromWdlString("")
     }
   }
 }

@@ -18,7 +18,7 @@ object RunMysql {
       key => if (config.hasPath(key)) config.getString(key) else ""
     }
 
-    val connectionString = s"$url?user=$user&password=$password"
+    val connectionString = s"$url?useSSL=true&user=$user&password=$password"
     println(s"Testing connection '$connectionString'")
     val connection = DriverManager.getConnection(connectionString)
     println("Connection valid? " + connection.isValid(5))

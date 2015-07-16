@@ -10,7 +10,7 @@ import JesBackend._
 
 
 object Pipeline {
-  def apply(command: String, workflow: WorkflowDescriptor, call: Call, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesConnection): Pipeline = {
+  def apply(command: String, workflow: WorkflowDescriptor, call: Call, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {
     println(s"Command line is $command")
     val runtimeInfo = JesRuntimeInfo(command, call)
 

@@ -11,7 +11,7 @@ import scala.util.{Success, Try}
 /**
  * Implementation of engine functions for the JES backend.
  */
-case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: JesConnection) extends EngineFunctions {
+case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: JesInterface) extends EngineFunctions {
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
    * specified either as a path via a `WdlString` (with magical handling of "stdout"), or

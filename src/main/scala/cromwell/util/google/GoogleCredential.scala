@@ -10,6 +10,7 @@ import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromp
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
+import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.ConfigFactory
 import scala.collection.JavaConverters._
 
@@ -20,6 +21,14 @@ object GoogleCredential {
   lazy val GoogleSecrets = Paths.get(GoogleConf.getString("secretsFile"))
   lazy val GoogleUser = GoogleConf.getString("user")
 
+  val Scopes = Vector(
+    "https://www.googleapis.com/auth/genomics",
+    "https://www.googleapis.com/auth/devstorage.full_control",
+    "https://www.googleapis.com/auth/devstorage.read_write",
+    "https://www.googleapis.com/auth/compute",
+    StorageScopes.DEVSTORAGE_READ_WRITE
+  )
+
   def from(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
     val secretStream = new InputStreamReader(new FileInputStream(GoogleSecrets.toFile))
     val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)
@@ -28,7 +37,7 @@ object GoogleCredential {
     val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
       jsonFactory,
       clientSecrets,
-      GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
+      Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
     new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
   }
 }

@@ -1,17 +1,8 @@
 package cromwell.engine.backend.jes
 
-import java.io.{FileInputStream, InputStreamReader, File}
-import java.net.URL
 import java.nio.file.{Path, Paths}
-
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
-import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.api.client.util.store.FileDataStoreFactory
-import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{Parameter, ServiceAccount}
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
@@ -22,74 +13,36 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.util.TryUtil
-import cromwell.util.GoogleCloudStoragePath
 import cromwell.binding.types.WdlFileType
+import cromwell.util.google.{GoogleScopes, GoogleGenomics, GoogleCloudStoragePath}
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 import JesBackend._
 
 object JesBackend {
-  // FIXME: WTF is this thing? It's for the connection boilerplate
-  val Scopes = Vector( // FIXME: Should be in package object? I believe so
-    "https://www.googleapis.com/auth/genomics",
-    "https://www.googleapis.com/auth/devstorage.full_control",
-    "https://www.googleapis.com/auth/devstorage.read_write",
-    "https://www.googleapis.com/auth/compute"
-  )
-
-  // NOTE: Used in connection boilerplate. All of that could probably be made cleaner w/ generators or something
-  val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(JesBackend.Scopes.asJava)
-
-  // NOTE: Used for connection boilerplate, could probably be made cleaner
-  lazy val GenomicsService = buildGenomics
-
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
-  lazy val GenomicsUrl = new URL(JesConf.getString("rootUrl"))
-  lazy val GoogleSecrets = Paths.get(JesConf.getString("secretsFile"))
-  lazy val GoogleUser = JesConf.getString("user")
+  val GoogleApplicationName = "cromwell"
+  val CromwellExecutionBucket = "gs://cromwell-dev/cromwell-executions"
+
   lazy val GoogleProject = JesConf.getString("project")
-  lazy val GoogleApplicationName = JesConf.getString("applicationName")
+  lazy val JesConnection = JesConnection(GoogleApplicationName,JacksonFactory.getDefaultInstance, GoogleNetHttpTransport.newTrustedTransport )
 
-  /*
-    FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
-    where stdout.txt is input and output :) Redirect stdout/stderr to a different name, but it'll be localized back
-    in GCS as stdout/stderr. Yes, it's hacky.
-   */
-  val LocalStdoutParamName = "job_stdout"
-  val LocalStderrParamName = "job_stderr"
-
-  val LocalStdoutValue = "job.stdout.txt"
-  val LocalStderrValue = "job.stderr.txt"
-
-  // SOME MIGHT BE WRONG
-  val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
+  // FIXME: If this is still here after setting up the service acct and if it doesn't need to be, move to Run
+  val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
     def bucket = s"$CromwellExecutionBucket/${descriptor.name}/${descriptor.id.toString}"
     def callDir(call: Call) = s"$bucket/call-${call.name}"
   }
-  // /SOME MIGHT BE WRONG
-  
-
-  // NOTE: Connection boilerplate
-  def buildGenomics: Genomics = {
-    val jsonFactory = JacksonFactory.getDefaultInstance
-    val httpTransport = GoogleNetHttpTransport.newTrustedTransport
-    val secretStream = new InputStreamReader(new FileInputStream(GoogleSecrets.toFile))
-    val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)
-    // FIXME: The following shouldn't be hardcoded
-    val dataStoreFactory = new FileDataStoreFactory(new File(System.getProperty("user.home"), ".jes-google-alpha"))
-    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
-      jsonFactory,
-      clientSecrets,
-      Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
-    val credential = new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
-    new Genomics.Builder(httpTransport, jsonFactory, credential).setApplicationName(GoogleApplicationName).setRootUrl(GenomicsUrl.toString).build
-  }
 
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
+  val LocalStdoutParamName = "job_stdout"
+  val LocalStderrParamName = "job_stderr"
+  val LocalStdoutValue = "job.stdout.txt"
+  val LocalStderrValue = "job.stderr.txt"
+  
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
     JesOutput(LocalStderrParamName, s"$callGcsPath/stderr.txt", Paths.get(LocalStderrValue)),
     JesOutput(LocalStdoutParamName, s"$callGcsPath/stdout.txt", Paths.get(LocalStdoutValue))
@@ -109,8 +62,8 @@ object JesBackend {
   final case class JesInput(name: String, gcs: String, local: Path) extends JesParameter
   final case class JesOutput(name: String, gcs: String, local: Path) extends JesParameter
 }
-class JesBackend extends Backend with LazyLogging {
 
+class JesBackend extends Backend with LazyLogging {
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
    * @param gcsPath The input path
@@ -131,7 +84,7 @@ class JesBackend extends Backend with LazyLogging {
   def mapInputValue(fqn: String, wdlValue: WdlValue): (String, WdlValue) = {
     wdlValue match {
       case WdlFile(path) =>
-        GoogleCloudStoragePath.tryParse(path) match {
+        GoogleCloudStoragePath.parse(path) match {
           case Success(gcsPath) => (fqn, WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString))
           case Failure(e) => (fqn, wdlValue)
         }
@@ -179,7 +132,7 @@ class JesBackend extends Backend with LazyLogging {
                               scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
-    val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath(callGcsPath))
+    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
 
     // FIXME: Not particularly robust at the moment.
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
@@ -192,7 +145,7 @@ class JesBackend extends Backend with LazyLogging {
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
 
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsService).run.waitUntilComplete()
+    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsInterface).run.waitUntilComplete()
 
     // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
     val outputMappings = call.task.outputs.map { taskOutput =>

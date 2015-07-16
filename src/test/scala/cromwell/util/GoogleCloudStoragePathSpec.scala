@@ -1,5 +1,6 @@
 package cromwell.util
 
+import cromwell.util.google.GoogleCloudStoragePath
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -33,10 +34,10 @@ class GoogleCloudStoragePathSpec extends FlatSpec with Matchers{
   }
 
   "GoogleCloudStoragePath's tryParse" should "return a Failure if and only if the path cannot be parsed" in {
-    val gcsPathTryF = GoogleCloudStoragePath.tryParse("invalid")
+    val gcsPathTryF = GoogleCloudStoragePath.parse("invalid")
     assert(gcsPathTryF.isFailure)
 
-    val gcsPathTryS = GoogleCloudStoragePath.tryParse("gs://valid/path")
+    val gcsPathTryS = GoogleCloudStoragePath.parse("gs://valid/path")
     assert(gcsPathTryS.isSuccess)
   }
 }

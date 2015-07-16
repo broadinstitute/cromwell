@@ -3,7 +3,7 @@ package cromwell.engine.backend.jes
 import java.nio.file.{Paths, Path}
 
 import cromwell.binding.values.{WdlFile, WdlInteger, WdlString}
-import cromwell.util.GoogleCloudStoragePath
+import cromwell.util.google.GoogleCloudStoragePath
 import org.scalatest.{Matchers, FlatSpec}
 
 import scala.util.{Try, Success}

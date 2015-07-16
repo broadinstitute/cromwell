@@ -4,14 +4,15 @@ import java.nio.file.Path
 
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
-import cromwell.util.{GoogleCloudStoragePath, GcsUtil}
+import cromwell.util.GcsUtil
+import cromwell.util.google.GoogleCloudStoragePath
 
 import scala.util.{Success, Try}
 
 /**
  * Implementation of engine functions for the JES backend.
  */
-case class JesEngineFunctions(secretsFile: Path, callDir: GoogleCloudStoragePath) extends EngineFunctions {
+case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: JesConnection) extends EngineFunctions {
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
    * specified either as a path via a `WdlString` (with magical handling of "stdout"), or

@@ -2,6 +2,7 @@ package cromwell.util
 
 import java.nio.file.{Paths, Path}
 
+import cromwell.util.google.{GcsBucketInfo, GoogleCloudStoragePath, Gcs$}
 import org.scalatest._
 
 /**
@@ -16,7 +17,7 @@ class GcsConnectorSpec extends FlatSpec with Matchers{
   final val TEST_FILE_CONTENTS = "test"
 
   "GcsConnector" should "be able to query GCS buckets for bucket name" in {
-    val connector = new GcsConnector("cromwell", CLIENT_SECRETS_FILE)
+    val connector = new Gcs("cromwell", CLIENT_SECRETS_FILE)
 
     val gcsBucketInfo: GcsBucketInfo = connector.listBucket("chrisl-dsde-dev")
 
@@ -24,7 +25,7 @@ class GcsConnectorSpec extends FlatSpec with Matchers{
   }
 
   "GcsConnector" should "be able to query GCS buckets for location" in {
-    val connector = new GcsConnector("cromwell", CLIENT_SECRETS_FILE)
+    val connector = new Gcs("cromwell", CLIENT_SECRETS_FILE)
 
     val gcsBucketInfo: GcsBucketInfo = connector.listBucket(TEST_BUCKET)
 
@@ -32,7 +33,7 @@ class GcsConnectorSpec extends FlatSpec with Matchers{
   }
 
   "GcsConnector" should "be able to read file contents" in {
-    val connector = new GcsConnector("cromwell", CLIENT_SECRETS_FILE)
+    val connector = new Gcs("cromwell", CLIENT_SECRETS_FILE)
     val gcsPath: GoogleCloudStoragePath = new GoogleCloudStoragePath(TEST_BUCKET, TEST_FILE)
     val bytes = connector.downloadObject(gcsPath)
 

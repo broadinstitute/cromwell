@@ -10,7 +10,9 @@ import scala.language.postfixOps
 
 object RunMysql {
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]) = jdbcMain(args)
+
+  def jdbcMain(args: Array[String]): Unit = {
     Class.forName("com.mysql.jdbc.Driver").newInstance()
     val config = DatabaseConfig.databaseConfig
 
@@ -22,6 +24,11 @@ object RunMysql {
     println(s"Testing connection '$connectionString'")
     val connection = DriverManager.getConnection(connectionString)
     println("Connection valid? " + connection.isValid(5))
+    val resultSet = connection.createStatement().executeQuery("select count(*) from WORKFLOW_EXECUTION")
+    val first = resultSet.next()
+    if (!first) throw new RuntimeException("No first row!")
+    val workflowExecutions = resultSet.getInt(1)
+    println(s"Found $workflowExecutions workflow executions.")
   }
 
   def slickMain(args: Array[String]): Unit = {

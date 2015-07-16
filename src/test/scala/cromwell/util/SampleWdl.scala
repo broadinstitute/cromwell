@@ -36,7 +36,7 @@ object SampleWdl {
     val Addressee = "hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")
     val OutputKey = "hello.hello.salutation"
-    val OutputValue = "Hello world!\n"
+    val OutputValue = "Hello world!"
   }
 
   object HelloWorldWithoutWorkflow extends SampleWdl {
@@ -206,31 +206,82 @@ object SampleWdl {
 
   object OptionalParamWorkflow extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
+    """
+      |task hello {
+      |  command {
+      |    echo "hello ${person?}"
+      |  }
+      |  output {
+      |    String greeting = read_string(stdout())
+      |  }
+      |}
+      |
+      |workflow optional {
+      |  call hello
+      |  call hello as hello2
+      |  call hello as hello_person {
+      |    input: person="world"
+      |  }
+      |}
+    """.stripMargin.replaceAll("RUNTIME", runtime)
+
+
+    override val rawInputs = {
+      Map("optional.hello.person" -> "john")
+    }
+  }
+
+  trait ZeroOrMorePostfixQuantifier extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
       """
         |task hello {
         |  command {
-        |    echo "hello ${person?}"
+        |    echo "hello ${sep="," person*}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
         |  }
         |}
         |
-        |workflow optional {
+        |workflow postfix {
         |  call hello
-        |  call hello as hello2
-        |  call hello as hello_person {
-        |    input: person="world"
-        |  }
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
+  }
+
+  object ZeroOrMorePostfixQuantifierWorkflowWithArrayInput extends ZeroOrMorePostfixQuantifier {
+    override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
+  }
+
+  object ZeroOrMorePostfixQuantifierWorkflowWithScalarInput extends ZeroOrMorePostfixQuantifier {
+    override val rawInputs = Map("postfix.hello.person" -> "alice")
+  }
 
 
-    override val rawInputs = {
-      Map(
-        "optional.hello.person" -> "john"
-      )
-    }
+  trait OneOrMorePostfixQuantifier extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task hello {
+        |  command {
+        |    echo "hello ${sep="," person+}"
+        |  }
+        |  output {
+        |    String greeting = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow postfix {
+        |  call hello
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+  }
+
+  object OneOrMorePostfixQuantifierWorkflowWithArrayInput extends OneOrMorePostfixQuantifier {
+    override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
+  }
+
+  object OneOrMorePostfixQuantifierWorkflowWithScalarInput extends OneOrMorePostfixQuantifier {
+    override val rawInputs = Map("postfix.hello.person" -> "alice")
   }
 
   object CannedThreeStep extends SampleWdl {

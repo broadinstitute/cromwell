@@ -10,5 +10,5 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
   if (typesUsedInValue.size > 1) {
     throw new UnsupportedOperationException(s"Cannot construct array with a mixed types: $value")
   }
-  def toWdlString(): String = s"[${value.map{x=>x.toWdlString}.mkString(", ")}]"
+  override def toWdlString(): String = s"[${value.map{x=>x.toWdlString}.mkString(", ")}]"
 }

@@ -1,9 +1,7 @@
 package cromwell.binding
 
-import cromwell.binding.types.WdlType
-import cromwell.parser.AstTools
-import cromwell.parser.WdlParser.{SyntaxError, Terminal, Ast}
-import cromwell.parser.AstTools.EnhancedAstNode
+import cromwell.binding.AstTools.EnhancedAstNode
+import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 
 import scala.util.{Success, Try}
 

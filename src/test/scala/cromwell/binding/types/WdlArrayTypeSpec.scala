@@ -1,10 +1,11 @@
-package cromwell.binding
+package cromwell.binding.types
 
-import cromwell.binding.types.{WdlStringType, WdlArrayType, WdlIntegerType}
-import cromwell.binding.values.{WdlString, WdlArray, WdlInteger}
+import cromwell.binding.values.{WdlArray, WdlInteger, WdlString}
+import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
-import spray.json.{JsNumber, JsArray}
-import scala.util.{Success, Failure}
+import spray.json.{JsArray, JsNumber}
+
+import scala.util.{Failure, Success}
 
 class WdlArrayTypeSpec extends FlatSpec with Matchers  {
   val intArray = WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(1), WdlInteger(2), WdlInteger(3)))
@@ -27,38 +28,38 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
     intArray.wdlType.toWdlString shouldEqual "Array[Int]"
   }
   it should "convert WDL source code to WdlArray" in {
-    WdlArrayType(WdlIntegerType).fromRawString("[1,2,3]") shouldEqual intArray
+    WdlArrayType(WdlIntegerType).fromWdlString("[1,2,3]") shouldEqual intArray
   }
   it should "NOT successfully convert WDL source code to WdlArray if passed a bogus AST" in {
     try {
-      WdlArrayType(WdlIntegerType).fromRawString("workflow wf{}")
+      WdlArrayType(WdlIntegerType).fromWdlString("workflow wf{}")
       fail("should not have succeeded")
     } catch {
-      case _: WdlExpressionException => // expected
+      case _: SyntaxError => // expected
     }
   }
   it should "NOT successfully convert WDL source code to WdlArray if passed a bogus AST (2)" in {
     try {
-      WdlArrayType(WdlIntegerType).fromRawString("100")
+      WdlArrayType(WdlIntegerType).fromWdlString("100")
       fail("should not have succeeded")
     } catch {
-      case _: WdlExpressionException => // expected
+      case _: SyntaxError => // expected
     }
   }
   it should "NOT successfully convert WDL source code to WdlArray if passed a bogus AST (3)" in {
     try {
-      WdlArrayType(WdlIntegerType).fromRawString("[1,stdout()]")
+      WdlArrayType(WdlIntegerType).fromWdlString("[1,stdout()]")
       fail("should not have succeeded")
     } catch {
-      case _: WdlExpressionException => // expected
+      case _: SyntaxError => // expected
     }
   }
   it should "NOT successfully convert WDL source code to WdlArray if passed a bogus AST (4)" in {
     try {
-      WdlArrayType(WdlIntegerType).fromRawString("[1,var]")
+      WdlArrayType(WdlIntegerType).fromWdlString("[1,var]")
       fail("should not have succeeded")
     } catch {
-      case _: WdlExpressionException => // expected
+      case _: SyntaxError => // expected
     }
   }
   it should "detect invalid array construction if there are mixed types" in {

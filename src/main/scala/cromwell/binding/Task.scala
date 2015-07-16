@@ -1,10 +1,9 @@
 package cromwell.binding
 
-import cromwell.binding.command.{ParameterCommandPart, StringCommandPart, Command}
-import cromwell.binding.types._
-import cromwell.parser.AstTools.AstNodeName
+import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
+import cromwell.binding.command.Command
 import cromwell.parser.WdlParser._
-import cromwell.parser.AstTools.{EnhancedAstNode, EnhancedAstSeq}
+
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
@@ -19,8 +18,8 @@ object Task {
 
     val commandAsts = ast.findAsts(AstNodeName.Command)
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
-    val command = Command(commandAsts.head)
-    val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_)}
+    val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
+    val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_, wdlSyntaxErrorFormatter)}
     new Task(name, command, outputs, buildRuntimeAttributes(ast), ast)
   }
 

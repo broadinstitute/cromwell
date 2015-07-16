@@ -159,10 +159,24 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def arrayHasOneTypeParameter(arrayDecl: Terminal): String = {
+  def arrayMustHaveOnlyOneTypeParameter(arrayDecl: Terminal): String = {
     s"""ERROR: Array type should only have one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
      |
      |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
+  def arrayMustHaveATypeParameter(arrayDecl: Terminal): String = {
+    s"""ERROR: Array type should have exactly one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
+     |
+     |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
+  def postfixQualifierRequiresSeparator(quantifier: Terminal) = {
+    s"""ERROR: Parameters that specify * or + must also specify sep=""
+       |
+       |${pointToSource(quantifier)}
      """.stripMargin
   }
 }

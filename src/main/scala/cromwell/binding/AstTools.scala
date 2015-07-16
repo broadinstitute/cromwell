@@ -1,9 +1,10 @@
-package cromwell.parser
+package cromwell.binding
 
 import java.io.File
 
-import cromwell.binding._
 import cromwell.binding.types._
+import cromwell.binding.values._
+import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
 
@@ -18,8 +19,7 @@ object AstTools {
     def findTerminals(): Seq[Terminal] = AstTools.findTerminals(astNode)
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
     def sourceString(): String = astNode.asInstanceOf[Terminal].getSourceString
-    
-    def wdlType: WdlType = {
+    def wdlType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlType = {
       astNode match {
         case t: Terminal =>
           t.getSourceString match {
@@ -29,17 +29,37 @@ object AstTools {
             case WdlFloatType.toWdlString => WdlFloatType
             case WdlBooleanType.toWdlString => WdlBooleanType
             case WdlObjectType.toWdlString => WdlObjectType
+            case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
         case a: Ast =>
           val subtypes = a.getAttribute("subtype").asInstanceOf[AstList].asScala.toSeq
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
           a.getAttribute("name").sourceString() match {
             case "Array" =>
-              val member = subtypes.head.wdlType
+              if (subtypes.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
+              val member = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
               WdlArrayType(member)
           }
         case null => WdlStringType
         case _ => throw new UnsupportedOperationException("Implement this later for compound types")
+      }
+    }
+
+    def wdlValue(wdlType: WdlType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlValue = {
+      astNode match {
+        case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlStringType => WdlString(t.getSourceString)
+        case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlFileType => WdlFile(t.getSourceString)
+        case t: Terminal if t.getTerminalStr == "integer" && wdlType == WdlIntegerType => WdlInteger(t.getSourceString.toInt)
+        case t: Terminal if t.getTerminalStr == "float" && wdlType == WdlFloatType => WdlFloat(t.getSourceString.toDouble)
+        case t: Terminal if t.getTerminalStr == "boolean" && wdlType == WdlBooleanType => t.getSourceString.toLowerCase match {
+          case "true" => WdlBoolean.True
+          case "false" => WdlBoolean.False
+        }
+        case a: Ast if a.getName == "ArrayLiteral" && wdlType.isInstanceOf[WdlArrayType] =>
+          val arrType = wdlType.asInstanceOf[WdlArrayType]
+          val elements = a.getAttribute("values").asInstanceOf[AstList].asScala.toVector.map{node => node.wdlValue(arrType.memberType, wdlSyntaxErrorFormatter)}
+          WdlArray(arrType, elements)
+        case _ => throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
       }
     }
   }

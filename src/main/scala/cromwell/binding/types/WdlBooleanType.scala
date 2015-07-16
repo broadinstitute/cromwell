@@ -15,5 +15,5 @@ case object WdlBooleanType extends WdlPrimitiveType {
     case s: JsBoolean => WdlBoolean(s.value)
   }
 
-  override def fromRawString(rawString: String) = WdlBoolean(rawString.toBoolean)
+  override def fromWdlString(rawString: String) = WdlBoolean(rawString.toBoolean)
 }

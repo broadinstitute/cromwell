@@ -26,16 +26,24 @@ object WdlExpression {
 
   val unaryOperators = Set("LogicalNot", "UnaryPlus", "UnaryNegation")
 
-  def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions): Try[WdlValue] = {
+  private def replaceInterpolationTag(string: String, tag: String, lookup: ScopedLookupFunction) =
+    string.replace(tag, lookup(tag.substring(2, tag.length - 1)).valueString)
+
+  def interpolate(str: String, lookup: ScopedLookupFunction): String =
+    "\\$\\{([a-zA-Z]([a-zA-Z0-9_])*)\\}".r.findAllIn(str).foldLeft(str) { (string, tag) => replaceInterpolationTag(string, tag, lookup) }
+
+  def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] = {
     ast match {
       case t: Terminal if t.getTerminalStr == "identifier" => Success(lookup(t.getSourceString))
       case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
       case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
-      case t: Terminal if t.getTerminalStr == "string" => Success(WdlString(t.getSourceString))
+      case t: Terminal if t.getTerminalStr == "string" =>
+        val strValue = if (interpolateStrings) interpolate(t.getSourceString, lookup) else t.getSourceString
+        Success(WdlString(strValue))
       case a: Ast if binaryOperators.contains(a.getName) =>
-        val lhs = evaluate(a.getAttribute("lhs"), lookup, functions)
-        val rhs = evaluate(a.getAttribute("rhs"), lookup, functions)
+        val lhs = evaluate(a.getAttribute("lhs"), lookup, functions, interpolateStrings)
+        val rhs = evaluate(a.getAttribute("rhs"), lookup, functions, interpolateStrings)
         a.getName match {
           case "Add" => for(l <- lhs; r <- rhs) yield l.add(r).get
           case "Subtract" => for(l <- lhs; r <- rhs) yield l.subtract(r).get
@@ -53,7 +61,7 @@ object WdlExpression {
           case _ => throw new WdlExpressionException(s"Invalid operator: ${a.getName}")
         }
       case a: Ast if unaryOperators.contains(a.getName) =>
-        val expression = evaluate(a.getAttribute("expression"), lookup, functions)
+        val expression = evaluate(a.getAttribute("expression"), lookup, functions, interpolateStrings)
         a.getName match {
           case "LogicalNot" => for(e <- expression) yield e.not.get
           case "UnaryPlus" => for(e <- expression) yield e.unaryPlus.get
@@ -65,7 +73,7 @@ object WdlExpression {
           case x:Terminal if x.getTerminalStr == "identifier" => x.getSourceString
           case _ => throw new WdlExpressionException("Right-hand side of expression must be identifier")
         }
-        evaluate(a.getAttribute("lhs"), lookup, functions).map {
+        evaluate(a.getAttribute("lhs"), lookup, functions, interpolateStrings).map {
           case o: WdlObject => o.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs"))
           case ns: WdlNamespace => lookup(ns.importedAs.map {n => s"$n.$rhs"}.getOrElse(rhs))
           case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
@@ -73,7 +81,7 @@ object WdlExpression {
       case a: Ast if a.getName == "FunctionCall" =>
         val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
         val params = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector map {
-          evaluate(_, lookup, functions)
+          evaluate(_, lookup, functions, interpolateStrings)
         }
         functions.getFunction(name)(params)
     }
@@ -127,8 +135,8 @@ object WdlExpression {
 
 case class WdlExpression(ast: AstNode) extends WdlValue {
   override val wdlType = WdlExpressionType
-  def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[WdlValue] =
-    WdlExpression.evaluate(ast, lookup, functions)
+  def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] =
+    WdlExpression.evaluate(ast, lookup, functions, interpolateStrings)
   def toString(highlighter: SyntaxHighlighter): String = {
     WdlExpression.toString(ast, highlighter)
   }

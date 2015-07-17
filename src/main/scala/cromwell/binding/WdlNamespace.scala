@@ -288,13 +288,13 @@ object WdlNamespace {
   def findTask(name: String, namespaces: Seq[WdlNamespace], tasks: Seq[Task]): Option[Task] = {
     if (name.contains(".")) {
       val parts = name.split("\\.", 2)
-      /*
-        FIXME: From Scott, re more explanation:
-
-        I think this is supposed to resolve a dot-notation name by traversing into the namespaces until it finds the task... for example
-          a.b.c would first find namespace a and then findTasks(b.c) in the a namespace context
-          b.c would find namespace b inside of the a namespace context, then findtasks(c)
-          c would find task c in the b namespace context
+      /* This is supposed to resolve a dot-notation'd string (e.g. "a.b.c") by recursively
+       * traversing child namespaces or resolving to a task.
+       *
+       * For example:
+       * findTasks("a.b.c") would first find namespace "a" and then return a.findTasks("b.c")
+       * a.findTasks("b.c") would call a.b.findTasks("c")
+       * a.b.findTasks("c") would return the task named "c" in the "b" namespace
        */
       namespaces find {_.importedAs == Some(parts(0))} flatMap {x => findTask(parts(1), x.namespaces, x.tasks)}
     } else tasks.find(_.name == name)

@@ -3,7 +3,7 @@ package cromwell.util.google
 import scala.util.{Failure, Success, Try}
 
 case class GoogleCloudStoragePath(bucket: String, objectName: String) {
-  override def toString() = {
+  override def toString = {
     "gs://" + bucket + "/" + objectName
   }
 }

@@ -41,5 +41,13 @@ object GoogleCredentialFactory {
     new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
   }
 
-  private def forServiceAccount(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = ???
+  private def forServiceAccount(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+    new GoogleCredential.Builder().setTransport(httpTransport)
+      .setJsonFactory(jsonFactory)
+      .setServiceAccountId(config.getString("serviceAccountId"))
+      .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
+      .setServiceAccountPrivateKeyFromP12File(new File(config.getString("p12File")))
+    //  .setServiceAccountUser(GoogleUser)
+      .build()
+  }
 }

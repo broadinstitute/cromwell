@@ -114,7 +114,7 @@ class JesBackend extends Backend with LazyLogging {
     taskOutput.wdlType match {
       case f: WdlFile =>
         taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
-          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.toWdlString))))
+          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
           case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
         }
       case _ => Success(None)
@@ -143,7 +143,7 @@ class JesBackend extends Backend with LazyLogging {
     val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
 
     // FIXME: Not particularly robust at the moment
-    val jesInputs: Seq[JesParameter] = backendInputs.map({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, v.toWdlString, Paths.get(backendInputs(k).toWdlString))}).toSeq
+    val jesInputs: Seq[JesParameter] = backendInputs.collect({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(backendInputs(k).valueString))}).toSeq
     val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
 

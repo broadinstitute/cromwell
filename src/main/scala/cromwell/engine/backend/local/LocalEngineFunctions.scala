@@ -5,9 +5,8 @@ import java.nio.file.Paths
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
-import cromwell.util.FileUtil
-
-import scala.util.{Failure, Success, Try}
+import cromwell.util.FileUtil.EnhancedPath
+import scala.util.{Success, Failure, Try}
 
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
 
@@ -30,8 +29,8 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => FileUtil.slurp(f.value)
-      case s: WdlString => FileUtil.slurp(executionContext.cwd.resolve(s.value))
+      case f: WdlFile => f.value.slurp
+      case s: WdlString => executionContext.cwd.resolve(s.value).slurp
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
   }

@@ -2,7 +2,7 @@ package cromwell
 
 import java.io.File
 import java.nio.file.Paths
-
+import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
@@ -77,8 +77,8 @@ object Main extends App {
     Log.info(s"  Inputs: ${args(1)}")
 
     try {
-      val wdlSource = FileUtil.slurp(Paths.get(args(0)))
-      val wdlJson = FileUtil.slurp(Paths.get(args(1)))
+      val wdlSource = Paths.get(args(0)).slurp
+      val wdlJson = Paths.get(args(1)).slurp
       val jsValue = wdlJson.parseJson
 
       val inputs: binding.WorkflowRawInputs = jsValue match {

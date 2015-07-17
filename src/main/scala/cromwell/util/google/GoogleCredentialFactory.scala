@@ -13,25 +13,33 @@ import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.storage.StorageScopes
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import scala.collection.JavaConverters._
 
 // FIXME: Use Tex's service account
 
 object GoogleCredentialFactory {
   private lazy val GoogleConf = ConfigFactory.load.getConfig("google")
-  lazy val GoogleSecrets = Paths.get(GoogleConf.getString("secretsFile"))
-  lazy val GoogleUser = GoogleConf.getString("user")
+  private lazy val GoogleUser = GoogleConf.getString("user")
+  private lazy val GoogleAuthScheme = GoogleConf.getString("authScheme").toLowerCase
 
-  def from(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
-    val secretStream = new InputStreamReader(new FileInputStream(GoogleSecrets.toFile))
+  lazy val from: (JsonFactory, HttpTransport) => Credential = GoogleAuthScheme match {
+    case "user" => forUser(GoogleConf.getConfig("userAuth"))
+    case "service" => forServiceAccount(GoogleConf.getConfig("serviceAuth"))
+  }
+
+  private def forUser(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+    val secrets = Paths.get(config.getString("secretsFile"))
+    val secretStream = new InputStreamReader(new FileInputStream(secrets.toFile))
     val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)
-    // FIXME: The following shouldn't be hardcoded
-    val dataStoreFactory = new FileDataStoreFactory(new File(System.getProperty("user.home"), ".jes-google-alpha"))
+    val dataStore = Paths.get(config.getString("dataStoreDir"))
+    val dataStoreFactory = new FileDataStoreFactory(dataStore.toFile)
     val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
       jsonFactory,
       clientSecrets,
       GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
     new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
   }
+
+  private def forServiceAccount(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = ???
 }

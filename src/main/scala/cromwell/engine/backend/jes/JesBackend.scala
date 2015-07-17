@@ -1,17 +1,7 @@
 package cromwell.engine.backend.jes
 
-import java.io.{FileInputStream, InputStreamReader, File}
-import java.net.URL
 import java.nio.file.{Path, Paths}
 
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
-import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.api.client.util.store.FileDataStoreFactory
-import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{Parameter, ServiceAccount}
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
@@ -45,7 +35,6 @@ object JesBackend {
   val LocalStdout = "job.stdout.txt"
   val LocalStderr = "job.stderr.txt"
 
-  // SOME MIGHT BE WRONG
   val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
 
   def gsInputToLocal(gsPath: String): Path = {
@@ -58,8 +47,7 @@ object JesBackend {
     def bucket = s"$CromwellExecutionBucket/${descriptor.name}/${descriptor.id.toString}"
     def callDir(call: Call) = s"$bucket/call-${call.name}"
   }
-  // /SOME MIGHT BE WRONG
-  
+
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
     JesOutput(LocalStderr, s"$callGcsPath/stderr.txt", Paths.get("stderr.txt")),
@@ -80,6 +68,7 @@ object JesBackend {
   final case class JesInput(name: String, gcs: String, local: Path) extends JesParameter
   final case class JesOutput(name: String, gcs: String, local: Path) extends JesParameter
 }
+
 class JesBackend extends Backend with LazyLogging {
 
   /**

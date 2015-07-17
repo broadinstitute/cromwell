@@ -1,16 +1,19 @@
 package cromwell.engine.backend.jes
 
-import com.google.api.services.genomics.model.RunPipelineRequest
+import com.google.api.services.genomics.model.{ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
+import cromwell.util.google.GoogleScopes
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 import Run._
 
 object Run {
+  val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
+
   def apply(pipeline: Pipeline): Run = {
-    val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesBackend.JesServiceAccount)
+    val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
 
     rpr.setInputs(pipeline.jesParameters.filter(_.isInput).toRunMap)
     println(s"Run inputs are ${rpr.getInputs}")

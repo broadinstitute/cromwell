@@ -16,8 +16,6 @@ import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.{Config, ConfigFactory}
 import scala.collection.JavaConverters._
 
-// FIXME: Use Tex's service account
-
 object GoogleCredentialFactory {
   private lazy val GoogleConf = ConfigFactory.load.getConfig("google")
   private lazy val GoogleUser = GoogleConf.getString("user")
@@ -47,7 +45,7 @@ object GoogleCredentialFactory {
       .setServiceAccountId(config.getString("serviceAccountId"))
       .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
       .setServiceAccountPrivateKeyFromP12File(new File(config.getString("p12File")))
-    //  .setServiceAccountUser(GoogleUser)
+    //  .setServiceAccountUser(GoogleUser) FIXME: Dig into how impersonation works and if we even care
       .build()
   }
 }

@@ -23,8 +23,6 @@ object JesBackend {
   lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
 
-  // NOTE: Used in connection boilerplate. All of that could probably be made cleaner w/ generators or something
-  val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
   lazy val JesConnection = JesInterface(GoogleApplicationName)
 
   /*

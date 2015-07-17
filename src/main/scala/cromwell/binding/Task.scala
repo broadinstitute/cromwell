@@ -1,7 +1,7 @@
 package cromwell.binding
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
-import cromwell.binding.command.Command
+import cromwell.binding.command.{ParameterCommandPart, Command}
 import cromwell.parser.WdlParser._
 
 import scala.collection.JavaConverters._
@@ -11,9 +11,15 @@ object Task {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
 
-    val dupeParamAsts = ast.findAsts(AstNodeName.CommandParameter).duplicatesByName
-    if (dupeParamAsts.nonEmpty) {
-      throw new SyntaxError(wdlSyntaxErrorFormatter.taskHasDuplicatedInputs(ast, dupeParamAsts))
+    /* Examine all inputs to the task (which currently is only command parameters e.g. ${File x})
+     * And ensure that any inputs that have the same name also have the exact same definition.
+     * For example having a command line of `./script ${File x} ${String x}` is conflicting.
+     */
+    val commandParameters = ast.findAsts(AstNodeName.CommandParameter)
+    val parameterNames = commandParameters.map{_.getAttribute("name").sourceString()}.toSet
+    parameterNames.foreach {name =>
+      val paramsWithSameName = commandParameters.filter {_.getAttribute("name").sourceString == name}
+      ensureCommandParameterAstsMatch(paramsWithSameName, ast, wdlSyntaxErrorFormatter)
     }
 
     val commandAsts = ast.findAsts(AstNodeName.Command)
@@ -21,6 +27,21 @@ object Task {
     val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
     val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_, wdlSyntaxErrorFormatter)}
     new Task(name, command, outputs, buildRuntimeAttributes(ast), ast)
+  }
+
+  private def ensureCommandParameterAstsMatch(paramAsts: Seq[Ast], taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
+    paramAsts.headOption.foreach {firstParamAst =>
+      val sentinal = ParameterCommandPart(firstParamAst, wdlSyntaxErrorFormatter)
+      paramAsts.foreach { paramAst =>
+        val parsed = ParameterCommandPart(paramAst, wdlSyntaxErrorFormatter)
+        if (parsed != sentinal)
+          throw new SyntaxError(wdlSyntaxErrorFormatter.parametersWithSameNameMustHaveSameDefinition(
+            taskAst.getAttribute("name").asInstanceOf[Terminal],
+            paramAst.getAttribute("name").asInstanceOf[Terminal],
+            paramAsts.head.getAttribute("name").asInstanceOf[Terminal]
+          ))
+      }
+    }
   }
 
   // TODO/FIXME: If RuntimeAttributes turned into a real type (i.e. case class) the following crap could go into its construction

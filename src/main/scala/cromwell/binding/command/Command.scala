@@ -54,13 +54,18 @@ object Command {
 case class Command(parts: Seq[CommandPart]) {
   val ws = Pattern.compile("[\\ \\t]+")
   def inputs: Seq[TaskInput] = {
-    parts.collect {case p: ParameterCommandPart => p}.map {p =>
+    val collectedInputs = parts.collect {case p: ParameterCommandPart => p}.map {p =>
       // TODO: if postfix quantifier is + or *, then the type must be a primitive.
       val wdlType = p.postfixQuantifier match {
         case Some(x) if ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(x) => WdlArrayType(p.wdlType)
         case _ => p.wdlType
       }
       TaskInput(p.name, wdlType, p.postfixQuantifier)
+    }
+
+    /* It is assumed here that all TaskInputs with the same name are identically defined, this filters out duplicates by name */
+    collectedInputs.map {_.name}.distinct.map {name =>
+      collectedInputs.filter {_.name == name}.head
     }
   }
 

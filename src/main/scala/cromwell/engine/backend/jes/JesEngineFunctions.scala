@@ -27,6 +27,8 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
     }
   }
 
+  protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = ???
+
   /**
    * Try to read a string from the file referenced by the specified `WdlValue`.
    */

@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 
 // FIXME: Use Tex's service account
 
-object GoogleCredential {
+object GoogleCredentialFactory {
   private lazy val GoogleConf = ConfigFactory.load.getConfig("google")
   lazy val GoogleSecrets = Paths.get(GoogleConf.getString("secretsFile"))
   lazy val GoogleUser = GoogleConf.getString("user")
@@ -27,19 +27,11 @@ object GoogleCredential {
     val secretStream = new InputStreamReader(new FileInputStream(GoogleSecrets.toFile))
     val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)
     // FIXME: The following shouldn't be hardcoded
-//    val dataStoreFactory = new FileDataStoreFactory(new File(System.getProperty("user.home"), ".jes-google-alpha"))
-//    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
-//      jsonFactory,
-//      clientSecrets,
-//      GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
-//    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
-    val z = clientSecrets("private_key")
-
-
-    new Builder() // FIXME: Figure out how to specify it's a GoogleCredential#Builder
-      .setTransport(httpTransport)
-      .setJsonFactory(jsonFactory).setServiceAccountPrivateKey(new PrivateKey())
-      .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
-    .build()
+    val dataStoreFactory = new FileDataStoreFactory(new File(System.getProperty("user.home"), ".jes-google-alpha"))
+    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
+      jsonFactory,
+      clientSecrets,
+      GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
+    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
   }
 }

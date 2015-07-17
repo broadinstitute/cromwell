@@ -25,8 +25,19 @@ object ParameterCommandPart {
       case _ => None
     }
     postfixQuantifier.foreach {quantifier =>
+      val postfixQuantifierToken = ast.getAttribute("postfix").asInstanceOf[Terminal]
       if (PostfixQuantifiersThatAcceptArrays.contains(quantifier) && !attributes.contains("sep"))
-        throw new SyntaxError(wdlSyntaxErrorFormatter.postfixQualifierRequiresSeparator(ast.getAttribute("postfix").asInstanceOf[Terminal]))
+        throw new SyntaxError(wdlSyntaxErrorFormatter.postfixQualifierRequiresSeparator(postfixQuantifierToken))
+      if (!OptionalPostfixQuantifiers.contains(quantifier) && attributes.contains("default"))
+        throw new SyntaxError(wdlSyntaxErrorFormatter.defaultAttributeOnlyAllowedForOptionalParameters(postfixQuantifierToken))
+    }
+    if (attributes.contains("default") && postfixQuantifier.isEmpty) {
+      /* Calling .get below because we're assuming if attribute.contains("default"), then this operation is safe */
+      val declarationOfDefaultAttribute = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.find{node =>
+       node.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal].getSourceString == "default"
+      }.get
+      val terminal = declarationOfDefaultAttribute.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal]
+      throw new SyntaxError(wdlSyntaxErrorFormatter.defaultAttributeOnlyAllowedForOptionalParameters(terminal))
     }
     new ParameterCommandPart(wdlType, name, prefix, attributes, postfixQuantifier)
   }
@@ -49,8 +60,12 @@ case class ParameterCommandPart(wdlType: WdlType, name: String,
   override def toString: String = "${" + s"${wdlType.toWdlString} $name" + "}"
 
   def instantiate(parameters: Map[String, WdlValue]): String = {
+    def wasDefaultValueUsed: Boolean = parameters.get(name).isEmpty && attributes.contains("default")
+
+    /* Order DOES matter in this match clause */
     val paramValue = parameters.get(name) match {
       case Some(value) => value
+      case None if attributes.contains("default") => WdlString(attributes.get("default").get)
       case None if postfixQuantifier.isDefined && ParameterCommandPart.OptionalPostfixQuantifiers.contains(postfixQuantifier.head) => WdlString("")
       case _ => throw new UnsupportedOperationException(s"Parameter $name not found")
     }
@@ -66,7 +81,7 @@ case class ParameterCommandPart(wdlType: WdlType, name: String,
       case x => x
     }
 
-    if (postfixQuantifier.isEmpty && wdlType != paramValueEvaluated.wdlType) {
+    if (!wasDefaultValueUsed && postfixQuantifier.isEmpty && wdlType != paramValueEvaluated.wdlType) {
       throw new UnsupportedOperationException(s"Incompatible type for $name: need a $wdlType, got a ${paramValue.wdlType}")
     }
 

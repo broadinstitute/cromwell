@@ -22,6 +22,13 @@ class PostfixQuantifierWorkflowSpec extends CromwellTestkitSpec("PostfixQuantifi
         expectedOutputs = Map("postfix.hello.greeting" -> WdlString("hello alice"))
       )
     }
+    "accept no value" in {
+      runWdlAndAssertOutputs(
+        sampleWdl = SampleWdl.ZeroOrMorePostfixQuantifierWorkflowWithNoInput,
+        EventFilter.info(pattern = s"starting calls: postfix.hello", occurrences = 1),
+        expectedOutputs = Map("postfix.hello.greeting" -> WdlString("hello "))
+      )
+    }
   }
 
   "A task which contains a parameter with a one-or-more postfix quantifier" should {

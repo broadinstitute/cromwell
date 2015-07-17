@@ -257,6 +257,9 @@ object SampleWdl {
     override val rawInputs = Map("postfix.hello.person" -> "alice")
   }
 
+  object ZeroOrMorePostfixQuantifierWorkflowWithNoInput extends ZeroOrMorePostfixQuantifier {
+    override val rawInputs = Map.empty[String, String]
+  }
 
   trait OneOrMorePostfixQuantifier extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
@@ -284,6 +287,31 @@ object SampleWdl {
     override val rawInputs = Map("postfix.hello.person" -> "alice")
   }
 
+  trait DefaultParameterValue extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task hello {
+        |  command {
+        |    echo "hello ${default="default value" person?}"
+        |  }
+        |  output {
+        |    String greeting = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow default {
+        |  call hello
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+  }
+
+  object DefaultParameterValueWithValueSpecified extends DefaultParameterValue {
+    override val rawInputs = Map("default.hello.person" -> "alice")
+  }
+
+  object DefaultParameterValueWithNOValueSpecified extends DefaultParameterValue {
+    override val rawInputs = Map.empty[String, String]
+  }
   object CannedThreeStep extends SampleWdl {
     val CannedProcessOutput =
       """

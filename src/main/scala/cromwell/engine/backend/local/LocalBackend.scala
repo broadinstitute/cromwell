@@ -88,7 +88,7 @@ class LocalBackend extends Backend with LazyLogging {
     def hostAbsoluteFilePath(pathString: String): String =
       if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
 
-    val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
+    val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile, Paths.get(hostCallDirectory.getAbsolutePath)))
 
     val stderrFileLength = new File(stderrFile.toString).length
 

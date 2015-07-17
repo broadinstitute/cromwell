@@ -1,10 +1,13 @@
 package cromwell.engine.backend.local
 
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import java.nio.file.Paths
+
+import cromwell.binding.types.{WdlArrayType, WdlStringType}
+import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
 import cromwell.util.FileUtil
 
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
 
@@ -28,8 +31,16 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
   private def fileContentsToString(value: WdlValue): String = {
     value match {
       case f: WdlFile => FileUtil.slurp(f.value)
+      case s: WdlString => FileUtil.slurp(executionContext.cwd.resolve(s.value))
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
+  }
+
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
+    } yield WdlArray(WdlArrayType(WdlStringType), lines)
   }
 
   /**

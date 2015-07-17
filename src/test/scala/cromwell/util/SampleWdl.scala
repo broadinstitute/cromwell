@@ -504,4 +504,59 @@ object SampleWdl {
 
     override val rawInputs: WorkflowRawInputs = Map("three_step.cgrep.pattern" -> "x")
   }
+
+  object ReadLinesFunctionWdl extends SampleWdl {
+    val CannedOutput =
+      """java
+        |scala
+        |c
+        |c++
+        |python
+        |bash
+      """.stripMargin.trim
+
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task cat_to_stdout {
+        |  command {
+        |    cat ${File file}
+        |  }
+        |  output {
+        |    Array[String] lines = read_lines(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task cat_to_file {
+        |  command {
+        |    cat ${File file} > out
+        |  }
+        |  output {
+        |    Array[String] lines = read_lines("out")
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow read_lines {
+        |  call cat_to_stdout
+        |  call cat_to_file
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    private def createCannedFile: File = {
+      val file = File.createTempFile("canned", ".out")
+      val writer = new FileWriter(file)
+      writer.write(CannedOutput)
+      writer.flush()
+      writer.close()
+      file
+    }
+
+    override val rawInputs = {
+      Map(
+        "read_lines.cat_to_stdout.file" -> createCannedFile.getAbsolutePath,
+        "read_lines.cat_to_file.file" -> createCannedFile.getAbsolutePath
+      )
+    }
+  }
 }

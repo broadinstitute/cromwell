@@ -179,4 +179,11 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
        |${pointToSource(quantifier)}
      """.stripMargin
   }
+
+  def defaultAttributeOnlyAllowedForOptionalParameters(location: Terminal) = {
+    s"""ERROR: the 'default' attribute is only allowed with optional parameters (suffixed by either ? or *)
+       |
+       |${pointToSource(location)}
+     """.stripMargin
+  }
 }

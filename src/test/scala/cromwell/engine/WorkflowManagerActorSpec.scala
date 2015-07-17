@@ -70,7 +70,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val wdlInputs = SampleWdl.HelloWorld.wdlJson
             val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
-            val task = new Task("taskName", new Command(Seq.empty), Seq.empty, Map.empty, null) // FIXME? null AST
+            val task = new Task("taskName", new Command(Seq.empty), Seq.empty, null) // FIXME? null AST
             val call = new Call(None, key.scope, task, Map.empty)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())

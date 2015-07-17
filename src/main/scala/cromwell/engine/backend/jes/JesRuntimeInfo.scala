@@ -1,16 +1,11 @@
 package cromwell.engine.backend.jes
 
+import com.google.api.services.genomics.model.{DockerExecutor, Resources}
+import cromwell.binding.{Call, RuntimeAttributes}
+
 import scala.collection.JavaConverters._
-import com.google.api.services.genomics.model.{Disk, DockerExecutor, Resources}
-import cromwell.binding.Call
 
 object JesRuntimeInfo {
-  val DefaultCpu = 1L
-  val DefaultMemory = 2.toDouble
-  val DefaultZones = Vector("us-central1-a")
-  val DefaultPreemptible = false
-  val DefaultDisks = Vector(LocalDisk("local-disk", 100L, "LOCAL_SSD"))
-
   def apply(commandLine: String, call: Call): JesRuntimeInfo = {
     val dockerImage = call.docker.getOrElse(throw new IllegalArgumentException("FIXME: WHAT TO DO?"))
 
@@ -23,19 +18,14 @@ object JesRuntimeInfo {
   }
 
   def buildResources(call: Call): Resources = {
-    new Resources()
-      .setRamGb(DefaultMemory) // FIXME: We'll need to parse the task.runtimeAttributes (probably in binding/package.scala) to convert to GB
-      .setCpu(DefaultCpu)
-      .setPreemptible(DefaultPreemptible)
-      .setZones(DefaultZones.asJava)
-      .setDisks(DefaultDisks.map{_.toDisk}.asJava)
-  }
+    val runtimeAttributes: RuntimeAttributes = call.task.runtimeAttributes
 
-  case class LocalDisk(name: String, sizeGb: Long, diskType: String) {
-    def toDisk: Disk = {
-      val localDisk = new Disk()
-      localDisk.setSizeGb(sizeGb).setType(diskType).setName(name)
-    }
+    new Resources()
+      .setRamGb(runtimeAttributes.memoryGB)
+      .setCpu(runtimeAttributes.cpu)
+      .setPreemptible(runtimeAttributes.preemptible)
+      .setZones(runtimeAttributes.defaultZones.asJava)
+      .setDisks(runtimeAttributes.defaultDisks.asJava)
   }
 }
 

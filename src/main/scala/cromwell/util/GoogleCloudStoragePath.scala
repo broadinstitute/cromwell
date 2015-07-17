@@ -6,6 +6,14 @@ case class GoogleCloudStoragePath(bucket: String, objectName: String) {
   override def toString() = {
     "gs://" + bucket + "/" + objectName
   }
+
+  def +(value: String): GoogleCloudStoragePath = {
+    if (objectName.endsWith("/") || value.startsWith("/")) {
+      GoogleCloudStoragePath(bucket, objectName + value)
+    } else {
+      GoogleCloudStoragePath(bucket, objectName + "/" + value)
+    }
+  }
 }
 
 object GoogleCloudStoragePath {

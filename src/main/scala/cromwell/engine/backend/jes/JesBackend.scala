@@ -130,11 +130,15 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
+  def anonymousTaskOutput(value: String, engineFunctions: JesEngineFunctions): JesOutput = {
+    JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
+  }
+
   override def executeCommand(commandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
+                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
     val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath(callGcsPath))
@@ -144,14 +148,43 @@ class JesBackend extends Backend with LazyLogging {
       case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).toRawString, Paths.get(v.toRawString))
 
     }).toSeq
-    val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
-    // FIXME: jesOutputs also needs the anonymous Files within expressions which will be needed in evaluating the outputs
-    val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
+
+    // Call preevaluateExpressionForFilenames for each of the task output expressions, and flatten the lists into a single Try[Seq[WdlFile]]
+    val filesWithinExpressions = Try(
+      call.task.outputs.map {
+        taskOutput => taskOutput.expression.preevaluateExpressionForFilenames(scopedLookupFunction, engineFunctions)
+      }.flatMap({_.get})
+    )
+
+    val jesOutputs: Try[Seq[JesParameter]] = filesWithinExpressions match {
+      case Failure(error) => Failure(error)
+      case Success(fileSeq) => {
+        val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, engineFunctions)}
+
+        // FIXME: If localizeTaskOutputs gives a Failure, need to Fail entire function - don't use .get
+        val namedOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
+
+        Success(anonOutputs ++ namedOutputs)
+      }
+    }
+
+    // FIXME: Ignore all the errors!
+    val unsafeJesOutputs: Seq[JesParameter] = jesOutputs.get
+
+
+
+    val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ unsafeJesOutputs
 
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
 
+    // **
+    // ***** !!!!!
+    // **
     val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsService).run.waitUntilComplete()
+    // **
+    // ***** !!!!!
+    // **
 
     // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
     val outputMappings = call.task.outputs.map { taskOutput =>

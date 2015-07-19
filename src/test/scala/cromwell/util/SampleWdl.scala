@@ -142,7 +142,6 @@ object SampleWdl {
         |
         |
         |workflow test1 {
-        |  String bfile
         |  call summary {
         |     input: bfile=bfile
         |  }
@@ -558,5 +557,61 @@ object SampleWdl {
         "read_lines.cat_to_file.file" -> createCannedFile.getAbsolutePath
       )
     }
+  }
+
+  object DeclarationsWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task cat {
+        |  command {
+        |    cat ${File file} ${flags?}
+        |  }
+        |  output {
+        |    File procs = stdout()
+        |  }
+        |}
+        |
+        |task cgrep {
+        |  String str_decl
+        |  command {
+        |    grep '${pattern}' ${File in_file} | wc -l
+        |  }
+        |  output {
+        |    Int count = read_int(stdout())
+        |    String str = str_decl
+        |  }
+        |}
+        |
+        |workflow two_step {
+        |  String flags_suffix
+        |  String flags = "-" + flags_suffix
+        |  call cat {
+        |    input: flags=flags
+        |  }
+        |  call cgrep {
+        |    input: in_file=cat.procs
+        |  }
+        |}
+      """.stripMargin
+
+    private def createCannedFile: File = {
+      val file = File.createTempFile("canned", ".out")
+      val writer = new FileWriter(file)
+      writer.write(
+        s"""first line
+           |second line
+           |third line
+         """.stripMargin)
+      writer.flush()
+      writer.close()
+      file
+    }
+
+    override val rawInputs: WorkflowRawInputs = Map(
+      "two_step.cgrep.pattern" -> "first",
+      "two_step.cgrep.str_decl" -> "foobar",
+      "two_step.cat.file" -> createCannedFile.getAbsolutePath,
+      "two_step.flags_suffix" -> "s"
+    )
   }
 }

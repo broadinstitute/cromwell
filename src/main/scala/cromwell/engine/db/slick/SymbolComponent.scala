@@ -49,7 +49,6 @@ trait SymbolComponent {
   val symbolsAutoInc = symbols returning symbols.
     map(_.symbolId) into ((a, id) => a.copy(symbolId = Some(id)))
 
-
   // Convenience function
   def symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(workflowExecutionUuid: String,
                                                        io: String, scopeOption: Option[String]) = {
@@ -58,6 +57,23 @@ trait SymbolComponent {
       case None => symbolsByWorkflowExecutionUuidAndIo(workflowExecutionUuid, io)
     }
   }
+
+  def symbolsByScopeAndName(workflowExecutionUuid: String, scope: String, name: String) = symbolsByUuidAndScopeAndName(workflowExecutionUuid, scope, name)
+
+  val allSymbols = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      symbol <- symbols
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield symbol)
+
+  val symbolsByUuidAndScopeAndName = Compiled(
+    (workflowExecutionUuid: Rep[String], scope: Rep[String], name: Rep[String]) => for {
+      symbol <- symbols
+      if symbol.scope === scope && symbol.name === name
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield symbol)
 
   val symbolsByWorkflowExecutionUuidAndIo = Compiled(
     (workflowExecutionUuid: Rep[String], io: Rep[String]) => for {

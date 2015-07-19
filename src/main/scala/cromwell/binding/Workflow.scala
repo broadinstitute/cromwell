@@ -1,12 +1,14 @@
 package cromwell.binding
 
+import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.types.WdlType
-import cromwell.parser.WdlParser.{Terminal, Ast}
+import cromwell.parser.WdlParser.{Ast, Terminal}
 
 object Workflow {
-  def apply(ast: Ast, calls: Seq[Call]): Workflow = {
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, calls: Seq[Call]): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    new Workflow(name, calls)
+    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, name, wdlSyntaxErrorFormatter))
+    new Workflow(name, declarations, calls)
   }
 }
 
@@ -18,7 +20,7 @@ object Workflow {
  * @param name The name of the workflow
  * @param calls The set of `call` declarations
  */
-case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scope {
+case class Workflow(name: String, declarations: Seq[Declaration], calls: Seq[Call]) extends Executable with Scope {
   calls foreach {c => c.setParent(this)}
 
   /** Parent node for this workflow.  Since we do not support nested
@@ -32,8 +34,11 @@ case class Workflow(name: String, calls: Seq[Call]) extends Executable with Scop
    * @return a Seq[WorkflowInput] representing the
    *         inputs that the user needs to provide to this workflow
    */
-  def inputs: Seq[WorkflowInput] =
-    for {call <- calls; input <- call.unsatisfiedInputs} yield input
+  def inputs: Seq[WorkflowInput] = {
+    val callInputs = for {call <- calls; input <- call.unsatisfiedInputs} yield input
+    val declarationInputs = for(declaration <- declarations; input <- declaration.asWorkflowInput) yield input
+    callInputs ++ declarationInputs
+  }
 
   /**
    * All outputs for this workflow and their associated types

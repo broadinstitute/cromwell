@@ -108,7 +108,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(runtime))
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
-    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, coercedInputs)
+    val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
+    val inputs = coercedInputs ++ declarations
+    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, inputs)
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
 

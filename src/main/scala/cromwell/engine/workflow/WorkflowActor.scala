@@ -11,6 +11,7 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.util.TerminalUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -84,6 +85,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     case Event(Start, NoFailureMessage) =>
       log.info(s"$tag Start message received")
       executionStore = initWorkflow(createWorkflow())
+      symbolsMarkdownTable().foreach {table => log.info(s"Initial symbols:\n\n$table")}
       startRunnableCalls()
   }
 
@@ -217,6 +219,21 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       }
     }
   }
+  /* Return a Markdown table of all entries in the database */
+  private def symbolsMarkdownTable(): Option[String] = {
+    val header = Seq("SCOPE","NAME","I/O","TYPE","VALUE")
+    val rows = fetchAllEntries.map { entry =>
+      val valueString = entry.wdlValue match {
+        case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
+        case _ => ""
+      }
+      Seq(entry.key.scope, entry.key.name, if (entry.key.input) "INPUT" else "OUTPUT", entry.wdlType.toWdlString, valueString)
+    }.toSeq
+    rows match {
+      case r:Seq[Seq[String]] if r.isEmpty => None
+      case _ => Some(TerminalUtil.mdTable(rows, header))
+    }
+  }
 
   def fetchLocallyQualifiedInputs(call: Call): Future[Map[String, WdlValue]] = {
     /* TODO: This assumes that each Call has a parent that's a Workflow, but with scatter-gather that might not be the case */
@@ -231,28 +248,43 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
 
     def lookup(identifierString: String): WdlValue = {
-      /* Start by assuming the identifierString is a Namespace reference, and if it is return that reference.
-       * Otherwise, assume it's referencing a Call and return the value of that call as a WdlObject,
-       * which represents the outputs of the Call (WdlObject only returned if outputs are present)
+      /* This algorithm defines three ways to lookup an identifier in order of their precedence:
+       *
+       *   1) Look for a WdlNamespace with matching name
+       *   2) Look for a Call with a matching name (perhaps using a scope resolution algorithm)
+       *   3) Look for a Declaration with a matching name (perhaps using a scope resolution algorithm)
+       *
+       * Each method is tried individually and the first to return a Success value takes precedence.
        */
 
-      val namespaces = workflow.namespace.namespaces filter {_.importedAs.contains(identifierString)}
-      namespaces.headOption.getOrElse {
-        val matchedCall = parentWorkflow.calls.find {_.name == identifierString}.getOrElse {
-          throw new WdlExpressionException(s"Expecting to find a call with name '$identifierString'")
+      def lookupNamespace(name: String): Try[WdlNamespace] = {
+        workflow.namespace.namespaces.find {_.importedAs.contains(name)} match {
+          case Some(x) => Success(x)
+          case _ => Failure(new WdlExpressionException(s"Could not resolve $identifierString as a namespace"))
         }
-        val futureValue = fetchCallOutputEntries(matchedCall).map { entries =>
-          val callOutputs = entries.map { entry =>
-            val value = entry.wdlValue match {
-              case Some(v) => v
-              case _ => throw new WdlExpressionException(s"Could not evaluate call '${matchedCall.name}', because '${entry.key.name}' is undefined")
-            }
-            entry.key.name -> value
-          }
-          WdlObject(callOutputs.toMap)
-        }
-        Await.result(futureValue, DatabaseTimeout)
       }
+
+      def lookupCall(name: String): Try[WdlObject] = {
+        parentWorkflow.calls.find {_.name == identifierString} match {
+          case Some(matchedCall) => fetchCallOutputEntries(matchedCall)
+          case None => Failure(new WdlExpressionException(s"Could not find a call with name '$identifierString'"))
+        }
+      }
+
+      def lookupDeclaration(name: String): Try[WdlValue] = {
+        parentWorkflow.declarations.find {_.name == identifierString} match {
+          case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
+          case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$identifierString'"))
+        }
+      }
+
+      def notFound = throw new WdlExpressionException(s"Could not resolve $identifierString as a namespace, call, or declaration")
+
+      /* Try each of the three methods in sequence. */
+      val attemptedResolutions = Stream(lookupNamespace _, lookupCall _, lookupDeclaration _).map {_(identifierString)}.find {_.isSuccess}
+
+      /* Return the first successful function's value or throw exception */
+      attemptedResolutions.getOrElse {notFound}.get
     }
 
     fetchCallInputEntries(call).map { entries =>
@@ -267,7 +299,38 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  private def fetchCallOutputEntries(call: Call) = dataAccess.getOutputs(workflow.id, call)
+  private def fetchFullyQualifiedName(fqn: FullyQualifiedName): Try[WdlValue] = {
+    val futureValue = dataAccess.getFullyQualifiedName(workflow.id, fqn).map {
+      case t: Traversable[SymbolStoreEntry] if t.isEmpty =>
+        Failure(new WdlExpressionException(s"Could not find a declaration with fully-qualified name '$fqn'"))
+      case t: Traversable[SymbolStoreEntry] if t.size > 1 =>
+        Failure(new WdlExpressionException(s"Expected only one declaration for fully-qualified name '$fqn', got ${t.size}"))
+      case t: Traversable[SymbolStoreEntry] => t.head.wdlValue match {
+        case Some(value) => Success(value)
+        case None => Failure(new WdlExpressionException(s"No value defined for fully-qualified name $fqn"))
+      }
+    }
+    Await.result(futureValue, DatabaseTimeout)
+  }
+
+  private def fetchAllEntries: Traversable[SymbolStoreEntry] = {
+    val futureValue = dataAccess.getAll(workflow.id)
+    Await.result(futureValue, DatabaseTimeout)
+  }
+
+  private def fetchCallOutputEntries(call: Call): Try[WdlObject] = {
+    val futureValue = dataAccess.getOutputs(workflow.id, call).map {callOutputEntries =>
+      val callOutputsAsMap = callOutputEntries.map { entry =>
+        entry.key.name -> entry.wdlValue
+      }.toMap
+      callOutputsAsMap.find {case (k,v) => v.isEmpty} match {
+        case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${call.name} because some if its inputs are not defined (i.e. ${noneValue._1}"))
+        case None => Success(WdlObject(callOutputsAsMap.map {case (k,v) => k -> v.get}))
+      }
+    }
+    Await.result(futureValue, DatabaseTimeout)
+  }
+
   private def fetchCallInputEntries(call: Call) = dataAccess.getInputs(workflow.id, call)
 
   /**

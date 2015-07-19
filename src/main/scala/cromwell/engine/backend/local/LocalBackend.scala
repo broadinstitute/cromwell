@@ -7,8 +7,7 @@ import org.apache.commons.io.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.types.WdlFileType
-import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
+import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.engine.ExecutionStatus.{Done, Failed, NotStarted}
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -20,7 +19,7 @@ import cromwell.util.FileUtil._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 object LocalBackend {
 

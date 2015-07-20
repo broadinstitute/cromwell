@@ -18,6 +18,4 @@ case class WdlUri(value: URI) extends WdlPrimitive {
   override def add(rhs: WdlValue): Try[WdlValue] = ???
 
   override def equals(rhs: WdlValue): Try[WdlBoolean] = ???
-
-  override def asString = value.toString
 }

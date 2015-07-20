@@ -18,13 +18,13 @@ case class GoogleCloudStoragePath(bucket: String, objectName: String) {
 
 object GoogleCloudStoragePath {
   def apply(value: String): GoogleCloudStoragePath = {
-    tryParse(value) match {
+    parse(value) match {
       case Success(gcsPath) => gcsPath
       case Failure(e) => throw e
     }
   }
 
-  def tryParse(value: String): Try[GoogleCloudStoragePath] = {
+  def parse(value: String): Try[GoogleCloudStoragePath] = {
     val gsUriRegex = """gs://([^/]*)/(.*)""".r
     value match {
       case gsUriRegex(bucket, objectName) => Success(GoogleCloudStoragePath(bucket, objectName))

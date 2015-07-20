@@ -1,6 +1,6 @@
 package cromwell.binding
 
-import cromwell.binding.values.{WdlInteger, WdlString, WdlFile, WdlValue}
+import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Matchers, FlatSpec}
@@ -126,6 +126,11 @@ class MockEngineFunctions extends EngineFunctions  {
   }
   override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
     assert(false, "The active 'read_string' function should not be used during pre-evaluation")
+    ???
+  }
+
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    assert(false, "The active 'read_lines' function should not be used during pre-evaluation")
     ???
   }
 

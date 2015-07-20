@@ -19,8 +19,8 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
 
   private def readFromPath(value: String): String = {
     val tryParse = GoogleCloudStoragePath.parse(value)
-    val gcsPathToUse = if (tryParse.isSuccess) { tryParse.get } else { gcsPathFromAnyString(value) }
-    GcsUtil.slurp(gcsPathToUse, secretsFile)
+    val gcsPathToUse: GoogleCloudStoragePath = if (tryParse.isSuccess) { tryParse.get } else { GoogleCloudStoragePath(gcsPathFromAnyString(value)) }
+    jesConnection.storage.slurpFile(gcsPathToUse)
   }
   
   /**
@@ -77,11 +77,5 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
 
   def md5(value: String): String = {
     new String(Base64.encodeBase64(MessageDigest.getInstance("MD5").digest(value.getBytes)))
-  }
-}
-
-object JesEngineFunctions {
-  def apply(secretsFile: Path, callDir: String): JesEngineFunctions = {
-    JesEngineFunctions(secretsFile, GoogleCloudStoragePath(callDir))
   }
 }

@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.nio.file.{Path, Paths}
 
-import com.google.api.services.genomics.model.{Parameter, ServiceAccount}
+import com.google.api.services.genomics.model.Parameter
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression._
@@ -13,8 +13,7 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.util.TryUtil
-import cromwell.util.google.{GoogleScopes, GoogleCloudStoragePath}
-import scala.collection.JavaConverters._
+import cromwell.util.google.GoogleCloudStoragePath
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 import JesBackend._
@@ -111,7 +110,7 @@ class JesBackend extends Backend with LazyLogging {
     taskOutput.wdlType match {
       case WdlFileType =>
         taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
-          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.toRawString))))
+          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
           case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
         }
       case _ => Success(None)
@@ -141,11 +140,11 @@ class JesBackend extends Backend with LazyLogging {
                               scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
-    val engineFunctions = new JesEngineFunctions(GoogleSecrets, GoogleCloudStoragePath(callGcsPath))
+    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
 
     // FIXME: Not particularly robust at the moment.
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
-      case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).toRawString, Paths.get(v.toRawString))
+      case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(v.valueString))
 
     }).toSeq
 
@@ -178,13 +177,7 @@ class JesBackend extends Backend with LazyLogging {
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
 
-    // **
-    // ***** !!!!!
-    // **
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, GenomicsService).run.waitUntilComplete()
-    // **
-    // ***** !!!!!
-    // **
+    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
 
     // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
     val outputMappings = call.task.outputs.map { taskOutput =>
@@ -210,5 +203,5 @@ class JesBackend extends Backend with LazyLogging {
 
   }
   
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = ???
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 }

@@ -47,7 +47,7 @@ object WdlExpression {
           case Success(_) => {
             // We aren't going to evaluate anything invalid, so let's do this live:
             evaluate(innerExpression, lookup, functions) match {
-              case Success(value) => Success(Seq(WdlFile(value.toRawString)))
+              case Success(value) => Success(Seq(WdlFile(value.valueString)))
               case Failure(error) => Failure(error)
             }
           }
@@ -201,6 +201,7 @@ class DummyPreEvaluationFunctions extends EngineFunctions {
   // These cannot be evaluated before running the operation, so quickly fail the pre-evaluation test.
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new UnsupportedOperationException("Unable to pre-evaluate read_int"))
   override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new UnsupportedOperationException("Unable to pre-evaluate read_string"))
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new UnsupportedOperationException("Unable to pre-evaluate read_lines"))
 
   // These can be evaluated before running the operation so provide dummy values during the pre-evaluation test.
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile("/test/value"))

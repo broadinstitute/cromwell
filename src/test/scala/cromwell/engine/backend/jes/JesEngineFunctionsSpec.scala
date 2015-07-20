@@ -8,38 +8,40 @@ import org.scalatest.{Matchers, FlatSpec}
 
 import scala.util.{Try, Success}
 
-/**
- * Specification for the JES Engine Functions
- */
-class JesEngineFunctionsSpec extends FlatSpec with Matchers{
-  final val BUCKET_NAME = "chrisl-dsde-dev"
+// FIXME: See DSDEEPB-828, leaving this here as an example for when that ticket gets picked up
 
-  final val INT_FILE = "intfile"
-  final val INT_FILE_VALUE = 2012
-
-  final val STRING_FILE = "BobLoblawsLawBlog"
-  final val STRING_FILE_CONTENTS = """Day 1:
-                                     |Law!
-                                     |
-                                     |Day 2:
-                                     |Law!
-                                     |
-                                     |Day 3:
-                                     |Law!
-                                     |
-                                     |Day 4:
-                                     |Law!
-                                     |
-                                     |Day 5:
-                                     |Law!
-                                     |
-                                     |Day 6:
-                                     |Law!
-                                     |
-                                     |Day 7:
-                                     |Rest.
-                                     |""".stripMargin
-
+///**
+// * Specification for the JES Engine Functions
+// */
+//class JesEngineFunctionsSpec extends FlatSpec with Matchers{
+//  final val BUCKET_NAME = "chrisl-dsde-dev"
+//
+//  final val INT_FILE = "intfile"
+//  final val INT_FILE_VALUE = 2012
+//
+//  final val STRING_FILE = "BobLoblawsLawBlog"
+//  final val STRING_FILE_CONTENTS = """Day 1:
+//                                     |Law!
+//                                     |
+//                                     |Day 2:
+//                                     |Law!
+//                                     |
+//                                     |Day 3:
+//                                     |Law!
+//                                     |
+//                                     |Day 4:
+//                                     |Law!
+//                                     |
+//                                     |Day 5:
+//                                     |Law!
+//                                     |
+//                                     |Day 6:
+//                                     |Law!
+//                                     |
+//                                     |Day 7:
+//                                     |Rest.
+//                                     |""".stripMargin
+//
 //  "JES Engine Functions" should "read strings correctly" in {
 //    val readString = JesEngineFunctions("gs://a/a").getFunction("read_string")
 //    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, STRING_FILE).toString))
@@ -51,4 +53,4 @@ class JesEngineFunctionsSpec extends FlatSpec with Matchers{
 //    val gcsPathTry: Try[WdlFile] = Success(WdlFile(GoogleCloudStoragePath(BUCKET_NAME, INT_FILE).toString))
 //    readString(Seq(gcsPathTry)) shouldEqual Success(WdlInteger(INT_FILE_VALUE))
 //  }
-}
+//}

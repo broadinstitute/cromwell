@@ -19,10 +19,10 @@ object Pipeline {
     val cpr = new CreatePipelineRequest
     cpr.setProjectId(projectId)
     cpr.setDocker(runtimeInfo.docker)
-    cpr.setResources(runtimeInfo.resources) // FIXME: These are still F'd up if you dig into it
+    cpr.setResources(runtimeInfo.resources)
     cpr.setName(workflow.name)
 
-    cpr.setParameters(jesParameters.map(_.toGoogleParamter).toVector.asJava)
+    cpr.setParameters(jesParameters.map(_.toGoogleParameter).toVector.asJava)
 
     println(s"Pipeline parameters are ${cpr.getParameters}")
     val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId

@@ -27,7 +27,7 @@ object JesBackend {
 
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
-    where stdout.txt is input and output :) Redirect stdout/stderr to a different name, but it'll be localized back
+    where stdout.txt is input and output. Redirect stdout/stderr to a different name, but it'll be localized back
     in GCS as stdout/stderr. Yes, it's hacky.
    */
   val LocalStdoutParamName = "job_stdout"
@@ -36,8 +36,7 @@ object JesBackend {
   val LocalStdoutValue = "job.stdout.txt"
   val LocalStderrValue = "job.stderr.txt"
 
-  // SOME MIGHT BE WRONG
-  val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
+  val CromwellExecutionBucket = "gs://cromwell-dev/cromwell-executions"
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
@@ -59,7 +58,7 @@ object JesBackend {
     final def isInput = this.isInstanceOf[JesInput]
     final def isOutput = !isInput
     // FIXME: Perhaps not the best name
-    final def toGoogleParamter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
+    final def toGoogleParameter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
   }
 
   final case class JesInput(name: String, gcs: String, local: Path) extends JesParameter
@@ -74,7 +73,7 @@ class JesBackend extends Backend with LazyLogging {
    * @return A path which is unique per input path
    */
   def localFilePathFromCloudStoragePath(gcsPath: GoogleCloudStoragePath): Path = {
-    Paths.get("/some_unlikely_folder/" + gcsPath.bucket + "/" + gcsPath.objectName)
+    Paths.get("/cromwell_root/" + gcsPath.bucket + "/" + gcsPath.objectName)
   }
 
   /**
@@ -102,7 +101,7 @@ class JesBackend extends Backend with LazyLogging {
 
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
   
-  // No need to copy GCS inputs for the workflow we should be able to direclty reference them
+  // No need to copy GCS inputs for the workflow we should be able to directly reference them
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
 
   // FIXME: signature is weird
@@ -145,7 +144,6 @@ class JesBackend extends Backend with LazyLogging {
     // FIXME: Not particularly robust at the moment.
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
       case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(v.valueString))
-
     }).toSeq
 
     // Call preevaluateExpressionForFilenames for each of the task output expressions, and flatten the lists into a single Try[Seq[WdlFile]]
@@ -157,20 +155,15 @@ class JesBackend extends Backend with LazyLogging {
 
     val jesOutputs: Try[Seq[JesParameter]] = filesWithinExpressions match {
       case Failure(error) => Failure(error)
-      case Success(fileSeq) => {
+      case Success(fileSeq) =>
         val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, engineFunctions)}
-
         // FIXME: If localizeTaskOutputs gives a Failure, need to Fail entire function - don't use .get
         val namedOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
-
         Success(anonOutputs ++ namedOutputs)
-      }
     }
 
     // FIXME: Ignore all the errors!
     val unsafeJesOutputs: Seq[JesParameter] = jesOutputs.get
-
-
 
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ unsafeJesOutputs
 
@@ -188,7 +181,7 @@ class JesBackend extends Backend with LazyLogging {
 
     status match {
       case Run.Success(created, started, finished) =>
-        // FIXME: DRY cochise, this is C/P from LocalBackend
+        // FIXME: See if we can harmonize w/ LocalBackend
         val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
         if (taskOutputEvaluationFailures.isEmpty) {
           val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }
@@ -197,7 +190,7 @@ class JesBackend extends Backend with LazyLogging {
           val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
           Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
         }
-      case Run.Failed(created, started, finished, errorCode, errorMessage) => // FIXME: errorMessage looks like it's just "pipeline run failed"?
+      case Run.Failed(created, started, finished, errorCode, errorMessage) =>
         Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $commandLine. Message: $errorMessage"))
     }
 

@@ -34,8 +34,6 @@ object Run {
   final case class Initializing(created: String) extends RunStatus
   final case class Running(created: String, started: String) extends RunStatus
   final case class Success(created: String, started: String, finished: String) extends TerminalRunStatus
-  // FIXME: Not capturing the errorDetails map, might want to do that (but .asScala issues exist there))
-  // FIXME: Also it's been a while since I looked but there never seemed to be anything in there anyways
   final case class Failed(created: String, started: String, finished: String, errorCode: Int, errorMessage: String) extends TerminalRunStatus
 }
 

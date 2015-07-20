@@ -71,4 +71,9 @@ package object engine {
     def isOutput: Boolean = !isInput
     def scope: String = key.scope
   }
+
+  object ExecutionStatus extends Enumeration {
+    type ExecutionStatus = Value
+    val NotStarted, Starting, Running, Failed, Done = Value
+  }
 }

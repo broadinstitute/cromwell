@@ -79,7 +79,7 @@ class JesBackend extends Backend with LazyLogging {
   }
 
   /**
-   * Takes a single input mapping from FQN to WdlValue and maps google cloud storage (GCS) paths into an appropriate local file path.
+   * Takes a single FQN to WdlValue pair and maps google cloud storage (GCS) paths into an appropriate local file path.
    * If the input is not a WdlFile, or the WdlFile is not a GCS path, the mapping is a noop.
    *
    * @param fqn the FQN of the input variable

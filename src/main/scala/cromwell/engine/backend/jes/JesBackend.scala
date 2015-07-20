@@ -172,7 +172,6 @@ class JesBackend extends Backend with LazyLogging {
 
     val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
 
-    // FIXME: This is probably needs changing (e.g. we've already done the Files and such)
     val outputMappings = call.task.outputs.map { taskOutput =>
       val rawValue = taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions)
       println(s"JesBackend setting ${taskOutput.name} to $rawValue")

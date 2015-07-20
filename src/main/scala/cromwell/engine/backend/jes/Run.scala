@@ -1,5 +1,7 @@
 package cromwell.engine.backend.jes
 
+import java.util.Date
+
 import com.google.api.services.genomics.model.{ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
@@ -29,12 +31,12 @@ object Run {
     def toRunMap = params.map(p => p.name -> p.gcs).toMap.asJava
   }
 
-  sealed trait RunStatus // FIXME: These dates shouldn't be Strings
+  sealed trait RunStatus
   trait TerminalRunStatus extends RunStatus
-  final case class Initializing(created: String) extends RunStatus
-  final case class Running(created: String, started: String) extends RunStatus
-  final case class Success(created: String, started: String, finished: String) extends TerminalRunStatus
-  final case class Failed(created: String, started: String, finished: String, errorCode: Int, errorMessage: String) extends TerminalRunStatus
+  final case class Initializing(created: Date) extends RunStatus
+  final case class Running(created: Date, started: Date) extends RunStatus
+  final case class Success(created: Date, started: Date, finished: Date) extends TerminalRunStatus
+  final case class Failed(created: Date, started: Date, finished: Date, errorCode: Int, errorMessage: String) extends TerminalRunStatus
 }
 
 case class Run(name: String, pipeline: Pipeline) {

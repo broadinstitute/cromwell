@@ -1,6 +1,5 @@
 package cromwell.util
 
-import cromwell.util.google.GoogleCloudStoragePath
 import org.scalatest.{FlatSpec, Matchers}
 
 /**

@@ -1,10 +1,10 @@
 package cromwell.util
 
-import java.nio.file.{Paths, Path}
+//import java.nio.file.{Paths, Path}
 
-import cromwell.util.google.{GoogleCloudStoragePath, GoogleCloudStorage}
-import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
-import org.scalatest._
+//import cromwell.util.google.{GoogleCloudStoragePath, GoogleCloudStorage}
+//import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
+//import org.scalatest._
 
 // FIXME: See DSDEEPB-828, leaving this here as an example for when that ticket gets picked up
 

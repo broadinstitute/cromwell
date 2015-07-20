@@ -49,8 +49,8 @@ case class Run(name: String, pipeline: Pipeline) {
       error match { // "What is this, amateur hour? ...."
         case Some(x) => Failed(
           metadata.created,
-          /* metadata.started.get*/ "started",
-          /* metadata.finished.get */ "finished",
+          metadata.started.get,
+          metadata.finished.get,
           x.getCode,
           x.getMessage)
         case None => Success(metadata.created, metadata.started.get, metadata.finished.get)

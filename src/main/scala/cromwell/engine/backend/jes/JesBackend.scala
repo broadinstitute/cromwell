@@ -2,18 +2,18 @@ package cromwell.engine.backend.jes
 
 import java.nio.file.{Path, Paths}
 
-import com.google.api.services.genomics.model.{Parameter, ServiceAccount}
+import com.google.api.services.genomics.model.Parameter
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression._
 import cromwell.binding._
+import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.util.TryUtil
-import cromwell.util.google.{GoogleScopes, GoogleCloudStoragePath}
-import scala.collection.JavaConverters._
+import cromwell.util.google.GoogleCloudStoragePath
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 import JesBackend._
@@ -30,15 +30,14 @@ object JesBackend {
     where stdout.txt is input and output :) Redirect stdout/stderr to a different name, but it'll be localized back
     in GCS as stdout/stderr. Yes, it's hacky.
    */
-  val LocalStdout = "job.stdout.txt"
-  val LocalStderr = "job.stderr.txt"
+  val LocalStdoutParamName = "job_stdout"
+  val LocalStderrParamName = "job_stderr"
 
+  val LocalStdoutValue = "job.stdout.txt"
+  val LocalStderrValue = "job.stderr.txt"
+
+  // SOME MIGHT BE WRONG
   val CromwellExecutionBucket = s"gs://cromwell-dev/cromwell-executions"
-
-  def gsInputToLocal(gsPath: String): Path = {
-    // FIXME: What if it doesn't have a gs?
-    Paths.get(gsPath.replaceFirst("^gs:/", "/tmp"))
-  }
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
@@ -48,8 +47,8 @@ object JesBackend {
 
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
-    JesOutput(LocalStderr, s"$callGcsPath/stderr.txt", Paths.get("stderr.txt")),
-    JesOutput(LocalStdout, s"$callGcsPath/stdout.txt", Paths.get("stdout.txt"))
+    JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue)),
+    JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
   )
 
   sealed trait JesParameter { // FIXME: Perhaps not the best name
@@ -79,7 +78,7 @@ class JesBackend extends Backend with LazyLogging {
   }
 
   /**
-   * Takes a single input mapping from FQN to WdlValue and maps google cloud storage (GCS) paths into an appropriate local file path.
+   * Takes a single FQN to WdlValue pair and maps google cloud storage (GCS) paths into an appropriate local file path.
    * If the input is not a WdlFile, or the WdlFile is not a GCS path, the mapping is a noop.
    *
    * @param fqn the FQN of the input variable
@@ -88,12 +87,11 @@ class JesBackend extends Backend with LazyLogging {
    */
   def mapInputValue(fqn: String, wdlValue: WdlValue): (String, WdlValue) = {
     wdlValue match {
-      case WdlFile(path) => {
+      case WdlFile(path) =>
         GoogleCloudStoragePath.parse(path) match {
           case Success(gcsPath) => (fqn, WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString))
           case Failure(e) => (fqn, wdlValue)
         }
-      }
       case _ => (fqn, wdlValue)
     }
   }
@@ -110,7 +108,7 @@ class JesBackend extends Backend with LazyLogging {
   // FIXME: signature is weird
   def localizeTaskOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
     taskOutput.wdlType match {
-      case f: WdlFile =>
+      case WdlFileType =>
         taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
           case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
           case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
@@ -131,22 +129,53 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
+  def anonymousTaskOutput(value: String, engineFunctions: JesEngineFunctions): JesOutput = {
+    JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
+  }
+
   override def executeCommand(commandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction):Try[Map[String, WdlValue]] = {
+                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
     val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
 
-    // FIXME: Not particularly robust at the moment
-    val jesInputs: Seq[JesParameter] = backendInputs.collect({case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(backendInputs(k).valueString))}).toSeq
-    val jesOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get // FIXME: If Failure, need to Fail entire function - don't use .get
-    val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ jesOutputs
+    // FIXME: Not particularly robust at the moment.
+    val jesInputs: Seq[JesParameter] = backendInputs.collect({
+      case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(v.valueString))
+
+    }).toSeq
+
+    // Call preevaluateExpressionForFilenames for each of the task output expressions, and flatten the lists into a single Try[Seq[WdlFile]]
+    val filesWithinExpressions = Try(
+      call.task.outputs.map {
+        taskOutput => taskOutput.expression.preevaluateExpressionForFilenames(scopedLookupFunction, engineFunctions)
+      }.flatMap({_.get})
+    )
+
+    val jesOutputs: Try[Seq[JesParameter]] = filesWithinExpressions match {
+      case Failure(error) => Failure(error)
+      case Success(fileSeq) => {
+        val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, engineFunctions)}
+
+        // FIXME: If localizeTaskOutputs gives a Failure, need to Fail entire function - don't use .get
+        val namedOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
+
+        Success(anonOutputs ++ namedOutputs)
+      }
+    }
+
+    // FIXME: Ignore all the errors!
+    val unsafeJesOutputs: Seq[JesParameter] = jesOutputs.get
+
+
+
+    val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ unsafeJesOutputs
 
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-    val redirectedCommand = s"$commandLine > $LocalStdout  2> $LocalStderr"
+    val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
 
     val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
 
@@ -162,7 +191,7 @@ class JesBackend extends Backend with LazyLogging {
         // FIXME: DRY cochise, this is C/P from LocalBackend
         val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
         if (taskOutputEvaluationFailures.isEmpty) {
-          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
+          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }
           Success(unwrappedMap)
         } else {
           val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
@@ -173,7 +202,6 @@ class JesBackend extends Backend with LazyLogging {
     }
 
   }
-
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
-                                  dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
+  
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 }

@@ -18,7 +18,6 @@ import scala.util.{Failure, Success, Try}
 
 object Backend {
   def from(backendConf: Config): Backend = {
-    // FIXME: A log message would be a nice touch
     backendConf.getString("backend").toLowerCase match {
       case "local" => new LocalBackend
       case "jes" => new JesBackend

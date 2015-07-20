@@ -77,6 +77,8 @@ object Main extends App {
   def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
 
+    Log.info(s"Backend is: $BackendInstance")
+
     Log.info(s"RUN sub-command")
     Log.info(s"  WDL file: ${args(0)}")
     Log.info(s"  Inputs: ${args(1)}")

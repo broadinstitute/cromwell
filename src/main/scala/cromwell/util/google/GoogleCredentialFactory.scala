@@ -18,7 +18,6 @@ import scala.collection.JavaConverters._
 
 object GoogleCredentialFactory {
   private lazy val GoogleConf = ConfigFactory.load.getConfig("google")
-  private lazy val GoogleUser = GoogleConf.getString("user")
   private lazy val GoogleAuthScheme = GoogleConf.getString("authScheme").toLowerCase
 
   lazy val from: (JsonFactory, HttpTransport) => Credential = GoogleAuthScheme match {
@@ -27,6 +26,7 @@ object GoogleCredentialFactory {
   }
 
   private def forUser(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+    val user = config.getString("user')")
     val secrets = Paths.get(config.getString("secretsFile"))
     val secretStream = new InputStreamReader(new FileInputStream(secrets.toFile))
     val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)
@@ -36,7 +36,7 @@ object GoogleCredentialFactory {
       jsonFactory,
       clientSecrets,
       GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
-    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(GoogleUser)
+    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user)
   }
 
   private def forServiceAccount(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {

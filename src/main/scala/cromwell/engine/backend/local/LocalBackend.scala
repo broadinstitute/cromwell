@@ -133,26 +133,28 @@ class LocalBackend extends Backend with LazyLogging {
    * Host inputs path: $PWD/cromwell-executions/some-workflow-name/0f00-ba4/workflow-inputs/input.bam
    */
   private def stageWorkflowInputs(descriptor: WorkflowDescriptor): HostInputs = {
-
     val hostInputsPath = Paths.get(hostExecutionPath(descriptor).toFile.getAbsolutePath, "workflow-inputs")
+    descriptor.actualInputs map {stageInput(_, hostInputsPath)}
+  }
 
-    def stageInput(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
-      val (name, value) = nameAndValue
-      val hostPathAdjustedValue = value match {
-        case WdlFile(p) =>
-          val originalPath = Paths.get(p)
-          val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
-          if (Files.isDirectory(originalPath)) {
-            FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
-          } else {
-            FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
-          }
-          WdlFile(executionPath.toString)
-        case x => x
-      }
-      name -> hostPathAdjustedValue
+  private def stageInput(nameAndValue: (String, WdlValue), hostInputsPath: Path): (String, WdlValue) = {
+    val (name, value) = nameAndValue
+    val hostPathAdjustedValue = value match {
+      case w: WdlFile => stageWdlFile(w, hostInputsPath)
+      case x => x
     }
-    descriptor.actualInputs map stageInput
+    name -> hostPathAdjustedValue
+  }
+
+  private def stageWdlFile(wdlFile: WdlFile, hostInputsPath: Path): WdlFile = {
+    val originalPath = Paths.get(wdlFile.value)
+    val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
+    if (Files.isDirectory(originalPath)) {
+      FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
+    } else {
+      FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
+    }
+    WdlFile(executionPath.toString)
   }
 
   /**

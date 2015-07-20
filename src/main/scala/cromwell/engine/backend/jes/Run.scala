@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.util.Date
 
-import com.google.api.services.genomics.model.{ServiceAccount, RunPipelineRequest}
+import com.google.api.services.genomics.model.{Status, ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
 import cromwell.util.google.GoogleScopes
@@ -46,7 +46,7 @@ case class Run(name: String, pipeline: Pipeline) {
 
     if (op.getDone) {
       val error = Option(op.getError)
-      error match { // "What is this, amateur hour? ...."
+      error match {
         case Some(x) => Failed(
           metadata.created,
           metadata.started.get,

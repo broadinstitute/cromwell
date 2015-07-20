@@ -37,7 +37,7 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     }
 
     mappedInputs.get(gcsFileKey).get match {
-      case WdlFile(v) => assert(v.equalsIgnoreCase("/some_unlikely_folder/blah/abc"))
+      case WdlFile(v) => assert(v.equalsIgnoreCase("/cromwell_root/blah/abc"))
       case _ => fail("test setup error")
     }
   }

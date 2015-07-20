@@ -114,7 +114,6 @@ class LocalBackend extends Backend with LazyLogging {
   override def initializeForWorkflow(descriptor: WorkflowDescriptor): HostInputs = {
     val hostExecutionDirectory = hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
-    // FIXME: I don't think we need to do the next line, can't we do Paths.resolve on it 2 lines down?
     val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath
     Array("workflow-inputs", "workflow-outputs") foreach { Paths.get(hostExecutionAbsolutePath, _).toFile.mkdir() }
     stageWorkflowInputs(descriptor)

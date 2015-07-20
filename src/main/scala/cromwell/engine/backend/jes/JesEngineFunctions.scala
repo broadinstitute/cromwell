@@ -1,11 +1,9 @@
 package cromwell.engine.backend.jes
 
-import java.nio.file.Path
 import java.security.MessageDigest
 
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
-import cromwell.util.GcsUtil
 import cromwell.util.google.GoogleCloudStoragePath
 
 import org.apache.commons.codec.binary.Base64

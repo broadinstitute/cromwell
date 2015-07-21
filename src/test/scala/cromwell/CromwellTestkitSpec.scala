@@ -9,7 +9,7 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
@@ -129,7 +129,15 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
           val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
-          actualValue shouldEqual expectedValue
+
+          // Not great, but this is so we can test matching WdlFile against WdlFile more easily
+          expectedValue match {
+            case expectedFile: WdlFile if actualValue.isInstanceOf[WdlFile] =>
+              val actualFile = actualValue.asInstanceOf[WdlFile]
+              actualFile.value.toString.endsWith(expectedFile.value.toString)
+            case _ =>
+              actualValue shouldEqual expectedValue
+          }
         }
       }
     }

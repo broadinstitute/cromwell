@@ -46,7 +46,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
       case Success(value) => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
-  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestFunctions()).asInstanceOf[Try[WdlPrimitive]].get
+  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestFunctions(), interpolateStrings=true).asInstanceOf[Try[WdlPrimitive]].get
   def identifierEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluate(identifierLookup, new TestFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => // Expected
@@ -748,5 +748,19 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
   it should "Make strings out of function calls" in {
     expr("a(b, c)").toWdlString shouldEqual "a(b, c)"
+  }
+
+  /* Interpolation */
+  "A string with interpolation values" should "replace those values" in {
+    identifierEval("\"prefix.${a}.suffix\"") shouldEqual WdlString("prefix.1.suffix")
+  }
+  it should "replace multiple occurences of those values" in {
+    identifierEval("\"prefix.${a}${a}.suffix${a}\"") shouldEqual WdlString("prefix.11.suffix1")
+  }
+  it should "replace multiple variables and multiple occurences of those values" in {
+    identifierEval("\"${b}prefix.${b}${a}${a}.suffix${a}\"") shouldEqual WdlString("2prefix.211.suffix1")
+  }
+  it should "replace string values too" in {
+    identifierEval("\"${s}...${s}\"") shouldEqual WdlString("s...s")
   }
 }

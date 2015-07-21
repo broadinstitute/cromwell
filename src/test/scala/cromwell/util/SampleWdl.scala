@@ -614,4 +614,28 @@ object SampleWdl {
       "two_step.flags_suffix" -> "s"
     )
   }
+
+  object StringInterpolation extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task echo {
+        |  command {
+        |    echo "${greeting}" > ${out}.txt
+        |  }
+        |  output {
+        |    File outfile = "${out}.txt"
+        |  }
+        |}
+        |
+        |workflow echo_wf {
+        |  call echo
+        |}
+        |
+      """.stripMargin
+
+    override val rawInputs = Map(
+      "echo_wf.echo.greeting" -> "world",
+      "echo_wf.echo.out" -> "foobar"
+    )
+  }
 }

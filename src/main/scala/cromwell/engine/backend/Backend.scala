@@ -53,7 +53,8 @@ trait Backend {
                                     call: Call,
                                     hostAbsoluteFilePath: String => String,
                                     localEngineFunctions: LocalEngineFunctions,
-                                    scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+                                    scopedLookupFunction: ScopedLookupFunction,
+                                    interpolateStrings: Boolean): Try[Map[String, WdlValue]] = {
     /**
      * Handle possible auto-conversion from an output expression `WdlString` to a `WdlFile` task output.
      * The following should work:
@@ -84,7 +85,7 @@ trait Backend {
     val outputMappings = call.task.outputs.map { taskOutput =>
       val tryConvertedValue =
         for {
-          expressionValue <- taskOutput.expression.evaluate(scopedLookupFunction, localEngineFunctions)
+          expressionValue <- taskOutput.expression.evaluate(scopedLookupFunction, localEngineFunctions, interpolateStrings=true)
           convertedValue <- outputAutoConversion(call.fullyQualifiedName, taskOutput, expressionValue)
         } yield convertedValue
       taskOutput.name -> tryConvertedValue

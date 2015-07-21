@@ -50,14 +50,13 @@ object JesBackend {
     JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
   )
 
-  sealed trait JesParameter { // FIXME: Perhaps not the best name
+  sealed trait JesParameter {
     def name: String
     def gcs: String
     def local: Path
 
     final def isInput = this.isInstanceOf[JesInput]
     final def isOutput = !isInput
-    // FIXME: Perhaps not the best name
     final def toGoogleParameter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
   }
 

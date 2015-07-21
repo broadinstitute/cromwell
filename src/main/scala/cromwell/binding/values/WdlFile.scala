@@ -6,7 +6,7 @@ import scala.util.{Success, Try}
 
 object WdlFile {
   def appendPathsWithSlashSeparators(path1: String, path2: String) = {
-    if(path1.endsWith("/") || path2.startsWith("/")) path1 + path2
+    if (path1.endsWith("/") || path2.startsWith("/")) path1 + path2
     else path1 + "/" + path2
   }
 }

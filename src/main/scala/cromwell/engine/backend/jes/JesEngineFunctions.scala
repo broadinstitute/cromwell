@@ -2,13 +2,14 @@ package cromwell.engine.backend.jes
 
 import java.security.MessageDigest
 
+import cromwell.binding.types.{WdlStringType, WdlArrayType}
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
 import cromwell.util.google.GoogleCloudStoragePath
 
 import org.apache.commons.codec.binary.Base64
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
  * Implementation of engine functions for the JES backend.
@@ -31,17 +32,18 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => {
-        readFromPath(f.value)
-      }
-      case f: WdlString => {
-        readFromPath(f.value)
-      }
+      case f: WdlFile => readFromPath(f.value)
+      case f: WdlString => readFromPath(f.value)
       case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
     }
   }
 
-  protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = ???
+  protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
+    } yield WdlArray(WdlArrayType(WdlStringType), lines)
+  }
 
   /**
    * Try to read a string from the file referenced by the specified `WdlValue`.

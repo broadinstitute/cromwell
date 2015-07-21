@@ -6,7 +6,7 @@ import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowManagerActor
 
 trait WorkflowManagerSystem {
-  val backend: Backend
+  lazy val backend: Backend = WorkflowManagerActor.BackendInstance
 
   val systemName = "cromwell-system"
   implicit val actorSystem = ActorSystem(systemName)

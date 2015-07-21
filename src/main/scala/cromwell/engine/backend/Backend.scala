@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
@@ -8,10 +8,10 @@ import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.local.LocalEngineFunctions
 import cromwell.engine.backend.jes.JesBackend
+import cromwell.engine.backend.local.{LocalBackend, LocalEngineFunctions}
 import cromwell.engine.db.DataAccess
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.parser.BackendType
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -117,4 +117,6 @@ trait Backend {
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
     }
   }
+
+  def backendType: BackendType
 }

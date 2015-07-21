@@ -6,15 +6,15 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
-import cromwell.{Main, binding}
+import com.typesafe.config.ConfigFactory
+import cromwell.binding
 import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.WorkflowInfo
-import cromwell.engine.workflow.WorkflowActor.{Restart, GetOutputs, Start}
+import cromwell.engine.workflow.WorkflowActor.{GetOutputs, Restart, Start}
 import cromwell.util.WriteOnceStore
 import spray.json._
 
@@ -34,6 +34,9 @@ object WorkflowManagerActor {
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
+
+  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
+  lazy val BackendType = BackendInstance.backendType
 }
 
 /**
@@ -82,7 +85,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
-      eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource))
+      eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource, BackendType))
       coercedInputs <- Future.fromTry(eventualNamespace.coerceRawInputs(inputs))
       declarations <- Future.fromTry(eventualNamespace.staticDeclarationsRecursive(coercedInputs))
       inputs = coercedInputs ++ declarations

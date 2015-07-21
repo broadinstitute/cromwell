@@ -2,7 +2,7 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.testkit.{EventFilter, TestActorRef}
+import akka.testkit.TestActorRef
 import cromwell.binding._
 import cromwell.binding.command.Command
 import cromwell.binding.types.WdlStringType
@@ -10,18 +10,18 @@ import cromwell.binding.values.WdlString
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
-import cromwell.engine.db.DataAccess.WorkflowInfo
+import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.{HelloWorldWithoutWorkflow, HelloWorld, Incr}
+import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.{CromwellSpec, CromwellTestkitSpec, binding}
 
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import DataAccess._
 
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
@@ -70,7 +70,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val wdlInputs = SampleWdl.HelloWorld.wdlJson
             val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
-            val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, null) // FIXME? null AST
+            val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, null, BackendType.LOCAL) // FIXME? null AST
             val call = new Call(None, key.scope, task, Map.empty)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())

@@ -1,5 +1,6 @@
 package cromwell.binding
 
+import cromwell.parser.BackendType
 import org.scalatest.{FlatSpec, Matchers}
 
 class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
@@ -57,7 +58,7 @@ class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
     }
   }
 
-  val namespace = NamespaceWithWorkflow.load(workflowWdl, resolver _)
+  val namespace = NamespaceWithWorkflow.load(workflowWdl, resolver _, BackendType.LOCAL)
 
 
   "WDL file with imports" should "Have 0 tasks (3 tasks are in separate namespace)" in {
@@ -74,7 +75,7 @@ class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
       throw new RuntimeException(s"Can't Resolve")
     }
     try {
-      val badBinding = WdlNamespace.load(workflowWdl, badResolver _)
+      val badBinding = WdlNamespace.load(workflowWdl, badResolver _, BackendType.LOCAL)
       fail("Expecting an exception to be thrown when using badResolver")
     } catch {
       case _: RuntimeException =>

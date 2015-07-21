@@ -3,12 +3,9 @@ package cromwell
 import java.io.File
 import java.nio.file.Paths
 
-import com.typesafe.config.ConfigFactory
-import cromwell.binding._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
-import cromwell.engine.backend.Backend
-import cromwell.engine.workflow.SingleWorkflowRunnerActor
+import cromwell.engine.workflow.{WorkflowManagerActor, SingleWorkflowRunnerActor}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
 import cromwell.util.FileUtil
@@ -23,8 +20,6 @@ object Main extends App {
   val Properties = System.getProperties
   val LoggerProperty = "CROMWELL_LOGGER"
   lazy val Log = LoggerFactory.getLogger("main")
-  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
-
 
   Option(Properties.getProperty(LoggerProperty)) match {
     case None => args.headOption.map {_.capitalize}.find {_ == "SERVER"} match {
@@ -38,7 +33,7 @@ object Main extends App {
     case Some(x) if x == Actions.Validate => validate(args.tail)
     case Some(x) if x == Actions.Highlight => highlight(args.tail)
     case Some(x) if x == Actions.Inputs => inputs(args.tail)
-    case Some(x) if x == Actions.Run => run(args.tail, DefaultWorkflowManagerSystem(BackendInstance))
+    case Some(x) if x == Actions.Run => run(args.tail, DefaultWorkflowManagerSystem())
     case Some(x) if x == Actions.Parse => parse(args.tail)
     case Some(x) if x == Actions.Server => CromwellServer
     case None => usageAndExit(true)
@@ -48,14 +43,14 @@ object Main extends App {
   def validate(args: Array[String]): Unit = {
     if (args.length != 1) usageAndExit()
     try {
-      WdlNamespace.load(new File(args(0)))
+      WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
     } catch {
       case e: SyntaxError => println(e)
     }
   }
 
   def highlight(args: Array[String]) {
-    val namespace = WdlNamespace.load(new File(args(0)))
+    val namespace = WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
     val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
     println(formatter.format(namespace))
   }
@@ -64,7 +59,7 @@ object Main extends App {
     if (args.length != 1) usageAndExit()
     try {
       import cromwell.binding.types.WdlTypeJsonFormatter._
-      val namespace = WdlNamespace.load(new File(args(0)))
+      val namespace = WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
       namespace match {
         case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
         case _ => println("WDL does not have a local workflow")
@@ -77,7 +72,7 @@ object Main extends App {
   def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
 
-    Log.info(s"Backend is: $BackendInstance")
+    Log.info(s"Backend is: ${WorkflowManagerActor.BackendType}")
 
     Log.info(s"RUN sub-command")
     Log.info(s"  WDL file: ${args(0)}")

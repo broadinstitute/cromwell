@@ -8,9 +8,9 @@ import cromwell.binding._
 import cromwell.binding.values.WdlString
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 
@@ -24,7 +24,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: Option[WorkflowRawInputs] = None):
   TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor] = {
 
-    val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource())
+    val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(), BackendType.LOCAL)
     val rawInputs = rawInputsOverride.getOrElse(sampleWdl.rawInputs)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)

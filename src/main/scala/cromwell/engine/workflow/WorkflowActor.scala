@@ -119,11 +119,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   whenUnhandled {
     case Event(GetOutputs, _) =>
+      // NOTE: This is currently only used by tests
       // FIXME There should be a more efficient way of getting final workflow outputs than getting every output
       // FIXME variable in the workflow including all intermediates between calls.
-      val futureOutputs = for {
-        symbols <- dataAccess.getOutputs(workflow.id)
-      } yield (symbols map symbolStoreEntryToMapEntry).toMap
+      val futureOutputs = dataAccess.getOutputs(workflow.id) map SymbolStoreEntry.toWorkflowOutputs
       futureOutputs pipeTo sender
       stay()
     case Event(e, _) =>
@@ -365,8 +364,4 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def isWorkflowDone: Boolean = executionStore.forall(_._2 == ExecutionStatus.Done)
-
-  private def symbolStoreEntryToMapEntry(e: SymbolStoreEntry): (String, WdlValue) = {
-    e.key.scope + "." + e.key.name -> e.wdlValue.get
-  }
 }

@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
 import cromwell.binding
 import cromwell.binding._
 import cromwell.engine._
@@ -13,7 +13,7 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.WorkflowInfo
-import cromwell.engine.workflow.WorkflowActor.{Restart, GetOutputs, Start}
+import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
 import spray.json._
 
@@ -70,11 +70,7 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
   }
 
   private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
-    workflowStore.toMap.get(id) map workflowToOutputs getOrElse Future.failed(new WorkflowNotFoundException)
-  }
-
-  private def workflowToOutputs(workflow: WorkflowActorRef): Future[binding.WorkflowOutputs] = {
-    workflow.ask(GetOutputs).mapTo[binding.WorkflowOutputs]
+    dataAccess.getOutputs(id) map SymbolStoreEntry.toWorkflowOutputs
   }
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,

@@ -2,4 +2,4 @@
 
 set -e
 
-java -jar $(find /cromwell | grep 'cromwell.*\.jar') server
+java $SYSTEMPROPS -jar $(find /cromwell | grep 'cromwell.*\.jar') server

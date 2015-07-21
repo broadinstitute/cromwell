@@ -32,6 +32,9 @@ case class GoogleCloudStorage(client: Storage) {
     new GcsBucketInfo(bucketName, bucket.getLocation, bucket.getTimeCreated, bucket.getOwner)
   }
 
+  // See comment in uploadObject re small files. Here, define small as 2MB or lower:
+  private val smallFileSizeLimit: Long = 2000000
+
   def uploadObject(gcsPath: GoogleCloudStoragePath, inputStream: InputStream, byteCount: Long) = {
     val mediaContent: InputStreamContent = new InputStreamContent("application/octet-stream", inputStream)
     mediaContent.setLength(byteCount)
@@ -41,8 +44,7 @@ case class GoogleCloudStorage(client: Storage) {
 
     // For small files, let's call setDirectUploadEnabled(true), to
     // reduce the number of HTTP requests made to the server.
-    // Here, define small as 2MB:
-    if(mediaContent.getLength > 0 && mediaContent.getLength <= 2 * 1000 * 1000) {
+    if(mediaContent.getLength > 0 && mediaContent.getLength <= smallFileSizeLimit) {
       insertObject.getMediaHttpUploader.setDirectUploadEnabled(true)
     }
 

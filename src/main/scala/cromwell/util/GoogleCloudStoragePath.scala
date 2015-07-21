@@ -8,12 +8,13 @@ case class GoogleCloudStoragePath(bucket: String, objectName: String) {
   }
 
   def +(value: String): GoogleCloudStoragePath = {
-    if (objectName.endsWith("/") || value.startsWith("/")) {
-      GoogleCloudStoragePath(bucket, objectName + value)
-    } else {
-      GoogleCloudStoragePath(bucket, objectName + "/" + value)
-    }
+    val trimmedObjectName = if (objectName.endsWith("/")) { objectName.substring(0, objectName.length - 1)} else { objectName }
+    val trimmedValue = if (value.startsWith("/")) { value.substring(1, value.length)} else { value }
+
+    GoogleCloudStoragePath(s"gs://$bucket/$trimmedObjectName/$trimmedValue")
   }
+
+
 }
 
 object GoogleCloudStoragePath {
@@ -28,7 +29,7 @@ object GoogleCloudStoragePath {
     val gsUriRegex = """gs://([^/]*)/(.*)""".r
     value match {
       case gsUriRegex(bucket, objectName) => Success(GoogleCloudStoragePath(bucket, objectName))
-      case _ => Failure(new IllegalArgumentException())
+      case _ => Failure(new IllegalArgumentException(value))
     }
   }
 }

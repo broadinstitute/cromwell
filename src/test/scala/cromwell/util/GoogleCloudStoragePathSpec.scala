@@ -39,4 +39,14 @@ class GoogleCloudStoragePathSpec extends FlatSpec with Matchers{
     val gcsPathTryS = GoogleCloudStoragePath.parse("gs://valid/path")
     assert(gcsPathTryS.isSuccess)
   }
+
+  "GoogleCloudStoragePath addition" should "work with and without trailing and preceeding slashes" in {
+    // With:
+    val gcsPath = GoogleCloudStoragePath("gs://a/b/c/") + "/etc/blah"
+    assert(gcsPath.toString.equals("gs://a/b/c/etc/blah"))
+
+    // Without:
+    val gcsPath2 = GoogleCloudStoragePath("gs://a/b/c") + "etc/blah"
+    assert(gcsPath2.toString.equals("gs://a/b/c/etc/blah"))
+  }
 }

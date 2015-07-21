@@ -104,8 +104,7 @@ class JesBackend extends Backend with LazyLogging {
   // No need to copy GCS inputs for the workflow we should be able to directly reference them
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
 
-  // FIXME: signature is weird
-  def localizeTaskOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
+  def taskOutputToJesOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
     taskOutput.wdlType match {
       case WdlFileType =>
         taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
@@ -116,9 +115,8 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  // FIXME: Signature is weird
-  def localizeTaskOutputs(taskOutputs: Seq[TaskOutput], callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Seq[JesOutput]] = {
-    val localizedOutputs = taskOutputs map {localizeTaskOutput(_, callGcsPath, scopedLookupFunction, engineFunctions)}
+  def taskOutputsToJesOutputs(taskOutputs: Seq[TaskOutput], callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Seq[JesOutput]] = {
+    val localizedOutputs = taskOutputs map {taskOutputToJesOutput(_, callGcsPath, scopedLookupFunction, engineFunctions)}
     val localizationFailures = localizedOutputs filter {_.isFailure}
     if (localizationFailures.isEmpty) {
       Success(localizedOutputs.collect({case Success(x) => x}).flatten)
@@ -158,7 +156,7 @@ class JesBackend extends Backend with LazyLogging {
       case Success(fileSeq) =>
         val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, engineFunctions)}
         // FIXME: If localizeTaskOutputs gives a Failure, need to Fail entire function - don't use .get
-        val namedOutputs: Seq[JesParameter] = localizeTaskOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
+        val namedOutputs: Seq[JesParameter] = taskOutputsToJesOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
         Success(anonOutputs ++ namedOutputs)
     }
 
@@ -180,7 +178,6 @@ class JesBackend extends Backend with LazyLogging {
 
     status match {
       case Run.Success(created, started, finished) =>
-        // FIXME: See if we can harmonize w/ LocalBackend
         val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
         if (taskOutputEvaluationFailures.isEmpty) {
           val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }

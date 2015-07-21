@@ -30,7 +30,7 @@ object WdlExpression {
     string.replace(tag, lookup(tag.substring(2, tag.length - 1)).valueString)
 
   def interpolate(str: String, lookup: ScopedLookupFunction): String =
-    "\\$\\{([a-zA-Z]([a-zA-Z0-9_])*)\\}".r.findAllIn(str).foldLeft(str) { (string, tag) => replaceInterpolationTag(string, tag, lookup) }
+    "\\$\\{([a-zA-Z]([a-zA-Z0-9_])*)\\}".r.findAllIn(str).foldLeft(str) {replaceInterpolationTag(_, _, lookup)}
 
   def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] = {
     ast match {

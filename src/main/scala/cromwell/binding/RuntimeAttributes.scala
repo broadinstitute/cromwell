@@ -44,23 +44,37 @@ object RuntimeAttributes {
       _.getAttribute("map").asInstanceOf[AstList]
     }
     val attributeMap = astList map processRuntimeAttributes getOrElse Map.empty[String, String]
+    val actualKeys = attributeMap.keySet
+    val knownKeys = RuntimeKey.values().map { _.key }
 
     // Finding keys unknown to any backend is an error.
-    val unknownKeys = attributeMap.keySet -- RuntimeKey.values().map {_.key}
+    val unknownKeys = actualKeys -- knownKeys
     if (unknownKeys.nonEmpty) {
-      throw new RuntimeException(s"Unknown keys found in runtime configuration for task: '${ast.getName}': "
+      throw new RuntimeException(s"Unknown keys found in runtime configuration: "
         + unknownKeys.toSeq.sorted.mkString(", "))
+    }
+
+    // Missing required keys for this backend is an error.
+    val requiredKeys = for {
+      key <- RuntimeKey.values().toSet
+      if key.isMandatory(backendType)
+    } yield key.key
+
+    val missingRequiredKeys = requiredKeys -- actualKeys
+    if (missingRequiredKeys.nonEmpty) {
+      throw new RuntimeException(s"Missing required keys in runtime configuration for backend '$backendType': "
+        + missingRequiredKeys.toSeq.sorted.mkString(", "))
     }
 
     // Keys supported on this backend.
     val supportedKeys = for {
       key <- RuntimeKey.values()
-      if key.backendTypes.contains(backendType)
+      if key.supports(backendType)
     } yield key.key
 
     // Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
     // the keys are known to be supported on at least one backend other than this.
-    val unsupportedKeys = attributeMap.keySet -- supportedKeys
+    val unsupportedKeys = actualKeys -- supportedKeys
     val warnings = if (unsupportedKeys.isEmpty) {
       Seq.empty
     } else {

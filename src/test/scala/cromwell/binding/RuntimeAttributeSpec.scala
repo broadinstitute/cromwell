@@ -200,4 +200,18 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     val warnings = workflow.tasks.head.runtimeAttributes.warnings
     warnings.head shouldBe "Found unsupported keys for backend 'LOCAL': cpu, defaultDisks, defaultZones, memory"
   }
+
+  "WDL file without runtime section" should "not be accepted on JES backend as it has no docker" in {
+    val ex = intercept[RuntimeException] {
+      val workflow = NamespaceWithWorkflow.load(WorkflowWithoutRuntime, BackendType.JES)
+    }
+    ex.getMessage shouldBe "Missing required keys in runtime configuration for backend 'JES': docker"
+  }
+
+  "WDL file with runtime section but no docker" should "not be accepted on JES backend" in {
+    val ex = intercept[RuntimeException] {
+      val workflow = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.JES)
+    }
+    ex.getMessage shouldBe "Missing required keys in runtime configuration for backend 'JES': docker"
+  }
 }

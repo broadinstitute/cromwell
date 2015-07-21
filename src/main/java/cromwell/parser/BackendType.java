@@ -1,3 +1,5 @@
 package cromwell.parser;
 
-public enum BackendType { LOCAL, JES }
+public enum BackendType {
+    LOCAL, JES;
+}

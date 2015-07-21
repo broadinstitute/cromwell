@@ -10,7 +10,7 @@ scalaVersion := "2.11.6"
 
 val sprayV = "1.3.2"
 val DowngradedSprayV = "1.3.1"
-val akkaV = "2.3.6"
+val akkaV = "2.3.12"
 
 libraryDependencies ++= Seq(
   "com.gettyimages" %% "spray-swagger" % "0.5.1",

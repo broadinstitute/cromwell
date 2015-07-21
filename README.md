@@ -1,28 +1,35 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
 
-
-# Cromwell
+Cromwell
+========
 
 Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md) as the workflow and task language.
 
 <!---toc start-->
 
-* [Cromwell](#cromwell)
-  * [Requirements](#requirements)
-  * [API Documenation](#api-documenation)
-  * [Scala API Usage](#scala-api-usage)
-  * [Command Line Usage](#command-line-usage)
-    * [validate](#validate)
-    * [inputs](#inputs)
-    * [run](#run)
-    * [parse](#parse)
-    * [server](#server)
-  * [Running a Workflow at the Command Line](#running-a-workflow-at-the-command-line)
-  * [REST API](#rest-api)
-    * [POST /workflows](#post-workflows)
-    * [GET /workflow/:id/status](#get-workflowidstatus)
-    * [GET /workflow/:id/outputs](#get-workflowidoutputs)
+* [Requirements](#requirements)
+* [Building](#building)
+* [API Documenation](#api-documenation)
+* [Scala API Usage](#scala-api-usage)
+* [Command Line Usage](#command-line-usage)
+  * [validate](#validate)
+  * [inputs](#inputs)
+  * [run](#run)
+  * [parse](#parse)
+  * [server](#server)
+* [Getting Started with WDL](#getting-started-with-wdl)
+  * [Hello World WDL](#hello-world-wdl)
+  * [Modifying Task Outputs](#modifying-task-outputs)
+  * [Referencing Files on Disk](#referencing-files-on-disk)
+  * [Using String Interpolation](#using-string-interpolation)
+  * [Aliasing Calls](#aliasing-calls)
+  * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
+  * [Using Files as Inputs](#using-files-as-inputs)
+* [REST API](#rest-api)
+  * [POST /workflows](#post-workflows)
+  * [GET /workflow/:id/status](#get-workflowidstatus)
+  * [GET /workflow/:id/outputs](#get-workflowidoutputs)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -34,27 +41,27 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 
 <!---toc end-->
 
-## Requirements
+# Requirements
 
 The following is the toolchain used for development of Cromwell.  Other versions may work, but these are recommended.
 
-* [Scala 2.11.6](http://www.scala-lang.org/news/2.11.6)
+* [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7)
 * [SBT 0.13.8](https://github.com/sbt/sbt/releases/tag/v0.13.8)
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 
-## Building
+# Building
 
 `sbt assembly` will build a runnable JAR in `target/scala-2.11/`
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 
-## API Documenation
+# API Documenation
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
 
 Note that this may not be completely up to date or even useful at this time.
 
-## Scala API Usage
+# Scala API Usage
 
 The main entry point into the parser is the `WdlNamespace` object.  A WDL file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
@@ -109,12 +116,12 @@ object main {
 }
 ```
 
-## Command Line Usage
+# Command Line Usage
 
 Run the JAR file with no arguments to get the usage message:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.5.jar
+$ java -jar target/scala-2.11/cromwell-0.7.jar
 
 java -jar cromwell.jar <action> <parameters>
 
@@ -151,14 +158,14 @@ server
   documentation for more details about the API endpoints.
 ```
 
-### validate
+## validate
 
 Given a WDL file, this runs the full syntax checker over the file and resolves imports in the process.  If any syntax errors are found, they are printed out.  Otherwise the program exits.
 
 Error if a `call` references a task that doesn't exist:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.5.jar validate 2.wdl
+$ java -jar ../target/scala-2.11/cromwell-0.7.jar validate 2.wdl
 ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 
   call BADps
@@ -169,7 +176,7 @@ ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 Error if namespace and task have the same name:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.5.jar validate 5.wdl
+$ java -jar ../target/scala-2.11/cromwell-0.7.jar validate 5.wdl
 ERROR: Task and namespace have the same name:
 
 Task defined here (line 3, col 6):
@@ -183,12 +190,12 @@ import "ps.wdl" as ps
                    ^
 ```
 
-### inputs
+## inputs
 
 Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.5.jar inputs 3step.wdl
+$ java -jar ../target/scala-2.11/cromwell-0.7.jar inputs 3step.wdl
 {
   "three_step.cgrep.pattern": "String"
 }
@@ -196,12 +203,12 @@ $ java -jar ../target/scala-2.11/cromwell-0.5.jar inputs 3step.wdl
 
 This inputs document is used as input to the `run` subcommand.
 
-### run
+## run
 
 Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workflow and print the outputs:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.5.jar run 3step.wdl inputs.json
+$ java -jar ../target/scala-2.11/cromwell-0.7.jar run 3step.wdl inputs.json
 [INFO] [06/10/2015 09:20:19.945] [ForkJoinPool-2-worker-13] [akka://cromwell-system/user/$b] Workflow ID: bdcc70e6-e6d7-4483-949b-7c3c2199e26c
 [INFO] [06/10/2015 09:20:19.968] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: ps
 [INFO] [06/10/2015 09:20:20.094] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: cgrep, wc
@@ -213,12 +220,12 @@ $ java -jar ../target/scala-2.11/cromwell-0.5.jar run 3step.wdl inputs.json
 }
 ```
 
-### parse
+## parse
 
 Given a WDL file input, this does grammar level syntax checks and prints out the resulting abstract syntax tree.
 
 ```
-$ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.5.jar parse /dev/stdin
+$ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.7.jar parse /dev/stdin
 (Document:
   imports=[],
   definitions=[
@@ -230,15 +237,17 @@ $ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.5.jar parse 
 )
 ```
 
-### server
+## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
-## Running a Workflow at the Command Line
+# Getting Started with WDL
 
-If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `target/scala-2.11/cromwell-0.5.jar`.
+If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `target/scala-2.11/cromwell-0.7.jar`.
 
-Then, create a WDL file, for example:
+## Hello World WDL
+
+Create a WDL simple file and save it as `hello.wdl`, for example:
 
 ```
 task hello {
@@ -255,16 +264,18 @@ workflow test {
 }
 ```
 
-Generate a template `inputs.json` file with the `inputs` subcommand:
+Generate a template `hello.json` file with the `inputs` subcommand:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.5.jar inputs test.wdl
+$ java -jar target/scala-2.11/cromwell-0.7.jar inputs hello.wdl
 {
   "test.hello.name": "String"
 }
 ```
 
-Modify this and save it to `inputs.json`:
+WDL has a concept of fully-qualified names.  In the above output, `test.hello.name` is a fully-qualified name which should be read as: the `name` input on the `hello` call within workflow `test`.  Fully-qualified names are used to unambiguously refer to specific elements of a workflow.  All inputs are specified by fully-qualified names and all outputs are returned as fully-qualified names.
+
+Modify this and save it to `hello.json`:
 
 ```
 {
@@ -275,20 +286,276 @@ Modify this and save it to `inputs.json`:
 Then, use the `run` subcommand to run the workflow:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.5.jar run test.wdl inputs2.json
+$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
 }
 ```
 
-## REST API
+Since the `hello` task returns a `File`, the result is a file that contains the string "hello world!" in it.
+
+## Modifying Task Outputs
+
+Currently the `hello` task returns a `File` with the greeting in it, but what if we wanted to return a `String` instead?  This can be done by utilizing the `read_string()` function:
+
+```
+task hello {
+  command {
+    echo 'hello ${name}!'
+  }
+  output {
+    String response = read_string(stdout())
+  }
+}
+
+workflow test {
+  call hello
+}
+```
+
+Now when this is run, we get the string output for `test.hello.response`:
+
+```
+$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+... truncated ...
+{
+  "test.hello.response": "Hello world!"
+}
+```
+
+`read_string` is a function in the [standard library](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#standard-library), which provides other useful functions for converting outputs to WDL data types.
+
+## Referencing Files on Disk
+
+So far we've only been dealing with the standard output of a command, but what if it writes a file to disk?  Consider this example:
+
+```
+task hello {
+  command {
+    echo 'hello ${name}!' > out
+  }
+  output {
+    String response = read_string("out")
+  }
+}
+
+workflow test {
+  call hello
+}
+```
+
+In this example, standard output was redirected to the file "out".  In WDL, `String` data types can be coerced into `File` data types.  Since the `read_string` function needs a file path to read from, it converts `"out"` to a file path and then performs the `read_string` operation.  The output could also be defined as follows:
+
+```
+File response = "out"
+```
+
+## Using String Interpolation
+
+Sometimes, an output file is named as a function of one of its inputs.
+
+```
+task hello {
+  command {
+    echo 'hello ${name}!' > ${name}.txt
+  }
+  output {
+    String response = read_string("${name}.txt")
+  }
+}
+
+workflow test {
+  call hello
+}
+```
+
+Here the inputs and outputs are exactly the same as previous examples, however the intermediate output file name of this task is named differently for every invocation.
+
+## Aliasing Calls
+
+Say we wanted to call the `hello` task twice.  Simply adding two `call hello` statements to the body of `workflow test` would result in non-unique fully-qualified names.  To resolve this issue, `call` statements can be aliased using an `as` clause:
+
+```
+task hello {
+  command {
+    echo 'hello ${name}!'
+  }
+  output {
+    String response = read_string(stdout())
+  }
+}
+
+workflow test {
+  call hello
+  call hello as hello2
+}
+```
+
+Now, we need to specify a value for `test.hello2.name` in the hello.json file"
+
+```
+{
+  "test.hello.name": "world",
+  "test.hello2.name": "boston"
+}
+```
+
+Running this workflow now produces two outputs:
+
+```
+$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+... truncated ...
+{
+  "test.hello.response": "Hello world!",
+  "test.hello.response": "Hello boston!"
+}
+```
+
+## Specifying Inputs and Using Declarations
+
+A `call` can have an optional section to define inputs.  As seen below, the key/value pairs represent the name of the input on the left-hand side and the expression for the input's value on the right-hand side:
+
+```
+task hello {
+  command {
+    echo '${salutation} ${name}!'
+  }
+  output {
+    String response = read_string(stdout())
+  }
+}
+
+workflow test {
+  call hello {
+    input: salutation="greetings"
+  }
+  call hello as hello2
+}
+```
+
+Now, the `hello.json` would require three inputs:
+
+```
+{
+  "test.hello.name": "world",
+  "test.hello2.name": "boston",
+  "test.hello2.salutation": "hello"
+}
+```
+
+Running this workflow still gives us the two greetings we expect:
+
+```
+$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+... truncated ...
+{
+  "test.hello.response": "greetings world!",
+  "test.hello2.response": "hello boston!"
+}
+```
+
+What if we wanted to parameterize the greeting and make it used for all invocations of task `hello`?  In this situation, a declaration can be used:
+
+```
+task hello {
+  command {
+    echo '${salutation}, ${name}!'
+  }
+  output {
+    String response = read_string(stdout())
+  }
+}
+
+workflow test {
+  String greeting
+  call hello {
+    input: salutation=greeting
+  }
+  call hello as hello2 {
+    input: salutation=greeting + " and nice to meet you"
+  }
+}
+```
+
+`String greeting` is referenced to satisfy the "salutation" parameter to both invocations of the `hello` task.
+
+The inputs required to run this would be:
+
+```
+{
+  "test.hello.name": "world",
+  "test.hello2.name": "boston",
+  "test.greeting": "hello"
+}
+```
+
+And this would produce the following outputs when run
+
+```
+$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+... truncated ...
+{
+  "test.hello.response": "hello, world!",
+  "test.hello2.response": "hello and nice to meet you, boston!"
+}
+```
+
+## Using Files as Inputs
+
+So far every example has used the default type of `String` for every input.  Passing files along to tasks is simply a matter of defining the input type as `File`:
+
+```
+task grep {
+  command {
+    grep -c '^...$' ${File file}
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+workflow test {
+  call grep
+}
+```
+
+The `read_int()` function here would read the contents of its parameter, and interpret the first line as an integer and return that value as a WDL `Int` type.
+
+If I specified a file called `test_file` with the contents of:
+
+```
+foo
+bar
+baz
+quux
+```
+
+And then the inputs JSON file would be:
+
+```
+{
+  "test.grep.file": "test_file"
+}
+```
+
+The result of running this would be:
+
+```
+$ java -jar target/scala-2.11/cromwell-0.7.jar run grep.wdl grep.json
+... truncated ...
+{
+  "test.grep.count": 3
+}
+```
+
+# REST API
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
 
 The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jakubroztocil/httpie) and [cURL](http://curl.haxx.se/)
 
-### POST /workflows
+## POST /workflows
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The two elements in the body must be named `wdl` and `inputs`.  The `wdl` element contains the WDL file to run while the `inputs` contains a JSON file of the inputs to the workflow.
 
@@ -381,7 +648,7 @@ Server: spray-can/1.3.3
 }
 ```
 
-### GET /workflow/:id/status
+## GET /workflow/:id/status
 
 cURL:
 
@@ -409,7 +676,7 @@ Server: spray-can/1.3.3
 }
 ```
 
-### GET /workflow/:id/outputs
+## GET /workflow/:id/outputs
 
 cURL:
 

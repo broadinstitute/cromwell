@@ -39,6 +39,16 @@ object SlickDataAccess {
 
   implicit class ConfigWithUniqueSchema(val config: Config) extends AnyVal {
     /**
+     * Returns either the "url" or "properties.url"
+     */
+    def urlKey = if (config.hasPath("url")) "url" else "properties.url"
+
+    /**
+     * Returns the value of either the "url" or "properties.url"
+     */
+    def urlValue = config.getString(urlKey)
+
+    /**
      * Modifies config.getString("url") to return a unique schema, if the original url contains the text
      * "${slick.uniqueSchema}".
      *
@@ -47,15 +57,14 @@ object SlickDataAccess {
      * @return Config with ${slick.uniqueSchema} in url replaced with a unique string.
      */
     def withUniqueSchema: Config = {
-      val url = config.getString("url")
-      if (url.contains("${slick.uniqueSchema}")) {
+      if (urlValue.contains("${slick.uniqueSchema}")) {
         // Config wasn't updating with a simple withValue/withFallback.
         // So instead, do a bit of extra work to insert the generated schema name in the url.
         val schema = UUID.randomUUID().toString
-        val newUrl = url.replaceAll("""\$\{slick\.uniqueSchema\}""", schema)
-        val origin = "url with slick.uniqueSchema=" + schema
+        val newUrl = urlValue.replaceAll("""\$\{slick\.uniqueSchema\}""", schema)
+        val origin = urlKey + " with slick.uniqueSchema=" + schema
         val urlConfigValue = ConfigValueFactory.fromAnyRef(newUrl, origin)
-        val urlConfig = ConfigFactory.empty(origin).withValue("url", urlConfigValue)
+        val urlConfig = ConfigFactory.empty(origin).withValue(urlKey, urlConfigValue)
         urlConfig.withFallback(config)
       } else {
         config
@@ -89,7 +98,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   // Possibly create the database
   {
     import SlickDataAccess._
-    log.info(s"Running with databaseConfig $configWithUniqueSchema")
+    log.info(s"Running with database ${configWithUniqueSchema.urlKey} = ${configWithUniqueSchema.urlValue}")
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
     //
     // Not really an issue, since externally run liquibase is standard way of installing / upgrading MySQL.

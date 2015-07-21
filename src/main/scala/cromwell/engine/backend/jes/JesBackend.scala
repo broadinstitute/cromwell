@@ -22,6 +22,7 @@ object JesBackend {
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
   lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
+  lazy val CromwellExecutionBucket = JesConf.getString("baseExecutionBucket")
 
   lazy val JesConnection = JesInterface(GoogleApplicationName)
 
@@ -35,8 +36,6 @@ object JesBackend {
 
   val LocalStdoutValue = "job.stdout.txt"
   val LocalStderrValue = "job.stderr.txt"
-
-  val CromwellExecutionBucket = "gs://cromwell-dev/cromwell-executions"
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {

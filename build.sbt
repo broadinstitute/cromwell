@@ -3,7 +3,7 @@ import sbtassembly.Plugin._
 import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
-version := "0.5"
+version := "0.7"
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.6"

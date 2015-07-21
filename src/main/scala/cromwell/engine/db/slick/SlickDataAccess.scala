@@ -338,6 +338,40 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  private def toSymbolStoreEntry(symbolResult: Symbol) = {
+    val wdlType = WdlType.fromWdlString(symbolResult.wdlType)
+    new SymbolStoreEntry(
+      new SymbolStoreKey(
+        symbolResult.scope,
+        symbolResult.name,
+        Option(symbolResult.iteration).filterNot(_ == IterationNone),
+        input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
+      ),
+      wdlType,
+      symbolResult.wdlValue.map(wdlType.fromWdlString)
+    )
+  }
+
+  override def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]] = {
+    val Array(scope, varName) = fqn.split("\\.(?=[^\\.]+$)") // e.g. "a.b.c.d" => Seq("a.b.c", "d")
+    val action = for {
+      symbolResults <- dataAccess.symbolsByScopeAndName(workflowId.toString, scope, varName).result
+      symbolStoreEntries = symbolResults map toSymbolStoreEntry
+    } yield symbolStoreEntries
+
+    runTransaction(action)
+  }
+
+  override def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+    val x = dataAccess.allSymbols(workflowId.toString).result
+    val action = for {
+      symbolResults <- x
+      symbolStoreEntries = symbolResults map toSymbolStoreEntry
+    } yield symbolStoreEntries
+
+    runTransaction(action)
+  }
+
   /** Get all inputs for the scope of this call. */
   override def getInputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
     require(call != null, "call cannot be null")
@@ -359,23 +393,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                          callOption: Option[Call] = None): Future[Traversable[SymbolStoreEntry]] = {
 
     val action = for {
-
       symbolResults <- dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
-        workflowId.toString, ioValue, callOption.map(_.fullyQualifiedName)).result
-
-      symbolStoreEntries = symbolResults map { symbolResult =>
-        val wdlType = WdlType.fromWdlString(symbolResult.wdlType)
-        val symbolStoreKey = new SymbolStoreKey(
-          symbolResult.scope,
-          symbolResult.name,
-          Option(symbolResult.iteration).filterNot(_ == IterationNone),
-          input = symbolResult.io == IoInput) // input = true, if db contains "INPUT"
-        new SymbolStoreEntry(
-          symbolStoreKey,
-          wdlType,
-          symbolResult.wdlValue.map(wdlType.fromWdlString))
-      }
-
+        workflowId.toString, ioValue, callOption.map(_.fullyQualifiedName)
+      ).result
+      symbolStoreEntries = symbolResults map toSymbolStoreEntry
     } yield symbolStoreEntries
 
     runTransaction(action)

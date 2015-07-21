@@ -1,7 +1,7 @@
 package cromwell.binding
 
-import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
-import cromwell.binding.command.{ParameterCommandPart, Command}
+import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
+import cromwell.binding.command.{Command, ParameterCommandPart}
 import cromwell.parser.WdlParser._
 
 import scala.collection.JavaConverters._
@@ -10,6 +10,7 @@ import scala.language.postfixOps
 object Task {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
+    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, "name", wdlSyntaxErrorFormatter))
 
     /* Examine all inputs to the task (which currently is only command parameters e.g. ${File x})
      * And ensure that any inputs that have the same name also have the exact same definition.
@@ -26,7 +27,7 @@ object Task {
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
     val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
     val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_, wdlSyntaxErrorFormatter)}
-    new Task(name, command, outputs, buildRuntimeAttributes(ast), ast)
+    new Task(name, declarations, command, outputs, buildRuntimeAttributes(ast), ast)
   }
 
   private def ensureCommandParameterAstsMatch(paramAsts: Seq[Ast], taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
@@ -69,6 +70,7 @@ object Task {
  * @param outputs Set of defined outputs in the `output` section of the task
  */
 case class Task(name: String,
+                declarations: Seq[Declaration],
                 command: Command,
                 outputs: Seq[TaskOutput],
                 runtimeAttributes: RuntimeAttributes,
@@ -78,7 +80,11 @@ case class Task(name: String,
    *
    * @return Map of input name to type for that input
    */
-  val inputs: Seq[TaskInput] = command.inputs
+  val inputs: Seq[TaskInput] = {
+    val commandInputs = command.inputs
+    val declarationInputs = for(declaration <- declarations; input <- declaration.asTaskInput) yield input
+    commandInputs ++ declarationInputs
+  }
 
   override def toString: String = s"[Task name=$name command=$command]"
 }

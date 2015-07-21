@@ -2,16 +2,17 @@ package cromwell.binding
 
 import java.io.File
 
+import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
 import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types._
-import cromwell.binding.values.{WdlArray, WdlValue}
+import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
 import cromwell.util.FileUtil
-import AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
+
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 /**
  * Define WdlNamespace as a sum type w/ two states - one containing a local workflow and one without.
@@ -98,6 +99,51 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     } else {
       val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
       Failure(new UnsatisfiedInputsException(s"The following errors occurred while processing your inputs:\n\n$message"))
+    }
+  }
+
+  private def declarationLookupFunction(decl: Declaration, inputs: Map[FullyQualifiedName, WdlValue]): String => WdlValue ={
+    def identifierLookup(string: String): WdlValue = {
+
+      /* This is a scope hierarchy to search for the variable `string`.  If `decl.scopeFqn` == "a.b.c"
+       * then `hierarchy` should be Seq("a.b.c", "a.b", "a")
+       */
+      val hierarchy = decl.scopeFqn.split("\\.").reverse.tails.toSeq.map {_.reverse.mkString(".")}
+
+      /* Attempt to resolve the string in each scope */
+      val attemptedValues = hierarchy.map {scope => inputs.get(s"$scope.$string")}
+      attemptedValues.flatten.headOption.getOrElse {
+        throw new WdlExpressionException(s"Could not find a value for $string")
+      }
+    }
+    identifierLookup
+  }
+
+  /* Some declarations need a value from the user and some have an expression attached to them.
+   * For the declarations that have an expression attached to it already, evaluate the expression
+   * and return the value for storage in the symbol store
+   */
+  def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs): Try[WorkflowCoercedInputs] = {
+    import scala.collection.mutable
+    val collected = mutable.Map[String, WdlValue]()
+    class NoFunctions extends WdlFunctions {
+      def getFunction(name: String): WdlFunction = throw new UnsupportedOperationException("No functions should be called in this test")
+    }
+
+    val allDeclarations = workflow.declarations ++ workflow.calls.flatMap {_.task.declarations}
+
+    val evaluatedDeclarations = allDeclarations.filter {_.expression.isDefined}.map {decl =>
+      val value = decl.expression.get.evaluate(declarationLookupFunction(decl, collected.toMap ++ userInputs), new NoFunctions)
+      collected += (decl.fullyQualifiedName -> value.get)
+      decl.fullyQualifiedName -> value
+    }.toMap
+
+    val (successes, failures) = evaluatedDeclarations.partition {case (_, tryValue) => tryValue.isSuccess}
+    if (failures.isEmpty) {
+      Success(successes.map {case (k,v) => k -> v.get})
+    } else {
+      val message = failures.values.collect {case f: Failure[_] => f.exception.getMessage}.mkString("\n")
+      Failure(new UnsatisfiedInputsException(s"Could not evaluate some declaration expressions:\n\n$message"))
     }
   }
 
@@ -298,7 +344,7 @@ object NamespaceWithWorkflow {
     } yield {throw new SyntaxError(wdlSyntaxErrorFormatter.workflowAndNamespaceHaveSameName(workflowAst, namespaceAst.asInstanceOf[Terminal]))}
 
     val calls = workflowAst.findAsts(AstNodeName.Call) map {Call(_, namespaces, tasks, wdlSyntaxErrorFormatter)}
-    val workflow: Workflow = Workflow(workflowAst, calls)
+    val workflow: Workflow = Workflow(workflowAst, wdlSyntaxErrorFormatter, calls)
 
     // FIXME: This block is run for its side effect of blowing up on the .get (I believe!) - Should there be a real syntax error?
     // FIXME: It took me a while to understand the logic of the original code & I'm not sure this comment is correct?

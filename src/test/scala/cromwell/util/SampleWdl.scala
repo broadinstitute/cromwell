@@ -564,7 +564,7 @@ object SampleWdl {
       """
         |task cat {
         |  command {
-        |    cat ${File file} ${flags?}
+        |    cat ${flags?} ${File file}
         |  }
         |  output {
         |    File procs = stdout()

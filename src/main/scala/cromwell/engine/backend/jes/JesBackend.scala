@@ -55,9 +55,9 @@ object JesBackend {
     def gcs: String
     def local: Path
 
-    final def isInput = this.isInstanceOf[JesInput]
-    final def isOutput = !isInput
-    final def toGoogleParameter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
+    final val isInput = this.isInstanceOf[JesInput]
+    final val isOutput = !isInput
+    final val toGoogleParameter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
   }
 
   final case class JesInput(name: String, gcs: String, local: Path) extends JesParameter
@@ -94,10 +94,7 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = {
-    inputs map { case (k,v) => mapInputValue(k,v) }
-  }
-
+  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map {case (k,v) => mapInputValue(k,v)}
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
   
   // No need to copy GCS inputs for the workflow we should be able to directly reference them

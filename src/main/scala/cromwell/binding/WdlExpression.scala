@@ -27,35 +27,37 @@ object WdlExpression {
 
   val unaryOperators = Set("LogicalNot", "UnaryPlus", "UnaryNegation")
 
-  val preEvaluableFunctions_SingleParameter: Seq[String] = Seq("read_int", "read_string")
+  val functionsWithOneFileParameter: Seq[String] = Seq("read_int", "read_string")
 
+  def functionCall(a: Ast): Boolean = a.getName == "FunctionCall"
+
+  def binaryOperator(a: Ast): Boolean = binaryOperators.contains(a.getName)
+  
+  def unaryOperator(a: Ast): Boolean = unaryOperators.contains((a.getName))
+  
+  def functionCallWithOneFileParameter(a: Ast): Boolean = (
+    functionCall(a)
+    && a.getAttribute("params").asInstanceOf[AstList].asScala.toVector.size == 1
+    && functionsWithOneFileParameter.contains(a.getAttribute("name").asInstanceOf[Terminal].getSourceString))
+  
   /**
    * Look within the expression for filenames which aren't explicitly listed as outputs. 
    */
   def preevaluateExpressionForFilenames(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] = {
     ast match {
       // This is the only case which actually pre-evaluates anything. The other cases are just buck-passers:
-      case a: Ast if a.getName == "FunctionCall"
-        && a.getAttribute("params").asInstanceOf[AstList].asScala.toVector.size == 1
-        && preEvaluableFunctions_SingleParameter.contains(a.getAttribute("name").asInstanceOf[Terminal].getSourceString)
-      => {
+      case a: Ast if functionCallWithOneFileParameter(a) => {
         // Test the pre-evaluation would be valid by using dummy functions:
         val innerExpression = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector.head
         val dummyEvaluation = evaluate(innerExpression, lookup, new DummyPreEvaluationFunctions())
-        dummyEvaluation match {
-          case Failure(reason) => Failure(reason)
-          case Success(_) => {
-            // We aren't going to evaluate anything invalid, so let's do this live:
-            evaluate(innerExpression, lookup, functions) match {
-              case Success(value) => Success(Seq(WdlFile(value.valueString)))
-              case Failure(error) => Failure(error)
-            }
-          }
+        // If dummyEvaluation succeeded, run the real evaluation instead and match against it:
+        dummyEvaluation.flatMap( _ => evaluate(innerExpression, lookup, functions)) match {
+          case Success(value) => Success(Seq(WdlFile(value.valueString)))
+          case Failure(error) => Failure(error)
         }
       }
-
       // Binary operators - find filenames in sub-expressions and merge the lists:
-      case a: Ast if binaryOperators.contains(a.getName) => {
+      case a: Ast if binaryOperator(a) => {
         val lhs = preevaluateExpressionForFilenames(a.getAttribute("lhs"), lookup, functions)
         val rhs = preevaluateExpressionForFilenames(a.getAttribute("rhs"), lookup, functions)
         // Recurse both sides and add the lists together:
@@ -71,9 +73,7 @@ object WdlExpression {
           case Failure(error) => Failure(error)
         }
       }
-
-      // Unary operators - just find filenames within the main expression:
-      case a: Ast if unaryOperators.contains(a.getName) => preevaluateExpressionForFilenames(a.getAttribute("expression"), lookup, functions)
+      case a: Ast if unaryOperator(a) => preevaluateExpressionForFilenames(a.getAttribute("expression"), lookup, functions)
 
       case _ => Success(Seq())
     }
@@ -86,7 +86,7 @@ object WdlExpression {
       case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
       case t: Terminal if t.getTerminalStr == "string" => Success(WdlString(t.getSourceString))
-      case a: Ast if binaryOperators.contains(a.getName) =>
+      case a: Ast if binaryOperator(a) =>
         val lhs = evaluate(a.getAttribute("lhs"), lookup, functions)
         val rhs = evaluate(a.getAttribute("rhs"), lookup, functions)
         a.getName match {
@@ -105,7 +105,7 @@ object WdlExpression {
           case "LogicalAnd" => for(l <- lhs; r <- rhs) yield l.and(r).get
           case _ => throw new WdlExpressionException(s"Invalid operator: ${a.getName}")
         }
-      case a: Ast if unaryOperators.contains(a.getName) =>
+      case a: Ast if unaryOperator(a) =>
         val expression = evaluate(a.getAttribute("expression"), lookup, functions)
         a.getName match {
           case "LogicalNot" => for(e <- expression) yield e.not.get
@@ -123,7 +123,7 @@ object WdlExpression {
           case ns: WdlNamespace => lookup(ns.importedAs.map {n => s"$n.$rhs"}.getOrElse(rhs))
           case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
         }
-      case a: Ast if a.getName == "FunctionCall" =>
+      case a: Ast if functionCall(a) =>
         val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
         val params = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector map {
           evaluate(_, lookup, functions)

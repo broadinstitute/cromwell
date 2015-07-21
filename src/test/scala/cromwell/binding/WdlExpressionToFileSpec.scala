@@ -119,7 +119,7 @@ class WdlExpressionToFileSpec extends FlatSpec with Matchers with MockitoSugar {
 }
 
 class MockEngineFunctions extends EngineFunctions  {
-  // It's important to ensure that these two are never called during pre-evaluation:
+  // It's important to ensure that these are never called during pre-evaluation:
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
     assert(false, "The active 'read_int' function should not be used during pre-evaluation")
     ???
@@ -128,7 +128,6 @@ class MockEngineFunctions extends EngineFunctions  {
     assert(false, "The active 'read_string' function should not be used during pre-evaluation")
     ???
   }
-
   override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     assert(false, "The active 'read_lines' function should not be used during pre-evaluation")
     ???

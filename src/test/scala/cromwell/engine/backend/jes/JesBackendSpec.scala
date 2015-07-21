@@ -18,10 +18,10 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     val gcsFileVal = WdlFile("gs://blah/abc")
 
 
-    val inputs: CallInputs = Map(
-      (stringKey, stringVal),
-      (localFileKey, localFileVal),
-      (gcsFileKey, gcsFileVal)
+    val inputs: CallInputs = collection.immutable.HashMap(
+      stringKey -> stringVal,
+      localFileKey -> localFileVal,
+      gcsFileKey -> gcsFileVal
     )
 
     val mappedInputs: CallInputs  = new JesBackend().adjustInputPaths(ignoredCall, inputs)

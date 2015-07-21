@@ -1,8 +1,7 @@
 package cromwell.binding.values
 
-import java.nio.file.Paths
-
 import cromwell.binding.{WdlExpression, WdlNamespace}
+import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -91,7 +90,7 @@ class WdlValueSpec extends FlatSpec with Matchers {
   val notImplementRawString = Table(
     "wdlValue",
     WdlObject(Map("key" -> WdlString("value"))),
-    WdlNamespace.load(SampleWdl.HelloWorld.wdlSource()))
+    WdlNamespace.load(SampleWdl.HelloWorld.wdlSource(), BackendType.LOCAL))
 
   forAll(notImplementRawString) { wdlValue =>
     it should s"not implement a ${wdlValue.typeName} raw string" in {

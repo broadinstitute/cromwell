@@ -12,6 +12,7 @@ import cromwell.binding.values._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
+import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
 import scala.concurrent.{Future, ExecutionContext}
@@ -195,4 +196,6 @@ class JesBackend extends Backend with LazyLogging {
   }
   
   override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
+
+  override def backendType = BackendType.JES
 }

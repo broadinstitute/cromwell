@@ -15,6 +15,7 @@ import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.{WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -105,7 +106,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {
-    val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(runtime))
+    val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(runtime), BackendType.LOCAL)
     // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get

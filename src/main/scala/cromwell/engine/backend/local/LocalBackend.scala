@@ -3,7 +3,6 @@ package cromwell.engine.backend.local
 import java.io.{File, Writer}
 import java.nio.file.{Files, Path, Paths}
 
-import org.apache.commons.io.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
@@ -14,8 +13,10 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.engine.{ExecutionStatus, WorkflowId}
+import cromwell.parser.BackendType
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
+import org.apache.commons.io.FileUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -208,4 +209,6 @@ class LocalBackend extends Backend with LazyLogging {
     // The caller doesn't care about the result value, only that it's a Future.
     Future.sequence(seqOfFutures)
   }
+
+  override def backendType = BackendType.LOCAL
 }

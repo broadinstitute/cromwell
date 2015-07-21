@@ -2,13 +2,13 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.command.{Command, ParameterCommandPart}
+import cromwell.parser.BackendType
 import cromwell.parser.WdlParser._
 
-import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
 object Task {
-  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
+  def apply(ast: Ast, backendType: BackendType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, "name", wdlSyntaxErrorFormatter))
 
@@ -29,7 +29,7 @@ object Task {
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
     val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
     val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_, wdlSyntaxErrorFormatter)}
-    new Task(name, declarations, command, outputs, ast)
+    new Task(name, declarations, command, outputs, ast, backendType)
   }
 
   private def ensureCommandParameterAstsMatch(paramAsts: Seq[Ast], taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
@@ -59,7 +59,8 @@ case class Task(name: String,
                 declarations: Seq[Declaration],
                 command: Command,
                 outputs: Seq[TaskOutput],
-                ast: Ast) extends Executable {
+                ast: Ast,
+                backendType: BackendType) extends Executable {
   /**
    * Inputs to this task, as task-local names (i.e. not fully-qualified)
    *
@@ -71,7 +72,7 @@ case class Task(name: String,
     commandInputs ++ declarationInputs
   }
 
-  val runtimeAttributes = RuntimeAttributes(ast)
+  val runtimeAttributes = RuntimeAttributes(ast, backendType)
 
   override def toString: String = s"[Task name=$name command=$command]"
 }

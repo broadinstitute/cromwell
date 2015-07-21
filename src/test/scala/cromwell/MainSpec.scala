@@ -15,7 +15,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 class TestWorkflowManagerSystem extends WorkflowManagerSystem {
-  override val backend = new LocalBackend
+  override lazy val backend = new LocalBackend
   override implicit val actorSystem = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
 }
 

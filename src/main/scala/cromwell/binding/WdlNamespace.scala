@@ -8,6 +8,8 @@ import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
+import cromwell.util.FileUtil.EnhancedFile
+import AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
 import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
@@ -95,7 +97,7 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
       Try(for {
         (key, tryValue) <- successes
         optionValue = tryValue.get if tryValue.get.isDefined
-      } yield (key -> optionValue.get))
+      } yield key -> optionValue.get)
     } else {
       val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
       Failure(new UnsatisfiedInputsException(s"The following errors occurred while processing your inputs:\n\n$message"))
@@ -301,7 +303,7 @@ object WdlNamespace {
   }
 
   private def localImportResolver(path: String): WdlSource = readFile(new File(path))
-  private def readFile(wdlFile: File): WdlSource = FileUtil.slurp(wdlFile)
+  private def readFile(wdlFile: File): WdlSource = wdlFile.slurp
 }
 
 object NamespaceWithWorkflow {

@@ -6,7 +6,7 @@ import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser._
-import cromwell.util.FileUtil
+import cromwell.util.FileUtil._
 
 import scala.collection.JavaConverters._
 
@@ -98,7 +98,7 @@ object AstTools {
    * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
    * @throws WdlParser.SyntaxError if there was a problem parsing the source code
    */
-  def getAst(wdlFile: File): Ast = getAst(FileUtil.slurp(wdlFile), wdlFile.getName)
+  def getAst(wdlFile: File): Ast = getAst(wdlFile.slurp, wdlFile.getName)
 
   def findAsts(ast: AstNode, name: String): Seq[Ast] = {
     ast match {

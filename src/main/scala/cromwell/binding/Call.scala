@@ -20,35 +20,36 @@ object Call {
       throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(ast, taskName))
     }
 
-    val inputMappings = processCallInput(ast)
+    val callInputSectionMappings = processCallInput(ast, wdlSyntaxErrorFormatter)
 
-    inputMappings foreach { inputKv =>
-      task.inputs find { taskInput => taskInput.name == inputKv._1 } getOrElse {
+    callInputSectionMappings foreach { case (taskParamName, expression) =>
+      task.inputs find { taskInput => taskInput.name == taskParamName } getOrElse {
         /*
           FIXME-ish
           It took me a while to figure out why this next part is necessary and it's kind of hokey.
-          All the syntax highlighting requires ASTs and this is a way to get the input's AST back.
+          All the syntax error formatting requires ASTs and this is a way to get the input's AST back.
           Perhaps an intermediary object that contains the AST as well and then the normal Map in the Call?
 
           FIXME: It'd be good to break this whole thing into smaller chunks
          */
-        val callInput = AstTools.callInputAsts(ast) find {
-          _.getAttribute("key").sourceString == inputKv._1
+        val callInput = AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter) find {
+          _.getAttribute("key").sourceString == taskParamName
         } getOrElse {
-          throw new SyntaxError(s"Can't find call input: ${inputKv._1}")
+          throw new SyntaxError(s"Can't find call input: $taskParamName")
         }
         throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskInput(callInput, task.ast))
       }
     }
 
-    new Call(alias, taskName, task, inputMappings)
+    new Call(alias, taskName, task, callInputSectionMappings)
   }
 
-  private def processCallInput(ast: Ast): Map[String, WdlExpression] = AstTools.callInputAsts(ast).map {a =>
-    val key = a.getAttribute("key").sourceString()
-    val expression = new WdlExpression(a.getAttribute("value"))
-    (key, expression)
-  }.toMap
+  private def processCallInput(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] =
+    AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter).map {a =>
+      val key = a.getAttribute("key").sourceString()
+      val expression = new WdlExpression(a.getAttribute("value"))
+      (key, expression)
+    }.toMap
 }
 
 /**

@@ -136,10 +136,35 @@ object AstTools {
     case(k, v) => v.exists{case a:Ast => a.getName == "MemberAccess"}
   }.keys
 
-  def callInputAsts(ast: Ast): Seq[Ast] = {
-    findAsts(ast, AstNodeName.Inputs) match {
-      case x: Seq[Ast] if x.size == 1 => x.head.getAttribute("map").findAsts(AstNodeName.IOMapping)
-      case _ => Seq.empty[Ast]
+  /**
+   * Given a Call AST, this will validate that there is 0 or 1 'input' section with non-empty
+   * key/value pairs (if the input section is specified).  This will then return a Seq of
+   * IOMapping(key=<terminal> value=<expression ast>)
+   *
+   * @param ast
+   * @param wdlSyntaxErrorFormatter
+   * @return Seq[Ast] where the AST is a IOMapping(key=<terminal> value=<expression ast>)
+   */
+  def callInputSectionIOMappings(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[Ast] = {
+    val callTaskName = ast.getAttribute("task").asInstanceOf[Terminal]
+
+    /* Filter out all empty 'input' sections first */
+    val callInputSections = ast.findAsts(AstNodeName.Inputs).map {inputSectionAst =>
+      inputSectionAst.getAttribute("map").findAsts(AstNodeName.IOMapping) match {
+        case kvPairs: Seq[Ast] if kvPairs.isEmpty => throw new SyntaxError(wdlSyntaxErrorFormatter.emptyInputSection(callTaskName))
+        case _ => inputSectionAst
+      }
+    }
+
+    /* Then, make sure there is at most one 'input' section defined, then return the a Seq of IOMapping(key=<terminal>, value=<expression>) ASTs*/
+    callInputSections match {
+      case asts: Seq[Ast] if asts.size == 1 => asts.head.getAttribute("map").findAsts(AstNodeName.IOMapping)
+      case asts: Seq[Ast] if asts.isEmpty => Seq.empty[Ast]
+      case asts: Seq[Ast] =>
+        /* Uses of .head here are assumed by the above code that ensures that there are no empty maps */
+        val secondInputSectionIOMappings = asts(1).getAttribute("map").asInstanceOf[AstList].asScala.toVector
+        val firstKeyTerminal = secondInputSectionIOMappings.head.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal]
+        throw new SyntaxError(wdlSyntaxErrorFormatter.multipleInputStatementsOnCall(firstKeyTerminal))
     }
   }
 

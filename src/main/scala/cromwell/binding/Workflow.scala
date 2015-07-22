@@ -2,12 +2,21 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.types.WdlType
-import cromwell.parser.WdlParser.{Ast, Terminal}
+import cromwell.parser.WdlParser.{SyntaxError, Ast, Terminal}
 
 object Workflow {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, calls: Seq[Call]): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, name, wdlSyntaxErrorFormatter))
+    val callNames = ast.findAsts(AstNodeName.Call).map {call =>
+      Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
+    }
+
+    callNames.groupBy {_.sourceString()}.foreach {
+      case (name, terminals) if terminals.size > 1 =>
+        throw new SyntaxError(wdlSyntaxErrorFormatter.multipleCallsAndHaveSameName(terminals.asInstanceOf[Seq[Terminal]]))
+      case _ =>
+    }
     new Workflow(name, declarations, calls)
   }
 }

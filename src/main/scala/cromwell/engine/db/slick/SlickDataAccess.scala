@@ -205,7 +205,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
               None,
               None)
         case j: JesBackend =>
-          dataAccess.localJobsAutoInc += new LocalJob(executionInsert.executionId.get, None, None) // FIXME: Placeholder?
+          // FIXME: Placeholder for now, discussed w/ Khalid
+          dataAccess.jesJobsAutoInc += new JesJob(executionInsert.executionId.get, 0, "", None)
         case null =>
           throw new IllegalArgumentException("Backend is null")
         case unknown =>

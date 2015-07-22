@@ -194,5 +194,33 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   it should "detect extraneous symbols" in {
     expectError("workflow foo {}}")
   }
+  it should "detect when two call definitions have the same name" in {
+    expectError(
+      """
+        |task x {
+        |  command { ps }
+        |}
+        |
+        |workflow wf {
+        |  call x
+        |  call x
+        |}
+      """.stripMargin)
+  }
+  it should "detect when there are more than one 'input' sections in a call" in {
+    expectError(
+      """
+        |task x {
+        |  command {  ./script ${a} ${b} }
+        |}
+        |
+        |workflow wf {
+        |  call x {
+        |    input: a = "a"
+        |    input: b = "b"
+        |  }
+        |}
+      """.stripMargin)
+  }
 }
 

@@ -97,7 +97,7 @@ class LocalBackend extends Backend with LazyLogging {
 
     val stderrFileLength = new File(stderrFile.toString).length
 
-    if(call.failOnStderr && stderrFileLength > 0) {
+    if (call.failOnStderr && stderrFileLength > 0) {
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
     } else {
       if (rc == 0) {

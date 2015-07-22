@@ -1,5 +1,6 @@
 package cromwell.engine.backend.jes
 
+import java.math.BigInteger
 import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Parameter
@@ -44,10 +45,13 @@ object JesBackend {
     def callDir(call: Call) = s"$bucket/call-${call.name}"
   }
 
+  def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
+  def stdoutJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
+
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
-    JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue)),
-    JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
+    stdoutJesOutput(callGcsPath),
+    stderrJesOutput(callGcsPath)
   )
 
   sealed trait JesParameter {
@@ -96,7 +100,7 @@ class JesBackend extends Backend with LazyLogging {
 
   override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map {case (k,v) => mapInputValue(k,v)}
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
-  
+
   // No need to copy GCS inputs for the workflow we should be able to directly reference them
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
 
@@ -126,7 +130,7 @@ class JesBackend extends Backend with LazyLogging {
     JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
   }
 
-  override def executeCommand(commandLine: String,
+  override def executeCommand(instantiatedCommandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
@@ -162,11 +166,10 @@ class JesBackend extends Backend with LazyLogging {
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ unsafeJesOutputs
 
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-    val redirectedCommand = s"$commandLine > $LocalStdoutValue  2> $LocalStderrValue"
+    val redirectedCommand = s"$instantiatedCommandLine > $LocalStdoutValue 2> $LocalStderrValue"
 
     val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
 
-    // FIXME: I modified starting here
     def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
       val jesOutputFile = unsafeJesOutputs find {_.name == taskOutput.name} map {j => WdlFile(j.gcs)}
       jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions))
@@ -174,27 +177,37 @@ class JesBackend extends Backend with LazyLogging {
 
     val outputMappings = call.task.outputs.map { taskOutput =>
       val rawValue = taskOutputToRawValue(taskOutput)
-      // FIXME: I stopped modifying here
       logger.debug(s"JesBackend setting ${taskOutput.name} to $rawValue")
       taskOutput.name -> rawValue
     }.toMap
 
-    status match {
-      case Run.Success(created, started, finished) =>
-        val taskOutputEvaluationFailures = outputMappings.filter {_._2.isFailure}
-        if (taskOutputEvaluationFailures.isEmpty) {
-          val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }
-          Success(unwrappedMap)
-        } else {
-          val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
-          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
-        }
-      case Run.Failed(created, started, finished, errorCode, errorMessage) =>
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $commandLine. Message: $errorMessage"))
-    }
+    val warnAboutStderrLength: BigInteger =
+      if (!call.failOnStderr) BigInteger.valueOf(0)
+      else JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(callGcsPath).gcs))
 
+    if (warnAboutStderrLength.intValue > 0) {
+      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $warnAboutStderrLength for command: $instantiatedCommandLine"))
+    } else {
+      status match {
+        //
+        case Run.Success(created, started, finished) =>
+          unwrapOutputValues(outputMappings, workflowDescriptor)
+        case Run.Failed(created, started, finished, errorCode, errorMessage) =>
+          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $instantiatedCommandLine. Message: $errorMessage"))
+      }
+    }
   }
-  
+
+  def unwrapOutputValues(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor): Try[Map[String, WdlValue]] = {
+    val taskOutputEvaluationFailures = outputMappings.filter { _._2.isFailure }
+    if (taskOutputEvaluationFailures.isEmpty) {
+      Success(outputMappings.collect { case (name, Success(wdlValue)) => name -> wdlValue })
+    } else {
+      val message = taskOutputEvaluationFailures.collect { case (name, Failure(e)) => s"$name: $e" }.mkString("\n")
+      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
+    }
+  }
+
   override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 
   override def backendType = BackendType.JES

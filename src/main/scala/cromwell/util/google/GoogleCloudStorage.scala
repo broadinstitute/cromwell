@@ -1,6 +1,7 @@
 package cromwell.util.google
 
 import java.io._
+import java.math.BigInteger
 import java.nio.file.Path
 
 import com.google.api.client.auth.oauth2.Credential
@@ -8,7 +9,7 @@ import com.google.api.client.http.{HttpTransport, InputStreamContent}
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
-import com.google.api.services.storage.model.Bucket
+import com.google.api.services.storage.model.{StorageObject, Bucket}
 import com.google.api.services.storage.model.Bucket.Owner
 import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
 
@@ -44,7 +45,7 @@ case class GoogleCloudStorage(client: Storage) {
 
     // For small files, let's call setDirectUploadEnabled(true), to
     // reduce the number of HTTP requests made to the server.
-    if(mediaContent.getLength > 0 && mediaContent.getLength <= smallFileSizeLimit) {
+    if (mediaContent.getLength > 0 && mediaContent.getLength <= smallFileSizeLimit) {
       insertObject.getMediaHttpUploader.setDirectUploadEnabled(true)
     }
 
@@ -62,5 +63,11 @@ case class GoogleCloudStorage(client: Storage) {
 
   def slurpFile(file: GoogleCloudStoragePath): String = {
     new String(downloadObject(file), "UTF-8")
+  }
+
+  def objectSize(gcsPath: GoogleCloudStoragePath): BigInteger = {
+    val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
+    val storageObject: StorageObject = getObject.execute()
+    storageObject.getSize
   }
 }

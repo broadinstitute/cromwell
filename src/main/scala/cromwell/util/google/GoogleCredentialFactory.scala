@@ -26,7 +26,7 @@ object GoogleCredentialFactory {
   }
 
   private def forUser(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
-    val user = config.getString("user')")
+    val user = config.getString("user")
     val secrets = Paths.get(config.getString("secretsFile"))
     val secretStream = new InputStreamReader(new FileInputStream(secrets.toFile))
     val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)

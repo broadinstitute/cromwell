@@ -52,7 +52,7 @@ trait Backend {
    * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
    * a mapping of local task output names to WDL values.
    */
-  def executeCommand(commandLine: String, 
+  def executeCommand(instantiatedCommandLine: String,
                      workflowDescriptor: WorkflowDescriptor, 
                      call: Call, 
                      backendInputs: CallInputs,

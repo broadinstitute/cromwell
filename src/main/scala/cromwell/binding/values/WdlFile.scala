@@ -1,21 +1,24 @@
 package cromwell.binding.values
 
-import java.nio.file.{Paths, Path}
-import cromwell.binding.types.WdlFileType
-
-object WdlFile {
-  def apply(value: String): WdlFile = WdlFile(Paths.get(value))
-}
+import cromwell.binding.types.{WdlType, WdlFileType}
 
 import scala.util.{Success, Try}
 
-case class WdlFile(value: Path) extends WdlPrimitive {
-  val wdlType = WdlFileType
+object WdlFile {
+  def appendPathsWithSlashSeparators(path1: String, path2: String) = {
+    if (path1.endsWith("/") || path2.startsWith("/")) path1 + path2
+    else path1 + "/" + path2
+  }
+}
+
+case class WdlFile(value: String) extends WdlPrimitive {
+
+  val wdlType: WdlType = WdlFileType
+
   override def add(rhs: WdlValue): Try[WdlValue] = {
     rhs match {
-      // The goofiness with the value.toStrings are because we want concatenation and not Path.resolve() logic
-      case r: WdlString => Success(WdlFile(Paths.get(value.toString, r.value)))
-      case r: WdlFile => Success(WdlFile(Paths.get(value.toString, r.value.toString)))
+      case r: WdlString => Success(WdlFile( WdlFile.appendPathsWithSlashSeparators(value, r.value)))
+      case r: WdlFile => Success(WdlFile(WdlFile.appendPathsWithSlashSeparators(value, r.value)))
       case _ => invalid(s"$value + $rhs")
     }
   }

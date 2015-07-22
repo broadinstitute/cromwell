@@ -15,7 +15,7 @@ class StringInterpolationWorkflowSpec extends CromwellTestkitSpec("StringInterpo
         sampleWdl = SampleWdl.StringInterpolation,
         EventFilter.info(pattern = s"starting calls: echo_wf.echo", occurrences = 1),
         expectedOutputs = Map(
-          "echo_wf.echo.outfile" -> WdlFile(Paths.get("foobar.txt"))
+          "echo_wf.echo.outfile" -> WdlFile("foobar.txt")
         )
       )
     }

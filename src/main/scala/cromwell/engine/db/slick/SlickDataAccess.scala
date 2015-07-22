@@ -10,6 +10,7 @@ import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.engine._
 import cromwell.engine.backend.Backend
+import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
@@ -203,11 +204,14 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
               executionInsert.executionId.get,
               None,
               None)
+        case j: JesBackend =>
+          dataAccess.localJobsAutoInc += new LocalJob(executionInsert.executionId.get, None, None) // FIXME: Placeholder?
         case null =>
           throw new IllegalArgumentException("Backend is null")
         case unknown =>
           throw new IllegalArgumentException("Unknown backend: " + backend.getClass)
       }
+
     } yield ()
   }
 

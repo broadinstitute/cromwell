@@ -2,6 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
+import cromwell.parser.BackendType
 import org.scalatest.{FlatSpec, Matchers}
 
 class SameNameParametersSpec extends FlatSpec with Matchers {
@@ -11,7 +12,7 @@ class SameNameParametersSpec extends FlatSpec with Matchers {
        |  command { ./script ${String x} ${String x} ${x} }
        |}
        |workflow wf { call test }
-     """.stripMargin
+     """.stripMargin, BackendType.LOCAL
   )
 
   "A task with command that uses the same parameter more than once" should "only count it as one input" in {

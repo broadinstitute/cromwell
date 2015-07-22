@@ -31,7 +31,7 @@ class LocalBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     when(call.failOnStderr) thenReturn failOnStderr
     when(call.task) thenReturn task
     when(task.outputs) thenReturn Seq()
-    new LocalBackend().executeCommand(command, mockWorkflowDescriptor, call, mockScopedLookupFunction) match {
+    new LocalBackend().executeCommand(command, mockWorkflowDescriptor, call, call.inputMappings, mockScopedLookupFunction) match {
       case Failure(e) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
       case Success(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
     }

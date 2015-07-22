@@ -629,34 +629,34 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
 
   "Expression Evaluator with File as LHS" should "File + String = File" in {
-    WdlFile(Paths.get("/etc")).add(WdlString("/sudoers")).get shouldEqual WdlFile(Paths.get("/etc/sudoers"))
+    WdlFile("/etc").add(WdlString("/sudoers")).get shouldEqual WdlFile("/etc/sudoers")
   }
   it should "File + File = File" in {
-    WdlFile(Paths.get("/etc")).add(WdlFile(Paths.get("/sudoers"))).get shouldEqual WdlFile(Paths.get("/etc/sudoers"))
+    WdlFile("/etc").add(WdlFile("/sudoers")).get shouldEqual WdlFile("/etc/sudoers")
   }
   it should "File + Integer (error)" in {
-    WdlFile(Paths.get("/etc")).add(WdlInteger(1)) match {
+    WdlFile("/etc").add(WdlInteger(1)) match {
       case Failure(ex) => // Expected
       case _ => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
   it should "File == File (return true)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlFile(Paths.get("/etc"))).get shouldEqual WdlBoolean.True
+    WdlFile("/etc").equals(WdlFile("/etc")).get shouldEqual WdlBoolean.True
   }
   it should "File == File (return false)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlFile(Paths.get("/etc2"))).get shouldEqual WdlBoolean.False
+    WdlFile("/etc").equals(WdlFile("/etc2")).get shouldEqual WdlBoolean.False
   }
   it should "File == String (return true)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlString("/etc")).get shouldEqual WdlBoolean.True
+    WdlFile("/etc").equals(WdlString("/etc")).get shouldEqual WdlBoolean.True
   }
   it should "File == Integer (error)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlInteger(1)) match {
+    WdlFile("/etc").equals(WdlInteger(1)) match {
       case Failure(ex) => // Expected
       case _ => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
   it should "File != File (return true)" in {
-    WdlFile(Paths.get("/etc")).notEquals(WdlFile(Paths.get("/etc2"))).get shouldEqual WdlBoolean.True
+    WdlFile("/etc").notEquals(WdlFile("/etc2")).get shouldEqual WdlBoolean.True
   }
 
   "Expression Evaluator with Object as LHS" should "Lookup object string attribute" in {

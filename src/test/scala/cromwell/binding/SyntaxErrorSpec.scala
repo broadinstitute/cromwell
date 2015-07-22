@@ -1,5 +1,6 @@
 package cromwell.binding
 
+import cromwell.parser.BackendType
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -35,7 +36,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
 
   private def expectError(wdl: String) = {
     try {
-      val namespace = WdlNamespace.load(wdl, resolver _)
+      val namespace = WdlNamespace.load(wdl, resolver _, BackendType.LOCAL)
       fail("Exception expected")
     } catch {
       case x: SyntaxError => // expected

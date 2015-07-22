@@ -44,8 +44,10 @@ object CromwellServer extends DefaultWorkflowManagerSystem {
 
   implicit val timeout = Timeout(5.seconds)
 
+  val webserviceConf = conf.getConfig("webservice")
+
   import scala.concurrent.ExecutionContext.Implicits.global
-  (IO(Http) ? Http.Bind(service, interface =  conf.getString("webservice.interface"), port = conf.getInt("webservice.port"))).onComplete {
+  (IO(Http) ? Http.Bind(service, interface =  webserviceConf.getString("webservice.interface"), port = webserviceConf.getInt("webservice.port"))).onComplete {
     case Success(Http.CommandFailed(failure)) =>
       actorSystem.log.error("could not bind to port: " + failure.toString)
       actorSystem.shutdown()

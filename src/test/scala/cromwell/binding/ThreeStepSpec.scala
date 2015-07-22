@@ -2,11 +2,12 @@ package cromwell.binding
 
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType}
 import cromwell.binding.values.{WdlFile, WdlString}
+import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class ThreeStepSpec extends FlatSpec with Matchers {
-  val namespace = NamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource())
+  val namespace = NamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource(), BackendType.LOCAL)
 
   "Binding Workflow" should "Have correct name for workflow" in {
     namespace.workflow.name shouldEqual "three_step"

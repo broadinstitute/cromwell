@@ -4,11 +4,12 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
 import cromwell.binding.types.WdlExpressionType
 import cromwell.binding.values._
+import cromwell.engine.EngineFunctions
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 
 import scala.collection.JavaConverters._
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
 
@@ -25,6 +26,58 @@ object WdlExpression {
   )
 
   val unaryOperators = Set("LogicalNot", "UnaryPlus", "UnaryNegation")
+
+  val preEvaluableFunctions_SingleParameter: Seq[String] = Seq("read_int", "read_string")
+
+  def functionCall(a: Ast): Boolean = a.getName == "FunctionCall"
+
+  def binaryOperator(a: Ast): Boolean = binaryOperators.contains(a.getName)
+  
+  def unaryOperator(a: Ast): Boolean = unaryOperators.contains((a.getName))
+  
+  def functionCallWithOneFileParameter(a: Ast): Boolean = (
+    functionCall(a)
+    && a.getAttribute("params").asInstanceOf[AstList].asScala.toVector.size == 1
+    && preEvaluableFunctions_SingleParameter.contains(a.getAttribute("name").asInstanceOf[Terminal].getSourceString))
+  
+  /**
+   * Look within the expression for filenames which aren't explicitly listed as outputs. 
+   */
+  def preevaluateExpressionForFilenames(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] = {
+    ast match {
+      // This is the only case which actually pre-evaluates anything. The other cases are just buck-passers:
+      case a: Ast if functionCallWithOneFileParameter(a) => {
+        // Test the pre-evaluation would be valid by using dummy functions:
+        val innerExpression = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector.head
+        val dummyEvaluation = evaluate(innerExpression, lookup, new DummyPreEvaluationFunctions())
+        // If dummyEvaluation succeeded, run the real evaluation instead and match against it:
+        dummyEvaluation.flatMap( _ => evaluate(innerExpression, lookup, functions)) match {
+          case Success(value) => Success(Seq(WdlFile(value.valueString)))
+          case Failure(error) => Failure(error)
+        }
+      }
+      // Binary operators - find filenames in sub-expressions and merge the lists:
+      case a: Ast if binaryOperator(a) => {
+        val lhs = preevaluateExpressionForFilenames(a.getAttribute("lhs"), lookup, functions)
+        val rhs = preevaluateExpressionForFilenames(a.getAttribute("rhs"), lookup, functions)
+        // Recurse both sides and add the lists together:
+        lhs match {
+          case Success(lhsValue) => {
+            rhs match {
+              case Success(rhsValue) => {
+                Success(Seq(lhsValue,rhsValue).flatten)
+              }
+              case Failure(error) => Failure(error)
+            }
+          }
+          case Failure(error) => Failure(error)
+        }
+      }
+      case a: Ast if unaryOperator(a) => preevaluateExpressionForFilenames(a.getAttribute("expression"), lookup, functions)
+
+      case _ => Success(Seq())
+    }
+  }
 
   private def replaceInterpolationTag(string: String, tag: String, lookup: ScopedLookupFunction) =
     string.replace(tag, lookup(tag.substring(2, tag.length - 1)).valueString)
@@ -78,7 +131,7 @@ object WdlExpression {
           case ns: WdlNamespace => lookup(ns.importedAs.map {n => s"$n.$rhs"}.getOrElse(rhs))
           case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
         }
-      case a: Ast if a.getName == "FunctionCall" =>
+      case a: Ast if functionCall(a) =>
         val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
         val params = a.getAttribute("params").asInstanceOf[AstList].asScala.toVector map {
           evaluate(_, lookup, functions, interpolateStrings)
@@ -137,6 +190,8 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   override val wdlType = WdlExpressionType
   def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] =
     WdlExpression.evaluate(ast, lookup, functions, interpolateStrings)
+  def preevaluateExpressionForFilenames(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] =
+    WdlExpression.preevaluateExpressionForFilenames(ast, lookup: ScopedLookupFunction, functions: WdlFunctions)
   def toString(highlighter: SyntaxHighlighter): String = {
     WdlExpression.toString(ast, highlighter)
   }
@@ -147,4 +202,16 @@ trait WdlFunctions {
   type WdlFunction = Seq[Try[WdlValue]] => Try[WdlValue]
 
   def getFunction(name: String): WdlFunction
+}
+
+
+class DummyPreEvaluationFunctions extends EngineFunctions {
+  // These cannot be evaluated before running the operation, so quickly fail the pre-evaluation test.
+  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new UnsupportedOperationException("Unable to pre-evaluate read_int"))
+  override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new UnsupportedOperationException("Unable to pre-evaluate read_string"))
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new UnsupportedOperationException("Unable to pre-evaluate read_lines"))
+
+  // These can be evaluated before running the operation so provide dummy values during the pre-evaluation test.
+  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile("/test/value"))
+  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile("/test/value"))
 }

@@ -2,10 +2,13 @@ package cromwell
 
 import java.io.File
 import java.nio.file.Paths
+
+import com.typesafe.config.ConfigFactory
+import cromwell.binding._
 import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
-import cromwell.engine.workflow.SingleWorkflowRunnerActor
+import cromwell.engine.workflow.{WorkflowManagerActor, SingleWorkflowRunnerActor}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
 import cromwell.util.FileUtil
@@ -43,14 +46,14 @@ object Main extends App {
   def validate(args: Array[String]): Unit = {
     if (args.length != 1) usageAndExit()
     try {
-      WdlNamespace.load(new File(args(0)))
+      WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
     } catch {
       case e: SyntaxError => println(e)
     }
   }
 
   def highlight(args: Array[String]) {
-    val namespace = WdlNamespace.load(new File(args(0)))
+    val namespace = WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
     val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
     println(formatter.format(namespace))
   }
@@ -59,7 +62,7 @@ object Main extends App {
     if (args.length != 1) usageAndExit()
     try {
       import cromwell.binding.types.WdlTypeJsonFormatter._
-      val namespace = WdlNamespace.load(new File(args(0)))
+      val namespace = WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
       namespace match {
         case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
         case _ => println("WDL does not have a local workflow")
@@ -71,6 +74,8 @@ object Main extends App {
 
   def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
     if (args.length != 2) usageAndExit()
+
+    Log.info(s"Backend is: ${WorkflowManagerActor.BackendType}")
 
     Log.info(s"RUN sub-command")
     Log.info(s"  WDL file: ${args(0)}")

@@ -1,9 +1,10 @@
 package cromwell.webservice
 
+import cromwell.CromwellSpec
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.util.SampleWdl.HelloWorld
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FlatSpec, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{FormData, StatusCodes}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -16,7 +17,7 @@ import scala.concurrent.duration.Duration
 class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   def actorRefFactory = system
   val dataAccess = DataAccess()
-  val workflowManager = system.actorOf(WorkflowManagerActor.props(dataAccess))
+  val workflowManager = system.actorOf(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance))
 
   override protected def afterAll() {
     super.afterAll()

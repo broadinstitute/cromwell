@@ -3,6 +3,7 @@ package cromwell.binding.formatter
 import cromwell.binding._
 import cromwell.binding.command.{Command, ParameterCommandPart, StringCommandPart}
 import cromwell.binding.types.WdlType
+import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import cromwell.util.TerminalUtil
 
@@ -45,7 +46,12 @@ object HtmlSyntaxHighlighter extends SyntaxHighlighter {
 }
 
 class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
-  val indent = 2
+  val indentLevel = 2
+
+  private def indent(s: String, i: Int): String = {
+    s.split("\n").map {" " * (i * indentLevel) + _}.mkString("\n")
+  }
+
   def format(namespace: WdlNamespace): String = {
     val imports = namespace.imports.map(formatImport) match {
       case v if v.nonEmpty => v.mkString("\n") + "\n\n"
@@ -60,7 +66,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     val namespaceDefinitions = namespace.ast.getAttribute("definitions").asInstanceOf[AstList].asScala.toVector
 
     val taskDefinitions = namespaceDefinitions collect { case a: Ast if a.getName == "Task" =>
-      formatTask(namespace.findTask(text(a.getAttribute("name"))).getOrElse(throw new UnsupportedOperationException("Shouldn't happen")))
+      formatTask(namespace.findTask(a.getAttribute("name").sourceString()).getOrElse(throw new UnsupportedOperationException("Shouldn't happen")))
     }
 
     val workflowDefinitions = namespace match {
@@ -76,6 +82,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     val namespace = imp.namespace.map{ns => s" as $ns"}.getOrElse("")
     s"${highlighter.keyword("import")} '${imp.uri}'$namespace"
   }
+
   private def formatTask(task: Task): String = {
     val outputs = if (task.outputs.nonEmpty) formatOutputs(task.outputs, 1) else ""
     val command = formatCommandSection(task.command, 1)
@@ -86,51 +93,75 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
      .stripMargin
     header
   }
+
   private def formatCommandSection(command: Command, level:Int): String = {
     val section = s"""${highlighter.section("command")} {
         |${formatCommand(command, level+1)}
         |}"""
-    indentText(section.stripMargin, level)
+    indent(section.stripMargin, level)
   }
+
   private def formatCommand(command: Command, level:Int): String = {
     val abstractCommand = command.parts.map {
       case x:StringCommandPart => x
-      case x:ParameterCommandPart => s"$${${highlighter.wdlType(x.wdlType)} ${highlighter.variable(x.name)}}"
+      case x:ParameterCommandPart => formatParameterCommandPart(x)
     }
-    indentText(highlighter.command(command.normalize(abstractCommand.mkString)), 1)
+    indent(highlighter.command(command.normalize(abstractCommand.mkString)), 1)
   }
+
+  private def formatParameterCommandPart(cmdPart: ParameterCommandPart): String = {
+    val attributes = cmdPart.attributes.map{case (k,v) => s"$k='$v'"} match {
+      case i: Iterable[String] if i.isEmpty => ""
+      case i: Iterable[String] => s"${i.mkString(" ")} "
+    }
+    val prefix = cmdPart.prefix.map {str => s"'$str' "}.getOrElse("")
+    val wdlType = highlighter.wdlType(cmdPart.wdlType)
+    val postfixQuantifier = cmdPart.postfixQuantifier.getOrElse("")
+    val variableName = highlighter.variable(cmdPart.name)
+    s"$${$attributes$prefix$wdlType $variableName$postfixQuantifier}"
+  }
+
   private def formatOutputs(outputs: Seq[TaskOutput], level:Int): String = {
     val section = s"""${highlighter.section("output")} {
         |${outputs.map(formatOutput(_, 1)).mkString("\n")}
         |}"""
-    indentText(section.stripMargin, level)
+    indent(section.stripMargin, level)
   }
+
   private def formatOutput(output: TaskOutput, level:Int): String = {
-    indentText(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.expression.toString(highlighter)}", level)
+    indent(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.expression.toString(highlighter)}", level)
   }
+
   private def formatWorkflow(workflow: Workflow): String = {
-    s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.name)} {
+    val declarations = workflow.declarations.map{formatDeclaration(_, 1)} match {
+      case x: Seq[String] if !x.isEmpty => s"\n${x.mkString("\n")}\n"
+      case _ => ""
+    }
+    s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.name)} {$declarations
         |${workflow.calls.map{formatCall(_, 1)}.mkString("\n")}
         |}""".stripMargin
   }
+
+  private def formatDeclaration(decl: Declaration, level: Int): String = {
+    val expression = decl.expression.map {e => s" = ${e.toWdlString}"}.getOrElse("")
+    indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.name(decl.name)}$expression", level)
+  }
+
   private def formatCall(call: Call, level:Int): String = {
     val header = s"${highlighter.keyword("call")} ${highlighter.name(call.task.name)}${formatCallAlias(call)}"
     if (call.inputMappings.isEmpty) {
-      indentText(header, level)
+      indent(header, level)
     } else {
       val inputString = call.inputMappings.map {case (k, v) =>
         s"$k=${v.toString(highlighter)}"
       }.mkString(", ")
-      indentText(s"""$header {
+      indent(s"""$header {
          |  input: $inputString
          |}""".stripMargin, level)
     }
   }
+
   private def formatCallAlias(call: Call): String = {
     call.alias.map {a => s" as ${highlighter.alias(a)}"}.getOrElse("")
-  }
-  private def text(astNode: AstNode) = astNode.asInstanceOf[Terminal].getSourceString
-  private def indentText(s: String, i: Int): String = {
-    s.split("\n").map {" " * (i * indent) + _}.mkString("\n")
   }
 }

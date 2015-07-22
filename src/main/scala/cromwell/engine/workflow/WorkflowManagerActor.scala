@@ -5,8 +5,7 @@ import java.util.UUID
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.{ask, pipe}
-import cromwell.{Main, binding}
+import akka.pattern.pipe
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
@@ -33,6 +32,7 @@ object WorkflowManagerActor {
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
+  case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
 
@@ -64,6 +64,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case SubmitWorkflow(wdlSource, wdlJson, inputs) =>
       submitWorkflow(wdlSource, wdlJson, inputs, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => dataAccess.getWorkflowState(id) pipeTo sender
+      // TODO actually attempt to abort workflow
+    case WorkflowAbort(id) => sender ! Option(WorkflowAborted)
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
     case CurrentState(actor, state: WorkflowState) => updateWorkflowState(actor, state)

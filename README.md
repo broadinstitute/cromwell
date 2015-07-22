@@ -10,7 +10,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 
 * [Requirements](#requirements)
 * [Building](#building)
-* [API Documenation](#api-documenation)
+* [API Documentation](#api-documentation)
 * [Scala API Usage](#scala-api-usage)
 * [Command Line Usage](#command-line-usage)
   * [validate](#validate)
@@ -31,6 +31,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [POST /workflows/:version](#post-workflowsversion)
   * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
   * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
+  * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -56,7 +57,7 @@ The following is the toolchain used for development of Cromwell.  Other versions
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 
-# API Documenation
+# API Documentation
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
 
@@ -712,6 +713,35 @@ Server: spray-can/1.3.3
     }
 }
 ```
+
+### POST /workflows/:version/:id/abort
+
+cURL:
+
+```
+$ curl -X POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+```
+
+HTTPie:
+
+```
+$ http POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 241
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 04 Jun 2015 12:15:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
+    "status": "Aborted"
+}
+```
+
 
 # Developer
 

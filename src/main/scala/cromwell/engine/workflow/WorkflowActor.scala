@@ -6,7 +6,6 @@ import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlObject, WdlValue}
 import cromwell.engine._
-import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{CallStatus, DataAccess}

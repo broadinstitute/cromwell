@@ -16,7 +16,7 @@ import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer extends DefaultWorkflowManagerSystem {
-  val conf = ConfigFactory.parseFile(new File("/etc/cromwell.conf"))
+  val conf = ConfigFactory.load()
 
   // NOTE: Currently the this.dataAccess is passed in to this.workflowManagerActor.
   // The actor could technically restart with the same instance of the dataAccess,
@@ -47,7 +47,7 @@ object CromwellServer extends DefaultWorkflowManagerSystem {
   val webserviceConf = conf.getConfig("webservice")
 
   import scala.concurrent.ExecutionContext.Implicits.global
-  (IO(Http) ? Http.Bind(service, interface =  webserviceConf.getString("webservice.interface"), port = webserviceConf.getInt("webservice.port"))).onComplete {
+  (IO(Http) ? Http.Bind(service, interface =  webserviceConf.getString("interface"), port = webserviceConf.getInt("port"))).onComplete {
     case Success(Http.CommandFailed(failure)) =>
       actorSystem.log.error("could not bind to port: " + failure.toString)
       actorSystem.shutdown()

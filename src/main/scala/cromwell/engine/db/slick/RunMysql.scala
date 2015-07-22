@@ -29,7 +29,8 @@ object RunMysql {
   var successes: Seq[String] = Seq.empty
   var failures: Seq[String] = Seq.empty
 
-  def main(args: Array[String]) = runMain()
+  // Hiding this main() from sbt, but leaving class for future debugging.
+  //def main(args: Array[String]) = runMain()
 
   def runMain() = {
     println("user: " + user)
@@ -48,7 +49,7 @@ object RunMysql {
 
     tryRun("dataSourceSslUrl", dataSourceTest(urlWithSsl, Option(false)))
     tryRun("dataSourceSslUrlProp", dataSourceTest(urlWithSsl, Option(true)))
-    tryRun("dataSourceSslNoUrlProp", dataSourceTest(urlWithSsl, None))
+    tryRun("dataSourceSslNoProp", dataSourceTest(urlWithSsl, None))
 
     tryRun("slickRaw", slickTest(urlWithoutSsl, sslProp = Option(false)))
     tryRun("slickRawProp", slickTest(urlWithoutSsl, sslProp = Option(true)))

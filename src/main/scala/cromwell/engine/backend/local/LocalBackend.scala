@@ -6,9 +6,7 @@ import java.nio.file.{Files, Path, Paths}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.values.{WdlFile, WdlValue}
-import cromwell.engine.ExecutionStatus.{Done, Failed, NotStarted}
-import cromwell.engine._
+import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
@@ -135,16 +133,15 @@ class LocalBackend extends Backend with LazyLogging {
    */
   private def stageWorkflowInputs(descriptor: WorkflowDescriptor): HostInputs = {
     val hostInputsPath = Paths.get(hostExecutionPath(descriptor).toFile.getAbsolutePath, "workflow-inputs")
-    descriptor.actualInputs map {stageInput(_, hostInputsPath)}
+    descriptor.actualInputs map {case(name, value) => name -> stageWdlValue(value, hostInputsPath)}
   }
 
-  private def stageInput(nameAndValue: (String, WdlValue), hostInputsPath: Path): (String, WdlValue) = {
-    val (name, value) = nameAndValue
-    val hostPathAdjustedValue = value match {
-      case w: WdlFile => stageWdlFile(w, hostInputsPath)
-      case x => x
-    }
-    name -> hostPathAdjustedValue
+  private def stageInputArray(array: WdlArray, hostInputsPath: Path): WdlArray = array.map(stageWdlValue(_, hostInputsPath))
+
+  private def stageWdlValue(value: WdlValue, hostInputsPath: Path): WdlValue = value match {
+    case w:WdlFile => stageWdlFile(w, hostInputsPath)
+    case a:WdlArray => stageInputArray(a, hostInputsPath)
+    case x => x
   }
 
   private def stageWdlFile(wdlFile: WdlFile, hostInputsPath: Path): WdlFile = {

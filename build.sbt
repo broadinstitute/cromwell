@@ -6,7 +6,7 @@ name := "cromwell"
 version := "0.7"
 organization := "org.broadinstitute"
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 val sprayV = "1.3.2"
 val DowngradedSprayV = "1.3.1"

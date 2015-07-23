@@ -6,8 +6,8 @@ import java.util.UUID
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.command.Command
-import cromwell.binding.types.WdlStringType
-import cromwell.binding.values.WdlString
+import cromwell.binding.types.{WdlArrayType, WdlStringType}
+import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -250,6 +250,37 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)
           resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
+        }
+      } yield ()).futureValue
+    }
+
+
+    it should "get a symbol input that has a very long WDL value field" in {
+      assume(canConnect || testRequired)
+      val wdlArray = new WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("test"), WdlString("*" * 10000)))
+      val callFqn = "call.fully.qualified.scope"
+      val symbolFqn = "symbol.fully.qualified.scope"
+      val workflowId = UUID.randomUUID()
+      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
+      val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray))
+      val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, null, BackendType.LOCAL)
+      val call = new Call(None, callFqn, task, Map.empty)
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, localBackend)
+        _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
+        _ <- dataAccess.getInputs(workflowId, call) map { resultSymbols =>
+          resultSymbols.size should be(1)
+          val resultSymbol = resultSymbols.head
+          val resultSymbolStoreKey = resultSymbol.key
+          resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
+          resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
+          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.input should be(right = true) // IntelliJ highlighting
+          resultSymbol.wdlType should be(WdlArrayType(WdlStringType))
+          resultSymbol.wdlValue shouldNot be(empty)
+          resultSymbol.wdlValue.get should be(wdlArray)
         }
       } yield ()).futureValue
     }

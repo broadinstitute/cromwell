@@ -71,13 +71,13 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
         backend.executeCommand(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
       }
 
-      val futureCall: Future[CallOutputs] = for {
+      val futureCallOutputs: Future[CallOutputs] = for {
         presentResults <- futureResults
         results <- Future.fromTry(presentResults)
       } yield results
 
-      futureCall onComplete {
-        case Success(a) => context.parent ! WorkflowActor.CallCompleted(call, a)
+      futureCallOutputs onComplete {
+        case Success(callOutputs) => context.parent ! WorkflowActor.CallCompleted(call, callOutputs)
         case Failure(e) =>
           log.error(e, e.getMessage)
           context.parent ! WorkflowActor.CallFailed(call, e.getMessage)

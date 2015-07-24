@@ -8,8 +8,11 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.CallFailed
 import cromwell.engine
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 
 object CallActor {
@@ -20,9 +23,10 @@ object CallActor {
     Props(new CallActor(call, locallyQualifiedInputs, backend, workflowDescriptor))
 }
 
-
 /** Actor to manage the execution of a single call. */
 class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor) extends Actor with CromwellActor {
+
+  type CallOutputs = Map[String, WdlValue]
 
   private val log = Logging(context.system, classOf[CallActor])
   val tag = s"CallActor [UUID(${workflowDescriptor.shortId}):${call.name}]"
@@ -62,8 +66,18 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
     def launchCall(commandLine: String): Unit = {
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
-      backend.executeCommand(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get) match {
-        case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
+
+      val futureResults: Future[Try[CallOutputs]] = Future {
+        backend.executeCommand(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
+      }
+
+      val futureCall: Future[CallOutputs] = for {
+        presentResults <- futureResults
+        results <- Future.fromTry(presentResults)
+      } yield results
+
+      futureCall onComplete {
+        case Success(a) => context.parent ! WorkflowActor.CallCompleted(call, a)
         case Failure(e) =>
           log.error(e, e.getMessage)
           context.parent ! WorkflowActor.CallFailed(call, e.getMessage)

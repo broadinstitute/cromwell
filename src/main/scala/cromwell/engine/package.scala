@@ -69,6 +69,10 @@ package object engine {
     def toWorkflowOutputs(t: Traversable[SymbolStoreEntry]): WorkflowOutputs = t.map { e =>
       s"${e.key.scope}.${e.key.name}" -> e.wdlValue.get
     }.toMap
+
+    def toCallOutputs(traversable: Traversable[SymbolStoreEntry]): CallOutputs = traversable.map { entry =>
+      entry.key.name -> entry.wdlValue.get
+    }.toMap
   }
 
   case class SymbolStoreKey(scope: String, name: String, iteration: Option[Int], input: Boolean)

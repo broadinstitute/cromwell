@@ -3,16 +3,25 @@ package cromwell.webservice
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
+import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
+import cromwell.engine.workflow.WorkflowManagerActor
+import WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowAbort, WorkflowOutputs, WorkflowStatus}
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, runningWorkflowId, unknownId}
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import spray.testkit.ScalatestRouteTest
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage
@@ -56,12 +65,30 @@ class MockWorkflowManagerActor extends Actor  {
       sender ! msg
 
     case WorkflowOutputs(id) =>
-      val msg = Map(
-        "three_step.cgrep.count" -> WdlInteger(8),
-        "three_step.ps.procs" -> WdlFile("/tmp/ps.stdout.tmp"),
-        "three_step.wc.count" -> WdlInteger(8)
-      )
-      sender ! msg
+      val futureOutputs = id match {
+        case MockWorkflowManagerActor.submittedWorkflowId =>
+          Future.successful(Map(
+            "three_step.cgrep.count" -> WdlInteger(8),
+            "three_step.ps.procs" -> WdlFile("/tmp/ps.stdout.tmp"),
+            "three_step.wc.count" -> WdlInteger(8)))
+        case w => Future.failed(new WorkflowNotFoundException(s"Workflow '$w' not found"))
+      }
+      futureOutputs pipeTo sender
+
+    case CallOutputs(id, callFqn) =>
+      val futureOutputs = id match {
+        case MockWorkflowManagerActor.submittedWorkflowId =>
+          Future {
+            callFqn match {
+              case "three_step.cgrep" => Map("count" -> WdlInteger(8))
+              case "three_step.ps" => Map("procs" -> WdlFile("/tmp/ps.stdout.tmp"))
+              case "three_step.wc" => Map("count" -> WdlInteger(8))
+              case _ => throw new CallNotFoundException(s"foobar bad call FQN: $callFqn")
+            }
+          }
+        case _ => Future.failed(new WorkflowNotFoundException(s"foobar bad workflow ID: $id"))
+      }
+      futureOutputs pipeTo sender
   }
 }
 
@@ -194,7 +221,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   s"Cromwell workflow outputs API $version" should "return 200 with GET of outputs on successful execution of workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
-      outputsRoute ~>
+      workflowOutputsRoute ~>
       check {
         assertResult(StatusCodes.OK) {
           status
@@ -213,9 +240,68 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  it should "return 404 with outputs on unknown workflow" in {
+    Get(s"/workflows/$version/$unknownId/outputs") ~>
+    workflowOutputsRoute ~>
+    check {
+      assertResult(StatusCodes.NotFound) {
+        status
+      }
+    }
+  }
+
+  "Cromwell call outputs API" should "return 200 with outputs on successful execution of workflow" in {
+    Get(s"/workflows/$version/$submittedWorkflowId/outputs/three_step.wc") ~>
+    callOutputsRoute ~>
+    check {
+      assertResult(StatusCodes.OK) {
+        status
+      }
+      assertResult(
+        s"""{
+           |  "id": "$submittedWorkflowId",
+           |  "callFqn": "three_step.wc",
+           |  "outputs": {
+           |    "count": 8
+           |  }
+           |}""".stripMargin) {
+        responseAs[String]
+      }
+    }
+  }
+
+  it should "return 404 for unknown workflow" in {
+    Get(s"/workflows/$version/$unknownId/outputs/three_step.wc") ~>
+      callOutputsRoute ~>
+      check {
+        assertResult(StatusCodes.NotFound) {
+          status
+        }
+      }
+  }
+
+  it should "return 404 for unknown call ID" in {
+    Get(s"/workflows/$version/$submittedWorkflowId/outputs/bogus_workflow.bogus_call") ~>
+      callOutputsRoute ~>
+      check {
+        assertResult(StatusCodes.NotFound) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 for malformed workflow ID" in {
+    Get(s"/workflows/$version/foobar/outputs/three_step.wc") ~>
+      callOutputsRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
   it should "return 405 with POST of outputs on successful execution of workflow" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
-      sealRoute(outputsRoute) ~>
+      sealRoute(workflowOutputsRoute) ~>
       check {
         assertResult(StatusCodes.MethodNotAllowed) {
           status

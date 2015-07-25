@@ -9,5 +9,6 @@ case object WdlStringType extends WdlPrimitiveType {
   override protected def coercion = {
     case s: String => WdlString(s)
     case s: JsString => WdlString(s.value)
+    case s: WdlString => s
   }
 }

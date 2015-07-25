@@ -221,12 +221,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   /* Return a Markdown table of all entries in the database */
   private def symbolsMarkdownTable(): Option[String] = {
     val header = Seq("SCOPE","NAME","I/O","TYPE","VALUE")
+    val max_col_chars = 100
     val rows = fetchAllEntries.map { entry =>
       val valueString = entry.wdlValue match {
         case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
         case _ => ""
       }
-      Seq(entry.key.scope, entry.key.name, if (entry.key.input) "INPUT" else "OUTPUT", entry.wdlType.toWdlString, valueString)
+      Seq(
+        entry.key.scope,
+        entry.key.name,
+        if (entry.key.input) "INPUT" else "OUTPUT",
+        entry.wdlType.toWdlString,
+        if (valueString.length > max_col_chars) valueString.substring(0, max_col_chars) else valueString
+      )
     }.toSeq
     rows match {
       case r:Seq[Seq[String]] if r.isEmpty => None

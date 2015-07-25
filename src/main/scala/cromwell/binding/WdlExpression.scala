@@ -2,7 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
-import cromwell.binding.types.WdlExpressionType
+import cromwell.binding.types.{WdlType, WdlArrayType, WdlExpressionType}
 import cromwell.binding.values._
 import cromwell.engine.EngineFunctions
 import cromwell.parser.WdlParser
@@ -111,7 +111,7 @@ object WdlExpression {
           case "GreaterThanOrEqual" => for(l <- lhs; r <- rhs) yield l.greaterThanOrEqual(r).get
           case "LogicalOr" => for(l <- lhs; r <- rhs) yield l.or(r).get
           case "LogicalAnd" => for(l <- lhs; r <- rhs) yield l.and(r).get
-          case _ => throw new WdlExpressionException(s"Invalid operator: ${a.getName}")
+          case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
         }
       case a: Ast if unaryOperators.contains(a.getName) =>
         val expression = evaluate(a.getAttribute("expression"), lookup, functions, interpolateStrings)
@@ -119,17 +119,39 @@ object WdlExpression {
           case "LogicalNot" => for(e <- expression) yield e.not.get
           case "UnaryPlus" => for(e <- expression) yield e.unaryPlus.get
           case "UnaryNegation" => for(e <- expression) yield e.unaryMinus.get
-          case _ => throw new WdlExpressionException(s"Invalid operator: ${a.getName}")
+          case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
+        }
+      case a: Ast if a.getName == "ArrayLiteral" =>
+        val evaluatedElements = a.getAttribute("values").asInstanceOf[AstList].asScala.toVector map {x =>
+          evaluate(x, lookup, functions, interpolateStrings)
+        }
+        evaluatedElements.partition {_.isSuccess} match {
+          case (_, failures) if failures.nonEmpty =>
+            val message = failures.collect {case f: Failure[_] => f.exception.getMessage}.mkString("\n")
+            Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
+          case (successes, _) =>
+            successes.map{_.get.wdlType}.toSet match {
+              case s:Set[WdlType] if s.isEmpty =>
+                Failure(new WdlExpressionException(s"Can't have empty array declarations (can't infer type)"))
+              case s:Set[WdlType] if s.size == 1 =>
+                Success(WdlArray(WdlArrayType(s.head), successes.map{_.get}.toSeq))
+              case _ =>
+                Failure(new WdlExpressionException("Arrays must have homogeneous types"))
+            }
         }
       case a: Ast if a.getName == "MemberAccess" =>
-        val rhs = a.getAttribute("rhs") match {
-          case x:Terminal if x.getTerminalStr == "identifier" => x.getSourceString
-          case _ => throw new WdlExpressionException("Right-hand side of expression must be identifier")
-        }
-        evaluate(a.getAttribute("lhs"), lookup, functions, interpolateStrings).map {
-          case o: WdlObject => o.value.getOrElse(rhs, throw new WdlExpressionException(s"Could not find key $rhs"))
-          case ns: WdlNamespace => lookup(ns.importedAs.map {n => s"$n.$rhs"}.getOrElse(rhs))
-          case _ => throw new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace")
+        a.getAttribute("rhs") match {
+          case rhs:Terminal if rhs.getTerminalStr == "identifier" =>
+            evaluate(a.getAttribute("lhs"), lookup, functions, interpolateStrings).flatMap {
+              case o: WdlObject =>
+                o.value.get(rhs.getSourceString) match {
+                  case Some(v:WdlValue) => Success(v)
+                  case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
+                }
+              case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
+              case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
+            }
+          case _ => Failure(new WdlExpressionException("Right-hand side of expression must be identifier"))
         }
       case a: Ast if functionCall(a) =>
         val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString

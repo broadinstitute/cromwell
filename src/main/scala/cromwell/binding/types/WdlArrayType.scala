@@ -1,6 +1,6 @@
 package cromwell.binding.types
 
-import cromwell.binding.values.WdlArray
+import cromwell.binding.values.{WdlFile, WdlString, WdlArray}
 import spray.json.JsArray
 
 case class WdlArrayType(memberType: WdlType) extends WdlType {
@@ -14,5 +14,10 @@ case class WdlArrayType(memberType: WdlType) extends WdlType {
   override protected def coercion = {
     case s: Seq[Any] if s.nonEmpty => coerceIterable(s)
     case js: JsArray if js.elements.nonEmpty => coerceIterable(js.elements)
+    case wdlArray: WdlArray => wdlArray.wdlType.memberType match {
+      case WdlStringType if memberType == WdlFileType =>
+        // Coerce Array[String] -> Array[File]
+        WdlArray(WdlArrayType(WdlFileType), wdlArray.value.map(str => WdlFile(str.asInstanceOf[WdlString].value)).toList)
+    }
   }
 }

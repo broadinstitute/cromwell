@@ -15,18 +15,29 @@ trait SampleWdl {
     "{" + rawInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
   }
 
+  private def write(file: File, contents: String) = {
+    val writer = new FileWriter(file)
+    writer.write(contents)
+    writer.flush()
+    writer.close()
+    file
+  }
+
   def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
     val suffix = ".out"
     val file = dir match {
       case Some(path) => Files.createTempFile(path, prefix, suffix)
       case None => Files.createTempFile(prefix, suffix)
     }
-    val writer = new FileWriter(file.toFile)
-    writer.write(contents)
-    writer.flush()
-    writer.close()
-    file.toFile
+    write(file.toFile, contents)
   }
+
+  def createFile(name: String, dir: Path, contents: String) = {
+    dir.toFile.mkdirs()
+    write(dir.resolve(name).toFile, contents)
+  }
+
+  def deleteFile(path: Path) = Files.delete(path)
 }
 
 object SampleWdl {
@@ -691,5 +702,36 @@ object SampleWdl {
       "wf.find.pattern" -> "*.out", // createCannedFile makes files that have .out extension
       "wf.files" -> Seq(firstFile.getAbsolutePath, secondFile.getAbsolutePath)
     )
+  }
+
+  case class ArrayLiteral(catRootDir: Path) extends SampleWdl {
+    createFile("f1", catRootDir, "line1\nline2\n")
+    createFile("f2", catRootDir, "line3\nline4\n")
+    createFile("f3", catRootDir, "line5\n")
+
+    def cleanup() = {
+      deleteFile(catRootDir.resolve("f1"))
+      deleteFile(catRootDir.resolve("f2"))
+      deleteFile(catRootDir.resolve("f3"))
+    }
+
+    override def wdlSource(runtime: String = "") =
+      """
+        |task cat {
+        |  command {
+        |    cat -s ${sep=' ' File files+}
+        |  }
+        |  output {
+        |    Array[String] lines = read_lines(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  Array[File] arr = ["f1", "f2", "f3"]
+        |  call cat {input: files=arr}
+        |}
+      """.stripMargin
+
+    override val rawInputs = Map.empty[String, String]
   }
 }

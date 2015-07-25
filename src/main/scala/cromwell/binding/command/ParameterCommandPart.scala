@@ -90,6 +90,7 @@ case class ParameterCommandPart(wdlType: WdlType, name: String,
      * turned into strings, but a more sophisticated solution will be
      * needed for compound types */
     paramValueEvaluated match {
+      case WdlString("") => ""
       case param:WdlPrimitive => s"${prefix.getOrElse("")}${param.valueString}"
       case arr:WdlArray =>
         postfixQuantifier match {

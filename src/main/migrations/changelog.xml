@@ -10,4 +10,5 @@
     <include file="changesets/local_job_allow_null.xml" relativeToChangelogFile="true" />
     <include file="changesets/symbol_iteration_not_null.xml" relativeToChangelogFile="true" />
     <include file="changesets/add_unique_constraints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/lengthen_wdl_value.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

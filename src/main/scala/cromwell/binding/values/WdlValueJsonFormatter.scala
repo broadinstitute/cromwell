@@ -11,6 +11,7 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case b:WdlBoolean => JsBoolean(b.value)
       case f:WdlFile => JsString(f.value)
       case o:WdlObject => JsObject()
+      case a:WdlArray => new JsArray(a.value.map(write).toVector)
     }
     def read(value: JsValue) = ???
   }

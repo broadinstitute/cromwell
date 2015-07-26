@@ -1,5 +1,7 @@
 package cromwell.engine.db.slick
 
+import java.sql.Clob
+
 case class Symbol
 (
   workflowExecutionId: Int,
@@ -8,7 +10,7 @@ case class Symbol
   iteration: Int, // https://bugs.mysql.com/bug.php?id=8173
   io: String,
   wdlType: String,
-  wdlValue: Option[String],
+  wdlValue: Option[Clob],
   symbolId: Option[Int] = None
   )
 
@@ -32,7 +34,7 @@ trait SymbolComponent {
 
     def wdlType = column[String]("WDL_TYPE")
 
-    def wdlValue = column[Option[String]]("WDL_VALUE")
+    def wdlValue = column[Option[Clob]]("WDL_VALUE")
 
     override def * = (workflowExecutionId, scope, name, iteration, io, wdlType, wdlValue, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)

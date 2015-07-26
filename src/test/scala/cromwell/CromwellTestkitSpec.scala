@@ -135,7 +135,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
           expectedValue match {
             case expectedFile: WdlFile if actualValue.isInstanceOf[WdlFile] =>
               val actualFile = actualValue.asInstanceOf[WdlFile]
-              actualFile.value.toString.endsWith(expectedFile.value.toString)
+              actualFile.value.toString.endsWith(expectedFile.value.toString) shouldEqual true
             case _ =>
               actualValue shouldEqual expectedValue
           }

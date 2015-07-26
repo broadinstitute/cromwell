@@ -1,8 +1,10 @@
 package cromwell.util
 
 import java.io.{File, FileWriter}
+import java.nio.file.{Path, Files}
 
 import cromwell.binding._
+import cromwell.binding.values.WdlFile
 
 trait SampleWdl {
   def wdlSource(runtime: String = ""): WdlSource
@@ -11,6 +13,19 @@ trait SampleWdl {
 
   def wdlJson: WdlJson = {
     "{" + rawInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
+  }
+
+  def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
+    val suffix = ".out"
+    val file = dir match {
+      case Some(path) => Files.createTempFile(path, prefix, suffix)
+      case None => Files.createTempFile(prefix, suffix)
+    }
+    val writer = new FileWriter(file.toFile)
+    writer.write(contents)
+    writer.flush()
+    writer.close()
+    file.toFile
   }
 }
 
@@ -542,19 +557,10 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    private def createCannedFile: File = {
-      val file = File.createTempFile("canned", ".out")
-      val writer = new FileWriter(file)
-      writer.write(CannedOutput)
-      writer.flush()
-      writer.close()
-      file
-    }
-
     override val rawInputs = {
       Map(
-        "read_lines.cat_to_stdout.file" -> createCannedFile.getAbsolutePath,
-        "read_lines.cat_to_file.file" -> createCannedFile.getAbsolutePath
+        "read_lines.cat_to_stdout.file" -> createCannedFile("canned", CannedOutput).getAbsolutePath,
+        "read_lines.cat_to_file.file" -> createCannedFile("canned1", CannedOutput).getAbsolutePath
       )
     }
   }
@@ -594,23 +600,16 @@ object SampleWdl {
         |}
       """.stripMargin
 
-    private def createCannedFile: File = {
-      val file = File.createTempFile("canned", ".out")
-      val writer = new FileWriter(file)
-      writer.write(
-        s"""first line
-           |second line
-           |third line
-         """.stripMargin)
-      writer.flush()
-      writer.close()
-      file
-    }
+    private val fileContents =
+      s"""first line
+        |second line
+        |third line
+       """.stripMargin
 
     override val rawInputs: WorkflowRawInputs = Map(
       "two_step.cgrep.pattern" -> "first",
       "two_step.cgrep.str_decl" -> "foobar",
-      "two_step.cat.file" -> createCannedFile.getAbsolutePath,
+      "two_step.cat.file" -> createCannedFile("canned", fileContents).getAbsolutePath,
       "two_step.flags_suffix" -> "s"
     )
   }
@@ -636,6 +635,61 @@ object SampleWdl {
     override val rawInputs = Map(
       "echo_wf.echo.greeting" -> "world",
       "echo_wf.echo.out" -> "foobar"
+    )
+  }
+
+  object ArrayIO extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task concat_files {
+        |  command {
+        |    cat ${default="-s" flags?} ${sep=" " File files+}
+        |  }
+        |  output {
+        |    File concatenated = stdout()
+        |  }
+        |}
+        |
+        |task find {
+        |  command {
+        |    find ${File root} ${"-name " pattern?}
+        |  }
+        |  output {
+        |    Array[String] results = read_lines(stdout())
+        |  }
+        |}
+        |
+        |task count_lines {
+        |  command {
+        |    cat ${sep=' ' File files+} | wc -l
+        |  }
+        |  output {
+        |    Int count = read_int(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  Array[File] files
+        |  call concat_files as concat {
+        |    input: files=files
+        |  }
+        |  call count_lines {
+        |    input: files=concat.concatenated
+        |  }
+        |  call find
+        |  call count_lines as count_lines_array {
+        |    input: files=find.results
+        |  }
+        |}
+      """.stripMargin
+
+    val tempDir = Files.createTempDirectory("ArrayIO")
+    val firstFile = createCannedFile(prefix="first", contents="foo\n", dir=Some(tempDir))
+    val secondFile = createCannedFile(prefix="second", contents="bar\nbaz\n", dir=Some(tempDir))
+
+    override val rawInputs = Map(
+      "wf.find.root" -> tempDir.toAbsolutePath.toString,
+      "wf.find.pattern" -> "*.out", // createCannedFile makes files that have .out extension
+      "wf.files" -> Seq(firstFile.getAbsolutePath, secondFile.getAbsolutePath)
     )
   }
 }

@@ -94,6 +94,7 @@ class JesBackend extends Backend with LazyLogging {
           case Success(gcsPath) => (fqn, WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString))
           case Failure(e) => (fqn, wdlValue)
         }
+      case array:WdlArray => fqn -> array.map(v => mapInputValue("bogus", v)._2) // TODO: this is ugly.
       case _ => (fqn, wdlValue)
     }
   }

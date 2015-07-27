@@ -15,7 +15,7 @@ val googleClientApiV = "1.20.0"
 
 libraryDependencies ++= Seq(
   "com.gettyimages" %% "spray-swagger" % "0.5.1",
-  "org.webjars" % "swagger-ui" % "2.0.24",
+  "org.webjars" % "swagger-ui" % "2.1.1",
   "io.spray" %% "spray-can" % sprayV,
   "io.spray" %% "spray-routing" % sprayV,
   "io.spray" %% "spray-client" % sprayV,

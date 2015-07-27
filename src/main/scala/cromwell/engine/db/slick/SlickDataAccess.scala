@@ -116,9 +116,9 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     //
     // Otherwise, create one DataAccess and hold on to the reference.
     if (databaseConfig.getBooleanOr("slick.createSchema")) {
-      Await.result(database.run(dataAccess.schema.create), Duration.Inf)
       //noinspection SqlNoDataSourceInspection
-      Await.result(database.run(sqlu"SET DATABASE TRANSACTION CONTROL MVLOCKS"), Duration.Inf)
+      Await.result(database.run(sqlu"SET DATABASE TRANSACTION CONTROL MVCC"), Duration.Inf)
+      Await.result(database.run(dataAccess.schema.create), Duration.Inf)
     }
   }
 

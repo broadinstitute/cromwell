@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{CommandExecution, Backend}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.engine.{ExecutionStatus, WorkflowId}
@@ -16,12 +16,15 @@ import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
 import org.apache.commons.io.FileUtils
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Try}
 
 object LocalBackend {
+
+  type CallOutputs = Map[String, WdlValue]
 
   /**
    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
@@ -34,21 +37,17 @@ object LocalBackend {
   }
 }
 
-
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
 class LocalBackend extends Backend with LazyLogging {
 
-  /**
-   * Executes the specified command line, using the supplied lookup function for expression evaluation.
-   * Returns a `Map[String, Try[WdlValue]]` of output names to values.
-   */
-  override def executeCommand(instantiatedCommandLine: String, 
-                              workflowDescriptor: WorkflowDescriptor, 
-                              call: Call, 
-                              backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+  override def commandExecution(instantiatedCommandLine: String,
+                                workflowDescriptor: WorkflowDescriptor,
+                                call: Call,
+                                backendInputs: CallInputs,
+                                scopedLookupFunction: ScopedLookupFunction): CommandExecution = {
+
     import LocalBackend._
 
     val hostCallDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
@@ -69,8 +68,8 @@ class LocalBackend extends Backend with LazyLogging {
     commandWriter.flushAndClose()
 
     def buildDockerRunCommand(image: String): String =
-      // -v maps the host workflow executions directory to /root/<workflow id> on the container.
-      // -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
+    // -v maps the host workflow executions directory to /root/<workflow id> on the container.
+    // -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
       s"docker run -v ${hostWorkflowExecutionFile.getAbsolutePath}:$containerExecutionDir -i $image"
 
     // Build the docker run command if docker is defined in the RuntimeAttributes, otherwise just the empty string.
@@ -81,29 +80,37 @@ class LocalBackend extends Backend with LazyLogging {
     val argv = Seq("/bin/bash", "-c", s"cat $commandFile | $dockerRun /bin/bash <&0")
     logger.debug("Executing call with argv: " + argv)
 
-    // The ! to the ProcessLogger captures standard output and error.
-    val rc: Int = argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
-    Vector(stdoutWriter, stderrWriter).foreach { _.flushAndClose() }
+    val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline))
 
-    /**
-     * Return a host absolute file path.
-     */
-    def hostAbsoluteFilePath(pathString: String): String =
-      if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
+    val futureResults: Future[Try[CallOutputs]] = Future {
 
-    val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile, Paths.get(hostCallDirectory.getAbsolutePath)))
+      val rc: Int = process.exitValue()
+      Vector(stdoutWriter, stderrWriter).foreach {
+        _.flushAndClose()
+      }
 
-    val stderrFileLength = new File(stderrFile.toString).length
+      /**
+       * Return a host absolute file path.
+       */
+      def hostAbsoluteFilePath(pathString: String): String =
+        if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
 
-    if (call.failOnStderr && stderrFileLength > 0) {
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
-    } else {
-      if (rc == 0) {
-        evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction, interpolateStrings=true)
+      val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile, Paths.get(hostCallDirectory.getAbsolutePath)))
+
+      val stderrFileLength = new File(stderrFile.toString).length
+
+      if (call.failOnStderr && stderrFileLength > 0) {
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
       } else {
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine"))
+        if (rc == 0) {
+          evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction, interpolateStrings = true)
+        } else {
+          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine"))
+        }
       }
     }
+
+    LocalCommandExecution(process, futureResults)
   }
 
   /**
@@ -208,4 +215,12 @@ class LocalBackend extends Backend with LazyLogging {
   }
 
   override def backendType = BackendType.LOCAL
+}
+
+case class LocalCommandExecution(process: Process, future: Future[Try[LocalBackend.CallOutputs]]) extends CommandExecution {
+  override def futureOutputs() = future
+  override def cancel() = {
+    process.destroy()
+    true
+  }
 }

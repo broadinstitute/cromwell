@@ -10,13 +10,15 @@ import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{CommandExecution, Backend}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.DataAccess
 import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
 import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.sys.process.Process
 import scala.util.{Failure, Success, Try}
 import JesBackend._
 
@@ -27,6 +29,8 @@ object JesBackend {
   lazy val CromwellExecutionBucket = JesConf.getString("baseExecutionBucket")
 
   lazy val JesConnection = JesInterface(GoogleApplicationName)
+
+  type CallOutputs = Map[String, WdlValue]
 
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
@@ -100,7 +104,7 @@ class JesBackend extends Backend with LazyLogging {
   }
 
   override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map {case (k,v) => mapInputValue(k,v)}
-  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+  override def adjustOutputPaths(call: Call, outputs: cromwell.binding.CallOutputs): cromwell.binding.CallOutputs = outputs
 
   // No need to copy GCS inputs for the workflow we should be able to directly reference them
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
@@ -131,11 +135,11 @@ class JesBackend extends Backend with LazyLogging {
     JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
   }
 
-  override def executeCommand(instantiatedCommandLine: String,
+  override def commandExecution(instantiatedCommandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+                              scopedLookupFunction: ScopedLookupFunction): CommandExecution = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
     val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
@@ -169,7 +173,10 @@ class JesBackend extends Backend with LazyLogging {
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$instantiatedCommandLine > $LocalStdoutValue 2> $LocalStderrValue"
 
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
+    val jesRun = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run
+
+    val futureResults = Future {
+    val status = jesRun.waitUntilComplete()
 
     def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
       val jesOutputFile = unsafeJesOutputs find {_.name == taskOutput.name} map {j => WdlFile(j.gcs)}
@@ -196,7 +203,9 @@ class JesBackend extends Backend with LazyLogging {
         case Run.Failed(created, started, finished, errorCode, errorMessage) =>
           Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $instantiatedCommandLine. Message: $errorMessage"))
       }
-    }
+    }}
+
+    JesCommandExecution(jesRun, futureResults)
   }
 
   def unwrapOutputValues(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor): Try[Map[String, WdlValue]] = {
@@ -212,4 +221,9 @@ class JesBackend extends Backend with LazyLogging {
   override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 
   override def backendType = BackendType.JES
+}
+
+case class JesCommandExecution(run: Run, future: Future[Try[JesBackend.CallOutputs]]) extends CommandExecution {
+  override def futureOutputs() = future
+  override def cancel() = run.abort
 }

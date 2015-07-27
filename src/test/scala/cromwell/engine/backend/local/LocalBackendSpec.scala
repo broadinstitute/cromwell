@@ -9,6 +9,7 @@ import cromwell.binding.{Task, Call, WorkflowDescriptor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.mock.MockitoSugar
 import org.mockito.Mockito._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 import scala.util.{Try, Failure, Success}
@@ -31,9 +32,11 @@ class LocalBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     when(call.failOnStderr) thenReturn failOnStderr
     when(call.task) thenReturn task
     when(task.outputs) thenReturn Seq()
-    new LocalBackend().executeCommand(command, mockWorkflowDescriptor, call, call.inputMappings, mockScopedLookupFunction) match {
-      case Failure(e) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
-      case Success(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
+    new LocalBackend().commandExecution(command, mockWorkflowDescriptor, call, call.inputMappings, mockScopedLookupFunction).futureOutputs().onComplete {
+      x => x match {
+        case Failure(e) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
+        case Success(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
+      }
     }
   }
 

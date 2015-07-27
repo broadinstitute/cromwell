@@ -9,6 +9,7 @@ case object WdlIntegerType extends WdlPrimitiveType {
   override protected def coercion = {
     case i: Integer => WdlInteger(i)
     case n: JsNumber => WdlInteger(n.value.intValue())
+    case i: WdlInteger => i
   }
 
   override def fromWdlString(rawString: String) = WdlInteger(rawString.toInt)

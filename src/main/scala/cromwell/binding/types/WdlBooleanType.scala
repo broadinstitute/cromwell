@@ -13,6 +13,7 @@ case object WdlBooleanType extends WdlPrimitiveType {
     case s: JsString if s.value.equalsIgnoreCase("true") => WdlBoolean.True
     case s: JsString if s.value.equalsIgnoreCase("false") => WdlBoolean.False
     case s: JsBoolean => WdlBoolean(s.value)
+    case b: WdlBoolean => b
   }
 
   override def fromWdlString(rawString: String) = WdlBoolean(rawString.toBoolean)

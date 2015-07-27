@@ -137,7 +137,11 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     val evaluatedDeclarations = allDeclarations.filter {_.expression.isDefined}.map {decl =>
       val value = decl.expression.get.evaluate(declarationLookupFunction(decl, collected.toMap ++ userInputs), new NoFunctions)
       collected += (decl.fullyQualifiedName -> value.get)
-      decl.fullyQualifiedName -> value
+      val coercedValue = value match {
+        case Success(s) => decl.wdlType.coerceRawValue(s)
+        case f => f
+      }
+      decl.fullyQualifiedName -> coercedValue
     }.toMap
 
     val (successes, failures) = evaluatedDeclarations.partition {case (_, tryValue) => tryValue.isSuccess}

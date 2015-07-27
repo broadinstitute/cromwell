@@ -14,7 +14,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.{WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.engine.{WorkflowState, WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
@@ -105,21 +105,25 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
   }
 
-  private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {
-    val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(runtime), BackendType.LOCAL)
-    // This is a test and is okay with just throwing if coerceRawInputs returns a Failure.
+  def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String): WorkflowDescriptor = {
+    buildWorkflowDescriptor(sampleWdl, runtime, UUID.randomUUID())
+  }
+
+  def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String, uuid: UUID): WorkflowDescriptor = {
+    val source = sampleWdl.wdlSource(runtime)
+    val namespace = NamespaceWithWorkflow.load(source, BackendType.LOCAL)
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
     val inputs = coercedInputs ++ declarations
-    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, inputs)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
+    WorkflowDescriptor(uuid, namespace, source, sampleWdl.wdlJson, inputs)
   }
 
-  /* TODO: make the `event` parameter able to accept a `Seq[EventFilter]` */
-  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
-    val fsm = buildFsmWorkflowActor(sampleWdl, runtime)
-    assert(fsm.stateName == WorkflowSubmitted)
+  private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {
+    TestFSMRef(new WorkflowActor(buildWorkflowDescriptor(sampleWdl, runtime), new LocalBackend, dataAccess))
+  }
 
+  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor], eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+    assert(fsm.stateName == WorkflowSubmitted)
     eventFilter.intercept {
       fsm ! Start
       within(5 seconds) {
@@ -143,4 +147,16 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
       }
     }
   }
+
+  /* TODO: make the `eventFilter` parameter able to accept a `Seq[EventFilter]` */
+  def runWdlAndAssertOutputs(descriptor: WorkflowDescriptor, eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue]): Unit = {
+    val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
+    runWdl(fsm, eventFilter, expectedOutputs)
+  }
+
+  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+    val fsm = buildFsmWorkflowActor(sampleWdl, runtime)
+    runWdl(fsm, eventFilter, expectedOutputs)
+  }
+
 }

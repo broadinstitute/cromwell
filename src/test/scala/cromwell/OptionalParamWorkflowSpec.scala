@@ -1,9 +1,11 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.values.WdlString
-import cromwell.util.SampleWdl
 import cromwell.CromwellSpec.DockerTest
+import cromwell.binding.WdlNamespace
+import cromwell.binding.values.{WdlFile, WdlString}
+import cromwell.parser.BackendType
+import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
@@ -33,6 +35,37 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec("OptionalParamWorkfl
           """.stripMargin,
         expectedOutputs = outputs
       )
+    }
+  }
+
+  "A workflow with an optional parameter that has a prefix inside the tag" should {
+    "not include that prefix if no value is specified" in {
+      val wf = """
+         |task find {
+         |  command {
+         |    find ${File root} ${"-name " pattern?}
+         |  }
+         |}
+         |
+         |workflow wf {
+         |  call find
+         |}
+       """.stripMargin
+      val ns = WdlNamespace.load(wf, BackendType.LOCAL)
+      val findTask = ns.findTask("find") getOrElse {
+        fail("Expected to find task 'find'")
+      }
+
+      val instantiateWithoutValue = findTask.command.instantiate(Map("root" -> WdlFile("src"))) getOrElse {
+        fail("Expected instantiation to work")
+      }
+      instantiateWithoutValue shouldEqual "find src"
+
+      val instantiateWithValue = findTask.command.instantiate(Map(
+        "root" -> WdlFile("src"),
+        "pattern" -> WdlString("*.java")
+      )).getOrElse {fail("Expected instantiation to work")}
+      instantiateWithValue shouldEqual "find src -name *.java"
     }
   }
 }

@@ -43,8 +43,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
                                     dataAccess: DataAccess)(implicit ec: ExecutionContext) = Future.successful(())
 
-    override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor,
-                                call: Call, backendInputs: CallInputs, scopedLookupFunction: ScopedLookupFunction) = Success(Map.empty)
+    override def commandExecution(commandLine: String, workflowDescriptor: WorkflowDescriptor,
+                                call: Call, backendInputs: CallInputs, scopedLookupFunction: ScopedLookupFunction) = ???
 
     override def backendType: BackendType = ???
   }

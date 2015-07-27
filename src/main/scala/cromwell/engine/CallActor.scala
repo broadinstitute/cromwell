@@ -26,8 +26,6 @@ object CallActor {
 /** Actor to manage the execution of a single call. */
 class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor) extends Actor with CromwellActor {
 
-  type CallOutputs = Map[String, WdlValue]
-
   private val log = Logging(context.system, classOf[CallActor])
   val tag = s"CallActor [UUID(${workflowDescriptor.shortId}):${call.name}]"
 
@@ -52,6 +50,9 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
    * </ol>
    */
   private def handleStart(): Unit = {
+
+    type CallOutputs = Map[String, WdlValue]
+
     // Record the original sender here and not in the yield over the `Future`, as the
     // value of sender() when that code executes may be different than what it is here.
     val originalSender = sender()
@@ -67,12 +68,10 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
 
-      val futureResults: Future[Try[CallOutputs]] = Future {
-        backend.executeCommand(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
-      }
+      val commandExecution = backend.commandExecution(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
 
       val futureCallOutputs: Future[CallOutputs] = for {
-        presentResults <- futureResults
+        presentResults <- commandExecution.futureOutputs
         results <- Future.fromTry(presentResults)
       } yield results
 

@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.util.Date
 
-import com.google.api.services.genomics.model.{Status, ServiceAccount, RunPipelineRequest}
+import com.google.api.services.genomics.model.{CancelOperationRequest, Status, ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
 import cromwell.util.google.GoogleScopes
@@ -56,6 +56,13 @@ case class Run(name: String, pipeline: Pipeline)  {
         case None => Success(metadata.created, metadata.started.get, metadata.finished.get)
       }
     } else metadata.started map {s => Running(metadata.created, s)} getOrElse Initializing(metadata.created)
+  }
+
+  def abort(): Boolean = {
+    // FIXME: This almost certainly doesn't actually work like this:
+    val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
+    pipeline.genomicsService.operations().cancel(name, cancellationRequest).execute
+    true
   }
 
   @tailrec

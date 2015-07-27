@@ -49,14 +49,14 @@ trait Backend {
   def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs
 
   /**
-   * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
+   * Create a command execution using the provided symbol store, evaluating the task outputs to produce
    * a mapping of local task output names to WDL values.
    */
-  def executeCommand(instantiatedCommandLine: String,
-                     workflowDescriptor: WorkflowDescriptor, 
-                     call: Call, 
-                     backendInputs: CallInputs,
-                     scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
+  def commandExecution(instantiatedCommandLine: String,
+                       workflowDescriptor: WorkflowDescriptor,
+                       call: Call,
+                       backendInputs: CallInputs,
+                       scopedLookupFunction: ScopedLookupFunction): CommandExecution
 
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.

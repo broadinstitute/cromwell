@@ -27,9 +27,10 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
   * [Using Files as Inputs](#using-files-as-inputs)
 * [REST API](#rest-api)
-  * [POST /workflows](#post-workflows)
-  * [GET /workflow/:id/status](#get-workflowidstatus)
-  * [GET /workflow/:id/outputs](#get-workflowidoutputs)
+  * [REST API Versions](#rest-api-versions)
+  * [POST /workflows/:version](#post-workflowsversion)
+  * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
+  * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -555,26 +556,30 @@ The `server` subcommand on the executable JAR will start an HTTP server which ca
 
 The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jakubroztocil/httpie) and [cURL](http://curl.haxx.se/)
 
-## POST /workflows
+## REST API Versions
+
+All web server requests include an API version in the url. The current version is `v1`.
+
+## POST /workflows/:version
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The two elements in the body must be named `wdl` and `inputs`.  The `wdl` element contains the WDL file to run while the `inputs` contains a JSON file of the inputs to the workflow.
 
 cURL:
 
 ```
-$ curl -v "localhost:8000/workflows" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/workflows wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
 ```
 
 Request:
 
 ```
-POST /workflows HTTP/1.1
+POST /workflows/v1 HTTP/1.1
 Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
@@ -648,18 +653,18 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflow/:id/status
+## GET /workflows/:version/:id/status
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ curl http://localhost:8000/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflow/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ http http://localhost:8000/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 Response:
@@ -676,18 +681,18 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflow/:id/outputs
+## GET /workflows/:version/:id/outputs
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflow/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflow/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 Response:

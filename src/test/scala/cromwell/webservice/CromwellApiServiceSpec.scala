@@ -3,6 +3,7 @@ package cromwell.webservice
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
+import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -10,6 +11,7 @@ import WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.engine._
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}
+import spray.http.HttpHeaders.Location
 import spray.http._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -62,9 +64,10 @@ object CromwellApiServiceSpec {
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   def actorRefFactory = system
   val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
+  val version = "v1"
 
-  "CromwellApiService" should "return 404 for get of unknown workflow" in {
-    Get(s"/workflow/${MockWorkflowManagerActor.unknownId}") ~>
+  s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}") ~>
       sealRoute(queryRoute) ~>
       check {
         assertResult(StatusCodes.NotFound) {
@@ -74,7 +77,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 400 for get of a malformed workflow id" in {
-    Get(s"/workflow/foobar/status") ~>
+    Get(s"/workflows/$version/foobar/status") ~>
       queryRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {
@@ -84,7 +87,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 200 for get of a known workflow id" in {
-    Get(s"/workflow/${MockWorkflowManagerActor.runningWorkflowId}/status") ~>
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/status") ~>
       queryRoute ~>
       check {
         assertResult(StatusCodes.OK) {
@@ -102,8 +105,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
 
-  "Cromwell submit workflow API" should "return 201 for a succesful workfow submission " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
+  s"Cromwell submit workflow API $version" should "return 201 for a succesful workfow submission " in {
+    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.Created) {
@@ -120,7 +123,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 400 for a malformed JSON " in {
-    Post("/workflows", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
+    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {
@@ -132,8 +135,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  "Cromwell workflow outputs API" should "return 200 with outputs on successful execution of workflow" in {
-    Post(s"/workflow/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
+  s"Cromwell workflow outputs API $version" should "return 200 with GET of outputs on successful execution of workflow" in {
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
       outputsRoute ~>
       check {
         assertResult(StatusCodes.OK) {
@@ -151,7 +154,16 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
             responseAs[String]
           }
       }
+  }
 
+  it should "return 405 with POST of outputs on successful execution of workflow" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
+      sealRoute(outputsRoute) ~>
+      check {
+        assertResult(StatusCodes.MethodNotAllowed) {
+          status
+        }
+      }
   }
 
 }

@@ -2,22 +2,22 @@ package cromwell.engine
 
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
+import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{Call, CallInputs, WorkflowDescriptor}
+import cromwell.engine
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.CallFailed
-import cromwell.engine
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.language.postfixOps
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success}
 
 
 object CallActor {
   sealed trait CallActorMessage
   case class Start(inputs: CallInputs) extends CallActorMessage
+  case class ExecutionFinished(outputs: CallOutputs) extends CallActorMessage
+  case class ExecutionFailed(regret: Throwable) extends CallActorMessage
 
   def props(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(call, locallyQualifiedInputs, backend, workflowDescriptor))
@@ -33,6 +33,10 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
 
   override def receive = LoggingReceive {
     case CallActor.Start => handleStart()
+    case CallActor.ExecutionFinished(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
+    case CallActor.ExecutionFailed(regret) =>
+      log.error(regret, s"$tag: ${regret.getMessage}")
+      context.parent ! WorkflowActor.CallFailed(call, regret.getMessage)
     case badMessage =>
       val diagnostic = s"$tag: unexpected message $badMessage."
       log.error(diagnostic)
@@ -66,22 +70,7 @@ class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backe
     def launchCall(commandLine: String): Unit = {
       log.info(s"$tag: launching `$commandLine`")
       originalSender ! WorkflowActor.CallStarted(call)
-
-      val futureResults: Future[Try[CallOutputs]] = Future {
-        backend.executeCommand(commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
-      }
-
-      val futureCallOutputs: Future[CallOutputs] = for {
-        presentResults <- futureResults
-        results <- Future.fromTry(presentResults)
-      } yield results
-
-      futureCallOutputs onComplete {
-        case Success(callOutputs) => context.parent ! WorkflowActor.CallCompleted(call, callOutputs)
-        case Failure(e) =>
-          log.error(e, e.getMessage)
-          context.parent ! WorkflowActor.CallFailed(call, e.getMessage)
-      }
+      context.actorOf(CallExecutionActor.props(backend, commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get))
     }
 
     call.instantiateCommandLine(backendInputs) match {

@@ -2,4 +2,4 @@
 
 set -e
 
-java -jar $(find /cromwell | grep 'cromwell.*\.jar') server
+java $JAVA_OPTS -jar /cromwell/cromwell-*.jar server

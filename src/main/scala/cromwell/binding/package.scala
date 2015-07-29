@@ -21,27 +21,17 @@ package object binding {
   type WorkflowCoercedInputs = Map[FullyQualifiedName, WdlValue]
   type WorkflowOutputs = Map[FullyQualifiedName, WdlValue]
   type FullyQualifiedName = String
-  type RuntimeAttributes = Map[String, String]
-  type RuntimeAttribute = (String, String)
   type CallInputs = Map[String, WdlValue]
   type CallOutputs = Map[FullyQualifiedName, WdlValue]
   type HostInputs = Map[String, WdlValue]
 
-  /**
-   * Provides a few convenience methods for specific runtime attribute keys which were defined in the WDL spec
-   */
-  implicit class EnhancedRuntimeAttributes(val runtimeAttributes: RuntimeAttributes) extends AnyVal {
-    def docker: Option[String] = attribute("docker")
-    def memory: Option[String] = attribute("memory")
-    def serialize: Option[String] = attribute("serialize")
-    def attribute(attr: String): Option[String] = runtimeAttributes.get(attr)
-  }
+  type ImportResolver = String => WdlSource
 
   /**
    * Core data identifying a workflow including its unique ID, its namespace, and strongly typed inputs.
    */
-  case class WorkflowDescriptor(id: UUID, namespace: WdlNamespace, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
-    val name = namespace.workflows.head.name
+  case class WorkflowDescriptor(id: UUID, namespace: NamespaceWithWorkflow, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
+    val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)
   }
 }

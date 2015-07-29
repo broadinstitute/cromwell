@@ -46,7 +46,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
       case Success(value) => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
-  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestFunctions()).asInstanceOf[Try[WdlPrimitive]].get
+  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestFunctions(), interpolateStrings=true).asInstanceOf[Try[WdlPrimitive]].get
   def identifierEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluate(identifierLookup, new TestFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => // Expected
@@ -209,7 +209,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEval("+1") shouldEqual WdlInteger(1)
   }
   it should "Int asString" in {
-    WdlInteger(42).asString shouldEqual "42"
+    WdlInteger(42).toWdlString shouldEqual "42"
   }
 
   /* Floats */
@@ -376,7 +376,7 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
     constEval("-1.0") shouldEqual WdlFloat(-1.0)
   }
   it should "Float asString" in {
-    WdlFloat(33.3).asString shouldEqual "33.3"
+    WdlFloat(33.3).toWdlString shouldEqual "33.3"
   }
 
   /* Booleans */
@@ -629,34 +629,34 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
 
   "Expression Evaluator with File as LHS" should "File + String = File" in {
-    WdlFile(Paths.get("/etc")).add(WdlString("/sudoers")).get shouldEqual WdlFile(Paths.get("/etc/sudoers"))
+    WdlFile("/etc").add(WdlString("/sudoers")).get shouldEqual WdlFile("/etc/sudoers")
   }
   it should "File + File = File" in {
-    WdlFile(Paths.get("/etc")).add(WdlFile(Paths.get("/sudoers"))).get shouldEqual WdlFile(Paths.get("/etc/sudoers"))
+    WdlFile("/etc").add(WdlFile("/sudoers")).get shouldEqual WdlFile("/etc/sudoers")
   }
   it should "File + Integer (error)" in {
-    WdlFile(Paths.get("/etc")).add(WdlInteger(1)) match {
+    WdlFile("/etc").add(WdlInteger(1)) match {
       case Failure(ex) => // Expected
       case _ => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
   it should "File == File (return true)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlFile(Paths.get("/etc"))).get shouldEqual WdlBoolean.True
+    WdlFile("/etc").equals(WdlFile("/etc")).get shouldEqual WdlBoolean.True
   }
   it should "File == File (return false)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlFile(Paths.get("/etc2"))).get shouldEqual WdlBoolean.False
+    WdlFile("/etc").equals(WdlFile("/etc2")).get shouldEqual WdlBoolean.False
   }
   it should "File == String (return true)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlString("/etc")).get shouldEqual WdlBoolean.True
+    WdlFile("/etc").equals(WdlString("/etc")).get shouldEqual WdlBoolean.True
   }
   it should "File == Integer (error)" in {
-    WdlFile(Paths.get("/etc")).equals(WdlInteger(1)) match {
+    WdlFile("/etc").equals(WdlInteger(1)) match {
       case Failure(ex) => // Expected
       case _ => fail(s"Operation was supposed to fail, instead I got value: $value")
     }
   }
   it should "File != File (return true)" in {
-    WdlFile(Paths.get("/etc")).notEquals(WdlFile(Paths.get("/etc2"))).get shouldEqual WdlBoolean.True
+    WdlFile("/etc").notEquals(WdlFile("/etc2")).get shouldEqual WdlBoolean.True
   }
 
   "Expression Evaluator with Object as LHS" should "Lookup object string attribute" in {
@@ -696,57 +696,71 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
 
   /* String-ification */
   "Expression Evaluator string-ifier" should "Make strings out of + expressions" in {
-    expr("1 + 2").toString shouldEqual "1 + 2"
+    expr("1 + 2").toWdlString shouldEqual "1 + 2"
   }
   it should "Make strings out of - expressions" in {
-    expr("1 - 2").toString shouldEqual "1 - 2"
+    expr("1 - 2").toWdlString shouldEqual "1 - 2"
   }
   it should "Make strings out of * expressions" in {
-    expr("1 * 2").toString shouldEqual "1 * 2"
+    expr("1 * 2").toWdlString shouldEqual "1 * 2"
   }
   it should "Make strings out of / expressions" in {
-    expr("1 / 2").toString shouldEqual "1 / 2"
+    expr("1 / 2").toWdlString shouldEqual "1 / 2"
   }
   it should "Make strings out of % expressions" in {
-    expr("1 % 2").toString shouldEqual "1 % 2"
+    expr("1 % 2").toWdlString shouldEqual "1 % 2"
   }
   it should "Make strings out of < expressions" in {
-    expr("1 < 2").toString shouldEqual "1 < 2"
+    expr("1 < 2").toWdlString shouldEqual "1 < 2"
   }
   it should "Make strings out of <= expressions" in {
-    expr("1 <= 2").toString shouldEqual "1 <= 2"
+    expr("1 <= 2").toWdlString shouldEqual "1 <= 2"
   }
   it should "Make strings out of > expressions" in {
-    expr("1 > 2").toString shouldEqual "1 > 2"
+    expr("1 > 2").toWdlString shouldEqual "1 > 2"
   }
   it should "Make strings out of >= expressions" in {
-    expr("1 >= 2").toString shouldEqual "1 >= 2"
+    expr("1 >= 2").toWdlString shouldEqual "1 >= 2"
   }
   it should "Make strings out of == expressions" in {
-    expr("1 == 2").toString shouldEqual "1 == 2"
+    expr("1 == 2").toWdlString shouldEqual "1 == 2"
   }
   it should "Make strings out of != expressions" in {
-    expr("1 != 2").toString shouldEqual "1 != 2"
+    expr("1 != 2").toWdlString shouldEqual "1 != 2"
   }
   it should "Make strings out of && expressions" in {
-    expr("1 && 2").toString shouldEqual "1 && 2"
+    expr("1 && 2").toWdlString shouldEqual "1 && 2"
   }
   it should "Make strings out of || expressions" in {
-    expr("1 || 2").toString shouldEqual "1 || 2"
+    expr("1 || 2").toWdlString shouldEqual "1 || 2"
   }
   it should "Make strings out of expression with strings in it" in {
-    expr("\"a\" + \"b\"").toString shouldEqual "\"a\" + \"b\""
+    expr("\"a\" + \"b\"").toWdlString shouldEqual "\"a\" + \"b\""
   }
   it should "Make strings out of expression with floats in it" in {
-    expr("1.1 + 2.2").toString shouldEqual "1.1 + 2.2"
+    expr("1.1 + 2.2").toWdlString shouldEqual "1.1 + 2.2"
   }
   it should "Make strings out of expression with identifiers in it" in {
-    expr("foo + bar").toString shouldEqual "foo + bar"
+    expr("foo + bar").toWdlString shouldEqual "foo + bar"
   }
   it should "Make strings out of member access expressions" in {
-    expr("a.b.c").toString shouldEqual "a.b.c"
+    expr("a.b.c").toWdlString shouldEqual "a.b.c"
   }
   it should "Make strings out of function calls" in {
-    expr("a(b, c)").toString shouldEqual "a(b, c)"
+    expr("a(b, c)").toWdlString shouldEqual "a(b, c)"
+  }
+
+  /* Interpolation */
+  "A string with interpolation values" should "replace those values" in {
+    identifierEval("\"prefix.${a}.suffix\"") shouldEqual WdlString("prefix.1.suffix")
+  }
+  it should "replace multiple occurences of those values" in {
+    identifierEval("\"prefix.${a}${a}.suffix${a}\"") shouldEqual WdlString("prefix.11.suffix1")
+  }
+  it should "replace multiple variables and multiple occurences of those values" in {
+    identifierEval("\"${b}prefix.${b}${a}${a}.suffix${a}\"") shouldEqual WdlString("2prefix.211.suffix1")
+  }
+  it should "replace string values too" in {
+    identifierEval("\"${s}...${s}\"") shouldEqual WdlString("s...s")
   }
 }

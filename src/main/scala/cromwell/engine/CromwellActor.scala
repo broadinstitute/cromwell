@@ -5,5 +5,5 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 trait CromwellActor {
-  implicit val timeout = Timeout(5 seconds)
+  protected implicit val timeout = Timeout(5 seconds)
 }

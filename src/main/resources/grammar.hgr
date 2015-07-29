@@ -41,12 +41,12 @@ grammar {
 
     # TODO: these should probably be partials...
     enum {
-      python: r'"([^\"]+)"'
-      java: "\"([^\"]+)\""
+      python: r'"([^\"]*)"'
+      java: "\"([^\"]*)\""
     } -> :string[1]
     enum {
-      python: r'\'([^\']+)\''
-      java: "'([^']+)'"
+      python: r'\'([^\']*)\''
+      java: "'([^']*)'"
     } -> :string[1]
 
     r':' -> :colon
@@ -147,7 +147,7 @@ grammar {
 
     $import = :import :string optional($import_namespace) -> Import(uri=$1, namespace=$2)
     $import_namespace = :as :identifier -> $1
-    $task = :task :identifier :lbrace list($declarations) list($sections) :rbrace -> Task(name=$1, declarations=$3, sections=$4)
+    $task = :task :identifier :lbrace list($declaration) list($sections) :rbrace -> Task(name=$1, declarations=$3, sections=$4)
     $sections = $command | $outputs | $runtime | $parameter_meta | $meta
     $command = :raw_command :raw_cmd_start list($command_part) :raw_cmd_end -> RawCommand(parts=$2)
     $command_part = :cmd_part | $cmd_param
@@ -190,6 +190,7 @@ grammar {
       (*:left) $e = :identifier <=> :dot :identifier -> MemberAccess(lhs=$0, rhs=$2)
       # TODO: is there a better object literal syntax?
       (*:left) $e = :object :lbrace list($object_kv, :comma) :rbrace -> ObjectLiteral(map=$2)
+      (*:left) $e = :lsquare list($e, :comma) :rsquare -> ArrayLiteral(values=$1)
       (*:left) $e = :lparen $e :rparen -> $1
       $e = :string
       $e = :identifier

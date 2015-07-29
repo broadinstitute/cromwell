@@ -1,6 +1,7 @@
 package cromwell.binding
 
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import cromwell.parser.BackendType
 import org.scalatest.{FlatSpec, Matchers}
 
 class SyntaxHighlightTest extends FlatSpec with Matchers {
@@ -12,7 +13,7 @@ class SyntaxHighlightTest extends FlatSpec with Matchers {
        |    input: f="abc", p=2
        |  }
        |}
-     """.stripMargin
+     """.stripMargin, BackendType.LOCAL
   )
 
   "SyntaxFormatter" should "produce tagged HTML" in {

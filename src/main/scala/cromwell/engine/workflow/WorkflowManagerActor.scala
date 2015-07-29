@@ -6,14 +6,16 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{ask, pipe}
+import cromwell.{Main, binding}
+import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
 import cromwell.engine._
+import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.WorkflowInfo
-import cromwell.engine.workflow.WorkflowActor.{Restart, GetOutputs, Start}
+import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
 import spray.json._
 
@@ -32,7 +34,10 @@ object WorkflowManagerActor {
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
 
-  def props(dataAccess: DataAccess): Props = Props(new WorkflowManagerActor(dataAccess))
+  def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
+
+  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
+  lazy val BackendType = BackendInstance.backendType
 }
 
 /**
@@ -42,14 +47,13 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellActor {
+class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Actor with CromwellActor {
   import WorkflowManagerActor._
   private val log = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
 
   type WorkflowActorRef = ActorRef
 
-  private val backend = new LocalBackend
   private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
 
   override def preStart() {
@@ -70,22 +74,19 @@ class WorkflowManagerActor(dataAccess: DataAccess) extends Actor with CromwellAc
   }
 
   private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
-    workflowStore.toMap.get(id) map workflowToOutputs getOrElse Future.failed(new WorkflowNotFoundException)
-  }
-
-  private def workflowToOutputs(workflow: WorkflowActorRef): Future[binding.WorkflowOutputs] = {
-    workflow.ask(GetOutputs).mapTo[binding.WorkflowOutputs]
+    dataAccess.getOutputs(id) map SymbolStoreEntry.toWorkflowOutputs
   }
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,
                              maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
-
     val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
-      namespace <- Future(WdlNamespace.load(wdlSource))
-      coercedInputs <- Future.fromTry(namespace.coerceRawInputs(inputs))
-      descriptor = new WorkflowDescriptor(workflowId, namespace, wdlSource, wdlJson, coercedInputs)
+      eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource, BackendType))
+      coercedInputs <- Future.fromTry(eventualNamespace.coerceRawInputs(inputs))
+      declarations <- Future.fromTry(eventualNamespace.staticDeclarationsRecursive(coercedInputs))
+      inputs = coercedInputs ++ declarations
+      descriptor = new WorkflowDescriptor(workflowId, eventualNamespace, wdlSource, wdlJson, inputs)
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {

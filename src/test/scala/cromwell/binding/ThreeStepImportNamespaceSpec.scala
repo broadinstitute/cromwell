@@ -1,5 +1,6 @@
 package cromwell.binding
 
+import cromwell.parser.BackendType
 import org.scalatest.{FlatSpec, Matchers}
 
 class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
@@ -57,37 +58,11 @@ class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
     }
   }
 
-  val namespace = WdlNamespace.load(workflowWdl, resolver _)
+  val namespace = NamespaceWithWorkflow.load(workflowWdl, resolver _, BackendType.LOCAL)
 
-  "WDL file with imports" should "Have 1 executable (1 workflow)" in {
-    namespace.executables.size shouldEqual 1
-  }
-  it should "Have 0 tasks (3 tasks are in separate namespace)" in {
+
+  "WDL file with imports" should "Have 0 tasks (3 tasks are in separate namespace)" in {
     namespace.tasks.size shouldEqual 0
-  }
-  it should "Have 0 task ASTs" in {
-    namespace.taskAsts.size shouldEqual 0
-  }
-  it should "Have 0 local tasks" in {
-    namespace.localTasks.size shouldEqual 0
-  }
-  it should "Have 0 local task ASTs" in {
-    namespace.localTaskAsts.size shouldEqual 0
-  }
-  it should "Have 0 imported tasks" in {
-    namespace.importedTasks.size shouldEqual 0
-  }
-  it should "Have 0 imported task ASTs" in {
-    namespace.importedTaskAsts.size shouldEqual 0
-  }
-  it should "Have 1 workflow" in {
-    namespace.workflows.size shouldEqual 1
-  }
-  it should "Have 1 local workflow" in {
-    namespace.localWorkflows.size shouldEqual 1
-  }
-  it should "Have 0 imported workflow" in {
-    namespace.importedWorkflows.size shouldEqual 0
   }
   it should "Have 3 imported WdlBindings" in {
     namespace.namespaces.size shouldEqual 3
@@ -100,7 +75,7 @@ class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
       throw new RuntimeException(s"Can't Resolve")
     }
     try {
-      val badBinding = WdlNamespace.load(workflowWdl, badResolver _)
+      val badBinding = WdlNamespace.load(workflowWdl, badResolver _, BackendType.LOCAL)
       fail("Expecting an exception to be thrown when using badResolver")
     } catch {
       case _: RuntimeException =>

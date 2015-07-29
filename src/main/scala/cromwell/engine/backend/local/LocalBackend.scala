@@ -2,27 +2,29 @@ package cromwell.engine.backend.local
 
 import java.io.{File, Writer}
 import java.nio.file.{Files, Path, Paths}
+import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.types.WdlFileType
-import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
-import cromwell.engine.{WorkflowId, ExecutionStatus}
-import cromwell.engine.ExecutionStatus.{NotStarted, Failed, Done}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.engine.{ExecutionStatus, WorkflowId}
+import cromwell.parser.BackendType
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
+import org.apache.commons.io.FileUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
-import scala.util.{Success, Failure, Try}
-
+import scala.util.{Failure, Try}
 
 object LocalBackend {
+
+  val CromwellExecutions = "cromwell-executions"
 
   /**
    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
@@ -33,6 +35,21 @@ object LocalBackend {
       writer.write("\n")
     }
   }
+
+  /**
+   * {{{cromwell-executions + workflow.name + workflow.id = cromwell-executions/three-step/0f00-ba4}}}
+   */
+  def hostExecutionPath(workflow: WorkflowDescriptor): Path =
+    hostExecutionPath(workflow.name, workflow.id)
+
+  def hostExecutionPath(workflowName: String, workflowUuid: UUID): Path =
+    Paths.get(CromwellExecutions, workflowName, workflowUuid.toString)
+
+  def hostCallPath(workflow: WorkflowDescriptor, callName: String): Path =
+    Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
+
+  def hostCallPath(workflowName: String, workflowUuid: UUID, callName: String): Path =
+    Paths.get(hostExecutionPath(workflowName, workflowUuid).toFile.getAbsolutePath, s"call-$callName")
 }
 
 
@@ -40,34 +57,41 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 class LocalBackend extends Backend with LazyLogging {
+
+  import LocalBackend._
+
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
    * Returns a `Map[String, Try[WdlValue]]` of output names to values.
    */
-  override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor, call: Call, scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
-    import LocalBackend._
+  override def executeCommand(instantiatedCommandLine: String, 
+                              workflowDescriptor: WorkflowDescriptor, 
+                              call: Call, 
+                              backendInputs: CallInputs,
+                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
 
-    val hostCallDirectory = Paths.get(hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath, "call-" + call.name).toFile
+    val workflowRootAbsolutePathOnHost = hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath
+
+    val hostCallDirectory = hostCallPath(workflowDescriptor, call.name).toFile
     hostCallDirectory.mkdirs()
 
     val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout", hostCallDirectory)
     val (stderrFile, stderrWriter) = FileUtil.tempFileAndWriter("stderr", hostCallDirectory)
     val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", hostCallDirectory)
 
-    val hostWorkflowExecutionFile = hostExecutionPath(workflowDescriptor).toFile
-    val containerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
+    val dockerContainerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
 
-    val parentPath = if (call.docker.isDefined) Paths.get(containerExecutionDir).toString else hostWorkflowExecutionFile.getAbsolutePath
+    val parentPath = if (call.docker.isDefined) Paths.get(dockerContainerExecutionDir).toString else workflowRootAbsolutePathOnHost
     val callDirectory = Paths.get(parentPath, s"call-${call.name}")
-    commandWriter.writeWithNewline(s"cd $callDirectory")
 
-    commandWriter.writeWithNewline(commandLine)
+    commandWriter.writeWithNewline(s"cd $callDirectory")
+    commandWriter.writeWithNewline(instantiatedCommandLine)
     commandWriter.flushAndClose()
 
     def buildDockerRunCommand(image: String): String =
       // -v maps the host workflow executions directory to /root/<workflow id> on the container.
       // -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
-      s"docker run -v ${hostWorkflowExecutionFile.getAbsolutePath}:$containerExecutionDir -i $image"
+      s"docker run -v $workflowRootAbsolutePathOnHost:$dockerContainerExecutionDir -i $image"
 
     // Build the docker run command if docker is defined in the RuntimeAttributes, otherwise just the empty string.
     val dockerRun = call.docker.map { buildDockerRunCommand }.getOrElse("")
@@ -75,13 +99,11 @@ class LocalBackend extends Backend with LazyLogging {
     // The aforementioned shenanigans generate standard output and then a bash invocation that takes
     // commands from standard input.
     val argv = Seq("/bin/bash", "-c", s"cat $commandFile | $dockerRun /bin/bash <&0")
-    logger.info("Executing call with argv: " + argv)
+    logger.debug("Executing call with argv: " + argv)
 
     // The ! to the ProcessLogger captures standard output and error.
     val rc: Int = argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
-    Vector(stdoutWriter, stderrWriter).foreach {
-      _.flushAndClose()
-    }
+    Vector(stdoutWriter, stderrWriter).foreach { _.flushAndClose() }
 
     /**
      * Return a host absolute file path.
@@ -89,43 +111,18 @@ class LocalBackend extends Backend with LazyLogging {
     def hostAbsoluteFilePath(pathString: String): String =
       if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
 
-    /**
-     * Handle possible auto-conversion from string literal to WdlFile.
-     */
-    def possiblyAutoConvertedValue(taskOutput: TaskOutput, wdlValue: WdlValue): WdlValue = {
-      wdlValue match {
-        case v: WdlString =>
-          taskOutput.wdlType match {
-            case WdlFileType =>
-              WdlFile(hostAbsoluteFilePath(v.value))
-            case _ => v
-          }
-        case v => v
-      }
-    }
+    val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile, Paths.get(hostCallDirectory.getAbsolutePath)))
 
-    val outputMappings = call.task.outputs.map { taskOutput =>
-      val rawValue = taskOutput.expression.evaluate(
-        scopedLookupFunction,
-        new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile))
-      )
-      taskOutput.name -> rawValue.map {
-        possiblyAutoConvertedValue(taskOutput, _)
-      }
-    }
+    val stderrFileLength = new File(stderrFile.toString).length
 
-    if (rc == 0) {
-      val taskOutputEvaluationFailures = outputMappings.filter { _._2.isFailure }
-
-      if (taskOutputEvaluationFailures.isEmpty) {
-        val unwrappedMap = outputMappings.collect { case (name, Success(wdlValue) ) => name -> wdlValue }.toMap
-        Success(unwrappedMap)
-      } else {
-        val message = taskOutputEvaluationFailures.collect { case (name, Failure(e))  => s"$name: $e" }.mkString("\n")
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
-      }
+    if (call.failOnStderr && stderrFileLength > 0) {
+      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
     } else {
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $commandLine"))
+      if (rc == 0) {
+        evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction, interpolateStrings=true)
+      } else {
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine"))
+      }
     }
   }
 
@@ -136,16 +133,10 @@ class LocalBackend extends Backend with LazyLogging {
   override def initializeForWorkflow(descriptor: WorkflowDescriptor): HostInputs = {
     val hostExecutionDirectory = hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
-
     val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath
     Array("workflow-inputs", "workflow-outputs") foreach { Paths.get(hostExecutionAbsolutePath, _).toFile.mkdir() }
     stageWorkflowInputs(descriptor)
   }
-
-  /**
-   * {{{cromwell-executions + workflow.name + workflow.id = cromwell-executions/three-step/0f00-ba4}}}
-   */
-  private def hostExecutionPath(workflow: WorkflowDescriptor): Path = Paths.get("cromwell-executions", workflow.name, workflow.id.toString)
 
   /**
    * Given the specified workflow descriptor and inputs, stage any WdlFiles into the workflow-inputs subdirectory
@@ -156,21 +147,27 @@ class LocalBackend extends Backend with LazyLogging {
    * Host inputs path: $PWD/cromwell-executions/some-workflow-name/0f00-ba4/workflow-inputs/input.bam
    */
   private def stageWorkflowInputs(descriptor: WorkflowDescriptor): HostInputs = {
-
     val hostInputsPath = Paths.get(hostExecutionPath(descriptor).toFile.getAbsolutePath, "workflow-inputs")
+    descriptor.actualInputs map {case(name, value) => name -> stageWdlValue(value, hostInputsPath)}
+  }
 
-    def stageInput(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
-      val (name, value) = nameAndValue
-      val hostPathAdjustedValue = value match {
-        case WdlFile(originalPath) =>
-          val executionPath = Paths.get(hostInputsPath.toFile.getAbsolutePath, originalPath.getFileName.toString)
-          Files.copy(originalPath, executionPath)
-          WdlFile(executionPath)
-        case x => x
-      }
-      name -> hostPathAdjustedValue
+  private def stageInputArray(array: WdlArray, hostInputsPath: Path): WdlArray = array.map(stageWdlValue(_, hostInputsPath))
+
+  private def stageWdlValue(value: WdlValue, hostInputsPath: Path): WdlValue = value match {
+    case w:WdlFile => stageWdlFile(w, hostInputsPath)
+    case a:WdlArray => stageInputArray(a, hostInputsPath)
+    case x => x
+  }
+
+  private def stageWdlFile(wdlFile: WdlFile, hostInputsPath: Path): WdlFile = {
+    val originalPath = Paths.get(wdlFile.value)
+    val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
+    if (Files.isDirectory(originalPath)) {
+      FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
+    } else {
+      FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
     }
-    descriptor.actualInputs map stageInput
+    WdlFile(executionPath.toString)
   }
 
   /**
@@ -179,19 +176,18 @@ class LocalBackend extends Backend with LazyLogging {
    */
   override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = {
     // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
-    val CromwellExecutions = "cromwell-executions"
     def adjustPath(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
       val (name, value) = nameAndValue
       val adjusted = value match {
         case WdlFile(path) =>
           // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
           // Container path should look like /root/f00ba4/call-ps/stdout.txt
-          val fullPath = path.toFile.getAbsolutePath
+          val fullPath = Paths.get(path).toFile.getAbsolutePath
           // Strip out everything before cromwell-executions.
           val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutions) + CromwellExecutions.length)
           // Strip out the workflow name (the first component under cromwell-executions).
           val pathWithWorkflowName = Paths.get(pathUnderCromwellExecutions)
-          WdlFile(Paths.get("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
+          WdlFile(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
         case x => x
       }
       name -> adjusted
@@ -201,13 +197,15 @@ class LocalBackend extends Backend with LazyLogging {
     if (call.docker.isDefined) inputs map adjustPath else inputs
   }
 
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
   override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
-    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(Failed, Done, NotStarted)
+    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
       dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
@@ -222,4 +220,6 @@ class LocalBackend extends Backend with LazyLogging {
     // The caller doesn't care about the result value, only that it's a Future.
     Future.sequence(seqOfFutures)
   }
+
+  override def backendType = BackendType.LOCAL
 }

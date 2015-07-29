@@ -1,12 +1,25 @@
 package cromwell.binding.command
 
 import java.util.regex.Pattern
-import cromwell.binding.CallInputs
-import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
+
+import cromwell.binding.{WdlSyntaxErrorFormatter, CallInputs, TaskInput}
+import cromwell.binding.types.WdlArrayType
+import cromwell.parser.WdlParser.{Ast, AstList, Terminal}
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.util.Try
+
+object Command {
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Command = {
+    val parts = ast.getAttribute("parts").asInstanceOf[AstList].asScala.toVector.map {
+      case x: Terminal => new StringCommandPart(x.getSourceString)
+      case x: Ast => ParameterCommandPart(x, wdlSyntaxErrorFormatter)
+    }
+
+    new Command(parts)
+  }
+}
 
 /**
  * Represents the `command` section of a `task` definition in a WDL file.
@@ -40,8 +53,21 @@ import scala.util.Try
  */
 case class Command(parts: Seq[CommandPart]) {
   val ws = Pattern.compile("[\\ \\t]+")
+  def inputs: Seq[TaskInput] = {
+    val collectedInputs = parts.collect {case p: ParameterCommandPart => p}.map {p =>
+      // TODO: if postfix quantifier is + or *, then the type must be a primitive.
+      val wdlType = p.postfixQuantifier match {
+        case Some(x) if ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(x) => WdlArrayType(p.wdlType)
+        case _ => p.wdlType
+      }
+      TaskInput(p.name, wdlType, p.postfixQuantifier)
+    }
 
-  def inputs: Map[String, WdlType] = parts.collect({ case p: ParameterCommandPart => (p.name, p.wdlType) }).toMap
+    /* It is assumed here that all TaskInputs with the same name are identically defined, this filters out duplicates by name */
+    collectedInputs.map {_.name}.distinct.map {name =>
+      collectedInputs.filter {_.name == name}.head
+    }
+  }
 
   /**
    * Given a map of task-local parameter names and WdlValues,

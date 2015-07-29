@@ -1,5 +1,6 @@
 package cromwell.binding
 
+import cromwell.parser.BackendType
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -35,7 +36,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
 
   private def expectError(wdl: String) = {
     try {
-      val namespace = WdlNamespace.load(wdl, resolver _)
+      val namespace = WdlNamespace.load(wdl, resolver _, BackendType.LOCAL)
       fail("Exception expected")
     } catch {
       case x: SyntaxError => // expected
@@ -169,13 +170,21 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |}
         |""".stripMargin)
   }
-  it should "detect if a task has duplicated inputs" in {
+  it should "detect incompatible types for same input" in {
     expectError("""
-        |task ps {command{ps ${bad} ${bad}}}
-        |workflow three_step {
-        |  call ps
-        |}
-        |""".stripMargin)
+      |task test {
+      |  command { ./script ${String x} ${File x} ${x} }
+      |}
+      |workflow wf { call test }
+    """.stripMargin)
+  }
+  it should "detect when an input is defined differently at least once" in {
+    expectError("""
+      |task test {
+      |  command { ./script ${default="bar" String x?} ${String x} ${x} }
+      |}
+      |workflow wf { call test }
+    """.stripMargin)
   }
   it should "detect unexpected EOF" in {
     expectError("workflow")
@@ -185,6 +194,34 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   }
   it should "detect extraneous symbols" in {
     expectError("workflow foo {}}")
+  }
+  it should "detect when two call definitions have the same name" in {
+    expectError(
+      """
+        |task x {
+        |  command { ps }
+        |}
+        |
+        |workflow wf {
+        |  call x
+        |  call x
+        |}
+      """.stripMargin)
+  }
+  it should "detect when there are more than one 'input' sections in a call" in {
+    expectError(
+      """
+        |task x {
+        |  command {  ./script ${a} ${b} }
+        |}
+        |
+        |workflow wf {
+        |  call x {
+        |    input: a = "a"
+        |    input: b = "b"
+        |  }
+        |}
+      """.stripMargin)
   }
 }
 

@@ -70,5 +70,5 @@ case class WdlInteger(value: Integer) extends WdlPrimitive {
   }
   override def unaryPlus: Try[WdlValue] = Success(WdlInteger(math.abs(value)))
   override def unaryMinus: Try[WdlValue] = Success(WdlInteger(-value))
-  override def asString = value.toString
+  override def toWdlString = value.toString
 }

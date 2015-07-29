@@ -10,9 +10,11 @@ import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.engine._
 import cromwell.engine.backend.Backend
+import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -38,6 +40,16 @@ object SlickDataAccess {
 
   implicit class ConfigWithUniqueSchema(val config: Config) extends AnyVal {
     /**
+     * Returns either the "url" or "properties.url"
+     */
+    def urlKey = if (config.hasPath("url")) "url" else "properties.url"
+
+    /**
+     * Returns the value of either the "url" or "properties.url"
+     */
+    def urlValue = config.getString(urlKey)
+
+    /**
      * Modifies config.getString("url") to return a unique schema, if the original url contains the text
      * "${slick.uniqueSchema}".
      *
@@ -46,21 +58,22 @@ object SlickDataAccess {
      * @return Config with ${slick.uniqueSchema} in url replaced with a unique string.
      */
     def withUniqueSchema: Config = {
-      val url = config.getString("url")
-      if (url.contains("${slick.uniqueSchema}")) {
+      if (urlValue.contains("${slick.uniqueSchema}")) {
         // Config wasn't updating with a simple withValue/withFallback.
         // So instead, do a bit of extra work to insert the generated schema name in the url.
         val schema = UUID.randomUUID().toString
-        val newUrl = url.replaceAll("""\$\{slick\.uniqueSchema\}""", schema)
-        val origin = "url with slick.uniqueSchema=" + schema
+        val newUrl = urlValue.replaceAll("""\$\{slick\.uniqueSchema\}""", schema)
+        val origin = urlKey + " with slick.uniqueSchema=" + schema
         val urlConfigValue = ConfigValueFactory.fromAnyRef(newUrl, origin)
-        val urlConfig = ConfigFactory.empty(origin).withValue("url", urlConfigValue)
+        val urlConfig = ConfigFactory.empty(origin).withValue(urlKey, urlConfigValue)
         urlConfig.withFallback(config)
       } else {
         config
       }
     }
   }
+
+  lazy val log = LoggerFactory.getLogger("slick")
 }
 
 class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
@@ -69,8 +82,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     databaseConfig,
     new DataAccessComponent(databaseConfig.getString("slick.driver")))
 
-  def this() = this(
-    DatabaseConfig.databaseConfig)
+  def this() = this(DatabaseConfig.databaseConfig)
 
   // NOTE: Used for slick flatMap. May switch to custom ExecutionContext the future
   private implicit val executionContext = ExecutionContext.global
@@ -81,10 +93,13 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   import dataAccess.driver.api._
 
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
-  val database = Database.forConfig("", databaseConfig.withUniqueSchema)
+  private val configWithUniqueSchema = databaseConfig.withUniqueSchema
+  val database = Database.forConfig("", configWithUniqueSchema)
 
   // Possibly create the database
   {
+    import SlickDataAccess._
+    log.info(s"Running with database ${configWithUniqueSchema.urlKey} = ${configWithUniqueSchema.urlValue}")
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
     //
     // Not really an issue, since externally run liquibase is standard way of installing / upgrading MySQL.
@@ -159,7 +174,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         symbol.key.iteration.getOrElse(IterationNone),
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(_.toRawString))
+        symbol.wdlValue.map(_.toWdlString.toClob))
     }
   }
 
@@ -189,11 +204,15 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
               executionInsert.executionId.get,
               None,
               None)
+        case j: JesBackend =>
+          // FIXME: Placeholder for now, discussed w/ Khalid
+          dataAccess.jesJobsAutoInc += new JesJob(executionInsert.executionId.get, 0, "", None)
         case null =>
           throw new IllegalArgumentException("Backend is null")
         case unknown =>
           throw new IllegalArgumentException("Unknown backend: " + backend.getClass)
       }
+
     } yield ()
   }
 
@@ -338,6 +357,40 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  private def toSymbolStoreEntry(symbolResult: Symbol) = {
+    val wdlType = WdlType.fromWdlString(symbolResult.wdlType)
+    new SymbolStoreEntry(
+      new SymbolStoreKey(
+        symbolResult.scope,
+        symbolResult.name,
+        Option(symbolResult.iteration).filterNot(_ == IterationNone),
+        input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
+      ),
+      wdlType,
+      symbolResult.wdlValue map {value => wdlType.fromWdlString(value.toRawString)}
+    )
+  }
+
+  override def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]] = {
+    val Array(scope, varName) = fqn.split("\\.(?=[^\\.]+$)") // e.g. "a.b.c.d" => Seq("a.b.c", "d")
+    val action = for {
+      symbolResults <- dataAccess.symbolsByScopeAndName(workflowId.toString, scope, varName).result
+      symbolStoreEntries = symbolResults map toSymbolStoreEntry
+    } yield symbolStoreEntries
+
+    runTransaction(action)
+  }
+
+  override def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+    val x = dataAccess.allSymbols(workflowId.toString).result
+    val action = for {
+      symbolResults <- x
+      symbolStoreEntries = symbolResults map toSymbolStoreEntry
+    } yield symbolStoreEntries
+
+    runTransaction(action)
+  }
+
   /** Get all inputs for the scope of this call. */
   override def getInputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
     require(call != null, "call cannot be null")
@@ -359,23 +412,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                          callOption: Option[Call] = None): Future[Traversable[SymbolStoreEntry]] = {
 
     val action = for {
-
       symbolResults <- dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
-        workflowId.toString, ioValue, callOption.map(_.fullyQualifiedName)).result
-
-      symbolStoreEntries = symbolResults map { symbolResult =>
-        val wdlType = WdlType.fromWdlString(symbolResult.wdlType)
-        val symbolStoreKey = new SymbolStoreKey(
-          symbolResult.scope,
-          symbolResult.name,
-          Option(symbolResult.iteration).filterNot(_ == IterationNone),
-          input = symbolResult.io == IoInput) // input = true, if db contains "INPUT"
-        new SymbolStoreEntry(
-          symbolStoreKey,
-          wdlType,
-          symbolResult.wdlValue.map(wdlType.fromRawString))
-      }
-
+        workflowId.toString, ioValue, callOption.map(_.fullyQualifiedName)
+      ).result
+      symbolStoreEntries = symbolResults map toSymbolStoreEntry
     } yield symbolStoreEntries
 
     runTransaction(action)
@@ -395,7 +435,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
             IterationNone,
             IoOutput,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValue.toRawString))
+            Option(wdlValue.toWdlString.toClob))
       }
     } yield ()
 

@@ -31,10 +31,9 @@ object SingleWorkflowRunnerActor {
 case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
                                      wdlJson: WdlJson,
                                      inputs: binding.WorkflowRawInputs,
-                                     workflowManager: ActorRef) extends Actor {
+                                     workflowManager: ActorRef) extends Actor with CromwellActor {
   val log = Logging(context.system, classOf[SingleWorkflowRunnerActor])
   val tag = "SingleWorkflowRunnerActor"
-  private implicit val timeout = Timeout(5 seconds)
   // Note that id isn't used until *after* the submitWorkflow Future is complete
   private var id: WorkflowId = _
 
@@ -44,7 +43,7 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
     eventualId onComplete {
       case Success(x) => subscribeToWorkflow(x)
       case Failure(e) =>
-        log.error(s"$tag: ${e.getMessage}")
+        log.error(e, s"$tag: ${e.getMessage}")
         terminate()
     }
   }

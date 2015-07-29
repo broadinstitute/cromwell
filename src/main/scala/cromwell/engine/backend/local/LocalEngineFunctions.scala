@@ -1,22 +1,15 @@
 package cromwell.engine.backend.local
 
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlString, WdlValue}
-import cromwell.engine.EngineFunctions
-import cromwell.util.FileUtil
+import java.io.File
+import java.nio.file.Paths
 
+import cromwell.binding.types.{WdlArrayType, WdlStringType}
+import cromwell.binding.values._
+import cromwell.engine.EngineFunctions
+import cromwell.util.FileUtil.{EnhancedPath, EnhancedFile}
 import scala.util.{Success, Failure, Try}
 
-
 class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
-
-  /**
-   * Extract a single `WdlValue` from the specified `Seq`, returning `Failure` if the parameters
-   * represent something other than a single `WdlValue`.
-   */
-  private def extractSingleArgument(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
-    if (params.length != 1) Failure(new UnsupportedOperationException("Expected one argument, got " + params.length))
-    else params.head
-  }
 
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
@@ -28,9 +21,17 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
    */
   private def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => FileUtil.slurp(f.value)
+      case f: WdlFile => new File(f.value).slurp
+      case s: WdlString => executionContext.cwd.resolve(s.value).slurp
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
+  }
+
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
+    } yield WdlArray(WdlArrayType(WdlStringType), lines)
   }
 
   /**
@@ -40,7 +41,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     for {
       singleArgument <- extractSingleArgument(params)
       string = fileContentsToString(singleArgument)
-    } yield WdlString(string)
+    } yield WdlString(string.stripSuffix("\n"))
   }
 
   /**
@@ -53,7 +54,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stdout))
+      Success(WdlFile(executionContext.stdout.toAbsolutePath.toString))
     }
   }
 
@@ -61,7 +62,7 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stderr))
+      Success(WdlFile(executionContext.stderr.toAbsolutePath.toString))
     }
   }
 }

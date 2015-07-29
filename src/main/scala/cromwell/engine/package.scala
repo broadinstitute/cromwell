@@ -33,23 +33,23 @@ package object engine {
     override def toString: String = "Submitted"
     override val isTerminal = false
   }
+  
   case object WorkflowRunning extends WorkflowState {
     override def toString: String = "Running"
     override val isTerminal = false
   }
+  
   case object WorkflowFailed extends WorkflowState {
     override def toString: String = "Failed"
     override val isTerminal = true
   }
+  
   case object WorkflowSucceeded extends WorkflowState {
     override def toString: String = "Succeeded"
     override val isTerminal = true
   }
 
-  object ExecutionStatus extends Enumeration {
-    type ExecutionStatus = Value
-    val NotStarted, Starting, Running, Failed, Done = Value
-  }
+
 
   object SymbolStoreEntry {
     private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {
@@ -62,6 +62,10 @@ package object engine {
       val key = SymbolStoreKey(scope, name, iteration = None, input)
       SymbolStoreEntry(key, wdlValue.wdlType, Some(wdlValue))
     }
+
+    def toWorkflowOutputs(t: Traversable[SymbolStoreEntry]): WorkflowOutputs = t.map { e =>
+      s"${e.key.scope}.${e.key.name}" -> e.wdlValue.get
+    }.toMap
   }
 
   case class SymbolStoreKey(scope: String, name: String, iteration: Option[Int], input: Boolean)
@@ -70,5 +74,10 @@ package object engine {
     def isInput: Boolean = key.input
     def isOutput: Boolean = !isInput
     def scope: String = key.scope
+  }
+
+  object ExecutionStatus extends Enumeration {
+    type ExecutionStatus = Value
+    val NotStarted, Starting, Running, Failed, Done = Value
   }
 }

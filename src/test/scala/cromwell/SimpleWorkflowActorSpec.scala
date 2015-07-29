@@ -8,9 +8,9 @@ import cromwell.binding._
 import cromwell.binding.values.WdlString
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 
@@ -21,23 +21,14 @@ import scala.language.postfixOps
 
 class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSpec") {
 
-  private val dataAccess = DataAccess()
-
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: Option[WorkflowRawInputs] = None):
   TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor] = {
 
-    val namespace = WdlNamespace.load(sampleWdl.wdlSource())
+    val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(), BackendType.LOCAL)
     val rawInputs = rawInputsOverride.getOrElse(sampleWdl.rawInputs)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
-  }
-
-  override def afterAll() {
-    // TODO: Is this shutting down `system`?
-    shutdown()
-    super.afterAll()
-    Await.result(dataAccess.shutdown(), Duration.Inf)
   }
 
   val TestExecutionTimeout = 5000 milliseconds
@@ -113,6 +104,18 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
       fsm ! Start
       within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowFailed)
+      }
+    }
+
+    "typecheck outputs" in {
+      within(TestExecutionTimeout) {
+        waitForErrorWithException("Expression 'WdlFile.*' of type File cannot be converted to Int for output 'three_step.cgrep.count'.") {
+          val fsm = buildWorkflowFSMRef(SampleWdl.OutputTypeChecking)
+
+          assert(fsm.stateName == WorkflowSubmitted)
+          fsm ! Start
+          awaitCond(fsm.stateName == WorkflowFailed)
+        }
       }
     }
   }

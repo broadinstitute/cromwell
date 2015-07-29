@@ -95,26 +95,6 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def taskHasDuplicatedInputs(taskAst: Ast, duplicatedInputAsts: Seq[Ast]): String = {
-    val inputName = duplicatedInputAsts.head.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val duplicatedInputs = duplicatedInputAsts.map({ ast =>
-      val name: Terminal = ast.getAttribute("name").asInstanceOf[Terminal]
-      s"""Input defined here (line ${name.getLine} col ${name.getColumn}):
-         |
-         |${pointToSource(name)}
-       """.stripMargin
-    }).mkString("\n")
-    val taskName: Terminal = taskAst.getAttribute("name").asInstanceOf[Terminal]
-    s"""ERROR: Task '${taskName.getSourceString}' has duplicated input '$inputName':
-       |
-       |$duplicatedInputs
-       |
-       |Task defined here (line ${taskName.getLine}, col ${taskName.getColumn}):
-       |
-       |${pointToSource(taskName)}
-     """.stripMargin
-  }
-
   def taskAndNamespaceHaveSameName(taskAst: Ast, namespace: Terminal): String = {
     val taskName = taskAst.getAttribute("name").asInstanceOf[Terminal]
     s"""ERROR: Task and namespace have the same name:
@@ -143,6 +123,36 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
+  def multipleCallsAndHaveSameName(names: Seq[Terminal]): String = {
+    val duplicatedCallNames = names.map {name =>
+      s"""Call statement here (line ${name.getLine}, column ${name.getColumn}):
+        |
+        |${pointToSource(name)}
+      """.stripMargin
+    }
+
+    s"""ERROR: Two or more calls have the same name:
+       |
+       |${duplicatedCallNames.mkString("\n")}
+     """.stripMargin
+  }
+
+  def multipleInputStatementsOnCall(secondInputStatement: Terminal): String = {
+    s"""ERROR: Call has multiple 'input' sections defined:
+       |
+       |${pointToSource(secondInputStatement)}
+       |
+       |Instead of multiple 'input' sections, use commas to separate the values.
+     """.stripMargin
+  }
+
+  def emptyInputSection(callTaskName: Terminal) = {
+    s"""ERROR: empty "input" section for call '${callTaskName.getSourceString}':
+       |
+       |${pointToSource(callTaskName)}
+     """.stripMargin
+  }
+
   def undefinedMemberAccess(ast: Ast): String = {
     val rhsAst = ast.getAttribute("rhs").asInstanceOf[Terminal]
     s"""ERROR: Expression will not evaluate (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
@@ -156,6 +166,50 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
     s"""ERROR: Expression reference input on task that doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
      |
      |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+
+  def arrayMustHaveOnlyOneTypeParameter(arrayDecl: Terminal): String = {
+    s"""ERROR: Array type should only have one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
+     |
+     |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
+  def arrayMustHaveATypeParameter(arrayDecl: Terminal): String = {
+    s"""ERROR: Array type should have exactly one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
+     |
+     |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
+  def postfixQualifierRequiresSeparator(quantifier: Terminal) = {
+    s"""ERROR: Parameters that specify * or + must also specify sep=""
+       |
+       |${pointToSource(quantifier)}
+     """.stripMargin
+  }
+
+  def defaultAttributeOnlyAllowedForOptionalParameters(location: Terminal) = {
+    s"""ERROR: the 'default' attribute is only allowed with optional parameters (suffixed by either ? or *)
+       |
+       |${pointToSource(location)}
+     """.stripMargin
+  }
+
+  def parametersWithSameNameMustHaveSameDefinition(taskName: Terminal, firstParam: Terminal, secondParam: Terminal) = {
+    s"""ERROR: Task ${taskName.getSourceString} has input '${firstParam.getSourceString}' which is defined twice
+        |with conficting definitions:
+        |
+        |${pointToSource(secondParam)}
+        |
+        |first definition of parameter is here:
+        |
+        |${pointToSource(firstParam)}
+        |
+        |Task defined here (line ${taskName.getLine}, col ${taskName.getColumn}):
+        |
+        |${pointToSource(taskName)}
      """.stripMargin
   }
 }

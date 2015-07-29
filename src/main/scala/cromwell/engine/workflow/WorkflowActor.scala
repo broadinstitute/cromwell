@@ -69,13 +69,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    * state, otherwise remain in `WorkflowRunning`.  If not successful, go to `WorkflowFailed`.
    */
   private def startRunnableCalls() = {
-      tryStartingRunnableCalls() match {
-        case Success(_) =>
-          goto(WorkflowRunning)
-        case Failure(e) =>
-          log.error(e, e.getMessage)
-          goto(WorkflowFailed)
-      }
+    tryStartingRunnableCalls() match {
+      case Success(_) =>
+        goto(WorkflowRunning)
+      case Failure(e) =>
+        log.error(e, e.getMessage)
+        goto(WorkflowFailed)
+    }
   }
 
   when(WorkflowSubmitted) {

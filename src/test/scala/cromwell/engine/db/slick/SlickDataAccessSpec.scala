@@ -16,6 +16,7 @@ import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{DataAccess, LocalCallBackendInfo}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
+import org.scalactic.StringNormalizations._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -63,6 +64,27 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     lazy val testDatabase = new TestSlickDatabase(path)
     lazy val canConnect = testRequired || testDatabase.isValidConnection.futureValue
     lazy val dataAccess = testDatabase.slickDataAccess
+
+    it should "(if hsqldb) have transaction isolation mvcc" in {
+      assume(canConnect || testRequired)
+      import dataAccess.dataAccess.driver.api._
+
+      val getProduct = SimpleDBIO[String](_.connection.getMetaData.getDatabaseProductName)
+      val getHsqldbTx = sql"""SELECT PROPERTY_VALUE
+                              FROM INFORMATION_SCHEMA.SYSTEM_PROPERTIES
+                              WHERE PROPERTY_NAME = 'hsqldb.tx'""".as[String].head
+
+      (for {
+        product <- dataAccess.database.run(getProduct)
+        _ <- product match {
+          case "HSQL Database Engine" =>
+            dataAccess.database.run(getHsqldbTx) map { hsqldbTx =>
+              (hsqldbTx shouldEqual "mvcc")(after being lowerCased)
+            }
+          case _ => Future.successful(())
+        }
+      } yield ()).futureValue
+    }
 
     it should "setup via liquibase if necessary" in {
       assume(canConnect || testRequired)

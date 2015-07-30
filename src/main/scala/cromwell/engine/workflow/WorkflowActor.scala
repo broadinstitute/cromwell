@@ -1,10 +1,11 @@
 package cromwell.engine.workflow
 
-import akka.actor.{FSM, LoggingFSM, Props}
+import akka.actor.{InvalidMessageException, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlObject, WdlValue}
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.DataAccess.WorkflowInfo
@@ -25,6 +26,8 @@ object WorkflowActor {
   case object Complete extends WorkflowActorMessage
   case object GetFailureMessage extends WorkflowActorMessage
   case object GetOutputs extends WorkflowActorMessage
+  case object AbortWorkflow extends WorkflowActorMessage
+  case class AbortComplete(call: Call) extends WorkflowActorMessage
   case class CallStarted(call: Call) extends WorkflowActorMessage
   case class CallCompleted(call: Call, callOutputs: CallOutputs) extends WorkflowActorMessage
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
@@ -40,6 +43,11 @@ object WorkflowActor {
   val DatabaseTimeout = 5 seconds
 
   type ExecutionStore = Map[Call, ExecutionStatus.Value]
+
+  val TerminalStates = Vector(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.Aborted)
+  def isExecutionStateFinished(es: ExecutionStatus): Boolean = {
+    TerminalStates contains es
+  }
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor,
@@ -103,6 +111,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       persistStatus(call, ExecutionStatus.Failed)
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
+    case Event(AbortComplete(call), NoFailureMessage) =>
+      // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
+      // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
+      // cancelled by some external system.
+      persistStatus(call, ExecutionStatus.Aborted)
+      log.warning(s"Call ${call.name} was aborted but the workflow should still be running.")
+      stay()
   }
 
   when(WorkflowFailed) {
@@ -115,6 +130,23 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   // We're supporting GetOutputs for all states, so there's nothing particular to do here
   when(WorkflowSucceeded)(FSM.NullFunction)
 
+  when(WorkflowAborting) {
+    case Event(AbortComplete(call), NoFailureMessage) =>
+      persistStatus(call, ExecutionStatus.Aborted)
+      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
+    case Event(CallFailed(call, failure), NoFailureMessage) =>
+      persistStatus(call, ExecutionStatus.Failed)
+      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
+    case Event(CallCompleted(call, outputs), NoFailureMessage) =>
+      awaitCallComplete(call, outputs)
+      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
+    case m =>
+      log.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
+      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
+  }
+
+  when(WorkflowAborted)(FSM.NullFunction)
+
   whenUnhandled {
     case Event(GetOutputs, _) =>
       // NOTE: This is currently only used by tests
@@ -123,6 +155,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       val futureOutputs = dataAccess.getOutputs(workflow.id) map SymbolStoreEntry.toWorkflowOutputs
       futureOutputs pipeTo sender
       stay()
+    case Event(AbortWorkflow, _) =>
+      context.children foreach { _ ! CallActor.AbortCall }
+      goto(WorkflowAborting) using NoFailureMessage
     case Event(e, _) =>
       log.debug(s"$tag received unhandled event $e while in state $stateName")
       stay()
@@ -369,4 +404,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def isWorkflowDone: Boolean = executionStore.forall(_._2 == ExecutionStatus.Done)
+
+  private def isWorkflowAborted: Boolean = executionStore forall { x => isExecutionStateFinished(x._2) || x._2 == ExecutionStatus.NotStarted }
 }

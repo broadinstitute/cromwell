@@ -220,7 +220,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     val action = for {
       workflowExecutionStatusOption <- dataAccess.workflowExecutionStatusesByWorkflowExecutionUuid(
-        workflowId.toString).result.headOption
+        workflowId.id.toString).result.headOption
       workflowState = workflowExecutionStatusOption map WorkflowState.fromString
     } yield workflowState
 
@@ -233,7 +233,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     // NOTE: For now, intentionally causes query to error out instead of returning an Map.empty
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
-        workflowId.toString).result.head
+        workflowId.id.toString).result.head
 
       // Alternatively, could use a dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionUuid
       executionCallFqnAndStatusResults <- dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionId(
@@ -273,7 +273,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
           workflowExecutionAuxResult map { workflowExecutionAux =>
             new WorkflowInfo(
-              UUID.fromString(workflowExecutionResult.workflowExecutionUuid),
+              WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
               workflowExecutionAux.wdlSource.toRawString,
               workflowExecutionAux.jsonInputs.toRawString)
           }

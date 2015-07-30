@@ -2,16 +2,16 @@ package cromwell.engine.backend.local
 
 import java.io.{File, Writer}
 import java.nio.file.{Files, Path, Paths}
-import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
+import cromwell.engine.backend.TaskAbortedException
 import cromwell.engine.backend.{StdoutStderr, Backend}
 import cromwell.engine.backend.Backend.{RestartableWorkflow, StdoutStderrException}
 import cromwell.engine.db.{CallStatus, DataAccess}
-import cromwell.engine.{ExecutionStatus, WorkflowId}
+import cromwell.engine._
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
@@ -60,13 +60,13 @@ object LocalBackend {
   def hostExecutionPath(workflow: WorkflowDescriptor): Path =
     hostExecutionPath(workflow.name, workflow.id)
 
-  def hostExecutionPath(workflowName: String, workflowUuid: UUID): Path =
-    Paths.get(CromwellExecutions, workflowName, workflowUuid.toString)
+  def hostExecutionPath(workflowName: String, workflowUuid: WorkflowId): Path =
+    Paths.get(CromwellExecutions, workflowName, workflowUuid.id.toString)
 
   def hostCallPath(workflow: WorkflowDescriptor, callName: String): Path =
     Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
 
-  def hostCallPath(workflowName: String, workflowUuid: UUID, callName: String): Path =
+  def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String): Path =
     Paths.get(hostExecutionPath(workflowName, workflowUuid).toFile.getAbsolutePath, s"call-$callName")
 }
 
@@ -94,7 +94,8 @@ class LocalBackend extends Backend with LazyLogging {
                               workflowDescriptor: WorkflowDescriptor, 
                               call: Call, 
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+                              scopedLookupFunction: ScopedLookupFunction,
+                              callAbortRegisteringFunction: AbortFunctionRegistration): Try[Map[String, WdlValue]] = {
 
     val workflowRootAbsolutePathOnHost = hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath
 
@@ -127,9 +128,12 @@ class LocalBackend extends Backend with LazyLogging {
     val argv = Seq("/bin/bash", "-c", s"cat $commandFile | $dockerRun /bin/bash <&0")
     logger.debug("Executing call with argv: " + argv)
 
-    // The ! to the ProcessLogger captures standard output and error.
-    val rc: Int = argv ! ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline)
-    Vector(stdoutWriter, stderrWriter).foreach { _.flushAndClose() }
+    val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline))
+
+    // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
+    callAbortRegisteringFunction.registrationFunction(AbortFunction(() => process.destroy()))
+    val rc: Int = process.exitValue()
+    Vector(stdoutWriter, stderrWriter) foreach { _.flushAndClose() }
 
     /**
      * Return a host absolute file path.
@@ -146,6 +150,9 @@ class LocalBackend extends Backend with LazyLogging {
     } else {
       if (rc == 0) {
         evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction, interpolateStrings=true)
+      // Special case to check for SIGTERM exit code - implying abort:
+      } else if (rc == 143) {
+        Failure(new TaskAbortedException())
       } else {
         Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine\n\nFull command was: ${argv.mkString(" ")}"))
       }

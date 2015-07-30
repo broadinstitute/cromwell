@@ -57,7 +57,8 @@ trait Backend {
                      workflowDescriptor: WorkflowDescriptor, 
                      call: Call, 
                      backendInputs: CallInputs,
-                     scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
+                     scopedLookupFunction: ScopedLookupFunction,
+                     abortFunctionRegistration: AbortFunctionRegistration): Try[Map[String, WdlValue]]
 
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.

@@ -1,12 +1,11 @@
 package cromwell.engine.backend.jes
 
-import java.text.SimpleDateFormat
-import java.util.Date
-
+import com.typesafe.scalalogging.LazyLogging
 import com.google.api.services.genomics.model.Operation
+import org.joda.time.DateTime
 import scala.collection.JavaConverters._
 
-object OperationMetadata {
+object OperationMetadata extends LazyLogging {
   def apply(operation: Operation): OperationMetadata = {
     val metadata = operation.getMetadata.asScala
     new OperationMetadata(metadata("createTime").asInstanceOf[String].toDate,
@@ -14,11 +13,18 @@ object OperationMetadata {
       metadata.get("endTime").map(_.asInstanceOf[String].toDate))
   }
 
-  val Iso8601DateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+  val defaultDate = DateTime.parse("0")
 
   implicit class EnhancedString(val string: String) extends AnyVal {
-    def toDate: Date = Iso8601DateFormat.parse(string.asInstanceOf[String])
+    def toDate: DateTime = try {
+
+      DateTime.parse(string.asInstanceOf[String])
+    } catch {
+      case e: Exception =>
+        logger.error(s"Unexpected date string: '$string'.")
+        defaultDate
+    }
   }
 }
 
-case class OperationMetadata(created: Date, started: Option[Date], finished: Option[Date])
+case class OperationMetadata(created: DateTime, started: Option[DateTime], finished: Option[DateTime])

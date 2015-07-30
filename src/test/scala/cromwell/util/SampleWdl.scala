@@ -760,4 +760,41 @@ object SampleWdl {
 
     override val rawInputs = Map.empty[String, String]
   }
+
+  object TripleSleep extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task wait {
+        |  command <<<
+        |    sleep 100
+        |    echo "waited 100 seconds"
+        |  >>>
+        |  output {
+        |    String intermediate = read_string(stdout())
+        |  }
+        |}
+        |task msg {
+        |  command {
+        |    echo ${sommat}
+        |  }
+        |  output {
+        |    String result = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow hello {
+        |  call wait as wait1
+        |  call wait as wait2
+        |  call wait as wait3
+        |
+        |  call msg as msg1 {input: sommat = wait1.intermediate}
+        |  call msg as msg2 {input: sommat = wait2.intermediate}
+        |  call msg as msg3 {input: sommat = wait3.intermediate}
+        |}
+      """.stripMargin
+
+    override val rawInputs = Map.empty[String, String]
+    val OutputKey1 = "hello.msg1.result"
+    val OutputValue = "waited 100 seconds"
+  }
 }

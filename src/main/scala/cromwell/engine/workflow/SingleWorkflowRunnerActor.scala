@@ -51,6 +51,7 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
   def receive = {
     case CurrentState(_, state: WorkflowState) if state.isTerminal => handleTermination(state)
     case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
+    case Transition(_, _, state: WorkflowState) => log.info(s"$tag: transitioning to $state")
     case CurrentState(_, state: WorkflowState) => log.info(s"$tag: received CurrentState($state)")
     case m => log.warning(s"$tag: received unexpected message: $m")
   }

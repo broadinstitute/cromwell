@@ -1,14 +1,13 @@
 package cromwell.engine.backend.jes
 
-import java.util.Date
-
-import com.google.api.services.genomics.model.{Logging, Status, ServiceAccount, RunPipelineRequest}
+import com.google.api.services.genomics.model.{Logging, CancelOperationRequest}
+import com.google.api.services.genomics.model.{ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
 import cromwell.util.google.GoogleScopes
+import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
-import com.typesafe.scalalogging.{StrictLogging, LazyLogging}
 import scala.collection.JavaConverters._
 import Run._
 
@@ -40,13 +39,13 @@ object Run  {
 
   sealed trait RunStatus
   trait TerminalRunStatus extends RunStatus
-  final case class Initializing(created: Date) extends RunStatus
-  final case class Running(created: Date, started: Date) extends RunStatus
-  final case class Success(created: Date, started: Date, finished: Date) extends TerminalRunStatus
-  final case class Failed(created: Date, started: Date, finished: Date, errorCode: Int, errorMessage: String) extends TerminalRunStatus
+  final case class Initializing(created: DateTime) extends RunStatus
+  final case class Running(created: DateTime, started: DateTime) extends RunStatus
+  final case class Success(created: DateTime, started: DateTime, finished: DateTime) extends TerminalRunStatus
+  final case class Failed(created: DateTime, started: DateTime, finished: DateTime, errorCode: Int, errorMessage: String) extends TerminalRunStatus
 }
 
-case class Run(name: String, pipeline: Pipeline)  {
+case class Run(name: String, pipeline: Pipeline) {
   def status(): RunStatus = {
     val op = pipeline.genomicsService.operations().get(name).execute
     val metadata = OperationMetadata(op)
@@ -68,12 +67,30 @@ case class Run(name: String, pipeline: Pipeline)  {
   @tailrec
   final def waitUntilComplete(): TerminalRunStatus = {
     val currentStatus = status()
-   println(s"Current status is $currentStatus")
+    println(s"Current status is $currentStatus")
     currentStatus match {
       case x: TerminalRunStatus => x
       case _ =>
         Thread.sleep(5000)
         waitUntilComplete()
     }
+  }
+
+  @tailrec
+  final def waitUntilRunningOrComplete(): Unit = {
+    val currentStatus = status()
+    println(s"Current status is $currentStatus")
+    currentStatus match {
+      case x: Running =>
+      case x: TerminalRunStatus =>
+      case _ =>
+        Thread.sleep(5000)
+        waitUntilRunningOrComplete()
+    }
+  }
+
+  def abort(): Unit = {
+    val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
+    val executed = pipeline.genomicsService.operations().cancel(name, cancellationRequest).execute
   }
 }

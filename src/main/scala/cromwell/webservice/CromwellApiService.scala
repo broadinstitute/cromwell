@@ -6,6 +6,7 @@ import javax.ws.rs.Path
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.typesafe.config.Config
 import com.wordnik.swagger.annotations._
+import cromwell.engine.WorkflowId
 import cromwell.engine.workflow.ValidateActor
 import spray.http.StatusCodes
 import spray.json._
@@ -97,7 +98,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def queryRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>
       get {
-        Try(UUID.fromString(id)) match {
+        Try(WorkflowId.fromString(id)) match {
           case Success(workflowId) =>
             requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(workflowId))
           case Failure(ex) =>
@@ -127,7 +128,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def abortRoute =
     path("workflows" / Segment / Segment / "abort") { (version, id) =>
       post {
-        Try(UUID.fromString(id)) match {
+        Try(WorkflowId.fromString(id)) match {
           case Success(workflowId) =>
             requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowAbort(workflowId))
           case Failure(ex) =>
@@ -228,7 +229,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def workflowOutputsRoute =
     path("workflows" / Segment / Segment / "outputs") { (version, id) =>
       get {
-        Try(UUID.fromString(id)) match {
+        Try(WorkflowId.fromString(id)) match {
           case Success(workflowId) =>
             requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowOutputs(workflowId))
           case Failure(ex) =>
@@ -260,7 +261,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   ))
   def callOutputsRoute =
     path("workflows" / Segment / Segment / "outputs" / Segment) { (version, workflowId, callFqn) =>
-      Try(UUID.fromString(workflowId)) match {
+      Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
           // This currently does not attempt to parse the call name for conformation to any pattern.
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallOutputs(w, callFqn))
@@ -292,7 +293,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   ))
   def callStdoutStderrRoute =
     path("workflows" / Segment / Segment / "logs" / Segment) { (version, workflowId, callFqn) =>
-      Try(UUID.fromString(workflowId)) match {
+      Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
           // This currently does not attempt to parse the call name for conformation to any pattern.
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallStdoutStderr(w, callFqn))
@@ -322,7 +323,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   ))
   def workflowStdoutStderrRoute =
     path("workflows" / Segment / Segment / "logs") { (version, workflowId) =>
-      Try(UUID.fromString(workflowId)) match {
+      Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStdoutStderr(w))
         case Failure(_) =>

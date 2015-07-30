@@ -9,7 +9,6 @@ import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}

@@ -3,15 +3,12 @@ package cromwell.webservice
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
-import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
-import cromwell.engine.workflow.WorkflowManagerActor
-import WorkflowManagerActor.{SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
 import cromwell.engine._
+import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowAbort, WorkflowOutputs, WorkflowStatus}
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}
-import spray.http.HttpHeaders.Location
 import spray.http._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -27,6 +24,7 @@ object MockWorkflowManagerActor {
   val runningWorkflowId = UUID.randomUUID()
   val unknownId = UUID.randomUUID()
   val submittedWorkflowId = UUID.randomUUID()
+  val abortedWorkflowId = UUID.randomUUID()
 
   def props: Props = Props(classOf[MockWorkflowManagerActor])
 }
@@ -38,6 +36,17 @@ class MockWorkflowManagerActor extends Actor  {
       sender ! MockWorkflowManagerActor.submittedWorkflowId
 
     case WorkflowStatus(id) =>
+      val msg = id match {
+        case MockWorkflowManagerActor.runningWorkflowId =>
+          Some(WorkflowRunning)
+        case MockWorkflowManagerActor.abortedWorkflowId =>
+          Some(WorkflowAborted)
+        case _ =>
+          None
+      }
+      sender ! msg
+
+    case WorkflowAbort(id) =>
       val msg = id match {
         case MockWorkflowManagerActor.runningWorkflowId =>
           Some(WorkflowRunning)
@@ -104,8 +113,56 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  "CromwellApiService" should "return 404 for abort of unknown workflow" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/abort") ~>
+      abortRoute ~>
+      check {
+        assertResult(StatusCodes.NotFound) {
+          status
+        }
+      }
+  }
 
-  s"Cromwell submit workflow API $version" should "return 201 for a succesful workfow submission " in {
+  it should "return 400 for abort of a malformed workflow id" in {
+    Post(s"/workflows/$version/foobar/abort") ~>
+      abortRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  it should "return 403 for abort of a workflow in a terminal state" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.abortedWorkflowId}/abort") ~>
+    abortRoute ~>
+    check {
+      assertResult(StatusCodes.Forbidden) {
+        status
+      }
+    }
+  }
+
+  it should "return 200 for abort of a known workflow id" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/abort") ~>
+      abortRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+
+        assertResult(
+          s"""{
+             |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
+             |  "status": "Aborted"
+             |}"""
+            .stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
+
+  s"Cromwell submit workflow API $version" should "return 201 for a successful workflow submission " in {
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
@@ -165,5 +222,4 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
-
 }

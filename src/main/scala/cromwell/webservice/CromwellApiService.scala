@@ -73,7 +73,7 @@ object CromwellApiService {
 trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
-  val workflowRoutes = queryRoute ~ outputsRoute ~ submitRoute
+  val workflowRoutes = queryRoute ~ outputsRoute ~ submitRoute ~ abortRoute
 
   @Path("/{version}/{id}/status")
   @ApiOperation(
@@ -98,6 +98,36 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         Try(UUID.fromString(id)) match {
           case Success(workflowId) =>
             requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(workflowId))
+          case Failure(ex) =>
+            complete(StatusCodes.BadRequest)
+        }
+      }
+    }
+
+  @Path("/{version}/{id}/abort")
+  @ApiOperation(
+    value = "Abort a workflow based on workflow id.",
+    nickname = "abort",
+    httpMethod = "POST",
+    produces = "application/json"
+  )
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "version", required = true, dataType = "string", paramType = "path", value = "API Version", allowableValues = CromwellApiService.VersionAllowableValues),
+    new ApiImplicitParam(name = "id", required = true, dataType = "string", paramType = "path", value = "workflow identifier")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Successful Request", response = classOf[WorkflowAbortResponse]),
+    new ApiResponse(code = 404, message = "Workflow ID Not Found"),
+    new ApiResponse(code = 403, message = "Workflow in terminal status"),
+    new ApiResponse(code = 400, message = "Malformed Workflow ID"),
+    new ApiResponse(code = 500, message = "Internal Error")
+  ))
+  def abortRoute =
+    path("workflows" / Segment / Segment / "abort") { (version, id) =>
+      post {
+        Try(UUID.fromString(id)) match {
+          case Success(workflowId) =>
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowAbort(workflowId))
           case Failure(ex) =>
             complete(StatusCodes.BadRequest)
         }

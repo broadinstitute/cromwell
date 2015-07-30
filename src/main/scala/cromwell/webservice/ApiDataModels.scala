@@ -32,3 +32,11 @@ case class WorkflowOutputResponse (
                                     @(ApiModelProperty@field)(required = true, value = "The outputs of the workflow")
                                     outputs: Map[FullyQualifiedName, WdlValue]
                                   )
+
+@ApiModel(value = "WorkflowAbort")
+case class WorkflowAbortResponse (
+                                   @(ApiModelProperty@field)(required = true, value = "The identifier of the workflow")
+                                   id: String,
+                                   @(ApiModelProperty@field)(required = true, value = "The status of the workflow")
+                                   status: String
+                                 )

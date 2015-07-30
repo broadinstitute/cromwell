@@ -49,7 +49,10 @@ package object engine {
     override val isTerminal = true
   }
 
-
+  case object WorkflowAborted extends WorkflowState {
+    override def toString: String = "Aborted"
+    override val isTerminal = true
+  }
 
   object SymbolStoreEntry {
     private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {

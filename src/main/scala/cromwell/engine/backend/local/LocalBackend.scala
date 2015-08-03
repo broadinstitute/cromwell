@@ -1,6 +1,6 @@
 package cromwell.engine.backend.local
 
-import java.io.{File, Writer}
+import java.io.{File, FilenameFilter, Writer}
 import java.nio.file.{Files, Path, Paths}
 import java.util.UUID
 
@@ -9,7 +9,7 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.backend.Backend
-import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.Backend.{StdoutStderrException, RestartableWorkflow}
 import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.engine.{ExecutionStatus, WorkflowId}
 import cromwell.parser.BackendType
@@ -59,6 +59,38 @@ object LocalBackend {
 class LocalBackend extends Backend with LazyLogging {
 
   import LocalBackend._
+
+  private class TempFileFilter(prefix: String) extends FilenameFilter {
+    val regex = s"^$prefix.*\\.tmp$$".r
+    def accept(dir: File, name: String): Boolean = regex.findFirstIn(name) match {
+      case Some(s) => true
+      case _ => false
+    }
+  }
+
+  override def stdout(workflowId: WorkflowId, callFqn: FullyQualifiedName): WdlFile = {
+    val fqnParts = callFqn.split("\\.")
+    if (fqnParts.size < 2) {
+      throw new UnsupportedOperationException("FQN not complete")
+    }
+    val hostCallDirectory = hostCallPath(fqnParts.head, workflowId, fqnParts.last).toFile
+    hostCallDirectory.listFiles(new TempFileFilter(prefix="stdout")).toSeq match {
+      case s:Seq[File] if s.size == 1 => WdlFile(s.head.getAbsolutePath)
+      case _ => throw new StdoutStderrException(s"No standard output for call $callFqn")
+    }
+  }
+
+  override def stderr(workflowId: WorkflowId, callFqn: FullyQualifiedName): WdlFile = {
+    val fqnParts = callFqn.split("\\.")
+    if (fqnParts.size < 2) {
+      throw new UnsupportedOperationException("FQN not complete")
+    }
+    val hostCallDirectory = hostCallPath(fqnParts.head, workflowId, fqnParts.last).toFile
+    hostCallDirectory.listFiles(new TempFileFilter(prefix="stderr")).toSeq match {
+      case s:Seq[File] if s.size == 1 => WdlFile(s.head.getAbsolutePath)
+      case _ => throw new StdoutStderrException(s"No standard error for call $callFqn")
+    }
+  }
 
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.

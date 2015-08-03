@@ -73,7 +73,7 @@ object CromwellApiService {
 trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
-  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ callOutputsRoute ~ abortRoute
+  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ callOutputsRoute ~ callStdoutStderrRoute ~ abortRoute
 
   @Path("/{version}/{id}/status")
   @ApiOperation(
@@ -231,6 +231,38 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         case Success(w) =>
           // This currently does not attempt to parse the call name for conformation to any pattern.
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallOutputs(w, callFqn))
+        case Failure(ex) =>
+          complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
+      }
+    }
+
+  @Path("/{version}/{workflowId}/stdout/{callFqn}")
+  @ApiOperation(
+    value = "Query for the standard output of a 'call' from its fully qualified name (e.g. my_workflow.my_call).",
+    nickname = "call-stdout",
+    httpMethod = "GET",
+    produces = "text/plain"
+    //,response = classOf[CallOutputs]
+  )
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "version", required = true, dataType = "string", paramType = "path", value = "API Version", allowableValues = CromwellApiService.VersionAllowableValues),
+    new ApiImplicitParam(name = "workflowId", required = true, dataType = "string", paramType = "path", value = "Workflow ID"),
+    new ApiImplicitParam(name = "callFqn", required = true, dataType = "string", paramType = "path", value = "Call fully qualified name")
+  ))
+  @ApiResponses(Array(
+    // See the note above regarding Swagger brokenness for why there is no response classOf here.
+    new ApiResponse(code = 200, message = "Successful Request"),
+    new ApiResponse(code = 404, message = "Workflow ID Not Found"),
+    new ApiResponse(code = 404, message = "Call Fully Qualified Name Not Found"),
+    new ApiResponse(code = 400, message = "Malformed Workflow ID"),
+    new ApiResponse(code = 500, message = "Internal Error")
+  ))
+  def callStdoutStderrRoute =
+    path("workflows" / Segment / Segment / "logs" / Segment) { (version, workflowId, callFqn) =>
+      Try(UUID.fromString(workflowId)) match {
+        case Success(w) =>
+          // This currently does not attempt to parse the call name for conformation to any pattern.
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallStdoutStderr(w, callFqn))
         case Failure(ex) =>
           complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
       }

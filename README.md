@@ -31,8 +31,9 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [POST /workflows/:version](#post-workflowsversion)
   * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
   * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
-  * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
   * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
+  * [GET /workflow/:version/:id/logs/:call](#get-workflowversionidlogscall)
+  * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -745,8 +746,37 @@ Server: spray-can/1.3.3
     }
 }
 ```
+## GET /workflow/:version/:id/logs/:call
 
-### POST /workflows/:version/:id/abort
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 379
+Content-Type: application/json; charset=UTF-8
+Date: Mon, 03 Aug 2015 17:11:28 GMT
+Server: spray-can/1.3.3
+
+{
+    "callFqn": "test.hello",
+    "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
+    "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-hello/stderr6126967977036995110.tmp",
+    "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-hello/stdout6128485235785447571.tmp"
+}
+```
+
+## POST /workflows/:version/:id/abort
 
 cURL:
 
@@ -773,8 +803,6 @@ Server: spray-can/1.3.3
     "status": "Aborted"
 }
 ```
-
-
 
 # Developer
 

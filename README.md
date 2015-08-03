@@ -412,7 +412,7 @@ $ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "Hello world!",
-  "test.hello.response": "Hello boston!"
+  "test.hello2.response": "Hello boston!"
 }
 ```
 
@@ -769,10 +769,13 @@ Date: Mon, 03 Aug 2015 17:11:28 GMT
 Server: spray-can/1.3.3
 
 {
-    "callFqn": "test.hello",
     "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
-    "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-hello/stderr6126967977036995110.tmp",
-    "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-hello/stdout6128485235785447571.tmp"
+    "logs": {
+        "call.hello": {
+            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-hello/stderr6126967977036995110.tmp",
+            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-hello/stdout6128485235785447571.tmp"
+        }
+    }
 }
 ```
 

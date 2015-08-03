@@ -1,5 +1,3 @@
 package cromwell.engine.backend
 
-import cromwell.binding.values.WdlFile
-
-case class CallLogs(stdout: WdlFile, stderr: WdlFile)
+case class CallLogs(stdout: String, stderr: String)

@@ -72,18 +72,19 @@ class MockWorkflowManagerActor extends Actor  {
       futureOutputs pipeTo sender
 
     case CallOutputs(id, callFqn) =>
-      val futureOutputs = id match {
-        case MockWorkflowManagerActor.submittedWorkflowId =>
-          Future {
-            callFqn match {
-              case "three_step.cgrep" => Map("count" -> WdlInteger(8))
-              case "three_step.ps" => Map("procs" -> WdlFile("/tmp/ps.stdout.tmp"))
-              case "three_step.wc" => Map("count" -> WdlInteger(8))
-              case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
-            }
+      val futureOutputs =
+        Future {
+          id match {
+            case MockWorkflowManagerActor.submittedWorkflowId =>
+              callFqn match {
+                case "three_step.cgrep" => Map("count" -> WdlInteger(8))
+                case "three_step.ps" => Map("procs" -> WdlFile("/tmp/ps.stdout.tmp"))
+                case "three_step.wc" => Map("count" -> WdlInteger(8))
+                case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
+              }
+            case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
           }
-        case _ => Future.failed(new WorkflowNotFoundException(s"Bad workflow ID: $id"))
-      }
+        }
       futureOutputs pipeTo sender
 
     case CallStdoutStderr(id, callFqn) =>
@@ -331,9 +332,12 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(
           s"""{
              |  "id": "$submittedWorkflowId",
-             |  "callFqn": "three_step.wc",
-             |  "stdout": "/path/to/wc-stdout",
-             |  "stderr": "/path/to/wc-stderr"
+             |  "logs": {
+             |    "three_step.wc": {
+             |      "stdout": "/path/to/wc-stdout",
+             |      "stderr": "/path/to/wc-stderr"
+             |    }
+             |  }
              |}""".stripMargin) {
           responseAs[String]
         }
@@ -362,7 +366,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return 400 for get of a malformed workflow id" in {
     Get(s"/workflows/$version/foobar/logs/three_step.wc") ~>
-      queryRoute ~>
+      callStdoutStderrRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {
           status

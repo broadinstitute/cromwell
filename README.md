@@ -32,6 +32,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
   * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
   * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
+  * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -714,6 +715,37 @@ Server: spray-can/1.3.3
 }
 ```
 
+
+## GET /workflows/:version/:id/outputs/:call
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 241
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 04 Jun 2015 12:15:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
+    "outputs": {
+        "three_step.wc.count": 8
+    }
+}
+```
+
 ### POST /workflows/:version/:id/abort
 
 cURL:
@@ -741,6 +773,7 @@ Server: spray-can/1.3.3
     "status": "Aborted"
 }
 ```
+
 
 
 # Developer

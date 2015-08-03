@@ -24,12 +24,14 @@ import scala.language.postfixOps
 
 
 object WorkflowManagerActor {
-  class WorkflowNotFoundException extends RuntimeException
+  class WorkflowNotFoundException(message: String) extends RuntimeException(message)
+  class CallNotFoundException(message: String) extends RuntimeException(message)
 
   sealed trait WorkflowManagerActorMessage
   case class SubmitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
+  case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -68,6 +70,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case WorkflowAbort(id) => sender ! Option(WorkflowAborted)
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
+    case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CurrentState(actor, state: WorkflowState) => updateWorkflowState(actor, state)
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
@@ -75,8 +78,41 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
   }
 
+  /**
+   * Returns a `Future[Any]` which will be failed if there is no workflow with the specified id.
+   */
+  private def assertWorkflowExistence(id: WorkflowId): Future[Any] = {
+    // Confirm the workflow exists by querying its state.  If no state is found the workflow doesn't exist.
+    dataAccess.getWorkflowState(id) map {
+      case None => throw new WorkflowNotFoundException(s"Workflow '$id' not found")
+      case _ =>
+    }
+  }
+
+  private def assertCallExistence(id: WorkflowId, callFqn: FullyQualifiedName): Future[Any] = {
+    dataAccess.getExecutionStatus(id, callFqn) map {
+      case None => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
+      case _ =>
+    }
+  }
+
   private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
-    dataAccess.getOutputs(id) map SymbolStoreEntry.toWorkflowOutputs
+    for {
+      _ <- assertWorkflowExistence(id)
+      outputs <- dataAccess.getOutputs(id)
+    } yield {
+      SymbolStoreEntry.toWorkflowOutputs(outputs)
+    }
+  }
+
+  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[binding.CallOutputs] = {
+    for {
+      _ <- assertWorkflowExistence(workflowId)
+      _ <- assertCallExistence(workflowId, callFqn)
+      outputs <- dataAccess.getOutputs(workflowId, callFqn)
+    } yield {
+      SymbolStoreEntry.toCallOutputs(outputs)
+    }
   }
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,

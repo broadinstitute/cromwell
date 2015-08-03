@@ -28,7 +28,6 @@ object WorkflowActor {
   case class CallStarted(call: Call) extends WorkflowActorMessage
   case class CallCompleted(call: Call, callOutputs: CallOutputs) extends WorkflowActorMessage
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
-  case class RunnableCalls(calls: Iterable[Call]) extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
     Props(WorkflowActor(descriptor, backend, dataAccess))
@@ -324,7 +323,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def fetchCallOutputEntries(call: Call): Try[WdlObject] = {
-    val futureValue = dataAccess.getOutputs(workflow.id, call).map {callOutputEntries =>
+    val futureValue = dataAccess.getOutputs(workflow.id, call.fullyQualifiedName).map {callOutputEntries =>
       val callOutputsAsMap = callOutputEntries.map { entry =>
         entry.key.name -> entry.wdlValue
       }.toMap

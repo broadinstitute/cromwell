@@ -28,7 +28,7 @@ object CromwellApiHandler {
 
   sealed trait WorkflowManagerMessage
 
-  case class SubmitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
+  case class WorkflowSubmit(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
 
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
@@ -36,9 +36,7 @@ object CromwellApiHandler {
 
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
   
-  // Builds an internal message for the workflow manager, which will then respond to an ask with an
-  // Option[WorkflowState].
-  type InternalMessageBuilder = WorkflowId => WorkflowManagerActorMessage
+  case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
@@ -79,8 +77,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
           }
       }
 
-
-    case SubmitWorkflow(wdlSource, wdlJson, inputs) =>
+    case WorkflowSubmit(wdlSource, wdlJson, inputs) =>
       val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
       workflowManagerResponseFuture.onComplete {
         case Success(id) =>
@@ -100,6 +97,15 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       eventualWorkflowOutputs onComplete {
         case Success(outputs) => context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputs))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound)
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case CallOutputs(id, callFqn) =>
+      val eventualCallOutputs = ask(workflowManager, WorkflowManagerActor.CallOutputs(id, callFqn)).mapTo[binding.CallOutputs]
+      eventualCallOutputs onComplete {
+        case Success(outputs) if outputs.nonEmpty => context.parent ! RequestComplete(StatusCodes.OK, CallOutputResponse(id.toString, callFqn, outputs))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, s"Workflow '$id' not found.")
+        case Failure(ex: WorkflowManagerActor.CallNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, s"Call $callFqn not found for workflow '$id'.")
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
   }

@@ -1,7 +1,7 @@
 package cromwell.engine.db
 
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{Call, FullyQualifiedName, WdlJson, WdlSource}
+import cromwell.binding._
 import cromwell.engine.backend.Backend
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
@@ -65,7 +65,7 @@ trait DataAccess {
   def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   /** Get all outputs for the scope of this call. */
-  def getOutputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]]
+  def getOutputs(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]]
 
   /** Get all inputs for the scope of this call. */
   def getInputs(id: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]]
@@ -76,6 +76,8 @@ trait DataAccess {
   def setStatus(workflowId: WorkflowId, calls: Traversable[FullyQualifiedName], callStatus: CallStatus): Future[Unit]
 
   def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]]
+
+  def getExecutionStatus(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Option[CallStatus]]
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]

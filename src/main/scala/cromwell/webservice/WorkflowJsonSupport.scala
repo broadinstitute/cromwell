@@ -1,8 +1,9 @@
 package cromwell.webservice
 
-import spray.json.DefaultJsonProtocol
 import cromwell.binding.values.WdlValueJsonFormatter._
-
+import cromwell.binding.values.WdlFileJsonFormatter._
+import cromwell.engine.backend.StdoutStderr
+import spray.json.DefaultJsonProtocol
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -10,4 +11,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowSubmitResponseProtocol = jsonFormat2(WorkflowSubmitResponse)
   implicit val workflowOutputResponseProtocol = jsonFormat2(WorkflowOutputResponse)
   implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
+  implicit val callLogsResponseProtocol = jsonFormat2(StdoutStderr)
+  implicit val callStdoutStderrResponse = jsonFormat2(CallStdoutStderrResponse)
 }

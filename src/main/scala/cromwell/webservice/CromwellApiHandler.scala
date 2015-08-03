@@ -7,7 +7,7 @@ import akka.util.Timeout
 import cromwell.binding.values.WdlFile
 import cromwell.binding.{FullyQualifiedName, WdlJson, WdlSource, WorkflowRawInputs}
 import cromwell.engine._
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{CallLogs, Backend}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
@@ -116,7 +116,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
     case CallStdoutStderr(id, callFqn) =>
       val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.CallStdoutStderr(id, callFqn)).mapTo[(WdlFile, WdlFile)]
       eventualCallLogs onComplete {
-        case Success(logs) => context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, callFqn, logs._1.value, logs._2.value))
+        case Success(logs) => context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, Map(callFqn -> CallLogs(logs._1, logs._2))))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex: WorkflowManagerActor.CallNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex: Backend.StdoutStderrException) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)

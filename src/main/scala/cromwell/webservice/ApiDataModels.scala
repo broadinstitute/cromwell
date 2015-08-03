@@ -50,3 +50,14 @@ case class CallOutputResponse(
                                outputs: Map[FullyQualifiedName, WdlValue]
                              )
 
+@ApiModel(value = "CallStdoutStderr")
+case class CallStdoutStderrResponse(
+                               @(ApiModelProperty@field)(required = true, value = "The identifier of the workflow")
+                               id: String,
+                               @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
+                               callFqn: String,
+                               @(ApiModelProperty@field)(required = true, value = "Path to the standard output file")
+                               stdout: String,
+                               @(ApiModelProperty@field)(required = true, value = "Path to the standard error file")
+                               stderr: String
+                             )

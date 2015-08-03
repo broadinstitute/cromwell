@@ -17,6 +17,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object Backend {
+  class StdoutStderrException(message: String) extends RuntimeException(message)
   def from(backendConf: Config): Backend = {
     backendConf.getString("backend").toLowerCase match {
       case "local" => new LocalBackend
@@ -62,6 +63,18 @@ trait Backend {
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
    */
   def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any]
+
+  /**
+   * Return WdlFile representing the standard output of a specific call
+   */
+
+  def stdout(workflowId: WorkflowId, workflowName: String, callName: String): WdlFile
+
+  /**
+   * Return WdlFile representing the standard error of a specific call
+   */
+
+  def stderr(workflowId: WorkflowId, workflowName: String, callName: String): WdlFile
 
   /**
    * Presuming successful completion of the specified call, evaluate its outputs.

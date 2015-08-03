@@ -10,15 +10,17 @@ import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
+import cromwell.engine.WorkflowId
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.db.DataAccess
 import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
-import scala.concurrent.{Future, ExecutionContext}
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
-import JesBackend._
 
 object JesBackend {
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
@@ -130,6 +132,12 @@ class JesBackend extends Backend with LazyLogging {
   def anonymousTaskOutput(value: String, engineFunctions: JesEngineFunctions): JesOutput = {
     JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
   }
+
+  override def stdout(workflowId: WorkflowId, workflowName: String, callName: String): WdlFile =
+    WdlFile(s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName/$LocalStdoutValue")
+
+  override def stderr(workflowId: WorkflowId, workflowName: String, callName: String): WdlFile =
+    WdlFile(s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName/$LocalStderrValue")
 
   override def executeCommand(instantiatedCommandLine: String,
                               workflowDescriptor: WorkflowDescriptor,

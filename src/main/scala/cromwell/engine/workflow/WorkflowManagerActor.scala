@@ -9,6 +9,7 @@ import akka.pattern.pipe
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
+import cromwell.binding.values.WdlFile
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -32,6 +33,7 @@ object WorkflowManagerActor {
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
+  case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -71,6 +73,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
+    case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case CurrentState(actor, state: WorkflowState) => updateWorkflowState(actor, state)
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
@@ -113,6 +116,23 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }
+  }
+
+  private def assertCallFqnWellFormed(callFqn: FullyQualifiedName): Future[(String, String)] = {
+    callFqn.split("\\.").toSeq match {
+      case s:Seq[String] if s.size >= 2 => Future.successful(s.head, s.last)
+      case _ => throw new UnsupportedOperationException("Expected a fully qualified name to have two parts")
+    }
+  }
+
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[(WdlFile, WdlFile)] = {
+    for {
+      _ <- assertWorkflowExistence(workflowId)
+      _ <- assertCallExistence(workflowId, callFqn)
+      (wf, call) <- assertCallFqnWellFormed(callFqn)
+      stdout <- Future.successful(backend.stdout(workflowId, wf, call))
+      stderr <- Future.successful(backend.stderr(workflowId, wf, call))
+    } yield (stdout, stderr)
   }
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,

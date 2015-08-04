@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.util.Date
 
-import com.google.api.services.genomics.model.{Status, ServiceAccount, RunPipelineRequest}
+import com.google.api.services.genomics.model.{Logging, Status, ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
 import cromwell.util.google.GoogleScopes
@@ -21,6 +21,10 @@ object Run  {
     println(s"Run inputs are ${rpr.getInputs}")
     rpr.setOutputs(pipeline.jesParameters.filter(_.isOutput).toRunMap)
     println(s"Run outputs are ${rpr.getOutputs}")
+
+    val logging = new Logging()
+    logging.setGcsPath(pipeline.gcsPath)
+    rpr.setLogging(logging)
 
     val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
     println(s"Run Id is $id")

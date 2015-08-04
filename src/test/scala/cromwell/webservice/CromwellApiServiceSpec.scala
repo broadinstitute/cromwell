@@ -103,6 +103,17 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureOutputs pipeTo sender
+
+    case WorkflowStdoutStderr(id) =>
+      val futureOutputs =
+      Future {
+        id match {
+          case MockWorkflowManagerActor.submittedWorkflowId =>
+            Map("three_step.ps" -> StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr")))
+          case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
+        }
+      }
+      futureOutputs pipeTo sender
   }
 }
 
@@ -323,8 +334,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  "Cromwell stdout/stderr API" should "return 200 with paths to stdout/stderr" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/logs/three_step.wc") ~>
+  "Cromwell call stdout/stderr API" should "return 200 with paths to stdout/stderr" in {
+    Get(s"/workflows/$version/$submittedWorkflowId/logs/three_step.wc") ~>
       callStdoutStderrRoute ~>
       check {
         assertResult(StatusCodes.OK) {
@@ -374,4 +385,27 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+
+  "Cromwell workflow stdout/stderr API" should "return 200 with paths to stdout/stderr" in {
+    Get(s"/workflows/$version/$submittedWorkflowId/logs") ~>
+      workflowStdoutStderrRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "id": "$submittedWorkflowId",
+             |  "logs": {
+             |    "three_step.ps": {
+             |      "stdout": "/path/to/ps-stdout",
+             |      "stderr": "/path/to/ps-stderr"
+             |    }
+             |  }
+             |}""".stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
+
 }

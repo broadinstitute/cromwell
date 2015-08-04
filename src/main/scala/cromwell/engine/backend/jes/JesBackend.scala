@@ -143,12 +143,6 @@ class JesBackend extends Backend with LazyLogging {
     )
   }
 
-  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr =
-    StdoutStderr(
-      stdout = WdlFile(callGcsPath(workflowId.toString, workflowName, callName) + s"/$LocalStdoutValue"),
-      stderr = WdlFile(callGcsPath(workflowId.toString, workflowName, callName) + s"/$LocalStderrValue")
-    )
-
   override def executeCommand(instantiatedCommandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,

@@ -6,6 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding.{WdlJson, WdlSource, WorkflowRawInputs}
 import cromwell.engine._
+import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
@@ -37,6 +38,10 @@ object CromwellApiHandler {
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
   
   case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
+
+  case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
+  
+  case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
@@ -106,6 +111,25 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Success(outputs) if outputs.nonEmpty => context.parent ! RequestComplete(StatusCodes.OK, CallOutputResponse(id.toString, callFqn, outputs))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, s"Workflow '$id' not found.")
         case Failure(ex: WorkflowManagerActor.CallNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, s"Call $callFqn not found for workflow '$id'.")
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case CallStdoutStderr(id, callFqn) =>
+      val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.CallStdoutStderr(id, callFqn)).mapTo[StdoutStderr]
+      eventualCallLogs onComplete {
+        case Success(logs) => context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, Map(callFqn -> logs)))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
+        case Failure(ex: WorkflowManagerActor.CallNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
+        case Failure(ex: Backend.StdoutStderrException) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case WorkflowStdoutStderr(id) =>
+      val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.WorkflowStdoutStderr(id)).mapTo[Map[String, StdoutStderr]]
+      eventualCallLogs onComplete {
+        case Success(logs) =>
+          context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, logs))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
   }

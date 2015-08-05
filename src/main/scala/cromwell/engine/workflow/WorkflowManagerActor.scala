@@ -9,9 +9,10 @@ import akka.pattern.pipe
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.Backend
 import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
@@ -21,6 +22,7 @@ import spray.json._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 
 object WorkflowManagerActor {
@@ -32,6 +34,8 @@ object WorkflowManagerActor {
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
+  case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
+  case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerActorMessage
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -71,6 +75,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
+    case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
+    case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
     case CurrentState(actor, state: WorkflowState) => updateWorkflowState(actor, state)
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
@@ -113,6 +119,45 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }
+  }
+
+  /* Return value here is a tuple: (workflow name, call name)
+   * TODO: This should use a more sophisticated way of resolving FQNs.  See DSDEEPB-986
+   */
+  private def assertCallFqnWellFormed(callFqn: FullyQualifiedName): Try[(String, String)] = {
+    callFqn.split("\\.").toSeq match {
+      case s: Seq[String] if s.size >= 2 => Success(s.head, s.last)
+      case _ => Failure(new UnsupportedOperationException("Expected a fully qualified name to have at least two parts"))
+    }
+  }
+
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[StdoutStderr] = {
+    for {
+      _ <- assertWorkflowExistence(workflowId)
+      _ <- assertCallExistence(workflowId, callFqn)
+      (wf, call) <- Future.fromTry(assertCallFqnWellFormed(callFqn))
+      callStandardOutput <- Future.successful(backend.stdoutStderr(workflowId, wf, call))
+    } yield callStandardOutput
+  }
+
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, StdoutStderr]] = {
+    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[LocallyQualifiedName, StdoutStderr]] = {
+      Try {
+        val callsToPaths = for {
+          (call, status) <- statusMap.toSeq
+          if Set(ExecutionStatus.Done, ExecutionStatus.Failed).contains(status)
+          (wf, callLqn) = assertCallFqnWellFormed(call).get
+          callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn)
+        } yield callLqn -> callStandardOutput
+        callsToPaths.toMap
+      }
+    }
+
+    for {
+      _ <- assertWorkflowExistence(workflowId)
+      callToStatusMap <- dataAccess.getExecutionStatuses(workflowId)
+      callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap))
+    } yield callToLogsMap
   }
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,

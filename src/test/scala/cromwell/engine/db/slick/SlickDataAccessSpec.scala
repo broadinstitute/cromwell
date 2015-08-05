@@ -7,9 +7,9 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.command.Command
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlString}
+import cromwell.binding.values.{WdlFile, WdlArray, WdlString}
 import cromwell.engine._
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{StdoutStderr, Backend}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
@@ -38,6 +38,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   object UnknownBackend extends Backend {
     override def adjustInputPaths(call: Call, inputs: CallInputs) = Map.empty
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+    override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = ???
 
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = Map.empty
 

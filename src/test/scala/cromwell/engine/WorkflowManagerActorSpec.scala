@@ -8,10 +8,13 @@ import cromwell.binding.command.Command
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
+import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, SubmitWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.engine.workflow.WorkflowManagerActor.CallOutputs
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
@@ -138,7 +141,39 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             self, "Test WorkflowManagerActor output lookup failure")
           val id = UUID.randomUUID()
           Try {
-            messageAndWait[WorkflowId](WorkflowOutputs(id))
+            messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(id))
+          } match {
+            case Success(_) => fail("Expected lookup to fail with unknown workflow")
+            case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"
+          }
+        }
+      }
+    }
+
+    "error when asked for call logs of a nonexistent workflow" in {
+      withDataAccess { dataAccess =>
+        within(TestExecutionTimeout) {
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
+            self, "Test WorkflowManagerActor call log lookup failure")
+          val id = UUID.randomUUID()
+          Try {
+            messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
+          } match {
+            case Success(_) => fail("Expected lookup to fail with unknown workflow")
+            case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"
+          }
+        }
+      }
+    }
+
+    "error when asked for logs of a nonexistent workflow" in {
+      withDataAccess { dataAccess =>
+        within(TestExecutionTimeout) {
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
+            self, "Test WorkflowManagerActor log lookup failure")
+          val id = UUID.randomUUID()
+          Try {
+            messageAndWait[Map[LocallyQualifiedName, StdoutStderr]](WorkflowStdoutStderr(id))
           } match {
             case Success(_) => fail("Expected lookup to fail with unknown workflow")
             case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"

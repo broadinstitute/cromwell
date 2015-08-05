@@ -8,8 +8,8 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
-import cromwell.engine.backend.Backend
-import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.{StdoutStderr, Backend}
+import cromwell.engine.backend.Backend.{RestartableWorkflow, StdoutStderrException}
 import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.engine.{ExecutionStatus, WorkflowId}
 import cromwell.parser.BackendType
@@ -17,10 +17,11 @@ import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
 import org.apache.commons.io.FileUtils
 
+import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 object LocalBackend {
 
@@ -33,6 +34,23 @@ object LocalBackend {
     def writeWithNewline(string: String): Unit = {
       writer.write(string)
       writer.write("\n")
+    }
+  }
+
+  def findTempFile(root: Path, prefix: String) = {
+    val regex = s"$prefix.*\\.tmp$$".r.unanchored
+    val filesWithPrefix = Try(Files.newDirectoryStream(root)).map(
+      stream => stream.iterator().toIterator.toList.collect {
+        case path:Path if regex.findFirstIn(path.toAbsolutePath.toString).isDefined => path
+      }
+    )
+    filesWithPrefix match {
+      case Success(paths) => paths match {
+        case head :: Nil => WdlFile(head.toAbsolutePath.toString)
+        case Nil => throw new StdoutStderrException(s"No $prefix file found")
+        case s => throw new StdoutStderrException(s"Multiple files matched with prefix $prefix:\n${s.map(_.toString).mkString(", ")}")
+      }
+      case Failure(ex) => throw ex
     }
   }
 
@@ -59,6 +77,14 @@ object LocalBackend {
 class LocalBackend extends Backend with LazyLogging {
 
   import LocalBackend._
+
+  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
+    val dir = hostCallPath(workflowName, workflowId, callName)
+    StdoutStderr(
+      stdout = findTempFile(dir, prefix = "stdout"),
+      stderr = findTempFile(dir, prefix = "stderr")
+    )
+  }
 
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.

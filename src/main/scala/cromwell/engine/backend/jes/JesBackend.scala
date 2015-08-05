@@ -108,7 +108,7 @@ class JesBackend extends Backend with LazyLogging {
   def taskOutputToJesOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
     taskOutput.wdlType match {
       case WdlFileType =>
-        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
+        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true) match {
           case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
           case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
         }
@@ -173,7 +173,7 @@ class JesBackend extends Backend with LazyLogging {
 
     def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
       val jesOutputFile = unsafeJesOutputs find {_.name == taskOutput.name} map {j => WdlFile(j.gcs)}
-      jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions))
+      jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true))
     }
 
     val outputMappings = call.task.outputs.map { taskOutput =>

@@ -121,7 +121,7 @@ class LocalBackend extends Backend with LazyLogging {
       if (rc == 0) {
         evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction, interpolateStrings=true)
       } else {
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine"))
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine\n\nFull command was: ${argv.mkString(" ")}"))
       }
     }
   }

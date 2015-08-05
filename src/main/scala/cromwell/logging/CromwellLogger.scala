@@ -17,7 +17,7 @@ class TerminalLayout extends LayoutBase[ILoggingEvent] {
 
     val highlightedMessage = event.getFormattedMessage
       .replaceAll("UUID\\((.*?)\\)", TerminalUtil.highlight(2, "$1"))
-      .replaceAll("`(.*?)`", TerminalUtil.highlight(5, "$1"))
+      .replaceAll("`([^`]*?)`", TerminalUtil.highlight(5, "$1"))
 
     /* For some reason a '{}' is the value of getMessage only for Actors.
        This prepends a highlighted asterisk to messages that come from actors.

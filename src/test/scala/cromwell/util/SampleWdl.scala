@@ -734,4 +734,30 @@ object SampleWdl {
 
     override val rawInputs = Map.empty[String, String]
   }
+
+  object MultiLineCommandWorkflowWdl extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task blah {
+        |  command <<<
+        |    python <<CODE
+        |    def a():
+        |      return "a"
+        |    def b():
+        |      return "b"
+        |    print('{}{}'.format(a(),b()))
+        |    CODE
+        |  >>>
+        |
+        |  output {
+        |    String ab = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  call blah
+        |}
+      """.stripMargin
+
+    override val rawInputs = Map.empty[String, String]
+  }
 }

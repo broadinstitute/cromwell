@@ -6,6 +6,7 @@ import cromwell.engine.backend.StdoutStderr
 import spray.json.DefaultJsonProtocol
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
+  implicit val workflowValidationResponseProtocol = jsonFormat2(WorkflowValidateResponse)
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
   implicit val workflowAbortResponseProtocol = jsonFormat2(WorkflowAbortResponse)
   implicit val workflowSubmitResponseProtocol = jsonFormat2(WorkflowSubmitResponse)

@@ -8,7 +8,7 @@ import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
 import cromwell.engine._
 import cromwell.engine.backend.StdoutStderr
-import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, WorkflowAbort, WorkflowOutputs, WorkflowStatus, _}
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
 import org.scalatest.{FlatSpec, Matchers}
@@ -118,6 +118,7 @@ class MockWorkflowManagerActor extends Actor  {
 }
 
 object CromwellApiServiceSpec {
+  val MissingInputsJson: String = "{}"
   val MalformedInputsJson : String = "foobar bad json!"
   val MalformedWdl : String = "foobar bad wdl!"
 }
@@ -239,6 +240,85 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           status
         }
         assertResult("workflowInput JSON was malformed") {
+          responseAs[String]
+        }
+      }
+  }
+
+  s"Cromwell validate workflow API $version" should "return 200 for a successful workflow submission" in {
+    Post("/workflows/$version/validate", FormData(Seq(
+      "wdlSource" -> HelloWorld.wdlSource(),
+      "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))
+    ) ~>
+      validateRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "valid": true
+             |}""".stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return 400 for a missing input" in {
+    Post("/workflows/$version/validate", FormData(Seq(
+      "wdlSource" -> HelloWorld.wdlSource(),
+      "workflowInputs" -> CromwellApiServiceSpec.MissingInputsJson))
+    ) ~>
+      validateRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "valid": false,
+             |  "error": "The following errors occurred while processing your inputs:\\n\\nRequired workflow input 'hello.hello.addressee' not specified."
+             |}""".stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return 400 for a malformed WDL" in {
+    Post(s"/workflows/$version/validate", FormData(Seq(
+      "wdlSource" -> CromwellApiServiceSpec.MalformedWdl,
+      "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))
+    ) ~>
+      validateRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "valid": false,
+             |  "error": "ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "
+             |}""".stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return 400 for a malformed JSON" in {
+    Post("/workflows/$version/validate", FormData(Seq(
+      "wdlSource" -> HelloWorld.wdlSource(),
+      "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))
+    ) ~>
+      validateRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "valid": false,
+             |  "error": "Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"
+             |}""".stripMargin) {
           responseAs[String]
         }
       }

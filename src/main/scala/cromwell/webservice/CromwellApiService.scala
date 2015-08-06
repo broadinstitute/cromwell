@@ -6,6 +6,7 @@ import javax.ws.rs.Path
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.typesafe.config.Config
 import com.wordnik.swagger.annotations._
+import cromwell.engine.workflow.ValidateActor
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
@@ -148,7 +149,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     new ApiImplicitParam(name = "workflowInputs", required = true, dataType = "File", paramType = "form", value = "WDL JSON")
   ))
   @ApiResponses(Array(
-    new ApiResponse(code = 201, message = "Successful Request", response = classOf[WorkflowStatusResponse]),
+    new ApiResponse(code = 201, message = "Successful Request", response = classOf[WorkflowSubmitResponse]),
     new ApiResponse(code = 400, message = "Malformed Input"),
     new ApiResponse(code = 500, message = "Internal Error")
   ))
@@ -166,6 +167,37 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
             case Failure(ex) =>
               complete(StatusCodes.BadRequest, "workflowInput JSON was malformed")
           }
+        }
+      }
+    }
+
+  @Path("/{version}/validate")
+  @ApiOperation(
+    value = "Validate a workflow for execution",
+    nickname = "submit",
+    httpMethod = "POST",
+    consumes = "multipart/form-data",
+    produces = "application/json"
+  )
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "version", required = true, dataType = "string", paramType = "path", value = "API Version", allowableValues = CromwellApiService.VersionAllowableValues),
+    new ApiImplicitParam(name = "wdlSource", required = true, dataType = "File", paramType = "form", value = "WDL Source"),
+    new ApiImplicitParam(name = "workflowInputs", required = true, dataType = "File", paramType = "form", value = "WDL JSON")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Successful Request", response = classOf[WorkflowValidateResponse]),
+    new ApiResponse(code = 400, message = "Malformed Input", response = classOf[WorkflowValidateResponse]),
+    new ApiResponse(code = 500, message = "Internal Error")
+  ))
+  def validateRoute =
+    path("workflows" / Segment / "validate") { version =>
+      post {
+        formFields("wdlSource", "workflowInputs") { (wdlSource, workflowInputs) =>
+          requestContext =>
+            perRequest(
+              requestContext,
+              ValidateActor.props(wdlSource, workflowInputs),
+              ValidateActor.ValidateWorkflow)
         }
       }
     }

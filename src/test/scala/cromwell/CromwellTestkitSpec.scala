@@ -20,7 +20,7 @@ import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{OneInstancePerTest, BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -33,7 +33,7 @@ object CromwellTestkitSpec {
     """
       |akka {
       |  loggers = ["akka.event.slf4j.Slf4jLogger", "akka.testkit.TestEventListener"]
-      |  loglevel = "DEBUG"
+      |  loglevel = "INFO"
       |  actor {
       |    debug {
       |       receive = on
@@ -46,7 +46,7 @@ object CromwellTestkitSpec {
 }
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
-with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures {
+with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$")(block)
@@ -56,7 +56,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   def waitForHandledMessagePattern[T](pattern: String)(block: => T): T = {
-    EventFilter.debug(pattern = pattern, occurrences = 1).intercept {
+    EventFilter.info(pattern = pattern, occurrences = 1).intercept {
       block
     }
   }
@@ -154,14 +154,16 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
   }
 
-  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, stdout: Option[String], stderr: Option[String]) = {
-    EventFilter.info(pattern="transitioning from Running to Succeeded", occurrences=1).intercept {
-      val workflowId = wma.ask(submitMsg).mapTo[WorkflowId].futureValue
-      def workflowStatus = wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]].futureValue
-      awaitCond(workflowStatus.contains(WorkflowSucceeded))
-      val standardStreams = wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, "hello.hello")).mapTo[StdoutStderr].futureValue
-      stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
-      stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
+  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
+    eventFilter.intercept {
+      within(5 seconds) {
+        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], 5 seconds)
+        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], 5 seconds)
+        awaitCond(workflowStatus.contains(WorkflowSucceeded))
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], 5 seconds)
+        stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
+        stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
+      }
     }
   }
 
@@ -176,9 +178,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     runWdl(fsm, eventFilter, expectedOutputs)
   }
 
-  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {
+  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
-    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, stdout, stderr)
+    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, stdout, stderr)
   }
 }

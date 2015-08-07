@@ -13,7 +13,8 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
     "have correct contents in stdout/stderr files" in {
       runWdlAndAssertStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"starting calls: hello.hello", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of calls hello.hello to Done", occurrences = 1),
+        fqn = "hello.hello",
         stdout = Some("Hello world!\n"),
         stderr = Some("")
       )
@@ -21,12 +22,13 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
     "have correct contents in stdout/stderr files in a Docker environment" taggedAs DockerTest in {
       runWdlAndAssertStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"starting calls: hello.hello", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of calls hello.hello to Done", occurrences = 1),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"
             |}
           """.stripMargin,
+        fqn = "hello.hello",
         stdout = Some("Hello world!\n"),
         stderr = Some("")
       )

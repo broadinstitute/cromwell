@@ -1,5 +1,6 @@
 package cromwell
 
+import java.io.File
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -10,15 +11,16 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlValue}
+import cromwell.engine._
+import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.WorkflowActor
-import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.{WorkflowState, WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
 import cromwell.parser.BackendType
+import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{OneInstancePerTest, BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -31,7 +33,7 @@ object CromwellTestkitSpec {
     """
       |akka {
       |  loggers = ["akka.event.slf4j.Slf4jLogger", "akka.testkit.TestEventListener"]
-      |  loglevel = "DEBUG"
+      |  loglevel = "INFO"
       |  actor {
       |    debug {
       |       receive = on
@@ -44,7 +46,7 @@ object CromwellTestkitSpec {
 }
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
-with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures {
+with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$")(block)
@@ -54,7 +56,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   def waitForHandledMessagePattern[T](pattern: String)(block: => T): T = {
-    EventFilter.debug(pattern = pattern, occurrences = 1).intercept {
+    EventFilter.info(pattern = pattern, occurrences = 1).intercept {
       block
     }
   }
@@ -122,15 +124,19 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     TestFSMRef(new WorkflowActor(buildWorkflowDescriptor(sampleWdl, runtime), new LocalBackend, dataAccess))
   }
 
-  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor], eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+  private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {
+    TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend))
+  }
+
+  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowActor.WorkflowFailure, WorkflowActor], eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
     assert(fsm.stateName == WorkflowSubmitted)
     eventFilter.intercept {
-      fsm ! Start
+      fsm ! WorkflowActor.Start
       within(5 seconds) {
         awaitCond(fsm.stateName == WorkflowRunning)
         awaitCond(fsm.stateName.isTerminal)
-        fsm.stateData should be(NoFailureMessage)
-        val outputs = fsm.ask(GetOutputs).mapTo[WorkflowOutputs].futureValue
+        fsm.stateData should be(WorkflowActor.NoFailureMessage)
+        val outputs = fsm.ask(WorkflowActor.GetOutputs).mapTo[WorkflowOutputs].futureValue
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
           val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
@@ -148,6 +154,19 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
   }
 
+  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
+    eventFilter.intercept {
+      within(5 seconds) {
+        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], 5 seconds)
+        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], 5 seconds)
+        awaitCond(workflowStatus.contains(WorkflowSucceeded))
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], 5 seconds)
+        stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
+        stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
+      }
+    }
+  }
+
   /* TODO: make the `eventFilter` parameter able to accept a `Seq[EventFilter]` */
   def runWdlAndAssertOutputs(descriptor: WorkflowDescriptor, eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue]): Unit = {
     val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
@@ -159,4 +178,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     runWdl(fsm, eventFilter, expectedOutputs)
   }
 
+  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {
+    val actor = buildWorkflowManagerActor(sampleWdl, runtime)
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, stdout, stderr)
+  }
 }

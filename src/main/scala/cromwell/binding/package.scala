@@ -21,8 +21,9 @@ package object binding {
   type WorkflowCoercedInputs = Map[FullyQualifiedName, WdlValue]
   type WorkflowOutputs = Map[FullyQualifiedName, WdlValue]
   type FullyQualifiedName = String
+  type LocallyQualifiedName = String
   type CallInputs = Map[String, WdlValue]
-  type CallOutputs = Map[FullyQualifiedName, WdlValue]
+  type CallOutputs = Map[LocallyQualifiedName, WdlValue]
   type HostInputs = Map[String, WdlValue]
 
   type ImportResolver = String => WdlSource

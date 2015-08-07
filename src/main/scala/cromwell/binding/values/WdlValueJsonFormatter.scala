@@ -16,3 +16,10 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
     def read(value: JsValue) = ???
   }
 }
+
+object WdlFileJsonFormatter extends DefaultJsonProtocol {
+  implicit object WdlFileJsonFormat extends RootJsonFormat[WdlFile] {
+    def write(value: WdlFile) = JsString(value.value)
+    def read(value: JsValue) = ???
+  }
+}

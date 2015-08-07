@@ -10,15 +10,17 @@ import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
-import cromwell.engine.backend.Backend
+import cromwell.engine.WorkflowId
+import cromwell.engine.backend.{StdoutStderr, Backend}
 import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.db.DataAccess
 import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
-import scala.concurrent.{Future, ExecutionContext}
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
-import JesBackend._
 
 object JesBackend {
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
@@ -39,10 +41,12 @@ object JesBackend {
   val LocalStdoutValue = "job.stdout.txt"
   val LocalStderrValue = "job.stderr.txt"
 
+  private def callGcsPath(workflowId: String, workflowName: String, callName: String): String =
+    s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName"
+
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
-    def bucket = s"$CromwellExecutionBucket/${descriptor.name}/${descriptor.id.toString}"
-    def callDir(call: Call) = s"$bucket/call-${call.name}"
+    def callDir(call: Call) = callGcsPath(descriptor.id.toString, descriptor.name, call.name)
   }
 
   def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
@@ -108,7 +112,7 @@ class JesBackend extends Backend with LazyLogging {
   def taskOutputToJesOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
     taskOutput.wdlType match {
       case WdlFileType =>
-        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions) match {
+        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true) match {
           case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
           case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
         }
@@ -129,6 +133,14 @@ class JesBackend extends Backend with LazyLogging {
 
   def anonymousTaskOutput(value: String, engineFunctions: JesEngineFunctions): JesOutput = {
     JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
+  }
+
+  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
+    val base = callGcsPath(workflowId.toString, workflowName, callName)
+    StdoutStderr(
+      stdout = WdlFile(s"$base/$LocalStdoutValue"),
+      stderr = WdlFile(s"$base/$LocalStderrValue")
+    )
   }
 
   override def executeCommand(instantiatedCommandLine: String,
@@ -173,7 +185,7 @@ class JesBackend extends Backend with LazyLogging {
 
     def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
       val jesOutputFile = unsafeJesOutputs find {_.name == taskOutput.name} map {j => WdlFile(j.gcs)}
-      jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions))
+      jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true))
     }
 
     val outputMappings = call.task.outputs.map { taskOutput =>

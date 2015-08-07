@@ -2,10 +2,11 @@ package cromwell.engine.backend.jes
 
 import java.util.Date
 
-import com.google.api.services.genomics.model.{Status, ServiceAccount, RunPipelineRequest}
+import com.google.api.services.genomics.model.{Logging, Status, ServiceAccount, RunPipelineRequest}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Running, Success, Failed}
 import cromwell.util.google.GoogleScopes
+import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
 import com.typesafe.scalalogging.{StrictLogging, LazyLogging}
 import scala.collection.JavaConverters._
@@ -13,17 +14,23 @@ import Run._
 
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
+  lazy val Log = LoggerFactory.getLogger("main")
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
+    val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.call.name}]"
 
     rpr.setInputs(pipeline.jesParameters.filter(_.isInput).toRunMap)
-    println(s"Run inputs are ${rpr.getInputs}")
+    Log.info(s"$tag inputs are ${rpr.getInputs}")
     rpr.setOutputs(pipeline.jesParameters.filter(_.isOutput).toRunMap)
-    println(s"Run outputs are ${rpr.getOutputs}")
+    Log.info(s"$tag outputs are ${rpr.getOutputs}")
+
+    val logging = new Logging()
+    logging.setGcsPath(pipeline.gcsPath)
+    rpr.setLogging(logging)
 
     val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
-    println(s"Run Id is $id")
+    Log.info(s"$tag ID is $id")
     new Run(id, pipeline)
   }
 

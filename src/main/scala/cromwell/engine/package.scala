@@ -49,7 +49,10 @@ package object engine {
     override val isTerminal = true
   }
 
-
+  case object WorkflowAborted extends WorkflowState {
+    override def toString: String = "Aborted"
+    override val isTerminal = true
+  }
 
   object SymbolStoreEntry {
     private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {
@@ -65,6 +68,10 @@ package object engine {
 
     def toWorkflowOutputs(t: Traversable[SymbolStoreEntry]): WorkflowOutputs = t.map { e =>
       s"${e.key.scope}.${e.key.name}" -> e.wdlValue.get
+    }.toMap
+
+    def toCallOutputs(traversable: Traversable[SymbolStoreEntry]): CallOutputs = traversable.map { entry =>
+      entry.key.name -> entry.wdlValue.get
     }.toMap
   }
 

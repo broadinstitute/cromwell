@@ -25,10 +25,8 @@ object Main extends App {
   lazy val Log = LoggerFactory.getLogger("main")
 
   Option(Properties.getProperty(LoggerProperty)) match {
-    case None => args.headOption.map {_.capitalize}.find {_ == "SERVER"} match {
-      case Some(x) => Properties.setProperty(LoggerProperty, "SERVER")
-      case _ =>
-    }
+    case None if args.headOption.map {_.toUpperCase}.contains("SERVER") =>
+      Properties.setProperty(LoggerProperty, "SERVER")
     case _ =>
   }
 

@@ -10,7 +10,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 
 * [Requirements](#requirements)
 * [Building](#building)
-* [API Documenation](#api-documenation)
+* [API Documentation](#api-documentation)
 * [Scala API Usage](#scala-api-usage)
 * [Command Line Usage](#command-line-usage)
   * [validate](#validate)
@@ -31,6 +31,9 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [POST /workflows/:version](#post-workflowsversion)
   * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
   * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
+  * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
+  * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
+  * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -56,7 +59,7 @@ The following is the toolchain used for development of Cromwell.  Other versions
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 
-# API Documenation
+# API Documentation
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
 
@@ -409,7 +412,7 @@ $ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "Hello world!",
-  "test.hello.response": "Hello boston!"
+  "test.hello2.response": "Hello boston!"
 }
 ```
 
@@ -710,6 +713,140 @@ Server: spray-can/1.3.3
         "three_step.ps.procs": "/var/folders/kg/c7vgxnn902lc3qvc2z2g81s89xhzdz/T/stdout2814345504446060277.tmp",
         "three_step.wc.count": 8
     }
+}
+```
+
+
+## GET /workflows/:version/:id/outputs/:call
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 241
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 04 Jun 2015 12:15:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
+    "outputs": {
+        "three_step.wc.count": 8
+    }
+}
+```
+## GET /workflows/:version/:id/logs/:call
+
+This will return paths to the standard out and standard error files that were generated during the execution
+of a particular fully-qualified name for a call.
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 379
+Content-Type: application/json; charset=UTF-8
+Date: Mon, 03 Aug 2015 17:11:28 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
+    "logs": {
+        "three_step.wc": {
+            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
+            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
+        }
+    }
+}
+```
+## GET /workflows/:version/:id/logs
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 379
+Content-Type: application/json; charset=UTF-8
+Date: Mon, 03 Aug 2015 17:11:28 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
+    "logs": {
+        "call.ps": {
+            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr6126967977036995110.tmp",
+            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout6128485235785447571.tmp"
+        },
+        "call.cgrep": {
+            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr6126967977036995110.tmp",
+            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout6128485235785447571.tmp"
+        },
+        "call.wc": {
+            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr6126967977036995110.tmp",
+            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout6128485235785447571.tmp"
+        }
+    }
+}
+```
+
+## POST /workflows/:version/:id/abort
+
+cURL:
+
+```
+$ curl -X POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+```
+
+HTTPie:
+
+```
+$ http POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 241
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 04 Jun 2015 12:15:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
+    "status": "Aborted"
 }
 ```
 

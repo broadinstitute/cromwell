@@ -246,6 +246,19 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  override def getExecutionStatus(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Option[CallStatus]] = {
+    val action = for {
+      workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
+        workflowId.toString).result.head
+
+      executionStatuses <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
+        (workflowExecutionResult.workflowExecutionId.get, callFqn)).result
+
+      maybeStatus = executionStatuses.headOption map ExecutionStatus.withName
+    } yield maybeStatus
+    runTransaction(action)
+  }
+
   override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]] = {
 
     val action = for {
@@ -394,13 +407,13 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   /** Get all inputs for the scope of this call. */
   override def getInputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
     require(call != null, "call cannot be null")
-    getSymbols(workflowId, IoInput, Option(call))
+    getSymbols(workflowId, IoInput, Option(call.fullyQualifiedName))
   }
 
   /** Get all outputs for the scope of this call. */
-  override def getOutputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
-    require(call != null, "call cannot be null")
-    getSymbols(workflowId, IoOutput, Option(call))
+  override def getOutputs(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]] = {
+    require(callFqn != null, "callFqn cannot be null")
+    getSymbols(workflowId, IoOutput, Option(callFqn))
   }
 
   /** Returns all outputs for this workflowId */
@@ -409,11 +422,11 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   private def getSymbols(workflowId: WorkflowId, ioValue: IoValue,
-                         callOption: Option[Call] = None): Future[Traversable[SymbolStoreEntry]] = {
+                         callFqnOption: Option[FullyQualifiedName] = None): Future[Traversable[SymbolStoreEntry]] = {
 
     val action = for {
       symbolResults <- dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
-        workflowId.toString, ioValue, callOption.map(_.fullyQualifiedName)
+        workflowId.toString, ioValue, callFqnOption
       ).result
       symbolStoreEntries = symbolResults map toSymbolStoreEntry
     } yield symbolStoreEntries

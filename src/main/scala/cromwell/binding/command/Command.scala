@@ -131,7 +131,7 @@ case class Command(parts: Seq[CommandPart]) {
     val trimmed = stripAll(s, "\r\n", "\r\n \t")
     val parts = trimmed.split("[\\r\\n]+")
     val indent = parts.map(leadingWhitespaceCount).min
-    parts.map(_.substring(indent)).mkString("")
+    parts.map(_.substring(indent)).mkString("\n")
   }
 
   private def leadingWhitespaceCount(s: String): Int = {

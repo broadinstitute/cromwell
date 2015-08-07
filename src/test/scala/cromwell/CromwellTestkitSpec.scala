@@ -20,7 +20,7 @@ import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{OneInstancePerTest, BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -46,7 +46,7 @@ object CromwellTestkitSpec {
 }
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
-with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures {
+with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$")(block)
@@ -156,12 +156,14 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
 
   def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
     eventFilter.intercept {
-      val workflowId = wma.ask(submitMsg).mapTo[WorkflowId].futureValue
-      def workflowStatus = wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]].futureValue
-      awaitCond(workflowStatus.contains(WorkflowSucceeded))
-      val standardStreams = wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr].futureValue
-      stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
-      stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
+      within(5 seconds) {
+        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], 5 seconds)
+        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], 5 seconds)
+        awaitCond(workflowStatus.contains(WorkflowSucceeded))
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], 5 seconds)
+        stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
+        stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
+      }
     }
   }
 

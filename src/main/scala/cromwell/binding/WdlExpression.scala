@@ -1,10 +1,11 @@
 package cromwell.binding
 
 import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
-import cromwell.binding.types.{WdlType, WdlArrayType, WdlExpressionType}
+import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import cromwell.binding.AstTools.EnhancedAstNode
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -112,7 +113,7 @@ object WdlExpression {
 
   def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] = {
     ast match {
-      case t: Terminal if t.getTerminalStr == "identifier" => Success(lookup(t.getSourceString))
+      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString))
       case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
       case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
@@ -147,7 +148,7 @@ object WdlExpression {
           case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
         }
       case a: Ast if a.isArrayLiteral =>
-        val evaluatedElements = a.getAttribute("values").asInstanceOf[AstList].asScala.toVector map {x =>
+        val evaluatedElements = a.getAttribute("values").astListAsVector map {x =>
           evaluate(x, lookup, functions, interpolateStrings)
         }
         evaluatedElements.partition {_.isSuccess} match {
@@ -155,14 +156,23 @@ object WdlExpression {
             val message = failures.collect {case f: Failure[_] => f.exception.getMessage}.mkString("\n")
             Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
           case (successes, _) =>
-            successes.map{_.get.wdlType}.toSet match {
-              case s:Set[WdlType] if s.isEmpty =>
-                Failure(new WdlExpressionException(s"Can't have empty array declarations (can't infer type)"))
-              case s:Set[WdlType] if s.size == 1 =>
-                Success(WdlArray(WdlArrayType(s.head), successes.map{_.get}.toSeq))
-              case _ =>
-                Failure(new WdlExpressionException("Arrays must have homogeneous types"))
-            }
+            for (subtype <- WdlType.homogeneousType(successes.map(_.get)))
+              yield WdlArray(WdlArrayType(subtype), successes.map(_.get))
+        }
+      case a: Ast if a.getName == "MapLiteral" =>
+        val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
+          val key = evaluate(kv.asInstanceOf[Ast].getAttribute("key"), lookup, functions, interpolateStrings)
+          val value = evaluate(kv.asInstanceOf[Ast].getAttribute("value"), lookup, functions, interpolateStrings)
+          key -> value
+        }
+
+        val flattenedTries = evaluatedMap flatMap { case (k,v) => Seq(k,v) }
+        flattenedTries partition {_.isSuccess} match {
+          case (_, failures) if failures.nonEmpty =>
+            val message = failures.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
+            Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
+          case (successes, _) =>
+            WdlMapType(WdlAnyType, WdlAnyType).coerceRawValue(evaluatedMap.map({ case (k, v) => k.get -> v.get }).toMap)
         }
       case a: Ast if a.isMemberAccess =>
         a.getAttribute("rhs") match {

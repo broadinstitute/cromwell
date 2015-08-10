@@ -18,8 +18,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
 
   val cgrepTaskWdl = """
      |task cgrep {
+     |  String pattern
+     |  File in_file
      |  command {
-     |    grep '${pattern}' ${File in_file} | wc -l
+     |    grep '${pattern}' ${in_file} | wc -l
      |  }
      |  output {
      |    Int count = read_int(stdout())
@@ -54,8 +56,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       |  }
       |}
       |task cgrep {
+      |  String pattern
+      |  File in_file
       |  command {
-      |    grep '${pattern}' ${File in_file} | wc -l
+      |    grep '${pattern}' ${in_file} | wc -l
       |  }
       |  output {
       |    Int count = read_int(stdout())
@@ -80,8 +84,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       |  }
       |}
       |task cgrep {
+      |  String pattern
+      |  File in_file
       |  command {
-      |    grep '${pattern}' ${File in_file} | wc -l
+      |    grep '${pattern}' ${in_file} | wc -l
       |  }
       |  output {
       |    Int count = read_int(stdout())
@@ -105,8 +111,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |  }
         |}
         |task cgrep {
+        |  File in_file
+        |  String pattern
         |  command {
-        |    grep '${pattern}' ${File in_file} | wc -l
+        |    grep '${pattern}' ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -170,22 +178,6 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |}
         |""".stripMargin)
   }
-  it should "detect incompatible types for same input" in {
-    expectError("""
-      |task test {
-      |  command { ./script ${String x} ${File x} ${x} }
-      |}
-      |workflow wf { call test }
-    """.stripMargin)
-  }
-  it should "detect when an input is defined differently at least once" in {
-    expectError("""
-      |task test {
-      |  command { ./script ${default="bar" String x?} ${String x} ${x} }
-      |}
-      |workflow wf { call test }
-    """.stripMargin)
-  }
   it should "detect unexpected EOF" in {
     expectError("workflow")
   }
@@ -212,6 +204,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     expectError(
       """
         |task x {
+        |  String a
+        |  String b
         |  command {  ./script ${a} ${b} }
         |}
         |
@@ -220,6 +214,19 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |    input: a = "a"
         |    input: b = "b"
         |  }
+        |}
+      """.stripMargin)
+  }
+  it should "detect when there are two workflows defined in a WDL file" in {
+    expectError(
+      """workflow w {}
+        |workflow x {}
+      """.stripMargin)
+  }
+  it should "detect when a Map does not have two parameterized types" in {
+    expectError(
+      """workflow w {
+        |  Map[Int] i
         |}
       """.stripMargin)
   }

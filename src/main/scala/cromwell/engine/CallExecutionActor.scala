@@ -40,6 +40,7 @@ class CallExecutionActor(callReference: CallReference) extends Actor with Cromwe
                         lookup: ScopedLookupFunction) = {
 
     log.info(s"$tag: starting ${call.name} for workflow ${workflowDescriptor.shortId}")
+    log.info(s"$tag: `$command`")
 
     val executionResult = backend.executeCommand(
       command,

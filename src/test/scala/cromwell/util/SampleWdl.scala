@@ -46,6 +46,7 @@ object SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         |task hello {
+        |  String addressee
         |  command {
         |    echo "Hello ${addressee}!"
         |  }
@@ -69,6 +70,7 @@ object SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         |task hello {
+        |  String addressee
         |  command {
         |    echo "Hello ${addressee}!"
         |  }
@@ -109,8 +111,9 @@ object SampleWdl {
     override def wdlSource(runtime: String = "") =
     """
       |task incr {
+      |  Int val
       |  command {
-      |    echo $((${Int val} + 1))
+      |    echo $((${val} + 1))
       |  }
       |  output {
       |    Int out = read_int(stdout())
@@ -122,13 +125,14 @@ object SampleWdl {
       |}
     """.stripMargin
 
-    override val rawInputs: WorkflowRawInputs = Map("incr.incr.val" -> "1")
+    override val rawInputs: WorkflowRawInputs = Map("incr.incr.val" -> "x1")
   }
 
   object SubtractionWorkflow {
     val WdlSource =
       """
         |task a {
+        |  String message
         |  command { echo '${message}' }
         |  output {
         |    String message = read_string(stdout())
@@ -151,6 +155,7 @@ object SampleWdl {
     override def wdlSource(runtime: String = "") = {
       """
         |task summary {
+        |  String bfile
         |  command {
         |    ~/plink --bfile ${bfile} --missing --hardy --out foo --allow-no-sex
         |  }
@@ -165,7 +170,6 @@ object SampleWdl {
         |    email: "jigold@broadinstitute.org"
         |  }
         |}
-        |
         |
         |workflow test1 {
         |  call summary {
@@ -191,8 +195,11 @@ object SampleWdl {
         |}
         |
         |task cgrep {
+        |  String pattern
+        |  File in_file
+        |
         |  command {
-        |    grep '${pattern}' ${File in_file} | wc -l
+        |    grep '${pattern}' ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -200,8 +207,9 @@ object SampleWdl {
         |}
         |
         |task wc {
+        |  File in_file
         |  command {
-        |    cat ${File in_file} | wc -l
+        |    cat ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -233,8 +241,9 @@ object SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
     """
       |task hello {
+      |  String? person
       |  command {
-      |    echo "hello ${person?}"
+      |    echo "hello ${person}"
       |  }
       |  output {
       |    String greeting = read_string(stdout())
@@ -260,8 +269,9 @@ object SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
       """
         |task hello {
+        |  Array[String] person
         |  command {
-        |    echo "hello ${sep="," person*}"
+        |    echo "hello ${sep="," person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -278,20 +288,21 @@ object SampleWdl {
     override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
   }
 
-  object ZeroOrMorePostfixQuantifierWorkflowWithScalarInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> "alice")
+  object ZeroOrMorePostfixQuantifierWorkflowWithOneElementArrayInput extends ZeroOrMorePostfixQuantifier {
+    override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
   }
 
-  object ZeroOrMorePostfixQuantifierWorkflowWithNoInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map.empty[String, String]
+  object ZeroOrMorePostfixQuantifierWorkflowWithZeroElementArrayInput extends ZeroOrMorePostfixQuantifier {
+    override val rawInputs = Map("postfix.hello.person" -> Seq())
   }
 
   trait OneOrMorePostfixQuantifier extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
       """
         |task hello {
+        |  Array[String]+ person
         |  command {
-        |    echo "hello ${sep="," person+}"
+        |    echo "hello ${sep="," person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -309,15 +320,16 @@ object SampleWdl {
   }
 
   object OneOrMorePostfixQuantifierWorkflowWithScalarInput extends OneOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> "alice")
+    override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
   }
 
   trait DefaultParameterValue extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
       """
         |task hello {
+        |  String? person
         |  command {
-        |    echo "hello ${default="default value" person?}"
+        |    echo "hello ${default="default value" person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -351,8 +363,9 @@ object SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
       """
         |task ps {
+        |  File dummy_ps_file
         |  command {
-        |    cat ${File dummy_ps_file}
+        |    cat ${dummy_ps_file}
         |  }
         |  output {
         |    File procs = stdout()
@@ -361,8 +374,10 @@ object SampleWdl {
         |}
         |
         |task cgrep {
+        |  String pattern
+        |  File in_file
         |  command {
-        |    grep '${pattern}' ${File in_file} | wc -l
+        |    grep '${pattern}' ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -371,8 +386,9 @@ object SampleWdl {
         |}
         |
         |task wc {
+        |  File in_file
         |  command {
-        |    cat ${File in_file} | wc -l
+        |    cat ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -428,8 +444,10 @@ object SampleWdl {
         |}
         |
         |task cgrep {
+        |  String pattern
+        |  File in_file
         |  command {
-        |    grep '${pattern}' ${File in_file} | wc -l
+        |    grep '${pattern}' ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -440,8 +458,9 @@ object SampleWdl {
         |}
         |
         |task wc {
+        |  File in_file
         |  command {
-        |    cat ${File in_file} | wc -l
+        |    cat ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -499,8 +518,10 @@ object SampleWdl {
       |}
       |
       |task cgrep {
+      |  String pattern
+      |  File in_file
       |  command {
-      |    grep '${pattern}' ${File in_file} | wc -l
+      |    grep '${pattern}' ${in_file} | wc -l
       |  }
       |  output {
       |    Int count = stdout()
@@ -508,8 +529,9 @@ object SampleWdl {
       |}
       |
       |task wc {
+      |  File in_file
       |  command {
-      |    cat ${File in_file} | wc -l
+      |    cat ${in_file} | wc -l
       |  }
       |  output {
       |    Int count = read_int(stdout())
@@ -543,8 +565,9 @@ object SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
       """
         |task cat_to_stdout {
+        |  File file
         |  command {
-        |    cat ${File file}
+        |    cat ${file}
         |  }
         |  output {
         |    Array[String] lines = read_lines(stdout())
@@ -553,8 +576,9 @@ object SampleWdl {
         |}
         |
         |task cat_to_file {
+        |  File file
         |  command {
-        |    cat ${File file} > out
+        |    cat ${file} > out
         |  }
         |  output {
         |    Array[String] lines = read_lines("out")
@@ -580,8 +604,10 @@ object SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
       """
         |task cat {
+        |  File file
+        |  String? flags
         |  command {
-        |    cat ${flags?} ${File file}
+        |    cat ${flags} ${file}
         |  }
         |  output {
         |    File procs = stdout()
@@ -590,8 +616,10 @@ object SampleWdl {
         |
         |task cgrep {
         |  String str_decl
+        |  String pattern
+        |  File in_file
         |  command {
-        |    grep '${pattern}' ${File in_file} | wc -l
+        |    grep '${pattern}' ${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -629,6 +657,8 @@ object SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         |task echo {
+        |  String greeting
+        |  String out
         |  command {
         |    echo "${greeting}" > ${out}.txt
         |  }
@@ -652,8 +682,10 @@ object SampleWdl {
   object ArrayIO extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """task concat_files {
+        |  String? flags
+        |  Array[File]+ files
         |  command {
-        |    cat ${default="-s" flags?} ${sep=" " File files+}
+        |    cat ${default="-s" flags} ${sep=" " files}
         |  }
         |  output {
         |    File concatenated = stdout()
@@ -661,8 +693,10 @@ object SampleWdl {
         |}
         |
         |task find {
+        |  String pattern
+        |  File root
         |  command {
-        |    find ${File root} ${"-name " pattern?}
+        |    find ${root} ${"-name " + pattern}
         |  }
         |  output {
         |    Array[String] results = read_lines(stdout())
@@ -670,16 +704,31 @@ object SampleWdl {
         |}
         |
         |task count_lines {
+        |  Array[File]+ files
         |  command {
-        |    cat ${sep=' ' File files+} | wc -l
+        |    cat ${sep=' ' files} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
         |  }
         |}
         |
+        |task serialize {
+        |  Array[String] strs
+        |  command {
+        |    cat ${write_lines(strs)}
+        |  }
+        |  output {
+        |    String contents = read_string(stdout())
+        |  }
+        |}
+        |
         |workflow wf {
         |  Array[File] files
+        |  Array[String] strings = ["str1", "str2", "str3"]
+        |  call serialize {
+        |    input: strs=strings
+        |  }
         |  call concat_files as concat {
         |    input: files=files
         |  }
@@ -718,8 +767,9 @@ object SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         |task cat {
+        |  Array[File]+ files
         |  command {
-        |    cat -s ${sep=' ' File files+}
+        |    cat -s ${sep=' ' files}
         |  }
         |  output {
         |    Array[String] lines = read_lines(stdout())
@@ -729,6 +779,41 @@ object SampleWdl {
         |workflow wf {
         |  Array[File] arr = ["f1", "f2", "f3"]
         |  call cat {input: files=arr}
+        |}
+      """.stripMargin
+
+    override val rawInputs = Map.empty[String, String]
+  }
+
+  case object MapLiteral extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task write_map {
+        |  Map[File, String] file_to_name
+        |  command {
+        |    cat ${write_map(file_to_name)}
+        |  }
+        |  output {
+        |    String contents = read_string(stdout())
+        |  }
+        |}
+        |
+        |task read_map {
+        |  command <<<
+        |    python <<CODE
+        |    map = {'x': 500, 'y': 600, 'z': 700}
+        |    print("\n".join(["{}\t{}".format(k,v) for k,v in map.items()]))
+        |    CODE
+        |  >>>
+        |  output {
+        |    Map[String, Int] out_map = read_map(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  Map[File, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
+        |  call write_map {input: file_to_name=map}
+        |  call read_map
         |}
       """.stripMargin
 

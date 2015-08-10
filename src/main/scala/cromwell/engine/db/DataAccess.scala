@@ -1,7 +1,7 @@
 package cromwell.engine.db
 
-import cromwell.binding.values.WdlValue
 import cromwell.binding._
+import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.Backend
 import cromwell.engine.{WorkflowId, SymbolStoreEntry, WorkflowState}
 

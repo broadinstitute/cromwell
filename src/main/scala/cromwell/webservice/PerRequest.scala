@@ -1,15 +1,14 @@
 package cromwell.webservice
 
-import akka.actor._
 import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{OneForOneStrategy, _}
 import cromwell.webservice.PerRequest._
 import spray.http.StatusCodes._
+import spray.http._
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.routing.RequestContext
-import akka.actor.OneForOneStrategy
-import scala.concurrent.duration._
-import spray.http._
 
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**

@@ -1,13 +1,14 @@
 package cromwell.engine.backend.jes
 
-import com.google.api.services.genomics.model._
+import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
+import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
+
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import Run._
 
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)

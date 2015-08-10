@@ -2,7 +2,7 @@ package cromwell.engine.db.slick
 
 import java.sql.{Connection, DriverManager}
 
-import com.typesafe.config.{ConfigRenderOptions, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import slick.jdbc.SimpleJdbcAction
 
 import scala.collection.JavaConverters._

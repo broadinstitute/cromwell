@@ -5,7 +5,7 @@ import java.util.UUID
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.{WdlFunctions, NamespaceWithWorkflow, WdlNamespace}
+import cromwell.binding.{NoFunctions, WdlFunctions, NamespaceWithWorkflow, WdlNamespace}
 import cromwell.binding.types.{WdlStringType, WdlFileType, WdlArrayType}
 import cromwell.binding.values.{WdlInteger, WdlArray, WdlFile, WdlString}
 import cromwell.engine.backend.local.LocalBackend
@@ -23,10 +23,11 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
     "accept an array for the value" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayIO,
-        EventFilter.info(pattern = s"starting calls: wf.concat, wf.find", occurrences = 1),
+        EventFilter.info(pattern = s"starting calls: wf.concat, wf.find, wf.serialize", occurrences = 1),
         expectedOutputs = Map(
           "wf.count_lines.count" -> WdlInteger(3),
-          "wf.count_lines_array.count" -> WdlInteger(3)
+          "wf.count_lines_array.count" -> WdlInteger(3),
+          "wf.serialize.contents" -> WdlString("str1\nstr2\nstr3")
         )
       )
     }
@@ -40,9 +41,6 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
       val expression = declaration.expression.getOrElse {
         fail("Expected an expression for declaration 'arr'")
       }
-      class NoFunctions extends WdlFunctions {
-        def getFunction(name: String): WdlFunction = fail("No functions should be called in this test")
-      }
       val value = expression.evaluate((s:String) => fail("No lookups"), new NoFunctions()).getOrElse {
         fail("Expected expression for 'arr' to evaluate")
       }
@@ -52,7 +50,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
       val catTask = ns.findTask("cat").getOrElse {
         fail("Expected to find task 'cat'")
       }
-      val command = catTask.command.instantiate(Map("files" -> expectedArray)).getOrElse {
+      val command = catTask.instantiateCommand(Map("files" -> expectedArray)).getOrElse {
         fail("Expected instantiation to work")
       }
       command shouldEqual "cat -s f1 f2 f3"

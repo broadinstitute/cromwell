@@ -62,8 +62,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
     "Try to restart workflows when there are workflows in restartable states" in {
       val workflows = Map(
-        UUID.randomUUID() -> WorkflowSubmitted,
-        UUID.randomUUID() -> WorkflowRunning)
+        WorkflowId(UUID.randomUUID()) -> WorkflowSubmitted,
+        WorkflowId(UUID.randomUUID()) -> WorkflowRunning)
       val ids = workflows.keys.map(_.toString).toSeq.sorted
       val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
       val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(WdlString("world"))))
@@ -139,7 +139,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor output lookup failure")
-          val id = UUID.randomUUID()
+          val id = WorkflowId(UUID.randomUUID())
           Try {
             messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(id))
           } match {
@@ -155,7 +155,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor call log lookup failure")
-          val id = UUID.randomUUID()
+          val id = WorkflowId.randomId()
           Try {
             messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
           } match {
@@ -171,7 +171,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor log lookup failure")
-          val id = UUID.randomUUID()
+          val id = WorkflowId.randomId()
           Try {
             messageAndWait[Map[LocallyQualifiedName, StdoutStderr]](WorkflowStdoutStderr(id))
           } match {

@@ -16,6 +16,9 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
+import cromwell.engine.workflow.WorkflowActor
+import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine._
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
@@ -117,7 +120,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
     val inputs = coercedInputs ++ declarations
-    WorkflowDescriptor(uuid, namespace, source, sampleWdl.wdlJson, inputs)
+    WorkflowDescriptor(WorkflowId(uuid), namespace, source, sampleWdl.wdlJson, inputs)
   }
 
   private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {

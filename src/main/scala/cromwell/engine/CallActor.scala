@@ -1,81 +1,125 @@
 package cromwell.engine
 
-import akka.actor.{Actor, Props}
-import akka.event.{Logging, LoggingReceive}
+import akka.actor.FSM.NullFunction
+import akka.actor.{LoggingFSM, Props}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.engine
-import cromwell.engine.backend.Backend
+import cromwell.engine.CallActor.CallActorState
+import cromwell.engine.backend.{TaskAbortedException, Backend}
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.CallFailed
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
-
+import scala.util.{Try, Failure, Success}
 
 object CallActor {
-  sealed trait CallActorMessage
-  case class Start(inputs: CallInputs) extends CallActorMessage
-  case class ExecutionFinished(outputs: CallOutputs) extends CallActorMessage
-  case class ExecutionFailed(regret: Throwable) extends CallActorMessage
 
-  def props(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
+  sealed trait CallActorMessage
+  case object Start extends CallActorMessage
+  final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
+  case object AbortCall extends CallActorMessage
+  final case class ExecutionFinished(call: Call, outputs: Try[CallOutputs]) extends CallActorMessage
+
+  sealed trait CallActorState
+  case object CallNotStarted extends CallActorState
+  case object CallRunningAbortUnavailable extends CallActorState
+  case object CallRunningAbortAvailable extends CallActorState
+  case object CallRunningAbortRequested extends CallActorState
+  case object CallAborting extends CallActorState
+  case object CallDone extends CallActorState
+
+  def props(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(call, locallyQualifiedInputs, backend, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue], backend: Backend, workflowDescriptor: WorkflowDescriptor) extends Actor with CromwellActor {
+class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor)
+  extends LoggingFSM[CallActorState, Option[AbortFunction]] with CromwellActor {
+
+  import CallActor._
 
   type CallOutputs = Map[String, WdlValue]
 
-  private val log = Logging(context.system, classOf[CallActor])
-  val tag = s"CallActor [UUID(${workflowDescriptor.shortId}):${call.name}]"
+  startWith(CallNotStarted, None)
 
-  override def receive = LoggingReceive {
-    case CallActor.Start => handleStart()
-    case CallActor.ExecutionFinished(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
-    case CallActor.ExecutionFailed(regret) =>
-      log.error(regret, s"$tag: ${regret.getMessage}")
-      context.parent ! WorkflowActor.CallFailed(call, regret.getMessage)
-    case badMessage =>
-      val diagnostic = s"$tag: unexpected message $badMessage."
-      log.error(diagnostic)
-      context.parent ! engine.workflow.WorkflowActor.CallFailed(call, diagnostic)
+  val callReference = CallReference(workflowDescriptor.name, workflowDescriptor.id, call.fullyQualifiedName)
+  val tag = s"CallActor [$callReference]"
+
+  // Called on every state transition.
+  onTransition {
+    case fromState -> toState =>
+      // Only log this at debug - these states are never seen or used outside of the CallActor itself.
+      log.debug(s"$tag transitioning from $fromState to $toState.")
   }
 
-  /**
-   * Performs the following steps:
-   * <ol>
-   *   <li>Instantiates the command line using these inputs.</li>
-   *   <li>If the above completes successfully, messages the sender with `Started`,
-   *   otherwise messages `Failed`.</li>
-   *   <li>Executes the command with these inputs.</li>
-   *   <li>Collects outputs in a `Try[Map[String, WdlValue]]`.</li>
-   *   <li>If there are no `Failure`s among the outputs, messages the parent actor
-   *   with `Completed`, otherwise messages `Failed`.</li>
-   * </ol>
-   */
-  private def handleStart(): Unit = {
-    // Record the original sender here and not in the yield over the `Future`, as the
-    // value of sender() when that code executes may be different than what it is here.
-    val originalSender = sender()
-    val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
+  when(CallNotStarted) {
+    case Event(Start, _) =>
+      val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
+      call.instantiateCommandLine(backendInputs) match {
+        case Success(commandLine) =>
+          sender() ! WorkflowActor.CallStarted(call)
+          context.actorOf(CallExecutionActor.props(callReference)) ! CallExecutionActor.Execute(workflowDescriptor.id, backend, commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
+          goto(CallRunningAbortUnavailable)
+        case Failure(e) =>
+          val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
+          log.error(e, s"$tag: $call failed: $message")
+          context.parent ! CallFailed(call, message)
+          goto(CallDone)
+      }
+    case Event(AbortCall, _) => handleFinished(call, Failure(new TaskAbortedException()))
+  }
 
-    def failedInstantiation(e: Throwable): Unit = {
-      val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
-      log.error(e, s"$tag: $message")
-      context.parent ! CallFailed(call, message)
+  when(CallRunningAbortUnavailable) {
+    case Event(RegisterCallAbortFunction(abortFunction), _) => goto(CallRunningAbortAvailable) using Option(abortFunction)
+    case Event(AbortCall, _) => goto(CallRunningAbortRequested)
+  }
+
+  when(CallRunningAbortAvailable) {
+    case Event(AbortCall, abortFunction) => tryAbort(abortFunction)
+  }
+
+  when(CallRunningAbortRequested) {
+    case Event(RegisterCallAbortFunction(abortFunction: AbortFunction), _) => tryAbort(Option(abortFunction))
+  }
+
+  // When in CallAborting, the only message being listened for is the CallComplete message (which is already
+  // handled by whenUnhandled.)
+  when(CallAborting) { NullFunction }
+
+  when(CallDone) {
+    case Event(e, _) =>
+      log.warning(s"$tag received unexpected event $e while in state $stateName")
+      stay()
+  }
+
+  whenUnhandled {
+    case Event(ExecutionFinished(call: Call, outputs: Try[CallOutputs]), _) => handleFinished(call, outputs)
+    case Event(e, _) =>
+      log.warning(s"$tag received unhandled event $e while in state $stateName")
+      stay()
+  }
+
+  private def tryAbort(abortFunction: Option[AbortFunction]): CallActor.this.State = {
+    abortFunction match {
+      case Some(af) =>
+        log.info("Abort function called.")
+        af.function()
+        goto(CallAborting) using abortFunction
+      case None =>
+        log.warning("Call abort failed because the provided abort function was null.")
+        goto(CallRunningAbortRequested) using abortFunction
+    }
+  }
+
+  private def handleFinished(call: Call, outputTry: Try[CallOutputs]): CallActor.this.State = {
+    outputTry match {
+      case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
+      case Failure(e: TaskAbortedException) =>
+            context.parent ! WorkflowActor.AbortComplete(call)
+      case Failure(e: Throwable) =>
+            context.parent ! WorkflowActor.CallFailed(call, e.getMessage)
     }
 
-    def launchCall(commandLine: String): Unit = {
-      log.info(s"$tag: launching `$commandLine`")
-      originalSender ! WorkflowActor.CallStarted(call)
-      context.actorOf(CallExecutionActor.props(backend, commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get))
-    }
-
-    call.instantiateCommandLine(backendInputs) match {
-      case Success(commandLine) => launchCall(commandLine)
-      case Failure(e) => failedInstantiation(e)
-    }
+    goto(CallDone)
   }
 }

@@ -10,6 +10,8 @@ import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
+import cromwell.engine.{AbortFunction, AbortFunctionRegistration}
+import cromwell.engine.backend.TaskAbortedException
 import cromwell.engine.WorkflowId
 import cromwell.engine.backend.{StdoutStderr, Backend}
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -147,7 +149,8 @@ class JesBackend extends Backend with LazyLogging {
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+                              scopedLookupFunction: ScopedLookupFunction,
+                              abortFunctionRegistration: AbortFunctionRegistration): Try[Map[String, WdlValue]] = {
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
 
     val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
@@ -181,33 +184,44 @@ class JesBackend extends Backend with LazyLogging {
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
     val redirectedCommand = s"$instantiatedCommandLine > $LocalStdoutValue 2> $LocalStderrValue"
 
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
+    val run = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run
+    // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
+    run.waitUntilRunningOrComplete()
+    abortFunctionRegistration.registrationFunction apply AbortFunction({() => run.abort()})
+    try {
+      val status = run.waitUntilComplete()
 
-    def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
-      val jesOutputFile = unsafeJesOutputs find {_.name == taskOutput.name} map {j => WdlFile(j.gcs)}
-      jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true))
-    }
-
-    val outputMappings = call.task.outputs.map { taskOutput =>
-      val rawValue = taskOutputToRawValue(taskOutput)
-      logger.debug(s"JesBackend setting ${taskOutput.name} to $rawValue")
-      taskOutput.name -> rawValue
-    }.toMap
-
-    val warnAboutStderrLength: BigInteger =
-      if (!call.failOnStderr) BigInteger.valueOf(0)
-      else JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(callGcsPath).gcs))
-
-    if (warnAboutStderrLength.intValue > 0) {
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $warnAboutStderrLength for command: $instantiatedCommandLine"))
-    } else {
-      status match {
-        //
-        case Run.Success(created, started, finished) =>
-          unwrapOutputValues(outputMappings, workflowDescriptor)
-        case Run.Failed(created, started, finished, errorCode, errorMessage) =>
-          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $instantiatedCommandLine. Message: $errorMessage"))
+      def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
+        val jesOutputFile = unsafeJesOutputs find { _.name == taskOutput.name } map { j => WdlFile(j.gcs) }
+        jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true))
       }
+
+      def processOutput(taskOutput: TaskOutput, processingFunction: TaskOutput => Try[WdlValue]) = {
+        val rawValue = processingFunction(taskOutput)
+        logger.debug(s"JesBackend setting ${taskOutput.name} to $rawValue")
+        taskOutput.name -> rawValue
+      }
+
+      val outputMappings = call.task.outputs.map {taskOutput => processOutput(taskOutput, taskOutputToRawValue)}.toMap
+
+      lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(callGcsPath).gcs))
+
+      if (call.failOnStderr && stderrLength.intValue > 0) {
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrLength for command: $instantiatedCommandLine"))
+      } else status match {
+          case Run.Success(created, started, finished) =>
+            unwrapOutputValues(outputMappings, workflowDescriptor)
+          case Run.Failed(created, started, finished, errorCode, errorMessage) =>
+            val throwable = if (errorMessage contains "Operation canceled at") {
+              new TaskAbortedException()
+            } else {
+              new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $instantiatedCommandLine. Message: $errorMessage")
+            }
+          Failure(throwable)
+      }
+    }
+    catch {
+      case e: Exception => Failure(e)
     }
   }
 

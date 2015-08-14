@@ -26,11 +26,11 @@ object MockWorkflowManagerActor {
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
 
-  val createdWorkflowId = UUID.randomUUID()
-  val runningWorkflowId = UUID.randomUUID()
-  val unknownId = UUID.randomUUID()
-  val submittedWorkflowId = UUID.randomUUID()
-  val abortedWorkflowId = UUID.randomUUID()
+  val createdWorkflowId = WorkflowId(UUID.randomUUID())
+  val runningWorkflowId = WorkflowId(UUID.randomUUID())
+  val unknownId = WorkflowId(UUID.randomUUID())
+  val submittedWorkflowId = WorkflowId(UUID.randomUUID())
+  val abortedWorkflowId = WorkflowId(UUID.randomUUID())
 
   def props: Props = Props(classOf[MockWorkflowManagerActor])
 }

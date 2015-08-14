@@ -198,7 +198,7 @@ class JesBackend extends Backend with LazyLogging {
     run.waitUntilRunningOrComplete()
     abortFunctionRegistration.registrationFunction apply AbortFunction({() => run.abort()})
     try {
-      val status = run.waitUntilComplete()
+      val status = run.waitUntilComplete(None)
 
       def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
         val jesOutputFile = unsafeJesOutputs find { _.name == taskOutput.name } map { j => WdlFile(j.gcs) }
@@ -218,9 +218,9 @@ class JesBackend extends Backend with LazyLogging {
       if (call.failOnStderr && stderrLength.intValue > 0) {
         Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrLength for command: $instantiatedCommandLine"))
       } else status match {
-          case Run.Success(created, started, finished) =>
+          case Run.Success =>
             unwrapOutputValues(outputMappings, workflowDescriptor)
-          case Run.Failed(created, started, finished, errorCode, errorMessage) =>
+          case Run.Failed(errorCode, errorMessage) =>
             val throwable = if (errorMessage contains "Operation canceled at") {
               new TaskAbortedException()
             } else {

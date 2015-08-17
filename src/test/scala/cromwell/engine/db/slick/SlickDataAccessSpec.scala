@@ -11,7 +11,7 @@ import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{TaskExecutionContext, Backend, StdoutStderr}
+import cromwell.engine.backend.{Backend, StdoutStderr, TaskExecutionContext}
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{DataAccess, LocalCallBackendInfo}
 import cromwell.parser.BackendType
@@ -121,7 +121,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
       val callFqn = "fully.qualified.name"
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
       val backendInfo = new LocalCallBackendInfo(ExecutionStatus.Running, Option(123), Option(456))
 
       (for {
@@ -238,9 +238,14 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         assume(canConnect || testRequired)
         val workflowId = WorkflowId(UUID.randomUUID())
         val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+
         val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-        val call = new Call(callAlias, "call.name", task, Map.empty)
-        if (setCallParent) new Workflow("workflow.name", Seq.empty[Declaration], Seq(call), Seq.empty[WorkflowOutputDeclaration])
+        val call = if (setCallParent) {
+          val w = new Workflow("workflow.name", Seq.empty[Declaration], None, Seq.empty[WorkflowOutputDeclaration])
+          val c = new Call(callAlias, "call.name", task, Map.empty, Option(w))
+          w.setChildren(Seq(c))
+          c
+        } else new Call(callAlias, "call.name", task, Map.empty, None)
 
         def optionallyUpdateExecutionStatus() =
           if (updateStatus)
@@ -277,7 +282,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, localBackend)
@@ -308,7 +313,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray))
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, localBackend)
@@ -347,7 +352,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, localBackend)
@@ -375,7 +380,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq.empty, localBackend)
@@ -414,7 +419,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq(call),
         UnknownBackend).failed.futureValue should be(an[IllegalArgumentException])
@@ -426,7 +431,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq(call),
         null).failed.futureValue should be(an[IllegalArgumentException])
@@ -442,7 +447,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, localBackend)
@@ -473,7 +478,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = false)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, callFqn, task, Map.empty)
+      val call = new Call(None, callFqn, task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Seq.empty, localBackend)
@@ -487,7 +492,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, "fully.qualified.name", task, Map.empty)
+      val call = new Call(None, "fully.qualified.name", task, Map.empty, None)
       val backendInfo = new LocalCallBackendInfo(ExecutionStatus.Running, Option(123), Option(456))
 
       (for {
@@ -514,7 +519,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowInfo1 = new WorkflowInfo(workflowId1, "source", "{}")
       val workflowInfo2 = new WorkflowInfo(workflowId2, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, "fully.qualified.name", task, Map.empty)
+      val call = new Call(None, "fully.qualified.name", task, Map.empty, None)
       val backendInfo1 = new LocalCallBackendInfo(ExecutionStatus.Running, Option(123), Option(456))
       val backendInfo2 = new LocalCallBackendInfo(ExecutionStatus.Failed, Option(321), Option(654))
 
@@ -551,7 +556,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
       val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-      val call = new Call(None, "fully.qualified.name", task, Map.empty)
+      val call = new Call(None, "fully.qualified.name", task, Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq.empty, Seq(call), localBackend)

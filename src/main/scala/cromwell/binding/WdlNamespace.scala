@@ -338,8 +338,7 @@ object NamespaceWithWorkflow {
       if namespaceAst.sourceString == workflowAst.getAttribute("name").sourceString
     } yield {throw new SyntaxError(wdlSyntaxErrorFormatter.workflowAndNamespaceHaveSameName(workflowAst, namespaceAst.asInstanceOf[Terminal]))}
 
-    val calls = workflowAst.findAsts(AstNodeName.Call) map {Call(_, namespaces, tasks, wdlSyntaxErrorFormatter)}
-    val workflow: Workflow = Workflow(workflowAst, wdlSyntaxErrorFormatter, calls)
+    val workflow: Workflow = Scope.generateWorkflow(workflowAst, namespaces, tasks, wdlSyntaxErrorFormatter)
 
     // FIXME: This block is run for its side effect of blowing up on the .get (I believe!) - Should there be a real syntax error?
     // FIXME: It took me a while to understand the logic of the original code & I'm not sure this comment is correct?

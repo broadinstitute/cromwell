@@ -75,7 +75,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
             // FIXME? null AST
             val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-            val call = new Call(None, key.scope, task, Map.empty)
+            val call = new Call(None, key.scope, task, Map.empty, None)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
               _ <- dataAccess.updateWorkflowState(workflowId, workflowState)

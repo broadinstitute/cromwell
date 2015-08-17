@@ -146,14 +146,14 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, StdoutStderr]] = {
-    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[LocallyQualifiedName, StdoutStderr]] = {
+    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[FullyQualifiedName, StdoutStderr]] = {
       Try {
         val callsToPaths = for {
           (call, status) <- statusMap.toSeq
           if Set(ExecutionStatus.Done, ExecutionStatus.Failed).contains(status)
           (wf, callLqn) = assertCallFqnWellFormed(call).get
           callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn)
-        } yield callLqn -> callStandardOutput
+        } yield call -> callStandardOutput
         callsToPaths.toMap
       }
     }

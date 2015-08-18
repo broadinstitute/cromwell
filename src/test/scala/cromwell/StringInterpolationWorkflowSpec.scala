@@ -1,9 +1,7 @@
 package cromwell
 
-import java.nio.file.Paths
-
 import akka.testkit._
-import cromwell.binding.values.{WdlFile, WdlString}
+import cromwell.binding.values.WdlFile
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

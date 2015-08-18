@@ -4,16 +4,14 @@ import java.io.{File, Writer}
 import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
-import cromwell.engine.backend.TaskAbortedException
-import cromwell.engine.backend.Backend.{RestartableWorkflow, StdoutStderrException}
-import cromwell.engine.backend.{Backend, StdoutStderr}
-import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.binding.types.{WdlFileType, WdlMapType}
+import cromwell.binding.values._
 import cromwell.engine._
+import cromwell.engine.backend.Backend.{RestartableWorkflow, StdoutStderrException}
+import cromwell.engine.backend.{Backend, BackendCall, StdoutStderr, TaskAbortedException}
+import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.parser.BackendType
-import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
 import org.apache.commons.io.FileUtils
 
@@ -37,23 +35,6 @@ object LocalBackend {
     }
   }
 
-  def findTempFile(root: Path, prefix: String) = {
-    val regex = s"$prefix.*\\.tmp$$".r.unanchored
-    val filesWithPrefix = Try(Files.newDirectoryStream(root)).map(
-      stream => stream.iterator().toIterator.toList.collect {
-        case path:Path if regex.findFirstIn(path.toAbsolutePath.toString).isDefined => path
-      }
-    )
-    filesWithPrefix match {
-      case Success(paths) => paths match {
-        case head :: Nil => WdlFile(head.toAbsolutePath.toString)
-        case Nil => throw new StdoutStderrException(s"No $prefix file found")
-        case s => throw new StdoutStderrException(s"Multiple files matched with prefix $prefix:\n${s.map(_.toString).mkString(", ")}")
-      }
-      case Failure(ex) => throw ex
-    }
-  }
-
   /**
    * {{{cromwell-executions + workflow.name + workflow.id = cromwell-executions/three-step/0f00-ba4}}}
    */
@@ -74,168 +55,75 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with LazyLogging {
+class LocalBackend extends Backend with LocalFileSystemOperations with LazyLogging {
 
   import LocalBackend._
 
-  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
-    val dir = hostCallPath(workflowName, workflowId, callName)
-    StdoutStderr(
-      stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
-      stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
-    )
+  override def bindCall(workflowDescriptor: WorkflowDescriptor,
+                        call: Call,
+                        locallyQualifiedInputs: CallInputs,
+                        abortRegistrationFunction: AbortFunctionRegistration): BackendCall = {
+    LocalBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  /* This should be deterministic.  calling this twice with the same parameters should always yield the same result */
-  def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): LocalTaskExecutionContext = {
-    val workflowRoot = hostExecutionPath(workflowDescriptor)
-    val hostCallDirectory = hostCallPath(workflowDescriptor, call.name)
-    val stdout = hostCallDirectory.resolve("stdout")
-    val stderr = hostCallDirectory.resolve("stderr")
-    hostCallDirectory.toFile.mkdirs
-    LocalTaskExecutionContext(workflowRoot, stdout, stderr, hostCallDirectory)
+  override def execute(backendCall: BackendCall): Try[CallOutputs] = backendCall match {
+    case bc: LocalBackendCall => execute(bc)
+    case _ => Failure(new UnsupportedOperationException("LocalBackend can only execute LocalBackendCalls"))
   }
 
   /**
    * Executes the specified command line, using the supplied lookup function for expression evaluation.
-   * Returns a `Map[String, Try[WdlValue]]` of output names to values.
+   * Returns a `Map[CallOutputs]` of output names to values.
    */
-  override def executeCommand(instantiatedCommandLine: String, 
-                              workflowDescriptor: WorkflowDescriptor, 
-                              call: Call, 
-                              backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction,
-                              callAbortRegisteringFunction: AbortFunctionRegistration): Try[Map[String, WdlValue]] = {
-
-    val environment = setupCallEnvironment(call, workflowDescriptor)
-
-    val (stdoutFile, stdoutWriter) = environment.stdout.fileAndWriter
-    val (stderrFile, stderrWriter) = environment.stderr.fileAndWriter
-    val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", environment.cwd.toFile)
-
-    val dockerContainerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
-
-    val parentPath = if (call.docker.isDefined) Paths.get(dockerContainerExecutionDir).toString else environment.workflowRoot.toAbsolutePath.toString
-    val callDirectory = Paths.get(parentPath, s"call-${call.name}")
-
-    commandWriter.writeWithNewline(s"cd $callDirectory")
-    commandWriter.writeWithNewline(instantiatedCommandLine)
-    commandWriter.flushAndClose()
-
+  private def execute(backendCall: LocalBackendCall): Try[CallOutputs]  = {
+    val tag: String = s"${this.getClass.getName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+    val dockerContainerExecutionDir = s"/root/${backendCall.workflowDescriptor.id.toString}"
+    val containerCallRoot = backendCall.call.docker match {
+      case Some(docker) => Paths.get(dockerContainerExecutionDir).resolve(s"call-${backendCall.call.name}")
+      case None => backendCall.callRootPath
+    }
     def buildDockerRunCommand(image: String): String =
       // -v maps the host workflow executions directory to /root/<workflow id> on the container.
       // -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
-      s"docker run -v ${environment.workflowRoot.toAbsolutePath}:$dockerContainerExecutionDir -i $image"
+      s"docker run -v ${backendCall.workflowRootPath.toAbsolutePath}:$dockerContainerExecutionDir -i $image"
 
-    // Build the docker run command if docker is defined in the RuntimeAttributes, otherwise just the empty string.
-    val dockerRun = call.docker.map(buildDockerRunCommand).getOrElse("")
+    backendCall.instantiateCommand match {
+      case Success(instantiatedCommand) =>
+        logger.info(s"$tag `$instantiatedCommand`")
 
-    // The aforementioned shenanigans generate standard output and then a bash invocation that takes
-    // commands from standard input.
-    val argv = Seq("/bin/bash", "-c", s"cat $commandFile | $dockerRun /bin/bash <&0")
-    logger.debug("Executing call with argv: " + argv)
+        val (stdoutFile, stdoutWriter) = backendCall.stdout.fileAndWriter
+        val (stderrFile, stderrWriter) = backendCall.stderr.fileAndWriter
+        val (scriptFile, scriptWriter) = backendCall.script.fileAndWriter
+        scriptWriter.writeWithNewline(s"cd $containerCallRoot")
+        scriptWriter.writeWithNewline(s"$instantiatedCommand")
+        scriptWriter.flushAndClose()
 
-    val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline))
+        val dockerRun = backendCall.call.docker.map(buildDockerRunCommand).getOrElse("")
+        val argv = Seq("/bin/bash", "-c", s"cat $scriptFile | $dockerRun /bin/bash <&0")
+        val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
+        logger.debug(s"$tag backend command: $backendCommandString")
+        val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline))
 
-    // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
-    callAbortRegisteringFunction.registrationFunction(AbortFunction(() => process.destroy()))
-    val rc: Int = process.exitValue()
-    Vector(stdoutWriter, stderrWriter) foreach { _.flushAndClose() }
+        // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
+        backendCall.callAbortRegistrationFunction.register(AbortFunction(() => process.destroy()))
+        val rc: Int = process.exitValue()
+        Vector(stdoutWriter, stderrWriter) foreach { _.flushAndClose() }
 
-    /**
-     * Return a host absolute file path.
-     */
-    def hostAbsoluteFilePath(pathString: String): String =
-      if (new File(pathString).isAbsolute) pathString else Paths.get(environment.cwd.toAbsolutePath.toString, pathString).toString
+        val stderrFileLength = new File(stderrFile.toString).length
 
-    val stderrFileLength = new File(stderrFile.toString).length
-
-    if (call.failOnStderr && stderrFileLength > 0) {
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
-    } else {
-      if (rc == 0) {
-        evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, environment.engineFunctions, scopedLookupFunction, interpolateStrings=true)
-      } else if (rc == 143) {
-        // Special case to check for SIGTERM exit code - implying abort:
-        Failure(new TaskAbortedException())
-      } else {
-        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine\n\nFull command was: ${argv.mkString(" ")}"))
-      }
+        if (backendCall.call.failOnStderr && stderrFileLength > 0) {
+          Failure(new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommand"))
+        } else {
+          rc match {
+            case 0 => postProcess(backendCall)
+            case 143 => Failure(new TaskAbortedException()) // Special case to check for SIGTERM exit code - implying abort
+            case _ => Failure(new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: return code $rc for command: $instantiatedCommand\n\nFull command was: ${argv.mkString(" ")}"))
+          }
+        }
+      case Failure(ex) => Failure(ex)
     }
   }
 
-  /**
-   * Creates host execution directory, inputs path, and outputs path.  Stages any input files into the workflow-inputs
-   * directory and localizes their paths relative to the container.
-   */
-  override def initializeForWorkflow(descriptor: WorkflowDescriptor): HostInputs = {
-    val hostExecutionDirectory = hostExecutionPath(descriptor).toFile
-    hostExecutionDirectory.mkdirs()
-    val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath
-    Array("workflow-inputs", "workflow-outputs") foreach { Paths.get(hostExecutionAbsolutePath, _).toFile.mkdir() }
-    stageWorkflowInputs(descriptor)
-  }
-
-  /**
-   * Given the specified workflow descriptor and inputs, stage any WdlFiles into the workflow-inputs subdirectory
-   * of the workflow execution directory.  Return a Map of the input values with any input WdlFiles adjusted to
-   * reflect host paths.
-   *
-   * Original input path: /could/be/anywhere/input.bam
-   * Host inputs path: $PWD/cromwell-executions/some-workflow-name/0f00-ba4/workflow-inputs/input.bam
-   */
-  private def stageWorkflowInputs(descriptor: WorkflowDescriptor): HostInputs = {
-    val hostInputsPath = Paths.get(hostExecutionPath(descriptor).toFile.getAbsolutePath, "workflow-inputs")
-    descriptor.actualInputs map {case(name, value) => name -> stageWdlValue(value, hostInputsPath)}
-  }
-
-  private def stageInputArray(array: WdlArray, hostInputsPath: Path): WdlArray = array.map(stageWdlValue(_, hostInputsPath))
-
-  private def stageWdlValue(value: WdlValue, hostInputsPath: Path): WdlValue = value match {
-    case w:WdlFile => stageWdlFile(w, hostInputsPath)
-    case a:WdlArray => stageInputArray(a, hostInputsPath)
-    case x => x
-  }
-
-  private def stageWdlFile(wdlFile: WdlFile, hostInputsPath: Path): WdlFile = {
-    val originalPath = Paths.get(wdlFile.value)
-    val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
-    if (Files.isDirectory(originalPath)) {
-      FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile)
-    } else {
-      FileUtils.copyFile(originalPath.toFile, executionPath.toFile)
-    }
-    WdlFile(executionPath.toString)
-  }
-
-  /**
-   * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
-   * been performed for this `Backend` implementation.
-   */
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = {
-    // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
-    def adjustPath(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
-      val (name, value) = nameAndValue
-      val adjusted = value match {
-        case WdlFile(path) =>
-          // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
-          // Container path should look like /root/f00ba4/call-ps/stdout.txt
-          val fullPath = Paths.get(path).toFile.getAbsolutePath
-          // Strip out everything before cromwell-executions.
-          val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutions) + CromwellExecutions.length)
-          // Strip out the workflow name (the first component under cromwell-executions).
-          val pathWithWorkflowName = Paths.get(pathUnderCromwellExecutions)
-          WdlFile(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
-        case x => x
-      }
-      name -> adjusted
-    }
-
-    // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
-    if (call.docker.isDefined) inputs map adjustPath else inputs
-  }
-
-  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.

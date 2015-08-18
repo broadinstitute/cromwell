@@ -31,7 +31,7 @@ package object engine {
 
   case class AbortFunction(function: ()=>Unit)
   case class IndexedAbortFunction(callReference: CallReference, callAbortFunction: AbortFunction)
-  case class AbortFunctionRegistration(registrationFunction: AbortFunction=>Unit)
+  case class AbortFunctionRegistration(register: AbortFunction=>Unit)
 
   sealed trait WorkflowState {
     def isTerminal: Boolean

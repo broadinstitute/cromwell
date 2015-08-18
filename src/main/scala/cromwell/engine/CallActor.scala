@@ -54,18 +54,10 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
 
   when(CallNotStarted) {
     case Event(Start, _) =>
-      val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
-      call.instantiateCommandLine(backendInputs, backend.setupCallEnvironment(call, workflowDescriptor).engineFunctions) match {
-        case Success(commandLine) =>
-          sender() ! WorkflowActor.CallStarted(call)
-          context.actorOf(CallExecutionActor.props(callReference)) ! CallExecutionActor.Execute(workflowDescriptor.id, backend, commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
-          goto(CallRunningAbortUnavailable)
-        case Failure(e) =>
-          val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
-          log.error(e, s"$tag: $call failed: $message")
-          context.parent ! CallFailed(call, message)
-          goto(CallDone)
-      }
+      sender() ! WorkflowActor.CallStarted(call)
+      val backendCall = backend.bindCall(workflowDescriptor, call, locallyQualifiedInputs, AbortFunctionRegistration(registerAbortFunction(callReference)))
+      context.actorOf(CallExecutionActor.props(backendCall)) ! CallExecutionActor.Execute
+      goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, Failure(new TaskAbortedException()))
   }
 
@@ -121,5 +113,9 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
     }
 
     goto(CallDone)
+  }
+
+  private def registerAbortFunction(callReference: CallReference)(abortFunction: AbortFunction): Unit = {
+    self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }
 }

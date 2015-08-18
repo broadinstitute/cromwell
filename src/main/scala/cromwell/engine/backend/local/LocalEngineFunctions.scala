@@ -1,7 +1,7 @@
 package cromwell.engine.backend.local
 
 import java.io.File
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import cromwell.binding.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
@@ -11,7 +11,7 @@ import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 
 import scala.util.{Failure, Success, Try}
 
-class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends WdlStandardLibraryFunctions {
+class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends WdlStandardLibraryFunctions {
 
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
@@ -24,7 +24,7 @@ class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends 
   private def fileContentsToString(value: WdlValue): String = {
     value match {
       case f: WdlFile => new File(f.value).slurp
-      case s: WdlString => executionContext.cwd.resolve(s.value).slurp
+      case s: WdlString => cwd.resolve(s.value).slurp
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
   }
@@ -33,7 +33,7 @@ class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends 
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stdout.toAbsolutePath.toString))
+      Success(WdlFile(stdout.toAbsolutePath.toString))
     }
   }
 
@@ -41,7 +41,7 @@ class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends 
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
     } else {
-      Success(WdlFile(executionContext.stderr.toAbsolutePath.toString))
+      Success(WdlFile(stderr.toAbsolutePath.toString))
     }
   }
 
@@ -82,7 +82,7 @@ class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends 
       singleArgument <- extractSingleArgument(params)
       if singleArgument.wdlType.isInstanceOf[WdlArrayType]
       tsvSerialized <- singleArgument.asInstanceOf[WdlArray].tsvSerialize
-      (path, writer) = FileUtil.tempFileAndWriter("array", executionContext.cwd.toFile)
+      (path, writer) = FileUtil.tempFileAndWriter("array", cwd.toFile)
       _ <- Try(writer.write(tsvSerialized))
       _ <- Success(writer.close())
     } yield WdlFile(path.toAbsolutePath.toString)
@@ -93,7 +93,7 @@ class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends 
       singleArgument <- extractSingleArgument(params)
       if singleArgument.wdlType.isInstanceOf[WdlMapType]
       tsvSerialized <- singleArgument.asInstanceOf[WdlMap].tsvSerialize
-      (path, writer) = FileUtil.tempFileAndWriter("map", executionContext.cwd.toFile)
+      (path, writer) = FileUtil.tempFileAndWriter("map", cwd.toFile)
       _ <- Try(writer.write(tsvSerialized))
       _ <- Success(writer.close())
     } yield WdlFile(path.toAbsolutePath.toString)

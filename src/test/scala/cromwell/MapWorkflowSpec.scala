@@ -7,8 +7,7 @@ import akka.testkit._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.binding.{NamespaceWithWorkflow, NoFunctions, WdlFunctions}
-import cromwell.engine.backend.TaskExecutionContext
-import cromwell.engine.backend.local.{LocalBackend, LocalEngineFunctions, LocalTaskExecutionContext}
+import cromwell.engine.backend.local.{LocalBackend, LocalEngineFunctions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 

@@ -3,15 +3,14 @@ package cromwell.engine.db.slick
 import java.sql.SQLException
 import java.util.UUID
 
-import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.command.CommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlString}
+import cromwell.binding.values.{WdlArray, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{Backend, StdoutStderr, TaskExecutionContext}
+import cromwell.engine.backend.local.{LocalBackendCall, LocalBackend}
+import cromwell.engine.backend.{Backend, BackendCall, StdoutStderr}
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{DataAccess, LocalCallBackendInfo}
 import cromwell.parser.BackendType
@@ -23,7 +22,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Success
+import scala.util.{Success, Try}
 
 class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
@@ -36,6 +35,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   lazy val localBackend = new LocalBackend
 
   object UnknownBackend extends Backend {
+    type BackendCall = LocalBackendCall
     override def adjustInputPaths(call: Call, inputs: CallInputs) = Map.empty
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
     override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = ???
@@ -45,10 +45,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
                                     dataAccess: DataAccess)(implicit ec: ExecutionContext) = Future.successful(())
 
-    override def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): TaskExecutionContext = ???
-    override def executeCommand(commandLine: String, workflowDescriptor: WorkflowDescriptor,
-                                call: Call, backendInputs: CallInputs, scopedLookupFunction: ScopedLookupFunction,
-                                abortFunctionRegistration: AbortFunctionRegistration) = Success(Map.empty)
+    override def bindCall(workflowDescriptor: WorkflowDescriptor,
+                               call: Call,
+                               locallyQualifiedInputs: CallInputs,
+                               abortRegistrationFunction: AbortRegistrationFunction): BackendCall = ???
+    override def execute(bc: BackendCall): Try[Map[String, WdlValue]] = Success(Map.empty)
 
     override def backendType: BackendType = ???
   }

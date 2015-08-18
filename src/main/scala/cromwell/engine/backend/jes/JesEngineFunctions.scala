@@ -14,12 +14,12 @@ import scala.util.{Success, Try}
  * Implementation of engine functions for the JES backend.
  */
 //case class JesEngineFunctions(executionContext.callDir: GoogleCloudStoragePath, jesConnection: JesInterface) extends WdlStandardLibraryFunctions {
-case class JesEngineFunctions(executionContext: JesTaskExecutionContext) extends WdlStandardLibraryFunctions {
+case class JesEngineFunctions(jesBackendCall: JesBackendCall) extends WdlStandardLibraryFunctions {
 
   private def readFromPath(value: String): String = {
     val tryParse = GoogleCloudStoragePath.parse(value)
     val gcsPathToUse: GoogleCloudStoragePath = if (tryParse.isSuccess) { tryParse.get } else { GoogleCloudStoragePath(gcsPathFromAnyString(value)) }
-    executionContext.jesConnection.storage.slurpFile(gcsPathToUse)
+    jesBackendCall.jesConnection.storage.slurpFile(gcsPathToUse)
   }
   
   /**
@@ -39,12 +39,12 @@ case class JesEngineFunctions(executionContext: JesTaskExecutionContext) extends
   }
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(executionContext.callDir.bucket, executionContext.callDir.objectName + "/" + JesBackend.LocalStdoutValue)
+    val newPath = GoogleCloudStoragePath(jesBackendCall.callDir.bucket, jesBackendCall.callDir.objectName + "/" + JesBackend.LocalStdoutValue)
     Success(WdlFile(newPath.toString))
   }
 
   override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(executionContext.callDir.bucket, executionContext.callDir.objectName + "/" + JesBackend.LocalStderrValue)
+    val newPath = GoogleCloudStoragePath(jesBackendCall.callDir.bucket, jesBackendCall.callDir.objectName + "/" + JesBackend.LocalStderrValue)
     Success(WdlFile(newPath.toString))
   }
 
@@ -72,7 +72,7 @@ case class JesEngineFunctions(executionContext: JesTaskExecutionContext) extends
   }
 
   def gcsPathFromAnyString(value: String) = {
-    executionContext.callDir + md5(value)
+    jesBackendCall.callDir + md5(value)
   }
 
   def md5(value: String): String = {

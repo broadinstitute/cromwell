@@ -11,7 +11,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with SymbolComponent
   with ExecutionComponent
   with JesJobComponent
-  with LocalJobComponent {
+  with LocalJobComponent
+  with SgeJobComponent {
 
   import driver.api._
 
@@ -25,7 +26,8 @@ class DataAccessComponent(val driver: JdbcProfile)
       symbols.schema ++
       executions.schema ++
       localJobs.schema ++
-      jesJobs.schema
+      jesJobs.schema ++
+      sgeJobs.schema
 }
 
 object DataAccessComponent {

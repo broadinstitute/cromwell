@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.{InvalidMessageException, FSM, LoggingFSM, Props}
+import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.binding._
@@ -42,7 +42,21 @@ object WorkflowActor {
 
   val DatabaseTimeout = 5 seconds
 
-  type ExecutionStore = Map[Call, ExecutionStatus.Value]
+  type ExecutionStore = Map[ExecutionStoreKey, ExecutionStatus]
+  type ExecutionStoreEntry = (ExecutionStoreKey, ExecutionStatus)
+
+  // See also `WorkflowActor.createStore` that is similar, but uses the database.
+  // Currently only used for testing. May be merged / replaced with createStore.
+  def populate(workflow: Workflow): ExecutionStore = {
+    (workflow.children map {
+      case call: Call =>
+        CallKey(call, None, None)
+      case scatter: Scatter =>
+        ScatterKey(scatter, None, None)
+    } map {
+      _ -> ExecutionStatus.NotStarted
+    }).toMap
+  }
 
   val TerminalStates = Vector(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.Aborted)
   def isExecutionStateFinished(es: ExecutionStatus): Boolean = {
@@ -55,7 +69,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
                          dataAccess: DataAccess)
   extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
 
-  private var executionStore: Map[Call, ExecutionStatus.Value] = _
+  private var executionStore: ExecutionStore = _
 
   val tag: String = s"WorkflowActor [UUID(${workflow.shortId})]"
   override val log = Logging(context.system, classOf[WorkflowActor])
@@ -176,7 +190,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def persistStatus(calls: Traversable[Call], callStatus: CallStatus): Future[Unit] = {
-    executionStore ++= calls.map { _ -> callStatus}.toMap
+    executionStore ++= calls map {
+      CallKey(_, None, None) -> callStatus
+    }
     val callFqns = calls.map(_.fullyQualifiedName)
     log.info(s"$tag persisting status of calls ${callFqns.mkString(", ")} to $callStatus.")
     dataAccess.setStatus(workflow.id, callFqns, callStatus)
@@ -220,15 +236,24 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   type CallAndInputs = (Call, Map[String, WdlValue])
   private def tryStartingRunnableCalls(): Try[Any] = {
 
-    def isRunnable(call: Call) = call.prerequisiteCalls(workflow.namespace).forall(executionStore.get(_).get == ExecutionStatus.Done)
+    def isRunnable(scope: Scope) = {
+      scope match {
+        case call: Call =>
+          call.prerequisiteCalls(workflow.namespace) forall {
+            case previousCall =>
+              executionStore.find(_._1.scope == previousCall).get._2 == ExecutionStatus.Done
+          }
+      }
+    }
     /**
      * Start all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,
      * i.e. the calls which should now be eligible to run.
      */
     def findRunnableCalls: Iterable[Call] = {
       for {
-        callEntry <- executionStore if callEntry._2 == ExecutionStatus.NotStarted
-        call = callEntry._1 if isRunnable(call)
+      // TODO: Need other scopes
+        callEntry <- executionStore if callEntry._1.scope.isInstanceOf[Call] && callEntry._2 == ExecutionStatus.NotStarted
+        call = callEntry._1.scope.asInstanceOf[Call] if isRunnable(call)
       } yield call
     }
 
@@ -376,10 +401,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    * Load whatever execution statuses are stored for this workflow, regardless of whether this is a workflow being
    * restarted, or started for the first time.
    */
-  private def createStore: Future[Map[Call, ExecutionStatus.Value]] = {
+  private def createStore: Future[ExecutionStore] = {
     dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
-      workflow.namespace.workflow.calls.map {call =>
-        call -> statuses.get(call.fullyQualifiedName).get}.toMap
+      // TODO: This is NOT right. For example: statuses from DB are not just for a FQN, need the scatter index.
+      // See also `WorkflowActor.populate` that is similar, but uses indexes.
+      workflow.namespace.workflow.calls.map(call =>
+        CallKey(call, None, None) -> statuses.get(call.fullyQualifiedName).get
+      ).toMap
     }
   }
 

@@ -41,7 +41,6 @@ case class Workflow(name: String,
   // FIXME: In a world where we know this is a top level scope, these would go away
   override val prerequisiteScopes = Set.empty[Scope]
   override val prerequisiteCallNames = Set.empty[String]
-
   override val parent: Option[Scope] = None
 
   /**

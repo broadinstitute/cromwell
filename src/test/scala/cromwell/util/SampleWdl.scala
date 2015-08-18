@@ -1136,5 +1136,4 @@ object SampleWdl {
       """.stripMargin
     override lazy val rawInputs = Map("" -> "...")
   }
-
 }

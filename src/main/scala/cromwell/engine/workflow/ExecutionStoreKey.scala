@@ -47,4 +47,3 @@ case class ScatterKey(scope: Scatter, index: Option[Int], parent: Option[Executi
     }
   }
 }
-

@@ -153,14 +153,18 @@ trait Scope {
   val parent: Option[Scope]
   private var _children: Seq[Scope] = Seq.empty
   def children: Seq[Scope] = _children
+
   def children_=[Child <: Scope](children: Seq[Child]): Unit = {
     if (this._children.isEmpty) {
       this._children = children
     } else throw new UnsupportedOperationException("children is write-once")
   }
 
-  def fullyQualifiedName = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false, leaf = true)
-  def fullyQualifiedNameWithIndexScopes = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true, leaf = true)
+  def fullyQualifiedName =
+    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false, leaf = true)
+
+  def fullyQualifiedNameWithIndexScopes =
+    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true, leaf = true)
 
   /**
    * Convenience method to collect Calls from within a scope.

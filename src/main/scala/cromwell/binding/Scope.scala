@@ -4,20 +4,21 @@ import cromwell.binding.AstTools.AstNodeName
 import cromwell.parser.WdlParser.{Ast, AstList}
 
 import scala.annotation.tailrec
-import scala.collection.mutable.{Map, HashMap}
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object Scope {
-
   /**
    * Generate a Scope Tree from an Ast.
-   * Ast must match a Scope (currently: Workflow, Scatter or Call)
-   * @throws UnsupportedOperationException if node does not match any supported Scopes
-   * @return generated Scope Tree.
+   * Ast children must match a Scope (currently: Scatter or Call)
+   * @return generated Workflow Tree.
    */
-  def generateTree(node: Ast, namespaces: Seq[WdlNamespace], tasks: Seq[Task], wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Scope = {
+  private def generateWorkflowScopes(workflowAst: Ast,
+                                     namespaces: Seq[WdlNamespace],
+                                     tasks: Seq[Task],
+                                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
 
-    val scopeIndexes: Map[Class[_ <: Scope], Int] = HashMap.empty
+    val scopeIndexes: mutable.Map[Class[_ <: Scope], Int] = mutable.HashMap.empty
 
     /**
      * Retrieve the list of children Asts from the AST body.
@@ -26,33 +27,50 @@ object Scope {
     def getChildrenList(ast: Ast): Seq[Ast] = Option(ast.getAttribute("body")) collect {
       case list: AstList => list.asScala.toVector
     } getOrElse Seq.empty collect {
-      case ast: Ast => ast
+      case node: Ast
+        if node.getName == AstNodeName.Call ||
+          node.getName == AstNodeName.Scatter =>
+        node
+    }
+
+    /**
+     * Sets the child scopes on this parent from the ast.
+     * @param parentAst Parent ast.
+     * @param parentScope Parent scope.
+     */
+    def setChildScopes(parentAst: Ast, parentScope: Scope): Unit = {
+      //Increment index if needed
+      scopeIndexes.put(parentScope.getClass, scopeIndexes.getOrElse(parentScope.getClass, 0) + 1)
+      parentScope.children = for {
+        child <- getChildrenList(parentAst)
+        scope = generateScopeTree(child, namespaces, tasks, wdlSyntaxErrorFormatter, parentScope)
+      } yield scope
     }
 
     /**
      * Generate a scope from the ast parameter and all its descendants recursively.
-     * @return Some(instance of Scope) if the node has a Scope equivalent, None otherwise
+     * @return Scope equivalent
      */
-    def generateScopeTree(node: Ast, namespaces: Seq[WdlNamespace], tasks: Seq[Task], wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Option[Scope] = {
-      val scope: Option[Scope] = node match {
-        case w: Ast if w.getName == AstNodeName.Workflow => Option(Workflow(w, wdlSyntaxErrorFormatter, parent))
-        case c: Ast if c.getName == AstNodeName.Call => Option(Call(c, namespaces, tasks, wdlSyntaxErrorFormatter, parent))
-        case s: Ast if s.getName == AstNodeName.Scatter => Option(Scatter(s, scopeIndexes.getOrElse(classOf[Scatter], 0), parent))
+    def generateScopeTree(node: Ast,
+                          namespaces: Seq[WdlNamespace],
+                          tasks: Seq[Task],
+                          wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
+                          parent: Scope): Scope = {
 
-        /* Cases need to be added here to support new scopes */
-        case _ => None
+      val scope: Scope = node.getName match {
+        case AstNodeName.Call =>
+          Call(node, namespaces, tasks, wdlSyntaxErrorFormatter, Option(parent))
+        case AstNodeName.Scatter =>
+          Scatter(node, scopeIndexes.getOrElse(classOf[Scatter], 0), Option(parent))
       }
       //Generate and set children recursively
-      scope foreach { sc =>
-        //Increment index if needed
-        scopeIndexes.put(sc.getClass, scopeIndexes.getOrElse(sc.getClass, 0) + 1)
-        sc.setChildren(getChildrenList(node) flatMap { generateScopeTree(_, namespaces, tasks, wdlSyntaxErrorFormatter, Option(sc)) })
-      }
+      setChildScopes(node, scope)
       scope
     }
 
-    generateScopeTree(node, namespaces, tasks, wdlSyntaxErrorFormatter, None)
-      .getOrElse(throw new UnsupportedOperationException("Input node cannot be instantiated as a Scope"))
+    val workflow = Workflow(workflowAst, wdlSyntaxErrorFormatter)
+    setChildScopes(workflowAst, workflow)
+    workflow
   }
 
   /**
@@ -60,10 +78,15 @@ object Scope {
    * @throws UnsupportedOperationException if the ast is not a workflow ast
    * @return a workflow
    */
-  def generateWorkflow(ast: Ast, namespaces: Seq[WdlNamespace], tasks: Seq[Task], wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
+  def generateWorkflow(ast: Ast,
+                       namespaces: Seq[WdlNamespace],
+                       tasks: Seq[Task],
+                       wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
     ast.getName match {
-      case AstNodeName.Workflow => generateTree(ast, namespaces, tasks, wdlSyntaxErrorFormatter).asInstanceOf[Workflow]
-      case nonWorkflowAst => throw new UnsupportedOperationException(s"Ast is not a 'Workflow Ast' but a '$nonWorkflowAst Ast'")
+      case AstNodeName.Workflow =>
+        generateWorkflowScopes(ast, namespaces, tasks, wdlSyntaxErrorFormatter)
+      case nonWorkflowAst =>
+        throw new UnsupportedOperationException(s"Ast is not a 'Workflow Ast' but a '$nonWorkflowAst Ast'")
     }
   }
 
@@ -106,9 +129,17 @@ object Scope {
   }
 
   @tailrec
-  def fullyQualifiedNameBuilder(scope: Option[Scope], fqn: String, fullDisplay: Boolean): String = scope match {
-    case None => fqn.tail //Strip away the first "." of the name
-    case Some(x: Scope) => fullyQualifiedNameBuilder(x.parent, (if (fullDisplay || x.appearsInFQN) s".${x.name}" else "") + fqn, fullDisplay)
+  def fullyQualifiedNameBuilder(scope: Option[Scope], fqn: String, fullDisplay: Boolean, leaf: Boolean): String = {
+    scope match {
+      case None =>
+        fqn.tail //Strip away the first "." of the name
+      case Some(x: Scope) =>
+        fullyQualifiedNameBuilder(
+          x.parent,
+          (if (fullDisplay || x.appearsInFQN || leaf) s".${x.name}" else "") + fqn,
+          fullDisplay,
+          leaf = false)
+    }
   }
 
 }
@@ -116,7 +147,7 @@ object Scope {
 // FIXME: It'd be nice to have a notion of a parented and a not-parented Scope, see FIXME in Call about this
 trait Scope {
 
-  def name: String
+  def name: LocallyQualifiedName
 
   def appearsInFQN: Boolean = true
 
@@ -126,15 +157,17 @@ trait Scope {
 
   def children: Seq[Scope] = _children
 
-  def fullyQualifiedName = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false)
-
-  def fullyQualifiedNameWithIndexScopes = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true)
-
-  def setChildren(children: Seq[Scope]) = {
+  def children_=[Child <: Scope](children: Seq[Child]): Unit = {
     if (this._children.isEmpty) {
       this._children = children
     } else throw new UnsupportedOperationException("children is write-once")
   }
+
+  def fullyQualifiedName =
+    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false, leaf = true)
+
+  def fullyQualifiedNameWithIndexScopes =
+    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true, leaf = true)
 
   /**
    * Convenience method to collect Calls from within a scope.

@@ -72,7 +72,7 @@ case class Call(alias: Option[String],
                 taskFqn: FullyQualifiedName,
                 task: Task,
                 inputMappings: Map[String, WdlExpression],
-                parent: Option[Scope]) extends Scope {
+                override val parent: Option[Scope]) extends Scope {
   val name: String = alias getOrElse taskFqn
 
   private def unsatisfiedTaskInputs: Seq[TaskInput] = task.inputs.filterNot {case i => inputMappings.contains(i.name)}

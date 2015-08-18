@@ -69,7 +69,7 @@ class ScopeSpec extends FlatSpec with Matchers {
   }
 
   it should "throw an exception if trying to re-assign children on a scope" in {
-    the [UnsupportedOperationException] thrownBy { namespace.workflow.setChildren(Seq.empty) } should have message "children is write-once"
+    the [UnsupportedOperationException] thrownBy { namespace.workflow.children = Seq.empty } should have message "children is write-once"
   }
 
   it should "throw an exception if trying to generate a workflow from a non-workflow ast" in {

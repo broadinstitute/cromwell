@@ -7,7 +7,7 @@ import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 
 object Workflow {
 
-  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Workflow = {
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, name, wdlSyntaxErrorFormatter))
     val callNames = ast.findAsts(AstNodeName.Call).map {call =>
@@ -24,7 +24,7 @@ object Workflow {
       case _ =>
     }
 
-    new Workflow(name, declarations, parent, workflowOutputsDecls)
+    new Workflow(name, declarations, workflowOutputsDecls)
   }
 }
 
@@ -35,7 +35,12 @@ object Workflow {
  *
  * @param name The name of the workflow
  */
-case class Workflow(name: String, declarations: Seq[Declaration], parent: Option[Scope], workflowOutputDecls: Seq[WorkflowOutputDeclaration]) extends Executable with Scope {
+case class Workflow(name: String,
+                    declarations: Seq[Declaration],
+                    workflowOutputDecls: Seq[WorkflowOutputDeclaration]) extends Executable with Scope {
+
+
+  override val parent: Option[Scope] = None
 
   /* Calls and scatters are accessed frequently so this avoids traversing the whole children tree every time.
    * Lazy because children are not provided at instantiation but rather later during tree building process.

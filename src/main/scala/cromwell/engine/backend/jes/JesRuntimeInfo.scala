@@ -14,7 +14,7 @@ object JesRuntimeInfo {
 
   def buildDockerExecutor(commandLine: String, dockerImage: String): DockerExecutor = {
     val docker = new DockerExecutor()
-    docker.setImage(dockerImage).setCmd(s"/bin/bash -c '$commandLine'")
+    docker.setImage(dockerImage).setCmd(commandLine)
   }
 
   def buildResources(call: Call): Resources = {

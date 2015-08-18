@@ -112,13 +112,18 @@ class JesBackend extends Backend with LazyLogging {
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
 
   def taskOutputToJesOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
-    taskOutput.wdlType match {
-      case WdlFileType =>
-        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true) match {
-          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
-          case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
-        }
-      case _ => Success(None)
+    // If the output isn't a file then it's not a file to be retrieved by the JES run! (but NB: see anonymous task output below)
+    // Currently, no function calls can be run before the JES call completes, so we can't retrieve files with names based on function calls.
+    if (taskOutput.wdlType != WdlFileType || taskOutput.expression.containsFunctionCall) {
+      Success(None)
+    } else {
+      val evaluatedExpression = taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true)
+      evaluatedExpression match {
+        case Success(v) =>
+          val jesOutput = JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))
+          Success(Option(jesOutput))
+        case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
+      }
     }
   }
 
@@ -151,14 +156,16 @@ class JesBackend extends Backend with LazyLogging {
                               backendInputs: CallInputs,
                               scopedLookupFunction: ScopedLookupFunction,
                               abortFunctionRegistration: AbortFunctionRegistration): Try[Map[String, WdlValue]] = {
+
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
-
+    logger.info(s"JES log directory in GCS: $callGcsPath")
     val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
+    val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
+    val cmdInput = JesInput("exec", gcsExecPath.toString, Paths.get("exec.sh"))
 
-    // FIXME: Not particularly robust at the moment.
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
       case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(v.valueString))
-    }).toSeq
+    }).toSeq :+ cmdInput
 
     // Call preevaluateExpressionForFilenames for each of the task output expressions, and flatten the lists into a single Try[Seq[WdlFile]]
     val filesWithinExpressions = Try(
@@ -167,6 +174,8 @@ class JesBackend extends Backend with LazyLogging {
       }.flatMap({_.get})
     )
 
+    // Find the named and anonymous outputs to retrieve from the JES docker image. Doesn't necessarily include ALL
+    // eventual outputs (e.g. String s = stdout() won't need anything extracted from the JES container).
     val jesOutputs: Try[Seq[JesParameter]] = filesWithinExpressions match {
       case Failure(error) => Failure(error)
       case Success(fileSeq) =>
@@ -182,9 +191,9 @@ class JesBackend extends Backend with LazyLogging {
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ unsafeJesOutputs
 
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-    val redirectedCommand = s"$instantiatedCommandLine > $LocalStdoutValue 2> $LocalStderrValue"
+    JesConnection.storage.uploadObject(gcsExecPath, instantiatedCommandLine)
 
-    val run = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run
+    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
     run.waitUntilRunningOrComplete()
     abortFunctionRegistration.registrationFunction apply AbortFunction({() => run.abort()})

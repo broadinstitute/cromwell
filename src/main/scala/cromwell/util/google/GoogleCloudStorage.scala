@@ -36,7 +36,13 @@ case class GoogleCloudStorage(client: Storage) {
   // See comment in uploadObject re small files. Here, define small as 2MB or lower:
   private val smallFileSizeLimit: Long = 2000000
 
-  def uploadObject(gcsPath: GoogleCloudStoragePath, inputStream: InputStream, byteCount: Long) = {
+  def uploadObject(gcsPath: GoogleCloudStoragePath, fileContent: String): Unit = {
+    val fileBytes = fileContent.getBytes
+    val bais = new ByteArrayInputStream(fileBytes)
+    uploadObject(gcsPath, bais, fileBytes.length)
+  }
+
+  def uploadObject(gcsPath: GoogleCloudStoragePath, inputStream: InputStream, byteCount: Long): Unit = {
     val mediaContent: InputStreamContent = new InputStreamContent("application/octet-stream", inputStream)
     mediaContent.setLength(byteCount)
 

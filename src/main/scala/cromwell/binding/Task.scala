@@ -17,25 +17,24 @@ object Task {
      * For example having a command line of `./script ${File x} ${String x}` is conflicting.
      */
     val commandParameters = ast.findAsts(AstNodeName.CommandParameter)
-    val parameterNames = commandParameters.map { _.getAttribute("name").sourceString() }.toSet
-    parameterNames.foreach { name =>
-      val paramsWithSameName = commandParameters.filter {
-        _.getAttribute("name").sourceString == name
-      }
+    val parameterNames = commandParameters map { _.getAttribute("name").sourceString } toSet
+
+    parameterNames foreach { name =>
+      val paramsWithSameName = commandParameters filter { _.getAttribute("name").sourceString == name }
       ensureCommandParameterAstsMatch(paramsWithSameName, ast, wdlSyntaxErrorFormatter)
     }
 
     val commandAsts = ast.findAsts(AstNodeName.Command)
     if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
     val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
-    val outputs = ast.findAsts(AstNodeName.Output) map {TaskOutput(_, wdlSyntaxErrorFormatter)}
+    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, wdlSyntaxErrorFormatter) }
     new Task(name, declarations, command, outputs, ast, backendType)
   }
 
   private def ensureCommandParameterAstsMatch(paramAsts: Seq[Ast], taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
-    paramAsts.headOption.foreach { firstParamAst =>
+    paramAsts.headOption foreach { firstParamAst =>
       val sentinel = ParameterCommandPart(firstParamAst, wdlSyntaxErrorFormatter)
-      paramAsts.foreach { paramAst =>
+      paramAsts foreach { paramAst =>
         val parsed = ParameterCommandPart(paramAst, wdlSyntaxErrorFormatter)
         if (parsed != sentinel)
           throw new SyntaxError(wdlSyntaxErrorFormatter.parametersWithSameNameMustHaveSameDefinition(

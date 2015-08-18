@@ -4,6 +4,7 @@ import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 
 import scala.util.{Success, Try}
+import scala.language.postfixOps
 
 object Call {
   def apply(ast: Ast,
@@ -15,7 +16,7 @@ object Call {
       case _ => None
     }
 
-    val taskName = ast.getAttribute("task").sourceString()
+    val taskName = ast.getAttribute("task").sourceString
     val task = WdlNamespace.findTask(taskName, namespaces, tasks) getOrElse {
       throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(ast, taskName))
     }
@@ -44,12 +45,14 @@ object Call {
     new Call(alias, taskName, task, callInputSectionMappings)
   }
 
-  private def processCallInput(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] =
-    AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter).map {a =>
-      val key = a.getAttribute("key").sourceString()
+  private def processCallInput(ast: Ast,
+                               wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] = {
+    AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter) map { a =>
+      val key = a.getAttribute("key").sourceString
       val expression = new WdlExpression(a.getAttribute("value"))
       (key, expression)
-    }.toMap
+    } toMap
+  }
 }
 
 /**

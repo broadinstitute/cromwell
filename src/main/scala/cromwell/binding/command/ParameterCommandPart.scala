@@ -3,9 +3,9 @@ package cromwell.binding.command
 import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.{WdlArray, WdlPrimitive, WdlString, WdlValue}
-import cromwell.binding.{AstTools, WdlExpression, WdlSyntaxErrorFormatter}
+import cromwell.binding.{WdlExpression, WdlSyntaxErrorFormatter}
 import cromwell.parser.WdlParser.{Ast, AstList, SyntaxError, Terminal}
-
+import scala.language.postfixOps
 import scala.collection.JavaConverters._
 
 object ParameterCommandPart {
@@ -15,16 +15,16 @@ object ParameterCommandPart {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): ParameterCommandPart = {
     val wdlType = ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter)
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val prefix = Option(ast.getAttribute("prefix")) map { case t:Terminal => t.sourceString() }
-    val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.map { a =>
+    val prefix = Option(ast.getAttribute("prefix")) map { case t:Terminal => t.sourceString }
+    val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq map { a =>
       val ast = a.asInstanceOf[Ast]
-      (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
-    }.toMap
+      (ast.getAttribute("key").sourceString, ast.getAttribute("value").sourceString)
+    } toMap
     val postfixQuantifier = ast.getAttribute("postfix") match {
-      case t:Terminal => Some(t.sourceString())
+      case t: Terminal => Some(t.sourceString)
       case _ => None
     }
-    postfixQuantifier.foreach {quantifier =>
+    postfixQuantifier.foreach { quantifier =>
       val postfixQuantifierToken = ast.getAttribute("postfix").asInstanceOf[Terminal]
       if (PostfixQuantifiersThatAcceptArrays.contains(quantifier) && !attributes.contains("sep"))
         throw new SyntaxError(wdlSyntaxErrorFormatter.postfixQualifierRequiresSeparator(postfixQuantifierToken))

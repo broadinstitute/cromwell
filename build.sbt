@@ -3,14 +3,19 @@ import sbtassembly.Plugin._
 import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
+
 version := "0.10"
+
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
 val sprayV = "1.3.2"
+
 val DowngradedSprayV = "1.3.1"
+
 val akkaV = "2.3.12"
+
 val googleClientApiV = "1.20.0"
 
 libraryDependencies ++= Seq(

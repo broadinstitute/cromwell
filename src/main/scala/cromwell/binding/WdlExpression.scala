@@ -1,13 +1,15 @@
 package cromwell.binding
 
+import cromwell.binding.AstTools.EnhancedAstNode
+import cromwell.binding.WdlExpression._
 import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
 import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
-import cromwell.binding.AstTools.EnhancedAstNode
 
 import scala.collection.JavaConverters._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
@@ -184,6 +186,19 @@ object WdlExpression {
                   case Some(v:WdlValue) => Success(v)
                   case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
                 }
+              case array: WdlArray if array.wdlType == WdlArrayType(WdlObjectType) =>
+                /**
+                 * This case is for slicing an Array[Object], used mainly for scatter-gather.
+                 * For example, if 'call foo' was in a scatter block, foo's outputs (e.g. Int x)
+                 * would be an Array[Int].  If a downstream call has an input expression "foo.x",
+                 * then 'foo' would evaluate to an Array[Objects] and foo.x would result in an
+                 * Array[Int]
+                 */
+                val objectArraySlice = array.value map { _.asInstanceOf[WdlObject].value.get(rhs.sourceString) }
+                if (objectArraySlice.contains(None))
+                  Failure(new WdlExpressionException(s"Could not evaluate expression: ${ast.toString}"))
+                else
+                  WdlArrayType(WdlAnyType).coerceRawValue(objectArraySlice map { _.get })
               case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
               case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
             }
@@ -276,19 +291,28 @@ object WdlExpression {
 }
 
 case class WdlExpression(ast: AstNode) extends WdlValue {
-
-  import WdlExpression._
-
   override val wdlType = WdlExpressionType
-  def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] =
+
+  def evaluate(lookup: ScopedLookupFunction,
+               functions: WdlFunctions,
+               interpolateStrings: Boolean = false): Try[WdlValue] = {
     WdlExpression.evaluate(ast, lookup, functions, interpolateStrings)
-  def preevaluateExpressionForFilenames(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] =
+  }
+
+  def preevaluateExpressionForFilenames(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] = {
     WdlExpression.preevaluateExpressionForFilenames(ast, lookup: ScopedLookupFunction, functions: WdlFunctions)
+  }
+
   def containsFunctionCall = ast.containsFunctionCalls
+
   def toString(highlighter: SyntaxHighlighter): String = {
     WdlExpression.toString(ast, highlighter)
   }
+
   override def toWdlString: String = toString(NullSyntaxHighlighter)
+
+  def prerequisiteCallNames: Set[LocallyQualifiedName] = this.toMemberAccesses map { _.lhs }
+  def toMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
 }
 
 trait WdlFunctions {

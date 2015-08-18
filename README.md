@@ -26,6 +26,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Aliasing Calls](#aliasing-calls)
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
   * [Using Files as Inputs](#using-files-as-inputs)
+  * [Scatter/Gather](#scattergather)
 * [Backends](#backends)
   * [Local Filesystem Assumptions / Layout](#local-filesystem-assumptions--layout)
   * [Local Backend](#local-backend)
@@ -556,6 +557,59 @@ $ java -jar target/scala-2.11/cromwell-0.7.jar run grep.wdl grep.json
 ... truncated ...
 {
   "test.grep.count": 3
+}
+```
+
+## Scatter/Gather
+
+Scatter blocks can be used to run the same call multiple times but only varying a specific parameter on each invocation.  Consider the following example:
+
+```
+task prepare {
+  command <<<
+    python -c "print('one\ntwo\nthree\nfour')"
+  >>>
+  output {
+    Array[String] array = read_lines(stdout())
+  }
+}
+
+task analysis {
+  String str
+  command <<<
+    python -c "print('_${str}_')"
+  >>>
+  output {
+    String out = read_string(stdout())
+  }
+}
+
+task gather {
+  Array[String] array
+  command <<<
+    echo ${sep=' ' array}
+  >>>
+  output {
+    String str = read_string(stdout())
+  }
+}
+
+workflow example {
+  call prepare
+  scatter (x in prepare.array) {
+    call analysis {input: str=x}
+  }
+  call gather {input: array=analysis.out}
+}
+```
+
+This example calls the `analysis` task once for each element in the array that the `prepare` task outputs.  The resulting outputs of this workflow would be:
+
+```
+{
+  "example.analysis.out": ["_one_", "_two_", "_three_", "_four_"],
+  "example.gather.str": "_one_ _two_ _three_ _four_",
+  "example.prepare.array": ["one", "two", "three", "four"]
 }
 ```
 

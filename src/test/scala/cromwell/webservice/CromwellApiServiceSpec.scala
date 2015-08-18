@@ -72,7 +72,7 @@ class MockWorkflowManagerActor extends Actor  {
       }
       futureOutputs pipeTo sender
 
-    case CallOutputs(id, callFqn) =>
+    case CallOutputs(id, callFqn, _) =>
       val futureOutputs =
         Future {
           id match {
@@ -88,7 +88,7 @@ class MockWorkflowManagerActor extends Actor  {
         }
       futureOutputs pipeTo sender
 
-    case CallStdoutStderr(id, callFqn) =>
+    case CallStdoutStderr(id, callFqn, _) =>
       val futureOutputs =
       Future {
         id match {

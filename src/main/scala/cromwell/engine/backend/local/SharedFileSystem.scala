@@ -1,17 +1,18 @@
 package cromwell.engine.backend.local
 
-import java.io.{IOException, File, Writer}
-import java.nio.file.{Path, Files, Paths}
-import scala.collection.JavaConverters._
+import java.io.File
+import java.nio.file.{Files, Path, Paths}
 
+import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowId
-import cromwell.engine.backend.{StdoutStderr, LocalFileSystemBackendCall}
+import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
 import org.apache.commons.io.FileUtils
-import com.typesafe.config.ConfigFactory
 
+import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -82,8 +83,8 @@ trait SharedFileSystem {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
-    val dir = LocalBackend.hostCallPath(workflowName, workflowId, callName)
+  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr = {
+    val dir = LocalBackend.hostCallPath(workflowName, workflowId, callName, index)
     StdoutStderr(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
@@ -123,6 +124,8 @@ trait SharedFileSystem {
       val (name, value) = nameAndValue
       val adjusted = value match {
         case WdlFile(path) => containerPath(path)
+        case WdlArray(t, values) => new WdlArray(t, values map { adjustPath(name, _)._2 })
+        case WdlMap(t, values) => new WdlMap(t, values mapValues { adjustPath(name, _)._2 })
         case x => x
       }
       name -> adjusted

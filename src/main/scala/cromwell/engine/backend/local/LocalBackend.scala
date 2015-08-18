@@ -5,10 +5,12 @@ import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, TaskAbortedException}
-import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
+import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 
@@ -18,6 +20,11 @@ import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
 object LocalBackend {
+
+  val ContainerRoot = "/root"
+  val CallPrefix = "call"
+  val ShardPrefix = "shard"
+
   /**
    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
    */
@@ -37,11 +44,33 @@ object LocalBackend {
   def hostExecutionPath(workflowName: String, workflowUuid: WorkflowId): Path =
     Paths.get(SharedFileSystem.CromwellExecutionRoot, workflowName, workflowUuid.id.toString)
 
-  def hostCallPath(workflow: WorkflowDescriptor, callName: String): Path =
-    Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
+  def hostCallPath(workflow: WorkflowDescriptor, callName: String, callIndex: ExecutionIndex): Path = {
+    hostCallPath(workflow.name, workflow.id, callName, callIndex)
+  }
 
-  def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String): Path =
-    Paths.get(hostExecutionPath(workflowName, workflowUuid).toFile.getAbsolutePath, s"call-$callName")
+  def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String, callIndex: ExecutionIndex): Path =  {
+    val rootCallPath = hostExecutionPath(workflowName, workflowUuid).resolve(s"$CallPrefix-$callName")
+    callIndex match {
+      case Some(index) => rootCallPath.resolve(s"$ShardPrefix-$index")
+      case None => rootCallPath
+    }
+  }
+
+  /**
+   * Root workflow execution path for container.
+   */
+  def containerExecutionPath(workflow: WorkflowDescriptor): Path = Paths.get(ContainerRoot, workflow.id.toString)
+
+  /**
+   * Root Call execution path for container.
+   */
+  def containerCallPath(workflow: WorkflowDescriptor, callName: String, callIndex: ExecutionIndex): Path = {
+    val rootCallPath = containerExecutionPath(workflow).resolve(s"$CallPrefix-$callName")
+    callIndex match {
+      case Some(index) => rootCallPath.resolve(s"$ShardPrefix-$index")
+      case None => rootCallPath
+    }
+  }
 }
 
 
@@ -54,10 +83,10 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   import LocalBackend._
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        call: Call,
+                        key: CallKey,
                         locallyQualifiedInputs: CallInputs,
                         abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
-    LocalBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
+    LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
   override def execute(backendCall: BackendCall): Try[CallOutputs] =  {
@@ -78,8 +107,8 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
-    def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
-      val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
+    def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
+      val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn }
       dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
     }
 

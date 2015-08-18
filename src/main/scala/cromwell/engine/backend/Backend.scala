@@ -8,12 +8,14 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.types.{WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlFile, WdlMap, WdlString, WdlValue}
+import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.{LocalBackendCall, LocalBackend, LocalEngineFunctions}
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -64,7 +66,7 @@ trait Backend {
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
   def bindCall(workflowDescriptor: WorkflowDescriptor,
-               call: Call,
+               key: CallKey,
                locallyQualifiedInputs: CallInputs,
                abortRegistrationFunction: AbortRegistrationFunction): BackendCall
 
@@ -76,7 +78,7 @@ trait Backend {
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr
+  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr
 
   def backendType: BackendType
 

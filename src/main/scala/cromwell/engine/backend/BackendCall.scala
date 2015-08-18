@@ -2,6 +2,7 @@ package cromwell.engine.backend
 
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
+import cromwell.engine.workflow.CallKey
 
 import scala.util.Try
 
@@ -45,7 +46,8 @@ trait BackendCall {
    * of a BackendCall object that the 'call' would be within the workflow
    */
   def workflowDescriptor: WorkflowDescriptor
-  def call: Call
+  def key: CallKey
+  def call = key.scope
 
   /**
    * Backend which will be used to execute the Call

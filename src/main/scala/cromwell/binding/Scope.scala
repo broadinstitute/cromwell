@@ -1,72 +1,9 @@
 package cromwell.binding
 
-import cromwell.binding.AstTools.AstNodeName
-import cromwell.parser.WdlParser.{Ast, AstList}
-
 import scala.annotation.tailrec
-import scala.collection.mutable.{Map, HashMap}
-import scala.collection.JavaConverters._
+import scala.language.postfixOps
 
 object Scope {
-
-  /**
-   * Generate a Scope Tree from an Ast.
-   * Ast must match a Scope (currently: Workflow, Scatter or Call)
-   * @throws UnsupportedOperationException if node does not match any supported Scopes
-   * @return generated Scope Tree.
-   */
-  def generateTree(node: Ast, namespaces: Seq[WdlNamespace], tasks: Seq[Task], wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Scope = {
-
-    val scopeIndexes: Map[Class[_ <: Scope], Int] = HashMap.empty
-
-    /**
-     * Retrieve the list of children Asts from the AST body.
-     * Return empty seq if body is null or is not a list.
-     */
-    def getChildrenList(ast: Ast): Seq[Ast] = Option(ast.getAttribute("body")) collect {
-      case list: AstList => list.asScala.toVector
-    } getOrElse Seq.empty collect {
-      case ast: Ast => ast
-    }
-
-    /**
-     * Generate a scope from the ast parameter and all its descendants recursively.
-     * @return Some(instance of Scope) if the node has a Scope equivalent, None otherwise
-     */
-    def generateScopeTree(node: Ast, namespaces: Seq[WdlNamespace], tasks: Seq[Task], wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Option[Scope] = {
-      val scope: Option[Scope] = node match {
-        case w: Ast if w.getName == AstNodeName.Workflow => Option(Workflow(w, wdlSyntaxErrorFormatter, parent))
-        case c: Ast if c.getName == AstNodeName.Call => Option(Call(c, namespaces, tasks, wdlSyntaxErrorFormatter, parent))
-        case s: Ast if s.getName == AstNodeName.Scatter => Option(Scatter(s, scopeIndexes.getOrElse(classOf[Scatter], 0), parent))
-
-        /* Cases need to be added here to support new scopes */
-        case _ => None
-      }
-      //Generate and set children recursively
-      scope foreach { sc =>
-        //Increment index if needed
-        scopeIndexes.put(sc.getClass, scopeIndexes.getOrElse(sc.getClass, 0) + 1)
-        sc.setChildren(getChildrenList(node) flatMap { generateScopeTree(_, namespaces, tasks, wdlSyntaxErrorFormatter, Option(sc)) })
-      }
-      scope
-    }
-
-    generateScopeTree(node, namespaces, tasks, wdlSyntaxErrorFormatter, None)
-      .getOrElse(throw new UnsupportedOperationException("Input node cannot be instantiated as a Scope"))
-  }
-
-  /**
-   * Generate a workflow from an Ast. The ast must be one of a workflow.
-   * @throws UnsupportedOperationException if the ast is not a workflow ast
-   * @return a workflow
-   */
-  def generateWorkflow(ast: Ast, namespaces: Seq[WdlNamespace], tasks: Seq[Task], wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
-    ast.getName match {
-      case AstNodeName.Workflow => generateTree(ast, namespaces, tasks, wdlSyntaxErrorFormatter).asInstanceOf[Workflow]
-      case nonWorkflowAst => throw new UnsupportedOperationException(s"Ast is not a 'Workflow Ast' but a '$nonWorkflowAst Ast'")
-    }
-  }
-
   /**
    * Collect Calls from a Seq of Scopes.
    * @param scopes scopes to loop through
@@ -106,35 +43,39 @@ object Scope {
   }
 
   @tailrec
-  def fullyQualifiedNameBuilder(scope: Option[Scope], fqn: String, fullDisplay: Boolean): String = scope match {
-    case None => fqn.tail //Strip away the first "." of the name
-    case Some(x: Scope) => fullyQualifiedNameBuilder(x.parent, (if (fullDisplay || x.appearsInFQN) s".${x.name}" else "") + fqn, fullDisplay)
+  def fullyQualifiedNameBuilder(scope: Option[Scope], fqn: String, fullDisplay: Boolean, leaf: Boolean): String = {
+    scope match {
+      case Some(x: Scope) =>
+        fullyQualifiedNameBuilder(
+          x.parent,
+          (if (fullDisplay || x.appearsInFqn || leaf) s".${x.name}" else "") + fqn,
+          fullDisplay,
+          leaf = false)
+      case None => fqn.tail //Strip away the first "." of the name
+    }
   }
 
 }
 
-// FIXME: It'd be nice to have a notion of a parented and a not-parented Scope, see FIXME in Call about this
 trait Scope {
-
-  def name: String
-
-  def appearsInFQN: Boolean = true
+  def name: LocallyQualifiedName
+  def appearsInFqn: Boolean = true
 
   val parent: Option[Scope]
-
   private var _children: Seq[Scope] = Seq.empty
-
   def children: Seq[Scope] = _children
 
-  def fullyQualifiedName = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false)
-
-  def fullyQualifiedNameWithIndexScopes = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true)
-
-  def setChildren(children: Seq[Scope]) = {
+  def children_=[Child <: Scope](children: Seq[Child]): Unit = {
     if (this._children.isEmpty) {
       this._children = children
     } else throw new UnsupportedOperationException("children is write-once")
   }
+
+  def fullyQualifiedName =
+    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false, leaf = true)
+
+  def fullyQualifiedNameWithIndexScopes =
+    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true, leaf = true)
 
   /**
    * Convenience method to collect Calls from within a scope.
@@ -148,4 +89,43 @@ trait Scope {
    */
   def collectAllScatters = Scope.collectAllScatters(Seq(this), Nil)
 
+  /*
+   * Calls and scatters are accessed frequently so this avoids traversing the whole children tree every time.
+   * Lazy because children are not provided at instantiation but rather later during tree building process.
+   * This prevents evaluation from being done before children have been set.
+   *
+   * FIXME: In a world where Scope wasn't monolithic, these would be moved around
+   */
+  lazy val calls: Seq[Call] = collectAllCalls
+  lazy val scatters: Seq[Scatter] = collectAllScatters
+
+  /**
+   * Recurses up the scope tree until it hits one w/o a parent.
+   *
+   * FIXME: In a world where Scope wasn't monolithic this would traverse until it hit a RootScope or whatever
+   */
+  final def rootScope: Scope = this.parent map { _.rootScope } getOrElse this
+
+  // FIXME: In a world where Scope wasn't monolithic, these would be moved out of here
+  def prerequisiteScopes: Set[Scope]
+  def prerequisiteCallNames: Set[LocallyQualifiedName]
+
+  /**
+   *  Returns a set of Calls corresponding to the prerequisiteCallNames
+   *
+   *  Dropping any unfound Calls to the floor but we're already validating that all calls are sane at ingest.
+   *  It's icky because it relies on that validation not changing, but ...
+   */
+  lazy val prerequisiteCalls: Set[Scope] = prerequisiteCallNames flatMap rootScope.callByName
+  def callByName(callName: LocallyQualifiedName): Option[Call] = calls find { _.name == callName }
+
+  def ancestry: Seq[Scope] = parent match {
+    case Some(p) => Seq(p) ++ p.ancestry
+    case None => Seq.empty[Scope]
+  }
+
+  def closestCommonAncestor(other: Scope): Option[Scope] = {
+    val otherAncestry = other.ancestry
+    ancestry find { otherAncestry.contains(_) }
+  }
 }

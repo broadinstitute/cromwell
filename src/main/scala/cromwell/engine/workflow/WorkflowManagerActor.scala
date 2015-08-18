@@ -7,13 +7,14 @@ import akka.pattern.pipe
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
+import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, StdoutStderr}
-import cromwell.engine.db.DataAccess
+import cromwell.engine.db.{ExecutionDatabaseKey, DataAccess}
 import cromwell.engine.db.DataAccess.WorkflowInfo
-import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.workflow.WorkflowActor.{ExecutionStore, Restart, Start}
 import cromwell.util.WriteOnceStore
 import spray.json._
 
@@ -31,8 +32,8 @@ object WorkflowManagerActor {
   case class SubmitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
-  case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
-  case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
+  case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName, index: ExecutionIndex) extends WorkflowManagerActorMessage
+  case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName, index: ExecutionIndex) extends WorkflowManagerActorMessage
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerActorMessage
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -77,8 +78,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       }
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
-    case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
-    case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
+    case CallOutputs(workflowId, callName, index) => callOutputs(workflowId, callName, index) pipeTo sender
+    case CallStdoutStderr(workflowId, callName, index) => callStdoutStderr(workflowId, callName, index) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
@@ -98,7 +99,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def assertCallExistence(id: WorkflowId, callFqn: FullyQualifiedName): Future[Any] = {
-    dataAccess.getExecutionStatus(id, callFqn) map {
+    dataAccess.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None)) map {
       case None => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case _ =>
     }
@@ -113,11 +114,11 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     }
   }
 
-  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[binding.CallOutputs] = {
+  private def callOutputs(workflowId: WorkflowId, callFqn: String, index: ExecutionIndex): Future[binding.CallOutputs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
-      outputs <- dataAccess.getOutputs(workflowId, callFqn)
+      outputs <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None))
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }
@@ -133,24 +134,24 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     }
   }
 
-  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[StdoutStderr] = {
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String, index: ExecutionIndex): Future[StdoutStderr] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
       (wf, call) <- Future.fromTry(assertCallFqnWellFormed(callFqn))
-      callStandardOutput <- Future.successful(backend.stdoutStderr(workflowId, wf, call))
+      callStandardOutput <- Future.successful(backend.stdoutStderr(workflowId, wf, call, index))
     } yield callStandardOutput
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, StdoutStderr]] = {
-    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[FullyQualifiedName, StdoutStderr]] = {
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, StdoutStderr]] = {
+    def logMapFromStatusMap(statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[ExecutionDatabaseKey, StdoutStderr]] = {
       Try {
         val callsToPaths = for {
-          (call, status) <- statusMap.toSeq
+          (key, status) <- statusMap.toSeq
           if Set(ExecutionStatus.Done, ExecutionStatus.Failed).contains(status)
-          (wf, callLqn) = assertCallFqnWellFormed(call).get
-          callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn)
-        } yield call -> callStandardOutput
+          (wf, callLqn) = assertCallFqnWellFormed(key.fqn).get
+          callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn, key.index)
+        } yield key -> callStandardOutput
         callsToPaths.toMap
       }
     }

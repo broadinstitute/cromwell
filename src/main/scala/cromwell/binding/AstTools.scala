@@ -100,6 +100,7 @@ object AstTools {
     val Runtime = "Runtime"
     val Declaration = "Declaration"
     val WorkflowOutput = "WorkflowOutput"
+    val Scatter = "Scatter"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {

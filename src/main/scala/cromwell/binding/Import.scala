@@ -1,7 +1,7 @@
 package cromwell.binding
 
-import cromwell.parser.WdlParser.{AstNode, Ast}
-import AstTools.EnhancedAstNode
+import cromwell.binding.AstTools.EnhancedAstNode
+import cromwell.parser.WdlParser.{Ast, AstNode}
 
 object Import {
   def apply(astNode: AstNode): Import = {

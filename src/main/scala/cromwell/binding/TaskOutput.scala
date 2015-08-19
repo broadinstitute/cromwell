@@ -1,7 +1,7 @@
 package cromwell.binding
 
+import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.types.WdlType
-import AstTools.EnhancedAstNode
 import cromwell.parser.WdlParser.Ast
 
 object TaskOutput {

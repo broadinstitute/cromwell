@@ -4,7 +4,6 @@ import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
-import akka.util.Timeout
 import cromwell.binding
 import cromwell.binding.{WdlJson, WdlSource}
 import cromwell.engine._

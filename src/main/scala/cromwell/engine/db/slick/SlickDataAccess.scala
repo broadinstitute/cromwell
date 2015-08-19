@@ -7,7 +7,8 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.util.ConfigExtensionMethods._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.binding._
-import cromwell.binding.types.WdlType
+import cromwell.binding.types.{WdlPrimitiveType, WdlType}
+import cromwell.binding.values.{WdlValue, WdlPrimitive}
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.jes.JesBackend
@@ -120,6 +121,17 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     }
   }
 
+  private def wdlValueToDbValue(v: WdlValue): String = v.wdlType match {
+    case p: WdlPrimitiveType => v.valueString
+    case o => v.toWdlString
+  }
+
+  private def dbEntryToWdlValue(dbValue: String, wdlType: WdlType): WdlValue = wdlType match {
+    // .get here is because we trust the value in the database is coercible to the given type
+    case p: WdlPrimitiveType => p.coerceRawValue(dbValue).get
+    case o => wdlType.fromWdlString(dbValue)
+  }
+
   override def shutdown() = database.shutdown
 
   // Run action with an outer transaction
@@ -174,7 +186,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         symbol.key.iteration.getOrElse(IterationNone),
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(_.toWdlString.toClob))
+        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob))
     }
   }
 
@@ -380,7 +392,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
       ),
       wdlType,
-      symbolResult.wdlValue map {value => wdlType.fromWdlString(value.toRawString)}
+      symbolResult.wdlValue map {v => dbEntryToWdlValue(v.toRawString, wdlType)}
     )
   }
 
@@ -395,9 +407,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   override def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
-    val x = dataAccess.allSymbols(workflowId.toString).result
     val action = for {
-      symbolResults <- x
+      symbolResults <- dataAccess.allSymbols(workflowId.toString).result
       symbolStoreEntries = symbolResults map toSymbolStoreEntry
     } yield symbolStoreEntries
 
@@ -436,7 +447,6 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   override def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: WorkflowOutputs): Future[Unit] = {
-
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
@@ -448,7 +458,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
             IterationNone,
             IoOutput,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValue.toWdlString.toClob))
+            Option(wdlValueToDbValue(wdlValue).toClob))
       }
     } yield ()
 

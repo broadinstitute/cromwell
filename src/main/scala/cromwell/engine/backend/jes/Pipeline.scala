@@ -1,11 +1,12 @@
 package cromwell.engine.backend.jes
 
-import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.{Call, WorkflowDescriptor}
-import scala.collection.JavaConverters._
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.CreatePipelineRequest
-import JesBackend._
+import com.typesafe.scalalogging.LazyLogging
+import cromwell.binding.{Call, WorkflowDescriptor}
+import cromwell.engine.backend.jes.JesBackend._
+
+import scala.collection.JavaConverters._
 
 object Pipeline extends LazyLogging {
   def apply(command: String, workflow: WorkflowDescriptor, call: Call, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {

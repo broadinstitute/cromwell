@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.{ActorRef, Actor, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.webservice.PerRequest.RequestComplete

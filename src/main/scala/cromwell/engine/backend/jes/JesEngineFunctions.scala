@@ -2,24 +2,24 @@ package cromwell.engine.backend.jes
 
 import java.security.MessageDigest
 
-import cromwell.binding.types.{WdlStringType, WdlArrayType}
+import cromwell.binding.WdlStandardLibraryFunctions
+import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values._
-import cromwell.engine.EngineFunctions
 import cromwell.util.google.GoogleCloudStoragePath
-
 import org.apache.commons.codec.binary.Base64
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /**
  * Implementation of engine functions for the JES backend.
  */
-case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: JesInterface) extends EngineFunctions {
+//case class JesEngineFunctions(executionContext.callDir: GoogleCloudStoragePath, jesConnection: JesInterface) extends WdlStandardLibraryFunctions {
+case class JesEngineFunctions(executionContext: JesTaskExecutionContext) extends WdlStandardLibraryFunctions {
 
   private def readFromPath(value: String): String = {
     val tryParse = GoogleCloudStoragePath.parse(value)
     val gcsPathToUse: GoogleCloudStoragePath = if (tryParse.isSuccess) { tryParse.get } else { GoogleCloudStoragePath(gcsPathFromAnyString(value)) }
-    jesConnection.storage.slurpFile(gcsPathToUse)
+    executionContext.jesConnection.storage.slurpFile(gcsPathToUse)
   }
   
   /**
@@ -38,12 +38,28 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
     }
   }
 
-  protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    val newPath = GoogleCloudStoragePath(executionContext.callDir.bucket, executionContext.callDir.objectName + "/" + JesBackend.LocalStdoutValue)
+    Success(WdlFile(newPath.toString))
+  }
+
+  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    val newPath = GoogleCloudStoragePath(executionContext.callDir.bucket, executionContext.callDir.objectName + "/" + JesBackend.LocalStderrValue)
+    Success(WdlFile(newPath.toString))
+  }
+
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
       singleArgument <- extractSingleArgument(params)
       lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
     } yield WdlArray(WdlArrayType(WdlStringType), lines)
   }
+
+  /**
+   * Try to read an integer from the file referenced by the specified `WdlValue`.
+   */
+  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
+    read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
 
   /**
    * Try to read a string from the file referenced by the specified `WdlValue`.
@@ -55,24 +71,8 @@ case class JesEngineFunctions(callDir: GoogleCloudStoragePath, jesConnection: Je
     } yield WdlString(string)
   }
 
-  /**
-   * Try to read an integer from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
-    read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
-
-  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(callDir.bucket, callDir.objectName + "/" + JesBackend.LocalStdoutValue)
-    Success(WdlFile(newPath.toString))
-  }
-
-  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(callDir.bucket, callDir.objectName + "/" + JesBackend.LocalStderrValue)
-    Success(WdlFile(newPath.toString))
-  }
-
   def gcsPathFromAnyString(value: String) = {
-    callDir + md5(value)
+    executionContext.callDir + md5(value)
   }
 
   def md5(value: String): String = {

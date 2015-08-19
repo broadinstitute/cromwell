@@ -134,7 +134,7 @@ case class Call(alias: Option[String],
   /**
    * Instantiate the abstract command line corresponding to this call using the specified inputs.
    */
-  def instantiateCommandLine(inputs: CallInputs): Try[String] = task.command.instantiate(inputs)
+  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions): Try[String] = task.instantiateCommand(inputs, functions)
 
   /**
    * Return the docker configuration value associated with this `Call`, if any.

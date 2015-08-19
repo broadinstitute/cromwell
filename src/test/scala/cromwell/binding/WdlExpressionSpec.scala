@@ -11,9 +11,6 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
 
   def noLookup(String: String): WdlValue = fail("No identifiers should be looked up in this test")
-  class NoFunctions extends WdlFunctions {
-    def getFunction(name: String): WdlFunction = fail("No functions should be called in this test")
-  }
 
   def identifierLookup(String: String): WdlValue = {
     String match {

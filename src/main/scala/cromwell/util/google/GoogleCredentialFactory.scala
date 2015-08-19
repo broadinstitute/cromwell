@@ -1,19 +1,17 @@
 package cromwell.util.google
 
 import java.io.{File, FileInputStream, InputStreamReader}
-import java.nio.file.{Paths, Path}
-import java.security.PrivateKey
+import java.nio.file.Paths
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential.Builder
-import com.google.api.client.googleapis.auth.oauth2.{GoogleCredential, GoogleAuthorizationCodeFlow, GoogleClientSecrets}
+import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets, GoogleCredential}
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
-import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.{Config, ConfigFactory}
+
 import scala.collection.JavaConverters._
 
 object GoogleCredentialFactory {

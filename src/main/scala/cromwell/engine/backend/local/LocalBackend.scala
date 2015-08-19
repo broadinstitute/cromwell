@@ -8,8 +8,8 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.backend.TaskAbortedException
-import cromwell.engine.backend.{StdoutStderr, Backend}
 import cromwell.engine.backend.Backend.{RestartableWorkflow, StdoutStderrException}
+import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.db.{CallStatus, DataAccess}
 import cromwell.engine._
 import cromwell.parser.BackendType
@@ -81,9 +81,19 @@ class LocalBackend extends Backend with LazyLogging {
   override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
     val dir = hostCallPath(workflowName, workflowId, callName)
     StdoutStderr(
-      stdout = findTempFile(dir, prefix = "stdout"),
-      stderr = findTempFile(dir, prefix = "stderr")
+      stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
+      stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
     )
+  }
+
+  /* This should be deterministic.  calling this twice with the same parameters should always yield the same result */
+  def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): LocalTaskExecutionContext = {
+    val workflowRoot = hostExecutionPath(workflowDescriptor)
+    val hostCallDirectory = hostCallPath(workflowDescriptor, call.name)
+    val stdout = hostCallDirectory.resolve("stdout")
+    val stderr = hostCallDirectory.resolve("stderr")
+    hostCallDirectory.toFile.mkdirs
+    LocalTaskExecutionContext(workflowRoot, stdout, stderr, hostCallDirectory)
   }
 
   /**
@@ -97,18 +107,15 @@ class LocalBackend extends Backend with LazyLogging {
                               scopedLookupFunction: ScopedLookupFunction,
                               callAbortRegisteringFunction: AbortFunctionRegistration): Try[Map[String, WdlValue]] = {
 
-    val workflowRootAbsolutePathOnHost = hostExecutionPath(workflowDescriptor).toFile.getAbsolutePath
+    val environment = setupCallEnvironment(call, workflowDescriptor)
 
-    val hostCallDirectory = hostCallPath(workflowDescriptor, call.name).toFile
-    hostCallDirectory.mkdirs()
-
-    val (stdoutFile, stdoutWriter) = FileUtil.tempFileAndWriter("stdout", hostCallDirectory)
-    val (stderrFile, stderrWriter) = FileUtil.tempFileAndWriter("stderr", hostCallDirectory)
-    val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", hostCallDirectory)
+    val (stdoutFile, stdoutWriter) = environment.stdout.fileAndWriter
+    val (stderrFile, stderrWriter) = environment.stderr.fileAndWriter
+    val (commandFile, commandWriter) = FileUtil.tempFileAndWriter("command", environment.cwd.toFile)
 
     val dockerContainerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
 
-    val parentPath = if (call.docker.isDefined) Paths.get(dockerContainerExecutionDir).toString else workflowRootAbsolutePathOnHost
+    val parentPath = if (call.docker.isDefined) Paths.get(dockerContainerExecutionDir).toString else environment.workflowRoot.toAbsolutePath.toString
     val callDirectory = Paths.get(parentPath, s"call-${call.name}")
 
     commandWriter.writeWithNewline(s"cd $callDirectory")
@@ -118,10 +125,10 @@ class LocalBackend extends Backend with LazyLogging {
     def buildDockerRunCommand(image: String): String =
       // -v maps the host workflow executions directory to /root/<workflow id> on the container.
       // -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
-      s"docker run -v $workflowRootAbsolutePathOnHost:$dockerContainerExecutionDir -i $image"
+      s"docker run -v ${environment.workflowRoot.toAbsolutePath}:$dockerContainerExecutionDir -i $image"
 
     // Build the docker run command if docker is defined in the RuntimeAttributes, otherwise just the empty string.
-    val dockerRun = call.docker.map { buildDockerRunCommand }.getOrElse("")
+    val dockerRun = call.docker.map(buildDockerRunCommand).getOrElse("")
 
     // The aforementioned shenanigans generate standard output and then a bash invocation that takes
     // commands from standard input.
@@ -139,9 +146,7 @@ class LocalBackend extends Backend with LazyLogging {
      * Return a host absolute file path.
      */
     def hostAbsoluteFilePath(pathString: String): String =
-      if (new File(pathString).isAbsolute) pathString else Paths.get(hostCallDirectory.toString, pathString).toString
-
-    val localEngineFunctions = new LocalEngineFunctions(TaskExecutionContext(stdoutFile, stderrFile, Paths.get(hostCallDirectory.getAbsolutePath)))
+      if (new File(pathString).isAbsolute) pathString else Paths.get(environment.cwd.toAbsolutePath.toString, pathString).toString
 
     val stderrFileLength = new File(stderrFile.toString).length
 
@@ -149,9 +154,9 @@ class LocalBackend extends Backend with LazyLogging {
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength for command: $instantiatedCommandLine"))
     } else {
       if (rc == 0) {
-        evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, localEngineFunctions, scopedLookupFunction, interpolateStrings=true)
-      // Special case to check for SIGTERM exit code - implying abort:
+        evaluateCallOutputs(workflowDescriptor, call, hostAbsoluteFilePath, environment.engineFunctions, scopedLookupFunction, interpolateStrings=true)
       } else if (rc == 143) {
+        // Special case to check for SIGTERM exit code - implying abort:
         Failure(new TaskAbortedException())
       } else {
         Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: return code $rc for command: $instantiatedCommandLine\n\nFull command was: ${argv.mkString(" ")}"))

@@ -1,7 +1,7 @@
 package cromwell.util
 
 import scala.collection.concurrent.TrieMap
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class WriteOnceStore[K, V] {
   private val writeOnceStore = new TrieMap[K, V]()

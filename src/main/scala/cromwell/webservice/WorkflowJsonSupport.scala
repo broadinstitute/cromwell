@@ -1,7 +1,7 @@
 package cromwell.webservice
 
-import cromwell.binding.values.WdlValueJsonFormatter._
 import cromwell.binding.values.WdlFileJsonFormatter._
+import cromwell.binding.values.WdlValueJsonFormatter._
 import cromwell.engine.backend.StdoutStderr
 import spray.json.DefaultJsonProtocol
 

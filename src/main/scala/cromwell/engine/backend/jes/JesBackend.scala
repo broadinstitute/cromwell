@@ -11,12 +11,11 @@ import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
 import cromwell.engine.{AbortFunction, AbortFunctionRegistration}
-import cromwell.engine.backend.TaskAbortedException
-import cromwell.engine.WorkflowId
-import cromwell.engine.backend.{StdoutStderr, Backend}
+import cromwell.engine.backend.{TaskExecutionContext, TaskAbortedException, Backend, StdoutStderr}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.db.DataAccess
+import cromwell.engine.WorkflowId
 import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
@@ -150,6 +149,11 @@ class JesBackend extends Backend with LazyLogging {
     )
   }
 
+  override def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): JesTaskExecutionContext = {
+    val callGcsPath = s"${workflowDescriptor.callDir(call)}"
+    JesTaskExecutionContext(GoogleCloudStoragePath(callGcsPath), JesConnection)
+  }
+
   override def executeCommand(instantiatedCommandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
@@ -159,9 +163,9 @@ class JesBackend extends Backend with LazyLogging {
 
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
     logger.info(s"JES log directory in GCS: $callGcsPath")
-    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
     val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
     val cmdInput = JesInput("exec", gcsExecPath.toString, Paths.get("exec.sh"))
+    val environment = setupCallEnvironment(call, workflowDescriptor)
 
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
       case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(v.valueString))
@@ -170,7 +174,7 @@ class JesBackend extends Backend with LazyLogging {
     // Call preevaluateExpressionForFilenames for each of the task output expressions, and flatten the lists into a single Try[Seq[WdlFile]]
     val filesWithinExpressions = Try(
       call.task.outputs.map {
-        taskOutput => taskOutput.expression.preevaluateExpressionForFilenames(scopedLookupFunction, engineFunctions)
+        taskOutput => taskOutput.expression.preevaluateExpressionForFilenames(scopedLookupFunction, environment.engineFunctions)
       }.flatMap({_.get})
     )
 
@@ -179,9 +183,9 @@ class JesBackend extends Backend with LazyLogging {
     val jesOutputs: Try[Seq[JesParameter]] = filesWithinExpressions match {
       case Failure(error) => Failure(error)
       case Success(fileSeq) =>
-        val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, engineFunctions)}
+        val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, environment.engineFunctions)}
         // FIXME: If localizeTaskOutputs gives a Failure, need to Fail entire function - don't use .get
-        val namedOutputs: Seq[JesParameter] = taskOutputsToJesOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
+        val namedOutputs: Seq[JesParameter] = taskOutputsToJesOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, environment.engineFunctions).get
         Success(anonOutputs ++ namedOutputs)
     }
 
@@ -202,7 +206,7 @@ class JesBackend extends Backend with LazyLogging {
 
       def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
         val jesOutputFile = unsafeJesOutputs find { _.name == taskOutput.name } map { j => WdlFile(j.gcs) }
-        jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true))
+        jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, environment.engineFunctions, interpolateStrings = true))
       }
 
       def processOutput(taskOutput: TaskOutput, processingFunction: TaskOutput => Try[WdlValue]) = {

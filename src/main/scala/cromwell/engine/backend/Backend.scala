@@ -4,8 +4,8 @@ import com.typesafe.config.Config
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.types.WdlFileType
-import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
+import cromwell.binding.types.{WdlFileType, WdlMapType}
+import cromwell.binding.values.{WdlFile, WdlMap, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
@@ -48,6 +48,15 @@ trait Backend {
    * adjusted for the host workflow execution path.
    */
   def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs
+
+  /**
+   * Given a Call and a WorkflowDescriptor, returns a *deterministic* TaskExecutionContext.  This object
+   * should contain enough information to implement some or all of the WDL standard library functions.
+   *
+   * setupCallEnvironment() MUST also be idempotent.  Any side effects it does (e.g. creating directories / buckets)
+   * should be able to handle being called more than once.
+   */
+  def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): TaskExecutionContext
 
   /**
    * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
@@ -97,6 +106,7 @@ trait Backend {
       rawOutputValue match {
         // Autoconvert String -> File.
         case v: WdlString if taskOutput.wdlType == WdlFileType => Success(WdlFile(hostAbsoluteFilePath(v.value)))
+        case m: WdlMap if taskOutput.wdlType.isInstanceOf[WdlMapType] => taskOutput.wdlType.coerceRawValue(m)
         // Pass through matching types.
         case v if v.wdlType == taskOutput.wdlType => Success(v)
         // Fail other mismatched types.

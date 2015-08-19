@@ -55,7 +55,7 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
   when(CallNotStarted) {
     case Event(Start, _) =>
       val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
-      call.instantiateCommandLine(backendInputs) match {
+      call.instantiateCommandLine(backendInputs, backend.setupCallEnvironment(call, workflowDescriptor).engineFunctions) match {
         case Success(commandLine) =>
           sender() ! WorkflowActor.CallStarted(call)
           context.actorOf(CallExecutionActor.props(callReference)) ! CallExecutionActor.Execute(workflowDescriptor.id, backend, commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)

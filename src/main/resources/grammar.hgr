@@ -19,12 +19,12 @@ grammar {
     } -> null
 
     r'#.*' -> null
-    r'task(?!{%_identifier_follow%})' -> :task
+    r'task(?!{%_identifier_follow%})' -> task(:task)
     r'(call)\s+' -> :call[1] @task_fqn
-    r'workflow(?!{%_identifier_follow%})' -> :workflow
+    r'workflow(?!{%_identifier_follow%})' -> workflow(:workflow)
     r'import(?!{%_identifier_follow%})' -> :import
     r'input(?!{%_identifier_follow%})' -> :input
-    r'output(?!{%_identifier_follow%})' -> :output
+    r'output(?!{%_identifier_follow%})' -> output(:output)
     r'as(?!{%_identifier_follow%})' -> :as
     r'if(?!{%_identifier_follow%})' -> :if
     r'while(?!{%_identifier_follow%})' -> :while
@@ -73,14 +73,30 @@ grammar {
     r'>=' -> :gteq
     r'>' -> :gt
     r'!' -> :not
+    enum {
+      python: r'\?'
+      java: "\\?"
+    } -> :qmark
     r'-?[0-9]+\.[0-9]+' -> :float
     r'[0-9]+' -> :integer
+    mode<wf_output> {
+      r'\s+' -> null
+      r'\{' -> :lbrace
+      r'\}' -> :rbrace %pop
+      r',' -> :comma
+      r'\.' -> :dot
+      r'\*' -> :asterisk
+      enum {
+        python: r'{%_identifier%}(\.{%_identifier%})*'
+        java: "{%_identifier%}(\\.{%_identifier%})*"
+      } -> :fqn
+    }
     mode<task_fqn> {
       r'\s+' -> null
       enum {
         python: r'{%_identifier%}(\.{%_identifier%})*'
         java: "{%_identifier%}(\\.{%_identifier%})*"
-      } -> :ns_identifier %pop
+      } -> :fqn %pop
     }
     mode<scatter> {
       r'\s+' -> null
@@ -120,10 +136,6 @@ grammar {
       r'\[' -> :lsquare
       r'\]' -> :rsquare
       r'=' -> :equal
-      enum {
-        python: r'\?'
-        java: "\\?"
-      } -> :qmark
       r'\+' -> :plus
       r'\*' -> :asterisk
       r'[0-9]+' -> :integer
@@ -131,6 +143,35 @@ grammar {
       r'{%_type%}(?!{%_identifier_follow%})' -> :type
       r'{%_identifier%}(?=\s*=)' -> :cmd_attr_hint[] :identifier
       r'{%_identifier%}' -> :identifier
+
+      # Expression tokens
+      r':' -> :colon
+      r',' -> :comma
+      r'\.' -> :dot
+      r'==' -> :double_equal
+      r'\|\|' -> :double_pipe
+      r'\&\&' -> :double_ampersand
+      r'!=' -> :not_equal
+      r'=' -> :equal
+      r'\.' -> :dot
+      r'\{' -> :lbrace
+      r'\}' -> :rbrace
+      r'\(' -> :lparen
+      r'\)' -> :rparen
+      r'\[' -> :lsquare
+      r'\]' -> :rsquare
+      r'\+' -> :plus
+      r'\*' -> :asterisk
+      r'-' -> :dash
+      r'/' -> :slash
+      r'%' -> :percent
+      r'<=' -> :lteq
+      r'<' -> :lt
+      r'>=' -> :gteq
+      r'>' -> :gt
+      r'!' -> :not
+
+      # Literals
       enum {
         python: r'"([^\"]+)"'
         java: "\"([^\"]+)\""
@@ -139,22 +180,65 @@ grammar {
         python: r'\'([^\']+)\''
         java: "'([^']+)'"
       } -> :string[1]
+      r'-?[0-9]+\.[0-9]+' -> :float
+      r'[0-9]+' -> :integer
     }
+
+    code<python> << PYTHON
+    def init():
+        return {'context': None}
+    def workflow(ctx, terminal, source_string, line, col):
+        ctx.user_context['context'] = 'workflow'
+        default_action(ctx, terminal, source_string, line, col)
+    def task(ctx, terminal, source_string, line, col):
+        ctx.user_context['context'] = 'task'
+        default_action(ctx, terminal, source_string, line, col)
+    def output(ctx, terminal, source_string, line, col):
+        if ctx.user_context['context'] == 'workflow':
+            ctx.stack.append('wf_output')
+        default_action(ctx, terminal, source_string, line, col)
+    PYTHON
+
+    code<java> << JAVA
+    private class WdlContext {
+        public String wf_or_task = null;
+    }
+    public Object init() {
+        return new WdlContext();
+    }
+    public void workflow(LexerContext ctx, TerminalIdentifier terminal, String source_string, int line, int col) {
+        ((WdlContext) ctx.context).wf_or_task = "workflow";
+        default_action(ctx, terminal, source_string, line, col);
+    }
+    public void task(LexerContext ctx, TerminalIdentifier terminal, String source_string, int line, int col) {
+        ((WdlContext) ctx.context).wf_or_task = "task";
+        default_action(ctx, terminal, source_string, line, col);
+    }
+    public void output(LexerContext ctx, TerminalIdentifier terminal, String source_string, int line, int col) {
+        WdlContext user_ctx = (WdlContext) ctx.context;
+        if (user_ctx.wf_or_task != null && user_ctx.wf_or_task.equals("workflow")) {
+            ctx.stack.push("wf_output");
+        }
+        default_action(ctx, terminal, source_string, line, col);
+    }
+    JAVA
   }
   parser {
+    # Document: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#document
     $document = list($import) list($workflow_or_task) -> Document(imports=$0, definitions=$1)
     $workflow_or_task = $workflow | $task
 
+    # Import Statements: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#import-statements
     $import = :import :string optional($import_namespace) -> Import(uri=$1, namespace=$2)
     $import_namespace = :as :identifier -> $1
+
+    # Task Definition: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#task-definition
     $task = :task :identifier :lbrace list($declaration) list($sections) :rbrace -> Task(name=$1, declarations=$3, sections=$4)
     $sections = $command | $outputs | $runtime | $parameter_meta | $meta
     $command = :raw_command :raw_cmd_start list($command_part) :raw_cmd_end -> RawCommand(parts=$2)
     $command_part = :cmd_part | $cmd_param
-    $cmd_param = :cmd_param_start list($cmd_param_kv) optional(:string) optional($type_e) :identifier optional($postfix_quantifier) :cmd_param_end
-        -> CommandParameter(name=$4, type=$3, prefix=$2, attributes=$1, postfix=$5)
+    $cmd_param = :cmd_param_start list($cmd_param_kv) $e :cmd_param_end -> CommandParameter(attributes=$1, expr=$2)
     $cmd_param_kv = :cmd_attr_hint :identifier :equal $e -> CommandParameterAttr(key=$1, value=$3)
-    $postfix_quantifier = :qmark | :plus | :asterisk
     $outputs = :output :lbrace list($output_kv) :rbrace -> Outputs(attributes=$2)
     $output_kv = $type_e :identifier :equal $e -> Output(type=$0, var=$1, expression=$3)
     $runtime = :runtime $map -> Runtime(map=$1)
@@ -163,11 +247,18 @@ grammar {
     $map = :lbrace list($kv) :rbrace -> $1
     $kv = :identifier :colon $e -> RuntimeAttribute(key=$0, value=$2)
 
+    # Declarations: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#declarations
+    $declaration = $type_e optional($postfix_quantifier) :identifier optional($setter) -> Declaration(type=$0, postfix=$1, name=$2, expression=$3)
+    $setter = :equal $e -> $1
+    $postfix_quantifier = :qmark | :plus
+
+    # Types: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#types
     $type_e = parser<expression> {
       (*:left) $type_e = :type <=> :lsquare list($type_e, :comma) :rsquare -> Type(name=$0, subtype=$2)
       $type_e = :type
     }
 
+    # Expressions: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#expressions
     $e = parser<expression> {
       (*:left) $e = $e :double_pipe $e -> LogicalOr(lhs=$0, rhs=$2)
       (*:left) $e = $e :double_ampersand $e -> LogicalAnd(lhs=$0, rhs=$2)
@@ -191,23 +282,27 @@ grammar {
       # TODO: is there a better object literal syntax?
       (*:left) $e = :object :lbrace list($object_kv, :comma) :rbrace -> ObjectLiteral(map=$2)
       (*:left) $e = :lsquare list($e, :comma) :rsquare -> ArrayLiteral(values=$1)
+      (*:left) $e = :lbrace list($map_kv, :comma) :rbrace -> MapLiteral(map=$1)
       (*:left) $e = :lparen $e :rparen -> $1
       $e = :string
       $e = :identifier
       $e = :boolean
       $e = :integer
       $e = :float
-      $e = :dquote_string
-      $e = :squote_string
     }
+    $map_kv = $e :colon $e -> MapLiteralKv(key=$0, value=$2)
 
+    # Workflows: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#workflow-definition
     $workflow = :workflow :identifier :lbrace list($wf_body_element) :rbrace -> Workflow(name=$1, body=$3)
-    $wf_body_element = $call | $declaration | $while_loop | $if_stmt | $scatter
-    $call = :call :ns_identifier optional($alias) optional($call_body) -> Call(task=$1, alias=$2, body=$3)
+    $wf_body_element = $call | $declaration | $while_loop | $if_stmt | $scatter | $wf_outputs
+    $call = :call :fqn optional($alias) optional($call_body) -> Call(task=$1, alias=$2, body=$3)
     $call_body = :lbrace list($declaration) list($call_input) :rbrace -> CallBody(declarations=$1, io=$2)
     $call_input = :input :colon list($mapping, :comma) -> Inputs(map=$2)
     $mapping = :identifier :equal $e -> IOMapping(key=$0, value=$2)
     $alias = :as :identifier -> $1
+    $wf_outputs = :output :lbrace list($wf_output, :comma) :rbrace -> WorkflowOutputs(outputs=$2)
+    $wf_output = :fqn optional($wf_output_wildcard) -> WorkflowOutput(fqn=$0, wildcard=$1)
+    $wf_output_wildcard = :dot :asterisk -> $1
 
     $while_loop = :while :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> WhileLoop(expression=$2, body=$5)
     $if_stmt = :if :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> If(expression=$2, body=$5)
@@ -215,8 +310,6 @@ grammar {
     $scatter = :scatter :lparen :identifier :in $e :rparen :lbrace list($wf_body_element) :rbrace
         -> Scatter(item=$2, collection=$4, body=$7)
 
-    $declaration = $type_e :identifier optional($setter) -> Declaration(type=$0, name=$1, expression=$2)
-    $setter = :equal $e -> $1
     $object_kv = :identifier :colon $e -> ObjectKV(key=$0, value=$2)
   }
 }

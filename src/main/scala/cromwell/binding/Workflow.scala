@@ -2,7 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.types.WdlType
-import cromwell.parser.WdlParser.{SyntaxError, Ast, Terminal}
+import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 
 object Workflow {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, calls: Seq[Call]): Workflow = {
@@ -11,13 +11,17 @@ object Workflow {
     val callNames = ast.findAsts(AstNodeName.Call).map {call =>
       Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
     }
+    val workflowOutputsDecls = ast.findAsts(AstNodeName.WorkflowOutput) map { wfOutput =>
+      val wildcard = Option(wfOutput.getAttribute("wildcard")).map(_.sourceString).getOrElse("").nonEmpty
+      WorkflowOutputDeclaration(wfOutput.getAttribute("fqn").sourceString, wildcard)
+    }
 
     callNames groupBy { _.sourceString } foreach {
       case (_, terminals) if terminals.size > 1 =>
         throw new SyntaxError(wdlSyntaxErrorFormatter.multipleCallsAndHaveSameName(terminals.asInstanceOf[Seq[Terminal]]))
       case _ =>
     }
-    new Workflow(name, declarations, calls)
+    new Workflow(name, declarations, calls, workflowOutputsDecls)
   }
 }
 
@@ -29,7 +33,7 @@ object Workflow {
  * @param name The name of the workflow
  * @param calls The set of `call` declarations
  */
-case class Workflow(name: String, declarations: Seq[Declaration], calls: Seq[Call]) extends Executable with Scope {
+case class Workflow(name: String, declarations: Seq[Declaration], calls: Seq[Call], workflowOutputDecls: Seq[WorkflowOutputDeclaration]) extends Executable with Scope {
   calls foreach { c => c.setParent(this) }
 
   /** Parent node for this workflow.  Since we do not support nested

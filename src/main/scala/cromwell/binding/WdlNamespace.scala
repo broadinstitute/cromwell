@@ -3,14 +3,11 @@ package cromwell.binding
 import java.io.File
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
-import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types._
 import cromwell.binding.values._
-import cromwell.parser.{BackendType, WdlParser}
 import cromwell.parser.WdlParser._
+import cromwell.parser.{BackendType, WdlParser}
 import cromwell.util.FileUtil.EnhancedFile
-import AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
-import cromwell.util.FileUtil
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -67,20 +64,10 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     def coerceRawInput(input: WorkflowInput): Try[Option[WdlValue]] = input.fqn match {
       case _ if rawInputs.contains(input.fqn) =>
         val rawValue = rawInputs.get(input.fqn).get
-        val coercionFailure = Failure(new UnsatisfiedInputsException(s"Could not coerce value for '${input.fqn}' into: ${input.wdlType}"))
         input.wdlType.coerceRawValue(rawValue) match {
           case Success(value) => Success(Some(value))
-          case _ if input.postfixQuantifier.isDefined && input.wdlType.isInstanceOf[WdlArrayType] && ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(input.postfixQuantifier.get) =>
-            val memberType = input.wdlType.asInstanceOf[WdlArrayType].memberType
-            memberType.coerceRawValue(rawValue) match {
-              case Success(value) => Success(Some(WdlArray(WdlArrayType(memberType), Seq(value))))
-              case _ => coercionFailure
-            }
-          case _ => coercionFailure
+          case _ => Failure(new UnsatisfiedInputsException(s"Could not coerce value for '${input.fqn}' into: ${input.wdlType}"))
         }
-      /* TODO: if coercion fails above, it might be because you tried passing a single value to a parameter that can
-       * take multiple values (e.g. `${sep=" " String var+}`).  If this is the case, coerce to
-       */
       case _ =>
         input.optional match {
           case true => Success(None)
@@ -128,10 +115,6 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
   def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs): Try[WorkflowCoercedInputs] = {
     import scala.collection.mutable
     val collected = mutable.Map[String, WdlValue]()
-    class NoFunctions extends WdlFunctions {
-      def getFunction(name: String): WdlFunction = throw new UnsupportedOperationException("No functions should be called in this test")
-    }
-
     val allDeclarations = workflow.declarations ++ workflow.calls.flatMap {_.task.declarations}
 
     val evaluatedDeclarations = allDeclarations.filter {_.expression.isDefined}.map {decl =>

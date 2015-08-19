@@ -1,13 +1,8 @@
 package cromwell.engine.workflow
 
-import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.Backend
-import cromwell.{CromwellSpec, CromwellTestkitSpec}
-import cromwell.engine.db.DataAccess
 import cromwell.util.SampleWdl.ThreeStep
+import cromwell.{CromwellSpec, CromwellTestkitSpec}
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 
 class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec("SingleWorkflowRunnerActorSpec") {

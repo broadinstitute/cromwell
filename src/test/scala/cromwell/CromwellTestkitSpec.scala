@@ -45,7 +45,8 @@ object CromwellTestkitSpec {
       |}
     """.stripMargin
 
-  implicit val timeout = Timeout(5 seconds)
+  val timeoutDuration = 10 seconds
+  implicit val timeout = Timeout(timeoutDuration)
 }
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
@@ -84,7 +85,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
    */
   def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
     val futureAny = actorRef ? message
-    Await.result(futureAny.mapTo[M], 5 seconds)
+    Await.result(futureAny.mapTo[M], timeoutDuration)
   }
 
   /**
@@ -93,7 +94,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
    */
   def waitForPattern[T](pattern: String, occurrences: Int = 1)(block: => T): T = {
     EventFilter.info(pattern = pattern, occurrences = occurrences).intercept {
-      block
+      within(timeoutDuration) {
+        block
+      }
     }
   }
 
@@ -135,7 +138,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     assert(fsm.stateName == WorkflowSubmitted)
     eventFilter.intercept {
       fsm ! WorkflowActor.Start
-      within(5 seconds) {
+      within(timeoutDuration) {
         awaitCond(fsm.stateName == WorkflowRunning)
         awaitCond(fsm.stateName.isTerminal)
         fsm.stateData should be(WorkflowActor.NoFailureMessage)
@@ -159,11 +162,11 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
 
   def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
     eventFilter.intercept {
-      within(5 seconds) {
-        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], 5 seconds)
-        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], 5 seconds)
+      within(timeoutDuration) {
+        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
+        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], timeoutDuration)
         awaitCond(workflowStatus.contains(WorkflowSucceeded))
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], 5 seconds)
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], timeoutDuration)
         stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
         stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
       }

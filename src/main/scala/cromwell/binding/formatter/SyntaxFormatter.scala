@@ -1,10 +1,10 @@
 package cromwell.binding.formatter
 
-import cromwell.binding._
-import cromwell.binding.command.{Command, ParameterCommandPart, StringCommandPart}
-import cromwell.binding.types.WdlType
 import cromwell.binding.AstTools.EnhancedAstNode
-import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import cromwell.binding._
+import cromwell.binding.command.StringCommandPart
+import cromwell.binding.types.WdlType
+import cromwell.parser.WdlParser.{Ast, AstList, AstNode}
 import cromwell.util.TerminalUtil
 
 import scala.collection.JavaConverters._
@@ -25,7 +25,7 @@ object NullSyntaxHighlighter extends SyntaxHighlighter
 object AnsiSyntaxHighlighter extends SyntaxHighlighter {
   override def keyword(s: String): String = TerminalUtil.highlight(214, s)
   override def name(s: String): String = TerminalUtil.highlight(253, s)
-  override def section(s: String): String = s
+  override def section(s: String): String = keyword(s)
   override def wdlType(t: WdlType): String = TerminalUtil.highlight(33, t.toWdlString)
   override def variable(s: String): String = TerminalUtil.highlight(112, s)
   override def alias(s: String): String = s
@@ -85,8 +85,12 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
 
   private def formatTask(task: Task): String = {
     val outputs = if (task.outputs.nonEmpty) formatOutputs(task.outputs, 1) else ""
-    val command = formatCommandSection(task.command, 1)
-    val sections = List(command, outputs).filter(_.nonEmpty)
+    val command = formatCommandSection(task, 1)
+    val declarations = task.declarations.map(formatDeclaration(_, 1)) match {
+      case x: Seq[String] if x.nonEmpty => x.mkString("\n")
+      case _ => ""
+    }
+    val sections = List(declarations, command, outputs).filter(_.nonEmpty)
     val header = s"""${highlighter.keyword("task")} ${highlighter.name(task.name)} {
        |${sections.mkString("\n")}
        |}"""
@@ -94,31 +98,15 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     header
   }
 
-  private def formatCommandSection(command: Command, level:Int): String = {
-    val section = s"""${highlighter.section("command")} {
-        |${formatCommand(command, level+1)}
-        |}"""
+  private def formatCommandSection(task: Task, level:Int): String = {
+    val (sdelim: String, edelim: String) =
+      if (task.commandTemplate.collect({case s:StringCommandPart => s.literal}).mkString.contains("}")) ("<<<", ">>>")
+      else ("{", "}")
+
+    val section = s"""${highlighter.section("command")} $sdelim
+        |${indent(highlighter.command(task.commandTemplateString), 1)}
+        |$edelim"""
     indent(section.stripMargin, level)
-  }
-
-  private def formatCommand(command: Command, level:Int): String = {
-    val abstractCommand = command.parts.map {
-      case x:StringCommandPart => x
-      case x:ParameterCommandPart => formatParameterCommandPart(x)
-    }
-    indent(highlighter.command(command.normalize(abstractCommand.mkString)), 1)
-  }
-
-  private def formatParameterCommandPart(cmdPart: ParameterCommandPart): String = {
-    val attributes = cmdPart.attributes.map{case (k,v) => s"$k='$v'"} match {
-      case i: Iterable[String] if i.isEmpty => ""
-      case i: Iterable[String] => s"${i.mkString(" ")} "
-    }
-    val prefix = cmdPart.prefix.map {str => s"'$str' "}.getOrElse("")
-    val wdlType = highlighter.wdlType(cmdPart.wdlType)
-    val postfixQuantifier = cmdPart.postfixQuantifier.getOrElse("")
-    val variableName = highlighter.variable(cmdPart.name)
-    s"$${$attributes$prefix$wdlType $variableName$postfixQuantifier}"
   }
 
   private def formatOutputs(outputs: Seq[TaskOutput], level:Int): String = {
@@ -133,18 +121,17 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatWorkflow(workflow: Workflow): String = {
-    val declarations = workflow.declarations.map{formatDeclaration(_, 1)} match {
-      case x: Seq[String] if !x.isEmpty => s"\n${x.mkString("\n")}\n"
-      case _ => ""
-    }
-    s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.name)} {$declarations
-        |${workflow.calls.map{formatCall(_, 1)}.mkString("\n")}
+    val declarations = workflow.declarations.map(formatDeclaration(_, 1))
+    val calls = workflow.calls.map(formatCall(_, 1))
+    val sections = (declarations ++ calls).filter(_.nonEmpty)
+    s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.name)} {
+        |${sections.mkString("\n")}
         |}""".stripMargin
   }
 
   private def formatDeclaration(decl: Declaration, level: Int): String = {
-    val expression = decl.expression.map {e => s" = ${e.toWdlString}"}.getOrElse("")
-    indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.name(decl.name)}$expression", level)
+    val expression = decl.expression.map(e => s" = ${e.toWdlString}").getOrElse("")
+    indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.variable(decl.name)}$expression", level)
   }
 
   private def formatCall(call: Call, level:Int): String = {

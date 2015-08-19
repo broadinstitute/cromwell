@@ -63,45 +63,48 @@ class MainSpec extends FlatSpec with Matchers {
     val stream = baos
     Console.withOut(stream) {
       val (wdl, _) = wdlAndInputs(ThreeStep)
-      Main.highlight(Array(wdl))
+      Main.highlight(Array(wdl, "html"))
     }
     val expected =
-      s"""\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mps\u001b[0m {
-         |  command {
-         |    ps
-         |  }
-         |  output {
-         |    \u001b[38;5;33mFile\u001b[0m \u001b[38;5;112mprocs\u001b[0m = \033[38;5;13mstdout\033[0m()
-         |  }
-         |}
-         |
-         |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mcgrep\u001b[0m {
-         |  command {
-         |    grep '$${\u001b[38;5;33mString\u001b[0m \u001b[38;5;112mpattern\u001b[0m}' $${\u001b[38;5;33mFile\u001b[0m \u001b[38;5;112min_file\u001b[0m} | wc -l
-         |  }
-         |  output {
-         |    \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mcount\u001b[0m = \u001b[38;5;13mread_int\u001b[0m(\033[38;5;13mstdout\033[0m())
-         |  }
-         |}
-         |
-         |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mwc\u001b[0m {
-         |  command {
-         |    cat $${\u001b[38;5;33mFile\u001b[0m \u001b[38;5;112min_file\u001b[0m} | wc -l
-         |  }
-         |  output {
-         |    \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mcount\u001b[0m = \u001b[38;5;13mread_int\u001b[0m(\033[38;5;13mstdout\033[0m())
-         |  }
-         |}
-         |
-         |\u001b[38;5;214mworkflow\u001b[0m \u001b[38;5;253mthree_step\u001b[0m {
-         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mps\u001b[0m
-         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mcgrep\u001b[0m {
-         |    input: in_file=ps.procs
-         |  }
-         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mwc\u001b[0m {
-         |    input: in_file=ps.procs
-         |  }
-         |}""".stripMargin
+      """<span class="keyword">task</span> <span class="name">ps</span> {
+        |  <span class="section">command</span> {
+        |    <span class="command">ps</span>
+        |  }
+        |  <span class="section">output</span> {
+        |    <span class="type">File</span> <span class="variable">procs</span> = <span class="function">stdout</span>()
+        |  }
+        |}
+        |
+        |<span class="keyword">task</span> <span class="name">cgrep</span> {
+        |  <span class="type">String</span> <span class="variable">pattern</span>
+        |  <span class="type">File</span> <span class="variable">in_file</span>
+        |  <span class="section">command</span> {
+        |    <span class="command">grep '${pattern}' ${in_file} | wc -l</span>
+        |  }
+        |  <span class="section">output</span> {
+        |    <span class="type">Int</span> <span class="variable">count</span> = <span class="function">read_int</span>(<span class="function">stdout</span>())
+        |  }
+        |}
+        |
+        |<span class="keyword">task</span> <span class="name">wc</span> {
+        |  <span class="type">File</span> <span class="variable">in_file</span>
+        |  <span class="section">command</span> {
+        |    <span class="command">cat ${in_file} | wc -l</span>
+        |  }
+        |  <span class="section">output</span> {
+        |    <span class="type">Int</span> <span class="variable">count</span> = <span class="function">read_int</span>(<span class="function">stdout</span>())
+        |  }
+        |}
+        |
+        |<span class="keyword">workflow</span> <span class="name">three_step</span> {
+        |  <span class="keyword">call</span> <span class="name">ps</span>
+        |  <span class="keyword">call</span> <span class="name">cgrep</span> {
+        |    input: in_file=ps.procs
+        |  }
+        |  <span class="keyword">call</span> <span class="name">wc</span> {
+        |    input: in_file=ps.procs
+        |  }
+        |}""".stripMargin
     stream.toString.stripLineEnd shouldEqual expected
   }
 

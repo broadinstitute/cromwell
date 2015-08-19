@@ -3,15 +3,12 @@ package cromwell
 import java.io.File
 import java.nio.file.Paths
 
-import com.typesafe.config.ConfigFactory
-import cromwell.binding._
-import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
-import cromwell.binding.formatter.{AnsiSyntaxHighlighter, SyntaxFormatter}
+import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
-import cromwell.engine.workflow.{WorkflowManagerActor, SingleWorkflowRunnerActor}
+import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
-import cromwell.util.FileUtil
+import cromwell.util.FileUtil.EnhancedPath
 import org.slf4j.LoggerFactory
 import spray.json._
 
@@ -51,8 +48,17 @@ object Main extends App {
   }
 
   def highlight(args: Array[String]) {
+    if (args.length >= 2 && !Seq("html", "console").contains(args(1))) {
+      println("usage: highlight <wdl> <html|console>")
+      System.exit(1)
+    }
+
+    val visitor = args match {
+      case a if a.length >= 2 && args(1) == "html" => HtmlSyntaxHighlighter
+      case _ => AnsiSyntaxHighlighter
+    }
     val namespace = WdlNamespace.load(new File(args(0)), WorkflowManagerActor.BackendType)
-    val formatter = new SyntaxFormatter(AnsiSyntaxHighlighter)
+    val formatter = new SyntaxFormatter(visitor)
     println(formatter.format(namespace))
   }
 

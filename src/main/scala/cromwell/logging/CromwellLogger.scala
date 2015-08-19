@@ -5,8 +5,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.{ConsoleAppender, LayoutBase}
 import cromwell.util.TerminalUtil
 
-import scala.collection.JavaConverters._
-
 class TerminalLayout extends LayoutBase[ILoggingEvent] {
   def doLayout(event: ILoggingEvent): String = {
     val level = event.getLevel match {

@@ -4,7 +4,7 @@ import java.util.UUID
 
 import akka.testkit.TestActorRef
 import cromwell.binding._
-import cromwell.binding.command.Command
+import cromwell.binding.command.CommandPart
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
@@ -12,9 +12,7 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor.CallOutputs
-import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
-import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, WorkflowOutputs, _}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
@@ -24,7 +22,6 @@ import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
 
@@ -77,7 +74,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
             // FIXME? null AST
-            val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, null, BackendType.LOCAL)
+            val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
             val call = new Call(None, key.scope, task, Map.empty)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())

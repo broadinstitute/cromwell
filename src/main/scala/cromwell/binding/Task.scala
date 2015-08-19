@@ -1,49 +1,31 @@
 package cromwell.binding
 
+import java.util.regex.Pattern
+
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
-import cromwell.binding.command.{Command, ParameterCommandPart}
+import cromwell.binding.command.{CommandPart, ParameterCommandPart, StringCommandPart}
 import cromwell.parser.BackendType
 import cromwell.parser.WdlParser._
 
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.language.postfixOps
+import scala.util.Try
 
 object Task {
+  val Ws = Pattern.compile("[\\ \\t]+")
   def apply(ast: Ast, backendType: BackendType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, "name", wdlSyntaxErrorFormatter))
-
-    /* Examine all inputs to the task (which currently is only command parameters e.g. ${File x})
-     * And ensure that any inputs that have the same name also have the exact same definition.
-     * For example having a command line of `./script ${File x} ${String x}` is conflicting.
-     */
-    val commandParameters = ast.findAsts(AstNodeName.CommandParameter)
-    val parameterNames = commandParameters map { _.getAttribute("name").sourceString } toSet
-
-    parameterNames foreach { name =>
-      val paramsWithSameName = commandParameters filter { _.getAttribute("name").sourceString == name }
-      ensureCommandParameterAstsMatch(paramsWithSameName, ast, wdlSyntaxErrorFormatter)
-    }
-
     val commandAsts = ast.findAsts(AstNodeName.Command)
-    if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting only one Command AST")
-    val command = Command(commandAsts.head, wdlSyntaxErrorFormatter)
-    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, wdlSyntaxErrorFormatter) }
-    new Task(name, declarations, command, outputs, ast, backendType)
-  }
-
-  private def ensureCommandParameterAstsMatch(paramAsts: Seq[Ast], taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
-    paramAsts.headOption foreach { firstParamAst =>
-      val sentinel = ParameterCommandPart(firstParamAst, wdlSyntaxErrorFormatter)
-      paramAsts foreach { paramAst =>
-        val parsed = ParameterCommandPart(paramAst, wdlSyntaxErrorFormatter)
-        if (parsed != sentinel)
-          throw new SyntaxError(wdlSyntaxErrorFormatter.parametersWithSameNameMustHaveSameDefinition(
-            taskAst.getAttribute("name").asInstanceOf[Terminal],
-            paramAst.getAttribute("name").asInstanceOf[Terminal],
-            paramAsts.head.getAttribute("name").asInstanceOf[Terminal]
-          ))
-      }
+    if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting exactly one Command section")
+    val commandTemplate = commandAsts.head.getAttribute("parts").asInstanceOf[AstList].asScala.toVector map {
+      case x: Terminal => new StringCommandPart(x.getSourceString)
+      case x: Ast => ParameterCommandPart(x, wdlSyntaxErrorFormatter)
     }
+
+    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, wdlSyntaxErrorFormatter) }
+    Task(name, declarations, commandTemplate, outputs, ast, backendType)
   }
 }
 
@@ -51,27 +33,122 @@ object Task {
  * Represents a `task` declaration in a WDL file
  *
  * @param name Name of the task
- * @param command Abstract command defined in the `command` section
+ * @param declarations Any declarations (e.g. String something = "hello") defined in the task
+ * @param commandTemplate Sequence of command pieces, essentially a parsed command template
  * @param outputs Set of defined outputs in the `output` section of the task
+ * @param ast The syntax tree from which this was built.
+ * @param backendType which backend this task is meant to run on.
  */
 case class Task(name: String,
                 declarations: Seq[Declaration],
-                command: Command,
+                commandTemplate: Seq[CommandPart],
                 outputs: Seq[TaskOutput],
                 ast: Ast,
                 backendType: BackendType) extends Executable {
+  import Task._
   /**
-   * Inputs to this task, as task-local names (i.e. not fully-qualified)
-   *
-   * @return Map of input name to type for that input
+   * Attributes defined in the runtime {...} section of a WDL task
    */
-  val inputs: Seq[TaskInput] = {
-    val commandInputs = command.inputs
-    val declarationInputs = for(declaration <- declarations; input <- declaration.asTaskInput) yield input
-    commandInputs ++ declarationInputs
-  }
-
   val runtimeAttributes = RuntimeAttributes(ast, backendType)
 
-  override def toString: String = s"[Task name=$name command=$command]"
+  /**
+   * Inputs to this task, as locally qualified names
+   *
+   * @return Seq[TaskInput] where TaskInput contains the input
+   *         name & type as well as any postfix quantifiers (?, +)
+   */
+  val inputs: Seq[TaskInput] = for (declaration <- declarations; input <- declaration.asTaskInput) yield input
+  // TODO: I think TaskInput can be replaced by Declaration
+
+  /**
+   * Given a map of task-local parameter names and WdlValues, create a command String.
+   *
+   * Instantiating a command line is the process of taking a command in this form:
+   *
+   * {{{
+   *   sh script.sh ${var1} -o ${var2}
+   * }}}
+   *
+   * This command is stored as a `Seq[CommandPart]` in the `Command` class (e.g. [sh script.sh, ${var1}, -o, ${var2}]).
+   * Then, given a map of variable -> value:
+   *
+   * {{{
+   * {
+   *   "var1": "foo",
+   *   "var2": "bar"
+   * }
+   * }}}
+   *
+   * It calls instantiate() on each part, and passes this map. The ParameterCommandPart are the ${var1} and ${var2}
+   * pieces and they lookup var1 and var2 in that map.
+   *
+   * The command that's returned from Command.instantiate() is:
+   *
+   *
+   * {{{sh script.sh foo -o bar}}}
+   *
+   * @param parameters Parameter values
+   * @return String instantiation of the command
+   */
+  def instantiateCommand(parameters: CallInputs, functions: WdlFunctions = new NoFunctions): Try[String] = {
+    Try(normalize(commandTemplate.map(_.instantiate(declarations, parameters, functions)).mkString("")))
+  }
+
+  def commandTemplateString: String = normalize(commandTemplate.map(_.toString).mkString)
+
+  /**
+   * 1) Remove all leading newline chars
+   * 2) Remove all trailing newline AND whitespace chars
+   * 3) Remove all *leading* whitespace that's common among every line in the input string
+   *
+   * For example, the input string:
+   *
+   * "
+   *   first line
+   *     second line
+   *   third line
+   *
+   * "
+   *
+   * Would be normalized to:
+   *
+   * "first line
+   *   second line
+   * third line"
+   *
+   * @param s String to process
+   * @return String which has common leading whitespace removed from each line
+   */
+  private def normalize(s: String): String = {
+    val trimmed = stripAll(s, "\r\n", "\r\n \t")
+    val parts = trimmed.split("[\\r\\n]+")
+    val indent = parts.map(leadingWhitespaceCount).min
+    parts.map(_.substring(indent)).mkString("\n")
+  }
+
+  private def leadingWhitespaceCount(s: String): Int = {
+    val matcher = Ws.matcher(s)
+    if (matcher.lookingAt) matcher.end else 0
+  }
+
+  private def stripAll(s: String, startChars: String, endChars: String): String = {
+    /* https://stackoverflow.com/questions/17995260/trimming-strings-in-scala */
+    @tailrec
+    def start(n: Int): String = {
+      if (n == s.length) ""
+      else if (startChars.indexOf(s.charAt(n)) < 0) end(n, s.length)
+      else start(1 + n)
+    }
+
+    @tailrec
+    def end(a: Int, n: Int): String = {
+      if (n <= a) s.substring(a, n)
+      else if (endChars.indexOf(s.charAt(n - 1)) < 0) s.substring(a, n)
+      else end(a, n - 1)
+    }
+
+    start(0)
+  }
+
+  override def toString: String = s"[Task name=$name commandTemplate=$commandTemplate}]"
 }

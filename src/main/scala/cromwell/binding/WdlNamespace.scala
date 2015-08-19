@@ -273,7 +273,7 @@ object WdlNamespace {
     for {
       i <- imports
       namespaceAst <- i.namespaceAst
-      task <- findTask(namespaceAst.sourceString(), namespaces, tasks)
+      task <- findTask(namespaceAst.sourceString, namespaces, tasks)
     } yield {throw new SyntaxError(wdlSyntaxErrorFormatter.taskAndNamespaceHaveSameName(task.ast, namespaceAst.asInstanceOf[Terminal]))}
 
     // Detect duplicated task names
@@ -352,7 +352,7 @@ object NamespaceWithWorkflow {
     for {
       i <- imports
       namespaceAst <- i.namespaceAst
-      if namespaceAst.sourceString() == workflowAst.getAttribute("name").sourceString()
+      if namespaceAst.sourceString == workflowAst.getAttribute("name").sourceString
     } yield {throw new SyntaxError(wdlSyntaxErrorFormatter.workflowAndNamespaceHaveSameName(workflowAst, namespaceAst.asInstanceOf[Terminal]))}
 
     val calls = workflowAst.findAsts(AstNodeName.Call) map {Call(_, namespaces, tasks, wdlSyntaxErrorFormatter)}
@@ -382,11 +382,11 @@ object NamespaceWithWorkflow {
   def getCallFromMemberAccessAst(ast: Ast, workflow: Workflow, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Try[Call] = {
     def callFromName(name: String): Try[Call] = {
       workflow.calls.find(_.name == name) match {
-        case Some(c:Call) => Success(c)
+        case Some(c: Call) => Success(c)
         case _ => Failure(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(ast)))
       }
     }
-    val rhs = ast.getAttribute("rhs").sourceString()
+    val rhs = ast.getAttribute("rhs").sourceString
 
     /**
      * The right-hand side of a member-access AST should always be interpreted as a String
@@ -409,11 +409,11 @@ object NamespaceWithWorkflow {
      */
     val lhs = callFromName(ast.getAttribute("lhs") match {
       case a: Ast => WdlExpression.toString(a)
-      case terminal: Terminal => terminal.sourceString()
+      case terminal: Terminal => terminal.sourceString
     })
 
     lhs match {
-      case Success(c:Call) =>
+      case Success(c: Call) =>
         c.task.outputs.find {_.name == rhs}.getOrElse {
           throw new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(ast))
         }

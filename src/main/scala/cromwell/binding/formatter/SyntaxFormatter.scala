@@ -66,7 +66,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     val namespaceDefinitions = namespace.ast.getAttribute("definitions").asInstanceOf[AstList].asScala.toVector
 
     val taskDefinitions = namespaceDefinitions collect { case a: Ast if a.getName == "Task" =>
-      formatTask(namespace.findTask(a.getAttribute("name").sourceString()).getOrElse(throw new UnsupportedOperationException("Shouldn't happen")))
+      formatTask(namespace.findTask(a.getAttribute("name").sourceString).getOrElse(throw new UnsupportedOperationException("Shouldn't happen")))
     }
 
     val workflowDefinitions = namespace match {

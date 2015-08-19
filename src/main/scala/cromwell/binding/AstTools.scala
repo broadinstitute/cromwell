@@ -18,7 +18,7 @@ object AstTools {
     }
     def findTerminals(): Seq[Terminal] = AstTools.findTerminals(astNode)
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
-    def sourceString(): String = astNode.asInstanceOf[Terminal].getSourceString
+    def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
     def wdlType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlType = {
       astNode match {
         case t: Terminal =>
@@ -34,7 +34,7 @@ object AstTools {
         case a: Ast =>
           val subtypes = a.getAttribute("subtype").asInstanceOf[AstList].asScala.toSeq
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
-          a.getAttribute("name").sourceString() match {
+          a.getAttribute("name").sourceString match {
             case "Array" =>
               if (subtypes.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
               val member = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
@@ -66,7 +66,7 @@ object AstTools {
 
   implicit class EnhancedAstSeq(val astSeq: Seq[Ast]) extends AnyVal {
     def duplicatesByName: Seq[Ast] = {
-      astSeq.groupBy(_.getAttribute("name").sourceString()).collect({case (_ ,v) if v.size > 1 => v.head}).toVector
+      astSeq.groupBy(_.getAttribute("name").sourceString).collect({case (_ ,v) if v.size > 1 => v.head}).toVector
     }
   }
 

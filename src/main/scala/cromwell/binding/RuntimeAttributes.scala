@@ -31,7 +31,7 @@ object RuntimeAttributes {
 
   def apply(ast: Ast, backendType: BackendType): RuntimeAttributes = {
     def processRuntimeAttribute(ast: Ast): (String, String) = {
-      (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
+      (ast.getAttribute("key").sourceString, ast.getAttribute("value").sourceString)
     }
 
     def processRuntimeAttributes(astList: AstList): Map[String, String] = {

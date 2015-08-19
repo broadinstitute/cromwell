@@ -9,7 +9,7 @@ object Declaration {
     Declaration(
       scopeFqn,
       ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter),
-      ast.getAttribute("name").sourceString(),
+      ast.getAttribute("name").sourceString,
       ast.getAttribute("expression") match {
         case a: Ast => Some(WdlExpression(a))
         case _ => None

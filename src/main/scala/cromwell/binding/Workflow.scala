@@ -12,8 +12,8 @@ object Workflow {
       Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
     }
 
-    callNames.groupBy {_.sourceString()}.foreach {
-      case (name, terminals) if terminals.size > 1 =>
+    callNames groupBy { _.sourceString } foreach {
+      case (_, terminals) if terminals.size > 1 =>
         throw new SyntaxError(wdlSyntaxErrorFormatter.multipleCallsAndHaveSameName(terminals.asInstanceOf[Seq[Terminal]]))
       case _ =>
     }
@@ -30,7 +30,7 @@ object Workflow {
  * @param calls The set of `call` declarations
  */
 case class Workflow(name: String, declarations: Seq[Declaration], calls: Seq[Call]) extends Executable with Scope {
-  calls foreach {c => c.setParent(this)}
+  calls foreach { c => c.setParent(this) }
 
   /** Parent node for this workflow.  Since we do not support nested
     * workflows currently, this is always `None`
@@ -44,8 +44,8 @@ case class Workflow(name: String, declarations: Seq[Declaration], calls: Seq[Cal
    *         inputs that the user needs to provide to this workflow
    */
   def inputs: Seq[WorkflowInput] = {
-    val callInputs = for {call <- calls; input <- call.unsatisfiedInputs} yield input
-    val declarationInputs = for(declaration <- declarations; input <- declaration.asWorkflowInput) yield input
+    val callInputs = for { call <- calls; input <- call.unsatisfiedInputs } yield input
+    val declarationInputs = for { declaration <- declarations; input <- declaration.asWorkflowInput } yield input
     callInputs ++ declarationInputs
   }
 

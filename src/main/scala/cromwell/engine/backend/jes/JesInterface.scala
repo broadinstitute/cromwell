@@ -12,11 +12,11 @@ import cromwell.util.google.{GoogleCloudStorage, GoogleCredentialFactory}
 
 
 object JesInterface {
-  def apply(appName: String): JesInterface = {
+  def apply(appName: String, endpointUrl: URL): JesInterface = {
     val jsonFactory = JacksonFactory.getDefaultInstance
     val httpTransport = GoogleNetHttpTransport.newTrustedTransport
     val credential = GoogleCredentialFactory.from(jsonFactory, httpTransport)
-    val genomics = GoogleGenomics.from(appName, credential, jsonFactory, httpTransport)
+    val genomics = GoogleGenomics.from(appName, endpointUrl, credential, jsonFactory, httpTransport)
     val storage = GoogleCloudStorage(appName, credential, jsonFactory, httpTransport)
 
     JesInterface(credential, genomics, storage)
@@ -24,10 +24,8 @@ object JesInterface {
 
   // Wrapper object around Google's Genomics class providing a convenience 'from' "method"
   object GoogleGenomics {
-    def GenomicsUrl = new URL("https://staging-genomics.sandbox.googleapis.com")
-
-    def from(applicationName: String, credential: Credential, jsonFactory: JsonFactory, httpTransport: HttpTransport): Genomics = {
-      new Genomics.Builder(httpTransport, jsonFactory, credential).setApplicationName(applicationName).setRootUrl(GenomicsUrl.toString).build
+    def from(applicationName: String, endpointUrl: URL, credential: Credential, jsonFactory: JsonFactory, httpTransport: HttpTransport): Genomics = {
+      new Genomics.Builder(httpTransport, jsonFactory, credential).setApplicationName(applicationName).setRootUrl(endpointUrl.toString).build
     }
   }
 }

@@ -1,6 +1,7 @@
 package cromwell.engine.backend.jes
 
 import java.math.BigInteger
+import java.net.URL
 import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Parameter
@@ -28,8 +29,8 @@ object JesBackend {
   lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
   lazy val CromwellExecutionBucket = JesConf.getString("baseExecutionBucket")
-
-  lazy val JesConnection = JesInterface(GoogleApplicationName)
+  lazy val EndpointUrl = new URL(JesConf.getString("endpointUrl"))
+  lazy val JesConnection = JesInterface(GoogleApplicationName, EndpointUrl)
 
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem

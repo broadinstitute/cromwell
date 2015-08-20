@@ -134,14 +134,23 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend))
   }
 
-  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowActor.WorkflowFailure, WorkflowActor], eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowActor.WorkflowFailure, WorkflowActor],
+             eventFilter: EventFilter,
+             expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
+             terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     assert(fsm.stateName == WorkflowSubmitted)
     eventFilter.intercept {
       fsm ! WorkflowActor.Start
       within(timeoutDuration) {
         awaitCond(fsm.stateName == WorkflowRunning)
-        awaitCond(fsm.stateName.isTerminal)
-        fsm.stateData should be(WorkflowActor.NoFailureMessage)
+        awaitCond(fsm.stateName == terminalState)
+
+        if (terminalState == WorkflowSucceeded)
+          fsm.stateData should be(WorkflowActor.NoFailureMessage)
+
+        if (terminalState == WorkflowFailed)
+          fsm.stateData.isInstanceOf[WorkflowActor.FailureMessage] shouldEqual true
+
         val outputs = fsm.ask(WorkflowActor.GetOutputs).mapTo[WorkflowOutputs].futureValue
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
@@ -179,9 +188,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     runWdl(fsm, eventFilter, expectedOutputs)
   }
 
-  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty, terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     val fsm = buildFsmWorkflowActor(sampleWdl, runtime)
-    runWdl(fsm, eventFilter, expectedOutputs)
+    runWdl(fsm, eventFilter, expectedOutputs, terminalState)
   }
 
   def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {

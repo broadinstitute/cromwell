@@ -955,4 +955,24 @@ object SampleWdl {
     val OutputKey1 = "hello.msg1.result"
     val OutputValue = "waited 100 seconds"
   }
+
+  object BadTaskOutputWdl extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task bad {
+        |  command {
+        |    echo "hello" > a
+        |  }
+        |  output {
+        |    # Oops! we made a spelling mistake in our WDL!
+        |    File a = "b"
+        |  }
+        |}
+        |
+        |workflow badExample {
+        |  call bad
+        |}
+      """.stripMargin
+
+    override val rawInputs =  Map.empty[String, String]
+  }
 }

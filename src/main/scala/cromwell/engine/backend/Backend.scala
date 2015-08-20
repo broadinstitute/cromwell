@@ -1,5 +1,8 @@
 package cromwell.engine.backend
 
+import java.io.FileNotFoundException
+import java.nio.file.{Files, Paths}
+
 import com.typesafe.config.Config
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
@@ -105,7 +108,7 @@ trait Backend {
     def outputAutoConversion(callFqn: String, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
       rawOutputValue match {
         // Autoconvert String -> File.
-        case v: WdlString if taskOutput.wdlType == WdlFileType => Success(WdlFile(hostAbsoluteFilePath(v.value)))
+        case v: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(v.value), taskOutput, callFqn)
         case m: WdlMap if taskOutput.wdlType.isInstanceOf[WdlMapType] => taskOutput.wdlType.coerceRawValue(m)
         // Pass through matching types.
         case v if v.wdlType == taskOutput.wdlType => Success(v)
@@ -136,6 +139,15 @@ trait Backend {
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
     }
   }
+
+  private def assertTaskOutputPathExists(path: String, taskOutput: TaskOutput, callFqn: String): Try[WdlFile] =
+    if (Files.exists(Paths.get(path))) Success(WdlFile(path))
+    else Failure(new FileNotFoundException(
+      s"""ERROR: Could not process output '${taskOutput.wdlType.toWdlString} ${taskOutput.name}' of $callFqn:
+        |
+        |Invalid path: $path
+       """.stripMargin
+    ))
 
   def backendType: BackendType
 }

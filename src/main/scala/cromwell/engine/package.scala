@@ -82,7 +82,7 @@ package object engine {
 
     def apply(fullyQualifiedName: FullyQualifiedName, wdlValue: WdlValue, input: Boolean): SymbolStoreEntry = {
       val (scope, name) = splitFqn(fullyQualifiedName)
-      val key = SymbolStoreKey(scope, name, iteration = None, input)
+      val key = SymbolStoreKey(scope, name, index = None, input)
       SymbolStoreEntry(key, wdlValue.wdlType, Some(wdlValue))
     }
 
@@ -95,7 +95,7 @@ package object engine {
     }.toMap
   }
 
-  case class SymbolStoreKey(scope: String, name: String, iteration: Option[Int], input: Boolean)
+  case class SymbolStoreKey(scope: String, name: String, index: Option[Int], input: Boolean)
 
   case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
     def isInput: Boolean = key.input

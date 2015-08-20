@@ -7,7 +7,7 @@ case class Symbol
   workflowExecutionId: Int,
   scope: String,
   name: String,
-  iteration: Int, // https://bugs.mysql.com/bug.php?id=8173
+  index: Int, // https://bugs.mysql.com/bug.php?id=8173
   io: String,
   wdlType: String,
   wdlValue: Option[Clob],
@@ -28,7 +28,7 @@ trait SymbolComponent {
 
     def name = column[String]("NAME")
 
-    def iteration = column[Int]("ITERATION")
+    def index = column[Int]("INDEX")
 
     def io = column[String]("IO")
 
@@ -36,14 +36,14 @@ trait SymbolComponent {
 
     def wdlValue = column[Option[Clob]]("WDL_VALUE")
 
-    override def * = (workflowExecutionId, scope, name, iteration, io, wdlType, wdlValue, symbolId.?) <>
+    override def * = (workflowExecutionId, scope, name, index, io, wdlType, wdlValue, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)
 
     def workflowExecution = foreignKey(
       "FK_SYMBOL_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
     def uniqueKey = index("UK_SYM_WORKFLOW_EXECUTION_ID_SCOPE_NAME_ITERATION_IO",
-      (workflowExecutionId, scope, name, iteration, io), unique = true)
+      (workflowExecutionId, scope, name, index, io), unique = true)
   }
 
   protected val symbols = TableQuery[Symbols]

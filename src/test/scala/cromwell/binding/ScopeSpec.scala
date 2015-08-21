@@ -8,7 +8,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class ScopeSpec extends FlatSpec with Matchers {
 
-  val namespace = NamespaceWithWorkflow.load(SampleWdl.ScatterWdl.wdlSource(), BackendType.LOCAL)
+  val namespace = NamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource(), BackendType.LOCAL)
 
   it should "Have correct parent hierarchy" in {
     val calls: Seq[Call] = namespace.workflow.calls

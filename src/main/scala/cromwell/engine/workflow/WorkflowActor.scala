@@ -68,9 +68,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
                          backend: Backend,
                          dataAccess: DataAccess)
   extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
-
   private var executionStore: ExecutionStore = _
-
   val tag: String = s"WorkflowActor [UUID(${workflow.shortId})]"
   override val log = Logging(context.system, classOf[WorkflowActor])
 
@@ -239,7 +237,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     def isRunnable(scope: Scope) = {
       scope match {
         case call: Call =>
-          call.prerequisiteCalls(workflow.namespace) forall {
+          // FIXME: Sticking w/ prerequisiteCalls for now until our system is more scope aware
+          call.prerequisiteCalls forall {
             case previousCall =>
               executionStore.find(_._1.scope == previousCall).get._2 == ExecutionStatus.Done
           }
@@ -278,8 +277,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
   /* Return a Markdown table of all entries in the database */
   private def symbolsMarkdownTable(): Option[String] = {
-    val header = Seq("SCOPE","NAME","I/O","TYPE","VALUE")
-    val max_col_chars = 100
+    val header = Seq("SCOPE", "NAME", "I/O", "TYPE", "VALUE")
+    val maxColChars = 100
     val rows = fetchAllEntries.map { entry =>
       val valueString = entry.wdlValue match {
         case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
@@ -290,11 +289,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         entry.key.name,
         if (entry.key.input) "INPUT" else "OUTPUT",
         entry.wdlType.toWdlString,
-        if (valueString.length > max_col_chars) valueString.substring(0, max_col_chars) else valueString
+        if (valueString.length > maxColChars) valueString.substring(0, maxColChars) else valueString
       )
     }.toSeq
+
     rows match {
-      case r:Seq[Seq[String]] if r.isEmpty => None
+      case r: Seq[Seq[String]] if r.isEmpty => None
       case _ => Some(TerminalUtil.mdTable(rows, header))
     }
   }

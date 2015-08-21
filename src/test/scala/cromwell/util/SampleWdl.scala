@@ -232,7 +232,7 @@ object SampleWdl {
     override val rawInputs = Map(PatternKey -> "...")
   }
 
-  object ScatterWdl extends SampleWdl {
+  object NestedScatterWdl extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         task A {
@@ -1008,7 +1008,7 @@ object SampleWdl {
     override val rawInputs =  Map.empty[String, String]
   }
 
-  object ScatterConversationWdl extends SampleWdl {
+  object ScatterWdl extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """task A {
         |  command {

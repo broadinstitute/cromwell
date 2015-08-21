@@ -2,8 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
-
-import scala.util.{Success, Try}
+import scala.util.Try
 import scala.language.postfixOps
 
 object Call {
@@ -18,6 +17,7 @@ object Call {
     }
 
     val taskName = ast.getAttribute("task").sourceString
+
     val task = WdlNamespace.findTask(taskName, namespaces, tasks) getOrElse {
       throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(ast, taskName))
     }
@@ -43,7 +43,9 @@ object Call {
       }
     }
 
-    new Call(alias, taskName, task, callInputSectionMappings, parent)
+    val prerequisiteCallNames = callInputSectionMappings.values flatMap { _.prerequisiteCallNames } toSet
+
+    new Call(alias, taskName, task, prerequisiteCallNames, callInputSectionMappings, parent)
   }
 
   private def processCallInput(ast: Ast,
@@ -71,58 +73,36 @@ object Call {
 case class Call(alias: Option[String],
                 taskFqn: FullyQualifiedName,
                 task: Task,
+                prerequisiteCallNames: Set[LocallyQualifiedName],
                 inputMappings: Map[String, WdlExpression],
                 parent: Option[Scope]) extends Scope {
   val name: String = alias getOrElse taskFqn
 
-  private def unsatisfiedTaskInputs: Seq[TaskInput] = task.inputs.filterNot {case i => inputMappings.contains(i.name)}
+  override lazy val prerequisiteScopes: Set[Scope] = {
+    val parent = this.parent.get // FIXME: In a world where Call knows it has a parent this wouldn't be icky
+    val parentPrereq = if (parent == this.rootScope) Nil else Set(parent)
+    prerequisiteCalls ++ parentPrereq
+  }
 
   /**
    * Returns a Seq[WorkflowInput] representing the inputs to the call that are
    * needed before its command can be constructed. This excludes inputs that
    * are satisfied via the 'input' section of the Call definition.
    */
-  def unsatisfiedInputs: Seq[WorkflowInput] = unsatisfiedTaskInputs.map {i =>
-    WorkflowInput(s"$fullyQualifiedName.${i.name}", i.wdlType, i.postfixQuantifier)
+  def unsatisfiedInputs: Seq[WorkflowInput] = {
+    for {
+      i <- task.inputs if !inputMappings.contains(i.name)
+    } yield WorkflowInput(s"$fullyQualifiedName.${i.name}", i.wdlType, i.postfixQuantifier)
   }
 
   override def toString: String = s"[Call name=$name, task=$task]"
 
   /**
-   * Find all calls upon which this call immediately depends, i.e. the result of this
-   * does not include transitive dependencies.  Currently this only works for member
-   * access expressions with a literal LHS, e.g.:
-   *
-   * {{{
-   *   call cgrep {
-   *     input: in_file=ps.procs
-   *   }
-   * }}}
-   *
-   * Here `ps` would be the prerequisite call for `cgrep`.
-   *
-   * Calls are de-duplicated into a returned `Set`, so if one call expresses dependencies on
-   * a prerequisite call multiple times (i.e. has multiple inputs depending on multiple outputs
-   * of a prerequisite call), that prerequisite call will appear only once in the output.
-   */
-  /*
-    TODO/FIXME: Not happy w/ having to include the namespace but since Calls are now built before there's a namespace the Call loses it's WdlNamespace field.
-   */
-  def prerequisiteCalls(namespace: NamespaceWithWorkflow): Iterable[Call] = {
-    for {
-      expr <- inputMappings.values
-      ast <- AstTools.findTopLevelMemberAccesses(expr.ast)
-      call <- namespace.getCallFromMemberAccessAst(ast) match {
-        case Success(c:Call) => Vector(c)
-        case _ => Vector()
-      }
-    } yield call
-  }
-
-  /**
    * Instantiate the abstract command line corresponding to this call using the specified inputs.
    */
-  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions): Try[String] = task.instantiateCommand(inputs, functions)
+  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions): Try[String] = {
+    task.instantiateCommand(inputs, functions)
+  }
 
   /**
    * Return the docker configuration value associated with this `Call`, if any.

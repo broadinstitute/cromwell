@@ -15,7 +15,7 @@ class ScatterPopulateSpec extends FlatSpec with Matchers {
   behavior of "ScatterPopulate"
 
   it should "populate WDL from our conversation" in {
-    val namespace = NamespaceWithWorkflow.load(SampleWdl.ScatterConversationWdl.wdlSource(), BackendType.LOCAL)
+    val namespace = NamespaceWithWorkflow.load(SampleWdl.ScatterWdl.wdlSource(), BackendType.LOCAL)
 
     val workflowEntries = WorkflowActor.populate(namespace.workflow)
     workflowEntries.size should be(3)
@@ -41,7 +41,7 @@ class ScatterPopulateSpec extends FlatSpec with Matchers {
   }
 
   it should "populate scatter WDL example" in {
-    val namespace = NamespaceWithWorkflow.load(SampleWdl.ScatterWdl.wdlSource(), BackendType.LOCAL)
+    val namespace = NamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource(), BackendType.LOCAL)
 
     // Workflow: Populate the workflow entries
     val workflowEntries = WorkflowActor.populate(namespace.workflow)

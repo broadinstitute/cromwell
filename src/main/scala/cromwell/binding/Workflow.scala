@@ -38,16 +38,11 @@ object Workflow {
 case class Workflow(name: String,
                     declarations: Seq[Declaration],
                     workflowOutputDecls: Seq[WorkflowOutputDeclaration]) extends Executable with Scope {
-
+  // FIXME: In a world where we know this is a top level scope, these would go away
+  override val prerequisiteScopes = Set.empty[Scope]
+  override val prerequisiteCallNames = Set.empty[String]
 
   override val parent: Option[Scope] = None
-
-  /* Calls and scatters are accessed frequently so this avoids traversing the whole children tree every time.
-   * Lazy because children are not provided at instantiation but rather later during tree building process.
-   * This prevents evaluation from being done before children have been set.
-   * */
-  lazy val calls: Seq[Call] = collectAllCalls
-  lazy val scatters: Seq[Scatter] = collectAllScatters
 
   /**
    * All inputs for this workflow and their associated types.

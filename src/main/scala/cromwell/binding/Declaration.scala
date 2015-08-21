@@ -9,7 +9,8 @@ object Declaration {
     Declaration(
       scopeFqn,
       ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter),
-      ast.getAttribute("name").sourceString(),
+      Option(ast.getAttribute("postfix")).map(_.sourceString),
+      ast.getAttribute("name").sourceString,
       ast.getAttribute("expression") match {
         case a: Ast => Some(WdlExpression(a))
         case _ => None
@@ -33,15 +34,15 @@ object Declaration {
  *
  * Both the definition of test_file and wf_string are declarations
  */
-case class Declaration(scopeFqn: FullyQualifiedName, wdlType: WdlType, name: String, expression: Option[WdlExpression]) {
+case class Declaration(scopeFqn: FullyQualifiedName, wdlType: WdlType, postfixQuantifier: Option[String], name: String, expression: Option[WdlExpression]) {
   def asWorkflowInput: Option[WorkflowInput] = expression match {
     case Some(expr) => None
-    case None => Some(WorkflowInput(fullyQualifiedName, wdlType, postfixQuantifier = None))
+    case None => Some(WorkflowInput(fullyQualifiedName, wdlType, postfixQuantifier))
   }
 
   def asTaskInput: Option[TaskInput] = expression match {
     case Some(expr) => None
-    case None => Some(TaskInput(name, wdlType, postfixQuantifier = None))
+    case None => Some(TaskInput(name, wdlType, postfixQuantifier))
   }
 
   def fullyQualifiedName: FullyQualifiedName = s"$scopeFqn.$name"

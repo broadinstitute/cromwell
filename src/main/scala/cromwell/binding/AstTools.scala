@@ -18,7 +18,8 @@ object AstTools {
     }
     def findTerminals(): Seq[Terminal] = AstTools.findTerminals(astNode)
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
-    def sourceString(): String = astNode.asInstanceOf[Terminal].getSourceString
+    def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
+    def astListAsVector(): Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector
     def wdlType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlType = {
       astNode match {
         case t: Terminal =>
@@ -32,13 +33,18 @@ object AstTools {
             case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
         case a: Ast =>
-          val subtypes = a.getAttribute("subtype").asInstanceOf[AstList].asScala.toSeq
+          val subtypes = a.getAttribute("subtype").astListAsVector
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
-          a.getAttribute("name").sourceString() match {
+          a.getAttribute("name").sourceString match {
             case "Array" =>
               if (subtypes.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
               val member = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
               WdlArrayType(member)
+            case "Map" =>
+              if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.mapMustHaveExactlyTwoTypeParameters(typeTerminal))
+              val keyType = subtypes(0).wdlType(wdlSyntaxErrorFormatter)
+              val valueType = subtypes(1).wdlType(wdlSyntaxErrorFormatter)
+              WdlMapType(keyType, valueType)
           }
         case null => WdlStringType
         case _ => throw new UnsupportedOperationException("Implement this later for compound types")
@@ -55,10 +61,21 @@ object AstTools {
           case "true" => WdlBoolean.True
           case "false" => WdlBoolean.False
         }
+        // TODO: The below cases, ArrayLiteral and MapLiteral are brittle.  They recursively call this wdlValue().
+        // However, those recursive calls might contain full-on expressions instead of just other literals.  This
+        // whole thing ought to be part of the regular expression evaluator, though I imagine that's non-trivial.
         case a: Ast if a.getName == "ArrayLiteral" && wdlType.isInstanceOf[WdlArrayType] =>
           val arrType = wdlType.asInstanceOf[WdlArrayType]
-          val elements = a.getAttribute("values").asInstanceOf[AstList].asScala.toVector.map{node => node.wdlValue(arrType.memberType, wdlSyntaxErrorFormatter)}
+          val elements = a.getAttribute("values").astListAsVector map {node => node.wdlValue(arrType.memberType, wdlSyntaxErrorFormatter)}
           WdlArray(arrType, elements)
+        case a: Ast if a.getName == "MapLiteral" && wdlType.isInstanceOf[WdlMapType] =>
+          val mapType = wdlType.asInstanceOf[WdlMapType]
+          val elements = a.getAttribute("map").asInstanceOf[AstList].asScala.toVector.map({ kvnode =>
+            val k = kvnode.asInstanceOf[Ast].getAttribute("key").wdlValue(mapType.keyType, wdlSyntaxErrorFormatter)
+            val v = kvnode.asInstanceOf[Ast].getAttribute("value").wdlValue(mapType.valueType, wdlSyntaxErrorFormatter)
+            k -> v
+          }).toMap
+          WdlMap(mapType, elements)
         case _ => throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
       }
     }
@@ -66,7 +83,7 @@ object AstTools {
 
   implicit class EnhancedAstSeq(val astSeq: Seq[Ast]) extends AnyVal {
     def duplicatesByName: Seq[Ast] = {
-      astSeq.groupBy(_.getAttribute("name").sourceString()).collect({case (_ ,v) if v.size > 1 => v.head}).toVector
+      astSeq.groupBy(_.getAttribute("name").sourceString).collect({case (_ ,v) if v.size > 1 => v.head}).toVector
     }
   }
 
@@ -82,6 +99,8 @@ object AstTools {
     val MemberAccess = "MemberAccess"
     val Runtime = "Runtime"
     val Declaration = "Declaration"
+    val WorkflowOutput = "WorkflowOutput"
+    val Scatter = "Scatter"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {
@@ -162,7 +181,7 @@ object AstTools {
       case asts: Seq[Ast] if asts.isEmpty => Seq.empty[Ast]
       case asts: Seq[Ast] =>
         /* Uses of .head here are assumed by the above code that ensures that there are no empty maps */
-        val secondInputSectionIOMappings = asts(1).getAttribute("map").asInstanceOf[AstList].asScala.toVector
+        val secondInputSectionIOMappings = asts(1).getAttribute("map").astListAsVector
         val firstKeyTerminal = secondInputSectionIOMappings.head.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal]
         throw new SyntaxError(wdlSyntaxErrorFormatter.multipleInputStatementsOnCall(firstKeyTerminal))
     }

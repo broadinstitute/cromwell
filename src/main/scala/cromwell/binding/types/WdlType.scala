@@ -2,11 +2,13 @@ package cromwell.binding.types
 
 import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{AstTools, WdlSource, WdlSyntaxErrorFormatter}
+import cromwell.binding.{WdlSource, WdlSyntaxErrorFormatter}
 import cromwell.parser.WdlParser
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
+
+class WdlTypeException(message: String) extends RuntimeException(message)
 
 trait WdlType {
 
@@ -24,10 +26,10 @@ trait WdlType {
    * a `WdlValue`.
    */
   def coerceRawValue(any: Any): Try[WdlValue] = {
-    if (!coercion.isDefinedAt(any)) {
-      Failure(new IllegalArgumentException(s"No coercion defined from '$any' of type '${any.getClass}' to ${getClass.getSimpleName}."))
-    } else {
-      Try(coercion(any))
+    any match {
+      case v: WdlValue if v.wdlType == this => Success(v)
+      case a if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(s"No coercion defined from '$any' of type '${any.getClass}' to ${getClass.getSimpleName}."))
+      case _ => Try(coercion(any))
     }
   }
 
@@ -57,10 +59,20 @@ trait WdlType {
 object WdlType {
   val parser = new WdlParser()
 
-  private lazy val wdlTypes = Seq(
-    WdlBooleanType, WdlExpressionType, WdlFileType, WdlFloatType,
-    WdlIntegerType, WdlNamespaceType, WdlObjectType, WdlStringType
+  /* This is in the order of coercion from non-wdl types */
+  val wdlTypeCoercionOrder: Seq[WdlType] = Seq(
+    WdlStringType, WdlIntegerType, WdlFloatType, WdlMapType(WdlAnyType, WdlAnyType),
+    WdlArrayType(WdlAnyType), WdlBooleanType, WdlObjectType
   )
+
+  def homogeneousType(values: Iterable[WdlValue]): Try[WdlType] = {
+    values.map(_.wdlType).toSet match {
+      case s if s.isEmpty => Failure(new WdlTypeException(s"Can't have empty Array/Map declarations (can't infer type)"))
+      case s if s.size == 1 => Success(s.head)
+      case _ => Failure(new WdlTypeException("Arrays/Maps must have homogeneous types"))
+    }
+  }
+
 
   def fromWdlString(wdlString: String): WdlType = {
     wdlString match {

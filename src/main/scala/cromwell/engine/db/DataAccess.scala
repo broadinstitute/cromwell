@@ -1,9 +1,9 @@
 package cromwell.engine.db
 
-import cromwell.binding.values.WdlValue
 import cromwell.binding._
+import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.Backend
-import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
+import cromwell.engine.{WorkflowId, SymbolStoreEntry, WorkflowState}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}

@@ -1,11 +1,14 @@
 package cromwell.engine.backend
 
+import java.io.FileNotFoundException
+import java.nio.file.{Files, Paths}
+
 import com.typesafe.config.Config
 import cromwell.binding
 import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.types.WdlFileType
-import cromwell.binding.values.{WdlFile, WdlString, WdlValue}
+import cromwell.binding.types.{WdlFileType, WdlMapType}
+import cromwell.binding.values.{WdlFile, WdlMap, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
@@ -50,6 +53,15 @@ trait Backend {
   def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs
 
   /**
+   * Given a Call and a WorkflowDescriptor, returns a *deterministic* TaskExecutionContext.  This object
+   * should contain enough information to implement some or all of the WDL standard library functions.
+   *
+   * setupCallEnvironment() MUST also be idempotent.  Any side effects it does (e.g. creating directories / buckets)
+   * should be able to handle being called more than once.
+   */
+  def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): TaskExecutionContext
+
+  /**
    * Execute the specified command line using the provided symbol store, evaluating the task outputs to produce
    * a mapping of local task output names to WDL values.
    */
@@ -57,7 +69,8 @@ trait Backend {
                      workflowDescriptor: WorkflowDescriptor, 
                      call: Call, 
                      backendInputs: CallInputs,
-                     scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]]
+                     scopedLookupFunction: ScopedLookupFunction,
+                     abortFunctionRegistration: AbortFunctionRegistration): Try[Map[String, WdlValue]]
 
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
@@ -95,7 +108,8 @@ trait Backend {
     def outputAutoConversion(callFqn: String, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
       rawOutputValue match {
         // Autoconvert String -> File.
-        case v: WdlString if taskOutput.wdlType == WdlFileType => Success(WdlFile(hostAbsoluteFilePath(v.value)))
+        case v: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(v.value), taskOutput, callFqn)
+        case m: WdlMap if taskOutput.wdlType.isInstanceOf[WdlMapType] => taskOutput.wdlType.coerceRawValue(m)
         // Pass through matching types.
         case v if v.wdlType == taskOutput.wdlType => Success(v)
         // Fail other mismatched types.
@@ -125,6 +139,15 @@ trait Backend {
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
     }
   }
+
+  private def assertTaskOutputPathExists(path: String, taskOutput: TaskOutput, callFqn: String): Try[WdlFile] =
+    if (Files.exists(Paths.get(path))) Success(WdlFile(path))
+    else Failure(new FileNotFoundException(
+      s"""ERROR: Could not process output '${taskOutput.wdlType.toWdlString} ${taskOutput.name}' of $callFqn:
+        |
+        |Invalid path: $path
+       """.stripMargin
+    ))
 
   def backendType: BackendType
 }

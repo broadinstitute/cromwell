@@ -4,7 +4,6 @@ import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
-import akka.util.Timeout
 import cromwell.binding
 import cromwell.binding.{WdlJson, WdlSource}
 import cromwell.engine._
@@ -51,6 +50,7 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
   def receive = {
     case CurrentState(_, state: WorkflowState) if state.isTerminal => handleTermination(state)
     case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
+    case Transition(_, _, state: WorkflowState) => log.info(s"$tag: transitioning to $state")
     case CurrentState(_, state: WorkflowState) => log.info(s"$tag: received CurrentState($state)")
     case m => log.warning(s"$tag: received unexpected message: $m")
   }

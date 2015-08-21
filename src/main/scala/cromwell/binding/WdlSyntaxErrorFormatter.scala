@@ -176,40 +176,17 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
+  def mapMustHaveExactlyTwoTypeParameters(mapDecl: Terminal): String = {
+    s"""ERROR: Map type should have two parameterized types (line ${mapDecl.getLine}, col ${mapDecl.getColumn}):
+     |
+     |${pointToSource(mapDecl)}
+     """.stripMargin
+  }
+
   def arrayMustHaveATypeParameter(arrayDecl: Terminal): String = {
     s"""ERROR: Array type should have exactly one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
      |
      |${pointToSource(arrayDecl)}
-     """.stripMargin
-  }
-
-  def postfixQualifierRequiresSeparator(quantifier: Terminal) = {
-    s"""ERROR: Parameters that specify * or + must also specify sep=""
-       |
-       |${pointToSource(quantifier)}
-     """.stripMargin
-  }
-
-  def defaultAttributeOnlyAllowedForOptionalParameters(location: Terminal) = {
-    s"""ERROR: the 'default' attribute is only allowed with optional parameters (suffixed by either ? or *)
-       |
-       |${pointToSource(location)}
-     """.stripMargin
-  }
-
-  def parametersWithSameNameMustHaveSameDefinition(taskName: Terminal, firstParam: Terminal, secondParam: Terminal) = {
-    s"""ERROR: Task ${taskName.getSourceString} has input '${firstParam.getSourceString}' which is defined twice
-        |with conficting definitions:
-        |
-        |${pointToSource(secondParam)}
-        |
-        |first definition of parameter is here:
-        |
-        |${pointToSource(firstParam)}
-        |
-        |Task defined here (line ${taskName.getLine}, col ${taskName.getColumn}):
-        |
-        |${pointToSource(taskName)}
      """.stripMargin
   }
 }

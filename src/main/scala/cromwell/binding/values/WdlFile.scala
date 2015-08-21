@@ -1,6 +1,6 @@
 package cromwell.binding.values
 
-import cromwell.binding.types.{WdlType, WdlFileType}
+import cromwell.binding.types.{WdlFileType, WdlType}
 
 import scala.util.{Success, Try}
 

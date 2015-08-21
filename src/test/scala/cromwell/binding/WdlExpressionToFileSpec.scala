@@ -1,7 +1,7 @@
 package cromwell.binding
 
 import cromwell.binding.values._
-import cromwell.engine.EngineFunctions
+import org.scalatest.exceptions.TestFailedException
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Matchers, FlatSpec}
 import scala.language.postfixOps
@@ -40,10 +40,9 @@ class WdlExpressionToFileSpec extends FlatSpec with Matchers with MockitoSugar {
   "anonFiles function" should "identify read_int's argument as a files" in {
     val e: WdlExpression = expr("""read_int("myfile.txt")""")
     e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
-      case Success(files) => {
+      case Success(files) =>
         assert(files.size == 1)
         assert(files.head == WdlFile("myfile.txt"))
-      }
       case Failure(error) => fail(error)
     }
   }
@@ -51,22 +50,24 @@ class WdlExpressionToFileSpec extends FlatSpec with Matchers with MockitoSugar {
   "anonFiles function" should "evaluate expressions within read_int's ( and ) as a single file" in {
     val e: WdlExpression = expr("""read_int("/bin/bash/" + "myfile.txt")""")
     e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
-      case Success(files) => {
+      case Success(files) =>
         assert(files.size == 1)
         assert(files.head == WdlFile("/bin/bash/myfile.txt"))
-      }
       case Failure(error) => fail(error)
     }
   }
 
-  // I can't see any use for this particular combination but it's possible and should work, so let's test it:
-  "anonFiles function" should "evaluate expressions within read_int's which include pre-evaluable function calls" in {
+  "anonFiles function" should "not allow read_ints containing function calls within other expressions" in {
     val e: WdlExpression = expr("""read_int(stdout() + "3")""")
     e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
-      case Success(files) => {
-        assert(files.size == 1)
-        assert(files.head == WdlFile("job.stdout.txt/3"))
-      }
+      case Success(files) => fail("Functions shouldn't be allowed in complex expressions.")
+      case Failure(error) => // good
+    }
+  }
+  "anonFiles function" should "not identify stdout as an anonymous output" in {
+    val e: WdlExpression = expr("""read_int(stdout())""")
+    e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
+      case Success(files) => assert(files isEmpty)
       case Failure(error) => fail(error)
     }
   }
@@ -82,10 +83,9 @@ class WdlExpressionToFileSpec extends FlatSpec with Matchers with MockitoSugar {
   "anonFiles function" should "find file names modified by unary operators" in {
     val e: WdlExpression = expr(""" -read_int("/etc/file1")""")
     e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
-      case Success(files) => {
+      case Success(files) =>
         assert(files.size == 1)
         assert(files exists {_.value == "/etc/file1"})
-      }
       case Failure(error) => fail(error)
     }
   }
@@ -93,11 +93,10 @@ class WdlExpressionToFileSpec extends FlatSpec with Matchers with MockitoSugar {
   "anonFiles function" should "find two file names for two consecutive read_X functions" in {
     val e: WdlExpression = expr("""read_int("/etc/file1") + read_string("/bin/file2")""")
     e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
-      case Success(files) => {
+      case Success(files) =>
         assert(files.size == 2)
         assert(files exists {_.value == "/etc/file1"})
         assert(files exists {_.value == "/bin/file2"})
-      }
       case Failure(error) => fail(error)
     }
   }
@@ -105,32 +104,28 @@ class WdlExpressionToFileSpec extends FlatSpec with Matchers with MockitoSugar {
   "anonFiles function" should "find all file names in arbitrarily long sequences of read_X functions" in {
     val e: WdlExpression = expr("""read_int("/etc/file1") + read_string("/bin/file2") + read_string("/bin/file3") + read_string("/bin/file4") + read_string("/bin/file5")""")
     e.preevaluateExpressionForFilenames(noLookup, engineFunctions) match {
-      case Success(files) => {
+      case Success(files) =>
         assert(files.size == 5)
         assert(files exists {_.value == "/etc/file1"})
         assert(files exists {_.value == "/bin/file2"})
         assert(files exists {_.value == "/bin/file3"})
         assert(files exists {_.value == "/bin/file4"})
         assert(files exists {_.value == "/bin/file5"})
-      }
       case Failure(error) => fail(error)
     }
   }
 }
 
-class MockEngineFunctions extends EngineFunctions  {
+class MockEngineFunctions extends WdlStandardLibraryFunctions  {
   // It's important to ensure that these are never called during pre-evaluation:
   override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
-    assert(false, "The active 'read_int' function should not be used during pre-evaluation")
-    ???
+    throw new TestFailedException("The active 'read_int' function should not be used during pre-evaluation", 0)
   }
   override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
-    assert(false, "The active 'read_string' function should not be used during pre-evaluation")
-    ???
+    throw new TestFailedException("The active 'read_string' function should not be used during pre-evaluation", 0)
   }
   override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    assert(false, "The active 'read_lines' function should not be used during pre-evaluation")
-    ???
+    throw new TestFailedException("The active 'read_lines' function should not be used during pre-evaluation", 0)
   }
 
   // These pre-evaluable functions can be called during the pre-evaluation.

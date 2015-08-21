@@ -4,6 +4,7 @@ case class Execution
 (
   workflowExecutionId: Int,
   callFqn: String,
+  index: Int,
   status: String,
   executionId: Option[Int] = None
   )
@@ -20,9 +21,11 @@ trait ExecutionComponent {
 
     def callFqn = column[String]("CALL_FQN")
 
+    def index = column[Int]("INDEX")
+
     def status = column[String]("STATUS")
 
-    override def * = (workflowExecutionId, callFqn, status, executionId.?) <>
+    override def * = (workflowExecutionId, callFqn, index, status, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(

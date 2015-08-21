@@ -16,6 +16,9 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
+import cromwell.engine.workflow.WorkflowActor
+import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine._
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
@@ -42,7 +45,8 @@ object CromwellTestkitSpec {
       |}
     """.stripMargin
 
-  implicit val timeout = Timeout(5 seconds)
+  val timeoutDuration = 10 seconds
+  implicit val timeout = Timeout(timeoutDuration)
 }
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
@@ -81,7 +85,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
    */
   def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
     val futureAny = actorRef ? message
-    Await.result(futureAny.mapTo[M], 5 seconds)
+    Await.result(futureAny.mapTo[M], timeoutDuration)
   }
 
   /**
@@ -90,7 +94,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
    */
   def waitForPattern[T](pattern: String, occurrences: Int = 1)(block: => T): T = {
     EventFilter.info(pattern = pattern, occurrences = occurrences).intercept {
-      block
+      within(timeoutDuration) {
+        block
+      }
     }
   }
 
@@ -117,7 +123,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
     val inputs = coercedInputs ++ declarations
-    WorkflowDescriptor(uuid, namespace, source, sampleWdl.wdlJson, inputs)
+    WorkflowDescriptor(WorkflowId(uuid), namespace, source, sampleWdl.wdlJson, inputs)
   }
 
   private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {
@@ -128,14 +134,23 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend))
   }
 
-  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowActor.WorkflowFailure, WorkflowActor], eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowActor.WorkflowFailure, WorkflowActor],
+             eventFilter: EventFilter,
+             expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
+             terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     assert(fsm.stateName == WorkflowSubmitted)
     eventFilter.intercept {
       fsm ! WorkflowActor.Start
-      within(5 seconds) {
+      within(timeoutDuration) {
         awaitCond(fsm.stateName == WorkflowRunning)
-        awaitCond(fsm.stateName.isTerminal)
-        fsm.stateData should be(WorkflowActor.NoFailureMessage)
+        awaitCond(fsm.stateName == terminalState)
+
+        if (terminalState == WorkflowSucceeded)
+          fsm.stateData should be(WorkflowActor.NoFailureMessage)
+
+        if (terminalState == WorkflowFailed)
+          fsm.stateData.isInstanceOf[WorkflowActor.FailureMessage] shouldEqual true
+
         val outputs = fsm.ask(WorkflowActor.GetOutputs).mapTo[WorkflowOutputs].futureValue
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
@@ -156,11 +171,11 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
 
   def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
     eventFilter.intercept {
-      within(5 seconds) {
-        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], 5 seconds)
-        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], 5 seconds)
+      within(timeoutDuration) {
+        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
+        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], timeoutDuration)
         awaitCond(workflowStatus.contains(WorkflowSucceeded))
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], 5 seconds)
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], timeoutDuration)
         stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
         stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
       }
@@ -173,9 +188,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     runWdl(fsm, eventFilter, expectedOutputs)
   }
 
-  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty): Unit = {
+  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty, terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     val fsm = buildFsmWorkflowActor(sampleWdl, runtime)
-    runWdl(fsm, eventFilter, expectedOutputs)
+    runWdl(fsm, eventFilter, expectedOutputs, terminalState)
   }
 
   def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {

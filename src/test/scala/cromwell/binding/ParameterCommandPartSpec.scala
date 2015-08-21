@@ -7,96 +7,88 @@ import cromwell.parser.BackendType
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.util.Failure
+
 class ParameterCommandPartSpec extends FlatSpec with Matchers {
-  val param1 = ParameterCommandPart(WdlStringType, "name", prefix=None, attributes=Map.empty[String, String])
-  val param2 = ParameterCommandPart(WdlStringType, "name", prefix=Some("-p "), attributes=Map.empty[String, String])
-  val param3 = ParameterCommandPart(WdlStringType, "name", prefix=Some("-p "), attributes=Map("sep" -> ","), postfixQuantifier=Some("*"))
-  val param4 = ParameterCommandPart(WdlIntegerType, "id", prefix=None, attributes=Map("default" -> "1"))
-
-  "command parameter" should "stringify correctly" in {
-    param1.toString shouldEqual "${String name}"
+  val wdl =
+    """task param_test {
+      |  String a
+      |  String b
+      |  Array[String] c
+      |  Int? d
+      |
+      |  command <<<
+      |  ./binary ${a} ${"-p " + b} ${sep="," c} ${default=9 d}
+      |  >>>
+      |}
+      |
+      |workflow wf {call param_test}
+    """.stripMargin
+  val namespace = WdlNamespace.load(wdl, BackendType.LOCAL)
+  val task = namespace.tasks find {_.name == "param_test"} getOrElse {
+    fail("task 'param_test' not found")
   }
 
-  "command parameter instantiation" should "prepend a prefix is specified" in {
-    param2.instantiate(Map("name" -> WdlString("foobar"))) shouldEqual "-p foobar"
+  val paramsByName = task.commandTemplate.collect {case p: ParameterCommandPart => p}.map {p => p}
+  "Template variables" should "Stringify correctly" in {
+    paramsByName.size shouldEqual 4
+    paramsByName(0).toString shouldEqual "${a}"
+    paramsByName(1).toString shouldEqual "${\"-p \" + b}"
+    paramsByName(2).toString shouldEqual "${sep=',' c}"
+    paramsByName(3).toString shouldEqual "${default='9' d}"
   }
 
-  it should "combine elements together if * postfix quantifier specified" in {
-    val array = WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("foo"), WdlString("bar"), WdlString("baz")))
-    param3.instantiate(Map("name" -> array)) shouldEqual "-p foo,bar,baz"
+  "Command instantiation" should "succeed if given valid inputs" in {
+    task.instantiateCommand(Map(
+      "a" -> WdlString("a_val"),
+      "b" -> WdlString("b_val"),
+      "c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2"))),
+      "d" -> WdlInteger(1)
+    )).get shouldEqual "./binary a_val -p b_val c0,c1,c2 1"
   }
 
-  it should "ignore the default value if a value is specified" in {
-    param4.instantiate(Map("id" -> WdlInteger(99))) shouldEqual "99"
+  it should "succeed if omitting an optional input" in {
+    task.instantiateCommand(Map(
+      "a" -> WdlString("a_val"),
+      "b" -> WdlString("b_val"),
+      "c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2")))
+    )).get shouldEqual "./binary a_val -p b_val c0,c1,c2 9"
   }
 
-  it should "use the default value if a value is not specified" in {
-    param4.instantiate(Map.empty[FullyQualifiedName, WdlValue]) shouldEqual "1"
+  it should "succeed if providing an array with one element" in {
+    task.instantiateCommand(Map(
+      "a" -> WdlString("a_val"),
+      "b" -> WdlString("b_val"),
+      "c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"))),
+      "d" -> WdlInteger(1)
+    )).get shouldEqual "./binary a_val -p b_val c0 1"
   }
 
-  it should "raise exception if it can't instantiate the parameter" in {
-    try {
-      param1.instantiate(Map.empty[String, WdlValue])
-      fail("Expected an exception")
-    } catch {
-      case _: UnsupportedOperationException => // expected
+  it should "succeed if providing an array with zero elements" in {
+    task.instantiateCommand(Map(
+      "a" -> WdlString("a_val"),
+      "b" -> WdlString("b_val"),
+      "c" -> WdlArray(WdlArrayType(WdlStringType), Seq()),
+      "d" -> WdlInteger(1)
+    )).get shouldEqual "./binary a_val -p b_val  1"
+  }
+
+  it should "raise exception if a required input is missing" in {
+    task.instantiateCommand(Map("a" -> WdlString("a_val"))) match {
+      case Failure(f) => // expected
+      case _ => fail("Expected an exception")
     }
   }
 
-  it should "raise exception if a parameter is a WdlExpression" in {
-    try {
-      param1.instantiate(Map("name" -> WdlExpression.fromString("1+1")))
-      fail("Expected an exception")
-    } catch {
-      case _: UnsupportedOperationException => // expected
-    }
-  }
-
-  it should "raise exception if a parameter not the right type" in {
-    try {
-      param1.instantiate(Map("name" -> WdlInteger(2)))
-      fail("Expected an exception")
-    } catch {
-      case _: UnsupportedOperationException => // expected
-    }
-  }
-
-  it should "raise exception if a parameter has a * or + postfix quantifier but no 'sep' attribute set" in {
-    try {
-      WdlNamespace.load(
-        """task test {
-          |  command { ./script ${stuff*} }
-          |}
-        """.stripMargin, BackendType.LOCAL)
-      fail("Expected an exception")
-    } catch {
-      case _: SyntaxError => // expected
-    }
-  }
-
-  it should "raise exception if a parameter specifies the 'default' attribute but no ? or * postfix quantifier" in {
-    try {
-      WdlNamespace.load(
-        """task test {
-          |  command { ./script ${default="x" stuff} }
-          |}
-        """.stripMargin, BackendType.LOCAL)
-      fail("Expected an exception")
-    } catch {
-      case _: SyntaxError => // expected
-    }
-  }
-
-  it should "raise exception if a parameter specifies the 'default' attribute but no ? or * postfix quantifier (2)" in {
-    try {
-      WdlNamespace.load(
-        """task test {
-          |  command { ./script ${default="x" stuff+} }
-          |}
-        """.stripMargin, BackendType.LOCAL)
-      fail("Expected an exception")
-    } catch {
-      case _: SyntaxError => // expected
+  it should "raise exception if a parameter is an expression" in {
+    task.instantiateCommand(Map(
+      "a" -> WdlString("a_val"),
+      "b" -> WdlExpression.fromString("'a'+'b'"),
+      "c" -> WdlArray(WdlArrayType(WdlStringType), Seq()),
+      "d" -> WdlInteger(1)
+    )) match {
+      case Failure(f) => // expected
+      case _ => fail("Expected an exception")
     }
   }
 }

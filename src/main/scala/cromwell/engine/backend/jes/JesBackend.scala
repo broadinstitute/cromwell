@@ -1,6 +1,7 @@
 package cromwell.engine.backend.jes
 
 import java.math.BigInteger
+import java.net.URL
 import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Parameter
@@ -10,11 +11,12 @@ import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
-import cromwell.engine.WorkflowId
-import cromwell.engine.backend.{StdoutStderr, Backend}
+import cromwell.engine.{AbortFunction, AbortFunctionRegistration}
+import cromwell.engine.backend.{TaskExecutionContext, TaskAbortedException, Backend, StdoutStderr}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.db.DataAccess
+import cromwell.engine.WorkflowId
 import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
@@ -27,8 +29,8 @@ object JesBackend {
   lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
   lazy val CromwellExecutionBucket = JesConf.getString("baseExecutionBucket")
-
-  lazy val JesConnection = JesInterface(GoogleApplicationName)
+  lazy val EndpointUrl = new URL(JesConf.getString("endpointUrl"))
+  lazy val JesConnection = JesInterface(GoogleApplicationName, EndpointUrl)
 
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
@@ -110,13 +112,18 @@ class JesBackend extends Backend with LazyLogging {
   override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
 
   def taskOutputToJesOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
-    taskOutput.wdlType match {
-      case WdlFileType =>
-        taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true) match {
-          case Success(v) => Success(Option(JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))))
-          case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
-        }
-      case _ => Success(None)
+    // If the output isn't a file then it's not a file to be retrieved by the JES run! (but NB: see anonymous task output below)
+    // Currently, no function calls can be run before the JES call completes, so we can't retrieve files with names based on function calls.
+    if (taskOutput.wdlType != WdlFileType || taskOutput.expression.containsFunctionCall) {
+      Success(None)
+    } else {
+      val evaluatedExpression = taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true)
+      evaluatedExpression match {
+        case Success(v) =>
+          val jesOutput = JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))
+          Success(Option(jesOutput))
+        case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
+      }
     }
   }
 
@@ -143,33 +150,43 @@ class JesBackend extends Backend with LazyLogging {
     )
   }
 
+  override def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): JesTaskExecutionContext = {
+    val callGcsPath = s"${workflowDescriptor.callDir(call)}"
+    JesTaskExecutionContext(GoogleCloudStoragePath(callGcsPath), JesConnection)
+  }
+
   override def executeCommand(instantiatedCommandLine: String,
                               workflowDescriptor: WorkflowDescriptor,
                               call: Call,
                               backendInputs: CallInputs,
-                              scopedLookupFunction: ScopedLookupFunction): Try[Map[String, WdlValue]] = {
+                              scopedLookupFunction: ScopedLookupFunction,
+                              abortFunctionRegistration: AbortFunctionRegistration): Try[Map[String, WdlValue]] = {
+
     val callGcsPath = s"${workflowDescriptor.callDir(call)}"
+    logger.info(s"JES log directory in GCS: $callGcsPath")
+    val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
+    val cmdInput = JesInput("exec", gcsExecPath.toString, Paths.get("exec.sh"))
+    val environment = setupCallEnvironment(call, workflowDescriptor)
 
-    val engineFunctions = new JesEngineFunctions(GoogleCloudStoragePath(callGcsPath), JesConnection)
-
-    // FIXME: Not particularly robust at the moment.
     val jesInputs: Seq[JesParameter] = backendInputs.collect({
       case (k, v) if v.isInstanceOf[WdlFile] => JesInput(k, scopedLookupFunction(k).valueString, Paths.get(v.valueString))
-    }).toSeq
+    }).toSeq :+ cmdInput
 
     // Call preevaluateExpressionForFilenames for each of the task output expressions, and flatten the lists into a single Try[Seq[WdlFile]]
     val filesWithinExpressions = Try(
       call.task.outputs.map {
-        taskOutput => taskOutput.expression.preevaluateExpressionForFilenames(scopedLookupFunction, engineFunctions)
+        taskOutput => taskOutput.expression.preevaluateExpressionForFilenames(scopedLookupFunction, environment.engineFunctions)
       }.flatMap({_.get})
     )
 
+    // Find the named and anonymous outputs to retrieve from the JES docker image. Doesn't necessarily include ALL
+    // eventual outputs (e.g. String s = stdout() won't need anything extracted from the JES container).
     val jesOutputs: Try[Seq[JesParameter]] = filesWithinExpressions match {
       case Failure(error) => Failure(error)
       case Success(fileSeq) =>
-        val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, engineFunctions)}
+        val anonOutputs: Seq[JesParameter] = fileSeq map {x => anonymousTaskOutput(x.value, environment.engineFunctions)}
         // FIXME: If localizeTaskOutputs gives a Failure, need to Fail entire function - don't use .get
-        val namedOutputs: Seq[JesParameter] = taskOutputsToJesOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, engineFunctions).get
+        val namedOutputs: Seq[JesParameter] = taskOutputsToJesOutputs(call.task.outputs, callGcsPath, scopedLookupFunction, environment.engineFunctions).get
         Success(anonOutputs ++ namedOutputs)
     }
 
@@ -179,35 +196,46 @@ class JesBackend extends Backend with LazyLogging {
     val jesParameters = standardParameters(callGcsPath) ++ jesInputs ++ unsafeJesOutputs
 
     // Not possible to currently get stdout/stderr so redirect everything and hope the WDL isn't doing that too
-    val redirectedCommand = s"$instantiatedCommandLine > $LocalStdoutValue 2> $LocalStderrValue"
+    JesConnection.storage.uploadObject(gcsExecPath, instantiatedCommandLine)
 
-    val status = Pipeline(redirectedCommand, workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run.waitUntilComplete()
+    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", workflowDescriptor, call, jesParameters, GoogleProject, JesConnection).run
+    // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
+    run.waitUntilRunningOrComplete()
+    abortFunctionRegistration.registrationFunction apply AbortFunction({() => run.abort()})
+    try {
+      val status = run.waitUntilComplete(None)
 
-    def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
-      val jesOutputFile = unsafeJesOutputs find {_.name == taskOutput.name} map {j => WdlFile(j.gcs)}
-      jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true))
-    }
-
-    val outputMappings = call.task.outputs.map { taskOutput =>
-      val rawValue = taskOutputToRawValue(taskOutput)
-      logger.debug(s"JesBackend setting ${taskOutput.name} to $rawValue")
-      taskOutput.name -> rawValue
-    }.toMap
-
-    val warnAboutStderrLength: BigInteger =
-      if (!call.failOnStderr) BigInteger.valueOf(0)
-      else JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(callGcsPath).gcs))
-
-    if (warnAboutStderrLength.intValue > 0) {
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $warnAboutStderrLength for command: $instantiatedCommandLine"))
-    } else {
-      status match {
-        //
-        case Run.Success(created, started, finished) =>
-          unwrapOutputValues(outputMappings, workflowDescriptor)
-        case Run.Failed(created, started, finished, errorCode, errorMessage) =>
-          Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $instantiatedCommandLine. Message: $errorMessage"))
+      def taskOutputToRawValue(taskOutput: TaskOutput): Try[WdlValue] = {
+        val jesOutputFile = unsafeJesOutputs find { _.name == taskOutput.name } map { j => WdlFile(j.gcs) }
+        jesOutputFile.map(Success(_)).getOrElse(taskOutput.expression.evaluate(scopedLookupFunction, environment.engineFunctions, interpolateStrings = true))
       }
+
+      def processOutput(taskOutput: TaskOutput, processingFunction: TaskOutput => Try[WdlValue]) = {
+        val rawValue = processingFunction(taskOutput)
+        logger.debug(s"JesBackend setting ${taskOutput.name} to $rawValue")
+        taskOutput.name -> rawValue
+      }
+
+      val outputMappings = call.task.outputs.map {taskOutput => processOutput(taskOutput, taskOutputToRawValue)}.toMap
+
+      lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(callGcsPath).gcs))
+
+      if (call.failOnStderr && stderrLength.intValue > 0) {
+        Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: stderr has length $stderrLength for command: $instantiatedCommandLine"))
+      } else status match {
+          case Run.Success =>
+            unwrapOutputValues(outputMappings, workflowDescriptor)
+          case Run.Failed(errorCode, errorMessage) =>
+            val throwable = if (errorMessage contains "Operation canceled at") {
+              new TaskAbortedException()
+            } else {
+              new Throwable(s"Workflow ${workflowDescriptor.id}: errorCode $errorCode for command: $instantiatedCommandLine. Message: $errorMessage")
+            }
+          Failure(throwable)
+      }
+    }
+    catch {
+      case e: Exception => Failure(e)
     }
   }
 

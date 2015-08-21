@@ -1,8 +1,7 @@
 package cromwell
 
-import java.util.UUID
-
 import cromwell.binding.values.WdlValue
+import cromwell.engine.WorkflowId
 
 /**
  * ==WDL Bindings for Scala==
@@ -31,7 +30,7 @@ package object binding {
   /**
    * Core data identifying a workflow including its unique ID, its namespace, and strongly typed inputs.
    */
-  case class WorkflowDescriptor(id: UUID, namespace: NamespaceWithWorkflow, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
+  case class WorkflowDescriptor(id: WorkflowId, namespace: NamespaceWithWorkflow, wdlSource: WdlSource, wdlJson: WdlJson, actualInputs: WorkflowCoercedInputs) {
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)
   }

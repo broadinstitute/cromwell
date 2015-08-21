@@ -1,9 +1,6 @@
 package cromwell.engine.db.slick
 
 import java.sql.Timestamp
-import java.util.UUID
-
-import slick.dbio.{NoStream, Effect}
 
 case class WorkflowExecution
 (

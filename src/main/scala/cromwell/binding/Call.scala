@@ -4,18 +4,20 @@ import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 
 import scala.util.{Success, Try}
+import scala.language.postfixOps
 
 object Call {
   def apply(ast: Ast,
             namespaces: Seq[WdlNamespace],
             tasks: Seq[Task],
-            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Call = {
+            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
+            parent: Option[Scope]): Call = {
     val alias: Option[String] = ast.getAttribute("alias") match {
       case x: Terminal => Option(x.getSourceString)
       case _ => None
     }
 
-    val taskName = ast.getAttribute("task").sourceString()
+    val taskName = ast.getAttribute("task").sourceString
     val task = WdlNamespace.findTask(taskName, namespaces, tasks) getOrElse {
       throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(ast, taskName))
     }
@@ -41,15 +43,17 @@ object Call {
       }
     }
 
-    new Call(alias, taskName, task, callInputSectionMappings)
+    new Call(alias, taskName, task, callInputSectionMappings, parent)
   }
 
-  private def processCallInput(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] =
-    AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter).map {a =>
-      val key = a.getAttribute("key").sourceString()
+  private def processCallInput(ast: Ast,
+                               wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] = {
+    AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter) map { a =>
+      val key = a.getAttribute("key").sourceString
       val expression = new WdlExpression(a.getAttribute("value"))
       (key, expression)
-    }.toMap
+    } toMap
+  }
 }
 
 /**
@@ -67,22 +71,9 @@ object Call {
 case class Call(alias: Option[String],
                 taskFqn: FullyQualifiedName,
                 task: Task,
-                inputMappings: Map[String, WdlExpression]) extends Scope {
+                inputMappings: Map[String, WdlExpression],
+                parent: Option[Scope]) extends Scope {
   val name: String = alias getOrElse taskFqn
-
-  /*
-    TODO/FIXME: Since a Workflow's Calls *must* have a parent a better way to handle this would be to use an ADT
-    where one type has a parent and one does not, and the Workflow can only take the former. I went down that
-    road a bit but Scope requires parent to be an Option[Scope] so it's turtles all the way down (well, up in this case)
-   */
-  private var _parent: Option[Scope] = None
-
-  def parent: Option[Scope] = _parent
-
-  def setParent(parent: Scope) = {
-    if (this._parent.isEmpty) this._parent = Option(parent)
-    else throw new UnsupportedOperationException("parent is write-once")
-  }
 
   private def unsatisfiedTaskInputs: Seq[TaskInput] = task.inputs.filterNot {case i => inputMappings.contains(i.name)}
 
@@ -131,7 +122,7 @@ case class Call(alias: Option[String],
   /**
    * Instantiate the abstract command line corresponding to this call using the specified inputs.
    */
-  def instantiateCommandLine(inputs: CallInputs): Try[String] = task.command.instantiate(inputs)
+  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions): Try[String] = task.instantiateCommand(inputs, functions)
 
   /**
    * Return the docker configuration value associated with this `Call`, if any.

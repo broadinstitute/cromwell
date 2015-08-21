@@ -4,8 +4,8 @@ import com.google.api.services.genomics.model.Disk
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.RuntimeAttributes.{Defaults, LocalDisk}
 import cromwell.parser.RuntimeKey._
-import cromwell.parser.{RuntimeKey, BackendType, MemorySize}
 import cromwell.parser.WdlParser.{Ast, AstList}
+import cromwell.parser.{BackendType, MemorySize, RuntimeKey}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -31,7 +31,7 @@ object RuntimeAttributes {
 
   def apply(ast: Ast, backendType: BackendType): RuntimeAttributes = {
     def processRuntimeAttribute(ast: Ast): (String, String) = {
-      (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
+      (ast.getAttribute("key").sourceString, ast.getAttribute("value").sourceString)
     }
 
     def processRuntimeAttributes(astList: AstList): Map[String, String] = {

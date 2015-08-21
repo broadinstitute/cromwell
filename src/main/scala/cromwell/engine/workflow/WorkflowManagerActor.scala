@@ -70,8 +70,13 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case SubmitWorkflow(wdlSource, wdlJson, inputs) =>
       submitWorkflow(wdlSource, wdlJson, inputs, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => dataAccess.getWorkflowState(id) pipeTo sender
-      // TODO actually attempt to abort workflow
-    case WorkflowAbort(id) => sender ! Option(WorkflowAborted)
+    case WorkflowAbort(id) =>
+      workflowStore.toMap.get(id) match {
+        case Some(x) =>
+          x ! WorkflowActor.AbortWorkflow
+          sender ! Some(WorkflowAborting)
+        case None => sender ! None
+      }
     case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
@@ -141,14 +146,14 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, StdoutStderr]] = {
-    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[LocallyQualifiedName, StdoutStderr]] = {
+    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[FullyQualifiedName, StdoutStderr]] = {
       Try {
         val callsToPaths = for {
           (call, status) <- statusMap.toSeq
           if Set(ExecutionStatus.Done, ExecutionStatus.Failed).contains(status)
           (wf, callLqn) = assertCallFqnWellFormed(call).get
           callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn)
-        } yield callLqn -> callStandardOutput
+        } yield call -> callStandardOutput
         callsToPaths.toMap
       }
     }
@@ -162,7 +167,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,
                              maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
-    val workflowId = maybeWorkflowId.getOrElse(UUID.randomUUID())
+    val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
       eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource, BackendType))

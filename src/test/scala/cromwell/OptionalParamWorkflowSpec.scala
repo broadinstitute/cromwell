@@ -42,8 +42,10 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec("OptionalParamWorkfl
     "not include that prefix if no value is specified" in {
       val wf = """
          |task find {
+         |  String? pattern
+         |  File root
          |  command {
-         |    find ${File root} ${"-name " pattern?}
+         |    find ${root} ${"-name " + pattern}
          |  }
          |}
          |
@@ -56,12 +58,12 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec("OptionalParamWorkfl
         fail("Expected to find task 'find'")
       }
 
-      val instantiateWithoutValue = findTask.command.instantiate(Map("root" -> WdlFile("src"))) getOrElse {
+      val instantiateWithoutValue = findTask.instantiateCommand(Map("root" -> WdlFile("src"))) getOrElse {
         fail("Expected instantiation to work")
       }
       instantiateWithoutValue shouldEqual "find src"
 
-      val instantiateWithValue = findTask.command.instantiate(Map(
+      val instantiateWithValue = findTask.instantiateCommand(Map(
         "root" -> WdlFile("src"),
         "pattern" -> WdlString("*.java")
       )).getOrElse {fail("Expected instantiation to work")}

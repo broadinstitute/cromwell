@@ -4,7 +4,7 @@ import java.util.UUID
 
 import akka.testkit.TestActorRef
 import cromwell.binding._
-import cromwell.binding.command.Command
+import cromwell.binding.command.CommandPart
 import cromwell.binding.types.WdlStringType
 import cromwell.binding.values.WdlString
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
@@ -12,9 +12,7 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor.CallOutputs
-import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
-import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, WorkflowOutputs, _}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
@@ -24,7 +22,6 @@ import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
 
@@ -62,8 +59,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
     "Try to restart workflows when there are workflows in restartable states" in {
       val workflows = Map(
-        UUID.randomUUID() -> WorkflowSubmitted,
-        UUID.randomUUID() -> WorkflowRunning)
+        WorkflowId(UUID.randomUUID()) -> WorkflowSubmitted,
+        WorkflowId(UUID.randomUUID()) -> WorkflowRunning)
       val ids = workflows.keys.map(_.toString).toSeq.sorted
       val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
       val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(WdlString("world"))))
@@ -77,8 +74,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
             // FIXME? null AST
-            val task = new Task("taskName", Seq.empty[Declaration], new Command(Seq.empty), Seq.empty, null, BackendType.LOCAL)
-            val call = new Call(None, key.scope, task, Map.empty)
+            val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
+            val call = new Call(None, key.scope, task, Map.empty, None)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
               _ <- dataAccess.updateWorkflowState(workflowId, workflowState)
@@ -139,7 +136,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor output lookup failure")
-          val id = UUID.randomUUID()
+          val id = WorkflowId(UUID.randomUUID())
           Try {
             messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(id))
           } match {
@@ -155,7 +152,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor call log lookup failure")
-          val id = UUID.randomUUID()
+          val id = WorkflowId.randomId()
           Try {
             messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
           } match {
@@ -171,7 +168,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         within(TestExecutionTimeout) {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor log lookup failure")
-          val id = UUID.randomUUID()
+          val id = WorkflowId.randomId()
           Try {
             messageAndWait[Map[LocallyQualifiedName, StdoutStderr]](WorkflowStdoutStderr(id))
           } match {

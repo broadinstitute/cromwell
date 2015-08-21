@@ -1,11 +1,12 @@
 package cromwell.engine.backend.jes
 
-import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.{Call, WorkflowDescriptor}
-import scala.collection.JavaConverters._
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.CreatePipelineRequest
-import JesBackend._
+import com.typesafe.scalalogging.LazyLogging
+import cromwell.binding.{Call, WorkflowDescriptor}
+import cromwell.engine.backend.jes.JesBackend._
+
+import scala.collection.JavaConverters._
 
 object Pipeline extends LazyLogging {
   def apply(command: String, workflow: WorkflowDescriptor, call: Call, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {
@@ -23,9 +24,9 @@ object Pipeline extends LazyLogging {
 
     cpr.setParameters(jesParameters.map(_.toGoogleParameter).toVector.asJava)
 
-    logger.debug(s"$tag Pipeline parameters are ${cpr.getParameters}")
+    logger.info(s"$tag Pipeline parameters are ${cpr.getParameters}")
     val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
-    logger.debug(s"$tag Pipeline ID is $pipelineId")
+    logger.info(s"$tag Pipeline ID is $pipelineId")
     new Pipeline(command, pipelineId, projectId, gcsPath, workflow, call, jesParameters, jesConnection.genomics)
   }
 }

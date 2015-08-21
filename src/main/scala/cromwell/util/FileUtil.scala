@@ -3,11 +3,21 @@ package cromwell.util
 import java.io.{BufferedWriter, File, FileWriter, Writer}
 import java.nio.file.Path
 
+import scala.util.{Failure, Success, Try}
+
 object FileUtil {
   /** Build a temp file with the specified base name and an associated writer,
     * return the tuple of both. */
   def tempFileAndWriter(baseName: String, directory: File = null): (Path, Writer) = {
     File.createTempFile(baseName, ".tmp", directory).toPath.fileAndWriter
+  }
+
+  def parseTsv(tsv: String): Try[Array[Array[String]]] = {
+    val table = tsv.split("\n").map(_.split("\t"))
+    table.map(_.size).toSet match {
+      case s if s.size > 1 => Failure(new UnsupportedOperationException("TSV is not uniform"))
+      case _ => Success(table)
+    }
   }
 
   implicit class FlushingAndClosingWriter(writer: Writer) {

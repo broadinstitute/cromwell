@@ -1,105 +1,49 @@
 package cromwell.binding.command
 
 import cromwell.binding.AstTools.EnhancedAstNode
-import cromwell.binding.types.WdlType
+import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlPrimitive, WdlString, WdlValue}
-import cromwell.binding.{AstTools, WdlExpression, WdlSyntaxErrorFormatter}
-import cromwell.parser.WdlParser.{Ast, AstList, SyntaxError, Terminal}
+import cromwell.parser.WdlParser.Ast
 
-import scala.collection.JavaConverters._
+import scala.util.{Failure, Success}
 
 object ParameterCommandPart {
-  val PostfixQuantifiersThatAcceptArrays = Set("+", "*")
-  val OptionalPostfixQuantifiers = Set("?", "*")
-
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): ParameterCommandPart = {
-    val wdlType = ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter)
-    val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val prefix = Option(ast.getAttribute("prefix")) map { case t:Terminal => t.sourceString() }
-    val attributes = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.map { a =>
+    val attributes = ast.getAttribute("attributes").astListAsVector map { a =>
       val ast = a.asInstanceOf[Ast]
-      (ast.getAttribute("key").sourceString(), ast.getAttribute("value").sourceString())
-    }.toMap
-    val postfixQuantifier = ast.getAttribute("postfix") match {
-      case t:Terminal => Some(t.sourceString())
-      case _ => None
+      (ast.getAttribute("key").sourceString, ast.getAttribute("value").sourceString)
     }
-    postfixQuantifier.foreach {quantifier =>
-      val postfixQuantifierToken = ast.getAttribute("postfix").asInstanceOf[Terminal]
-      if (PostfixQuantifiersThatAcceptArrays.contains(quantifier) && !attributes.contains("sep"))
-        throw new SyntaxError(wdlSyntaxErrorFormatter.postfixQualifierRequiresSeparator(postfixQuantifierToken))
-      if (!OptionalPostfixQuantifiers.contains(quantifier) && attributes.contains("default"))
-        throw new SyntaxError(wdlSyntaxErrorFormatter.defaultAttributeOnlyAllowedForOptionalParameters(postfixQuantifierToken))
-    }
-    if (attributes.contains("default") && postfixQuantifier.isEmpty) {
-      /* Calling .get below because we're assuming if attribute.contains("default"), then this operation is safe */
-      val declarationOfDefaultAttribute = ast.getAttribute("attributes").asInstanceOf[AstList].asScala.toSeq.find{node =>
-       node.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal].getSourceString == "default"
-      }.get
-      val terminal = declarationOfDefaultAttribute.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal]
-      throw new SyntaxError(wdlSyntaxErrorFormatter.defaultAttributeOnlyAllowedForOptionalParameters(terminal))
-    }
-    new ParameterCommandPart(wdlType, name, prefix, attributes, postfixQuantifier)
+    val expression = WdlExpression(ast.getAttribute("expr"))
+    new ParameterCommandPart(attributes.toMap, expression)
   }
 }
 
-/**
- * Represents a parameter within a command, e.g. `${default="/etc/foo.conf" "--conf=" File conf?}`
- *
- * @param wdlType - The type that the input is required to be (`File`)
- * @param name - The name of the parameter (`conf`)
- * @param prefix - Optional prefix for when the parameter is specified.  This will be prepended to the parameter (`--conf=`)
- * @param attributes - A set of key (String) -> value (String) pairs from x="y" pairs within the parameter (default -> /etc/foo.conf)
- *                     There are only a subset of these attributes that have any meaning.  `default` is interpreted to be
- *                     the default value of the variable `conf` if no value is specified (since it's optional)
- * @param postfixQuantifier - The `?`, `*`, or `+` after the variable name.  This means "optional", "0-or-more", and "1-or-more", respectively
- */
-case class ParameterCommandPart(wdlType: WdlType, name: String,
-                                prefix: Option[String], attributes: Map[String, String],
-                                postfixQuantifier: Option[String] = None) extends CommandPart {
-  override def toString: String = "${" + s"${wdlType.toWdlString} $name" + "}"
+case class ParameterCommandPart(attributes: Map[String, String], expression: WdlExpression) extends CommandPart {
+  def attributesToString: String = if (attributes.nonEmpty) attributes.map({case (k,v) => s"$k='$v'"}).mkString(", ") + " " else ""
+  override def toString: String = "${" + s"$attributesToString${expression.toWdlString}" + "}"
 
-  def instantiate(parameters: Map[String, WdlValue]): String = {
-    def wasDefaultValueUsed: Boolean = parameters.get(name).isEmpty && attributes.contains("default")
+  override def instantiate(declarations: Seq[Declaration], parameters: Map[String, WdlValue], functions: WdlFunctions = new NoFunctions): String = {
+    case class VariableNotFoundException(variable: String) extends RuntimeException(s"Could not find variable: $variable")
+    def lookup(key: String) = parameters.getOrElse(key, throw new VariableNotFoundException(key))
 
-    /* Order DOES matter in this match clause */
-    val paramValue = parameters.get(name) match {
-      case Some(value) => value
-      case None if attributes.contains("default") => WdlString(attributes.get("default").get)
-      case None if postfixQuantifier.isDefined && ParameterCommandPart.OptionalPostfixQuantifiers.contains(postfixQuantifier.head) => WdlString("")
-      case _ => throw new UnsupportedOperationException(s"Parameter $name not found")
-    }
-    val paramValueEvaluated = paramValue match {
-      case e: WdlExpression =>
-        /* TODO: this should never happen because expressions will be evaluated
-           before this method is called.  The reason why we can't always do it
-           here is because unless scope information is stored in the WdlExpression
-           itself (along with lookup and WdlFunctions objects), we'd have no way to
-           evaluate this with any reasonable variable dereferencing.
-         */
-        throw new UnsupportedOperationException("All WdlExpressions must be evaluated before calling this")
-      case x => x
-    }
-
-    if (!wasDefaultValueUsed && postfixQuantifier.isEmpty && wdlType != paramValueEvaluated.wdlType) {
-      throw new UnsupportedOperationException(s"Incompatible type for $name: need a $wdlType, got a ${paramValue.wdlType}")
-    }
-
-    /* TODO: asString should be deprecated in the near future
-     * It is being used as here because primitive types are trivially
-     * turned into strings, but a more sophisticated solution will be
-     * needed for compound types */
-    paramValueEvaluated match {
-      case WdlString("") => ""
-      case param:WdlPrimitive => s"${prefix.getOrElse("")}${param.valueString}"
-      case arr:WdlArray =>
-        postfixQuantifier match {
-          case Some(x) if ParameterCommandPart.PostfixQuantifiersThatAcceptArrays.contains(x) && attributes.contains("sep") =>
-            val concatValue = arr.value.map {_.valueString}.mkString(attributes.get("sep").head)
-            s"${prefix.getOrElse("")}$concatValue"
-          case _ => throw new UnsupportedOperationException()
+    val value = expression.evaluate(lookup, functions) match {
+      case Success(v) => v
+      case Failure(f) => f match {
+        case v: VariableNotFoundException => declarations.find(_.name == v.variable) match {
+          /* Allow an expression to fail evaluation if one of the variables that it requires is optional (the type has ? after it, e.g. String?) */
+          case Some(d) if d.postfixQuantifier.contains("?") => if (attributes.contains("default")) WdlString(attributes.get("default").head) else WdlString("")
+          case Some(d) => throw new UnsupportedOperationException(s"Parameter ${v.variable} is required, but no value is specified")
+          case None => throw new UnsupportedOperationException(s"This should not happen: could not find declaration for ${v.variable}")
         }
-      case _ => throw new UnsupportedOperationException("Not implemented yet")
+        case _ => throw new UnsupportedOperationException(s"Could not evaluate expression: ${expression.toString}")
+      }
+    }
+
+    value match {
+      case p: WdlPrimitive => p.valueString
+      case a: WdlArray if attributes.contains("sep") => a.value.map(_.valueString).mkString(attributes.get("sep").head)
+      case a: WdlArray => throw new UnsupportedOperationException(s"Expression '${expression.toString}' evaluated to an Array but no 'sep' was specified")
+      case _ => throw new UnsupportedOperationException(s"Could not string-ify value: $value")
     }
   }
 }

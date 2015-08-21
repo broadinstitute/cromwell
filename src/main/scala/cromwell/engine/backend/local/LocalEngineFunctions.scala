@@ -3,13 +3,15 @@ package cromwell.engine.backend.local
 import java.io.File
 import java.nio.file.Paths
 
-import cromwell.binding.types.{WdlArrayType, WdlStringType}
+import cromwell.binding.WdlStandardLibraryFunctions
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import cromwell.binding.values._
-import cromwell.engine.EngineFunctions
-import cromwell.util.FileUtil.{EnhancedPath, EnhancedFile}
-import scala.util.{Success, Failure, Try}
+import cromwell.util.FileUtil
+import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 
-class LocalEngineFunctions(executionContext: TaskExecutionContext) extends EngineFunctions {
+import scala.util.{Failure, Success, Try}
+
+class LocalEngineFunctions(executionContext: LocalTaskExecutionContext) extends WdlStandardLibraryFunctions {
 
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
@@ -27,29 +29,6 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     }
   }
 
-  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
-    } yield WdlArray(WdlArrayType(WdlStringType), lines)
-  }
-
-  /**
-   * Try to read a string from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      string = fileContentsToString(singleArgument)
-    } yield WdlString(string.stripSuffix("\n"))
-  }
-
-  /**
-   * Try to read an integer from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
-    read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
-
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
@@ -64,5 +43,59 @@ class LocalEngineFunctions(executionContext: TaskExecutionContext) extends Engin
     } else {
       Success(WdlFile(executionContext.stderr.toAbsolutePath.toString))
     }
+  }
+
+  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
+    } yield WdlArray(WdlArrayType(WdlStringType), lines)
+  }
+
+  override protected def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      if singleArgument.wdlType == WdlFileType
+      contents <- Success(Paths.get(singleArgument.asInstanceOf[WdlFile].valueString).slurp)
+      wdlMap <- WdlMap.fromTsv(contents)
+    } yield wdlMap
+  }
+
+  /**
+   * Try to read an integer from the file referenced by the specified `WdlValue`.
+   */
+  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
+    read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
+
+  /**
+   * Try to read a string from the file referenced by the specified `WdlValue`.
+   */
+  override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      string = fileContentsToString(singleArgument)
+    } yield WdlString(string.stripSuffix("\n"))
+  }
+
+  override protected def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      if singleArgument.wdlType.isInstanceOf[WdlArrayType]
+      tsvSerialized <- singleArgument.asInstanceOf[WdlArray].tsvSerialize
+      (path, writer) = FileUtil.tempFileAndWriter("array", executionContext.cwd.toFile)
+      _ <- Try(writer.write(tsvSerialized))
+      _ <- Success(writer.close())
+    } yield WdlFile(path.toAbsolutePath.toString)
+  }
+
+  override protected def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      if singleArgument.wdlType.isInstanceOf[WdlMapType]
+      tsvSerialized <- singleArgument.asInstanceOf[WdlMap].tsvSerialize
+      (path, writer) = FileUtil.tempFileAndWriter("map", executionContext.cwd.toFile)
+      _ <- Try(writer.write(tsvSerialized))
+      _ <- Success(writer.close())
+    } yield WdlFile(path.toAbsolutePath.toString)
   }
 }

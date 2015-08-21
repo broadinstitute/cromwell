@@ -14,15 +14,30 @@ import cromwell.binding.values.WdlValue
  *
  * Internally, this package is built on top of [[cromwell.binding]].
  */
-
 package object engine {
-  type WorkflowId = UUID
+  case class WorkflowId(id: UUID) {
+    override def toString = id.toString
+    def shortString = id.toString.split("-")(0)
+  }
+
+  object WorkflowId {
+    def fromString(id:String): WorkflowId = new WorkflowId(UUID.fromString(id))
+    def randomId() = WorkflowId(UUID.randomUUID())
+  }
+
+  case class CallReference(workflowName: String, workflowId: WorkflowId, callName: String) {
+    override def toString = s"UUID(${workflowId.shortString})/$callName"
+  }
+
+  case class AbortFunction(function: ()=>Unit)
+  case class IndexedAbortFunction(callReference: CallReference, callAbortFunction: AbortFunction)
+  case class AbortFunctionRegistration(registrationFunction: AbortFunction=>Unit)
 
   sealed trait WorkflowState {
     def isTerminal: Boolean
   }
 
-  private lazy val workflowStates = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded)
+  private lazy val workflowStates = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded, WorkflowAborting, WorkflowAborted)
 
   object WorkflowState {
     def fromString(str: String): WorkflowState = workflowStates.find(_.toString == str).getOrElse(
@@ -38,7 +53,12 @@ package object engine {
     override def toString: String = "Running"
     override val isTerminal = false
   }
-  
+
+  case object WorkflowAborting extends WorkflowState {
+    override def toString: String = "Aborting"
+    override val isTerminal = false
+  }
+
   case object WorkflowFailed extends WorkflowState {
     override def toString: String = "Failed"
     override val isTerminal = true
@@ -62,7 +82,7 @@ package object engine {
 
     def apply(fullyQualifiedName: FullyQualifiedName, wdlValue: WdlValue, input: Boolean): SymbolStoreEntry = {
       val (scope, name) = splitFqn(fullyQualifiedName)
-      val key = SymbolStoreKey(scope, name, iteration = None, input)
+      val key = SymbolStoreKey(scope, name, index = None, input)
       SymbolStoreEntry(key, wdlValue.wdlType, Some(wdlValue))
     }
 
@@ -75,7 +95,7 @@ package object engine {
     }.toMap
   }
 
-  case class SymbolStoreKey(scope: String, name: String, iteration: Option[Int], input: Boolean)
+  case class SymbolStoreKey(scope: String, name: String, index: Option[Int], input: Boolean)
 
   case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
     def isInput: Boolean = key.input
@@ -85,6 +105,6 @@ package object engine {
 
   object ExecutionStatus extends Enumeration {
     type ExecutionStatus = Value
-    val NotStarted, Starting, Running, Failed, Done = Value
+    val NotStarted, Starting, Running, Failed, Done, Aborted, Aborting = Value
   }
 }

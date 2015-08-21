@@ -70,4 +70,4 @@ case class CallStdoutStderrResponse
   id: String,
   @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
   logs: Map[String, StdoutStderr]
-  )
+)

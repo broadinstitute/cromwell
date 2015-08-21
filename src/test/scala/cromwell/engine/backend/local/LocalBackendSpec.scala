@@ -8,6 +8,7 @@ import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding.values.WdlFile
 import cromwell.binding.{Call, Task, WorkflowDescriptor}
 import cromwell.engine.backend.Backend.StdoutStderrException
+import cromwell.engine.{AbortFunctionRegistration, WorkflowId}
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
@@ -24,7 +25,7 @@ class LocalBackendSpec extends FlatSpec with Matchers with MockitoSugar {
   // Mock setup:
   val mockWorkflowDescriptor: WorkflowDescriptor = mock[WorkflowDescriptor]
   when(mockWorkflowDescriptor.name) thenReturn "Mocky"
-  when(mockWorkflowDescriptor.id) thenReturn UUID.randomUUID
+  when(mockWorkflowDescriptor.id) thenReturn WorkflowId(UUID.randomUUID)
   val mockScopedLookupFunction: ScopedLookupFunction = mock[ScopedLookupFunction]
 
   def testFailOnStderr(failOnStderr: Boolean, command: String, expectSuccess: Boolean): Unit = {
@@ -34,7 +35,7 @@ class LocalBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     when(call.failOnStderr) thenReturn failOnStderr
     when(call.task) thenReturn task
     when(task.outputs) thenReturn Seq()
-    new LocalBackend().executeCommand(command, mockWorkflowDescriptor, call, call.inputMappings, mockScopedLookupFunction) match {
+    new LocalBackend().executeCommand(command, mockWorkflowDescriptor, call, call.inputMappings, mockScopedLookupFunction, AbortFunctionRegistration(_ => ())) match {
       case Failure(e) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
       case Success(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
     }

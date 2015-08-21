@@ -27,7 +27,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(), BackendType.LOCAL)
     val rawInputs = rawInputsOverride.getOrElse(sampleWdl.rawInputs)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val descriptor = WorkflowDescriptor(UUID.randomUUID(), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
 

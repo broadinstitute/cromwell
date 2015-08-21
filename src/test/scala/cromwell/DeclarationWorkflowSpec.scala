@@ -20,8 +20,8 @@ class DeclarationWorkflowSpec extends CromwellTestkitSpec("DeclarationWorkflowSp
     "compute inputs properly" in {
       NamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime=""), BackendType.LOCAL).workflow.inputs shouldEqual Seq(
         WorkflowInput("two_step.cat.file", WdlFileType, postfixQuantifier = None),
-        WorkflowInput("two_step.cgrep.pattern", WdlStringType, postfixQuantifier = None),
         WorkflowInput("two_step.cgrep.str_decl", WdlStringType, postfixQuantifier = None),
+        WorkflowInput("two_step.cgrep.pattern", WdlStringType, postfixQuantifier = None),
         WorkflowInput("two_step.flags_suffix", WdlStringType, postfixQuantifier = None)
       )
     }

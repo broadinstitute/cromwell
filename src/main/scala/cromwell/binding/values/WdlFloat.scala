@@ -3,7 +3,7 @@ package cromwell.binding.values
 import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlFloatType
 
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 case class WdlFloat(value: Double) extends WdlPrimitive {
   val wdlType = WdlFloatType

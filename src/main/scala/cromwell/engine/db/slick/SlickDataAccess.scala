@@ -7,7 +7,8 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.util.ConfigExtensionMethods._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.binding._
-import cromwell.binding.types.WdlType
+import cromwell.binding.types.{WdlPrimitiveType, WdlType}
+import cromwell.binding.values.WdlValue
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.jes.JesBackend
@@ -24,7 +25,7 @@ object SlickDataAccess {
   type IoValue = String
   val IoInput = "INPUT"
   val IoOutput = "OUTPUT"
-  val IterationNone = -1 // "It's a feature" https://bugs.mysql.com/bug.php?id=8173
+  val IndexNone = -1 // "It's a feature" https://bugs.mysql.com/bug.php?id=8173
 
   implicit class DateToTimestamp(val date: Date) extends AnyVal {
     def toTimestamp = new Timestamp(date.getTime)
@@ -120,6 +121,17 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     }
   }
 
+  private def wdlValueToDbValue(v: WdlValue): String = v.wdlType match {
+    case p: WdlPrimitiveType => v.valueString
+    case o => v.toWdlString
+  }
+
+  private def dbEntryToWdlValue(dbValue: String, wdlType: WdlType): WdlValue = wdlType match {
+    // .get here is because we trust the value in the database is coercible to the given type
+    case p: WdlPrimitiveType => p.coerceRawValue(dbValue).get
+    case o => wdlType.fromWdlString(dbValue)
+  }
+
   override def shutdown() = database.shutdown
 
   // Run action with an outer transaction
@@ -171,10 +183,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         workflowExecution.workflowExecutionId.get,
         symbol.key.scope,
         symbol.key.name,
-        symbol.key.iteration.getOrElse(IterationNone),
+        symbol.key.index.getOrElse(IndexNone),
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(_.toWdlString.toClob))
+        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob))
     }
   }
 
@@ -194,6 +206,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         new Execution(
           workflowExecution.workflowExecutionId.get,
           call.fullyQualifiedName,
+          IndexNone,
           ExecutionStatus.NotStarted.toString)
 
       // Depending on the backend, insert a job specific row
@@ -220,7 +233,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     val action = for {
       workflowExecutionStatusOption <- dataAccess.workflowExecutionStatusesByWorkflowExecutionUuid(
-        workflowId.toString).result.headOption
+        workflowId.id.toString).result.headOption
       workflowState = workflowExecutionStatusOption map WorkflowState.fromString
     } yield workflowState
 
@@ -233,7 +246,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     // NOTE: For now, intentionally causes query to error out instead of returning an Map.empty
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
-        workflowId.toString).result.head
+        workflowId.id.toString).result.head
 
       // Alternatively, could use a dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionUuid
       executionCallFqnAndStatusResults <- dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionId(
@@ -273,7 +286,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
           workflowExecutionAuxResult map { workflowExecutionAux =>
             new WorkflowInfo(
-              UUID.fromString(workflowExecutionResult.workflowExecutionUuid),
+              WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
               workflowExecutionAux.wdlSource.toRawString,
               workflowExecutionAux.jsonInputs.toRawString)
           }
@@ -376,11 +389,11 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       new SymbolStoreKey(
         symbolResult.scope,
         symbolResult.name,
-        Option(symbolResult.iteration).filterNot(_ == IterationNone),
+        Option(symbolResult.index).filterNot(_ == IndexNone),
         input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
       ),
       wdlType,
-      symbolResult.wdlValue map {value => wdlType.fromWdlString(value.toRawString)}
+      symbolResult.wdlValue map {v => dbEntryToWdlValue(v.toRawString, wdlType)}
     )
   }
 
@@ -395,9 +408,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   override def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
-    val x = dataAccess.allSymbols(workflowId.toString).result
     val action = for {
-      symbolResults <- x
+      symbolResults <- dataAccess.allSymbols(workflowId.toString).result
       symbolStoreEntries = symbolResults map toSymbolStoreEntry
     } yield symbolStoreEntries
 
@@ -436,7 +448,6 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   override def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: WorkflowOutputs): Future[Unit] = {
-
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
@@ -445,10 +456,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
             workflowExecution.workflowExecutionId.get,
             call.fullyQualifiedName,
             symbolLocallyQualifiedName,
-            IterationNone,
+            IndexNone,
             IoOutput,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValue.toWdlString.toClob))
+            Option(wdlValueToDbValue(wdlValue).toClob))
       }
     } yield ()
 

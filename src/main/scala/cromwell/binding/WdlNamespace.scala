@@ -136,6 +136,13 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     }
   }
 
+  /**
+   * Given a Fully-Qualified Name, return the Scope object that
+   * corresponds to this FQN.
+   */
+  def resolve(fqn: FullyQualifiedName): Option[Scope] =
+    (Seq(workflow) ++ workflow.calls ++ workflow.scatters).find(s => s.fullyQualifiedName == fqn || s.fullyQualifiedNameWithIndexScopes == fqn)
+
   /*
     FIXME: Originally this was called 2x - in validation and in WorkflowManagerActor. In the first case, the scaladoc
     comment makes sense. In the latter case it doesn't seem to be a check. Is the validating circumstance checking via

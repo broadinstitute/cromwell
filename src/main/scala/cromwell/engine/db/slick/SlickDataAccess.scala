@@ -8,7 +8,7 @@ import _root_.slick.util.ConfigExtensionMethods._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.binding._
 import cromwell.binding.types.{WdlPrimitiveType, WdlType}
-import cromwell.binding.values.{WdlValue, WdlPrimitive}
+import cromwell.binding.values.WdlValue
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.jes.JesBackend
@@ -25,7 +25,7 @@ object SlickDataAccess {
   type IoValue = String
   val IoInput = "INPUT"
   val IoOutput = "OUTPUT"
-  val IterationNone = -1 // "It's a feature" https://bugs.mysql.com/bug.php?id=8173
+  val IndexNone = -1 // "It's a feature" https://bugs.mysql.com/bug.php?id=8173
 
   implicit class DateToTimestamp(val date: Date) extends AnyVal {
     def toTimestamp = new Timestamp(date.getTime)
@@ -183,7 +183,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         workflowExecution.workflowExecutionId.get,
         symbol.key.scope,
         symbol.key.name,
-        symbol.key.iteration.getOrElse(IterationNone),
+        symbol.key.index.getOrElse(IndexNone),
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
         symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob))
@@ -206,6 +206,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         new Execution(
           workflowExecution.workflowExecutionId.get,
           call.fullyQualifiedName,
+          IndexNone,
           ExecutionStatus.NotStarted.toString)
 
       // Depending on the backend, insert a job specific row
@@ -388,7 +389,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       new SymbolStoreKey(
         symbolResult.scope,
         symbolResult.name,
-        Option(symbolResult.iteration).filterNot(_ == IterationNone),
+        Option(symbolResult.index).filterNot(_ == IndexNone),
         input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
       ),
       wdlType,
@@ -455,7 +456,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
             workflowExecution.workflowExecutionId.get,
             call.fullyQualifiedName,
             symbolLocallyQualifiedName,
-            IterationNone,
+            IndexNone,
             IoOutput,
             wdlValue.wdlType.toWdlString,
             Option(wdlValueToDbValue(wdlValue).toClob))

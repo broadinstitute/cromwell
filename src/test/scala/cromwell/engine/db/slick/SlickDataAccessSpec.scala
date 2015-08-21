@@ -293,7 +293,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
           resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
-          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.index should be(None)
           resultSymbolStoreKey.input should be(right = true) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)
@@ -324,7 +324,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
           resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
-          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.index should be(None)
           resultSymbolStoreKey.input should be(right = true) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlArrayType(WdlStringType))
           resultSymbol.wdlValue shouldNot be(empty)
@@ -364,7 +364,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
           resultSymbolStoreKey.name should be("symbol")
-          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.index should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)
@@ -392,7 +392,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
           resultSymbolStoreKey.name should be("symbol")
-          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.index should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)
@@ -459,7 +459,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
           resultSymbolStoreKey.name should be("symbol")
-          resultSymbolStoreKey.iteration should be(None)
+          resultSymbolStoreKey.index should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)

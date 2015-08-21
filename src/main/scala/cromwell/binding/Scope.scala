@@ -137,7 +137,7 @@ object Scope {
       case Some(x: Scope) =>
         fullyQualifiedNameBuilder(
           x.parent,
-          (if (fullDisplay || x.appearsInFQN || leaf) s".${x.name}" else "") + fqn,
+          (if (fullDisplay || x.appearsInFqn || leaf) s".${x.name}" else "") + fqn,
           fullDisplay,
           leaf = false)
       case None => fqn.tail //Strip away the first "." of the name
@@ -146,30 +146,21 @@ object Scope {
 
 }
 
-// FIXME: It'd be nice to have a notion of a parented and a not-parented Scope, see FIXME in Call about this
 trait Scope {
-
   def name: LocallyQualifiedName
-
-  def appearsInFQN: Boolean = true
+  def appearsInFqn: Boolean = true
 
   val parent: Option[Scope]
-
   private var _children: Seq[Scope] = Seq.empty
-
   def children: Seq[Scope] = _children
-
   def children_=[Child <: Scope](children: Seq[Child]): Unit = {
     if (this._children.isEmpty) {
       this._children = children
     } else throw new UnsupportedOperationException("children is write-once")
   }
 
-  def fullyQualifiedName =
-    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false, leaf = true)
-
-  def fullyQualifiedNameWithIndexScopes =
-    Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true, leaf = true)
+  def fullyQualifiedName = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = false, leaf = true)
+  def fullyQualifiedNameWithIndexScopes = Scope.fullyQualifiedNameBuilder(Option(this), "", fullDisplay = true, leaf = true)
 
   /**
    * Convenience method to collect Calls from within a scope.
@@ -183,4 +174,37 @@ trait Scope {
    */
   def collectAllScatters = Scope.collectAllScatters(Seq(this), Nil)
 
+  /*
+   * Calls and scatters are accessed frequently so this avoids traversing the whole children tree every time.
+   * Lazy because children are not provided at instantiation but rather later during tree building process.
+   * This prevents evaluation from being done before children have been set.
+   *
+   * FIXME: In a world where Scope wasn't monolithic, these would be moved around
+   */
+  lazy val calls: Seq[Call] = collectAllCalls
+  lazy val scatters: Seq[Scatter] = collectAllScatters
+
+  /**
+   *   Recurses up the scope tree until it hits one w/o a parent.
+   *
+   *   FIXME: In a world where Scope wasn't monolithic this would traverse until it hit a RootScope or whatever
+   */
+  @tailrec
+  final def rootScope: Scope = this.parent match {
+    case Some(p) => p.rootScope
+    case None => this
+  }
+
+  // FIXME: In a world where Scope wasn't monolithic, these would be moved out of here
+  def prerequisiteScopes: Set[Scope]
+  def prerequisiteCallNames: Set[LocallyQualifiedName]
+
+  /**
+   *  Returns a set of Calls corresponding to the prerequisiteCallNames
+   *
+   *  Dropping any unfound Calls to the floor but we're already validating that all calls are sane at ingest.
+   *  It's icky because it relies on that validation not changing, but ...
+   */
+  lazy val prerequisiteCalls: Set[Scope] = prerequisiteCallNames flatMap rootScope.callByName
+  def callByName(callName: LocallyQualifiedName): Option[Call] = calls find { _.name == callName }
 }

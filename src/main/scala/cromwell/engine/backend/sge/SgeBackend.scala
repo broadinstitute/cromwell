@@ -22,6 +22,8 @@ import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
 class SgeBackend extends Backend with LocalFileSystemOperations with LazyLogging {
+  type T = SgeBackendCall
+
   import LocalBackend.WriteWithNewline
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
@@ -31,16 +33,7 @@ class SgeBackend extends Backend with LocalFileSystemOperations with LazyLogging
     SgeBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): Try[CallOutputs] = backendCall match {
-    case bc: SgeBackendCall => execute(bc)
-    case _ => Failure(new UnsupportedOperationException("SgeBackend can only execute SgeBackendCalls"))
-  }
-
-  /**
-   * Executes the specified command line, using the supplied lookup function for expression evaluation.
-   * Returns a `Map[CallOutputs]` of output names to values.
-   */
-  private def execute(backendCall: SgeBackendCall): Try[CallOutputs]  = {
+  override def execute(backendCall: T): Try[CallOutputs] =  {
     val tag: String = s"${this.getClass.getName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
 
     backendCall.instantiateCommand match {

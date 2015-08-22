@@ -56,6 +56,7 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 class LocalBackend extends Backend with LocalFileSystemOperations with LazyLogging {
+  type T = LocalBackendCall
 
   import LocalBackend._
 
@@ -66,16 +67,7 @@ class LocalBackend extends Backend with LocalFileSystemOperations with LazyLoggi
     LocalBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): Try[CallOutputs] = backendCall match {
-    case bc: LocalBackendCall => execute(bc)
-    case _ => Failure(new UnsupportedOperationException("LocalBackend can only execute LocalBackendCalls"))
-  }
-
-  /**
-   * Executes the specified command line, using the supplied lookup function for expression evaluation.
-   * Returns a `Map[CallOutputs]` of output names to values.
-   */
-  private def execute(backendCall: LocalBackendCall): Try[CallOutputs]  = {
+  def execute(backendCall: T): Try[CallOutputs] =  {
     val tag: String = s"${this.getClass.getName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
     val dockerContainerExecutionDir = s"/root/${backendCall.workflowDescriptor.id.toString}"
     val containerCallRoot = backendCall.call.docker match {

@@ -37,6 +37,7 @@ object Backend {
  * Trait to be implemented by concrete backends.
  */
 trait Backend {
+  type T <: BackendCall
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
@@ -57,7 +58,7 @@ trait Backend {
    * Execute the Call (wrapped in a BackendCall), return the outputs if it is
    * successful, otherwise, returns Failure with a reason why the execution failed
    */
-  def execute(backendCall: BackendCall): Try[CallOutputs]
+  def execute(backendCall: T): Try[CallOutputs]
 
   /**
    * Essentially turns a Call object + CallInputs into a BackendCall

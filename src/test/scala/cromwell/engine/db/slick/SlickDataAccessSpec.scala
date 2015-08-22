@@ -9,7 +9,7 @@ import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlString, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.local.{LocalBackendCall, LocalBackend}
 import cromwell.engine.backend.{Backend, BackendCall, StdoutStderr}
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{DataAccess, LocalCallBackendInfo}
@@ -35,6 +35,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   lazy val localBackend = new LocalBackend
 
   object UnknownBackend extends Backend {
+    type T = LocalBackendCall
     override def adjustInputPaths(call: Call, inputs: CallInputs) = Map.empty
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
     override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = ???
@@ -48,7 +49,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                                call: Call,
                                locallyQualifiedInputs: CallInputs,
                                abortRegistrationFunction: AbortFunctionRegistration): BackendCall = ???
-    override def execute(bc: BackendCall): Try[Map[String, WdlValue]] = Success(Map.empty)
+    override def execute(bc: T): Try[Map[String, WdlValue]] = Success(Map.empty)
 
     override def backendType: BackendType = ???
   }

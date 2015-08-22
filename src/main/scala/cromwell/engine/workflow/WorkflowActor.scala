@@ -207,7 +207,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
 
     val callActorProps = CallActor.props(call, locallyQualifiedInputs, backend, workflow)
-    val callActor = context.actorOf(callActorProps)
+    val callActor = context.actorOf(callActorProps, s"CallActor-${workflow.id}-${call.name}")
     callActor ! CallActor.Start
     log.info(s"$tag created call actor for ${call.fullyQualifiedName}.")
   }

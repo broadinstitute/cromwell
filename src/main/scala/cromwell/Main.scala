@@ -97,7 +97,7 @@ object Main extends App {
 
       inputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
-      workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
+      workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner, "SingleWorkflowRunnerActor")
       workflowManagerSystem.actorSystem.awaitTermination()
       // And now we just wait for the magic to happen
     } catch {

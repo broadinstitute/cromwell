@@ -58,7 +58,7 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
       call.instantiateCommandLine(backendInputs, backend.setupCallEnvironment(call, workflowDescriptor).engineFunctions) match {
         case Success(commandLine) =>
           sender() ! WorkflowActor.CallStarted(call)
-          context.actorOf(CallExecutionActor.props(callReference)) ! CallExecutionActor.Execute(workflowDescriptor.id, backend, commandLine, workflowDescriptor, call, backendInputs, inputName => locallyQualifiedInputs.get(inputName).get)
+          launchCommand(commandLine, backendInputs)
           goto(CallRunningAbortUnavailable)
         case Failure(e) =>
           val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
@@ -97,6 +97,19 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
     case Event(e, _) =>
       log.warning(s"$tag received unhandled event $e while in state $stateName")
       stay()
+  }
+
+  private def launchCommand(commandLine: String, backendInputs: CallInputs): Unit = {
+    val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
+    val executionActor = context.actorOf(CallExecutionActor.props(callReference), executionActorName)
+    val executeMessage = CallExecutionActor.Execute(workflowDescriptor.id,
+                                                    backend,
+                                                    commandLine,
+                                                    workflowDescriptor,
+                                                    call,
+                                                    backendInputs,
+                                                    inputName => locallyQualifiedInputs.get(inputName).get)
+    executionActor ! executeMessage
   }
 
   private def tryAbort(abortFunction: Option[AbortFunction]): CallActor.this.State = {

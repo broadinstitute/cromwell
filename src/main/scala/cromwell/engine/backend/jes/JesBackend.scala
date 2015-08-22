@@ -75,7 +75,7 @@ object JesBackend {
 }
 
 class JesBackend extends Backend with LazyLogging {
-  type A = JesBackendCall
+  type BackendCall = JesBackendCall
 
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
@@ -158,7 +158,7 @@ class JesBackend extends Backend with LazyLogging {
     JesBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-   def execute(backendCall: A): Try[CallOutputs] = {
+   def execute(backendCall: BackendCall): Try[CallOutputs] = {
     val backendInputs = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs)
 
     // FIXME: Not particularly robust at the moment.

@@ -35,7 +35,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   lazy val localBackend = new LocalBackend
 
   object UnknownBackend extends Backend {
-    type A = LocalBackendCall
+    type BackendCall = LocalBackendCall
     override def adjustInputPaths(call: Call, inputs: CallInputs) = Map.empty
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
     override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = ???
@@ -49,7 +49,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                                call: Call,
                                locallyQualifiedInputs: CallInputs,
                                abortRegistrationFunction: AbortFunctionRegistration): BackendCall = ???
-    override def execute(bc: A): Try[Map[String, WdlValue]] = Success(Map.empty)
+    override def execute(bc: BackendCall): Try[Map[String, WdlValue]] = Success(Map.empty)
 
     override def backendType: BackendType = ???
   }

@@ -553,6 +553,73 @@ $ java -jar target/scala-2.11/cromwell-0.7.jar run grep.wdl grep.json
 }
 ```
 
+# Backends
+
+A backend represents a way to run the user's command specified in the `task` section.  Currently three backends are supported:
+
+* Local - Run jobs as subprocesses.  Supports launching in Docker containers.
+* Sun GridEngine - Use `qsub` and job monitoring to run scripts.
+* Google JES - Launch on Google Compute Cluster through JES.
+
+Backends are specified via the configuration option `backend.backend` which can accept the values: sge, local, jes (e.g. `java -Dbackend.backend=sge`).
+
+## Local
+
+The local backend will simply launch a subprocess and wait for it to exit.
+
+The local backend makes the assumption that the Cromwell process can read into the CWD of the tasks.  It does this to write serialized objects into the CWD, to read the standard output, etc.
+
+When a workflow is starts running, Cromwell will create a new empty directory for that workflow at `cromwell-executions/<workflow_uuid>`.  Each `call` has its own subdirectory within the workflow directory called `call-<call_name>`.  Within this directory are special files called `stdout`, `stderr`, and `script`.  The `script` file contains:
+
+```
+cd <call_dir>
+<user_command>
+```
+
+`<call_dir>` might be a path on the local filesystem, under `cromwell-executions/<workflow_uuid>/call-<call_name>`, or it would be under `/root/<workflow_uuid>` if this is running in a Docker container.
+
+The subprocess command that the local backend will launch is:
+
+```
+"/bin/bash" "-c" "cat script | <docker_run> /bin/bash <&0"
+```
+
+Where `<docker_run>` will be non-empty if this particular task specified a Docker container to run in.  `<docker_run>` looks like this:
+
+```
+docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
+```
+
+## Sun GridEngine
+
+The GridEngine backend uses `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
+
+This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
+
+The CWD will contain a `script.sh` file which will contain:
+
+```
+#!/bin/sh
+<user_command>
+echo $? > rc
+```
+
+The job is launched using the following command:
+
+```
+qsub -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
+```
+
+`<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
+
+The standard output and standard error streams for the qsub command are written to `<call_cwd>/qsub.stdout` and `<call_cwd>/qsub.stderr`.
+
+The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
+
+Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+## Google JES
+
 # REST API
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.

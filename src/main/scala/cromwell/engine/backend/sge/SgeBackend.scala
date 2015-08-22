@@ -22,7 +22,7 @@ import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
 class SgeBackend extends Backend with LocalFileSystemOperations with LazyLogging {
-  type T = SgeBackendCall
+  type A = SgeBackendCall
 
   import LocalBackend.WriteWithNewline
 
@@ -33,7 +33,7 @@ class SgeBackend extends Backend with LocalFileSystemOperations with LazyLogging
     SgeBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: T): Try[CallOutputs] =  {
+  override def execute(backendCall: A): Try[CallOutputs] =  {
     val tag: String = s"${this.getClass.getName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
 
     backendCall.instantiateCommand match {

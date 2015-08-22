@@ -1,8 +1,6 @@
 package cromwell.engine.workflow
 
-import java.util.UUID
-
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import akka.actor.FSM.{SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.pipe
@@ -82,8 +80,10 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
-    case CurrentState(actor, state: WorkflowState) => updateWorkflowState(actor, state)
-    case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
+    case Transition(actor, oldState, newState: WorkflowState) =>
+      updateWorkflowState(actor, newState)
+      // This is hokey but WorkflowActor can't shut itself down due to tests relying on it lasting past completion
+      if (newState.isTerminal) context.stop(actor)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
       workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
@@ -183,11 +183,13 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       workflowActor ! SubscribeTransitionCallBack(self)
       workflowId
     }
+
     futureId onFailure {
       case e =>
         val messageOrBlank = Option(e.getMessage).mkString
         log.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
     }
+
     futureId
   }
 
@@ -201,7 +203,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def idByWorkflow(workflow: WorkflowActorRef): WorkflowId = {
-    workflowStore.toMap.collectFirst { case (k, v) if v == workflow => k }.get
+    workflowStore.toMap collectFirst { case (k, v) if v == workflow => k } get
   }
 
   private def restartIncompleteWorkflows(): Unit = {
@@ -244,7 +246,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
         }
 
         restartableWorkflows foreach restartWorkflow
-      }
+    }
+
     result recover {
       case e: Throwable => log.error(e, e.getMessage)
     }

@@ -52,7 +52,7 @@ trait Backend {
    * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s
    * adjusted for the host workflow execution path.
    */
-  def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs
+  def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs]
 
   /**
    * Execute the Call (wrapped in a BackendCall), return the outputs if it is

@@ -116,7 +116,7 @@ class JesBackend extends Backend with LazyLogging {
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
   // No need to copy GCS inputs for the workflow we should be able to directly reference them
-  override def initializeForWorkflow(workflow: WorkflowDescriptor): HostInputs = workflow.actualInputs
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs] = Success(workflow.actualInputs)
 
   def taskOutputToJesOutput(taskOutput: TaskOutput, callGcsPath: String, scopedLookupFunction: ScopedLookupFunction, engineFunctions: JesEngineFunctions): Try[Option[JesOutput]] = {
     // If the output isn't a file then it's not a file to be retrieved by the JES run! (but NB: see anonymous task output below)

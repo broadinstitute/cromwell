@@ -407,8 +407,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val workflowInfo = WorkflowInfo(workflow.id, workflow.wdlSource, workflow.wdlJson)
     // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
-    val adjustedInputs = backend.initializeForWorkflow(workflow)
-    dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.workflow.calls, backend)
+    backend.initializeForWorkflow(workflow) match {
+      case Success(inputs) =>
+        dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.calls, backend)
+      case Failure(ex) => Future.failed(ex)
+    }
   }
 
   private def isWorkflowDone: Boolean = executionStore forall { _._2 == ExecutionStatus.Done }

@@ -122,7 +122,7 @@ class LocalBackend extends Backend with LocalFileSystemOperations with LazyLoggi
     val tag = makeTag(backendCall)
     val (_, stdoutWriter) = backendCall.stdout.fileAndWriter
     val (_, stderrWriter) = backendCall.stderr.fileAndWriter
-    val dockerRun = backendCall.call.docker.map(buildDockerRunCommand(backendCall, _)).getOrElse("")
+    val dockerRun = backendCall.call.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
     val argv = Seq("/bin/bash", "-c", s"cat ${backendCall.script} | $dockerRun /bin/bash <&0")
     val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline))
 

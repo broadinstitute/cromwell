@@ -1,9 +1,10 @@
 package cromwell.binding
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.parser.{BackendType, MemorySize}
+import cromwell.parser.BackendType
 import org.scalatest.{Matchers, FlatSpec}
 import RuntimeAttributeSpec._
+import RuntimeAttributes.EnhancedAst
 
 object RuntimeAttributeSpec {
   val WorkflowWithRuntime =
@@ -109,7 +110,7 @@ object RuntimeAttributeSpec {
       |  }
       |  runtime {
       |    docker: "ubuntu:latest"
-      |    memory: "4096 MB"
+      |    memory: "4G"
       |    cpu: "3"
       |    defaultZones: "US_Metro US_Backwater"
       |    defaultDisks: "Disk1 3 SSD, Disk2 500 OldSpinnyKind"
@@ -136,15 +137,42 @@ object RuntimeAttributeSpec {
       |  call googly_task
       |}
     """.stripMargin
+
+  val WorkflowWithMessedUpMemory =
+  """
+    |task messed_up_memory {
+    |  command {
+    |      echo "YO"
+    |  }
+    |  runtime {
+    |    memory: "HI TY"
+    |  }
+    |}
+    |
+    |workflow great_googly_moogly {
+    |  call messed_up_memory
+    |}
+  """.stripMargin
+
+  val WorkflowWithMessedUpMemoryUnit =
+    """
+      |task messed_up_memory {
+      |  command {
+      |      echo "YO"
+      |  }
+      |  runtime {
+      |    memory: "5 TY"
+      |  }
+      |}
+      |
+      |workflow great_googly_moogly {
+      |  call messed_up_memory
+      |}
+    """.stripMargin
 }
 
 class RuntimeAttributeSpec extends FlatSpec with Matchers {
   val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime, BackendType.LOCAL)
-  "WDL file with runtime" should "have runtime information" in {
-    assert(NamespaceWithRuntime.workflow.calls.forall {
-      _.task.runtimeAttributes.attributes.nonEmpty
-    })
-  }
 
   it should "have docker information" in {
     assert(NamespaceWithRuntime.workflow.calls forall {
@@ -152,26 +180,20 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     })
   }
 
-  "WDL file without runtime" should "not have imported runtime information" in {
-    assert(NamespaceWithWorkflow.load(WorkflowWithoutRuntime, BackendType.LOCAL).workflow.calls.forall {
-      _.task.runtimeAttributes.attributes.isEmpty
-    })
-  }
-
   "WDL file with failOnStderr runtime" should "identify failOnStderr for (and only for) appropriate tasks" in {
-    val NamespaceWithFailOnStderr = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.LOCAL)
-    val echoWithFailOnStderrIndex = NamespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithFailOnStderr")
+    val namespaceWithFailOnStderr = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.LOCAL)
+    val echoWithFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithFailOnStderr")
     assert(echoWithFailOnStderrIndex >= 0)
-    assert(NamespaceWithFailOnStderr.workflow.calls(echoWithFailOnStderrIndex).failOnStderr)
+    assert(namespaceWithFailOnStderr.workflow.calls(echoWithFailOnStderrIndex).failOnStderr)
 
-    val echoWithoutFailOnStderrIndex = NamespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnStderr")
+    val echoWithoutFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnStderr")
     assert(echoWithoutFailOnStderrIndex >= 0)
-    assert(!NamespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
+    assert(!namespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
   }
 
   "WDL file with Googly config" should "parse up properly" in {
-    val NamespaceWithGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig, BackendType.JES)
-    val calls = NamespaceWithGooglyConfig.workflow.calls
+    val namespaceWithGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig, BackendType.JES)
+    val calls = namespaceWithGooglyConfig.workflow.calls
     val callIndex = calls.indexWhere(call => call.name == "googly_task")
     callIndex should be >= 0
 
@@ -180,8 +202,13 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     attributes.cpu shouldBe 3
     val firstDisk = new Disk().setName("Disk1").setSizeGb(3L).setType("SSD")
     val secondDisk = new Disk().setName("Disk2").setSizeGb(500L).setType("OldSpinnyKind")
-    attributes.defaultDisks shouldEqual Seq(firstDisk, secondDisk, RuntimeAttributes.Defaults.LocalizationDisk)
-    attributes.defaultZones shouldEqual Seq("US_Metro", "US_Backwater")
+
+    val expectedDisks = Vector(firstDisk, secondDisk, RuntimeAttributes.LocalizationDisk)
+    attributes.defaultDisks foreach { d => expectedDisks should contain (d) }
+
+    val expectedZones = Vector("US_Metro", "US_Backwater")
+    attributes.defaultZones foreach { z => expectedZones should contain (z) }
+
     attributes.memoryGB shouldBe 4
   }
 
@@ -194,28 +221,46 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     val googlyCall = calls(callIndex)
     val attributes = googlyCall.task.runtimeAttributes
     attributes.cpu shouldBe RuntimeAttributes.Defaults.Cpu
-    attributes.defaultDisks shouldEqual Seq(RuntimeAttributes.Defaults.LocalizationDisk)
-    attributes.defaultZones shouldBe RuntimeAttributes.Defaults.Zones
-    attributes.memoryGB shouldBe MemorySize.GB.fromBytes(RuntimeAttributes.Defaults.MemoryInBytes)
+    attributes.defaultDisks foreach { d => RuntimeAttributes.Defaults.Disk should contain (d) }
+    attributes.defaultZones foreach { z => RuntimeAttributes.Defaults.Zones should contain (z) }
+    attributes.memoryGB shouldBe RuntimeAttributes.Defaults.Memory
   }
 
   "WDL file with Googly config" should "issue warnings on the local backend" in {
     val workflow = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig, BackendType.LOCAL)
-    val warnings = workflow.tasks.head.runtimeAttributes.warnings
-    warnings.head shouldBe "Found unsupported keys for backend 'LOCAL': cpu, defaultDisks, defaultZones, memory"
+    val attributeMap = workflow.ast.toAttributes
+    val expectedString = "Found unsupported keys for backend 'LOCAL': cpu, defaultDisks, defaultZones, memory"
+    attributeMap.unsupportedKeys(BackendType.LOCAL).head shouldBe expectedString
   }
 
   "WDL file without runtime section" should "not be accepted on JES backend as it has no docker" in {
-    val ex = intercept[RuntimeException] {
+    val ex = intercept[IllegalArgumentException] {
       val workflow = NamespaceWithWorkflow.load(WorkflowWithoutRuntime, BackendType.JES)
     }
-    ex.getMessage shouldBe "Missing required keys in runtime configuration for backend 'JES': docker"
+    ex.getMessage should include ("Missing required keys in runtime configuration for backend 'JES': docker")
   }
 
   "WDL file with runtime section but no docker" should "not be accepted on JES backend" in {
-    val ex = intercept[RuntimeException] {
+    val ex = intercept[IllegalArgumentException] {
       val workflow = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.JES)
     }
-    ex.getMessage shouldBe "Missing required keys in runtime configuration for backend 'JES': docker"
+    ex.getMessage should include ("Missing required keys in runtime configuration for backend 'JES': docker")
+  }
+
+
+  "WDL file with a seriously screwed up memory runtime" should "not parse" in {
+    val ex = intercept[IllegalArgumentException] {
+      val namespaceWithBorkedMemory = NamespaceWithWorkflow.load(WorkflowWithMessedUpMemory, BackendType.LOCAL)
+    }
+
+    ex.getMessage should include ("should be of the form X Unit")
+  }
+
+  "WDL file with an invalid memory unit" should "say so" in {
+    val ex = intercept[IllegalArgumentException] {
+      val namespaceWithBorkedMemory = NamespaceWithWorkflow.load(WorkflowWithMessedUpMemoryUnit, BackendType.LOCAL)
+    }
+
+    ex.getMessage should include ("is an invalid memory unit")
   }
 }

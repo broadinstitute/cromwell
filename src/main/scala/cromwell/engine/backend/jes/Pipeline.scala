@@ -27,7 +27,16 @@ object Pipeline extends LazyLogging {
     logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s=>s"  $s").mkString("\n")}")
     val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
     logger.info(s"$tag Pipeline ID is $pipelineId")
-    new Pipeline(command, pipelineId, projectId, gcsPath, workflow, call, jesParameters, jesConnection.genomics)
+    
+    new Pipeline(command, 
+                 pipelineId, 
+                 projectId, 
+                 gcsPath, 
+                 workflow, 
+                 call, 
+                 jesParameters, 
+                 runtimeInfo, 
+                 jesConnection.genomics)
   }
 }
 
@@ -39,6 +48,7 @@ case class Pipeline(command: String,
                     workflow: WorkflowDescriptor,
                     call: Call,
                     jesParameters: Seq[JesParameter],
+                    runtimeInfo: JesRuntimeInfo,
                     genomicsService: Genomics) {
   def run: Run = Run(this)
 }

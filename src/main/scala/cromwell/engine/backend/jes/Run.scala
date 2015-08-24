@@ -28,17 +28,15 @@ object Run  {
     logging.setGcsPath(pipeline.gcsPath)
     rpr.setLogging(logging)
 
-    // Currently, disk resources need to be specified both at pipeline creation and pipeline run time
-    val resources = new Resources()
-    resources.setDisks( scala.collection.JavaConversions.seqAsJavaList(pipeline.call.task.runtimeAttributes.defaultDisks))
-    rpr.setResources(resources)
+    // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
+    rpr.setResources(pipeline.runtimeInfo.resources)
 
     val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
     Log.info(s"$tag JES ID is $id")
     new Run(id, pipeline, tag)
   }
 
-  private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString("\n")
+  private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
 
   implicit class RunJesParameters(val params: Seq[JesParameter]) extends AnyVal {
     def toRunMap = params.map(p => p.name -> p.gcs).toMap.asJava

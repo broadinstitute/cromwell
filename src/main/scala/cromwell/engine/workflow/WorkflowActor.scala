@@ -4,7 +4,8 @@ import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.binding._
-import cromwell.binding.values.{WdlObject, WdlValue}
+import cromwell.binding.types.{WdlAnyType, WdlArrayType}
+import cromwell.binding.values.{WdlArray, WdlObject, WdlValue}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
@@ -59,9 +60,11 @@ object WorkflowActor {
   }
 
   val TerminalStates = Vector(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.Aborted)
-  def isExecutionStateFinished(es: ExecutionStatus): Boolean = {
-    TerminalStates contains es
-  }
+
+  def isTerminal(es: ExecutionStatus): Boolean = TerminalStates contains es
+  def isDone(entry: ExecutionStoreEntry) = entry._2 == ExecutionStatus.Done
+  def isShard(key: CallKey): Boolean = key.index.isDefined
+
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor,
@@ -80,6 +83,46 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       store <- createStore
     } yield store
     Await.result(futureStore, DatabaseTimeout)
+  }
+
+ /**
+   * Try to generate output for a collector call, by collecting outputs for all of its shards.
+   * It's fail-fast on shard output retrieval
+   */
+  private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[CallKey]): Try[CallOutputs] = Try {
+   /* FIXME: use _.index.fromIndex when merged to "Database SG branch" */
+    val shardsOutputs = shards.toSeq sortBy { _.index.getOrElse(-1) } map { e =>
+      fetchCallOutputEntries(e.scope) map { _.value } get
+    }
+   /* FIXME: No need for asInstanceOf[Call] when merged to "Database SG branch" */
+    collector.scope.asInstanceOf[Call].task.outputs map { taskOutput =>
+      val wdlValues = shardsOutputs.map(_.get(taskOutput.name).get)
+      taskOutput.name -> new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+    } toMap
+  }
+
+  private def findShards(key: CollectorKey) = executionStore collect {
+    case (k: CallKey, _) if k.scope == key.scope && isShard(k) => k
+  }
+
+  /**
+   * Gathers and completes Collector Calls.
+   */
+  private def collectScatter(collector: CollectorKey) = {
+    val shards: Iterable[CallKey] = findShards(collector)
+    val collection = for {
+      output <- generateCollectorOutput(collector, shards)
+      /* FIXME: should be replaced by awaitCallComplete(collector, output) when merging with "Database SG branch" */
+      callComplete <- awaitCallComplete(collector.scope.asInstanceOf[Call], output)
+    } yield callComplete
+
+    collection match {
+      case Failure(e) =>
+        /* FIXME: should be replaced by CallFailed(collector, e.getMessage) when merging with "Database SG branch" */
+        self ! Event(CallFailed(collector.scope.asInstanceOf[Call], e.getMessage), NoFailureMessage)
+      case Success(_) =>
+        log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
+    }
   }
 
   /**
@@ -440,7 +483,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.workflow.calls, backend)
   }
 
-  private def isWorkflowDone: Boolean = executionStore.forall(_._2 == ExecutionStatus.Done)
+  private def isWorkflowDone: Boolean = executionStore forall isDone
 
-  private def isWorkflowAborted: Boolean = executionStore forall { x => isExecutionStateFinished(x._2) || x._2 == ExecutionStatus.NotStarted }
+  private def isWorkflowAborted: Boolean = executionStore forall { x => isTerminal(x._2) || x._2 == ExecutionStatus.NotStarted }
 }

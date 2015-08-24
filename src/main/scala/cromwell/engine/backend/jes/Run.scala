@@ -27,6 +27,11 @@ object Run  {
     logging.setGcsPath(pipeline.gcsPath)
     rpr.setLogging(logging)
 
+    // Currently, disk resources need to be specified both at pipeline creation and pipeline run time
+    val resources = new Resources()
+    resources.setDisks( scala.collection.JavaConversions.seqAsJavaList(pipeline.call.task.runtimeAttributes.defaultDisks))
+    rpr.setResources(resources)
+
     val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
     Log.info(s"$tag JES ID is $id")
     new Run(id, pipeline, tag)

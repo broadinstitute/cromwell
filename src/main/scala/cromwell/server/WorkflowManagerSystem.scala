@@ -10,7 +10,9 @@ trait WorkflowManagerSystem {
 
   val systemName = "cromwell-system"
   implicit val actorSystem = ActorSystem(systemName)
-  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess, backend))
+
+  // For now there's only one WorkflowManagerActor so no need to dynamically name it
+  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess, backend), "WorkflowManagerActor")
 
   // Lazily created as the primary consumer is the workflowManagerActor.
   private lazy val dataAccess: DataAccess = DataAccess()

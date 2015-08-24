@@ -175,7 +175,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       declarations <- Future.fromTry(eventualNamespace.staticDeclarationsRecursive(coercedInputs))
       inputs = coercedInputs ++ declarations
       descriptor = new WorkflowDescriptor(workflowId, eventualNamespace, wdlSource, wdlJson, inputs)
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess))
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
       val isRestart = maybeWorkflowId.isDefined

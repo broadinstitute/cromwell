@@ -22,7 +22,7 @@ object RuntimeAttributes {
   /** Fallback values if values for these keys are not specified in a task "runtime" stanza. */
   object Defaults {
     val Cpu = 1
-    val Disk = Seq(LocalDisk("local-disk", 100L, "LOCAL_SSD").toDisk)
+    val LocalizationDisk = LocalDisk("local-disk", 100L, "LOCAL_SSD").toDisk
     val FailOnStderr = false
     val MemoryInBytes = MemorySize.GB.toBytes(2)
     val Preemptible = false
@@ -109,7 +109,8 @@ case class RuntimeAttributes private(attributes: Map[String, String], warnings: 
         Array(name, sizeGb, diskType) = diskString.split("\\s+")
       } yield LocalDisk(name, sizeGb.toLong, diskType).toDisk
 
-    if (taskSpecifiedAttributes.isEmpty) Defaults.Disk else taskSpecifiedAttributes
+    // additional disks will be added to the default localization disk
+    taskSpecifiedAttributes :+ Defaults.LocalizationDisk
   }
 
   val memoryGB: Double = {

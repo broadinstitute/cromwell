@@ -1,5 +1,6 @@
 package cromwell.engine.backend.jes
 
+import java.io.File
 import java.math.BigInteger
 import java.net.URL
 import java.nio.file.{Path, Paths}
@@ -43,6 +44,8 @@ object JesBackend {
   val LocalStdoutValue = "job.stdout.txt"
   val LocalStderrValue = "job.stderr.txt"
 
+  val JesCromwellRoot = "/cromwell_root"
+
   private def callGcsPath(workflowId: String, workflowName: String, callName: String): String =
     s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName"
 
@@ -53,11 +56,13 @@ object JesBackend {
 
   def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
   def stdoutJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
+  def localizationDiskInput(): JesInput = JesInput("working_disk", "disk://local-disk", new File(JesCromwellRoot).toPath)
 
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
     stdoutJesOutput(callGcsPath),
-    stderrJesOutput(callGcsPath)
+    stderrJesOutput(callGcsPath),
+    localizationDiskInput
   )
 
   sealed trait JesParameter {
@@ -82,7 +87,7 @@ class JesBackend extends Backend with LazyLogging {
    * @return A path which is unique per input path
    */
   def localFilePathFromCloudStoragePath(gcsPath: GoogleCloudStoragePath): Path = {
-    Paths.get("/cromwell_root/" + gcsPath.bucket + "/" + gcsPath.objectName)
+    Paths.get(JesCromwellRoot + "/" + gcsPath.bucket + "/" + gcsPath.objectName)
   }
 
   /**

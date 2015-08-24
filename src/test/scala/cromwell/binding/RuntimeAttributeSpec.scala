@@ -180,7 +180,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     attributes.cpu shouldBe 3
     val firstDisk = new Disk().setName("Disk1").setSizeGb(3L).setType("SSD")
     val secondDisk = new Disk().setName("Disk2").setSizeGb(500L).setType("OldSpinnyKind")
-    attributes.defaultDisks shouldEqual Seq(firstDisk, secondDisk)
+    attributes.defaultDisks shouldEqual Seq(firstDisk, secondDisk, RuntimeAttributes.Defaults.LocalizationDisk)
     attributes.defaultZones shouldEqual Seq("US_Metro", "US_Backwater")
     attributes.memoryGB shouldBe 4
   }
@@ -194,7 +194,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     val googlyCall = calls(callIndex)
     val attributes = googlyCall.task.runtimeAttributes
     attributes.cpu shouldBe RuntimeAttributes.Defaults.Cpu
-    attributes.defaultDisks shouldBe RuntimeAttributes.Defaults.Disk
+    attributes.defaultDisks shouldEqual Seq(RuntimeAttributes.Defaults.LocalizationDisk)
     attributes.defaultZones shouldBe RuntimeAttributes.Defaults.Zones
     attributes.memoryGB shouldBe MemorySize.GB.fromBytes(RuntimeAttributes.Defaults.MemoryInBytes)
   }

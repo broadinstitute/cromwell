@@ -10,8 +10,9 @@ import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.backend.TaskAbortedException
 import cromwell.engine.backend.Backend.{RestartableWorkflow, StdoutStderrException}
 import cromwell.engine.backend.{Backend, StdoutStderr}
-import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.engine.db.{ExecutionDatabaseKey, CallStatus, DataAccess}
 import cromwell.engine._
+import cromwell.engine.workflow.ExecutionStoreKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil._
@@ -244,8 +245,8 @@ class LocalBackend extends Backend with LazyLogging {
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
-    def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
-      val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
+    def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
+      val callFqnsNeedingUpdate = keyToStatusMap.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
       dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
     }
 

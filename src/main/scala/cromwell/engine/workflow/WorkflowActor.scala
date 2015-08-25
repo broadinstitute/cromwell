@@ -9,7 +9,7 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.DataAccess.WorkflowInfo
-import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.TerminalUtil
 
@@ -27,10 +27,10 @@ object WorkflowActor {
   case object GetFailureMessage extends WorkflowActorMessage
   case object GetOutputs extends WorkflowActorMessage
   case object AbortWorkflow extends WorkflowActorMessage
-  case class AbortComplete(call: Call) extends WorkflowActorMessage
-  case class CallStarted(call: Call) extends WorkflowActorMessage
-  case class CallCompleted(call: Call, callOutputs: CallOutputs) extends WorkflowActorMessage
-  case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
+  case class AbortComplete(call: CallKey) extends WorkflowActorMessage
+  case class CallStarted(call: CallKey) extends WorkflowActorMessage
+  case class CallCompleted(call: CallKey, callOutputs: CallOutputs) extends WorkflowActorMessage
+  case class CallFailed(call: CallKey, failure: String) extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
     Props(WorkflowActor(descriptor, backend, dataAccess))
@@ -108,27 +108,27 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   when(WorkflowRunning) {
-    case Event(CallStarted(call), NoFailureMessage) =>
-      persistStatus(call, ExecutionStatus.Running)
+    case Event(CallStarted(callKey), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Running)
       stay()
-    case Event(CallCompleted(call, outputs), NoFailureMessage) =>
-      awaitCallComplete(call, outputs) match {
+    case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
+      awaitCallComplete(callKey, outputs) match {
         case Success(_) =>
           if (isWorkflowDone) goto(WorkflowSucceeded) else startRunnableCalls()
         case Failure(e) =>
           log.error(e, e.getMessage)
           goto(WorkflowFailed)
       }
-    case Event(CallFailed(call, failure), NoFailureMessage) =>
-      persistStatus(call, ExecutionStatus.Failed)
+    case Event(CallFailed(callKey, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed)
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
-    case Event(AbortComplete(call), NoFailureMessage) =>
+    case Event(AbortComplete(callKey), NoFailureMessage) =>
       // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
       // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
       // cancelled by some external system.
-      persistStatus(call, ExecutionStatus.Aborted)
-      log.warning(s"Call ${call.name} was aborted but the workflow should still be running.")
+      persistStatus(callKey, ExecutionStatus.Aborted)
+      log.warning(s"Call ${callKey.scope.name} was aborted but the workflow should still be running.")
       stay()
   }
 
@@ -143,14 +143,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   when(WorkflowSucceeded)(FSM.NullFunction)
 
   when(WorkflowAborting) {
-    case Event(AbortComplete(call), NoFailureMessage) =>
-      persistStatus(call, ExecutionStatus.Aborted)
+    case Event(AbortComplete(callKey), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Aborted)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallFailed(call, failure), NoFailureMessage) =>
-      persistStatus(call, ExecutionStatus.Failed)
+    case Event(CallFailed(callKey, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallCompleted(call, outputs), NoFailureMessage) =>
-      awaitCallComplete(call, outputs)
+    case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
+      awaitCallComplete(callKey, outputs)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
     case m =>
       log.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
@@ -183,47 +183,47 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       dataAccess.updateWorkflowState(workflow.id, toState)
   }
 
-  private def persistStatus(call: Call, callStatus: CallStatus): Future[Unit] = {
-    persistStatus(Iterable(call), callStatus)
+  private def persistStatus(callKey: CallKey, callStatus: CallStatus): Future[Unit] = {
+    persistStatus(Iterable(callKey), callStatus)
   }
 
-  private def persistStatus(calls: Traversable[Call], callStatus: CallStatus): Future[Unit] = {
-    executionStore ++= calls map {
-      CallKey(_, None, None) -> callStatus
+  private def persistStatus(callKeys: Traversable[CallKey], callStatus: CallStatus): Future[Unit] = {
+    executionStore ++= callKeys map {
+      _ -> callStatus
     }
-    val callFqns = calls.map(_.fullyQualifiedName)
-    log.info(s"$tag persisting status of calls ${callFqns.mkString(", ")} to $callStatus.")
-    dataAccess.setStatus(workflow.id, callFqns, callStatus)
+    val callFqns = callKeys.map(_.scope.fullyQualifiedName).mkString(", ")
+    log.info(s"$tag persisting status of calls ${callFqns} to $callStatus.")
+    dataAccess.setStatus(workflow.id, callKeys map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)}, callStatus)
   }
 
-  private def awaitCallComplete(call: Call, outputs: CallOutputs): Try[Unit] = {
-    val callFuture = handleCallCompleted(call, outputs)
+  private def awaitCallComplete(callKey: CallKey, outputs: CallOutputs): Try[Unit] = {
+    val callFuture = handleCallCompleted(callKey, outputs)
     Await.ready(callFuture, DatabaseTimeout)
     callFuture.value.get
   }
 
-  private def handleCallCompleted(call: Call, outputs: CallOutputs): Future[Unit] = {
-    log.info(s"$tag handling completion of call '${call.fullyQualifiedName}'.")
+  private def handleCallCompleted(callKey: CallKey, outputs: CallOutputs): Future[Unit] = {
+    log.info(s"$tag handling completion of call '${callKey.scope.fullyQualifiedName}'.")
     for {
-      _ <- dataAccess.setOutputs(workflow.id, call, outputs)
-      _ <- persistStatus(call, ExecutionStatus.Done)
+      _ <- dataAccess.setOutputs(workflow.id, callKey, outputs)
+      _ <- persistStatus(callKey, ExecutionStatus.Done)
     } yield ()
   }
 
-  private def startActor(call: Call, locallyQualifiedInputs: Map[String, WdlValue]): Unit = {
+  private def startActor(callKey: CallKey, locallyQualifiedInputs: Map[String, WdlValue]): Unit = {
     if (locallyQualifiedInputs.nonEmpty) {
-      log.info(s"$tag inputs for call '${call.fullyQualifiedName}':")
+      log.info(s"$tag inputs for call '${callKey.scope.fullyQualifiedName}':")
       locallyQualifiedInputs foreach { input =>
         log.info(s"$tag     ${input._1} -> ${input._2}")
       }
     } else {
-      log.info(s"$tag no inputs for call '${call.fullyQualifiedName}'")
+      log.info(s"$tag no inputs for call '${callKey.scope.fullyQualifiedName}'")
     }
 
-    val callActorProps = CallActor.props(call, locallyQualifiedInputs, backend, workflow)
+    val callActorProps = CallActor.props(callKey, locallyQualifiedInputs, backend, workflow)
     val callActor = context.actorOf(callActorProps)
     callActor ! CallActor.Start
-    log.info(s"$tag created call actor for ${call.fullyQualifiedName}.")
+    log.info(s"$tag created call actor for ${callKey.scope.fullyQualifiedName}.")
   }
 
   /**
@@ -248,12 +248,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
      * Start all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,
      * i.e. the calls which should now be eligible to run.
      */
-    def findRunnableCalls: Iterable[Call] = {
+    def findRunnableCalls: Iterable[CallKey] = {
       for {
       // TODO: Need other scopes
         callEntry <- executionStore if callEntry._1.scope.isInstanceOf[Call] && callEntry._2 == ExecutionStatus.NotStarted
         call = callEntry._1.scope.asInstanceOf[Call] if isRunnable(call)
-      } yield call
+        runnable = callEntry if callEntry._1.scope == call
+      } yield runnable._1.asInstanceOf[CallKey]
     }
 
     val runnableCalls = findRunnableCalls
@@ -261,10 +262,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       log.info(s"$tag no runnable calls to start.")
       Success(())
     } else {
-      log.info(s"$tag starting calls: " + runnableCalls.map {_.fullyQualifiedName}.toSeq.sorted.mkString(", "))
+      log.info(s"$tag starting calls: " + runnableCalls.map {_.scope.fullyQualifiedName}.toSeq.sorted.mkString(", "))
       val futureCallsAndInputs = for {
         _ <- persistStatus(runnableCalls, ExecutionStatus.Starting)
-        allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)
+        allInputs <- Future.sequence(runnableCalls map {_.scope} map fetchLocallyQualifiedInputs)
       } yield runnableCalls zip allInputs
       Await.ready(futureCallsAndInputs, DatabaseTimeout)
       futureCallsAndInputs.value.get match {
@@ -299,6 +300,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
+  private def findCallKey(call: Call, index: Option[Int]): Option[CallKey] = {
+    executionStore find {
+      case (k,v) => k.scope == call && k.index == index
+    } collect { case (k: CallKey,v) => k }
+  }
+
   def fetchLocallyQualifiedInputs(call: Call): Future[Map[String, WdlValue]] = {
     /* TODO: This assumes that each Call has a parent that's a Workflow, but with scatter-gather that might not be the case */
     val parentWorkflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
@@ -330,7 +337,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
       def lookupCall(name: String): Try[WdlObject] = {
         parentWorkflow.calls.find {_.name == identifierString} match {
-          case Some(matchedCall) => fetchCallOutputEntries(matchedCall)
+          case Some(matchedCall) =>
+            /* FIXME: patch waiting for lookup function to be index aware */
+            fetchCallOutputEntries(findCallKey(matchedCall, None).get)
           case None => Failure(new WdlExpressionException(s"Could not find a call with name '$identifierString'"))
         }
       }
@@ -382,13 +391,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     Await.result(futureValue, DatabaseTimeout)
   }
 
-  private def fetchCallOutputEntries(call: Call): Try[WdlObject] = {
-    val futureValue = dataAccess.getOutputs(workflow.id, call.fullyQualifiedName).map {callOutputEntries =>
+  private def fetchCallOutputEntries(callKey: CallKey): Try[WdlObject] = {
+    val futureValue = dataAccess.getOutputs(workflow.id, ExecutionDatabaseKey(callKey.scope.fullyQualifiedName, callKey.index)).map {callOutputEntries =>
       val callOutputsAsMap = callOutputEntries.map { entry =>
         entry.key.name -> entry.wdlValue
       }.toMap
       callOutputsAsMap.find {case (k,v) => v.isEmpty} match {
-        case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${call.name} because some if its inputs are not defined (i.e. ${noneValue._1}"))
+        case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${callKey.scope.name} because some if its inputs are not defined (i.e. ${noneValue._1}"))
         case None => Success(WdlObject(callOutputsAsMap.map {case (k,v) => k -> v.get}))
       }
     }
@@ -406,7 +415,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       // TODO: This is NOT right. For example: statuses from DB are not just for a FQN, need the scatter index.
       // See also `WorkflowActor.populate` that is similar, but uses indexes.
       workflow.namespace.workflow.calls.map(call =>
-        CallKey(call, None, None) -> statuses.get(call.fullyQualifiedName).get
+        CallKey(call, None, None) -> statuses.get(ExecutionDatabaseKey(call.fullyQualifiedName, None)).get
       ).toMap
     }
   }

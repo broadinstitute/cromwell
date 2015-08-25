@@ -20,9 +20,8 @@ object Scatter {
  * @param parent Parent of this scatter
  */
 case class Scatter(index: Int, item: String, collection: WdlExpression, parent: Option[Scope]) extends Scope {
-
   val name = s"$$scatter_$index"
-
-  override def appearsInFQN = false
-
+  override def appearsInFqn = false
+  override val prerequisiteCallNames = collection.prerequisiteCallNames
+  override lazy val prerequisiteScopes = prerequisiteCalls
 }

@@ -6,9 +6,10 @@ import cromwell.binding.values._
 import cromwell.parser.WdlParser
 import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import cromwell.binding.AstTools.EnhancedAstNode
-
+import WdlExpression._
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
+import scala.language.postfixOps
 
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
 
@@ -238,19 +239,28 @@ object WdlExpression {
 }
 
 case class WdlExpression(ast: AstNode) extends WdlValue {
-
-  import WdlExpression._
-
   override val wdlType = WdlExpressionType
-  def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions, interpolateStrings: Boolean = false): Try[WdlValue] =
+
+  def evaluate(lookup: ScopedLookupFunction,
+               functions: WdlFunctions,
+               interpolateStrings: Boolean = false): Try[WdlValue] = {
     WdlExpression.evaluate(ast, lookup, functions, interpolateStrings)
-  def preevaluateExpressionForFilenames(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] =
+  }
+
+  def preevaluateExpressionForFilenames(lookup: ScopedLookupFunction, functions: WdlFunctions): Try[Seq[WdlFile]] = {
     WdlExpression.preevaluateExpressionForFilenames(ast, lookup: ScopedLookupFunction, functions: WdlFunctions)
+  }
+
   def containsFunctionCall = ast.containsFunctionCalls
+
   def toString(highlighter: SyntaxHighlighter): String = {
     WdlExpression.toString(ast, highlighter)
   }
+
   override def toWdlString: String = toString(NullSyntaxHighlighter)
+
+  def prerequisiteCallNames: Set[LocallyQualifiedName] = this.toMemberAccesses map { _.lhs }
+  def toMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
 }
 
 trait WdlFunctions {

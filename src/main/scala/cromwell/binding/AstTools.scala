@@ -150,7 +150,12 @@ object AstTools {
     }
   }
 
-  /* All MemberAccess ASTs that are not contained in other MemberAccess ASTs */
+  /*
+    All MemberAccess ASTs that are not contained in other MemberAccess ASTs
+
+    The reason this returns a collection would be expressions such as "a.b.c + a.b.d", each one of those
+    would have its own MemberAccess - "a.b.c" and "a.b.d"
+  */
   def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = expr.findAstsWithTrail("MemberAccess").filterNot {
     case(k, v) => v.exists{case a:Ast => a.getName == "MemberAccess"}
   }.keys

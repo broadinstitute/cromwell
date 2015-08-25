@@ -41,7 +41,7 @@ class ScatterPopulateSpec extends FlatSpec with Matchers {
   }
 
   it should "populate scatter WDL example" in {
-    val namespace = NamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource(), BackendType.LOCAL)
+    val namespace = NamespaceWithWorkflow.load(SampleWdl.SiblingsScatterWdl.wdlSource(), BackendType.LOCAL)
 
     // Workflow: Populate the workflow entries
     val workflowEntries = WorkflowActor.populate(namespace.workflow)
@@ -51,7 +51,7 @@ class ScatterPopulateSpec extends FlatSpec with Matchers {
       ("fqn", "type"),
       ("w.A", classOf[CallKey]),
       ("w.$scatter_0", classOf[ScatterKey]),
-      ("w.$scatter_3", classOf[ScatterKey]),
+      ("w.$scatter_1", classOf[ScatterKey]),
       ("w.D", classOf[CallKey]))
 
     forAll(workflowEntriesExpected) {
@@ -63,15 +63,13 @@ class ScatterPopulateSpec extends FlatSpec with Matchers {
 
     val scatter0 = workflowEntries.findScatterKey("w.$scatter_0")
     val scatter0Entries = scatter0.populate(3)
-    scatter0Entries.size should be(20)
+    scatter0Entries.size should be(12) // ((# of calls in the scatter: 3) * (3 shards + 1 collector))
 
     val scatter0EntriesExpected = Table(
       ("fqn", "type"),
       ("w.B", classOf[CallKey]),
       ("w.C", classOf[CallKey]),
-      ("w.E", classOf[CallKey]),
-      ("w.$scatter_1", classOf[ScatterKey]),
-      ("w.$scatter_2", classOf[ScatterKey]))
+      ("w.E", classOf[CallKey]))
 
     forAll(scatter0EntriesExpected) {
       (fqn: FullyQualifiedName, clazz: Class[_]) =>
@@ -82,10 +80,13 @@ class ScatterPopulateSpec extends FlatSpec with Matchers {
     // Scatter 0 created three instances of all children, including Scatter 2.
     // Get the child at Index 1, and populate four entries
 
+    /* TODO: Commented until nested scatters are supported. */
+    /*
     val scatter2 = scatter0Entries.findScatterKey("w.$scatter_2", Option(1))
     val scatter2Entries = scatter2.populate(4)
     scatter2Entries.size should be(5)
     validateScatter(scatter2Entries, "w.H", classOf[CallKey], scatter2, 4)
+    */
   }
 
   def validateWorkflow(entries: ExecutionStore, fqn: FullyQualifiedName, clazz: Class[_]): Unit = {

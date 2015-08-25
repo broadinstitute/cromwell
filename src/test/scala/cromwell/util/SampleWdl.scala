@@ -703,6 +703,7 @@ object SampleWdl {
         |workflow two_step {
         |  String flags_suffix
         |  String flags = "-" + flags_suffix
+        |  String static_string = "foobarbaz"
         |  call cat {
         |    input: flags=flags
         |  }

@@ -57,6 +57,7 @@ class CallExecutionActor(callReference: CallReference) extends Actor with Cromwe
     }
 
     context.parent ! CallActor.ExecutionFinished(call, executionResult)
+    context.stop(self)
   }
 
   override def receive = LoggingReceive {

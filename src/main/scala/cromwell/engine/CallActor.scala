@@ -47,6 +47,9 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
 
   // Called on every state transition.
   onTransition {
+    case _ -> CallDone =>
+      log.debug(s"$tag is done, shutting down.")
+      context.stop(self)
     case fromState -> toState =>
       // Only log this at debug - these states are never seen or used outside of the CallActor itself.
       log.debug(s"$tag transitioning from $fromState to $toState.")

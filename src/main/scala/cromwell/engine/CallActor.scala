@@ -5,12 +5,12 @@ import akka.actor.{LoggingFSM, Props}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.CallActorState
-import cromwell.engine.backend.{TaskAbortedException, Backend}
-import cromwell.engine.workflow.WorkflowActor
+import cromwell.engine.backend.{Backend, TaskAbortedException}
 import cromwell.engine.workflow.WorkflowActor.CallFailed
+import cromwell.engine.workflow.{CallKey, WorkflowActor}
 
 import scala.language.postfixOps
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object CallActor {
 
@@ -28,12 +28,12 @@ object CallActor {
   case object CallAborting extends CallActorState
   case object CallDone extends CallActorState
 
-  def props(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
-    Props(new CallActor(call, locallyQualifiedInputs, backend, workflowDescriptor))
+  def props(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
+    Props(new CallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor)
+class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor)
   extends LoggingFSM[CallActorState, Option[AbortFunction]] with CromwellActor {
 
   import CallActor._
@@ -42,6 +42,7 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
 
   startWith(CallNotStarted, None)
 
+  val call = key.scope
   val callReference = CallReference(workflowDescriptor.name, workflowDescriptor.id, call.fullyQualifiedName)
   val tag = s"CallActor [$callReference]"
 
@@ -106,11 +107,11 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
 
   private def handleFinished(call: Call, outputTry: Try[CallOutputs]): CallActor.this.State = {
     outputTry match {
-      case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(call, outputs)
+      case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(key, outputs)
       case Failure(e: TaskAbortedException) =>
-            context.parent ! WorkflowActor.AbortComplete(call)
+            context.parent ! WorkflowActor.AbortComplete(key)
       case Failure(e: Throwable) =>
-            context.parent ! WorkflowActor.CallFailed(call, e.getMessage)
+            context.parent ! WorkflowActor.CallFailed(key, e.getMessage)
     }
 
     goto(CallDone)

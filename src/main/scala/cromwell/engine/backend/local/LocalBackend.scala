@@ -8,7 +8,7 @@ import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, TaskAbortedException}
-import cromwell.engine.db.{CallStatus, DataAccess}
+import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 
@@ -81,8 +81,8 @@ class LocalBackend extends Backend with LocalFileSystemOperations with LazyLoggi
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
-    def updateNonTerminalCalls(workflowId: WorkflowId, callFqnsToStatuses: Map[FullyQualifiedName, CallStatus]): Future[Unit] = {
-      val callFqnsNeedingUpdate = callFqnsToStatuses.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
+    def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
+      val callFqnsNeedingUpdate = keyToStatusMap.collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn}
       dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
     }
 

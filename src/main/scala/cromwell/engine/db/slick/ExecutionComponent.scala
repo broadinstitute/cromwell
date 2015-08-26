@@ -1,5 +1,8 @@
 package cromwell.engine.db.slick
 
+import cromwell.engine.ExecutionIndex._
+import cromwell.engine.db.ExecutionDatabaseKey
+
 case class Execution
 (
   workflowExecutionId: Int,
@@ -44,13 +47,14 @@ trait ExecutionComponent {
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
-    } yield (execution.callFqn, execution.status))
+    } yield (execution.callFqn, execution.index, execution.status))
 
   val executionStatusByWorkflowExecutionIdAndCallFqn = Compiled(
-    (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
+      if execution.index === index
     } yield execution.status)
 
   val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
@@ -68,10 +72,23 @@ trait ExecutionComponent {
     } yield execution.status)
 
   // see workflowExecutionsByStatuses
-  def executionStatusesByWorkflowExecutionIdAndCallFqns(workflowExecutionId: Int, callFqns: Traversable[String]) = {
-    for {
+  def executionStatusesByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {
+    val falseRep: Rep[Boolean] = false
+    val workflowFilteredQuery = for {
       execution <- executions
-      if execution.workflowExecutionId === workflowExecutionId && (execution.callFqn inSet callFqns)
-    } yield execution.status
+      if execution.workflowExecutionId === workflowExecutionId
+    } yield execution
+
+    val scopeID = scopeKeys.map( k => (k.fqn, k.index.fromIndex)).toIterable
+    /*
+     * FIXME: This is bad, there is probably a better way
+     * We want entries that have the right workflowID AND a (fqn, index) pair which is in scopeKeys
+     * Use workaround because slick does not supporting tuples with inSet ATM: https://github.com/slick/slick/pull/995 
+     */
+    workflowFilteredQuery filter { exec =>
+      scopeID.map {
+        case (name, index) => exec.callFqn === name && exec.index === index
+      }.fold(falseRep)(_ || _)
+    } map { _.status }
   }
 }

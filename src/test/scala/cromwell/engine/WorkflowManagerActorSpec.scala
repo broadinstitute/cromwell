@@ -11,6 +11,7 @@ import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
+import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, WorkflowOutputs, _}
 import cromwell.parser.BackendType
@@ -79,7 +80,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
               _ <- dataAccess.updateWorkflowState(workflowId, workflowState)
-              _ <- dataAccess.setStatus(workflowId, Seq(call.fullyQualifiedName), status)
+              _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
             } yield ()
           }
         )

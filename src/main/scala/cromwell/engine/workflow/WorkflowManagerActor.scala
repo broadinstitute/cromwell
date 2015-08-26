@@ -13,7 +13,7 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, StdoutStderr}
-import cromwell.engine.db.DataAccess
+import cromwell.engine.db.{ExecutionDatabaseKey, DataAccess}
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
@@ -101,7 +101,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def assertCallExistence(id: WorkflowId, callFqn: FullyQualifiedName): Future[Any] = {
-    dataAccess.getExecutionStatus(id, callFqn) map {
+    dataAccess.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None)) map {
       case None => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case _ =>
     }
@@ -120,7 +120,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
-      outputs <- dataAccess.getOutputs(workflowId, callFqn)
+      outputs <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None))
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }
@@ -161,7 +161,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     for {
       _ <- assertWorkflowExistence(workflowId)
       callToStatusMap <- dataAccess.getExecutionStatuses(workflowId)
-      callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap))
+      callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap map { case (k, v) => (k.fqn, v) }))
     } yield callToLogsMap
   }
 

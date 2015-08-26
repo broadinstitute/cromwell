@@ -12,7 +12,12 @@ sealed trait ExecutionStoreKey {
   val parent: Option[ExecutionStoreKey]
 }
 
-case class CallKey(scope: Call, index: Option[Int], parent: Option[ExecutionStoreKey]) extends ExecutionStoreKey
+trait OutputKey extends ExecutionStoreKey
+
+case class CallKey(scope: Call, index: Option[Int], parent: Option[ExecutionStoreKey]) extends OutputKey
+case class CollectorKey(scope: Call, parent: Option[ExecutionStoreKey]) extends OutputKey {
+  val index: Option[Int] = None
+}
 
 case class ScatterKey(scope: Scatter, index: Option[Int], parent: Option[ExecutionStoreKey]) extends ExecutionStoreKey {
 
@@ -22,33 +27,24 @@ case class ScatterKey(scope: Scatter, index: Option[Int], parent: Option[Executi
    * @return ExecutionStore of scattered children.
    */
   def populate(count: Int): ExecutionStore = {
-    val keys = for {
-      childScope <- this.scope.children
-      collector = collectorForChild(childScope, count)
-      entry <- collector +: collector.keys
-    } yield entry
+    val keys = this.scope.children flatMap { explode(_, count) }
 
     (keys map {
       _ -> ExecutionStatus.NotStarted
     }).toMap
   }
 
-  private def collectorForChild(scope: Scope, count: Int): CollectorKey = {
+  private def explode(scope: Scope, count: Int): Seq[ExecutionStoreKey] = {
     val parent = Option(this)
-    val indexed = (0 until count) map { i =>
-      val index = Option(i)
       scope match {
         case call: Call =>
-          CallKey(call, index, parent)
+          val shards = (0 until count) map { i => CallKey(call, Option(i), parent) }
+          shards :+ CollectorKey(call, parent)
         case scatter: Scatter =>
-          ScatterKey(scatter, index, parent)
-      }
+          throw new UnsupportedOperationException("Nested Scatters are not supported (yet).")
+        case e =>
+          throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
     }
-    CollectorKey(scope, parent, indexed)
   }
 }
 
-case class CollectorKey(scope: Scope, parent: Option[ExecutionStoreKey], keys: Seq[ExecutionStoreKey])
-  extends ExecutionStoreKey {
-  override val index = None
-}

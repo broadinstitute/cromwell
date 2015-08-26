@@ -2,6 +2,8 @@ package cromwell.engine.db.slick
 
 import java.sql.Clob
 
+import cromwell.engine.ExecutionIndex._
+
 case class Symbol
 (
   workflowExecutionId: Int,
@@ -53,9 +55,9 @@ trait SymbolComponent {
 
   // Convenience function
   def symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(workflowExecutionUuid: String,
-                                                       io: String, scopeOption: Option[String]) = {
+                                                       io: String, scopeOption: Option[String], indexOption: Option[Int]) = {
     scopeOption match {
-      case Some(scope) => symbolsByWorkflowExecutionUuidAndIoAndScope(workflowExecutionUuid, io, scope)
+      case Some(scope) => symbolsByWorkflowExecutionUuidAndIoAndScopeAndIndex(workflowExecutionUuid, io, scope, indexOption.fromIndex)
       case None => symbolsByWorkflowExecutionUuidAndIo(workflowExecutionUuid, io)
     }
   }
@@ -85,10 +87,10 @@ trait SymbolComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)
 
-  val symbolsByWorkflowExecutionUuidAndIoAndScope = Compiled(
-    (workflowExecutionUuid: Rep[String], io: Rep[String], scope: Rep[String]) => for {
+  val symbolsByWorkflowExecutionUuidAndIoAndScopeAndIndex = Compiled(
+    (workflowExecutionUuid: Rep[String], io: Rep[String], scope: Rep[String], index: Rep[Int]) => for {
       symbol <- symbols
-      if symbol.io === io && symbol.scope === scope
+      if symbol.io === io && symbol.scope === scope && symbol.index === index
       workflowExecution <- symbol.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)

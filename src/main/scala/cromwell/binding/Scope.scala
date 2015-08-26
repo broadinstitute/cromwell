@@ -211,4 +211,17 @@ trait Scope {
    */
   lazy val prerequisiteCalls: Set[Scope] = prerequisiteCallNames flatMap rootScope.callByName
   def callByName(callName: LocallyQualifiedName): Option[Call] = calls find { _.name == callName }
+
+  def ancestry: Seq[Scope] = parent match {
+    case Some(p) => Seq(p) ++ p.ancestry
+    case None => Seq()
+  }
+
+  def closestCommonAncestor(other: Scope): Option[Scope] = {
+    val otherAncestry = other.ancestry
+    ancestry collect { case x if otherAncestry.contains(x) => x} match {
+      case s:Seq[Scope] if s.nonEmpty => Some(s.head)
+      case _ => None
+    }
+  }
 }

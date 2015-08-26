@@ -144,6 +144,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       log.info(s"$tag Start message received")
       executionStore = initWorkflow(createWorkflow())
       symbolsMarkdownTable().foreach {table => log.info(s"Initial symbols:\n\n$table")}
+      executionsMarkdownTable().foreach {table => log.info(s"Initial executions:\n\n$table")}
       startRunnableCalls()
   }
 
@@ -266,57 +267,109 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     log.info(s"$tag created call actor for ${callKey.scope.fullyQualifiedName}.")
   }
 
-  /**
-   * Start all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,
-   * i.e. the calls which should now be eligible to run.  Update status to `Starting` in DataAccess and
-   * start Call actors.  Return a Future of Iterable[Unit] to allow the caller to compose or block.
-   */
-  type CallAndInputs = (Call, Map[String, WdlValue])
   private def tryStartingRunnableCalls(): Try[Any] = {
 
-    def isRunnable(scope: Scope) = {
-      scope match {
-        case call: Call =>
-          // FIXME: Sticking w/ prerequisiteCalls for now until our system is more scope aware
-          call.prerequisiteCalls forall {
-            case previousCall =>
-              executionStore.find(_._1.scope == previousCall).get._2 == ExecutionStatus.Done
-          }
+    def upstreamEntries(entry: ExecutionStoreKey, prerequisiteScope: Scope): Seq[ExecutionStoreEntry] = {
+      prerequisiteScope.closestCommonAncestor(entry.scope) match {
+        /**
+         * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
+         * and that common ancestor is a Scatter block, then find the shard with the same index
+         * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
+         * scope, then depend on the shard (with same index).
+         *
+         * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
+         * work as-is for nested scatter blocks
+         */
+        case Some(ancestor:Scatter) =>
+          executionStore filter { case(k, v) => k.scope == prerequisiteScope && k.index == entry.index } toSeq
+
+        /**
+         * Otherwise, simply refer to the entry the collector entry.  This means that 'entry' depends
+         * on the every shard of the pre-requisite scope to finish.
+         */
+        case _ =>
+          executionStore filter { case(k, v) => k.scope == prerequisiteScope && k.index.isEmpty } toSeq
       }
-    }
-    /**
-     * Start all calls which are currently in state `NotStarted` and whose prerequisites are all `Done`,
-     * i.e. the calls which should now be eligible to run.
-     */
-    def findRunnableCalls: Iterable[CallKey] = {
-      for {
-      // TODO: Need other scopes
-        callEntry <- executionStore if callEntry._1.scope.isInstanceOf[Call] && callEntry._2 == ExecutionStatus.NotStarted
-        call = callEntry._1.scope.asInstanceOf[Call] if isRunnable(call)
-        runnable = callEntry if callEntry._1.scope == call
-      } yield runnable._1.asInstanceOf[CallKey]
     }
 
-    val runnableCalls = findRunnableCalls
-    if (runnableCalls.isEmpty) {
-      log.info(s"$tag no runnable calls to start.")
-      Success(())
-    } else {
-      log.info(s"$tag starting calls: " + runnableCalls.map {_.scope.fullyQualifiedName}.toSeq.sorted.mkString(", "))
-      val futureCallsAndInputs = for {
-        _ <- persistStatus(runnableCalls, ExecutionStatus.Starting)
-        allInputs <- Future.sequence(runnableCalls map {_.scope} map fetchLocallyQualifiedInputs)
-      } yield runnableCalls zip allInputs
-      Await.ready(futureCallsAndInputs, DatabaseTimeout)
-      futureCallsAndInputs.value.get match {
-        case Success(callsAndInputs) =>
-          callsAndInputs foreach { case (call, inputs) => startActor(call, inputs) }
-          Success(())
-        case failure => failure
+    def arePrerequisitesDone(key: ExecutionStoreKey): Boolean = {
+      val upstream = key.scope.prerequisiteScopes.flatMap(s => upstreamEntries(key, s))
+      upstream collect { case entry if entry._2 != ExecutionStatus.Done => entry } match {
+        case s: Set[ExecutionStoreEntry] if s.nonEmpty => false
+        case _ => true
       }
     }
+
+    def isRunnable(entry: ExecutionStoreEntry) = {
+      val (key, status) = entry
+      status == ExecutionStatus.NotStarted && arePrerequisitesDone(key)
+    }
+
+    def findRunnableEntries: Traversable[ExecutionStoreEntry] = executionStore filter isRunnable
+
+    val runnableEntries = findRunnableEntries
+
+    val runnableCalls = runnableEntries collect { case(k: CallKey, v) => k.scope }
+    if (runnableCalls.nonEmpty)
+      log.info(s"$tag starting calls: " + runnableCalls.map(_.fullyQualifiedName).toSeq.sorted.mkString(", "))
+
+    val entries = runnableEntries map {
+      case (k: ScatterKey, v) =>
+        /**
+         * TODO (scatter) lookup function / WDL functions need to be real.  We're probably safe with
+         * using NoFunctions, since a vast majority of the expression will be something like:
+         * `x.y` -or- `x` -or- `[1,2,3]`, none of which are functions.  The lookup function can be crude
+         * at first... simply interpreting variables as either references to Calls or Declarations.
+         *
+         * A more long-term approach would be to traverse the scope hierarchy to resolve a variable into
+         * the closest definition in scope.
+         */
+        val rootWorkflow = k.scope.rootScope match {
+          case w: Workflow => w
+          case _ => throw new WdlExpressionException(s"Expected scatter '$k' to have a workflow root scope.")
+        }
+
+        def scatterLookupFunction(identifier: String): WdlValue = {
+          resolveIdentifierOrElse(identifier, lookupCall(rootWorkflow), lookupDeclaration(rootWorkflow)) {
+            throw new WdlExpressionException(s"Could not resolve identifier '$identifier' as a call or declaration.")
+          }
+        }
+
+        val collection = k.scope.collection.evaluate(scatterLookupFunction, new NoFunctions )
+        collection match {
+          case Success(a: WdlArray) =>
+            val newEntries = k.populate(a.value.size)
+            persistStatus(newEntries.keys collect { case o: OutputKey => o }, ExecutionStatus.Starting)
+            Success(newEntries)
+          case Success(v: WdlValue) => Failure(new Throwable("Scatter collection must evaluate to an array"))
+          case Failure(ex) => Failure(ex)
+        }
+      case (k: CollectorKey, v) =>
+        // TODO (scatter) do collector stuff
+        Failure(new UnsupportedOperationException("IMPLEMENT THIS"))
+      case (k: CallKey, v) =>
+        persistStatus(k, ExecutionStatus.Starting)
+        val futureCallInputs = for {
+          allInputs <- fetchLocallyQualifiedInputs(k.scope)
+        } yield allInputs
+        Await.ready(futureCallInputs, DatabaseTimeout)
+        futureCallInputs.value.get match {
+          case Success(callInputs) =>
+            startActor(k, callInputs)
+            Success(())
+          case failure => failure
+        }
+      case (k, v) =>
+        val message = s"$tag Unknown entry in execution store:\nKEY: $k\nVALUE:$v"
+        log.error(message)
+        Failure(new UnsupportedOperationException(message))
+    }
+    entries.find(_.isFailure) match {
+      case Some(failure) => failure
+      case _ => Success(())
+    }
   }
-  /* Return a Markdown table of all entries in the database */
+
   private def symbolsMarkdownTable(): Option[String] = {
     val header = Seq("SCOPE", "NAME", "I/O", "TYPE", "VALUE")
     val maxColChars = 100
@@ -340,6 +393,54 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
+  private def executionsMarkdownTable(): Option[String] = {
+    val header = Seq("SCOPE", "INDEX", "TYPE", "STATUS")
+    val rows = executionStore map { case (k, v) =>
+      Seq(
+        k.scope.fullyQualifiedNameWithIndexScopes.toString,
+        k.index.getOrElse("").toString,
+        k.getClass.getName,
+        v.toString
+      )
+    }
+    rows.toSeq match {
+      case r:Seq[Seq[String]] if r.isEmpty => None
+      case _ => Some(TerminalUtil.mdTable(rows.toSeq, header))
+    }
+  }
+
+  private def lookupNamespace(name: String): Try[WdlNamespace] = {
+    workflow.namespace.namespaces find { _.importedAs.contains(name) } match {
+      case Some(x) => Success(x)
+      case _ => Failure(new WdlExpressionException(s"Could not resolve $name as a namespace"))
+    }
+  }
+
+  private def lookupCall(workflow: Workflow)(name: String): Try[WdlObject] = {
+    workflow.calls find { _.name == name } match {
+      case Some(matchedCall) =>
+        /* FIXME: patch waiting for lookup function to be index aware */
+        fetchCallOutputEntries(findCallKey(matchedCall, None).get)
+      case None => Failure(new WdlExpressionException(s"Could not find a call with name '$name'"))
+    }
+  }
+
+  private def lookupDeclaration(workflow: Workflow)(name: String): Try[WdlValue] = {
+    workflow.declarations find { _.name == name } match {
+      case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
+      case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$name'"))
+    }
+  }
+
+  private def resolveIdentifierOrElse(identifierString: String, resolvers: ((String) => Try[WdlValue]) *)(orElse: => Try[WdlValue]): WdlValue = {
+    /* Try each of the resolver functions in order.  This uses a lazy Stream to only call a resolver function if a
+     * preceding resolver function failed to resolve the identifier. */
+    val attemptedResolutions = Stream(resolvers: _*) map { _(identifierString) } find { _.isSuccess }
+
+    /* Return the first successful function's value or throw an exception. */
+    attemptedResolutions.getOrElse {orElse}.get
+  }
+
   private def findCallKey(call: Call, index: Option[Int]): Option[CallKey] = {
     executionStore find {
       case (k,v) => k.scope == call && k.index == index
@@ -358,7 +459,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       }
     }
 
-    def lookup(identifierString: String): WdlValue = {
+    def lookup(identifier: String): WdlValue = {
       /* This algorithm defines three ways to lookup an identifier in order of their precedence:
        *
        *   1) Look for a WdlNamespace with matching name
@@ -367,37 +468,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
        *
        * Each method is tried individually and the first to return a Success value takes precedence.
        */
-
-      def lookupNamespace(name: String): Try[WdlNamespace] = {
-        workflow.namespace.namespaces.find {_.importedAs.contains(name)} match {
-          case Some(x) => Success(x)
-          case _ => Failure(new WdlExpressionException(s"Could not resolve $identifierString as a namespace"))
-        }
+      resolveIdentifierOrElse(identifier, lookupNamespace, lookupCall(parentWorkflow), lookupDeclaration(parentWorkflow)) {
+        throw new WdlExpressionException(s"Could not resolve $identifier as a namespace, call, or declaration")
       }
-
-      def lookupCall(name: String): Try[WdlObject] = {
-        parentWorkflow.calls.find {_.name == identifierString} match {
-          case Some(matchedCall) =>
-            /* FIXME: patch waiting for lookup function to be index aware */
-            fetchCallOutputEntries(findCallKey(matchedCall, None).get)
-          case None => Failure(new WdlExpressionException(s"Could not find a call with name '$identifierString'"))
-        }
-      }
-
-      def lookupDeclaration(name: String): Try[WdlValue] = {
-        parentWorkflow.declarations.find {_.name == identifierString} match {
-          case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
-          case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$identifierString'"))
-        }
-      }
-
-      def notFound = throw new WdlExpressionException(s"Could not resolve $identifierString as a namespace, call, or declaration")
-
-      /* Try each of the three methods in sequence. */
-      val attemptedResolutions = Stream(lookupNamespace _, lookupCall _, lookupDeclaration _).map {_(identifierString)}.find {_.isSuccess}
-
-      /* Return the first successful function's value or throw exception */
-      attemptedResolutions.getOrElse {notFound}.get
     }
 
     fetchCallInputEntries(call).map { entries =>

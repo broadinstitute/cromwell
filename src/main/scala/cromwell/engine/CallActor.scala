@@ -55,7 +55,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   when(CallNotStarted) {
     case Event(Start, _) =>
-      sender() ! WorkflowActor.CallStarted(call)
+      sender() ! WorkflowActor.CallStarted(key)
       val backendCall = backend.bindCall(workflowDescriptor, call, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction(callReference)))
       val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
       context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! CallExecutionActor.Execute

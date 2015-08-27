@@ -54,13 +54,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                                     dataAccess: DataAccess)(implicit ec: ExecutionContext) =
       throw new NotImplementedError
 
-    override def setupCallEnvironment(call: Call, workflowDescriptor: WorkflowDescriptor): TaskExecutionContext =
-      throw new NotImplementedError
-
     override def bindCall(workflowDescriptor: WorkflowDescriptor,
                                call: Call,
                                locallyQualifiedInputs: CallInputs,
-                               abortRegistrationFunction: AbortRegistrationFunction): BackendCall = ???
+                               abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
       throw new NotImplementedError
 
     override def execute(bc: BackendCall): Try[Map[String, WdlValue]] =

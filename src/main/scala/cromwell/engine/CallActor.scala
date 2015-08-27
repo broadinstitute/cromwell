@@ -54,18 +54,11 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
 
   when(CallNotStarted) {
     case Event(Start, _) =>
-      val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
-      call.instantiateCommandLine(backendInputs, backend.setupCallEnvironment(call, workflowDescriptor).engineFunctions) match {
-        case Success(commandLine) =>
-          sender() ! WorkflowActor.CallStarted(call)
-          launchCommand(commandLine, backendInputs)
-          goto(CallRunningAbortUnavailable)
-        case Failure(e) =>
-          val message = s"Call '${call.fullyQualifiedName}' failed to launch command: " + e.getMessage
-          log.error(e, s"$tag: $call failed: $message")
-          context.parent ! CallFailed(call, message)
-          goto(CallDone)
-      }
+      sender() ! WorkflowActor.CallStarted(call)
+      val backendCall = backend.bindCall(workflowDescriptor, call, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction(callReference)))
+      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
+      context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! CallExecutionActor.Execute
+      goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, Failure(new TaskAbortedException()))
   }
 
@@ -99,19 +92,6 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
       stay()
   }
 
-  private def launchCommand(commandLine: String, backendInputs: CallInputs): Unit = {
-    val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
-    val executionActor = context.actorOf(CallExecutionActor.props(callReference), executionActorName)
-    val executeMessage = CallExecutionActor.Execute(workflowDescriptor.id,
-                                                    backend,
-                                                    commandLine,
-                                                    workflowDescriptor,
-                                                    call,
-                                                    backendInputs,
-                                                    inputName => locallyQualifiedInputs.get(inputName).get)
-    executionActor ! executeMessage
-  }
-
   private def tryAbort(abortFunction: Option[AbortFunction]): CallActor.this.State = {
     abortFunction match {
       case Some(af) =>
@@ -134,5 +114,9 @@ class CallActor(call: Call, locallyQualifiedInputs: CallInputs, backend: Backend
     }
 
     goto(CallDone)
+  }
+
+  private def registerAbortFunction(callReference: CallReference)(abortFunction: AbortFunction): Unit = {
+    self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }
 }

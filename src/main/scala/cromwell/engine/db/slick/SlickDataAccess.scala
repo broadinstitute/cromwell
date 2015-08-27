@@ -13,6 +13,7 @@ import cromwell.engine._
 import cromwell.engine.backend.Backend
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
 import org.slf4j.LoggerFactory
@@ -220,6 +221,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         case j: JesBackend =>
           // FIXME: Placeholder for now, discussed w/ Khalid
           dataAccess.jesJobsAutoInc += new JesJob(executionInsert.executionId.get, 0, "", None)
+        case s: SgeBackend =>
+          dataAccess.sgeJobsAutoInc += new SgeJob(executionInsert.executionId.get, 0)
         case null =>
           throw new IllegalArgumentException("Backend is null")
         case unknown =>
@@ -319,7 +322,9 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
       jesJobResultOption <- dataAccess.jesJobsByExecutionId(executionResult.executionId.get).result.headOption
 
-      jobResultOption = localJobResultOption orElse jesJobResultOption
+      sgeJobResultOption <- dataAccess.sgeJobsByExecutionId(executionResult.executionId.get).result.headOption
+
+      jobResultOption = localJobResultOption orElse jesJobResultOption orElse sgeJobResultOption
       backendInfo = jobResultOption match {
         case Some(localJobResult: LocalJob) =>
           new LocalCallBackendInfo(
@@ -331,6 +336,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
             ExecutionStatus.withName(executionResult.status),
             jesJobResult.jesId,
             jesJobResult.jesStatus)
+        case Some(sgeJobResult: SgeJob) =>
+          new SgeCallBackendInfo(
+          ExecutionStatus.withName(executionResult.status),
+          sgeJobResult.sgeJobNumber)
         case _ =>
           throw new IllegalArgumentException(
             s"Unknown backend from db for (uuid, fqn): " +
@@ -374,6 +383,11 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
               jesBackendInfo.jesId,
               jesBackendInfo.jesStatus
             )
+
+        case sgeBackendInfo: SgeCallBackendInfo =>
+          dataAccess.sgeJobNumberByExecutionId(
+            executionResult.executionId.get
+          ).update(sgeBackendInfo.sgeJobNumber)
       }
 
       _ = require(backendUpdate == 1, s"Unexpected backend update count $backendUpdate")

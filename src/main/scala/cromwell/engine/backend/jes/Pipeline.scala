@@ -24,7 +24,7 @@ object Pipeline extends LazyLogging {
 
     cpr.setParameters(jesParameters.map(_.toGoogleParameter).toVector.asJava)
 
-    logger.info(s"$tag Pipeline parameters are ${cpr.getParameters}")
+    logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s=>s"  $s").mkString("\n")}")
     val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
     logger.info(s"$tag Pipeline ID is $pipelineId")
     new Pipeline(command, pipelineId, projectId, gcsPath, workflow, call, jesParameters, jesConnection.genomics)

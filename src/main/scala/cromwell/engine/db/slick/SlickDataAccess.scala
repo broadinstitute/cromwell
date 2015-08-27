@@ -199,7 +199,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     keys.toSeq map toWorkflowExecutionCallAction
   }
 
-  def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend) = {
+  override def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- DBIO.sequence(toCallActions(workflowExecution, backend, keys))

@@ -91,11 +91,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    * It's fail-fast on shard output retrieval
    */
   private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[CallKey]): Try[CallOutputs] = Try {
-   /* FIXME: use _.index.fromIndex when merged to "Database SG branch" */
     val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
       fetchCallOutputEntries(e) map { _.value } get
     }
-   /* FIXME: No need for asInstanceOf[Call] when merged to "Database SG branch" */
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(_.get(taskOutput.name).get)
       taskOutput.name -> new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
@@ -113,13 +111,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val shards: Iterable[CallKey] = findShards(collector)
     val collection = for {
       output <- generateCollectorOutput(collector, shards)
-      /* FIXME: should be replaced by awaitCallComplete(collector, output) when merging with "Database SG branch" */
       callComplete <- awaitCallComplete(collector, output)
     } yield callComplete
 
     collection match {
       case Failure(e) =>
-        /* FIXME: should be replaced by CallFailed(collector, e.getMessage) when merging with "Database SG branch" */
         self ! Event(CallFailed(collector, e.getMessage), NoFailureMessage)
       case Success(_) =>
         log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
@@ -481,7 +477,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
     val adjustedInputs = backend.initializeForWorkflow(workflow)
-    dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.workflow.calls, backend)
+    dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.workflow.children, backend)
   }
 
   private def isWorkflowDone: Boolean = executionStore forall isDone

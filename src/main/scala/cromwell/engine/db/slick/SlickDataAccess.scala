@@ -17,7 +17,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
-import cromwell.engine.workflow.{CallKey, OutputKey}
+import cromwell.engine.workflow.{ScatterKey, ExecutionStoreKey, CallKey, OutputKey}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
@@ -147,10 +147,14 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
    */
   override def createWorkflow(workflowInfo: WorkflowInfo,
                               workflowInputs: Traversable[SymbolStoreEntry],
-                              calls: Traversable[Call],
+                              scopes: Traversable[Scope],
                               backend: Backend): Future[Unit] = {
 
-    val callKeys = calls map {CallKey(_, None, None)}
+    val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
+      case call: Call => CallKey(call, None, None)
+      case scatter: Scatter => ScatterKey(scatter, None, None)
+    }
+
     val action = for {
 
       workflowExecutionInsert <- dataAccess.workflowExecutionsAutoInc +=
@@ -171,7 +175,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       // - DBIO.sequence(mySeq) converts Seq[ DBIOAction[R] ] to DBIOAction[ Seq[R] ]
       // - DBIO.fold(mySeq, init) converts Seq[ DBIOAction[R] ] to DBIOAction[R]
 
-      _ <- DBIO.sequence(toCallActions(workflowExecutionInsert, backend, callKeys))
+      _ <- DBIO.sequence(toScopeActions(workflowExecutionInsert, backend, scopeKeys))
 
     } yield ()
 
@@ -194,24 +198,23 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
-  private def toCallActions(workflowExecution: WorkflowExecution, backend: Backend,
-                            keys: Traversable[CallKey]): Seq[DBIO[Unit]] = {
-    def toWorkflowExecutionCallAction(key: CallKey) = toCallAction(workflowExecution, backend, key)
-    keys.toSeq map toWorkflowExecutionCallAction
+  private def toScopeActions(workflowExecution: WorkflowExecution, backend: Backend,
+                            keys: Traversable[ExecutionStoreKey]): Seq[DBIO[Unit]] = {
+    keys.toSeq map toScopeAction(workflowExecution, backend)
   }
 
   override def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-      _ <- DBIO.sequence(toCallActions(workflowExecution, backend, keys))
+      _ <- DBIO.sequence(toScopeActions(workflowExecution, backend, keys))
     } yield ()
 
     runTransaction(action)
   }
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
-  private def toCallAction(workflowExecution: WorkflowExecution, backend: Backend,
-                           key: CallKey): DBIO[Unit] = {
+  private def toScopeAction(workflowExecution: WorkflowExecution, backend: Backend)
+                           (key: ExecutionStoreKey): DBIO[Unit] = {
     for {
     // Insert an execution row
       executionInsert <- dataAccess.executionsAutoInc +=
@@ -445,13 +448,13 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   /** Get all inputs for the scope of this key. */
   override def getInputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
-    require(call != null, "key cannot be null")
+    require(call != null, "call cannot be null")
     getSymbols(workflowId, IoInput, Option(call.fullyQualifiedName))
   }
 
   /** Get all outputs for the scope of this key. */
   override def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]] = {
-    require(key != null, "callFqn cannot be null")
+    require(key != null, "key cannot be null")
     getSymbols(workflowId, IoOutput, Option(key.fqn), key.index)
   }
 

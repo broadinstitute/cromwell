@@ -44,7 +44,7 @@ trait DataAccess {
    */
   def createWorkflow(workflowInfo: WorkflowInfo,
                      workflowInputs: Traversable[SymbolStoreEntry],
-                     calls: Traversable[Call],
+                     calls: Traversable[Scope],
                      backend: Backend): Future[Unit]
 
   def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]]

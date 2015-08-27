@@ -24,7 +24,7 @@ trait ExecutionComponent {
 
     def callFqn = column[String]("CALL_FQN")
 
-    def index = column[Int]("INDEX")
+    def index = column[Int]("IDX")
 
     def status = column[String]("STATUS")
 

@@ -4,7 +4,7 @@ import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
-import cromwell.engine.workflow.OutputKey
+import cromwell.engine.workflow.{CallKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
 import scala.concurrent.duration.Duration
@@ -80,6 +80,8 @@ trait DataAccess {
   def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
 
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
+
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend)
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]

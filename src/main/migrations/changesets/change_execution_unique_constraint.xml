@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="tjeandet" id="change_execution_unique_constraint">
+        <comment>
+            Change unique constraint for Execution Table to include INDEX column.
+        </comment>
+        <dropUniqueConstraint
+                tableName="EXECUTION"
+                constraintName="UK_EX_WORKFLOW_EXECUTION_ID" />
+        <addUniqueConstraint
+                tableName="EXECUTION"
+                columnNames="WORKFLOW_EXECUTION_ID, CALL_FQN, INDEX"
+                constraintName="UK_EX_WORKFLOW_EXECUTION_ID"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -134,25 +134,36 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend))
   }
 
-  def runWdl(fsm: TestFSMRef[WorkflowState, WorkflowActor.WorkflowFailure, WorkflowActor],
+  def runWdl(sampleWdl: SampleWdl,
              eventFilter: EventFilter,
-             expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
-             terminalState: WorkflowState = WorkflowSucceeded): Unit = {
-    assert(fsm.stateName == WorkflowSubmitted)
+             runtime: String = "",
+             terminalState: WorkflowState = WorkflowSucceeded): (TestActorRef[WorkflowManagerActor], WorkflowId) = {
+    val wma = buildWorkflowManagerActor(sampleWdl, runtime)
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    var workflowId: WorkflowId = null
     eventFilter.intercept {
-      fsm ! WorkflowActor.Start
       within(timeoutDuration) {
-        awaitCond(fsm.stateName == WorkflowRunning)
-        awaitCond(fsm.stateName == terminalState)
+        workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
+        verifyWorkflowState(wma, workflowId, terminalState)
+        val outputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
+      }
+    }
 
-        if (terminalState == WorkflowSucceeded)
-          fsm.stateData should be(WorkflowActor.NoFailureMessage)
+    (wma, workflowId)
+  }
 
-        if (terminalState == WorkflowFailed)
-          fsm.stateData.isInstanceOf[WorkflowActor.FailureMessage] shouldEqual true
-
-        val outputs = fsm.ask(WorkflowActor.GetOutputs).mapTo[WorkflowOutputs].futureValue
-
+  def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
+                             eventFilter: EventFilter,
+                             expectedOutputs: Map[FullyQualifiedName, WdlValue],
+                             runtime: String = "",
+                             terminalState: WorkflowState = WorkflowSucceeded): Unit = {
+    val wma = buildWorkflowManagerActor(sampleWdl, runtime)
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    eventFilter.intercept {
+      within(timeoutDuration) {
+        val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
+        verifyWorkflowState(wma, workflowId, terminalState)
+        val outputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
           val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
 
@@ -169,12 +180,21 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
   }
 
-  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
+  /*
+     FIXME: I renamed this as it appears to be asserting the stdout/stderr of a single call which is kinda weird for
+     a full workflow type of thing
+  */
+  def runSingleCallWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor],
+                                     submitMsg: WorkflowManagerActor.SubmitWorkflow,
+                                     eventFilter: EventFilter,
+                                     fqn: FullyQualifiedName,
+                                     stdout: Option[String],
+                                     stderr: Option[String],
+                                     expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty ) = {
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
-        def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], timeoutDuration)
-        awaitCond(workflowStatus.contains(WorkflowSucceeded))
+        verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
         val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], timeoutDuration)
         stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
         stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
@@ -182,20 +202,25 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
   }
 
-  /* TODO: make the `eventFilter` parameter able to accept a `Seq[EventFilter]` */
-  def runWdlAndAssertOutputs(descriptor: WorkflowDescriptor, eventFilter: EventFilter, expectedOutputs: Map[FullyQualifiedName, WdlValue]): Unit = {
-    val fsm = TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
-    runWdl(fsm, eventFilter, expectedOutputs)
-  }
-
-  def runWdlAndAssertOutputs(sampleWdl: SampleWdl, eventFilter: EventFilter, runtime: String = "", expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty, terminalState: WorkflowState = WorkflowSucceeded): Unit = {
-    val fsm = buildFsmWorkflowActor(sampleWdl, runtime)
-    runWdl(fsm, eventFilter, expectedOutputs, terminalState)
-  }
-
-  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {
+  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl,
+                                  eventFilter: EventFilter,
+                                  fqn: FullyQualifiedName,
+                                  runtime: String = "",
+                                  stdout: Option[String] = None,
+                                  stderr: Option[String] = None) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
-    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, stdout, stderr)
+    runSingleCallWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, stdout, stderr)
+  }
+
+  private def verifyWorkflowState(wma: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState): Unit = {
+    // Continuously check the state of the workflow until it is in a terminal state
+    awaitCond(pollWorkflowState(wma, workflowId).exists(_.isTerminal))
+    // Now that it's complete verify that we ended up in the state we're expecting
+    pollWorkflowState(wma, workflowId).get should equal (expectedState)
+  }
+
+  private def pollWorkflowState(wma: ActorRef, workflowId: WorkflowId): Option[WorkflowState] = {
+    Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], timeoutDuration)
   }
 }

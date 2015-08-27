@@ -2,11 +2,11 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.testkit.TestActorRef
+import akka.testkit.{EventFilter, TestActorRef}
 import cromwell.binding._
 import cromwell.binding.command.CommandPart
 import cromwell.binding.types.WdlStringType
-import cromwell.binding.values.WdlString
+import cromwell.binding.values.{WdlInteger, WdlString}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
@@ -17,7 +17,7 @@ import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.{CromwellSpec, CromwellTestkitSpec, binding}
-
+import akka.pattern.ask
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -177,6 +177,16 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           }
         }
       }
+    }
+
+    "run workflows in the correct directory" in {
+      val (wma, workflowId) = runWdl(sampleWdl = SampleWdl.CurrentDirectory,
+                                     EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
+      val outputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[binding.WorkflowOutputs].futureValue
+      val outputName = "whereami.whereami.pwd"
+      val salutation = outputs.get(outputName).get
+      val actualOutput = salutation.asInstanceOf[WdlString].value.trim
+      actualOutput should endWith("/call-whereami")
     }
   }
 }

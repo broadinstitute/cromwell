@@ -45,32 +45,37 @@ package object engine {
   }
 
   case object WorkflowSubmitted extends WorkflowState {
-    override def toString: String = "Submitted"
+    override val toString: String = "Submitted"
     override val isTerminal = false
   }
   
   case object WorkflowRunning extends WorkflowState {
-    override def toString: String = "Running"
+    override val toString: String = "Running"
     override val isTerminal = false
   }
 
   case object WorkflowAborting extends WorkflowState {
-    override def toString: String = "Aborting"
+    override val toString: String = "Aborting"
     override val isTerminal = false
   }
 
   case object WorkflowFailed extends WorkflowState {
-    override def toString: String = "Failed"
+    override val toString: String = "Failed"
     override val isTerminal = true
   }
   
   case object WorkflowSucceeded extends WorkflowState {
-    override def toString: String = "Succeeded"
+    override val toString: String = "Succeeded"
     override val isTerminal = true
   }
 
   case object WorkflowAborted extends WorkflowState {
-    override def toString: String = "Aborted"
+    override val toString: String = "Aborted"
+    override val isTerminal = true
+  }
+
+  case object WorkflowStopped extends WorkflowState {
+    override val toString = "Stopped"
     override val isTerminal = true
   }
 

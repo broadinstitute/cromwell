@@ -13,7 +13,7 @@
         <addUniqueConstraint
                 tableName="EXECUTION"
                 columnNames="WORKFLOW_EXECUTION_ID, CALL_FQN, INDEX"
-                constraintName="UK_EX_WORKFLOW_EXECUTION_ID"/>
+                constraintName="UK_WORKFLOW_CALL_INDEX"/>
     </changeSet>
 
 </databaseChangeLog>

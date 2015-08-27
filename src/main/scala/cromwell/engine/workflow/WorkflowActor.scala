@@ -4,8 +4,9 @@ import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.binding._
-import cromwell.binding.types.{WdlAnyType, WdlArrayType}
+import cromwell.binding.types.WdlArrayType
 import cromwell.binding.values.{WdlArray, WdlObject, WdlValue}
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
@@ -28,10 +29,10 @@ object WorkflowActor {
   case object GetFailureMessage extends WorkflowActorMessage
   case object GetOutputs extends WorkflowActorMessage
   case object AbortWorkflow extends WorkflowActorMessage
-  case class AbortComplete(call: CallKey) extends WorkflowActorMessage
-  case class CallStarted(call: CallKey) extends WorkflowActorMessage
-  case class CallCompleted(call: CallKey, callOutputs: CallOutputs) extends WorkflowActorMessage
-  case class CallFailed(call: CallKey, failure: String) extends WorkflowActorMessage
+  case class AbortComplete(call: OutputKey) extends WorkflowActorMessage
+  case class CallStarted(call: OutputKey) extends WorkflowActorMessage
+  case class CallCompleted(call: OutputKey, callOutputs: CallOutputs) extends WorkflowActorMessage
+  case class CallFailed(call: OutputKey, failure: String) extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
     Props(WorkflowActor(descriptor, backend, dataAccess))
@@ -91,11 +92,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[CallKey]): Try[CallOutputs] = Try {
    /* FIXME: use _.index.fromIndex when merged to "Database SG branch" */
-    val shardsOutputs = shards.toSeq sortBy { _.index.getOrElse(-1) } map { e =>
-      fetchCallOutputEntries(e.scope) map { _.value } get
+    val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
+      fetchCallOutputEntries(e) map { _.value } get
     }
    /* FIXME: No need for asInstanceOf[Call] when merged to "Database SG branch" */
-    collector.scope.asInstanceOf[Call].task.outputs map { taskOutput =>
+    collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(_.get(taskOutput.name).get)
       taskOutput.name -> new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
     } toMap
@@ -113,13 +114,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val collection = for {
       output <- generateCollectorOutput(collector, shards)
       /* FIXME: should be replaced by awaitCallComplete(collector, output) when merging with "Database SG branch" */
-      callComplete <- awaitCallComplete(collector.scope.asInstanceOf[Call], output)
+      callComplete <- awaitCallComplete(collector, output)
     } yield callComplete
 
     collection match {
       case Failure(e) =>
         /* FIXME: should be replaced by CallFailed(collector, e.getMessage) when merging with "Database SG branch" */
-        self ! Event(CallFailed(collector.scope.asInstanceOf[Call], e.getMessage), NoFailureMessage)
+        self ! Event(CallFailed(collector, e.getMessage), NoFailureMessage)
       case Success(_) =>
         log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
     }
@@ -226,30 +227,30 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       dataAccess.updateWorkflowState(workflow.id, toState)
   }
 
-  private def persistStatus(callKey: CallKey, callStatus: CallStatus): Future[Unit] = {
-    persistStatus(Iterable(callKey), callStatus)
+  private def persistStatus(key: OutputKey, callStatus: CallStatus): Future[Unit] = {
+    persistStatus(Iterable(key), callStatus)
   }
 
-  private def persistStatus(callKeys: Traversable[CallKey], callStatus: CallStatus): Future[Unit] = {
-    executionStore ++= callKeys map {
+  private def persistStatus(key: Traversable[OutputKey], callStatus: CallStatus): Future[Unit] = {
+    executionStore ++= key map {
       _ -> callStatus
     }
-    val callFqns = callKeys.map(_.scope.fullyQualifiedName).mkString(", ")
-    log.info(s"$tag persisting status of calls ${callFqns} to $callStatus.")
-    dataAccess.setStatus(workflow.id, callKeys map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)}, callStatus)
+    val callFqns = key.map(_.scope.fullyQualifiedName).mkString(", ")
+    log.info(s"$tag persisting status of calls $callFqns to $callStatus.")
+    dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)}, callStatus)
   }
 
-  private def awaitCallComplete(callKey: CallKey, outputs: CallOutputs): Try[Unit] = {
-    val callFuture = handleCallCompleted(callKey, outputs)
+  private def awaitCallComplete(key: OutputKey, outputs: CallOutputs): Try[Unit] = {
+    val callFuture = handleCallCompleted(key, outputs)
     Await.ready(callFuture, DatabaseTimeout)
     callFuture.value.get
   }
 
-  private def handleCallCompleted(callKey: CallKey, outputs: CallOutputs): Future[Unit] = {
-    log.info(s"$tag handling completion of call '${callKey.scope.fullyQualifiedName}'.")
+  private def handleCallCompleted(key: OutputKey, outputs: CallOutputs): Future[Unit] = {
+    log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
     for {
-      _ <- dataAccess.setOutputs(workflow.id, callKey, outputs)
-      _ <- persistStatus(callKey, ExecutionStatus.Done)
+      _ <- dataAccess.setOutputs(workflow.id, key, outputs)
+      _ <- persistStatus(key, ExecutionStatus.Done)
     } yield ()
   }
 

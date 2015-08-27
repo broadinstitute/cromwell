@@ -262,9 +262,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             new Call(callAlias, "call.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
           }
 
+        val callKey = ExecutionDatabaseKey(call.fullyQualifiedName, None)
+        val shardKey = ExecutionDatabaseKey(call.fullyQualifiedName, Option(0))
+
         def optionallyUpdateExecutionStatus() =
           if (updateStatus)
-            dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), ExecutionStatus.Running)
+            dataAccess.setStatus(workflowId, Seq(callKey), ExecutionStatus.Running)
           else
             Future.successful(())
 
@@ -279,10 +282,52 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             key.index should be(None)
             status should be(if (updateStatus) ExecutionStatus.Running else ExecutionStatus.NotStarted)
           }
+          _ <- dataAccess.insertCalls(workflowId, Seq(CallKey(call, Option(0), None)), localBackend)
+          _ <- dataAccess.setStatus(workflowId, Seq(shardKey), ExecutionStatus.Done)
+          _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
+            result.size should be(2)
+            //Previous call status should not have changed
+            result should contain key callKey
+            val callStatus = result.get(callKey).get
+            callStatus should be(if (updateStatus) ExecutionStatus.Running else ExecutionStatus.NotStarted)
+
+            result should contain key shardKey
+            val shardStatus = result.get(shardKey).get
+            shardStatus should be(ExecutionStatus.Done)
+          }
         } yield ()).futureValue
       }
-
     }
+
+//    it should "insert a call in execution table" in {
+//      assume(canConnect || testRequired)
+//      val callFqn = "call.fully.qualified.scope"
+//      val symbolFqn = "symbol.fully.qualified.scope"
+//      val workflowId = WorkflowId(UUID.randomUUID())
+//      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+//      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
+//      val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
+//      val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
+//      val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
+//      val callKey = CallKey(call, None, None)
+//      (for {
+//        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+//        _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
+//        _ <- dataAccess.insertCalls(workflowId, Seq(callKey), BackendType.LOCAL)
+//        _ <- dataAccess.getInputs(workflowId, call) map { resultSymbols =>
+//          resultSymbols.size should be(1)
+//          val resultSymbol = resultSymbols.head
+//          val resultSymbolStoreKey = resultSymbol.key
+//          resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
+//          resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
+//          resultSymbolStoreKey.index should be(None)
+//          resultSymbolStoreKey.input should be(right = true) // IntelliJ highlighting
+//          resultSymbol.wdlType should be(WdlStringType)
+//          resultSymbol.wdlValue shouldNot be(empty)
+//          resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
+//        }
+//        } yield ()).futureValue
+//    }
 
     it should "fail to get an non-existent execution status" in {
       assume(canConnect || testRequired)
@@ -374,17 +419,23 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, None, None), Map(symbolLqn -> new WdlString("testStringValue")))
+        _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0), None), Map(symbolLqn -> new WdlString("testStringValueShard")))
         _ <- dataAccess.getOutputs(workflowId) map { results =>
-          results.size should be(1)
-          val resultSymbol = results.head
-          val resultSymbolStoreKey = resultSymbol.key
-          resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-          resultSymbolStoreKey.name should be("symbol")
-          resultSymbolStoreKey.index should be(None)
-          resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
-          resultSymbol.wdlType should be(WdlStringType)
-          resultSymbol.wdlValue shouldNot be(empty)
-          resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
+          results.size should be(2)
+
+          results foreach { output =>
+            output.key.scope should be("call.fully.qualified.scope")
+            output.key.name should be("symbol")
+            output.key.input should be(right = false) // IntelliJ highlighting
+            output.wdlType should be(WdlStringType)
+            output.wdlValue shouldNot be(empty)
+          }
+
+          results.head.key.index should be(None)
+          results.head.wdlValue.get should be(new WdlString("testStringValue"))
+
+          results.last.key.index should be(Some(0))
+          results.last.wdlValue.get should be(new WdlString("testStringValueShard"))
         }
       } yield ()).futureValue
     }
@@ -402,18 +453,28 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, None, None), Map(symbolLqn -> new WdlString("testStringValue")))
-        _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
+        _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0), None), Map(symbolLqn -> new WdlString("testStringValueShard")))
+        callOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map {  results =>
+          results.head.key.index should be(None)
+          results.head.wdlValue.get should be(new WdlString("testStringValue"))
+          results
+        }
+        shardOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0))) map {  results =>
+          results.head.key.index should be(Some(0))
+          results.head.wdlValue.get should be(new WdlString("testStringValueShard"))
+          results
+        }
+        _ <- Future(Seq(callOutput, shardOutput) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
           val resultSymbolStoreKey = resultSymbol.key
           resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
           resultSymbolStoreKey.name should be("symbol")
-          resultSymbolStoreKey.index should be(None)
           resultSymbolStoreKey.input should be(right = false) // IntelliJ highlighting
           resultSymbol.wdlType should be(WdlStringType)
           resultSymbol.wdlValue shouldNot be(empty)
-          resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
-        }
+          results
+        })
       } yield ()).futureValue
     }
 

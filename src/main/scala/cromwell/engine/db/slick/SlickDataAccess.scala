@@ -16,7 +16,7 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
-import cromwell.engine.workflow.OutputKey
+import cromwell.engine.workflow.{CallKey, OutputKey}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
@@ -141,7 +141,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   /**
-   * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
+   * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
   override def createWorkflow(workflowInfo: WorkflowInfo,
@@ -149,6 +149,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                               calls: Traversable[Call],
                               backend: Backend): Future[Unit] = {
 
+    val callKeys = calls map {CallKey(_, None, None)}
     val action = for {
 
       workflowExecutionInsert <- dataAccess.workflowExecutionsAutoInc +=
@@ -169,7 +170,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       // - DBIO.sequence(mySeq) converts Seq[ DBIOAction[R] ] to DBIOAction[ Seq[R] ]
       // - DBIO.fold(mySeq, init) converts Seq[ DBIOAction[R] ] to DBIOAction[R]
 
-      _ <- DBIO.sequence(toCallActions(workflowExecutionInsert, backend, calls))
+      _ <- DBIO.sequence(toCallActions(workflowExecutionInsert, backend, callKeys))
 
     } yield ()
 
@@ -193,21 +194,30 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
   private def toCallActions(workflowExecution: WorkflowExecution, backend: Backend,
-                            calls: Traversable[Call]): Seq[DBIO[Unit]] = {
-    def toWorkflowExecutionCallAction(call: Call) = toCallAction(workflowExecution, backend, call)
-    calls.toSeq map toWorkflowExecutionCallAction
+                            keys: Traversable[CallKey]): Seq[DBIO[Unit]] = {
+    def toWorkflowExecutionCallAction(key: CallKey) = toCallAction(workflowExecution, backend, key)
+    keys.toSeq map toWorkflowExecutionCallAction
+  }
+
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend) = {
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+      _ <- DBIO.sequence(toCallActions(workflowExecution, backend, keys))
+    } yield ()
+
+    runTransaction(action)
   }
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
   private def toCallAction(workflowExecution: WorkflowExecution, backend: Backend,
-                           call: Call): DBIO[Unit] = {
+                           key: CallKey): DBIO[Unit] = {
     for {
     // Insert an execution row
       executionInsert <- dataAccess.executionsAutoInc +=
         new Execution(
           workflowExecution.workflowExecutionId.get,
-          call.fullyQualifiedName,
-          None.fromIndex,
+          key.scope.fullyQualifiedName,
+          key.index.fromIndex,
           ExecutionStatus.NotStarted.toString)
 
       // Depending on the backend, insert a job specific row
@@ -419,13 +429,13 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
-  /** Get all inputs for the scope of this call. */
+  /** Get all inputs for the scope of this key. */
   override def getInputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
-    require(call != null, "call cannot be null")
+    require(call != null, "key cannot be null")
     getSymbols(workflowId, IoInput, Option(call.fullyQualifiedName))
   }
 
-  /** Get all outputs for the scope of this call. */
+  /** Get all outputs for the scope of this key. */
   override def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]] = {
     require(key != null, "callFqn cannot be null")
     getSymbols(workflowId, IoOutput, Option(key.fqn), key.index)

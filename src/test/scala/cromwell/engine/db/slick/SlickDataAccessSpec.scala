@@ -304,35 +304,30 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       }
     }
 
-//    it should "insert a call in execution table" in {
-//      assume(canConnect || testRequired)
-//      val callFqn = "call.fully.qualified.scope"
-//      val symbolFqn = "symbol.fully.qualified.scope"
-//      val workflowId = WorkflowId(UUID.randomUUID())
-//      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
-//      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
-//      val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
-//      val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
-//      val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
-//      val callKey = CallKey(call, None, None)
-//      (for {
-//        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
-//        _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-//        _ <- dataAccess.insertCalls(workflowId, Seq(callKey), BackendType.LOCAL)
-//        _ <- dataAccess.getInputs(workflowId, call) map { resultSymbols =>
-//          resultSymbols.size should be(1)
-//          val resultSymbol = resultSymbols.head
-//          val resultSymbolStoreKey = resultSymbol.key
-//          resultSymbolStoreKey.scope should be("call.fully.qualified.scope")
-//          resultSymbolStoreKey.name should be("symbol.fully.qualified.scope")
-//          resultSymbolStoreKey.index should be(None)
-//          resultSymbolStoreKey.input should be(right = true) // IntelliJ highlighting
-//          resultSymbol.wdlType should be(WdlStringType)
-//          resultSymbol.wdlValue shouldNot be(empty)
-//          resultSymbol.wdlValue.get should be(new WdlString("testStringValue"))
-//        }
-//        } yield ()).futureValue
-//    }
+    it should "insert a call in execution table" in {
+      assume(canConnect || testRequired)
+      val callFqn = "call.fully.qualified.scope"
+      val symbolFqn = "symbol.fully.qualified.scope"
+      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowInfo = new WorkflowInfo(workflowId, "source", "{}")
+      val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
+      val entry = new SymbolStoreEntry(key, WdlStringType, Option(new WdlString("testStringValue")))
+      val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
+      val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
+      val callKey = CallKey(call, None, None)
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
+        _ <- dataAccess.insertCalls(workflowId, Seq(callKey), localBackend)
+        _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
+          result.size should be(1)
+          val (key, status) = result.head
+          key.fqn should be("call.fully.qualified.scope")
+          key.index should be(None)
+          status should be(ExecutionStatus.NotStarted)
+        }
+        } yield ()).futureValue
+    }
 
     it should "fail to get an non-existent execution status" in {
       assume(canConnect || testRequired)

@@ -35,7 +35,7 @@ trait ExecutionComponent {
       "FK_EXECUTION_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
     def uniqueKey = index("UK_EX_WORKFLOW_EXECUTION_ID",
-      (workflowExecutionId, callFqn), unique = true)
+      (workflowExecutionId, callFqn, index), unique = true)
   }
 
   protected val executions = TableQuery[Executions]

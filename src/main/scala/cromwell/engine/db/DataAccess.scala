@@ -81,7 +81,7 @@ trait DataAccess {
 
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 
-  def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend)
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[CallKey], backend: Backend): Future[Unit]
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]

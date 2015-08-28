@@ -185,6 +185,8 @@ object WdlExpression {
                   case Some(v:WdlValue) => Success(v)
                   case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
                 }
+              case a: WdlArray if a.wdlType == WdlArrayType(WdlObjectType) =>
+                Success(a map {_.asInstanceOf[WdlObject].value.get(rhs.sourceString).get})
               case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
               case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
             }

@@ -1136,4 +1136,25 @@ object SampleWdl {
       """.stripMargin
     override lazy val rawInputs = Map("" -> "...")
   }
+
+  object SimpleScatterWdl extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task echo_int {
+        |  Int int
+        |  command {echo ${int}}
+        |  output {Int out = read_int(stdout())}
+        |}
+        |
+        |workflow scatter0 {
+        |  Array[Int] ints = [1,2,3,4,5]
+        |  call echo_int as outside_scatter {input: int=8000}
+        |  scatter(i in ints) {
+        |    call echo_int as inside_scatter {
+        |      input: int=i
+        |    }
+        |  }
+        |}
+      """.stripMargin
+    override lazy val rawInputs = Map("" -> "...")
+  }
 }

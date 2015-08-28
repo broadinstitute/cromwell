@@ -5,10 +5,12 @@ import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, TaskAbortedException}
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
+import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 
@@ -40,11 +42,19 @@ object LocalBackend {
   def hostExecutionPath(workflowName: String, workflowUuid: WorkflowId): Path =
     Paths.get(CromwellExecutions, workflowName, workflowUuid.id.toString)
 
-  def hostCallPath(workflow: WorkflowDescriptor, callName: String): Path =
-    Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
+  def hostCallPath(workflow: WorkflowDescriptor, callName: String, callIndex: ExecutionIndex): Path = {
+   val rootCallPath = Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
+    callIndex map { index =>
+      Paths.get(rootCallPath.toFile.getAbsolutePath, s"shard-$index")
+    } getOrElse rootCallPath
+  }
 
-  def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String): Path =
-    Paths.get(hostExecutionPath(workflowName, workflowUuid).toFile.getAbsolutePath, s"call-$callName")
+  def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String, callIndex: ExecutionIndex): Path =  {
+    val rootCallPath = Paths.get(hostExecutionPath(workflowName, workflowUuid).toFile.getAbsolutePath, s"call-$callName")
+    callIndex map { index =>
+      Paths.get(rootCallPath.toFile.getAbsolutePath, s"shard-$index")
+    } getOrElse rootCallPath
+  }
 }
 
 
@@ -57,10 +67,10 @@ class LocalBackend extends Backend with LocalFileSystemOperations with LazyLoggi
   import LocalBackend._
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        call: Call,
+                        key: CallKey,
                         locallyQualifiedInputs: CallInputs,
                         abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
-    LocalBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
+    LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
   override def execute(backendCall: BackendCall): Try[CallOutputs] =  {

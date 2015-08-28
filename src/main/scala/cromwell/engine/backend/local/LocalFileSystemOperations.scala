@@ -6,6 +6,7 @@ import java.nio.file.{Path, Files, Paths}
 import cromwell.binding._
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowId
 import cromwell.engine.backend.{StdoutStderr, LocalFileSystemBackendCall}
 import org.apache.commons.io.FileUtils
@@ -39,8 +40,8 @@ trait LocalFileSystemOperations {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
-    val dir = LocalBackend.hostCallPath(workflowName, workflowId, callName)
+  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr = {
+    val dir = LocalBackend.hostCallPath(workflowName, workflowId, callName, index)
     StdoutStderr(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)

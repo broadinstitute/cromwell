@@ -16,7 +16,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec("ScatterWorkflowSpec") {
         eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.outside_scatter", occurrences = 1),
         expectedOutputs = Map(
           "scatter0.outside_scatter.out" -> WdlInteger(8000),
-          "scatter0.inside_scatter.out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2, 3, 4).map(WdlInteger(_)))
+          "scatter0.inside_scatter.out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(1, 2, 3, 4, 5).map(WdlInteger(_)))
         )
       )
     }

@@ -82,7 +82,7 @@ trait SymbolComponent {
   val symbolsByWorkflowExecutionUuidAndIo = Compiled(
     (workflowExecutionUuid: Rep[String], io: Rep[String]) => for {
       symbol <- symbols
-      if symbol.io === io
+      if symbol.io === io && symbol.index === -1
       workflowExecution <- symbol.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)

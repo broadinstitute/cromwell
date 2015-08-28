@@ -458,7 +458,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     getSymbols(workflowId, IoOutput, Option(key.fqn), key.index)
   }
 
-  /** Returns all outputs for this workflowId */
+  /** Returns all NON SHARDS outputs for this workflowId */
   override def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     getSymbols(workflowId, IoOutput, None, None)
   }

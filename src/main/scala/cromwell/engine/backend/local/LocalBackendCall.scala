@@ -6,16 +6,17 @@ import cromwell.binding.values.WdlValue
 import cromwell.binding.{CallOutputs, CallInputs, Call, WorkflowDescriptor}
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.{LocalFileSystemBackendCall, BackendCall}
+import cromwell.engine.workflow.CallKey
 
 import scala.util.Try
 
 case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,
-                            call: Call,
+                            key: CallKey,
                             locallyQualifiedInputs: CallInputs,
                             callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with LocalFileSystemBackendCall {
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
-  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.name)
+  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.name, key.index)
   val dockerContainerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
   val containerCallRoot = call.docker match {
     case Some(docker) => Paths.get(dockerContainerExecutionDir).resolve(s"call-${call.name}")

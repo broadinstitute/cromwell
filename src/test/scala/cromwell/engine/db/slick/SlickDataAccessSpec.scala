@@ -7,6 +7,7 @@ import cromwell.binding._
 import cromwell.binding.command.CommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlString, WdlValue}
+import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.{LocalBackendCall, LocalBackend}
@@ -44,7 +45,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs =
       throw new NotImplementedError
 
-    override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr =
+    override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr =
       throw new NotImplementedError
 
     override def initializeForWorkflow(workflow: WorkflowDescriptor) =
@@ -55,9 +56,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       throw new NotImplementedError
 
     override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                               call: Call,
-                               locallyQualifiedInputs: CallInputs,
-                               abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
+                          key: CallKey,
+                          locallyQualifiedInputs: CallInputs,
+                          abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
       throw new NotImplementedError
 
     override def execute(bc: BackendCall): Try[Map[String, WdlValue]] =
@@ -323,7 +324,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           key.index should be(None)
           status should be(ExecutionStatus.NotStarted)
         }
-        } yield ()).futureValue
+      } yield ()).futureValue
     }
 
     it should "fail to get an non-existent execution status" in {
@@ -418,21 +419,16 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, None, None), Map(symbolLqn -> new WdlString("testStringValue")))
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0), None), Map(symbolLqn -> new WdlString("testStringValueShard")))
         _ <- dataAccess.getOutputs(workflowId) map { results =>
-          results.size should be(2)
+          results.size should be(1) //getOutputs on a workflowId does NOT return shards outputs
 
-          results foreach { output =>
-            output.key.scope should be("call.fully.qualified.scope")
-            output.key.name should be("symbol")
-            output.key.input should be(right = false) // IntelliJ highlighting
-            output.wdlType should be(WdlStringType)
-            output.wdlValue shouldNot be(empty)
-          }
-
-          results.head.key.index should be(None)
-          results.head.wdlValue.get should be(new WdlString("testStringValue"))
-
-          results.last.key.index should be(Some(0))
-          results.last.wdlValue.get should be(new WdlString("testStringValueShard"))
+          val output = results.head
+          output.key.scope should be("call.fully.qualified.scope")
+          output.key.name should be("symbol")
+          output.key.input should be(right = false) // IntelliJ highlighting
+          output.wdlType should be(WdlStringType)
+          output.wdlValue shouldNot be(empty)
+          output.key.index should be(None)
+          output.wdlValue.get should be(new WdlString("testStringValue"))
         }
       } yield ()).futureValue
     }

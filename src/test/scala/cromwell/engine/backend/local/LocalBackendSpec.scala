@@ -9,6 +9,7 @@ import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.binding.{WdlSource, WorkflowDescriptor}
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.Backend.StdoutStderrException
+import cromwell.engine.workflow.CallKey
 import cromwell.util.SampleWdl
 
 import scala.util.{Failure, Success}
@@ -40,7 +41,7 @@ class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") {
   def testFailOnStderr(descriptor: WorkflowDescriptor, expectSuccess: Boolean): Unit = {
     val call = descriptor.namespace.workflow.calls.head
     val backend = new LocalBackend()
-    val backendCall = backend.bindCall(descriptor, call, Map.empty[String, WdlValue], AbortRegistrationFunction(_ => ()))
+    val backendCall = backend.bindCall(descriptor, CallKey(call, None, None), Map.empty[String, WdlValue], AbortRegistrationFunction(_ => ()))
     backendCall.execute match {
       case Failure(e) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
       case Success(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")

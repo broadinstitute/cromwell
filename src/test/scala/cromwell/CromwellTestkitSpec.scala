@@ -11,6 +11,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlValue}
+import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
@@ -169,13 +170,13 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     }
   }
 
-  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, stdout: Option[String], stderr: Option[String]) = {
+  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor], submitMsg: WorkflowManagerActor.SubmitWorkflow, eventFilter: EventFilter, fqn: FullyQualifiedName, index: ExecutionIndex, stdout: Option[String], stderr: Option[String]) = {
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
         def workflowStatus = Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], timeoutDuration)
         awaitCond(workflowStatus.contains(WorkflowSucceeded))
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[StdoutStderr], timeoutDuration)
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn, index)).mapTo[StdoutStderr], timeoutDuration)
         stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
         stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
       }
@@ -193,9 +194,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     runWdl(fsm, eventFilter, expectedOutputs, terminalState)
   }
 
-  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {
+  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl, eventFilter: EventFilter, fqn: FullyQualifiedName, index: ExecutionIndex, runtime: String = "", stdout: Option[String] = None, stderr: Option[String] = None) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
-    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, stdout, stderr)
+    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, index, stdout, stderr)
   }
 }

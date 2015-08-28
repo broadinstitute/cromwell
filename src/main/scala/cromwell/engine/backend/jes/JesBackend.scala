@@ -12,6 +12,8 @@ import cromwell.binding.WdlExpression._
 import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
+import cromwell.engine.ExecutionIndex.ExecutionIndex
+import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
 import cromwell.engine.backend.{BackendCall, TaskAbortedException, Backend, StdoutStderr}
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -47,12 +49,14 @@ object JesBackend {
 
   val JesCromwellRoot = "/cromwell_root"
 
-  def callGcsPath(workflowId: String, workflowName: String, callName: String): String =
-    s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName"
+  def callGcsPath(workflowId: String, workflowName: String, callName: String, index: ExecutionIndex): String = {
+    val shardPath = index map { i => s"/shard-$i"} getOrElse ""
+    s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName$shardPath"
+  }
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
-    def callDir(call: Call) = callGcsPath(descriptor.id.toString, descriptor.name, call.name)
+    def callDir(key: CallKey) = callGcsPath(descriptor.id.toString, descriptor.name, key.scope.name, key.index)
   }
 
   def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
@@ -149,8 +153,8 @@ class JesBackend extends Backend with LazyLogging {
     JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
   }
 
-  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String): StdoutStderr = {
-    val base = callGcsPath(workflowId.toString, workflowName, callName)
+  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr = {
+    val base = callGcsPath(workflowId.toString, workflowName, callName, index)
     StdoutStderr(
       stdout = WdlFile(s"$base/$LocalStdoutValue"),
       stderr = WdlFile(s"$base/$LocalStderrValue")
@@ -158,10 +162,10 @@ class JesBackend extends Backend with LazyLogging {
   }
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        call: Call,
+                        key: CallKey,
                         locallyQualifiedInputs: CallInputs,
                         abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
-    JesBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
+    JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
   def execute(backendCall: BackendCall): Try[CallOutputs] = {
@@ -210,7 +214,7 @@ class JesBackend extends Backend with LazyLogging {
     logger.info(s"$tag `$command`")
     JesConnection.storage.uploadObject(backendCall.gcsExecPath, command)
 
-    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.call, jesParameters, GoogleProject, JesConnection).run
+    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, GoogleProject, JesConnection).run
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
     run.waitUntilRunningOrComplete()
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))

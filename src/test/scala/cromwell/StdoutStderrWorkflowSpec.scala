@@ -15,6 +15,7 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
         sampleWdl = SampleWdl.HelloWorld,
         eventFilter = EventFilter.info(pattern = s"persisting status of calls hello.hello to Done", occurrences = 1),
         fqn = "hello.hello",
+        index = None,
         stdout = Some("Hello world!\n"),
         stderr = Some("")
       )
@@ -29,6 +30,7 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
             |}
           """.stripMargin,
         fqn = "hello.hello",
+        index = None,
         stdout = Some("Hello world!\n"),
         stderr = Some("")
       )

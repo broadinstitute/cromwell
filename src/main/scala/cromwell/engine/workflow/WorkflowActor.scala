@@ -344,7 +344,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         case _ => throw new WdlExpressionException(s"Expected scatter '$k' to have a workflow root scope.")
       }
 
-      val collection = k.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow), new NoFunctions )
+      val collection = k.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, k), new NoFunctions )
       collection match {
         case Success(a: WdlArray) =>
           val newEntries = k.populate(a.value.size)
@@ -456,13 +456,23 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  private def lookupCall(workflow: Workflow)(name: String): Try[WdlObject] = {
+  private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlObject] = {
     workflow.calls find { _.name == name } match {
       case Some(matchedCall) =>
-        // TODO: take extra root:Call parameter:
-        //   - return Array[Object] if root and matchedCall do not share scatter ancestor
-        //   - return Object if they are in the same scatter block
-        fetchCallOutputEntries(findOutputKey(matchedCall, None).getOrElse {
+        /* TODO: take extra root:Call parameter:
+         *   - return Array[Object] if root and matchedCall do not share scatter ancestor
+         *   - return Object if they are in the same scatter block
+        */
+        /* TODO: Attempt to implement the above TODO to contextualize the index. Not sure if it works in every case, especially when nesting
+         * Try to find out if matchedCall has a common Scatter ancestor with the key
+         * If it does it means we need to look for the corresponding shard, so we use the index
+         * In any other case we return the "normal" output
+         */
+        val index: Option[Int] = matchedCall.closestCommonAncestor(key.scope) flatMap {
+          case s: Scatter => key.index
+          case _ => None
+        }
+        fetchCallOutputEntries(findOutputKey(matchedCall, index).getOrElse {
           throw new WdlExpressionException(s"Could not find a callKey for name '${matchedCall.name}'")
         })
       case None => Failure(new WdlExpressionException(s"Could not find a call with name '$name'"))
@@ -479,7 +489,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def lookupScatterVariable(callKey: CallKey, workflow: Workflow)(name: String): Try[WdlValue] = {
     val scatterBlock = callKey.scope.ancestry collect {case s:Scatter if s.item == name => s} headOption
     val scatterCollection = scatterBlock map { s =>
-      s.collection.evaluate(scatterCollectionLookupFunction(workflow), new NoFunctions) match {
+      s.collection.evaluate(scatterCollectionLookupFunction(workflow, callKey), new NoFunctions) match {
         // TODO: index out-of-bounds?
         case Success(v: WdlArray) if callKey.index.isDefined => Success(v.value(callKey.index.get))
         case _ => Failure(new WdlExpressionException(s"$name did not evaluate to a WdlArray"))
@@ -529,13 +539,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
        * Each method is tried individually and the first to return a Success value takes precedence.
        */
 
-      resolveIdentifierOrElse(identifier, lookupScatterVariable(callKey, parentWorkflow), lookupNamespace, lookupCall(parentWorkflow), lookupDeclaration(parentWorkflow)) {
+      resolveIdentifierOrElse(identifier, lookupScatterVariable(callKey, parentWorkflow), lookupNamespace, lookupCall(callKey, parentWorkflow), lookupDeclaration(parentWorkflow)) {
         throw new WdlExpressionException(s"Could not resolve $identifier as a namespace, call, or declaration")
       }
     }
-if(callKey.scope.name == "C") {
-  println()
-}
 
     fetchCallInputEntries(callKey.scope).map { entries =>
       entries.map { entry =>
@@ -636,8 +643,8 @@ if(callKey.scope.name == "C") {
    * For example, scatter(x in foo.bar) would evaluate the collection "foo.bar"
    * and call this lookup function on "foo"
    */
-  private def scatterCollectionLookupFunction(workflow: Workflow)(identifier: String): WdlValue = {
-    resolveIdentifierOrElse(identifier, lookupCall(workflow), lookupDeclaration(workflow)) {
+  private def scatterCollectionLookupFunction(workflow: Workflow, key: ExecutionStoreKey)(identifier: String): WdlValue = {
+    resolveIdentifierOrElse(identifier, lookupCall(key, workflow), lookupDeclaration(workflow)) {
       throw new WdlExpressionException(s"Could not resolve identifier '$identifier' as a call or declaration.")
     }
   }

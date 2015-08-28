@@ -277,7 +277,7 @@ grammar {
       (-:unary) $e = :plus $e -> UnaryPlus(expression=$1)
       (-:unary) $e = :dash $e -> UnaryNegation(expression=$1)
       (*:left) $e = :identifier <=> :lparen list($e, :comma) :rparen -> FunctionCall(name=$0, params=$2)
-      (*:left) $e = :identifier <=> :lsquare $e :rsquare -> ArrayIndex(lhs=$0, rhs=$2)
+      (*:left) $e = :identifier <=> :lsquare $e :rsquare -> ArrayOrMapLookup(lhs=$0, rhs=$2)
       (*:left) $e = :identifier <=> :dot :identifier -> MemberAccess(lhs=$0, rhs=$2)
       # TODO: is there a better object literal syntax?
       (*:left) $e = :object :lbrace list($object_kv, :comma) :rbrace -> ObjectLiteral(map=$2)

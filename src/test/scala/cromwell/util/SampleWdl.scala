@@ -976,4 +976,35 @@ object SampleWdl {
 
     override val rawInputs =  Map.empty[String, String]
   }
+
+  object ArrayAndMapIndexingWdl extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task echo_str {
+        |  String s
+        |  command { echo ${s} }
+        |  output { String o = read_string(stdout()) }
+        |  RUNTIME
+        |}
+        |
+        |task echo_int {
+        |  Int i
+        |  command { echo ${i} }
+        |  output { Int o = read_int(stdout()) }
+        |  RUNTIME
+        |}
+        |
+        |workflow test {
+        |  Map[String, Int] m = {"a": 0, "b": 1, "c": 2}
+        |  Array[String] a = ["foo", "bar", "baz"]
+        |  call echo_str {
+        |    input: s = a[1]
+        |  }
+        |  call echo_int {
+        |    input: i = m["c"]*100
+        |  }
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    override val rawInputs =  Map.empty[String, String]
+  }
 }

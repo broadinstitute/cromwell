@@ -75,9 +75,7 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
         }
     }
 
-    val tryCoercedValues = workflow.inputs.map {input =>
-      input.fqn -> coerceRawInput(input)
-    }.toMap
+    val tryCoercedValues = workflow.inputs map { case (fqn, input) => fqn -> coerceRawInput(input) }
 
     val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
     if (failures.isEmpty) {

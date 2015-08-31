@@ -186,6 +186,13 @@ object WdlExpression {
                   case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
                 }
               case a: WdlArray if a.wdlType == WdlArrayType(WdlObjectType) =>
+                /**
+                 * This case is for slicing an Array[Object], used mainly for scatter-gather.
+                 * For example, if 'call foo' was in a scatter block, foo's outputs (e.g. Int x)
+                 * would be an Array[Int].  If a downstream call has an input expression "foo.x",
+                 * then 'foo' would evaluate to an Array[Objects] and foo.x would result in an
+                 * Array[Int]
+                 */
                 Success(a map {_.asInstanceOf[WdlObject].value.get(rhs.sourceString).get})
               case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
               case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))

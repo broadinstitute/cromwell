@@ -292,7 +292,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       }
       val dependencies = upstream.flatten ++ downstream
       val dependenciesResolved = dependencies.isEmpty || dependencies.forall(isDone)
-      /*
+
+      /**
        * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
        * If a scope cannot be resolved it may be because it is in a scatter that has not been populated yet,
        * therefore there is no entry in the executionStore for this scope.
@@ -306,65 +307,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       status == ExecutionStatus.NotStarted && arePrerequisitesDone(key)
     }
 
-    def processRunnableScatter(k: ScatterKey, v: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
-      /**
-       * TODO (scatter) lookup function / WDL functions need to be real.  We're probably safe with
-       * using NoFunctions, since a vast majority of the expression will be something like:
-       * `x.y` -or- `x` -or- `[1,2,3]`, none of which are functions.  The lookup function can be crude
-       * at first... simply interpreting variables as either references to Calls or Declarations.
-       *
-       * A more long-term approach would be to traverse the scope hierarchy to resolve a variable into
-       * the closest definition in scope.
-       */
-      val rootWorkflow = k.scope.rootScope match {
-        case w: Workflow => w
-        case _ => throw new WdlExpressionException(s"Expected scatter '$k' to have a workflow root scope.")
-      }
-
-      val collection = k.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, k), new NoFunctions )
-      collection match {
-        case Success(a: WdlArray) =>
-          val newEntries = k.populate(a.value.size)
-          val createScatter = for {
-            _ <- dataAccess.insertCalls(workflow.id, newEntries.keys, backend)
-            _ <- persistStatus(newEntries.keys, ExecutionStatus.NotStarted)
-            _ <- persistStatus(k, ExecutionStatus.Done)
-          } yield ()
-          Await.result(createScatter, DatabaseTimeout)
-          Success(newEntries.keys)
-        case Success(v: WdlValue) => Failure(new Throwable("Scatter collection must evaluate to an array"))
-        case Failure(ex) => Failure(ex)
-      }
-    }
-
-    def processRunnableCollector(collector: CollectorKey): Try[Iterable[ExecutionStoreKey]] = {
-      persistStatus(collector, ExecutionStatus.Starting)
-      val shards: Iterable[CallKey] = findShards(collector)
-
-      generateCollectorOutput(collector, shards) match {
-        case Failure(e) =>
-          self ! CallFailed(collector, e.getMessage)
-        case Success(outputs) =>
-          log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
-          self ! CallCompleted(collector, outputs)
-      }
-      Success(Seq.empty[ExecutionStoreKey])
-    }
-
-    def processRunnableCall(k: CallKey, v: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
-      persistStatus(k, ExecutionStatus.Starting)
-      val futureCallInputs = for {
-        allInputs <- fetchLocallyQualifiedInputs(k)
-      } yield allInputs
-      Await.ready(futureCallInputs, DatabaseTimeout)
-      futureCallInputs.value.get match {
-        case Success(callInputs) =>
-          startActor(k, callInputs)
-          Success(Seq.empty[ExecutionStoreKey])
-        case Failure(ex) => Failure(ex)
-      }
-    }
-
     def findRunnableEntries: Traversable[ExecutionStoreEntry] = executionStore filter isRunnable
 
     val runnableEntries = findRunnableEntries
@@ -373,12 +315,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     if (runnableCalls.nonEmpty)
       log.info(s"$tag starting calls: " + runnableCalls.map(_.fullyQualifiedName).toSeq.sorted.mkString(", "))
 
-    /**
-     * TODO: This can probably be expressed better.
-     *
-     * It takes all runnable entries, and calls the corresponding 'process' method.
-     * These methods return any new entries that they've added to the database.
-     */
     val entries: Traversable[Try[Iterable[ExecutionStoreKey]]] = runnableEntries map {
       case (k: ScatterKey, v) => processRunnableScatter(k, v)
       case (k: CollectorKey, v) => processRunnableCollector(k)
@@ -395,47 +331,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  private def symbolsMarkdownTable(): Option[String] = {
-    val header = Seq("SCOPE", "NAME", "I/O", "TYPE", "VALUE")
-    val maxColChars = 100
-    val rows = fetchAllEntries.map { entry =>
-      val valueString = entry.wdlValue match {
-        case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
-        case _ => ""
-      }
-      Seq(
-        entry.key.scope,
-        entry.key.name,
-        if (entry.key.input) "INPUT" else "OUTPUT",
-        entry.wdlType.toWdlString,
-        if (valueString.length > maxColChars) valueString.substring(0, maxColChars) else valueString
-      )
-    }.toSeq
-
-    rows match {
-      case r: Seq[Seq[String]] if r.isEmpty => None
-      case _ => Some(TerminalUtil.mdTable(rows, header))
-    }
-  }
-
-  private def executionsMarkdownTable(): Option[String] = {
-    val header = Seq("SCOPE", "INDEX", "STATUS")
-    val futureRows = dataAccess.getExecutionStatuses(workflow.id) map { entries =>
-      entries map { case(k, v) =>
-        Seq(
-          k.fqn.toString,
-          k.index.getOrElse("").toString,
-          v.toString
-        )
-      }
-    }
-    val rows = Await.result(futureRows, DatabaseTimeout)
-    rows.toSeq match {
-      case r:Seq[Seq[String]] if r.isEmpty => None
-      case _ => Some(TerminalUtil.mdTable(rows.toSeq, header))
-    }
-  }
-
   private def lookupNamespace(name: String): Try[WdlNamespace] = {
     workflow.namespace.namespaces find { _.importedAs.contains(name) } match {
       case Some(x) => Success(x)
@@ -446,14 +341,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlObject] = {
     workflow.calls find { _.name == name } match {
       case Some(matchedCall) =>
-        /* TODO: take extra root:Call parameter:
-         *   - return Array[Object] if root and matchedCall do not share scatter ancestor
-         *   - return Object if they are in the same scatter block
-        */
-        /* Attempt to implement the above to contextualize the index. Not sure if it works in every case, especially when nesting
-         * Try to find out if matchedCall has a common Scatter ancestor with the key
-         * If it does it means we need to look for the corresponding shard, so we use the index
-         * In any other case we return the "normal" output
+        /**
+         * After matching the Call, this determines if the `key` depends on a single shard
+         * of a scatter'd job or if it depends on the whole thing.  Right now, the heuristic
+         * is "If we're both in a scatter block together, then I depend on a shard.  If not,
+         * I depend on the collected value"
+         *
+         * TODO: nested-scatter - this will likely not be sufficient for nested scatters
          */
         val index: ExecutionIndex = matchedCall.closestCommonAncestor(key.scope) flatMap {
           case s: Scatter => key.index
@@ -512,12 +406,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent.")
     }
 
-    object CallInputWdlFunctions extends WdlFunctions {
-      def getFunction(name: String): WdlFunction = {
-        throw new WdlExpressionException("TODO: Some functions may be allowed in this context")
-      }
-    }
-
     def lookup(identifier: String): WdlValue = {
       /* This algorithm defines three ways to lookup an identifier in order of their precedence:
        *
@@ -536,7 +424,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     fetchCallInputEntries(callKey.scope).map { entries =>
       entries.map { entry =>
         val value = entry.wdlValue match {
-          case Some(e: WdlExpression) => e.evaluate(lookup, CallInputWdlFunctions) match {
+          case Some(e: WdlExpression) => e.evaluate(lookup, new NoFunctions) match {
             case Success(s) => s
             case Failure(f) => throw f
           }
@@ -630,7 +518,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    * This is the lookup function used to evaluate scatter collection expressions.
    *
    * For example, scatter(x in foo.bar) would evaluate the collection "foo.bar"
-   * and call this lookup function on "foo"
+   * and call this lookup function on "foo".
+   *
+   * This implementation takes a few shortcuts and tries to find a Call or
+   * Declaration with the given name in the workflow.
+   *
+   * A more long-term approach would be to traverse the scope hierarchy to resolve a variable into
+   * the closest definition in scope.
    */
   private def scatterCollectionLookupFunction(workflow: Workflow, key: ExecutionStoreKey)(identifier: String): WdlValue = {
     resolveIdentifierOrElse(identifier, lookupCall(key, workflow), lookupDeclaration(workflow)) {
@@ -641,4 +535,96 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def isWorkflowDone: Boolean = executionStore forall isDone
 
   private def isWorkflowAborted: Boolean = executionStore forall { x => isTerminal(x._2) || x._2 == ExecutionStatus.NotStarted }
+
+  private def processRunnableScatter(k: ScatterKey, v: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
+    val rootWorkflow = k.scope.rootScope match {
+      case w: Workflow => w
+      case _ => throw new WdlExpressionException(s"Expected scatter '$k' to have a workflow root scope.")
+    }
+
+    val collection = k.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, k), new NoFunctions)
+    collection match {
+      case Success(a: WdlArray) =>
+        val newEntries = k.populate(a.value.size)
+        val createScatter = for {
+          _ <- dataAccess.insertCalls(workflow.id, newEntries.keys, backend)
+          _ <- persistStatus(newEntries.keys, ExecutionStatus.NotStarted)
+          _ <- persistStatus(k, ExecutionStatus.Done)
+        } yield ()
+        Await.result(createScatter, DatabaseTimeout)
+        Success(newEntries.keys)
+      case Success(v: WdlValue) => Failure(new Throwable("Scatter collection must evaluate to an array"))
+      case Failure(ex) => Failure(ex)
+    }
+  }
+
+  private def processRunnableCollector(collector: CollectorKey): Try[Iterable[ExecutionStoreKey]] = {
+    persistStatus(collector, ExecutionStatus.Starting)
+    val shards: Iterable[CallKey] = findShards(collector)
+
+    generateCollectorOutput(collector, shards) match {
+      case Failure(e) =>
+        self ! CallFailed(collector, e.getMessage)
+      case Success(outputs) =>
+        log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
+        self ! CallCompleted(collector, outputs)
+    }
+    Success(Seq.empty[ExecutionStoreKey])
+  }
+
+  private def processRunnableCall(k: CallKey, v: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
+    persistStatus(k, ExecutionStatus.Starting)
+    val futureCallInputs = for {
+      allInputs <- fetchLocallyQualifiedInputs(k)
+    } yield allInputs
+    Await.ready(futureCallInputs, DatabaseTimeout)
+    futureCallInputs.value.get match {
+      case Success(callInputs) =>
+        startActor(k, callInputs)
+        Success(Seq.empty[ExecutionStoreKey])
+      case Failure(ex) => Failure(ex)
+    }
+  }
+
+  private def symbolsMarkdownTable(): Option[String] = {
+    val header = Seq("SCOPE", "NAME", "INDEX", "I/O", "TYPE", "VALUE")
+    val maxColChars = 100
+    val rows = fetchAllEntries.map { entry =>
+      val valueString = entry.wdlValue match {
+        case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
+        case _ => ""
+      }
+      Seq(
+        entry.key.scope,
+        entry.key.name,
+        entry.key.index.map(_.toString).getOrElse(""),
+        if (entry.key.input) "INPUT" else "OUTPUT",
+        entry.wdlType.toWdlString,
+        if (valueString.length > maxColChars) valueString.substring(0, maxColChars) else valueString
+      )
+    }.toSeq
+
+    rows match {
+      case r: Seq[Seq[String]] if r.isEmpty => None
+      case _ => Some(TerminalUtil.mdTable(rows, header))
+    }
+  }
+
+  private def executionsMarkdownTable(): Option[String] = {
+    val header = Seq("SCOPE", "INDEX", "STATUS")
+    val futureRows = dataAccess.getExecutionStatuses(workflow.id) map { entries =>
+      entries map { case(k, v) =>
+        Seq(
+          k.fqn.toString,
+          k.index.getOrElse("").toString,
+          v.toString
+        )
+      }
+    }
+    val rows = Await.result(futureRows, DatabaseTimeout)
+    rows.toSeq match {
+      case r:Seq[Seq[String]] if r.isEmpty => None
+      case _ => Some(TerminalUtil.mdTable(rows.toSeq, header))
+    }
+  }
 }

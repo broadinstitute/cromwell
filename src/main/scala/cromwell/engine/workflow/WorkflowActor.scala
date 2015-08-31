@@ -110,22 +110,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   /**
-   * Gathers and completes Collector Calls.
-   */
-  private def collectScatter(collector: CollectorKey) = {
-    persistStatus(collector, ExecutionStatus.Starting)
-    val shards: Iterable[CallKey] = findShards(collector)
-
-    generateCollectorOutput(collector, shards) match {
-      case Failure(e) =>
-        self ! CallFailed(collector, e.getMessage)
-      case Success(outputs) =>
-        log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
-        self ! CallCompleted(collector, outputs)
-    }
-  }
-
-  /**
    * Attempt to start all runnable calls.  If successful, go to the `WorkflowRunning` state if not already in that
    * state, otherwise remain in `WorkflowRunning`.  If not successful, go to `WorkflowFailed`.
    */
@@ -237,13 +221,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       _ -> callStatus
     }
 
-    val callFqns = key.map(_.scope.fullyQualifiedName).mkString(", ")
-    // TODO: change this log message to include scopes.  Some tests rely on this message being there though.
-    // Use a log message like the one on the line below this one
-    log.info(s"$tag persisting status of calls $callFqns to $callStatus.")
-    key.foreach(k =>
-      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}${k.index.map(i=>s" (index $i)").getOrElse("")} to $callStatus")
-    )
+    key.foreach { k =>
+      val indexLog = k.index.map(i => s" (index $i)").getOrElse("")
+      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $callStatus.")
+    }
 
     dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, callStatus)
   }
@@ -256,11 +237,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   private def handleCallCompleted(key: OutputKey, outputs: CallOutputs): Future[Unit] = {
     log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
-    Await.result(dataAccess.setOutputs(workflow.id, key, outputs), DatabaseTimeout)
-    Await.result(persistStatus(key, ExecutionStatus.Done), DatabaseTimeout)
-
-    symbolsMarkdownTable() foreach log.info
-    Future(println(outputs.toMap))
+    for {
+      _ <- dataAccess.setOutputs(workflow.id, key, outputs)
+      _ <- persistStatus(key, ExecutionStatus.Done)
+    } yield()
   }
 
   private def startActor(callKey: CallKey, locallyQualifiedInputs: Map[String, WdlValue]): Unit = {
@@ -306,22 +286,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
     def arePrerequisitesDone(key: ExecutionStoreKey): Boolean = {
       val upstream = key.scope.prerequisiteScopes.map(s => upstreamEntries(key, s))
+      val downstream = key match {
+        case collector: CollectorKey => findShardEntries(collector)
+        case _ => Nil
+      }
+      val dependencies = upstream.flatten ++ downstream
+      val dependenciesResolved = dependencies.isEmpty || dependencies.forall(isDone)
       /*
        * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
        * If a scope cannot be resolved it may be because it is in a scatter that has not been populated yet,
        * therefore there is no entry in the executionStore for this scope.
-       * If that's the case this prerequisiteScope has not been run yet, so we return false immediately.
+       * If that's the case this prerequisiteScope has not been run yet, hence the (upstream forall {_.nonEmpty})
        */
-      if(upstream exists {_.isEmpty}) {
-        false
-      } else {
-        val downstream = key match {
-          case collector: CollectorKey => findShardEntries(collector)
-          case _ => Nil
-        }
-        val dependencies = upstream.flatten ++ downstream
-        dependencies.isEmpty || dependencies.forall(isDone)
-      }
+      (upstream forall {_.nonEmpty}) && dependenciesResolved
     }
 
     def isRunnable(entry: ExecutionStoreEntry) = {
@@ -348,19 +325,29 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       collection match {
         case Success(a: WdlArray) =>
           val newEntries = k.populate(a.value.size)
-          Await.result(dataAccess.insertCalls(workflow.id, newEntries.keys, backend), DatabaseTimeout)
-          Await.result(persistStatus(newEntries.keys, ExecutionStatus.NotStarted), DatabaseTimeout)
-          Await.result(persistStatus(k, ExecutionStatus.Done), DatabaseTimeout)
-          executionsMarkdownTable().foreach {table => log.info(s"New execution table entries added:\n\n$table")}
+          val createScatter = for {
+            _ <- dataAccess.insertCalls(workflow.id, newEntries.keys, backend)
+            _ <- persistStatus(newEntries.keys, ExecutionStatus.NotStarted)
+            _ <- persistStatus(k, ExecutionStatus.Done)
+          } yield ()
+          Await.result(createScatter, DatabaseTimeout)
           Success(newEntries.keys)
         case Success(v: WdlValue) => Failure(new Throwable("Scatter collection must evaluate to an array"))
         case Failure(ex) => Failure(ex)
       }
     }
 
-    def processRunnableCollector(k: CollectorKey, v: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
-      // TODO: merge collectScatter and processRunnableCollector
-      collectScatter(k)
+    def processRunnableCollector(collector: CollectorKey): Try[Iterable[ExecutionStoreKey]] = {
+      persistStatus(collector, ExecutionStatus.Starting)
+      val shards: Iterable[CallKey] = findShards(collector)
+
+      generateCollectorOutput(collector, shards) match {
+        case Failure(e) =>
+          self ! CallFailed(collector, e.getMessage)
+        case Success(outputs) =>
+          log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
+          self ! CallCompleted(collector, outputs)
+      }
       Success(Seq.empty[ExecutionStoreKey])
     }
 
@@ -394,7 +381,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
      */
     val entries: Traversable[Try[Iterable[ExecutionStoreKey]]] = runnableEntries map {
       case (k: ScatterKey, v) => processRunnableScatter(k, v)
-      case (k: CollectorKey, v) => processRunnableCollector(k, v)
+      case (k: CollectorKey, v) => processRunnableCollector(k)
       case (k: CallKey, v) => processRunnableCall(k, v)
       case (k, v) =>
         val message = s"$tag Unknown entry in execution store:\nKEY: $k\nVALUE:$v"
@@ -463,12 +450,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
          *   - return Array[Object] if root and matchedCall do not share scatter ancestor
          *   - return Object if they are in the same scatter block
         */
-        /* TODO: Attempt to implement the above TODO to contextualize the index. Not sure if it works in every case, especially when nesting
+        /* Attempt to implement the above to contextualize the index. Not sure if it works in every case, especially when nesting
          * Try to find out if matchedCall has a common Scatter ancestor with the key
          * If it does it means we need to look for the corresponding shard, so we use the index
          * In any other case we return the "normal" output
          */
-        val index: Option[Int] = matchedCall.closestCommonAncestor(key.scope) flatMap {
+        val index: ExecutionIndex = matchedCall.closestCommonAncestor(key.scope) flatMap {
           case s: Scatter => key.index
           case _ => None
         }
@@ -490,8 +477,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val scatterBlock = callKey.scope.ancestry collect {case s:Scatter if s.item == name => s} headOption
     val scatterCollection = scatterBlock map { s =>
       s.collection.evaluate(scatterCollectionLookupFunction(workflow, callKey), new NoFunctions) match {
-        // TODO: index out-of-bounds?
-        case Success(v: WdlArray) if callKey.index.isDefined => Success(v.value(callKey.index.get))
+        case Success(v: WdlArray) if callKey.index.isDefined =>
+          if(v.value.isDefinedAt(callKey.index.get))
+            Success(v.value(callKey.index.get))
+          else
+            Failure(new WdlExpressionException(s"Index ${callKey.index.get} out of bounds for $name array."))
         case _ => Failure(new WdlExpressionException(s"$name did not evaluate to a WdlArray"))
       }
     }
@@ -509,7 +499,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     attemptedResolutions.getOrElse(orElse).get
   }
 
-  private def findOutputKey(call: Call, index: Option[Int]): Option[OutputKey] = {
+  private def findOutputKey(call: Call, index: ExecutionIndex): Option[OutputKey] = {
     executionStore find {
       case (k,v) => k.scope == call && k.index == index
     } collect {
@@ -518,7 +508,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   def fetchLocallyQualifiedInputs(callKey: CallKey): Future[Map[String, WdlValue]] = {
-    /* TODO: This assumes that each Call has a parent that's a Workflow, but with scatter-gather that might not be the case */
     val parentWorkflow = callKey.scope.ancestry.lastOption.map {_.asInstanceOf[Workflow]} getOrElse {
       throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent.")
     }

@@ -44,16 +44,18 @@ object LocalBackend {
 
   def hostCallPath(workflow: WorkflowDescriptor, callName: String, callIndex: ExecutionIndex): Path = {
    val rootCallPath = Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
-    callIndex map { index =>
-      Paths.get(rootCallPath.toFile.getAbsolutePath, s"shard-$index")
-    } getOrElse rootCallPath
+    callIndex match {
+      case Some(index) => Paths.get(rootCallPath.toFile.getAbsolutePath, s"shard-$index")
+      case None => rootCallPath
+    }
   }
 
   def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String, callIndex: ExecutionIndex): Path =  {
     val rootCallPath = Paths.get(hostExecutionPath(workflowName, workflowUuid).toFile.getAbsolutePath, s"call-$callName")
-    callIndex map { index =>
-      Paths.get(rootCallPath.toFile.getAbsolutePath, s"shard-$index")
-    } getOrElse rootCallPath
+    callIndex match {
+      case Some(index) => Paths.get(rootCallPath.toFile.getAbsolutePath, s"shard-$index")
+      case None => rootCallPath
+    }
   }
 }
 

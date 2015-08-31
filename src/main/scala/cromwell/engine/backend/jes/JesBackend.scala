@@ -127,7 +127,7 @@ class JesBackend extends Backend with LazyLogging {
       val evaluatedExpression = taskOutput.expression.evaluate(scopedLookupFunction, engineFunctions, interpolateStrings = true)
       evaluatedExpression match {
         case Success(v) =>
-          val jesOutput = JesOutput(taskOutput.name, s"$callGcsPath/${taskOutput.name}", Paths.get(v.valueString))
+          val jesOutput = JesOutput(taskOutput.name, s"$callGcsPath/${v.valueString}", Paths.get(v.valueString))
           Success(Option(jesOutput))
         case Failure(e) => Failure(new IllegalArgumentException(s"JES requires File outputs to be determined prior to running, but ${taskOutput.name} can not."))
       }

@@ -2,8 +2,7 @@ package cromwell.engine.backend.local
 
 import java.io.File
 import java.nio.file.{Path, Paths}
-
-import cromwell.binding.WdlStandardLibraryFunctions
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.util.FileUtil

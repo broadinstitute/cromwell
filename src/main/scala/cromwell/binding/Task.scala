@@ -4,6 +4,8 @@ import java.util.regex.Pattern
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.command.{CommandPart, ParameterCommandPart, StringCommandPart}
+import cromwell.binding.expression.{NoFunctions, WdlFunctions}
+import cromwell.binding.values.WdlValue
 import cromwell.parser.BackendType
 import cromwell.parser.WdlParser._
 
@@ -24,7 +26,7 @@ object Task {
       case x: Ast => ParameterCommandPart(x, wdlSyntaxErrorFormatter)
     }
 
-    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, wdlSyntaxErrorFormatter) }
+    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, declarations, wdlSyntaxErrorFormatter) }
     Task(name, declarations, commandTemplate, outputs, ast, backendType)
   }
 }
@@ -90,7 +92,7 @@ case class Task(name: String,
    * @param parameters Parameter values
    * @return String instantiation of the command
    */
-  def instantiateCommand(parameters: CallInputs, functions: WdlFunctions = new NoFunctions): Try[String] = {
+  def instantiateCommand(parameters: CallInputs, functions: WdlFunctions[WdlValue] = new NoFunctions): Try[String] = {
     Try(normalize(commandTemplate.map(_.instantiate(declarations, parameters, functions)).mkString("")))
   }
 

@@ -1,7 +1,6 @@
 package cromwell.engine
 
-import cromwell.binding.NoFunctions
-
+import cromwell.binding.expression.NoFunctions
 import cromwell.binding.values.WdlValue
 import org.scalatest.{FlatSpec, Matchers}
 

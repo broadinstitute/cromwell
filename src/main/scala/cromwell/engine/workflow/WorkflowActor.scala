@@ -3,8 +3,9 @@ package cromwell.engine.workflow
 import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
 import cromwell.binding._
+import cromwell.binding.expression.NoFunctions
 import cromwell.binding.types.WdlArrayType
-import cromwell.binding.values.{WdlArray, WdlObject, WdlValue}
+import cromwell.binding.values.{WdlCallOutputsObject, WdlArray, WdlObject, WdlValue}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
@@ -80,7 +81,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[CallKey]): Try[CallOutputs] = Try {
     val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
-      fetchCallOutputEntries(e) map { _.value } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
+      fetchCallOutputEntries(e) map { _.outputs } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
@@ -322,7 +323,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlObject] = {
+  private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlCallOutputsObject] = {
     workflow.calls find { _.name == name } match {
       case Some(matchedCall) =>
         /**
@@ -337,7 +338,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           case s: Scatter => key.index
           case _ => None
         }
-        fetchCallOutputEntries(findOutputKey(matchedCall, index) getOrElse {
+        fetchCallOutputEntries(findCallKey(matchedCall, index) getOrElse {
           throw new WdlExpressionException(s"Could not find a callKey for name '${matchedCall.name}'")
         })
       case None => Failure(new WdlExpressionException(s"Could not find a call with name '$name'"))
@@ -378,12 +379,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     attemptedResolutions.getOrElse(orElse).get
   }
 
-  private def findOutputKey(call: Call, index: ExecutionIndex): Option[OutputKey] = {
-    executionStore find {
-      case (k, _) => k.scope == call && k.index == index
-    } collect {
-      case (k: OutputKey, _) => k
-    }
+  private def findCallKey(call: Call, index: ExecutionIndex): Option[OutputKey] = {
+    executionStore.collect({
+      case (k: OutputKey, _) if k.scope == call && k.index == index => k
+    }).headOption
   }
 
   def fetchLocallyQualifiedInputs(callKey: CallKey): Future[Map[String, WdlValue]] = {
@@ -394,9 +393,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     def lookup(identifier: String): WdlValue = {
       /* This algorithm defines three ways to lookup an identifier in order of their precedence:
        *
-       *   1) Look for a WdlNamespace with matching name
-       *   2) Look for a Call with a matching name (perhaps using a scope resolution algorithm)
-       *   3) Look for a Declaration with a matching name (perhaps using a scope resolution algorithm)
+       *   1) Traverse up the scope hierarchy and see if the variable reference any scatter item
+       *   2) Look for a WdlNamespace with matching name
+       *   3) Look for a Call with a matching name (perhaps using a scope resolution algorithm)
+       *   4) Look for a Declaration with a matching name (perhaps using a scope resolution algorithm)
        *
        *  Each method is tried individually and the first to return a Success value takes precedence.
        */
@@ -408,13 +408,29 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
     fetchCallInputEntries(callKey.scope).map { entries =>
       entries.map { entry =>
+        // .get are used below because the exception will be captured by the Future
+        val taskInput = findTaskInput(entry.scope, entry.key.name).get
+
         val value = entry.wdlValue match {
-          case Some(e: WdlExpression) => e.evaluate(lookup, new NoFunctions).get
-          case Some(v) => v
-          case _ => throw new WdlExpressionException("Unknown error")
+          case Some(e: WdlExpression) => e.evaluate(lookup, new NoFunctions)
+          case Some(v) => Success(v)
+          case _ => Failure(new WdlExpressionException("Unknown error"))
         }
-        entry.key.name -> value
+        val coercedValue = value.map(x => taskInput.wdlType.coerceRawValue(x).get)
+        entry.key.name -> coercedValue.get
       }.toMap
+    }
+  }
+
+  private def findTaskInput(callFqn: String, inputName: String): Try[TaskInput] = {
+    val exception = new WdlExpressionException(s"Could not find task input '$inputName' for call '$callFqn'")
+    workflow.namespace.resolve(callFqn) match {
+      case Some(c:Call) =>
+        c.task.inputs.find(_.name == inputName) match {
+          case Some(i) => Success(i)
+          case None => Failure(exception)
+        }
+      case _ => Failure(exception)
     }
   }
 
@@ -437,12 +453,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     Await.result(futureValue, AkkaTimeout)
   }
 
-  private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlObject] = {
+  private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlCallOutputsObject] = {
     val futureValue = dataAccess.getOutputs(workflow.id, ExecutionDatabaseKey(outputKey.scope.fullyQualifiedName, outputKey.index)).map {callOutputEntries =>
       val callOutputsAsMap = callOutputEntries.map(entry => entry.key.name -> entry.wdlValue).toMap
       callOutputsAsMap find { case (k, v) => v.isEmpty } match {
         case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${outputKey.scope.name} because some of its inputs are not defined (i.e. ${noneValue._1}"))
-        case None => Success(WdlObject(callOutputsAsMap.map {
+        // TODO: .asInstanceOf[Call]?
+        case None => Success(WdlCallOutputsObject(outputKey.scope.asInstanceOf[Call], callOutputsAsMap.map {
           case (k, v) => k -> v.getOrElse {
             throw new WdlExpressionException(s"Could not retrieve output $k value for call ${outputKey.scope.name}")
           }

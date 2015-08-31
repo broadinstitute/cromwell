@@ -64,7 +64,7 @@ trait SharedFileSystem {
     val outputMappings = backendCall.call.task.outputs map { taskOutput =>
       val tryConvertedValue =
         for {
-          expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions, interpolateStrings=true)
+          expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions)
           convertedValue <- outputAutoConversion(backendCall, taskOutput, expressionValue)
           pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, backendCall.callRootPath))
         } yield pathAdjustedValue

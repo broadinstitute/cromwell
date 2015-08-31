@@ -2,6 +2,7 @@ package cromwell.binding.command
 
 import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding._
+import cromwell.binding.expression.{NoFunctions, WdlFunctions}
 import cromwell.binding.values.{WdlArray, WdlPrimitive, WdlString, WdlValue}
 import cromwell.parser.WdlParser.Ast
 
@@ -22,7 +23,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
   def attributesToString: String = if (attributes.nonEmpty) attributes.map({case (k,v) => s"$k='$v'"}).mkString(", ") + " " else ""
   override def toString: String = "${" + s"$attributesToString${expression.toWdlString}" + "}"
 
-  override def instantiate(declarations: Seq[Declaration], parameters: Map[String, WdlValue], functions: WdlFunctions = new NoFunctions): String = {
+  override def instantiate(declarations: Seq[Declaration], parameters: Map[String, WdlValue], functions: WdlFunctions[WdlValue] = new NoFunctions): String = {
     case class VariableNotFoundException(variable: String) extends RuntimeException(s"Could not find variable: $variable")
     def lookup(key: String) = parameters.getOrElse(key, throw new VariableNotFoundException(key))
 

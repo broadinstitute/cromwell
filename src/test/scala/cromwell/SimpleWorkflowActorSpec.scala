@@ -88,21 +88,5 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
         awaitCond(fsm.stateName == WorkflowFailed)
       }
     }
-
-    "typecheck outputs" in {
-      val message = s"""Error processing 'three_step.cgrep.count':
-             |
-             |Value WdlFile.* cannot be converted to Int
-           """.stripMargin
-      within(TestExecutionTimeout) {
-        waitForErrorWithException(message) {
-          val fsm = buildWorkflowFSMRef(SampleWdl.OutputTypeChecking)
-
-          assert(fsm.stateName == WorkflowSubmitted)
-          fsm ! Start
-          awaitCond(fsm.stateName == WorkflowFailed)
-        }
-      }
-    }
   }
 }

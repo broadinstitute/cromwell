@@ -34,20 +34,18 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
   val TestExecutionTimeout = 5000 milliseconds
 
   "A WorkflowActor" should {
-    "start" in {
+    "start, run, succeed and die" in {
       val fsm = buildWorkflowFSMRef(SampleWdl.HelloWorld)
+      val probe = TestProbe()
+      probe watch fsm
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("hello.hello") {
         fsm ! Start
         within(TestExecutionTimeout) {
           awaitCond(fsm.stateName == WorkflowRunning)
           awaitCond(fsm.stateName == WorkflowSucceeded)
-          val outputName = "hello.hello.salutation"
-          val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
-          val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
-          val actualOutput = salutation.asInstanceOf[WdlString].value.trim
-          actualOutput shouldEqual "Hello world!"
         }
+        probe.expectTerminated(fsm, 10 seconds)
       }
     }
 
@@ -77,23 +75,6 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
               }
             }
           }
-        }
-      }
-    }
-
-    "run in the correct directory" in {
-      val fsm = buildWorkflowFSMRef(SampleWdl.CurrentDirectory)
-      assert(fsm.stateName == WorkflowSubmitted)
-      startingCallsFilter("whereami.whereami") {
-        fsm ! Start
-        within(TestExecutionTimeout) {
-          awaitCond(fsm.stateName == WorkflowRunning)
-          awaitCond(fsm.stateName == WorkflowSucceeded)
-          val outputName = "whereami.whereami.pwd"
-          val outputs = fsm.ask(GetOutputs).mapTo[WorkflowOutputs].futureValue
-          val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
-          val actualOutput = salutation.asInstanceOf[WdlString].value.trim
-          actualOutput.endsWith("/call-whereami") shouldBe true
         }
       }
     }

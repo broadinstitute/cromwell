@@ -72,7 +72,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
       val outputs =
       runWdlAndAssertOutputs(
-        buildWorkflowDescriptor(SampleWdl.MapLiteral, runtime="", uuid=UUID.randomUUID()),
+        SampleWdl.MapLiteral,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
         expectedOutputs = Map(
           "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(

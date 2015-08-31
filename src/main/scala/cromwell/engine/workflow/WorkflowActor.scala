@@ -1,8 +1,7 @@
 package cromwell.engine.workflow
 
-import akka.actor.{InvalidMessageException, FSM, LoggingFSM, Props}
+import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
-import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlObject, WdlValue}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
@@ -25,12 +24,12 @@ object WorkflowActor {
   case object Restart extends WorkflowActorMessage
   case object Complete extends WorkflowActorMessage
   case object GetFailureMessage extends WorkflowActorMessage
-  case object GetOutputs extends WorkflowActorMessage
   case object AbortWorkflow extends WorkflowActorMessage
   case class AbortComplete(call: Call) extends WorkflowActorMessage
   case class CallStarted(call: Call) extends WorkflowActorMessage
   case class CallCompleted(call: Call, callOutputs: CallOutputs) extends WorkflowActorMessage
   case class CallFailed(call: Call, failure: String) extends WorkflowActorMessage
+  case object Terminate extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
     Props(WorkflowActor(descriptor, backend, dataAccess))
@@ -40,7 +39,7 @@ object WorkflowActor {
   case object NoFailureMessage extends WorkflowFailure
   case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
 
-  val DatabaseTimeout = 5 seconds
+  val AkkaTimeout = 5 seconds
 
   type ExecutionStore = Map[Call, ExecutionStatus.Value]
 
@@ -48,6 +47,8 @@ object WorkflowActor {
   def isExecutionStateFinished(es: ExecutionStatus): Boolean = {
     TerminalStates contains es
   }
+
+  val DontRepeatTimer = false
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor,
@@ -67,7 +68,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       _ <- initialization
       store <- createStore
     } yield store
-    Await.result(futureStore, DatabaseTimeout)
+    Await.result(futureStore, AkkaTimeout)
   }
 
   /**
@@ -112,9 +113,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
     case Event(AbortComplete(call), NoFailureMessage) =>
-      // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
-      // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
-      // cancelled by some external system.
+      /*
+        Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
+        by transitioning the whole workflow - the message is either still in the queue or this command was maybe
+        cancelled by some external system.
+      */
       persistStatus(call, ExecutionStatus.Aborted)
       log.warning(s"Call ${call.name} was aborted but the workflow should still be running.")
       stay()
@@ -126,9 +129,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       stay()
   }
 
-  // FIXME the comment below appears misplaced?
-  // We're supporting GetOutputs for all states, so there's nothing particular to do here
-  when(WorkflowSucceeded)(FSM.NullFunction)
+  when(WorkflowSucceeded) {
+    case Event(Terminate, _) =>
+      log.debug(s"$tag WorkflowActor is done, shutting down.")
+      context.stop(self)
+      stay()
+  }
 
   when(WorkflowAborting) {
     case Event(AbortComplete(call), NoFailureMessage) =>
@@ -148,13 +154,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   when(WorkflowAborted)(FSM.NullFunction)
 
   whenUnhandled {
-    case Event(GetOutputs, _) =>
-      // NOTE: This is currently only used by tests
-      // FIXME There should be a more efficient way of getting final workflow outputs than getting every output
-      // FIXME variable in the workflow including all intermediates between calls.
-      val futureOutputs = dataAccess.getOutputs(workflow.id) map SymbolStoreEntry.toWorkflowOutputs
-      futureOutputs pipeTo sender
-      stay()
     case Event(AbortWorkflow, _) =>
       context.children foreach { _ ! CallActor.AbortCall }
       goto(WorkflowAborting) using NoFailureMessage
@@ -163,12 +162,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       stay()
   }
 
-  // FSM will call *all* onTransition handlers which are defined for a particular state transition.
-  // This handler will update workflow state for all transitions.
+  /*
+    FSM will call *all* onTransition handlers which are defined for a particular state transition.
+    This handler will update workflow state for all transitions.
+  */
   onTransition {
     case fromState -> toState =>
       log.info(s"$tag transitioning from $fromState to $toState.")
       dataAccess.updateWorkflowState(workflow.id, toState)
+      /*
+        Send a message to self to trigger an actor shutdown. Run on a short timer to help enable some
+        unit test instrumentation
+       */
+      if (toState.isTerminal) setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
   }
 
   private def persistStatus(call: Call, callStatus: CallStatus): Future[Unit] = {
@@ -184,7 +190,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   private def awaitCallComplete(call: Call, outputs: CallOutputs): Try[Unit] = {
     val callFuture = handleCallCompleted(call, outputs)
-    Await.ready(callFuture, DatabaseTimeout)
+    Await.ready(callFuture, AkkaTimeout)
     callFuture.value.get
   }
 
@@ -242,7 +248,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         _ <- persistStatus(runnableCalls, ExecutionStatus.Starting)
         allInputs <- Future.sequence(runnableCalls map fetchLocallyQualifiedInputs)
       } yield runnableCalls zip allInputs
-      Await.ready(futureCallsAndInputs, DatabaseTimeout)
+      Await.ready(futureCallsAndInputs, AkkaTimeout)
       futureCallsAndInputs.value.get match {
         case Success(callsAndInputs) =>
           callsAndInputs foreach { case (call, inputs) => startActor(call, inputs) }
@@ -254,8 +260,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   /* Return a Markdown table of all entries in the database */
   private def symbolsMarkdownTable(): Option[String] = {
     val header = Seq("SCOPE","NAME","I/O","TYPE","VALUE")
-    val max_col_chars = 100
-    val rows = fetchAllEntries.map { entry =>
+    val maxColChars = 100
+    val rows = fetchAllEntries map { entry =>
       val valueString = entry.wdlValue match {
         case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
         case _ => ""
@@ -265,18 +271,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         entry.key.name,
         if (entry.key.input) "INPUT" else "OUTPUT",
         entry.wdlType.toWdlString,
-        if (valueString.length > max_col_chars) valueString.substring(0, max_col_chars) else valueString
+        if (valueString.length > maxColChars) valueString.substring(0, maxColChars) else valueString
       )
-    }.toSeq
+    } toSeq
+
     rows match {
-      case r:Seq[Seq[String]] if r.isEmpty => None
+      case r: Seq[Seq[String]] if r.isEmpty => None
       case _ => Some(TerminalUtil.mdTable(rows, header))
     }
   }
 
   def fetchLocallyQualifiedInputs(call: Call): Future[Map[String, WdlValue]] = {
-    /* TODO: This assumes that each Call has a parent that's a Workflow, but with scatter-gather that might not be the case */
-    val parentWorkflow = call.parent.map {_.asInstanceOf[Workflow]} getOrElse {
+    // TODO: This assumes that each Call has a parent that's a Workflow, but with scatter-gather that might not be the case 
+    val parentWorkflow = call.parent map { _.asInstanceOf[Workflow] } getOrElse {
       throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent.")
     }
 
@@ -287,31 +294,32 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
 
     def lookup(identifierString: String): WdlValue = {
-      /* This algorithm defines three ways to lookup an identifier in order of their precedence:
+      /*
+       *  This algorithm defines three ways to lookup an identifier in order of their precedence:
        *
        *   1) Look for a WdlNamespace with matching name
        *   2) Look for a Call with a matching name (perhaps using a scope resolution algorithm)
        *   3) Look for a Declaration with a matching name (perhaps using a scope resolution algorithm)
        *
-       * Each method is tried individually and the first to return a Success value takes precedence.
+       *  Each method is tried individually and the first to return a Success value takes precedence.
        */
 
       def lookupNamespace(name: String): Try[WdlNamespace] = {
-        workflow.namespace.namespaces.find {_.importedAs.contains(name)} match {
+        workflow.namespace.namespaces find { _.importedAs.contains(name) } match {
           case Some(x) => Success(x)
           case _ => Failure(new WdlExpressionException(s"Could not resolve $identifierString as a namespace"))
         }
       }
 
       def lookupCall(name: String): Try[WdlObject] = {
-        parentWorkflow.calls.find {_.name == identifierString} match {
+        parentWorkflow.calls find { _.name == identifierString } match {
           case Some(matchedCall) => fetchCallOutputEntries(matchedCall)
           case None => Failure(new WdlExpressionException(s"Could not find a call with name '$identifierString'"))
         }
       }
 
       def lookupDeclaration(name: String): Try[WdlValue] = {
-        parentWorkflow.declarations.find {_.name == identifierString} match {
+        parentWorkflow.declarations find { _.name == identifierString } match {
           case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
           case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$identifierString'"))
         }
@@ -319,14 +327,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
       def notFound = throw new WdlExpressionException(s"Could not resolve $identifierString as a namespace, call, or declaration")
 
-      /* Try each of the three methods in sequence. */
-      val attemptedResolutions = Stream(lookupNamespace _, lookupCall _, lookupDeclaration _).map {_(identifierString)}.find {_.isSuccess}
+      // Try each of the three methods in sequence.
+      val attemptedResolutions = Stream(lookupNamespace _, lookupCall _, lookupDeclaration _) map { _(identifierString) } find { _.isSuccess }
 
-      /* Return the first successful function's value or throw exception */
-      attemptedResolutions.getOrElse {notFound}.get
+      // Return the first successful function's value or throw exception
+      attemptedResolutions getOrElse { notFound } get
     }
 
-    fetchCallInputEntries(call).map { entries =>
+    fetchCallInputEntries(call) map { entries =>
       entries.map { entry =>
         val value = entry.wdlValue match {
           case Some(e: WdlExpression) => e.evaluate(lookup, CallInputWdlFunctions).get
@@ -349,25 +357,26 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         case None => Failure(new WdlExpressionException(s"No value defined for fully-qualified name $fqn"))
       }
     }
-    Await.result(futureValue, DatabaseTimeout)
+    Await.result(futureValue, AkkaTimeout)
   }
 
   private def fetchAllEntries: Traversable[SymbolStoreEntry] = {
     val futureValue = dataAccess.getAll(workflow.id)
-    Await.result(futureValue, DatabaseTimeout)
+    Await.result(futureValue, AkkaTimeout)
   }
 
   private def fetchCallOutputEntries(call: Call): Try[WdlObject] = {
     val futureValue = dataAccess.getOutputs(workflow.id, call.fullyQualifiedName).map {callOutputEntries =>
-      val callOutputsAsMap = callOutputEntries.map { entry =>
+      val callOutputsAsMap: Map[String, Option[WdlValue]] = callOutputEntries map { entry =>
         entry.key.name -> entry.wdlValue
-      }.toMap
-      callOutputsAsMap.find {case (k,v) => v.isEmpty} match {
+      } toMap
+
+      callOutputsAsMap find { case (k,v) => v.isEmpty } match {
         case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${call.name} because some if its inputs are not defined (i.e. ${noneValue._1}"))
-        case None => Success(WdlObject(callOutputsAsMap.map {case (k,v) => k -> v.get}))
+        case None => Success(WdlObject(callOutputsAsMap map { case (k, v) => k -> v.get }))
       }
     }
-    Await.result(futureValue, DatabaseTimeout)
+    Await.result(futureValue, AkkaTimeout)
   }
 
   private def fetchCallInputEntries(call: Call) = dataAccess.getInputs(workflow.id, call)
@@ -378,13 +387,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def createStore: Future[Map[Call, ExecutionStatus.Value]] = {
     dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
-      workflow.namespace.workflow.calls.map {call =>
-        call -> statuses.get(call.fullyQualifiedName).get}.toMap
+      workflow.namespace.workflow.calls map { call => call -> statuses.get(call.fullyQualifiedName).get } toMap
     }
   }
 
   private def buildSymbolStoreEntries(namespace: NamespaceWithWorkflow, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
-    val inputSymbols = inputs.map {case (name, value) => SymbolStoreEntry(name, value, input = true)}
+    val inputSymbols = inputs map { case (name, value) => SymbolStoreEntry(name, value, input = true) }
 
     val callSymbols = for {
       call <- namespace.workflow.calls
@@ -403,7 +411,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, adjustedInputs), workflow.namespace.workflow.calls, backend)
   }
 
-  private def isWorkflowDone: Boolean = executionStore.forall(_._2 == ExecutionStatus.Done)
-
+  private def isWorkflowDone: Boolean = executionStore forall { _._2 == ExecutionStatus.Done }
   private def isWorkflowAborted: Boolean = executionStore forall { x => isExecutionStateFinished(x._2) || x._2 == ExecutionStatus.NotStarted }
 }

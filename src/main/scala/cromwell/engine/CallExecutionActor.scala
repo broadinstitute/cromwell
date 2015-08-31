@@ -23,19 +23,22 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
 
   def tag = s"CallExecutionActor [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
 
-  private def execute = {
+  private def execute(): Unit = {
     log.info(s"$tag: starting ${backendCall.call.name} for workflow ${backendCall.workflowDescriptor.shortId}")
     val result = backendCall.execute
+
     result match {
       case Success(_) => log.info(s"$tag: successful execution.")
       case Failure(e: TaskAbortedException) => log.info(s"$tag: aborted.")
       case Failure(e) => log.error(s"$tag: failed execution - ${e.getMessage}")
     }
+
     context.parent ! CallActor.ExecutionFinished(backendCall.call, result)
+    context.stop(self)
   }
 
   override def receive = LoggingReceive {
-    case Execute => execute
+    case Execute => execute()
     case badMessage => log.error(s"$tag: unexpected message $badMessage.")
   }
 }

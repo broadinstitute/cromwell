@@ -68,9 +68,8 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
       )
       val uuid = UUID.randomUUID()
       val sampleWdl = SampleWdl.ArrayLiteral(Paths.get("."))
-      val descriptor = buildWorkflowDescriptor(sampleWdl, runtime="", uuid=uuid)
       runWdlAndAssertOutputs(
-        descriptor,
+        sampleWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.cat", occurrences = 1),
         expectedOutputs = outputs
       )

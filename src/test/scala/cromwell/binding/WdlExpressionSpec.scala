@@ -1,7 +1,6 @@
 package cromwell.binding
 
-import java.nio.file.Paths
-
+import cromwell.binding.types._
 import cromwell.binding.values._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -17,6 +16,12 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
       case "a" => WdlInteger(1)
       case "b" => WdlInteger(2)
       case "s" => WdlString("s")
+      case "array_str" => WdlArray(WdlArrayType(WdlStringType), Seq("foo", "bar", "baz").map(WdlString))
+      case "map_str_int" => WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
+        WdlString("a") -> WdlInteger(0),
+        WdlString("b") -> WdlInteger(1),
+        WdlString("c") -> WdlInteger(2)
+      ))
       case "o" => WdlObject(Map("key1" -> WdlString("value1"), "key2" -> WdlInteger(9)))
     }
   }
@@ -746,6 +751,21 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   it should "Make strings out of function calls" in {
     expr("a(b, c)").toWdlString shouldEqual "a(b, c)"
   }
+  it should "Make strings out of array/map lookups" in {
+    expr("a[0]").toWdlString shouldEqual "a[0]"
+  }
+  it should "Make strings out of unary minus" in {
+    expr("-2").toWdlString shouldEqual "-2"
+  }
+  it should "Make strings out of unary plus" in {
+    expr("+2").toWdlString shouldEqual "+2"
+  }
+  it should "Make strings out of logical not" in {
+    expr("!2").toWdlString shouldEqual "!2"
+  }
+  it should "Make strings out of booleans" in {
+    expr("true   !=   false").toWdlString shouldEqual "true != false"
+  }
 
   /* Interpolation */
   "A string with interpolation values" should "replace those values" in {
@@ -759,5 +779,25 @@ class WdlExpressionSpec extends FlatSpec with Matchers {
   }
   it should "replace string values too" in {
     identifierEval("\"${s}...${s}\"") shouldEqual WdlString("s...s")
+  }
+
+  /* Array Indexing */
+  "An expression with an array indexer in it" should "properly index into the array" in {
+    identifierEval("array_str[0]") shouldEqual WdlString("foo")
+    identifierEval("array_str[1]") shouldEqual WdlString("bar")
+    identifierEval("array_str[2]") shouldEqual WdlString("baz")
+  }
+  it should "error if the index it out of bounds" in {
+    identifierEvalError("array_str[3]")
+  }
+
+  /* Map Indexing */
+  "An expression with a map indexer in it" should "properly index into the map" in {
+    identifierEval("""map_str_int["a"]""") shouldEqual WdlInteger(0)
+    identifierEval("""map_str_int["b"]""") shouldEqual WdlInteger(1)
+    identifierEval("""map_str_int["c"]""") shouldEqual WdlInteger(2)
+  }
+  it should "error if the index it out of bounds" in {
+    identifierEvalError("""map_str_int["d"]""")
   }
 }

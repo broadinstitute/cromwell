@@ -21,6 +21,8 @@ object WdlExpression {
     def functionName: String = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     def isMemberAccess: Boolean = ast.getName == "MemberAccess"
     def isArrayLiteral: Boolean = ast.getName == "ArrayLiteral"
+    def isMapLiteral: Boolean = ast.getName == "MapLiteral"
+    def isArrayOrMapLookup: Boolean = ast.getName == "ArrayOrMapLookup"
     def isAllowedInnerFunctionCall: Boolean = ast.isFunctionCall && AllowedInnerFunctionCalls.contains(ast.functionName)
     def params = ast.getAttribute("params").asInstanceOf[AstList].asScala.toVector
     def name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
@@ -159,13 +161,12 @@ object WdlExpression {
             for (subtype <- WdlType.homogeneousType(successes.map(_.get)))
               yield WdlArray(WdlArrayType(subtype), successes.map(_.get))
         }
-      case a: Ast if a.getName == "MapLiteral" =>
+      case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = evaluate(kv.asInstanceOf[Ast].getAttribute("key"), lookup, functions, interpolateStrings)
           val value = evaluate(kv.asInstanceOf[Ast].getAttribute("value"), lookup, functions, interpolateStrings)
           key -> value
         }
-
         val flattenedTries = evaluatedMap flatMap { case (k,v) => Seq(k,v) }
         flattenedTries partition {_.isSuccess} match {
           case (_, failures) if failures.nonEmpty =>
@@ -188,8 +189,26 @@ object WdlExpression {
             }
           case _ => Failure(new WdlExpressionException("Right-hand side of expression must be identifier"))
         }
+      case a: Ast if a.isArrayOrMapLookup =>
+        val index = evaluate(a.getAttribute("rhs"), lookup, functions, interpolateStrings)
+        val mapOrArray = evaluate(a.getAttribute("lhs"), lookup, functions, interpolateStrings)
+        (mapOrArray, index) match {
+          case (Success(a: WdlArray), Success(i: WdlInteger)) =>
+            Try(a.value(i.value)) match {
+              case s:Success[WdlValue] => s
+              case Failure(ex) => Failure(new WdlExpressionException(s"Failed to find index $index on array:\n\n$mapOrArray\n\n${ex.getMessage}", ex))
+            }
+          case (Success(m: WdlMap), Success(v: WdlValue)) =>
+            m.value.get(v) match {
+              case Some(value) => Success(value)
+              case _ => Failure(new WdlExpressionException(s"Failed to find a key '$index' on a map:\n\n$mapOrArray"))
+            }
+          case (Failure(ex), _) => Failure(ex)
+          case (_, Failure(ex)) => Failure(ex)
+          case (_, _) => Failure(new WdlExpressionException(s"Can't index $mapOrArray with index $index"))
+        }
       case a: Ast if a.isFunctionCall =>
-        val name = a.getAttribute("name").asInstanceOf[Terminal].getSourceString
+        val name = a.functionName
         val params = a.params map { evaluate(_, lookup, functions, interpolateStrings) }
         functions.getFunction(name)(params)
     }
@@ -204,10 +223,8 @@ object WdlExpression {
 
   def toString(ast: AstNode, highlighter: SyntaxHighlighter = NullSyntaxHighlighter): String = {
     ast match {
-      case t: Terminal if t.getTerminalStr == "identifier" => t.getSourceString
-      case t: Terminal if t.getTerminalStr == "integer" => t.getSourceString
-      case t: Terminal if t.getTerminalStr == "float" => t.getSourceString
-      case t: Terminal if t.getTerminalStr == "string" => s""""${t.getSourceString}""""
+      case t: Terminal if Seq("identifier", "integer", "float", "boolean").contains(t.getTerminalStr) => t.getSourceString
+      case t: Terminal if t.getTerminalStr == "string" => s""""${t.getSourceString.replaceAll("\"", "\\" + "\"")}""""
       case a:Ast if a.isBinaryOperator =>
         val lhs = toString(a.getAttribute("lhs"), highlighter)
         val rhs = toString(a.getAttribute("rhs"), highlighter)
@@ -226,13 +243,34 @@ object WdlExpression {
           case "LogicalOr" => s"$lhs || $rhs"
           case "LogicalAnd" => s"$lhs && $rhs"
         }
-      case a: Ast if a.isFunctionCall =>
-        val params = a.params map { a => toString(a, highlighter) }
-        s"${highlighter.function(a.name)}(${params.mkString(", ")})"
+      case a: Ast if a.isUnaryOperator =>
+        val expression = toString(a.getAttribute("expression"), highlighter)
+        a.getName match {
+          case "LogicalNot" => s"!$expression"
+          case "UnaryPlus" => s"+$expression"
+          case "UnaryNegation" => s"-$expression"
+        }
+      case a: Ast if a.isArrayLiteral =>
+        val evaluatedElements = a.getAttribute("values").astListAsVector map {x => toString(x, highlighter)}
+        s"[${evaluatedElements.mkString(",")}]"
+      case a: Ast if a.isMapLiteral =>
+        val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
+          val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)
+          val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
+          s"$key:$value"
+        }
+        s"{${evaluatedMap.mkString(",")}}"
       case a: Ast if a.isMemberAccess =>
         val lhs = toString(a.getAttribute("lhs"), highlighter)
         val rhs = toString(a.getAttribute("rhs"), highlighter)
         s"$lhs.$rhs"
+      case a: Ast if a.isArrayOrMapLookup =>
+        val lhs = toString(a.getAttribute("lhs"), highlighter)
+        val rhs = toString(a.getAttribute("rhs"), highlighter)
+        s"$lhs[$rhs]"
+      case a: Ast if a.isFunctionCall =>
+        val params = a.params map { a => toString(a, highlighter) }
+        s"${highlighter.function(a.name)}(${params.mkString(", ")})"
     }
   }
 }

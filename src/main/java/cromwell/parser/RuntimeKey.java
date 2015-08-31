@@ -10,7 +10,7 @@ public enum RuntimeKey {
     CPU("cpu", JES),
     DEFAULT_DISKS("defaultDisks", JES),
     DEFAULT_ZONES("defaultZones", JES),
-    DOCKER("docker", new BackendType[]{JES}, LOCAL),
+    DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
     FAIL_ON_STDERR("failOnStderr", LOCAL, JES),
     MEMORY("memory", JES),
     PREEMPTIBLE("preemptible", JES);

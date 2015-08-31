@@ -63,7 +63,7 @@ object JesBackend {
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
     stdoutJesOutput(callGcsPath),
     stderrJesOutput(callGcsPath),
-    localizationDiskInput
+    localizationDiskInput()
   )
 
   sealed trait JesParameter {

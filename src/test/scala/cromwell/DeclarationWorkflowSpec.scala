@@ -18,11 +18,11 @@ class DeclarationWorkflowSpec extends CromwellTestkitSpec("DeclarationWorkflowSp
 
   "A workflow with declarations in it" should {
     "compute inputs properly" in {
-      NamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime=""), BackendType.LOCAL).workflow.inputs shouldEqual Seq(
-        WorkflowInput("two_step.cat.file", WdlFileType, postfixQuantifier = None),
-        WorkflowInput("two_step.cgrep.str_decl", WdlStringType, postfixQuantifier = None),
-        WorkflowInput("two_step.cgrep.pattern", WdlStringType, postfixQuantifier = None),
-        WorkflowInput("two_step.flags_suffix", WdlStringType, postfixQuantifier = None)
+      NamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime=""), BackendType.LOCAL).workflow.inputs shouldEqual Map(
+        "two_step.cat.file" -> WorkflowInput("two_step.cat.file", WdlFileType, postfixQuantifier = None),
+        "two_step.cgrep.str_decl" -> WorkflowInput("two_step.cgrep.str_decl", WdlStringType, postfixQuantifier = None),
+        "two_step.cgrep.pattern" -> WorkflowInput("two_step.cgrep.pattern", WdlStringType, postfixQuantifier = None),
+        "two_step.flags_suffix" -> WorkflowInput("two_step.flags_suffix", WdlStringType, postfixQuantifier = None)
       )
     }
     "honor the declarations" in {

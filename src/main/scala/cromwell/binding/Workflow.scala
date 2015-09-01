@@ -4,6 +4,8 @@ import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
 import cromwell.binding.types.WdlType
 import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 
+import scala.language.postfixOps
+
 
 object Workflow {
 
@@ -45,15 +47,15 @@ case class Workflow(name: String, declarations: Seq[Declaration], parent: Option
   lazy val scatters: Seq[Scatter] = collectAllScatters
 
   /**
-   * All inputs for this workflow and their associated types.
+   * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.
    *
-   * @return a Seq[WorkflowInput] representing the
+   * @return a Map[FullyQualifiedName, WorkflowInput] representing the
    *         inputs that the user needs to provide to this workflow
    */
-  def inputs: Seq[WorkflowInput] = {
+  def inputs: Map[FullyQualifiedName, WorkflowInput] = {
     val callInputs = for { call <- calls; input <- call.unsatisfiedInputs } yield input
     val declarationInputs = for { declaration <- declarations; input <- declaration.asWorkflowInput } yield input
-    callInputs ++ declarationInputs
+    (callInputs ++ declarationInputs) map { input => input.fqn -> input } toMap
   }
 
   /**

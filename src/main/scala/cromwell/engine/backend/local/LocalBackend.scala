@@ -112,11 +112,12 @@ class LocalBackend extends Backend with LocalFileSystemOperations with LazyLoggi
   }
 
   /**
+   * --rm automatically deletes the container upon exit
    * -v maps the host workflow executions directory to /root/<workflow id> on the container.
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
   private def buildDockerRunCommand(backendCall: BackendCall, image: String): String =
-    s"docker run -v ${backendCall.workflowRootPath.toAbsolutePath}:${backendCall.dockerContainerExecutionDir} -i $image"
+    s"docker run --rm -v ${backendCall.workflowRootPath.toAbsolutePath}:${backendCall.dockerContainerExecutionDir} -i $image"
 
   private def runSubprocess(backendCall: BackendCall): Try[CallOutputs] = {
     val tag = makeTag(backendCall)

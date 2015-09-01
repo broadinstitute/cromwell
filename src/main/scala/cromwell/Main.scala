@@ -146,6 +146,13 @@ object Main extends App {
         |  via this sub-command and the 'validate' subcommand should
         |  be used for full validation
         |
+        |highlight <WDL file> <html|console>
+        |
+        |  Reformats and colorizes/tags a WDL file. The second
+        |  parameter is the output type.  "html" will output the WDL
+        |  file with <span> tags around elements.  "console" mode
+        |  will output colorized text to the terminal
+        |
         |server
         |
         |  Starts a web server on port 8000.  See the web server

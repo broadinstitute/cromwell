@@ -132,8 +132,7 @@ object main {
 Run the JAR file with no arguments to get the usage message:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar
-
+$ java -jar cromwell.jar
 java -jar cromwell.jar <action> <parameters>
 
 Actions:
@@ -163,6 +162,13 @@ parse <WDL file>
   via this sub-command and the 'validate' subcommand should
   be used for full validation
 
+highlight <WDL file> <html|console>
+
+  Reformats and colorizes/tags a WDL file. The second
+  parameter is the output type.  "html" will output the WDL
+  file with <span> tags around elements.  "console" mode
+  will output colorized text to the terminal
+
 server
 
   Starts a web server on port 8000.  See the web server
@@ -176,7 +182,7 @@ Given a WDL file, this runs the full syntax checker over the file and resolves i
 Error if a `call` references a task that doesn't exist:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar validate 2.wdl
+$ java -jar cromwell.jar validate 2.wdl
 ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 
   call BADps
@@ -187,7 +193,7 @@ ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 Error if namespace and task have the same name:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar validate 5.wdl
+$ java -jar cromwell.jar validate 5.wdl
 ERROR: Task and namespace have the same name:
 
 Task defined here (line 3, col 6):
@@ -206,7 +212,7 @@ import "ps.wdl" as ps
 Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar inputs 3step.wdl
+$ java -jar cromwell.jar inputs 3step.wdl
 {
   "three_step.cgrep.pattern": "String"
 }
@@ -219,7 +225,7 @@ This inputs document is used as input to the `run` subcommand.
 Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workflow and print the outputs:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar run 3step.wdl inputs.json
+$ java -jar cromwell.jar run 3step.wdl inputs.json
 [INFO] [06/10/2015 09:20:19.945] [ForkJoinPool-2-worker-13] [akka://cromwell-system/user/$b] Workflow ID: bdcc70e6-e6d7-4483-949b-7c3c2199e26c
 [INFO] [06/10/2015 09:20:19.968] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: ps
 [INFO] [06/10/2015 09:20:20.094] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: cgrep, wc
@@ -236,7 +242,7 @@ $ java -jar ../target/scala-2.11/cromwell-0.7.jar run 3step.wdl inputs.json
 Given a WDL file input, this does grammar level syntax checks and prints out the resulting abstract syntax tree.
 
 ```
-$ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.7.jar parse /dev/stdin
+$ echo "workflow wf {}" | java -jar cromwell.jar parse /dev/stdin
 (Document:
   imports=[],
   definitions=[
@@ -248,13 +254,47 @@ $ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.7.jar parse 
 )
 ```
 
+## highlight
+
+Formats a WDL file and semantically tags it.  This takes a second parameter (`html` or `console`) which determines what the output format will be.
+
+test.wdl
+```
+task abc {
+  String in
+  command { echo ${in} }
+  output {String out = read_string(stdout())}
+}
+
+workflow wf { call abc }
+```
+
+This WDL file can be formatted in HTML as follows:
+
+```
+$ java -jar cromwell.jar highlight test.wdl html
+<span class="keyword">task</span> <span class="name">abc</span> {
+  <span class="type">String</span> <span class="variable">in</span>
+  <span class="section">command</span> {
+    <span class="command">echo ${in}</span>
+  }
+  <span class="section">output</span> {
+    <span class="type">String</span> <span class="variable">out</span> = <span class="function">read_string</span>(<span class="function">stdout</span>())
+  }
+}
+
+<span class="keyword">workflow</span> <span class="name">wf</span> {
+  <span class="keyword">call</span> <span class="name">abc</span>
+}
+```
+
 ## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
 # Getting Started with WDL
 
-If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `target/scala-2.11/cromwell-0.7.jar`.
+If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `cromwell.jar`.
 
 ## Hello World WDL
 
@@ -278,7 +318,7 @@ workflow test {
 Generate a template `hello.json` file with the `inputs` subcommand:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar inputs hello.wdl
+$ java -jar cromwell.jar inputs hello.wdl
 {
   "test.hello.name": "String"
 }
@@ -297,7 +337,7 @@ Modify this and save it to `hello.json`:
 Then, use the `run` subcommand to run the workflow:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
@@ -328,7 +368,7 @@ workflow test {
 Now when this is run, we get the string output for `test.hello.response`:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "Hello world!"
@@ -415,7 +455,7 @@ Now, we need to specify a value for `test.hello2.name` in the hello.json file"
 Running this workflow now produces two outputs:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "Hello world!",
@@ -458,7 +498,7 @@ Now, the `hello.json` would require three inputs:
 Running this workflow still gives us the two greetings we expect:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "greetings world!",
@@ -504,7 +544,7 @@ The inputs required to run this would be:
 And this would produce the following outputs when run
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "hello, world!",
@@ -553,7 +593,7 @@ And then the inputs JSON file would be:
 The result of running this would be:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run grep.wdl grep.json
+$ java -jar cromwell.jar run grep.wdl grep.json
 ... truncated ...
 {
   "test.grep.count": 3

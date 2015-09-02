@@ -5,7 +5,7 @@ import java.nio.file.Files
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.{Call, CallInputs, CallOutputs, WorkflowDescriptor}
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.local.{LocalBackend, LocalFileSystemOperations}
+import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.{Backend, TaskAbortedException}
 import cromwell.engine.db.DataAccess
 import cromwell.engine.{AbortRegistrationFunction, _}
@@ -18,7 +18,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
-class SgeBackend extends Backend with LocalFileSystemOperations with LazyLogging {
+class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   type BackendCall = SgeBackendCall
 
   import LocalBackend.WriteWithNewline

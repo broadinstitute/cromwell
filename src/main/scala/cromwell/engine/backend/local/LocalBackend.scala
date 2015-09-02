@@ -18,9 +18,6 @@ import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
 object LocalBackend {
-
-  val CromwellExecutions = "cromwell-executions"
-
   /**
    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
    */
@@ -38,7 +35,7 @@ object LocalBackend {
     hostExecutionPath(workflow.name, workflow.id)
 
   def hostExecutionPath(workflowName: String, workflowUuid: WorkflowId): Path =
-    Paths.get(CromwellExecutions, workflowName, workflowUuid.id.toString)
+    Paths.get(SharedFileSystem.CromwellExecutionRoot, workflowName, workflowUuid.id.toString)
 
   def hostCallPath(workflow: WorkflowDescriptor, callName: String): Path =
     Paths.get(hostExecutionPath(workflow).toFile.getAbsolutePath, s"call-$callName")
@@ -51,7 +48,7 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with LocalFileSystemOperations with LazyLogging {
+class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   type BackendCall = LocalBackendCall
 
   import LocalBackend._

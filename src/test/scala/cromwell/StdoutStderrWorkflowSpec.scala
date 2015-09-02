@@ -10,13 +10,21 @@ import scala.language.postfixOps
 
 class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflowSpec") {
   "A workflow with tasks that produce stdout/stderr" should {
-    "have correct contents in stdout/stderr files" in {
+    "have correct contents in stdout/stderr files for a call" in {
       runWdlAndAssertStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
         eventFilter = EventFilter.info(pattern = s"persisting status of calls hello.hello to Done", occurrences = 1),
         fqn = "hello.hello",
         stdout = Some("Hello world!\n"),
         stderr = Some("")
+      )
+    }
+    "have correct contents in stdout/stderr files for a workflow" in {
+      runWdlAndAssertWorkflowStdoutStderr(
+        sampleWdl = SampleWdl.HelloWorld,
+        eventFilter = EventFilter.info(pattern = s"persisting status of calls hello.hello to Done", occurrences = 1),
+        stdout = Map("hello.hello" -> "Hello world!\n"),
+        stderr = Map("hello.hello" -> "")
       )
     }
     "have correct contents in stdout/stderr files in a Docker environment" taggedAs DockerTest in {

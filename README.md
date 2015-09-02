@@ -577,9 +577,23 @@ For backends `local` and `sge`, there are certain filesystem requirements that y
 * (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
 * (`sge` backend) Jobs launched with `qsub` can use child directories as the working directory of the job, and write files to those directories.
 
-When cromwell runs a workflow through either of these two backends, it first creates a directory `cromwell-executions/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
+The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line.
+
+When cromwell runs a workflow through either of these two backends, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
+
+Any input files to the workflow need to be localized into `<workflow_root>/workflow-inputs`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
+
+* `hard-link` - This will create a hard link (not symbolic) link to the file
+* `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
+* `copy` - Make a copy the file
+
+These options can be overridden with command line options to Java.  For instance, to use the strategies `copy` and `hard-link`, in that order:
+
+```
+java -Dbackend.shared-filesystem.localization.0=copy -Dbackend.shared-filesystem.localization.1=hard-link cromwell.jar ...
+```
 
 ## Local Backend
 

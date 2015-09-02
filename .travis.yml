@@ -6,5 +6,5 @@ jdk:
 before_script:
   - mysql -e "create database IF NOT EXISTS cromwell_test;"
 
-script: sbt clean coverage nodocker:test
+script: sbt -Dbackend.shared-filesystem.localization.0=copy clean coverage nodocker:test
 after_success: sbt coveralls

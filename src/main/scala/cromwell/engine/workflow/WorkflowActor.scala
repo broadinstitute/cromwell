@@ -528,7 +528,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
     val collection = scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), new NoFunctions)
     collection match {
-      case Success(a: WdlArray) =>
+      case Success(a: WdlArray) => Try {
         val newEntries = scatterKey.populate(a.value.size)
         val createScatter = for {
           _ <- dataAccess.insertCalls(workflow.id, newEntries.keys, backend)
@@ -536,7 +536,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           _ <- persistStatus(scatterKey, ExecutionStatus.Done)
         } yield ()
         Await.result(createScatter, AkkaTimeout)
-        Success(newEntries.keys)
+        newEntries.keys
+      }
       case Success(v: WdlValue) => Failure(new Throwable("Scatter collection must evaluate to an array"))
       case Failure(ex) => Failure(ex)
     }

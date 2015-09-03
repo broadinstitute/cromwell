@@ -44,7 +44,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         val actualWorkflowOutputs = workflowOutputs.map { case (k, WdlString(string)) => k -> string }
         actualWorkflowOutputs shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
 
-        val callOutputs = messageAndWait[binding.CallOutputs](CallOutputs(workflowId, "hello.hello", None))
+        val callOutputs = messageAndWait[binding.CallOutputs](CallOutputs(workflowId, "hello.hello"))
         val actualCallOutputs = callOutputs.map { case (k, WdlString(string)) => k -> string }
         actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
       }
@@ -155,7 +155,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             self, "Test WorkflowManagerActor call log lookup failure")
           val id = WorkflowId.randomId()
           val noIndex = Try {
-            messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar", None))
+            messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
           } match {
             case Success(_) => fail("Expected lookup to fail with unknown workflow")
             case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"

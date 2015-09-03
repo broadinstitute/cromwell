@@ -1,6 +1,5 @@
 package cromwell.webservice
 
-import java.util.UUID
 import javax.ws.rs.Path
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}

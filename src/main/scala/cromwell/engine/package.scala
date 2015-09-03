@@ -112,6 +112,12 @@ package object engine {
   object ExecutionStatus extends Enumeration {
     type ExecutionStatus = Value
     val NotStarted, Starting, Running, Failed, Done, Aborted, Aborting = Value
+
+    implicit class EnhancedExecutionStatus(val status: ExecutionStatus) extends AnyVal {
+      def isTerminal: Boolean = {
+        Seq(Failed, Done, Aborted) contains status
+      }
+    }
   }
 
   /*
@@ -132,6 +138,12 @@ package object engine {
       def fromIndex: Int = index match {
         case None => IndexNone
         case Some(i) => i
+      }
+    }
+
+    implicit val ExecutionIndexOrdering = new Ordering[ExecutionIndex] {
+      override def compare(x: ExecutionIndex, y: ExecutionIndex): Int = {
+        x.fromIndex.compareTo(y.fromIndex)
       }
     }
   }

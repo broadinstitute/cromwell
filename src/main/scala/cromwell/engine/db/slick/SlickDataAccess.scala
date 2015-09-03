@@ -278,12 +278,28 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  override def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
+
+    val action = for {
+      workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
+        workflowId.toString).result.head
+
+      executionKeyAndStatusResults <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
+        (workflowExecutionResult.workflowExecutionId.get, fqn)).result
+
+      executionStatuses = (executionKeyAndStatusResults map { e =>
+        (ExecutionDatabaseKey(e._1, e._2.toIndex), e._3)
+      }).toMap mapValues ExecutionStatus.withName
+    } yield executionStatuses
+    runTransaction(action)
+  }
+
   override def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.toString).result.head
 
-      executionStatuses <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
+      executionStatuses <- dataAccess.executionStatusByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
       maybeStatus = executionStatuses.headOption map ExecutionStatus.withName

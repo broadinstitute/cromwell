@@ -79,6 +79,9 @@ trait DataAccess {
 
   def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
 
+  /** Return all execution entries for the FQN, including collector and shards if any */
+  def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
+
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]

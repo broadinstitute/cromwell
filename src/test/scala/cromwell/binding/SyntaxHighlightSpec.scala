@@ -136,7 +136,7 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253ms\u001b[0m {
         |  \u001b[38;5;33mArray[File]\u001b[0m \u001b[38;5;112minput_file\u001b[0m
         |  \u001b[38;5;214mcommand\u001b[0m <<<
-        |    cat ${sep=' ' input_file} | awk '{s+=$1} END {print s}'
+        |    cat ${sep=" " input_file} | awk '{s+=$1} END {print s}'
         |  >>>
         |  \u001b[38;5;214moutput\u001b[0m {
         |    \u001b[38;5;33mString\u001b[0m \u001b[38;5;112ms\u001b[0m = \u001b[38;5;13mread_string\u001b[0m(\u001b[38;5;13mstdout\u001b[0m())
@@ -171,7 +171,7 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |<span class="keyword">task</span> <span class="name">s</span> {
         |  <span class="type">Array[File]</span> <span class="variable">input_file</span>
         |  <span class="section">command</span> <<<
-        |    <span class="command">cat ${sep=' ' input_file} | awk '{s+=$1} END {print s}'</span>
+        |    <span class="command">cat ${sep=" " input_file} | awk '{s+=$1} END {print s}'</span>
         |  >>>
         |  <span class="section">output</span> {
         |    <span class="type">String</span> <span class="variable">s</span> = <span class="function">read_string</span>(<span class="function">stdout</span>())

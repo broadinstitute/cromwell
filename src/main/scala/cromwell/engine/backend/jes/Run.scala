@@ -19,18 +19,24 @@ object Run  {
     val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.call.name}]"
 
     rpr.setInputs(pipeline.jesParameters.filter(_.isInput).toRunMap)
-    Log.info(s"$tag inputs are ${rpr.getInputs}")
+    Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
+
     rpr.setOutputs(pipeline.jesParameters.filter(_.isOutput).toRunMap)
-    Log.info(s"$tag outputs are ${rpr.getOutputs}")
+    Log.info(s"$tag Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
     val logging = new Logging()
     logging.setGcsPath(pipeline.gcsPath)
     rpr.setLogging(logging)
 
+    // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
+    rpr.setResources(pipeline.runtimeInfo.resources)
+
     val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
     Log.info(s"$tag JES ID is $id")
     new Run(id, pipeline, tag)
   }
+
+  private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
 
   implicit class RunJesParameters(val params: Seq[JesParameter]) extends AnyVal {
     def toRunMap = params.map(p => p.name -> p.gcs).toMap.asJava

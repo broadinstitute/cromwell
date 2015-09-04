@@ -5,6 +5,7 @@ import java.util.UUID
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
+import scala.language.implicitConversions
 
 /**
  * ==Cromwell Execution Engine==
@@ -31,7 +32,7 @@ package object engine {
 
   case class AbortFunction(function: ()=>Unit)
   case class IndexedAbortFunction(callReference: CallReference, callAbortFunction: AbortFunction)
-  case class AbortFunctionRegistration(registrationFunction: AbortFunction=>Unit)
+  case class AbortRegistrationFunction(register: AbortFunction=>Unit)
 
   sealed trait WorkflowState {
     def isTerminal: Boolean
@@ -45,32 +46,37 @@ package object engine {
   }
 
   case object WorkflowSubmitted extends WorkflowState {
-    override def toString: String = "Submitted"
+    override val toString: String = "Submitted"
     override val isTerminal = false
   }
   
   case object WorkflowRunning extends WorkflowState {
-    override def toString: String = "Running"
+    override val toString: String = "Running"
     override val isTerminal = false
   }
 
   case object WorkflowAborting extends WorkflowState {
-    override def toString: String = "Aborting"
+    override val toString: String = "Aborting"
     override val isTerminal = false
   }
 
   case object WorkflowFailed extends WorkflowState {
-    override def toString: String = "Failed"
+    override val toString: String = "Failed"
     override val isTerminal = true
   }
   
   case object WorkflowSucceeded extends WorkflowState {
-    override def toString: String = "Succeeded"
+    override val toString: String = "Succeeded"
     override val isTerminal = true
   }
 
   case object WorkflowAborted extends WorkflowState {
-    override def toString: String = "Aborted"
+    override val toString: String = "Aborted"
+    override val isTerminal = true
+  }
+
+  case object WorkflowStopped extends WorkflowState {
+    override val toString = "Stopped"
     override val isTerminal = true
   }
 
@@ -106,5 +112,39 @@ package object engine {
   object ExecutionStatus extends Enumeration {
     type ExecutionStatus = Value
     val NotStarted, Starting, Running, Failed, Done, Aborted, Aborting = Value
+
+    implicit class EnhancedExecutionStatus(val status: ExecutionStatus) extends AnyVal {
+      def isTerminal: Boolean = {
+        Seq(Failed, Done, Aborted) contains status
+      }
+    }
+  }
+
+  /*
+   * Type and implicit conversion classes for ExecutionIndex
+   */
+  object ExecutionIndex {
+    type ExecutionIndex = Option[Int]
+    val IndexNone = -1 // "It's a feature" https://bugs.mysql.com/bug.php?id=8173
+
+    implicit class IndexEnhancedInt(val value: Int) extends AnyVal {
+      def toIndex: ExecutionIndex = value match {
+        case IndexNone => None
+        case i => Option(i)
+      }
+    }
+
+    implicit class IndexEnhancedIndex(val index: ExecutionIndex) extends AnyVal {
+      def fromIndex: Int = index match {
+        case None => IndexNone
+        case Some(i) => i
+      }
+    }
+
+    implicit val ExecutionIndexOrdering = new Ordering[ExecutionIndex] {
+      override def compare(x: ExecutionIndex, y: ExecutionIndex): Int = {
+        x.fromIndex.compareTo(y.fromIndex)
+      }
+    }
   }
 }

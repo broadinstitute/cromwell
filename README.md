@@ -26,6 +26,12 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Aliasing Calls](#aliasing-calls)
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
   * [Using Files as Inputs](#using-files-as-inputs)
+  * [Scatter/Gather](#scattergather)
+* [Backends](#backends)
+  * [Local Filesystem Assumptions / Layout](#local-filesystem-assumptions--layout)
+  * [Local Backend](#local-backend)
+  * [Sun GridEngine](#sun-gridengine)
+  * [Google JES](#google-jes)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /workflows/:version](#post-workflowsversion)
@@ -33,6 +39,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
   * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
   * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
+  * [GET /workflows/:version/:id/logs](#get-workflowsversionidlogs)
   * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
@@ -125,8 +132,7 @@ object main {
 Run the JAR file with no arguments to get the usage message:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar
-
+$ java -jar cromwell.jar
 java -jar cromwell.jar <action> <parameters>
 
 Actions:
@@ -156,6 +162,13 @@ parse <WDL file>
   via this sub-command and the 'validate' subcommand should
   be used for full validation
 
+highlight <WDL file> <html|console>
+
+  Reformats and colorizes/tags a WDL file. The second
+  parameter is the output type.  "html" will output the WDL
+  file with <span> tags around elements.  "console" mode
+  will output colorized text to the terminal
+
 server
 
   Starts a web server on port 8000.  See the web server
@@ -169,7 +182,7 @@ Given a WDL file, this runs the full syntax checker over the file and resolves i
 Error if a `call` references a task that doesn't exist:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar validate 2.wdl
+$ java -jar cromwell.jar validate 2.wdl
 ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 
   call BADps
@@ -180,7 +193,7 @@ ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
 Error if namespace and task have the same name:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar validate 5.wdl
+$ java -jar cromwell.jar validate 5.wdl
 ERROR: Task and namespace have the same name:
 
 Task defined here (line 3, col 6):
@@ -199,7 +212,7 @@ import "ps.wdl" as ps
 Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar inputs 3step.wdl
+$ java -jar cromwell.jar inputs 3step.wdl
 {
   "three_step.cgrep.pattern": "String"
 }
@@ -212,7 +225,7 @@ This inputs document is used as input to the `run` subcommand.
 Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workflow and print the outputs:
 
 ```
-$ java -jar ../target/scala-2.11/cromwell-0.7.jar run 3step.wdl inputs.json
+$ java -jar cromwell.jar run 3step.wdl inputs.json
 [INFO] [06/10/2015 09:20:19.945] [ForkJoinPool-2-worker-13] [akka://cromwell-system/user/$b] Workflow ID: bdcc70e6-e6d7-4483-949b-7c3c2199e26c
 [INFO] [06/10/2015 09:20:19.968] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: ps
 [INFO] [06/10/2015 09:20:20.094] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: cgrep, wc
@@ -229,7 +242,7 @@ $ java -jar ../target/scala-2.11/cromwell-0.7.jar run 3step.wdl inputs.json
 Given a WDL file input, this does grammar level syntax checks and prints out the resulting abstract syntax tree.
 
 ```
-$ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.7.jar parse /dev/stdin
+$ echo "workflow wf {}" | java -jar cromwell.jar parse /dev/stdin
 (Document:
   imports=[],
   definitions=[
@@ -241,13 +254,47 @@ $ echo "workflow wf {}" | java -jar ../target/scala-2.11/cromwell-0.7.jar parse 
 )
 ```
 
+## highlight
+
+Formats a WDL file and semantically tags it.  This takes a second parameter (`html` or `console`) which determines what the output format will be.
+
+test.wdl
+```
+task abc {
+  String in
+  command { echo ${in} }
+  output {String out = read_string(stdout())}
+}
+
+workflow wf { call abc }
+```
+
+This WDL file can be formatted in HTML as follows:
+
+```
+$ java -jar cromwell.jar highlight test.wdl html
+<span class="keyword">task</span> <span class="name">abc</span> {
+  <span class="type">String</span> <span class="variable">in</span>
+  <span class="section">command</span> {
+    <span class="command">echo ${in}</span>
+  }
+  <span class="section">output</span> {
+    <span class="type">String</span> <span class="variable">out</span> = <span class="function">read_string</span>(<span class="function">stdout</span>())
+  }
+}
+
+<span class="keyword">workflow</span> <span class="name">wf</span> {
+  <span class="keyword">call</span> <span class="name">abc</span>
+}
+```
+
 ## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
 # Getting Started with WDL
 
-If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `target/scala-2.11/cromwell-0.7.jar`.
+If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `cromwell.jar`.
 
 ## Hello World WDL
 
@@ -271,7 +318,7 @@ workflow test {
 Generate a template `hello.json` file with the `inputs` subcommand:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar inputs hello.wdl
+$ java -jar cromwell.jar inputs hello.wdl
 {
   "test.hello.name": "String"
 }
@@ -290,10 +337,10 @@ Modify this and save it to `hello.json`:
 Then, use the `run` subcommand to run the workflow:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
-  "test.hello.response": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
+  "test.hello.response": "/home/user/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
 }
 ```
 
@@ -321,7 +368,7 @@ workflow test {
 Now when this is run, we get the string output for `test.hello.response`:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "Hello world!"
@@ -408,7 +455,7 @@ Now, we need to specify a value for `test.hello2.name` in the hello.json file"
 Running this workflow now produces two outputs:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "Hello world!",
@@ -451,7 +498,7 @@ Now, the `hello.json` would require three inputs:
 Running this workflow still gives us the two greetings we expect:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "greetings world!",
@@ -497,7 +544,7 @@ The inputs required to run this would be:
 And this would produce the following outputs when run
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
+$ java -jar cromwell.jar run hello.wdl hello.json
 ... truncated ...
 {
   "test.hello.response": "hello, world!",
@@ -546,12 +593,170 @@ And then the inputs JSON file would be:
 The result of running this would be:
 
 ```
-$ java -jar target/scala-2.11/cromwell-0.7.jar run grep.wdl grep.json
+$ java -jar cromwell.jar run grep.wdl grep.json
 ... truncated ...
 {
   "test.grep.count": 3
 }
 ```
+
+## Scatter/Gather
+
+Scatter blocks can be used to run the same call multiple times but only varying a specific parameter on each invocation.  Consider the following example:
+
+```
+task prepare {
+  command <<<
+    python -c "print('one\ntwo\nthree\nfour')"
+  >>>
+  output {
+    Array[String] array = read_lines(stdout())
+  }
+}
+
+task analysis {
+  String str
+  command <<<
+    python -c "print('_${str}_')"
+  >>>
+  output {
+    String out = read_string(stdout())
+  }
+}
+
+task gather {
+  Array[String] array
+  command <<<
+    echo ${sep=' ' array}
+  >>>
+  output {
+    String str = read_string(stdout())
+  }
+}
+
+workflow example {
+  call prepare
+  scatter (x in prepare.array) {
+    call analysis {input: str=x}
+  }
+  call gather {input: array=analysis.out}
+}
+```
+
+This example calls the `analysis` task once for each element in the array that the `prepare` task outputs.  The resulting outputs of this workflow would be:
+
+```
+{
+  "example.analysis.out": ["_one_", "_two_", "_three_", "_four_"],
+  "example.gather.str": "_one_ _two_ _three_ _four_",
+  "example.prepare.array": ["one", "two", "three", "four"]
+}
+```
+
+# Backends
+
+A backend represents a way to run the user's command specified in the `task` section.  Currently three backends are supported:
+
+* Local - Run jobs as subprocesses.  Supports launching in Docker containers.
+* Sun GridEngine - Use `qsub` and job monitoring to run scripts.
+* Google JES - Launch on Google Compute Cluster through JES.
+
+Backends are specified via the configuration option `backend.backend` which can accept the values: sge, local, jes (e.g. `java -Dbackend.backend=sge`).
+
+## Local Filesystem Assumptions / Layout
+
+For backends `local` and `sge`, there are certain filesystem requirements that your environment needs to meet:
+
+* The Cromwell process can write to the current working directory
+* (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
+* (`sge` backend) Jobs launched with `qsub` can use child directories as the working directory of the job, and write files to those directories.
+
+The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line.
+
+When cromwell runs a workflow through either of these two backends, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
+
+Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
+
+Any input files to the workflow need to be localized into `<workflow_root>/workflow-inputs`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
+
+* `hard-link` - This will create a hard link (not symbolic) link to the file
+* `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
+* `copy` - Make a copy the file
+
+These options can be overridden with command line options to Java.  For instance, to use the strategies `copy` and `hard-link`, in that order:
+
+```
+java -Dbackend.shared-filesystem.localization.0=copy -Dbackend.shared-filesystem.localization.1=hard-link cromwell.jar ...
+```
+
+## Local Backend
+
+The local backend will simply launch a subprocess and wait for it to exit.
+
+This backend creates three files in the `<call_dir>` (see previous section):
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `stdout` - The standard output of the process
+* `stderr` - The standard error of the process
+
+The `script` file contains:
+
+```
+cd <container_call_root>
+<user_command>
+echo $? > rc
+```
+
+`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/root/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
+
+The subprocess command that the local backend will launch is:
+
+```
+"/bin/bash" "-c" "cat script | <docker_run> /bin/bash <&0"
+```
+
+Where `<docker_run>` will be non-empty if this particular task specified a Docker container to run in.  `<docker_run>` looks like this:
+
+```
+docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
+```
+
+## Sun GridEngine
+
+The GridEngine backend uses `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
+
+This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
+
+The CWD will contain a `script.sh` file which will contain:
+
+```
+\#!/bin/sh
+<user_command>
+echo $? > rc
+```
+
+The job is launched using the following command:
+
+```
+qsub -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
+```
+
+`<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
+
+the `<call_dir>` contains the following special files added by the SGE backend:
+
+* `qsub.stdout`, `qsub.stderr` - The results of the qsub command.
+* `script.sh` - File containing the user's command and some wrapper code.
+* `stdout`, `stderr` - Standard output streams of the actual job.
+* `rc` - Return code of the SGE job, populated when the job has finished.
+
+The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
+
+Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+## Google JES
+
+... more to come ...
 
 # REST API
 
@@ -748,8 +953,9 @@ Server: spray-can/1.3.3
 ```
 ## GET /workflows/:version/:id/logs/:call
 
-This will return paths to the standard out and standard error files that were generated during the execution
-of a particular fully-qualified name for a call.
+This will return paths to the standard out and standard error files that were generated during the execution of a particular fully-qualified name for a call.
+
+A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
 
 cURL:
 
@@ -774,14 +980,74 @@ Server: spray-can/1.3.3
 {
     "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
     "logs": {
-        "three_step.wc": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
-        }
+        "three_step.wc": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
+            }
+        ]
     }
 }
 ```
+
+In the case that the call is inside a `scatter` block, the output for this API will contain a list of stdout/stderr files, one for each shard.  Consider this example:
+
+```
+task add_one {
+  Int n
+  command {
+    python -c "print(${n}+1)"
+  }
+  output {
+    Int incremented = read_int(stdout())
+  }
+}
+
+workflow test {
+  Array[Int] list = [1,2,3,4]
+  scatter (x in list) {
+    call add_one {input: n=x}
+  }
+}
+```
+
+Running this workflow then issuing this API call would return:
+
+```
+HTTP/1.1 200 OK
+Content-Length: 1256
+Content-Type: application/json; charset=UTF-8
+Date: Fri, 04 Sep 2015 12:22:45 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "cbdefb0f-29ae-475b-a42c-90403f8ff9f8",
+    "logs": {
+        "test.add_one": [
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stdout"
+            },
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stdout"
+            },
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stdout"
+            },
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stdout"
+            }
+        ]
+    }
+}
+```
+
 ## GET /workflows/:version/:id/logs
+
+This returns a similar format as the `/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
 
 cURL:
 
@@ -806,18 +1072,24 @@ Server: spray-can/1.3.3
 {
     "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
     "logs": {
-        "call.ps": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout6128485235785447571.tmp"
-        },
-        "call.cgrep": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout6128485235785447571.tmp"
-        },
-        "call.wc": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout6128485235785447571.tmp"
-        }
+        "call.ps": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout6128485235785447571.tmp"
+            }
+        ],
+        "call.cgrep": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout6128485235785447571.tmp"
+            }
+        ],
+        "call.wc": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout6128485235785447571.tmp"
+            }
+        ]
     }
 }
 ```
@@ -857,7 +1129,7 @@ Server: spray-can/1.3.3
 Install the latest version of [Hermes](http://github.com/scottfrazer/hermes), then run the following command within this directory:
 
 ```
-hermes generate src/main/resources/grammar.hgr --language=java --directory=src/main/java --name=wdl --java-package=cromwell.parser --java-use-apache-commons
+hermes generate src/main/resources/grammar.hgr --language=java --directory=src/main/java --name=wdl --java-package=cromwell.parser --java-use-apache-commons --header
 ```
 
 The grammar for the WDL lexer/parser is defined in `src/main/resources/grammar.hgr`.  Any changes to that grammar should result in a regeneration of the parser and then run the unit tests.  Changing the AST could be disruptive if keys are renamed or objects restructured too much.  It's best to find these issues as soon as possible.

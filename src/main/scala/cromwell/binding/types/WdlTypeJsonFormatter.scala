@@ -1,6 +1,6 @@
 package cromwell.binding.types
 
-import cromwell.binding.WorkflowInput
+import cromwell.binding.{FullyQualifiedName, WorkflowInput}
 import spray.json._
 
 object WdlTypeJsonFormatter extends DefaultJsonProtocol {
@@ -9,12 +9,12 @@ object WdlTypeJsonFormatter extends DefaultJsonProtocol {
     def read(value: JsValue) = ???
   }
 
-  implicit object WorkflowInputJsonFormat extends RootJsonFormat[Seq[WorkflowInput]] {
-    def write(input: Seq[WorkflowInput]) = {
-      JsObject(input.map {input =>
+  implicit object WorkflowInputJsonFormat extends RootJsonFormat[Map[FullyQualifiedName, WorkflowInput]] {
+    def write(inputs: Map[FullyQualifiedName, WorkflowInput]) = {
+      JsObject(inputs map { case (fqn, input) =>
         val optional = if (input.optional) "(optional) " else ""
-        input.fqn -> JsString(s"$optional${input.wdlType.toWdlString}")
-      }.toMap)
+        fqn -> JsString(s"$optional${input.wdlType.toWdlString}")
+      })
     }
     def read(value: JsValue) = ???
   }

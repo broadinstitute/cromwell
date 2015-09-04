@@ -8,8 +8,10 @@ task ps {
 }
 
 task cgrep {
+  String pattern
+  File in_file
   command {
-    grep '${pattern}' ${File in_file} | wc -l
+    grep '${pattern}' ${in_file} | wc -l
   }
   output {
     Int count = read_int(stdout())
@@ -17,8 +19,9 @@ task cgrep {
 }
 
 task wc {
+  File in_file
   command {
-    cat ${File in_file} | wc -l
+    cat ${in_file} | wc -l
   }
   output {
     Int count = read_int(stdout())

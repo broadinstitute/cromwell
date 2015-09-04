@@ -97,7 +97,7 @@ object Main extends App {
 
       inputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
-      workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner)
+      workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner, "SingleWorkflowRunnerActor")
       workflowManagerSystem.actorSystem.awaitTermination()
       // And now we just wait for the magic to happen
     } catch {
@@ -145,6 +145,13 @@ object Main extends App {
         |  otherwise.  Note that higher-level AST checks are not done
         |  via this sub-command and the 'validate' subcommand should
         |  be used for full validation
+        |
+        |highlight <WDL file> <html|console>
+        |
+        |  Reformats and colorizes/tags a WDL file. The second
+        |  parameter is the output type.  "html" will output the WDL
+        |  file with <span> tags around elements.  "console" mode
+        |  will output colorized text to the terminal
         |
         |server
         |

@@ -3,14 +3,19 @@ import sbtassembly.Plugin._
 import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
-version := "0.9"
+
+version := "0.10"
+
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
 val sprayV = "1.3.2"
+
 val DowngradedSprayV = "1.3.1"
+
 val akkaV = "2.3.12"
+
 val googleClientApiV = "1.20.0"
 
 libraryDependencies ++= Seq(
@@ -36,6 +41,7 @@ libraryDependencies ++= Seq(
   "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
   "mysql" % "mysql-connector-java" % "5.1.35",
+  "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,

@@ -42,11 +42,7 @@ case class NamespaceWithoutWorkflow(importedAs: Option[String],
                                     tasks: Seq[Task],
                                     terminalMap: Map[Terminal, WdlSource],
                                     ast: Ast) extends WdlNamespace
-/**
- * Represents a WdlNamespace which has a local workflow, i.e. a directly runnable namespace
- *
- * FIXME: getCallFromMemberAccessAst was being doubly used as validator *and* runtime fetcher, thus needs that formatter. We shouldn't be doing syntax checks at runtime
- */
+/** Represents a WdlNamespace which has a local workflow, i.e. a directly runnable namespace */
 case class NamespaceWithWorkflow(importedAs: Option[String],
                                  workflow: Workflow,
                                  imports: Seq[Import],
@@ -75,9 +71,7 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
         }
     }
 
-    val tryCoercedValues = workflow.inputs.map {input =>
-      input.fqn -> coerceRawInput(input)
-    }.toMap
+    val tryCoercedValues = workflow.inputs map { case (fqn, input) => fqn -> coerceRawInput(input) }
 
     val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
     if (failures.isEmpty) {
@@ -136,17 +130,12 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     }
   }
 
-  /*
-    FIXME: Originally this was called 2x - in validation and in WorkflowManagerActor. In the first case, the scaladoc
-    comment makes sense. In the latter case it doesn't seem to be a check. Is the validating circumstance checking via
-    side effect? Or the other way around?
-
-    TODO/FIXME: Is this really the right thing to be running here anyways? WTF should syntax be checked at runtime? We could get rid of the formatter
+  /**
+   * Given a Fully-Qualified Name, return the Scope object that
+   * corresponds to this FQN.
    */
-  /** Partially evaluate MemberAccess ASTs to make sure they make sense at compile time */
-  def getCallFromMemberAccessAst(ast: Ast): Try[Call] = {
-    NamespaceWithWorkflow.getCallFromMemberAccessAst(ast, workflow, wdlSyntaxErrorFormatter)
-  }
+  def resolve(fqn: FullyQualifiedName): Option[Scope] =
+    (Seq(workflow) ++ workflow.calls ++ workflow.scatters).find(s => s.fullyQualifiedName == fqn || s.fullyQualifiedNameWithIndexScopes == fqn)
 }
 
 /**
@@ -338,69 +327,44 @@ object NamespaceWithWorkflow {
       if namespaceAst.sourceString == workflowAst.getAttribute("name").sourceString
     } yield {throw new SyntaxError(wdlSyntaxErrorFormatter.workflowAndNamespaceHaveSameName(workflowAst, namespaceAst.asInstanceOf[Terminal]))}
 
-    val workflow: Workflow = Scope.generateWorkflow(workflowAst, namespaces, tasks, wdlSyntaxErrorFormatter)
+    val workflow: Workflow = Workflow(workflowAst, namespaces, tasks, wdlSyntaxErrorFormatter)
 
-    // FIXME: This block is run for its side effect of blowing up on the .get (I believe!) - Should there be a real syntax error?
-    // FIXME: It took me a while to understand the logic of the original code & I'm not sure this comment is correct?
-    // FIXME: Also, it'd be nice to move this validity check into Workflow if possible
-    // All MemberAccess ASTs that are not contained in other MemberAccess ASTs
+    // Make sure that all MemberAccess ASTs refer to valid calls and those have valid output names
    for {
       call <- workflow.calls
       (name, expression) <- call.inputMappings
-      memberAccess <- expression.ast.findTopLevelMemberAccesses()
-    } yield {
-      getCallFromMemberAccessAst(memberAccess, workflow, wdlSyntaxErrorFormatter).get
-    }
+      memberAccessAst <- expression.ast.findTopLevelMemberAccesses()
+    } validateMemberAccessAst(memberAccessAst, workflow, wdlSyntaxErrorFormatter)
 
     new NamespaceWithWorkflow(namespace, workflow, imports, namespaces, tasks, terminalMap, wdlSyntaxErrorFormatter, ast)
   }
 
-  // FIXME/TODO: Depending on how things work w/ the related FIXME's in the actual case class this might change. This is also being used as a validity check. I had another FIXME about this up above
-  /*
-   * Partially evaluate MemberAccess ASTs to make sure they're not nonsense at compile time
+  /**
+   * Ensures that the lhs corresponds to a call and the rhs corresponds to one of its outputs. We're only checking
+   * top level MemberAccess ASTs because the sub-ASTs don't make sense w/o the context of the parent. For example
+   * if we have "input: var=ns.ns1.my_task" it does not make sense to validate "ns1.my_task" by itself as it only
+   * makes sense to validate that "ns.ns1.my_task" as a whole is coherent
    *
-   * MemberAccess ASTs are of the form lhs.rhs
+   * Run for its side effect (i.e. Exception) but we were previously using a Try and immediately calling .get on it
+   * so it's the same thing
    */
-  def getCallFromMemberAccessAst(ast: Ast, workflow: Workflow, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Try[Call] = {
-    def callFromName(name: String): Try[Call] = {
-      workflow.calls.find(_.name == name) match {
-        case Some(c: Call) => Success(c)
-        case _ => Failure(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(ast)))
-      }
-    }
-    val rhs = ast.getAttribute("rhs").sourceString
-
-    /**
-     * The right-hand side of a member-access AST should always be interpreted as a String
-     * Sometimes, the left-hand side is itself a MemberAccess AST, like in the expression
-     * for `call t1` below.  In that example, callFromName("ns.ns2.task_name") would be
-     * called.  In the `call t2` example, callFromName("alias") is called
-     *
-     * import "test.wdl" as ns
-     * workflow w {
-     *  call ns.ns2.task_name
-     *  call t1 {
-     *    input: x=ns.ns2.task_name.output
-     *  }
-     *
-     *  call ns.ns2.task_name as alias
-     *  call t2 {
-     *    input: y=alias.output
-     *  }
-     *}
+  def validateMemberAccessAst(memberAccessAst: Ast,
+                              workflow: Workflow,
+                              errorFormatter: WdlSyntaxErrorFormatter): Unit = {
+    val memberAccess = MemberAccess(memberAccessAst)
+    /*
+      This is a shortcut - it's only looking at the workflow's locally qualified name and not the fully qualified
+      name. This is ok for now because we do not support nested workflows and all call names must be unique within
+      a workflow, however if we support nested workflows this will no longer work properly.
      */
-    val lhs = callFromName(ast.getAttribute("lhs") match {
-      case a: Ast => WdlExpression.toString(a)
-      case terminal: Terminal => terminal.sourceString
-    })
+    val call = workflow.calls find { _.name == memberAccess.lhs }
 
-    lhs match {
-      case Success(c: Call) =>
-        c.task.outputs.find {_.name == rhs}.getOrElse {
-          throw new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(ast))
-        }
-        Success(c)
-      case f => f
+    call match {
+      case Some(c) if c.task.outputs.exists(_.name == memberAccess.rhs) => ()
+      case Some(c) =>
+        throw new SyntaxError(errorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst))
+      case None =>
+        throw new SyntaxError(errorFormatter.undefinedMemberAccess(memberAccessAst))
     }
   }
 }

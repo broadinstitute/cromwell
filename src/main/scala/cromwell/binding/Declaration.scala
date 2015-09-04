@@ -2,7 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.types.WdlType
-import cromwell.parser.WdlParser.Ast
+import cromwell.parser.WdlParser.{Ast, AstNode}
 
 object Declaration {
   def apply(ast: Ast, scopeFqn: FullyQualifiedName, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Declaration = {
@@ -12,7 +12,7 @@ object Declaration {
       Option(ast.getAttribute("postfix")).map(_.sourceString),
       ast.getAttribute("name").sourceString,
       ast.getAttribute("expression") match {
-        case a: Ast => Some(WdlExpression(a))
+        case a: AstNode => Some(WdlExpression(a))
         case _ => None
       }
     )

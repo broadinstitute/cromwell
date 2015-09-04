@@ -2,22 +2,23 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.testkit.TestActorRef
+import akka.testkit.{EventFilter, TestActorRef}
 import cromwell.binding._
 import cromwell.binding.command.CommandPart
 import cromwell.binding.types.WdlStringType
-import cromwell.binding.values.WdlString
+import cromwell.binding.values.{WdlInteger, WdlString}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
+import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, WorkflowOutputs, _}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.{CromwellSpec, CromwellTestkitSpec, binding}
-
+import akka.pattern.ask
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -75,11 +76,11 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
             // FIXME? null AST
             val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-            val call = new Call(None, key.scope, task, Map.empty, None)
+            val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
               _ <- dataAccess.updateWorkflowState(workflowId, workflowState)
-              _ <- dataAccess.setStatus(workflowId, Seq(call.fullyQualifiedName), status)
+              _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
             } yield ()
           }
         )
@@ -153,7 +154,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor call log lookup failure")
           val id = WorkflowId.randomId()
-          Try {
+          val noIndex = Try {
             messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
           } match {
             case Success(_) => fail("Expected lookup to fail with unknown workflow")
@@ -177,6 +178,16 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           }
         }
       }
+    }
+
+    "run workflows in the correct directory" in {
+      val (wma, workflowId) = runWdl(sampleWdl = SampleWdl.CurrentDirectory,
+                                     EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
+      val outputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[binding.WorkflowOutputs].futureValue
+      val outputName = "whereami.whereami.pwd"
+      val salutation = outputs.get(outputName).get
+      val actualOutput = salutation.asInstanceOf[WdlString].value.trim
+      actualOutput should endWith("/call-whereami")
     }
   }
 }

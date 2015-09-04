@@ -1,6 +1,5 @@
 package cromwell.webservice
 
-import java.util.UUID
 import javax.ws.rs.Path
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
@@ -76,7 +75,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute
+    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute
 
   @Path("/{version}/{id}/status")
   @ApiOperation(

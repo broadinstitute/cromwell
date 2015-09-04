@@ -34,20 +34,18 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
   val TestExecutionTimeout = 5000 milliseconds
 
   "A WorkflowActor" should {
-    "start" in {
+    "start, run, succeed and die" in {
       val fsm = buildWorkflowFSMRef(SampleWdl.HelloWorld)
+      val probe = TestProbe()
+      probe watch fsm
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("hello.hello") {
         fsm ! Start
         within(TestExecutionTimeout) {
           awaitCond(fsm.stateName == WorkflowRunning)
           awaitCond(fsm.stateName == WorkflowSucceeded)
-          val outputName = "hello.hello.salutation"
-          val outputs = Await.result(fsm.ask(GetOutputs).mapTo[WorkflowOutputs], 5 seconds)
-          val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
-          val actualOutput = salutation.asInstanceOf[WdlString].value.trim
-          actualOutput shouldEqual "Hello world!"
         }
+        probe.expectTerminated(fsm, 10 seconds)
       }
     }
 
@@ -67,9 +65,9 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
       val fsm = buildWorkflowFSMRef(SampleWdl.GoodbyeWorld)
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("goodbye.goodbye") {
-        waitForPattern("persisting status of calls goodbye.goodbye to Starting.") {
-          waitForPattern("persisting status of calls goodbye.goodbye to Running.") {
-            waitForPattern("persisting status of calls goodbye.goodbye to Failed.") {
+        waitForPattern("persisting status of goodbye.goodbye to Starting.") {
+          waitForPattern("persisting status of goodbye.goodbye to Running.") {
+            waitForPattern("persisting status of goodbye.goodbye to Failed.") {
               waitForPattern("WorkflowActor .+ transitioning from Running to Failed\\.") {
                 fsm ! Start
                 awaitCond(fsm.stateName == WorkflowRunning)
@@ -77,23 +75,6 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
               }
             }
           }
-        }
-      }
-    }
-
-    "run in the correct directory" in {
-      val fsm = buildWorkflowFSMRef(SampleWdl.CurrentDirectory)
-      assert(fsm.stateName == WorkflowSubmitted)
-      startingCallsFilter("whereami.whereami") {
-        fsm ! Start
-        within(TestExecutionTimeout) {
-          awaitCond(fsm.stateName == WorkflowRunning)
-          awaitCond(fsm.stateName == WorkflowSucceeded)
-          val outputName = "whereami.whereami.pwd"
-          val outputs = fsm.ask(GetOutputs).mapTo[WorkflowOutputs].futureValue
-          val salutation = outputs.getOrElse(outputName, throw new RuntimeException(s"Output '$outputName' not found."))
-          val actualOutput = salutation.asInstanceOf[WdlString].value.trim
-          actualOutput.endsWith("/call-whereami") shouldBe true
         }
       }
     }
@@ -108,8 +89,12 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     }
 
     "typecheck outputs" in {
+      val message = s"""Error processing 'three_step.cgrep.count':
+             |
+             |Value WdlFile.* cannot be converted to Int
+           """.stripMargin
       within(TestExecutionTimeout) {
-        waitForErrorWithException("Expression 'WdlFile.*' of type File cannot be converted to Int for output 'three_step.cgrep.count'.") {
+        waitForErrorWithException(message) {
           val fsm = buildWorkflowFSMRef(SampleWdl.OutputTypeChecking)
 
           assert(fsm.stateName == WorkflowSubmitted)

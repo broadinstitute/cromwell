@@ -7,8 +7,7 @@ import akka.testkit._
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.binding.{NamespaceWithWorkflow, NoFunctions, WdlFunctions}
-import cromwell.engine.backend.TaskExecutionContext
-import cromwell.engine.backend.local.{LocalBackend, LocalEngineFunctions, LocalTaskExecutionContext}
+import cromwell.engine.backend.local.{LocalBackend, LocalEngineFunctions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 
@@ -73,7 +72,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
       val outputs =
       runWdlAndAssertOutputs(
-        buildWorkflowDescriptor(SampleWdl.MapLiteral, runtime="", uuid=UUID.randomUUID()),
+        SampleWdl.MapLiteral,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
         expectedOutputs = Map(
           "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(

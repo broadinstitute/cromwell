@@ -11,16 +11,16 @@ public enum MemorySize {
     GiB(KiB.multiplier * MiB.multiplier, "GiB"),
     TiB(KiB.multiplier * GiB.multiplier, "TiB"),
     KB(1 << 10, "KB"),
-    MB(KB.multiplier * KB.multiplier, "MB"),
-    GB(KB.multiplier * MB.multiplier, "GB"),
-    TB(KB.multiplier * GB.multiplier, "TB");
+    MB(KB.multiplier * KB.multiplier, "M", "MB"),
+    GB(KB.multiplier * MB.multiplier, "G", "GB"),
+    TB(KB.multiplier * GB.multiplier, "T", "TB");
 
     public final long multiplier;
-    public final String suffix;
+    public final String[] suffixes;
 
-    MemorySize(long multiplier, String suffix) {
+    MemorySize(long multiplier, String... suffixes) {
         this.multiplier = multiplier;
-        this.suffix = suffix;
+        this.suffixes = suffixes;
     }
 
     /** Convert from the units of this memory size to individual bytes. */

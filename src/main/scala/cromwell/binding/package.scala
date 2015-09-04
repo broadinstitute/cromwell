@@ -34,4 +34,8 @@ package object binding {
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)
   }
+
+  implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
+    def isScatter = fqn.contains(Scatter.FQNIdentifier)
+  }
 }

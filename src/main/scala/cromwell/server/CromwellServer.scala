@@ -19,7 +19,6 @@ object CromwellServer extends DefaultWorkflowManagerSystem {
   // So, we're not shutting down dataAccess during this.workflowManagerActor.postStop() nor this.service.postStop().
   // Not sure otherwise when this server is really shutting down, so this.dataAccess currently never explicitly closed.
   // Shouldn't be an issue unless perhaps test code tries to launch multiple servers and leaves dangling connections.
-
   val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, SwaggerService.from(conf)), "cromwell-service")
 
   implicit val timeout = Timeout(5.seconds)

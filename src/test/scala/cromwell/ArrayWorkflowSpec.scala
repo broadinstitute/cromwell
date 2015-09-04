@@ -1,14 +1,12 @@
 package cromwell
 
-import java.nio.file.{Paths, Files}
+import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 import akka.testkit._
-import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.{NoFunctions, WdlFunctions, NamespaceWithWorkflow, WdlNamespace}
-import cromwell.binding.types.{WdlStringType, WdlFileType, WdlArrayType}
-import cromwell.binding.values.{WdlInteger, WdlArray, WdlFile, WdlString}
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlStringType}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlInteger, WdlString}
+import cromwell.binding.{NamespaceWithWorkflow, NoFunctions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 
@@ -68,9 +66,8 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
       )
       val uuid = UUID.randomUUID()
       val sampleWdl = SampleWdl.ArrayLiteral(Paths.get("."))
-      val descriptor = buildWorkflowDescriptor(sampleWdl, runtime="", uuid=uuid)
       runWdlAndAssertOutputs(
-        descriptor,
+        sampleWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.cat", occurrences = 1),
         expectedOutputs = outputs
       )

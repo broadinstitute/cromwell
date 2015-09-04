@@ -2,8 +2,10 @@ package cromwell.engine.db
 
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
-import cromwell.engine.{WorkflowId, SymbolStoreEntry, WorkflowState}
+import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
+import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -42,7 +44,7 @@ trait DataAccess {
    */
   def createWorkflow(workflowInfo: WorkflowInfo,
                      workflowInputs: Traversable[SymbolStoreEntry],
-                     calls: Traversable[Call],
+                     calls: Traversable[Scope],
                      backend: Backend): Future[Unit]
 
   def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]]
@@ -65,19 +67,24 @@ trait DataAccess {
   def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   /** Get all outputs for the scope of this call. */
-  def getOutputs(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]]
+  def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]]
 
   /** Get all inputs for the scope of this call. */
   def getInputs(id: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, call: Call, callOutputs: Map[String, WdlValue]): Future[Unit]
+  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue]): Future[Unit]
 
-  def setStatus(workflowId: WorkflowId, calls: Traversable[FullyQualifiedName], callStatus: CallStatus): Future[Unit]
+  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], scopeStatus: ExecutionStatus): Future[Unit]
 
-  def getExecutionStatuses(workflowId: WorkflowId): Future[Map[FullyQualifiedName, CallStatus]]
+  def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
 
-  def getExecutionStatus(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Option[CallStatus]]
+  /** Return all execution entries for the FQN, including collector and shards if any */
+  def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
+
+  def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
+
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]

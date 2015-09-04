@@ -16,9 +16,15 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  }
         |}
         |workflow w {
+        |  Array[String] a = ["foo", "bar", "baz"]
         |  call t
         |  call t as u {
         |    input: f="abc", p=2
+        |  }
+        |  scatter (b in a) {
+        |    call t as v {
+        |      input: f=t, p=3
+        |    }
         |  }
         |}
       """.stripMargin, BackendType.LOCAL
@@ -34,9 +40,15 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |}
         |
         |\u001b[38;5;214mworkflow\u001b[0m \u001b[38;5;253mw\u001b[0m {
+        |  \u001b[38;5;33mArray[String]\u001b[0m \u001b[38;5;112ma\u001b[0m = ["foo","bar","baz"]
         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m
         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m as u {
         |    input: f="abc", p=2
+        |  }
+        |  \u001b[38;5;214mscatter\u001b[0m (b in a) {
+        |    \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m as v {
+        |      input: f=t, p=3
+        |    }
         |  }
         |}""".stripMargin
 
@@ -50,9 +62,15 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |}
         |
         |<span class="keyword">workflow</span> <span class="name">w</span> {
+        |  <span class="type">Array[String]</span> <span class="variable">a</span> = ["foo","bar","baz"]
         |  <span class="keyword">call</span> <span class="name">t</span>
         |  <span class="keyword">call</span> <span class="name">t</span> as <span class="alias">u</span> {
         |    input: f="abc", p=2
+        |  }
+        |  <span class="keyword">scatter</span> (b in a) {
+        |    <span class="keyword">call</span> <span class="name">t</span> as <span class="alias">v</span> {
+        |      input: f=t, p=3
+        |    }
         |  }
         |}""".stripMargin
 

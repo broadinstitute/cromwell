@@ -3,6 +3,8 @@ package cromwell.binding
 import cromwell.parser.WdlParser.{Ast, Terminal}
 
 object Scatter {
+  val FQNIdentifier = "$scatter"
+
   /**
    * @param index Index of the scatter block. The index is computed during tree generation to reflect wdl scatter blocks structure.
    */
@@ -20,7 +22,7 @@ object Scatter {
  * @param parent Parent of this scatter
  */
 case class Scatter(index: Int, item: String, collection: WdlExpression, parent: Option[Scope]) extends Scope {
-  val name = s"$$scatter_$index"
+  val name = s"${Scatter.FQNIdentifier}_$index"
   override def appearsInFqn = false
   override val prerequisiteCallNames = collection.prerequisiteCallNames
   override lazy val prerequisiteScopes = prerequisiteCalls

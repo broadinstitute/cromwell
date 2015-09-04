@@ -13,20 +13,19 @@ import cromwell.binding._
 import cromwell.binding.types.WdlFileType
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.workflow.CallKey
-import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
-import cromwell.engine.backend.{BackendCall, TaskAbortedException, Backend, StdoutStderr}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.backend.{Backend, StdoutStderr, TaskAbortedException}
 import cromwell.engine.db.DataAccess
-import cromwell.engine.WorkflowId
+import cromwell.engine.workflow.CallKey
+import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowId}
 import cromwell.parser.BackendType
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object JesBackend {
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
@@ -174,11 +173,16 @@ class JesBackend extends Backend with LazyLogging {
     logger.info(s"$tag Call GCS path: ${backendCall.callGcsPath}")
 
     // FIXME: Not particularly robust at the moment.
-    val jesInputs: Seq[JesParameter] = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs).collect({
-      case (k, v) if v.isInstanceOf[WdlFile] =>
+    val adjustedPaths = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs)
+
+    def generateJesInputs(inputs: CallInputs): Iterable[JesParameter] = (inputs collect {
+      case (k: String, v: WdlFile) =>
         logger.info(s"$tag: $k -> @${v.valueString}@")
-        JesInput(k, backendCall.lookupFunction(k).valueString, Paths.get(v.valueString))
-    }).toSeq :+ cmdInput
+        Seq(JesInput(k, backendCall.lookupFunction(k).valueString, Paths.get(v.valueString)))
+      case (k: String, v: WdlArray) => generateJesInputs(v.value map {k -> _} toMap)
+    }).flatten
+
+    val jesInputs: Seq[JesParameter] = generateJesInputs(adjustedPaths).toSeq :+ cmdInput
 
     val filesWithinExpressions = Try(
       backendCall.call.task.outputs map {

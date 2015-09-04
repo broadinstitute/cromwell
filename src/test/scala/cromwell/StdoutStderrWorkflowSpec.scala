@@ -1,10 +1,7 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
-import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
@@ -17,16 +14,16 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
         eventFilter = EventFilter.info(pattern = s"persisting status of hello.hello to Done", occurrences = 1),
         fqn = "hello.hello",
         index = None,
-        stdout = Some("Hello world!\n"),
-        stderr = Some("")
+        stdout = Some(Seq("Hello world!\n")),
+        stderr = Some(Seq(""))
       )
     }
     "have correct contents in stdout/stderr files for a workflow" in {
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
         eventFilter = EventFilter.info(pattern = s"persisting status of hello.hello to Done", occurrences = 1),
-        stdout = Map(ExecutionDatabaseKey("hello.hello", None) -> "Hello world!\n"),
-        stderr = Map(ExecutionDatabaseKey("hello.hello", None) -> "")
+        stdout = Map("hello.hello" -> Seq("Hello world!\n")),
+        stderr = Map("hello.hello" -> Seq(""))
       )
     }
     "have correct contents in stdout/stderr files in a Docker environment" taggedAs DockerTest in {
@@ -40,8 +37,8 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
           """.stripMargin,
         fqn = "hello.hello",
         index = None,
-        stdout = Some("Hello world!\n"),
-        stderr = Some("")
+        stdout = Some(Seq("Hello world!\n")),
+        stderr = Some(Seq(""))
       )
     }
   }

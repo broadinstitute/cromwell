@@ -69,5 +69,5 @@ case class CallStdoutStderrResponse
   @(ApiModelProperty@field)(required = true, value = "The identifier of the workflow")
   id: String,
   @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
-  logs: Map[String, StdoutStderr]
+  logs: Map[String, Seq[StdoutStderr]]
 )

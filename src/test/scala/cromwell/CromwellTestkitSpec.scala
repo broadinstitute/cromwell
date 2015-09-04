@@ -10,7 +10,7 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
-import cromwell.binding.values.{WdlMap, WdlArray, WdlFile, WdlValue}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.StdoutStderr
@@ -195,16 +195,20 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                                                eventFilter: EventFilter,
                                                fqn: FullyQualifiedName,
                                                index: ExecutionIndex,
-                                               stdout: Option[String],
-                                               stderr: Option[String],
+                                               stdout: Option[Seq[String]],
+                                               stderr: Option[Seq[String]],
                                                expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty ) = {
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn, index)).mapTo[StdoutStderr], timeoutDuration)
-        stdout foreach { _ shouldEqual new File(standardStreams.stdout.value).slurp}
-        stderr foreach { _ shouldEqual new File(standardStreams.stderr.value).slurp}
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[Seq[StdoutStderr]], timeoutDuration)
+        stdout foreach { souts =>
+          souts shouldEqual (standardStreams map { s => new File(s.stdout.value).slurp })
+        }
+        stderr foreach { serrs =>
+          serrs shouldEqual (standardStreams map { s => new File(s.stderr.value).slurp })
+        }
       }
     }
   }
@@ -212,19 +216,22 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor],
                                      submitMsg: WorkflowManagerActor.SubmitWorkflow,
                                      eventFilter: EventFilter,
-                                     stdout: Map[ExecutionDatabaseKey, String],
-                                     stderr: Map[ExecutionDatabaseKey, String],
+                                     stdout: Map[FullyQualifiedName, Seq[String]],
+                                     stderr: Map[FullyQualifiedName, Seq[String]],
                                      expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty ) = {
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.WorkflowStdoutStderr(workflowId)).mapTo[Map[ExecutionDatabaseKey, StdoutStderr]], timeoutDuration)
-        stdout foreach { case(dbKey, out) if standardStreams.contains(dbKey) =>
-          out shouldEqual new File(standardStreams.get(dbKey).get.stdout.value).slurp
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.WorkflowStdoutStderr(workflowId)).mapTo[Map[FullyQualifiedName, Seq[StdoutStderr]]], timeoutDuration)
+
+        stdout foreach {
+          case(fqn, out) if standardStreams.contains(fqn) =>
+          out shouldEqual (standardStreams(fqn) map { s => new File(s.stdout.value).slurp })
         }
-        stderr foreach { case(dbKey, err) if standardStreams.contains(dbKey) =>
-          err shouldEqual new File(standardStreams.get(dbKey).get.stderr.value).slurp
+        stderr foreach {
+          case(fqn, err) if standardStreams.contains(fqn) =>
+          err shouldEqual (standardStreams(fqn) map { s => new File(s.stderr.value).slurp })
         }
       }
     }
@@ -235,8 +242,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                                   fqn: FullyQualifiedName,
                                   index: ExecutionIndex,
                                   runtime: String = "",
-                                  stdout: Option[String] = None,
-                                  stderr: Option[String] = None) = {
+                                  stdout: Option[Seq[String]] = None,
+                                  stderr: Option[Seq[String]] = None) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
     runSingleCallWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, index, stdout, stderr)
@@ -245,8 +252,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   def runWdlAndAssertWorkflowStdoutStderr(sampleWdl: SampleWdl,
                                           eventFilter: EventFilter,
                                           runtime: String = "",
-                                          stdout: Map[ExecutionDatabaseKey, String] = Map.empty[ExecutionDatabaseKey, String],
-                                          stderr: Map[ExecutionDatabaseKey, String] = Map.empty[ExecutionDatabaseKey, String]) = {
+                                          stdout: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
+                                          stderr: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]]) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
     runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, stdout, stderr)

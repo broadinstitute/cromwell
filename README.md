@@ -300,7 +300,7 @@ Then, use the `run` subcommand to run the workflow:
 $ java -jar target/scala-2.11/cromwell-0.7.jar run hello.wdl hello.json
 ... truncated ...
 {
-  "test.hello.response": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
+  "test.hello.response": "/home/user/test/c1d15098-bb57-4a0e-bc52-3a8887f7b439/call-hello/stdout8818073565713629828.tmp"
 }
 ```
 
@@ -913,8 +913,9 @@ Server: spray-can/1.3.3
 ```
 ## GET /workflows/:version/:id/logs/:call
 
-This will return paths to the standard out and standard error files that were generated during the execution
-of a particular fully-qualified name for a call.
+This will return paths to the standard out and standard error files that were generated during the execution of a particular fully-qualified name for a call.
+
+A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
 
 cURL:
 
@@ -939,14 +940,74 @@ Server: spray-can/1.3.3
 {
     "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
     "logs": {
-        "three_step.wc": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
-        }
+        "three_step.wc": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
+            }
+        ]
     }
 }
 ```
+
+In the case that the call is inside a `scatter` block, the output for this API will contain a list of stdout/stderr files, one for each shard.  Consider this example:
+
+```
+task add_one {
+  Int n
+  command {
+    python -c "print(${n}+1)"
+  }
+  output {
+    Int incremented = read_int(stdout())
+  }
+}
+
+workflow test {
+  Array[Int] list = [1,2,3,4]
+  scatter (x in list) {
+    call add_one {input: n=x}
+  }
+}
+```
+
+Running this workflow then issuing this API call would return:
+
+```
+HTTP/1.1 200 OK
+Content-Length: 1256
+Content-Type: application/json; charset=UTF-8
+Date: Fri, 04 Sep 2015 12:22:45 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "cbdefb0f-29ae-475b-a42c-90403f8ff9f8",
+    "logs": {
+        "test.add_one": [
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stdout"
+            },
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stdout"
+            },
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stdout"
+            },
+            {
+                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stderr",
+                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stdout"
+            }
+        ]
+    }
+}
+```
+
 ## GET /workflows/:version/:id/logs
+
+This returns a similar format as the `/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
 
 cURL:
 
@@ -971,18 +1032,24 @@ Server: spray-can/1.3.3
 {
     "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
     "logs": {
-        "call.ps": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout6128485235785447571.tmp"
-        },
-        "call.cgrep": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout6128485235785447571.tmp"
-        },
-        "call.wc": {
-            "stderr": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr6126967977036995110.tmp",
-            "stdout": "/Users/sfrazer/projects/cromwell/cromwell-executions/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout6128485235785447571.tmp"
-        }
+        "call.ps": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout6128485235785447571.tmp"
+            }
+        ],
+        "call.cgrep": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout6128485235785447571.tmp"
+            }
+        ],
+        "call.wc": [
+            {
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr6126967977036995110.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout6128485235785447571.tmp"
+            }
+        ]
     }
 }
 ```

@@ -30,6 +30,7 @@ object MockWorkflowManagerActor {
   val runningWorkflowId = WorkflowId(UUID.randomUUID())
   val unknownId = WorkflowId(UUID.randomUUID())
   val submittedWorkflowId = WorkflowId(UUID.randomUUID())
+  val submittedScatterWorkflowId = WorkflowId(UUID.randomUUID())
   val abortedWorkflowId = WorkflowId(UUID.randomUUID())
 
   def props: Props = Props(classOf[MockWorkflowManagerActor])
@@ -72,7 +73,7 @@ class MockWorkflowManagerActor extends Actor  {
       }
       futureOutputs pipeTo sender
 
-    case CallOutputs(id, callFqn, _) =>
+    case CallOutputs(id, callFqn) =>
       val futureOutputs =
         Future {
           id match {
@@ -88,15 +89,18 @@ class MockWorkflowManagerActor extends Actor  {
         }
       futureOutputs pipeTo sender
 
-    case CallStdoutStderr(id, callFqn, _) =>
+    case CallStdoutStderr(id, callFqn) =>
       val futureOutputs =
       Future {
         id match {
           case MockWorkflowManagerActor.submittedWorkflowId =>
             callFqn match {
-              case "three_step.cgrep" => StdoutStderr(WdlFile("/path/to/cgrep-stdout"), WdlFile("/path/to/cgrep-stderr"))
-              case "three_step.ps" => StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr"))
-              case "three_step.wc" => StdoutStderr(WdlFile("/path/to/wc-stdout"), WdlFile("/path/to/wc-stderr"))
+              case "three_step.cgrep" => Seq(StdoutStderr(WdlFile("/path/to/cgrep-stdout"), WdlFile("/path/to/cgrep-stderr")))
+              case "three_step.ps" => Seq(StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr")))
+              case "three_step.wc" => Seq(StdoutStderr(WdlFile("/path/to/wc-stdout"), WdlFile("/path/to/wc-stderr")))
+              case "scatterwf.inside-scatter" =>
+                Seq(StdoutStderr(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
+                    StdoutStderr(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr")))
               case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
             }
           case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
@@ -109,7 +113,11 @@ class MockWorkflowManagerActor extends Actor  {
       Future {
         id match {
           case MockWorkflowManagerActor.submittedWorkflowId =>
-            Map("three_step.ps" -> StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr")))
+            Map("three_step.ps" -> Seq(StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr"))))
+          case MockWorkflowManagerActor.submittedScatterWorkflowId =>
+            Map("scatterwf.inside-scatter" ->
+              Seq(StdoutStderr(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
+                  StdoutStderr(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr"))))
           case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
         }
       }
@@ -425,10 +433,35 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           s"""{
              |  "id": "$submittedWorkflowId",
              |  "logs": {
-             |    "three_step.wc": {
+             |    "three_step.wc": [{
              |      "stdout": "/path/to/wc-stdout",
              |      "stderr": "/path/to/wc-stderr"
-             |    }
+             |    }]
+             |  }
+             |}""".stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
+
+  "Cromwell call stdout/stderr API" should "return 200 with paths to stdout/stderr for calls inside a scatter" in {
+    Get(s"/workflows/$version/$submittedWorkflowId/logs/scatterwf.inside-scatter") ~>
+      callStdoutStderrRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "id": "$submittedWorkflowId",
+             |  "logs": {
+             |    "scatterwf.inside-scatter": [{
+             |      "stdout": "/path/to/inside-scatter/shard0-stdout",
+             |      "stderr": "/path/to/inside-scatter/shard0-stderr"
+             |    }, {
+             |      "stdout": "/path/to/inside-scatter/shard1-stdout",
+             |      "stderr": "/path/to/inside-scatter/shard1-stderr"
+             |    }]
              |  }
              |}""".stripMargin) {
           responseAs[String]
@@ -477,15 +510,38 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           s"""{
              |  "id": "$submittedWorkflowId",
              |  "logs": {
-             |    "three_step.ps": {
+             |    "three_step.ps": [{
              |      "stdout": "/path/to/ps-stdout",
              |      "stderr": "/path/to/ps-stderr"
-             |    }
+             |    }]
              |  }
              |}""".stripMargin) {
           responseAs[String]
         }
       }
   }
-
+  "Cromwell workflow stdout/stderr API" should "return 200 with paths to stdout/stderr with scattered calls" in {
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/logs") ~>
+      workflowStdoutStderrRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(
+          s"""{
+             |  "id": "${MockWorkflowManagerActor.submittedScatterWorkflowId}",
+             |  "logs": {
+             |    "scatterwf.inside-scatter": [{
+             |      "stdout": "/path/to/inside-scatter/shard0-stdout",
+             |      "stderr": "/path/to/inside-scatter/shard0-stderr"
+             |    }, {
+             |      "stdout": "/path/to/inside-scatter/shard1-stdout",
+             |      "stderr": "/path/to/inside-scatter/shard1-stderr"
+             |    }]
+             |  }
+             |}""".stripMargin) {
+          responseAs[String]
+        }
+      }
+  }
 }

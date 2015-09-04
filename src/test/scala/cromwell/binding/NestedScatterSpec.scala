@@ -4,8 +4,8 @@ import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 
-class ScatterSpec extends FlatSpec with Matchers {
-  val namespace = NamespaceWithWorkflow.load(SampleWdl.ScatterWdl.wdlSource(), BackendType.LOCAL)
+class NestedScatterSpec extends FlatSpec with Matchers {
+  val namespace = NamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource(), BackendType.LOCAL)
 
   it should "Have four 'children' objects" in {
     namespace.workflow.children.size shouldEqual 4
@@ -28,7 +28,7 @@ class ScatterSpec extends FlatSpec with Matchers {
   }
 
   it should "Have 'Scatter' objects indexed properly" in {
-    namespace.workflow.scatters(0).index shouldEqual 0
+    namespace.workflow.scatters.head.index shouldEqual 0
     namespace.workflow.scatters(1).index shouldEqual 3
     namespace.workflow.scatters(2).index shouldEqual 1
     namespace.workflow.scatters(3).index shouldEqual 2

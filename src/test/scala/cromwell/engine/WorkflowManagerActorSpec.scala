@@ -11,6 +11,7 @@ import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess.{WorkflowInfo, _}
+import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, WorkflowOutputs, _}
 import cromwell.parser.BackendType
@@ -75,11 +76,11 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val workflowInfo = new WorkflowInfo(workflowId, wdlSource, wdlInputs)
             // FIXME? null AST
             val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
-            val call = new Call(None, key.scope, task, Map.empty, None)
+            val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
             for {
               _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
               _ <- dataAccess.updateWorkflowState(workflowId, workflowState)
-              _ <- dataAccess.setStatus(workflowId, Seq(call.fullyQualifiedName), status)
+              _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
             } yield ()
           }
         )
@@ -153,7 +154,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
             self, "Test WorkflowManagerActor call log lookup failure")
           val id = WorkflowId.randomId()
-          Try {
+          val noIndex = Try {
             messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
           } match {
             case Success(_) => fail("Expected lookup to fail with unknown workflow")

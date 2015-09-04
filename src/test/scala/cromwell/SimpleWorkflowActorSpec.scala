@@ -65,9 +65,9 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
       val fsm = buildWorkflowFSMRef(SampleWdl.GoodbyeWorld)
       assert(fsm.stateName == WorkflowSubmitted)
       startingCallsFilter("goodbye.goodbye") {
-        waitForPattern("persisting status of calls goodbye.goodbye to Starting.") {
-          waitForPattern("persisting status of calls goodbye.goodbye to Running.") {
-            waitForPattern("persisting status of calls goodbye.goodbye to Failed.") {
+        waitForPattern("persisting status of goodbye.goodbye to Starting.") {
+          waitForPattern("persisting status of goodbye.goodbye to Running.") {
+            waitForPattern("persisting status of goodbye.goodbye to Failed.") {
               waitForPattern("WorkflowActor .+ transitioning from Running to Failed\\.") {
                 fsm ! Start
                 awaitCond(fsm.stateName == WorkflowRunning)

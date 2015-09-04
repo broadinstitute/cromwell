@@ -5,6 +5,7 @@ import java.util.UUID
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
+import scala.language.implicitConversions
 
 /**
  * ==Cromwell Execution Engine==
@@ -111,5 +112,39 @@ package object engine {
   object ExecutionStatus extends Enumeration {
     type ExecutionStatus = Value
     val NotStarted, Starting, Running, Failed, Done, Aborted, Aborting = Value
+
+    implicit class EnhancedExecutionStatus(val status: ExecutionStatus) extends AnyVal {
+      def isTerminal: Boolean = {
+        Seq(Failed, Done, Aborted) contains status
+      }
+    }
+  }
+
+  /*
+   * Type and implicit conversion classes for ExecutionIndex
+   */
+  object ExecutionIndex {
+    type ExecutionIndex = Option[Int]
+    val IndexNone = -1 // "It's a feature" https://bugs.mysql.com/bug.php?id=8173
+
+    implicit class IndexEnhancedInt(val value: Int) extends AnyVal {
+      def toIndex: ExecutionIndex = value match {
+        case IndexNone => None
+        case i => Option(i)
+      }
+    }
+
+    implicit class IndexEnhancedIndex(val index: ExecutionIndex) extends AnyVal {
+      def fromIndex: Int = index match {
+        case None => IndexNone
+        case Some(i) => i
+      }
+    }
+
+    implicit val ExecutionIndexOrdering = new Ordering[ExecutionIndex] {
+      override def compare(x: ExecutionIndex, y: ExecutionIndex): Int = {
+        x.fromIndex.compareTo(y.fromIndex)
+      }
+    }
   }
 }

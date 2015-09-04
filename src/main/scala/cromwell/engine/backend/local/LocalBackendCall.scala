@@ -3,22 +3,23 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{CallOutputs, CallInputs, Call, WorkflowDescriptor}
+import cromwell.binding.{CallInputs, CallOutputs, WorkflowDescriptor}
 import cromwell.engine.AbortRegistrationFunction
-import cromwell.engine.backend.{LocalFileSystemBackendCall, BackendCall}
+import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall}
+import cromwell.engine.workflow.CallKey
 
 import scala.util.Try
 
 case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,
-                            call: Call,
+                            key: CallKey,
                             locallyQualifiedInputs: CallInputs,
                             callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with LocalFileSystemBackendCall {
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
-  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.name)
-  val dockerContainerExecutionDir = s"/root/${workflowDescriptor.id.toString}"
+  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.name, key.index)
+  val dockerContainerExecutionDir = LocalBackend.containerExecutionPath(workflowDescriptor)
   val containerCallRoot = call.docker match {
-    case Some(docker) => Paths.get(dockerContainerExecutionDir).resolve(s"call-${call.name}")
+    case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.name, key.index)
     case None => callRootPath
   }
   val rc = callRootPath.resolve("rc")

@@ -8,6 +8,7 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.{Backend, TaskAbortedException}
 import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
@@ -26,10 +27,10 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   override def backendType = BackendType.SGE
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        call: Call,
+                        key: CallKey,
                         locallyQualifiedInputs: CallInputs,
                         abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
-    SgeBackendCall(this, workflowDescriptor, call, locallyQualifiedInputs, abortRegistrationFunction)
+    SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
   override def execute(backendCall: BackendCall): Try[CallOutputs] =  {

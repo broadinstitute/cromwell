@@ -1,5 +1,6 @@
 package cromwell.engine.workflow
 
+
 import akka.actor.FSM.{SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
@@ -7,12 +8,13 @@ import akka.pattern.pipe
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, StdoutStderr}
-import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess.WorkflowInfo
+import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
 import spray.json._
@@ -98,9 +100,21 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def assertCallExistence(id: WorkflowId, callFqn: FullyQualifiedName): Future[Any] = {
-    dataAccess.getExecutionStatus(id, callFqn) map {
+    dataAccess.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None)) map {
       case None => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case _ =>
+    }
+  }
+
+  /**
+   * Retrieve the entries that produce stdout and stderr.
+   */
+  private def getCallLogKeys(id: WorkflowId, callFqn: FullyQualifiedName): Future[Seq[ExecutionDatabaseKey]] = {
+    dataAccess.getExecutionStatuses(id, callFqn) map {
+      case map if map.isEmpty => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
+      case entries =>
+        val callKeys = entries.keys filterNot isCollector(entries.keys)
+        callKeys.toSeq.sortBy(_.index)
     }
   }
 
@@ -117,7 +131,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
-      outputs <- dataAccess.getOutputs(workflowId, callFqn)
+      outputs <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None))
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }
@@ -133,25 +147,39 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     }
   }
 
-  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[StdoutStderr] = {
+  private def isCollector(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
+    key.index.isEmpty &&
+      (entries exists { e =>
+        (e.fqn == key.fqn) && e.index.isDefined
+      })
+  }
+
+  private def hasLogs(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
+    !key.fqn.isScatter && !isCollector(entries)(key)
+  }
+
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
       (wf, call) <- Future.fromTry(assertCallFqnWellFormed(callFqn))
-      callStandardOutput <- Future.successful(backend.stdoutStderr(workflowId, wf, call))
+      callLogKeys <- getCallLogKeys(workflowId, callFqn)
+      callStandardOutput <- Future.successful( callLogKeys map { key => backend.stdoutStderr(workflowId, wf, call, key.index) })
     } yield callStandardOutput
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, StdoutStderr]] = {
-    def logMapFromStatusMap(statusMap: Map[FullyQualifiedName, ExecutionStatus]): Try[Map[FullyQualifiedName, StdoutStderr]] = {
+
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
+    def logMapFromStatusMap(statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
       Try {
+        val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
-          (call, status) <- statusMap.toSeq
-          if Set(ExecutionStatus.Done, ExecutionStatus.Failed).contains(status)
-          (wf, callLqn) = assertCallFqnWellFormed(call).get
-          callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn)
-        } yield call -> callStandardOutput
-        callsToPaths.toMap
+          (key, status) <- sortedMap if status.isTerminal && hasLogs(statusMap.keys)(key)
+          (wf, callLqn) = assertCallFqnWellFormed(key.fqn).get
+          callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn, key.index)
+        } yield key.fqn -> callStandardOutput
+
+        callsToPaths groupBy { _._1 } mapValues { v => v map { _._2 } }
       }
     }
 

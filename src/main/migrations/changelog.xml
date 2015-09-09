@@ -15,4 +15,5 @@
     <include file="changesets/rename_iteration_to_index.xml" relativeToChangelogFile="true" />
     <include file="changesets/sge.xml" relativeToChangelogFile="true" />
     <include file="changesets/change_execution_unique_constraint.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rc.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

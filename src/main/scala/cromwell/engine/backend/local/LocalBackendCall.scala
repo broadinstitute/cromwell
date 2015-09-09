@@ -1,14 +1,10 @@
 package cromwell.engine.backend.local
 
-import java.nio.file.Paths
-
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{CallInputs, CallOutputs, WorkflowDescriptor}
+import cromwell.binding.{CallInputs, WorkflowDescriptor}
 import cromwell.engine.AbortRegistrationFunction
-import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall}
+import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
-
-import scala.util.Try
 
 case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,
@@ -29,5 +25,5 @@ case class LocalBackendCall(backend: LocalBackend,
   val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr)
   val lookupFunction: String => WdlValue = inputName => locallyQualifiedInputs.get(inputName).get
   callRootPath.toFile.mkdirs
-  def execute: Try[CallOutputs] = backend.execute(this)
+  def execute: ExecutionResult = backend.execute(this)
 }

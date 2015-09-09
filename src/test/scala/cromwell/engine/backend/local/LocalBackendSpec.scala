@@ -1,18 +1,14 @@
 package cromwell.engine.backend.local
 
-import java.io.File
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 
-import akka.testkit._
 import cromwell.CromwellTestkitSpec
-import cromwell.binding.values.{WdlFile, WdlValue}
+import cromwell.binding.values.WdlValue
 import cromwell.binding.{WdlSource, WorkflowDescriptor}
 import cromwell.engine.AbortRegistrationFunction
-import cromwell.engine.backend.Backend.StdoutStderrException
+import cromwell.engine.backend.{AbortedExecution, FailedExecution, SuccessfulExecution}
 import cromwell.engine.workflow.CallKey
 import cromwell.util.SampleWdl
-
-import scala.util.{Failure, Success}
 
 class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") {
 
@@ -43,8 +39,9 @@ class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") {
     val backend = new LocalBackend()
     val backendCall = backend.bindCall(descriptor, CallKey(call, None, None), Map.empty[String, WdlValue], AbortRegistrationFunction(_ => ()))
     backendCall.execute match {
-      case Failure(e) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
-      case Success(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
+      case FailedExecution(e, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
+      case SuccessfulExecution(_) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
+      case AbortedExecution => fail("Not expecting this at all")
     }
   }
 

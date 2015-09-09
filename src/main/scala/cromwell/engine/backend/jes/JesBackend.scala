@@ -15,7 +15,7 @@ import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend._
-import cromwell.engine.backend.{Backend, StdoutStderr, TaskAbortedException}
+import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowId}
@@ -167,7 +167,7 @@ class JesBackend extends Backend with LazyLogging {
     JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  def execute(backendCall: BackendCall): Try[CallOutputs] = {
+  def execute(backendCall: BackendCall): ExecutionResult = {
     val tag = makeTag(backendCall)
     val cmdInput = JesInput("exec", backendCall.gcsExecPath.toString, Paths.get("exec.sh"))
     logger.info(s"$tag Call GCS path: ${backendCall.callGcsPath}")
@@ -206,11 +206,11 @@ class JesBackend extends Backend with LazyLogging {
 
     backendCall.instantiateCommand match {
       case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs.get)
-      case Failure(ex) => Failure(ex)
+      case Failure(ex) => FailedExecution(ex)
     }
   }
 
-  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesParameter], jesOutputs: Seq[JesParameter]): Try[CallOutputs] = {
+  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesParameter], jesOutputs: Seq[JesParameter]): ExecutionResult = {
     val tag = makeTag(backendCall)
     // FIXME: Ignore all the errors!
     val unsafeJesOutputs: Seq[JesParameter] = jesOutputs
@@ -242,21 +242,24 @@ class JesBackend extends Backend with LazyLogging {
       lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(backendCall.callGcsPath).gcs))
 
       if (backendCall.call.failOnStderr && stderrLength.intValue > 0) {
-        Failure(new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrLength for command: $command"))
+        FailedExecution(new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrLength for command: $command"))
       } else status match {
         case Run.Success =>
-          unwrapOutputValues(outputMappings, backendCall.workflowDescriptor)
+          unwrapOutputValues(outputMappings, backendCall.workflowDescriptor) match {
+            case Success(outputs) => SuccessfulExecution(outputs)
+            case Failure(e) => FailedExecution(e)
+          }
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
           } else {
             new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: errorCode $errorCode for command: $command. Message: $errorMessage")
           }
-          Failure(throwable)
+          FailedExecution(throwable)
       }
     }
     catch {
-      case e: Exception => Failure(e)
+      case e: Exception => FailedExecution(e)
     }
   }
 

@@ -2,12 +2,9 @@ package cromwell.engine
 
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
-import cromwell.binding.WdlExpression.ScopedLookupFunction
-import cromwell.binding.{Call, CallInputs, WorkflowDescriptor}
-import cromwell.engine.backend.{BackendCall, TaskAbortedException, Backend}
+import cromwell.engine.backend._
 
 import scala.language.postfixOps
-import scala.util.{Success, Failure}
 
 object CallExecutionActor {
   sealed trait CallExecutionActorMessage
@@ -28,9 +25,9 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     val result = backendCall.execute
 
     result match {
-      case Success(_) => log.info(s"$tag: successful execution.")
-      case Failure(e: TaskAbortedException) => log.info(s"$tag: aborted.")
-      case Failure(e) => log.error(s"$tag: failed execution - ${e.getMessage}")
+      case SuccessfulExecution(_) => log.info(s"$tag: successful execution.")
+      case AbortedExecution => log.info(s"$tag: aborted.")
+      case FailedExecution(e, rc) => log.error(e, s"$tag: failed execution, rc = $rc")
     }
 
     context.parent ! CallActor.ExecutionFinished(backendCall.call, result)

@@ -4,6 +4,7 @@ import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
+import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
@@ -63,6 +64,10 @@ trait DataAccess {
   /** Returns all outputs for this workflowId */
   def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
+  def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+
+  def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]]
 
@@ -89,4 +94,17 @@ trait DataAccess {
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]
+
+  def getExecutions(id: Int): Future[Traversable[Execution]]
+
+  /** Fetch the workflow having the specified `WorkflowId`. */
+  def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]
+
+  def getWorkflowExecutionAux(id: Int): Future[WorkflowExecutionAux]
+
+  def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]]
+
+  def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]]
+
+  def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]]
 }

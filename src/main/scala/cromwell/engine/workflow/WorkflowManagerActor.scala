@@ -11,13 +11,18 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.{Backend, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
+import cromwell.engine.db.slick._
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
+import cromwell.webservice.WorkflowMetadataResponse
+import org.joda.time.DateTime
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -35,6 +40,7 @@ object WorkflowManagerActor {
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
+  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
 
@@ -78,6 +84,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
+    case WorkflowMetadata(workflowId) => workflowMetadata(workflowId) pipeTo sender
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
@@ -182,6 +189,81 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       x = callToStatusMap mapValues { _.executionStatus }
       callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, callToStatusMap mapValues { _.executionStatus }))
     } yield callToLogsMap
+  }
+
+  private def buildCallMetadata(executions: Traversable[Execution],
+                                standardStreamsMap: Map[FullyQualifiedName, Seq[StdoutStderr]],
+                                callInputs: Traversable[Symbol],
+                                callOutputs: Traversable[Symbol],
+                                jobInfos: Map[ExecutionDatabaseKey, Any]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
+
+    // add straightforward queries for call inputs and outputs
+    // navigate the keys of the map and indices of their arrays to effectively unify the data
+    // into CallMetadata.
+    // figure out how to get job IDs and maybe on which backend the call executed
+    standardStreamsMap map { case (key, seqOfStreams) =>
+      key -> seqOfStreams.map { streams =>
+        CallMetadata(
+          inputs = Map("input_key" -> "input_value"),
+          backend = "UnknownBackend",
+          status = "UnknownStatus",
+          outputs = Option(Map("output_key" -> "output_value")),
+          start = Option(new DateTime()),
+          end = Option(new DateTime()),
+          jobId = Option("COMPLETELY-MADE-UP-ID"),
+          rc = Option(0),
+          stdout = Option(streams.stdout),
+          stderr = Option(streams.stderr))
+      }
+    }
+  }
+
+  private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
+                                    workflowExecutionAux: WorkflowExecutionAux,
+                                    workflowOutputs: binding.WorkflowOutputs,
+                                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]]): WorkflowMetadataResponse = {
+
+    val startDate = new DateTime(workflowExecution.startDt)
+    val endDate = workflowExecution.endDt map { new DateTime(_) }
+    val outputs = Option(workflowOutputs mapValues { _.valueString })
+    val workflowInputsString = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream).mkString
+    // The casting here looks rough but should be safe if the workflow has gotten through submission?
+    val workflowInputsMap = workflowInputsString.parseJson.asInstanceOf[JsObject].fields map {
+      case (k, v) => k -> v.asInstanceOf[JsString].value
+    }
+
+    WorkflowMetadataResponse(
+      id = workflowExecution.workflowExecutionUuid.toString,
+      status = workflowExecution.status,
+      // We currently do not make a distinction between the submission and start dates of a workflow, but it's
+      // possible at least theoretically that a workflow might not begin to execute immediately upon submission.
+      submission = startDate,
+      start = Option(startDate),
+      end = endDate,
+      inputs = workflowInputsMap,
+      outputs = outputs,
+      calls = callMetadata)
+  }
+
+  private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
+    for {
+      workflowExecution <- dataAccess.getWorkflowExecution(id)
+      workflowOutputs <- workflowOutputs(id)
+      // The workflow has been persisted in the DB so we know the workflowExecutionId must be non-null,
+      // so the .get on the Option is safe.
+      workflowExecutionAux <- dataAccess.getWorkflowExecutionAux(workflowExecution.workflowExecutionId.get)
+      callStandardStreamsMap <- workflowStdoutStderr(id)
+      executions <- dataAccess.getExecutions(workflowExecution.workflowExecutionId.get)
+      callInputs <- dataAccess.getAllInputs(id)
+      callOutputs <- dataAccess.getAllOutputs(id)
+      jesJobs <- dataAccess.jesJobInfo(id)
+      localJobs <- dataAccess.localJobInfo(id)
+      sgeJobs <- dataAccess.sgeJobInfo(id)
+
+      callMetadata = buildCallMetadata(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
+      workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
+
+    } yield workflowMetadata
   }
 
   private def submitWorkflow(source: WorkflowSourceFiles,

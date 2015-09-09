@@ -1,10 +1,7 @@
 package cromwell.webservice
 
-import javax.ws.rs.Path
-
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.typesafe.config.Config
-import com.wordnik.swagger.annotations._
 import cromwell.binding.WorkflowSourceFiles
 import cromwell.engine.WorkflowId
 import cromwell.engine.workflow.ValidateActor
@@ -59,7 +56,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute
+    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute
 
   def queryRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>
@@ -169,6 +166,16 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStdoutStderr(w))
+        case Failure(_) =>
+          complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
+      }
+    }
+
+  def metadataRoute =
+    path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
+      Try(WorkflowId.fromString(workflowId)) match {
+        case Success(w) =>
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowMetadata(w))
         case Failure(_) =>
           complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
       }

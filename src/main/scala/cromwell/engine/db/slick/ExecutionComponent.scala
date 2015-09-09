@@ -77,6 +77,12 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
+  val executionsByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+    } yield execution)
+
   val executionStatusesAndRcsByExecutionId = Compiled(
     (executionId: Rep[Int]) => for {
       execution <- executions
@@ -101,6 +107,6 @@ trait ExecutionComponent {
       scopeID.map({
         case (name, index) => exec.callFqn === name && exec.index === index
       }).fold(falseRep)(_ || _)
-    } 
+    }
   }
 }

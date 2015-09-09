@@ -41,6 +41,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
   * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
   * [GET /workflows/:version/:id/logs](#get-workflowsversionidlogs)
+  * [GET /workflows/:version/:id/metadata](#get-workflowsversionidmetadata)
   * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
@@ -1194,6 +1195,108 @@ Server: spray-can/1.3.3
             }
         ]
     }
+}
+```
+
+## GET /workflows/:version/:id/metadata
+
+This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
+(i.e. shards are accounted for by an array of maps, in the same order as the shards).
+Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
+Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
+return code, stdout and stderr.  Date formats are ISO with milliseconds.
+  
+### Notes
+
+- The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
+  check with Chet first).
+  
+- We never actually specify the backend on which the call executed.  One might be able to infer that from
+  the shape of the job id, but then again maybe not.
+ 
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Server: spray-can/1.3.3
+Date: Fri, 18 Sep 2015 22:31:20 GMT
+Content-Type: application/json; charset=UTF-8
+Content-Length: 2389
+{
+  "calls": {
+    "three_step.wc": [{
+      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stdout",
+      "outputs": {
+        "output_key": "output_value"
+      },
+      "inputs": {
+        "input_key": "input_value"
+      },
+      "status": "UnknownStatus",
+      "jobId": "COMPLETELY-MADE-UP-ID",
+      "backend": "UnknownBackend",
+      "end": "2015-09-18T18:31:20.702-04:00",
+      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stderr",
+      "start": "2015-09-18T18:31:20.702-04:00",
+      "rc": 0
+    }],
+    "three_step.ps": [{
+      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
+      "outputs": {
+        "output_key": "output_value"
+      },
+      "inputs": {
+        "input_key": "input_value"
+      },
+      "status": "UnknownStatus",
+      "jobId": "COMPLETELY-MADE-UP-ID",
+      "backend": "UnknownBackend",
+      "end": "2015-09-18T18:31:20.702-04:00",
+      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stderr",
+      "start": "2015-09-18T18:31:20.702-04:00",
+      "rc": 0
+    }],
+    "three_step.cgrep": [{
+      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stdout",
+      "outputs": {
+        "output_key": "output_value"
+      },
+      "inputs": {
+        "input_key": "input_value"
+      },
+      "status": "UnknownStatus",
+      "jobId": "COMPLETELY-MADE-UP-ID",
+      "backend": "UnknownBackend",
+      "end": "2015-09-18T18:31:20.702-04:00",
+      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stderr",
+      "start": "2015-09-18T18:31:20.702-04:00",
+      "rc": 0
+    }]
+  },
+  "outputs": {
+    "three_step.cgrep.count": "3",
+    "three_step.ps.procs": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
+    "three_step.wc.count": "3"
+  },
+  "id": "6a679113-8c15-4c27-ab5e-936875cdd728",
+  "inputs": {
+    "three_step.cgrep.pattern": "..."
+  },
+  "submission": "2015-09-18T18:31:09.595-04:00",
+  "status": "Succeeded",
+  "start": "2015-09-18T18:31:09.595-04:00"
 }
 ```
 

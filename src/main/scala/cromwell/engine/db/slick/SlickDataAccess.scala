@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.language.implicitConversions
+import scala.language.{postfixOps, implicitConversions}
 
 object SlickDataAccess {
   type IoValue = String
@@ -549,4 +549,84 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     runTransaction(action)
   }
+
+  override def getExecutions(id: Int): Future[Traversable[Execution]] = {
+    val action = for {
+      executions <- dataAccess.executionsByWorkflowExecutionId(id).result
+    } yield executions
+
+    runTransaction(action)
+  }
+
+  override def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution] = {
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.headOption
+    } yield workflowExecution
+
+    runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"Workflow $workflowId not found.")) }
+  }
+
+  override def getWorkflowExecutionAux(id: Int): Future[WorkflowExecutionAux] = {
+    val action = for {
+      workflowExecutionAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionId(id).result.headOption
+    } yield workflowExecutionAux
+
+    runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"No workflow execution aux found for ID '$id'.")) }
+  }
+
+  override def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]] = {
+    val action = for {
+      inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
+    } yield inputs
+
+    runTransaction(action)
+  }
+
+  override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]] = {
+    val action = for {
+      inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
+    } yield inputs
+
+    runTransaction(action)
+  }
+
+  override def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]] = {
+    val action = for {
+      executionAndJob <- dataAccess.jesJobInfo(id).result
+    } yield executionAndJob
+
+    val futureResults = runTransaction(action)
+    futureResults map { results =>
+      results map { case (execution, job) =>
+          ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
+      } toMap
+    }
+  }
+
+  override def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]] = {
+    val action = for {
+      executionAndJob <- dataAccess.localJobInfo(id).result
+    } yield executionAndJob
+
+    val futureResults = runTransaction(action)
+    futureResults map { results =>
+      results map { case (execution, job) =>
+        ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
+      } toMap
+    }
+  }
+
+  override def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]] = {
+    val action = for {
+      executionAndJob <- dataAccess.sgeJobInfo(id).result
+    } yield executionAndJob
+
+    val futureResults = runTransaction(action)
+    futureResults map { results =>
+      results map { case (execution, job) =>
+        ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
+      } toMap
+    }
+  }
+
 }

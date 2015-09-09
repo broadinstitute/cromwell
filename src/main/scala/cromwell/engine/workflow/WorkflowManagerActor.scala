@@ -186,7 +186,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     for {
       _ <- assertWorkflowExistence(workflowId)
       callToStatusMap <- dataAccess.getExecutionStatuses(workflowId)
-      callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap))
+      callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap mapValues { _.executionStatus }))
     } yield callToLogsMap
   }
 

@@ -30,7 +30,7 @@ object WorkflowActor {
   case class AbortComplete(call: OutputKey) extends WorkflowActorMessage
   case class CallStarted(call: OutputKey) extends WorkflowActorMessage
   case class CallCompleted(call: OutputKey, callOutputs: CallOutputs) extends WorkflowActorMessage
-  case class CallFailed(call: OutputKey, failure: String) extends WorkflowActorMessage
+  case class CallFailed(call: OutputKey, rc: Option[Int], failure: String) extends WorkflowActorMessage
   case object Terminate extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
@@ -132,8 +132,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           log.error(e, e.getMessage)
           goto(WorkflowFailed)
       }
-    case Event(CallFailed(callKey, failure), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Failed)
+    case Event(CallFailed(callKey, rc, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed, rc)
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
     case Event(AbortComplete(callKey), NoFailureMessage) =>
@@ -160,10 +160,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   when(WorkflowAborting) {
     case Event(AbortComplete(callKey), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Aborted)
+      persistStatus(callKey, ExecutionStatus.Aborted, None)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallFailed(callKey, failure), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Failed)
+    case Event(CallFailed(callKey, rc, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed, rc)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
     case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
       awaitCallComplete(callKey, outputs)
@@ -199,19 +199,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       if (toState.isTerminal) setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
   }
 
-  private def persistStatus(key: ExecutionStoreKey, callStatus: CallStatus): Future[Unit] = {
-    persistStatus(Iterable(key), callStatus)
+  private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
+    persistStatuses(Iterable(key), status, rc)
   }
 
-  private def persistStatus(key: Traversable[ExecutionStoreKey], callStatus: CallStatus): Future[Unit] = {
-    executionStore ++= key map { _ -> callStatus }
+  private def persistStatuses(key: Traversable[ExecutionStoreKey], executionStatus: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
+    executionStore ++= key map { _ -> executionStatus }
 
     key foreach { k =>
       val indexLog = k.index.map(i => s" (shard $i)").getOrElse("")
-      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $callStatus.")
+      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $executionStatus.")
     }
 
-    dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, callStatus)
+    dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, CallStatus(executionStatus, rc))
   }
 
   private def awaitCallComplete(key: OutputKey, outputs: CallOutputs): Try[Unit] = {
@@ -224,7 +224,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
     for {
       _ <- dataAccess.setOutputs(workflow.id, key, outputs)
-      _ <- persistStatus(key, ExecutionStatus.Done)
+      _ <- persistStatus(key, ExecutionStatus.Done, Option(0))
     } yield()
   }
 
@@ -462,7 +462,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def createStore: Future[ExecutionStore] = {
     def isInScatterBlock(c: Call) = c.ancestry.exists(_.isInstanceOf[Scatter])
     dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
-      statuses map { case(k, v) =>
+      statuses map { case (k, v) =>
         val key: ExecutionStoreKey = (workflow.namespace.resolve(k.fqn), k.index) match {
           case (Some(c: Call), Some(i)) => CallKey(c, Some(i), None)
           case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c, None)
@@ -470,7 +470,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           case (Some(s: Scatter), None) => ScatterKey(s, None, None)
           case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
         }
-        key -> v
+        key -> v.executionStatus
       }
     }
   }
@@ -532,8 +532,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         val newEntries = scatterKey.populate(a.value.size)
         val createScatter = for {
           _ <- dataAccess.insertCalls(workflow.id, newEntries.keys, backend)
-          _ <- persistStatus(newEntries.keys, ExecutionStatus.NotStarted)
-          _ <- persistStatus(scatterKey, ExecutionStatus.Done)
+          _ <- persistStatuses(newEntries.keys, ExecutionStatus.NotStarted, None)
+          _ <- persistStatus(scatterKey, ExecutionStatus.Done, Some(0))
         } yield ()
         Await.result(createScatter, AkkaTimeout)
         newEntries.keys
@@ -544,12 +544,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def processRunnableCollector(collector: CollectorKey): Try[Iterable[ExecutionStoreKey]] = {
-    persistStatus(collector, ExecutionStatus.Starting)
+    persistStatus(collector, ExecutionStatus.Starting, None)
     val shards: Iterable[CallKey] = findShardEntries(collector) collect { case (k: CallKey, _) => k }
 
     generateCollectorOutput(collector, shards) match {
       case Failure(e) =>
-        self ! CallFailed(collector, e.getMessage)
+        self ! CallFailed(collector, None, e.getMessage)
       case Success(outputs) =>
         log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
         self ! CallCompleted(collector, outputs)
@@ -559,7 +559,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def processRunnableCall(callKey: CallKey, status: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
-    persistStatus(callKey, ExecutionStatus.Starting)
+    persistStatus(callKey, ExecutionStatus.Starting, None)
     val futureCallInputs = for {
       allInputs <- fetchLocallyQualifiedInputs(callKey)
     } yield allInputs

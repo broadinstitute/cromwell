@@ -4,7 +4,6 @@ case class LocalJob
 (
   executionId: Int,
   pid: Option[Int],
-  rc: Option[Int],
   localJobId: Option[Int] = None
   )
 
@@ -20,9 +19,7 @@ trait LocalJobComponent {
 
     def pid = column[Option[Int]]("PID")
 
-    def rc = column[Option[Int]]("RC")
-
-    override def * = (executionId, pid, rc, localJobId.?) <>
+    override def * = (executionId, pid, localJobId.?) <>
       (LocalJob.tupled, LocalJob.unapply)
 
     def execution = foreignKey(
@@ -43,9 +40,9 @@ trait LocalJobComponent {
       if localJob.executionId === executionId
     } yield localJob)
 
-  val localJobPidsAndRcsByExecutionId = Compiled(
+  val localJobPidsByExecutionId = Compiled(
     (executionId: Rep[Int]) => for {
       localJob <- localJobs
       if localJob.executionId === executionId
-    } yield (localJob.pid, localJob.rc))
+    } yield localJob.pid)
 }

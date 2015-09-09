@@ -1,16 +1,14 @@
 package cromwell.engine
 
-import akka.actor.FSM.{Normal, NullFunction}
+import akka.actor.FSM.NullFunction
 import akka.actor.{LoggingFSM, Props}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.CallActorState
-import cromwell.engine.backend.{Backend, TaskAbortedException}
-import cromwell.engine.workflow.WorkflowActor.CallFailed
+import cromwell.engine.backend._
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 
 object CallActor {
 
@@ -18,7 +16,7 @@ object CallActor {
   case object Start extends CallActorMessage
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
-  final case class ExecutionFinished(call: Call, outputs: Try[CallOutputs]) extends CallActorMessage
+  final case class ExecutionFinished(call: Call, executionResult: ExecutionResult) extends CallActorMessage
 
   sealed trait CallActorState
   case object CallNotStarted extends CallActorState
@@ -63,7 +61,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
       val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
       context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! CallExecutionActor.Execute
       goto(CallRunningAbortUnavailable)
-    case Event(AbortCall, _) => handleFinished(call, Failure(new TaskAbortedException()))
+    case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
 
   when(CallRunningAbortUnavailable) {
@@ -76,7 +74,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   }
 
   when(CallRunningAbortRequested) {
-    case Event(RegisterCallAbortFunction(abortFunction: AbortFunction), _) => tryAbort(Option(abortFunction))
+    case Event(RegisterCallAbortFunction(abortFunction), _) => tryAbort(Option(abortFunction))
   }
 
   // When in CallAborting, the only message being listened for is the CallComplete message (which is already
@@ -90,7 +88,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   }
 
   whenUnhandled {
-    case Event(ExecutionFinished(call: Call, outputs: Try[CallOutputs]), _) => handleFinished(call, outputs)
+    case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
     case Event(e, _) =>
       log.warning(s"$tag received unhandled event $e while in state $stateName")
       stay()
@@ -108,13 +106,11 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     }
   }
 
-  private def handleFinished(call: Call, outputTry: Try[CallOutputs]): CallActor.this.State = {
-    outputTry match {
-      case Success(outputs) => context.parent ! WorkflowActor.CallCompleted(key, outputs)
-      case Failure(e: TaskAbortedException) =>
-            context.parent ! WorkflowActor.AbortComplete(key)
-      case Failure(e: Throwable) =>
-            context.parent ! WorkflowActor.CallFailed(key, e.getMessage)
+  private def handleFinished(call: Call, executionResult: ExecutionResult): CallActor.this.State = {
+    executionResult match {
+      case SuccessfulExecution(outputs) => context.parent ! WorkflowActor.CallCompleted(key, outputs)
+      case AbortedExecution => context.parent ! WorkflowActor.AbortComplete(key)
+      case FailedExecution(e, rc) => context.parent ! WorkflowActor.CallFailed(key, rc, e.getMessage)
     }
 
     goto(CallDone)

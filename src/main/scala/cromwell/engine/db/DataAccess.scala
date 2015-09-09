@@ -75,12 +75,16 @@ trait DataAccess {
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue]): Future[Unit]
 
-  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], scopeStatus: ExecutionStatus): Future[Unit]
+  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
+    setStatus(workflowId, keys, CallStatus(executionStatus, None))
+  }
 
-  def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
+  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus): Future[Unit]
+
+  def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, CallStatus]]
 
   /** Return all execution entries for the FQN, including collector and shards if any */
-  def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
+  def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, CallStatus]]
 
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 

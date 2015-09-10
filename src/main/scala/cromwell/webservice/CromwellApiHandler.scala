@@ -4,12 +4,14 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
-import cromwell.binding.{WdlJson, WdlSource, WorkflowRawInputs}
+import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
+import cromwell.webservice.CromwellApiHandler.CallOutputs
+import cromwell.webservice.CromwellApiHandler.WorkflowOutputs
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{binding, engine}
@@ -29,7 +31,7 @@ object CromwellApiHandler {
 
   sealed trait WorkflowManagerMessage
 
-  case class WorkflowSubmit(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
+  case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
 
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
@@ -82,8 +84,8 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
           }
       }
 
-    case WorkflowSubmit(wdlSource, wdlJson, inputs) =>
-      val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
+    case WorkflowSubmit(source) =>
+      val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(source)).mapTo[WorkflowId]
       workflowManagerResponseFuture.onComplete {
         case Success(id) =>
           context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))

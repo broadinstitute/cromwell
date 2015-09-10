@@ -15,9 +15,8 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
-import cromwell.engine.workflow.{ScatterKey, ExecutionStoreKey, CallKey, OutputKey}
+import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
@@ -79,6 +78,13 @@ object SlickDataAccess {
   lazy val log = LoggerFactory.getLogger("slick")
 }
 
+/**
+ * Data Access implementation using Slick.
+ *
+ * NOTE: the uses of .head below will cause an exception to be thrown
+ * if the list is empty.  In every use case as of the writing of this comment,
+ * those exceptions would have been wrapped in a failed Future and returned.
+ */
 class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
 
   def this(databaseConfig: Config) = this(
@@ -145,7 +151,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
    * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
-  override def createWorkflow(workflowInfo: WorkflowInfo,
+  override def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                               workflowInputs: Traversable[SymbolStoreEntry],
                               scopes: Traversable[Scope],
                               backend: Backend): Future[Unit] = {
@@ -159,14 +165,16 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
       workflowExecutionInsert <- dataAccess.workflowExecutionsAutoInc +=
         new WorkflowExecution(
-          workflowInfo.workflowId.toString,
+          workflowDescriptor.id.toString,
           WorkflowSubmitted.toString,
           new Date().toTimestamp)
 
       _ <- dataAccess.workflowExecutionAuxesAutoInc += new WorkflowExecutionAux(
         workflowExecutionInsert.workflowExecutionId.get,
-        workflowInfo.wdlSource.toClob,
-        workflowInfo.wdlJson.toClob)
+        workflowDescriptor.sourceFiles.wdlSource.toClob,
+        workflowDescriptor.sourceFiles.inputsJson.toClob,
+        workflowDescriptor.sourceFiles.workflowOptionsJson.toClob
+      )
 
       symbolInsert <- dataAccess.symbolsAutoInc ++= toSymbols(workflowExecutionInsert, workflowInputs)
 
@@ -306,28 +314,45 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
-  override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]] = {
+  override def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor] = {
+    val action = for {
+      workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+      workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionId(workflowExecutionResult.workflowExecutionId.get).result.head
+      workflowDescriptor = WorkflowDescriptor(
+        workflowId,
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+      )
+    } yield workflowDescriptor
+
+    runTransaction(action)
+  }
+
+  override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]] = {
 
     val action = for {
 
       workflowExecutionResults <- dataAccess.workflowExecutionsByStatuses(states.map(_.toString)).result
 
-      workflowInfos <- DBIO.sequence(
+      workflowDescriptors <- DBIO.sequence(
         workflowExecutionResults map { workflowExecutionResult =>
 
           val workflowExecutionAuxResult = dataAccess.workflowExecutionAuxesByWorkflowExecutionId(
             workflowExecutionResult.workflowExecutionId.get).result.head
 
           workflowExecutionAuxResult map { workflowExecutionAux =>
-            new WorkflowInfo(
+            new WorkflowDescriptor(
               WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
-              workflowExecutionAux.wdlSource.toRawString,
-              workflowExecutionAux.jsonInputs.toRawString)
+              WorkflowSourceFiles(
+                workflowExecutionAux.wdlSource.toRawString,
+                workflowExecutionAux.jsonInputs.toRawString,
+                workflowExecutionAux.workflowOptions.toRawString
+              )
+            )
           }
         }
       )
 
-    } yield workflowInfos
+    } yield workflowDescriptors
 
     runTransaction(action)
   }

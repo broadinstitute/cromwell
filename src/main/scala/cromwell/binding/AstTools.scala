@@ -157,7 +157,10 @@ object AstTools {
     would have its own MemberAccess - "a.b.c" and "a.b.d"
   */
   def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = expr.findAstsWithTrail("MemberAccess").filterNot {
-    case(k, v) => v.exists{case a:Ast => a.getName == "MemberAccess"}
+    case(k, v) => v exists {
+      case a: Ast => a.getName == "MemberAccess"
+      case _ => false
+    }
   }.keys
 
   /**

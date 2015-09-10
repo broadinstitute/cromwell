@@ -1,7 +1,7 @@
 package cromwell
 
 import java.io.File
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
@@ -11,6 +11,8 @@ import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowMa
 import cromwell.util.FileUtil.EnhancedPath
 import org.slf4j.LoggerFactory
 import spray.json._
+
+import scala.util.{Try, Success, Failure}
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -77,18 +79,50 @@ object Main extends App {
   }
 
   def run(args: Array[String], workflowManagerSystem: WorkflowManagerSystem): Unit = {
-    if (args.length != 2) usageAndExit()
+    if (args.length < 1 || args.length > 3) usageAndExit()
 
-    Log.info(s"Backend is: ${WorkflowManagerActor.BackendType}")
+    args foreach { arg =>
+      val path = Paths.get(arg)
+      if (arg != "-") {
+        if (!Files.exists(path)) {
+          System.err.println(s"ERROR: file does not exist: $arg")
+          System.exit(1)
+        }
+        if (!Files.isReadable(path)) {
+          System.err.println(s"ERROR: file is not readable: $arg")
+          System.exit(1)
+        }
+      }
+    }
 
+    val wdlFile = args(0)
+    val inputsJsonFile = Try(args(1)).getOrElse(wdlFile.replaceAll("\\.wdl$", ".json"))
+    val workflowOptionsFile = Try(args(2)).getOrElse(wdlFile.replace("\\.wdl$", ".options.json"))
+
+    Log.info(s"Default backend: ${WorkflowManagerActor.BackendType}")
     Log.info(s"RUN sub-command")
     Log.info(s"  WDL file: ${args(0)}")
-    Log.info(s"  Inputs: ${args(1)}")
 
     try {
       val wdlSource = Paths.get(args(0)).slurp
-      val wdlJson = Paths.get(args(1)).slurp
-      val jsValue = wdlJson.parseJson
+      val inputsJson = inputsJsonFile match {
+        case "-" => "{}"
+        case path if path != args(0) && Files.exists(Paths.get(path)) =>
+          Log.info(s"  Inputs: $path")
+          Paths.get(path).slurp
+        case _ =>
+          System.err.println(s"ERROR: No workflow inputs specified")
+          System.exit(1)
+          ""
+      }
+      val workflowOptions = workflowOptionsFile match {
+        case "-" => "{}"
+        case path if path != args(0) && Files.exists(Paths.get(path)) =>
+          Log.info(s"  Workflow Options: $path")
+          Paths.get(path).slurp
+        case _ => "{}"
+      }
+      val jsValue = inputsJson.parseJson
 
       val inputs: binding.WorkflowRawInputs = jsValue match {
         case JsObject(rawInputs) => rawInputs
@@ -96,7 +130,8 @@ object Main extends App {
       }
 
       inputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
-      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(wdlSource, wdlJson, inputs, workflowManagerSystem.workflowManagerActor)
+      val sources = WorkflowSourceFiles(wdlSource, inputsJson, workflowOptions)
+      val singleWorkflowRunner = SingleWorkflowRunnerActor.props(sources, inputs, workflowManagerSystem.workflowManagerActor)
       workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner, "SingleWorkflowRunnerActor")
       workflowManagerSystem.actorSystem.awaitTermination()
       // And now we just wait for the magic to happen
@@ -132,11 +167,13 @@ object Main extends App {
         |  workflow.  Fill in the values in this JSON document and
         |  pass it in to the 'run' subcommand.
         |
-        |run <WDL file> <JSON inputs file>
+        |run <WDL file> [<JSON inputs file> [<JSON workflow options]]
         |
         |  Given a WDL file and JSON file containing the value of the
         |  workflow inputs, this will run the workflow locally and
-        |  print out the outputs in JSON format.
+        |  print out the outputs in JSON format.  The workflow
+        |  options file specifies some runtime configuration for the
+        |  workflow (see README for details)
         |
         |parse <WDL file>
         |

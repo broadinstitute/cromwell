@@ -148,11 +148,13 @@ inputs <WDL file>
   workflow.  Fill in the values in this JSON document and
   pass it in to the 'run' subcommand.
 
-run <WDL file> <JSON inputs file>
+run <WDL file> [<JSON inputs file> [<JSON workflow options]]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
-  print out the outputs in JSON format.
+  print out the outputs in JSON format.  The workflow
+  options file specifies some runtime configuration for the
+  workflow (see README for details)
 
 parse <WDL file>
 
@@ -226,14 +228,39 @@ Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workf
 
 ```
 $ java -jar cromwell.jar run 3step.wdl inputs.json
-[INFO] [06/10/2015 09:20:19.945] [ForkJoinPool-2-worker-13] [akka://cromwell-system/user/$b] Workflow ID: bdcc70e6-e6d7-4483-949b-7c3c2199e26c
-[INFO] [06/10/2015 09:20:19.968] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: ps
-[INFO] [06/10/2015 09:20:20.094] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: cgrep, wc
-[INFO] [06/10/2015 09:20:20.123] [cromwell-system-akka.actor.default-dispatcher-2] [akka://cromwell-system/user/$b] Workflow complete: Succeeded
+... play-by-play output ...
 {
   "three_step.ps.procs": "/var/folders/kg/c7vgxnn902lc3qvc2z2g81s89xhzdz/T/stdout1272284837004786003.tmp",
   "three_step.cgrep.count": 0,
   "three_step.wc.count": 13
+}
+```
+
+The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.json` extension.  For example, this will assume that `3step.json` exists:
+
+```
+$ java -jar cromwell.jar run 3step.wdl
+```
+
+If your workflow has no inputs, you can specify `-` as the value for the inputs parameter:
+
+```
+$ java -jar cromwell.jar run my_workflow.wdl -
+```
+
+The final optinal parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
+
+The only workflow option that has any meaning currently is the `jes_gcs_root`, which will be used in the JES backend.  See the section on the [JES backend](#google-jes) for more details.
+
+```
+$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
+```
+
+Where `wf_options.json` would contain:
+
+```
+{
+  "jes_gcs_root": "gs://my-bucket/workflows"
 }
 ```
 
@@ -262,11 +289,17 @@ test.wdl
 ```
 task abc {
   String in
-  command { echo ${in} }
-  output {String out = read_string(stdout())}
+  command {
+    echo ${in}
+  }
+  output {
+    String out = read_string(stdout())
+  }
 }
 
-workflow wf { call abc }
+workflow wf {
+  call abc
+}
 ```
 
 This WDL file can be formatted in HTML as follows:
@@ -770,7 +803,11 @@ All web server requests include an API version in the url. The current version i
 
 ## POST /workflows/:version
 
-This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The two elements in the body must be named `wdl` and `inputs`.  The `wdl` element contains the WDL file to run while the `inputs` contains a JSON file of the inputs to the workflow.
+This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
+
+* `wdlSource` - *Required* Contains the WDL file to submit for execution.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from the CLI with the [inputs](#inputs) sub-command.
+* `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 
 cURL:
 
@@ -859,6 +896,65 @@ Server: spray-can/1.3.3
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
     "status": "Submitted"
 }
+```
+
+To specify workflow options as well:
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+```
+
+HTTPie:
+
+```
+http --print=HBhb --form POST http://localhost:8000/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+```
+
+Request (some parts truncated for brevity):
+
+```
+POST /workflows/v1 HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 1472
+Content-Type: multipart/form-data; boundary=f3fd038395644de596c460257626edd7
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="wdlSource"
+
+task x { ... }
+task y { ... }
+task z { ... }
+
+workflow sfrazer {
+  call x
+  call y
+  call z {
+    input: example="gs://my-bucket/cromwell-executions/sfrazer/example.txt", int=3000
+  }
+}
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowInputs"; filename="jes0.json"
+
+{
+  "sfrazer.x.x": "100"
+}
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
+
+{
+  "jes_gcs_root": "gs://sfrazer-dev/workflows"
+}
+
+--f3fd038395644de596c460257626edd7--
 ```
 
 ## GET /workflows/:version/:id/status

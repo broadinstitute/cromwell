@@ -84,8 +84,8 @@ trait SharedFileSystem {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr = {
-    val dir = LocalBackend.hostCallPath(workflowName, workflowId, callName, index)
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
+    val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.name, descriptor.id, callName, index)
     StdoutStderr(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)

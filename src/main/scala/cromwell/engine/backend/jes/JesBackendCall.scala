@@ -14,7 +14,7 @@ case class JesBackendCall(backend: JesBackend,
                           key: CallKey,
                           locallyQualifiedInputs: CallInputs,
                           callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall {
-  val callGcsPath = JesBackend.callGcsPath(workflowDescriptor.id.toString, workflowDescriptor.name, call.name, key.index)
+  val callGcsPath = JesBackend.callGcsPath(workflowDescriptor, call.name, key.index)
   val callDir = GoogleCloudStoragePath(callGcsPath)
   val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
   val jesConnection = JesBackend.JesConnection

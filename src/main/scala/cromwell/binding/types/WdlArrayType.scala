@@ -15,6 +15,7 @@ case class WdlArrayType(memberType: WdlType) extends WdlType {
     case s: Seq[Any] if s.nonEmpty => coerceIterable(s)
     case s: Seq[Any] if s.isEmpty => WdlArray(WdlArrayType(memberType), Seq())
     case js: JsArray if js.elements.nonEmpty => coerceIterable(js.elements)
+    case js: JsArray if js.elements.isEmpty => WdlArray(WdlArrayType(memberType), Seq())
     case wdlArray: WdlArray => wdlArray.wdlType.memberType match {
       case WdlStringType if memberType == WdlFileType =>
         // Coerce Array[String] -> Array[File]

@@ -23,16 +23,14 @@ import scala.util.{Failure, Success, Try}
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
-  def from(backendConf: Config): Backend = {
-    backendConf.getString("backend").toLowerCase match {
-      case "local" => new LocalBackend
-      case "jes" => new JesBackend
-      case "sge" => new SgeBackend
-      case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
-    }
+  def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
+  def from(name: String) = name.toLowerCase match {
+    case "local" => new LocalBackend
+    case "jes" => new JesBackend
+    case "sge" => new SgeBackend
+    case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
-
-  case class RestartableWorkflow(id: WorkflowId, source: WdlSource, json: WdlJson, inputs: binding.WorkflowRawInputs)
+  case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
 }
 
 /**
@@ -78,7 +76,7 @@ trait Backend {
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr
 
   def backendType: BackendType
 

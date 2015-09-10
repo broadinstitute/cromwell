@@ -9,7 +9,6 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
-import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.TerminalUtil
@@ -487,13 +486,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   def createWorkflow(): Future[Unit] = {
-    // TODO sanify WorkflowInfo/WorkflowDescriptor, the latter largely duplicates the former now.
-    val workflowInfo = WorkflowInfo(workflow.id, workflow.wdlSource, workflow.wdlJson)
+    val workflowDescriptor = WorkflowDescriptor(workflow.id, workflow.sourceFiles)
     // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
     backend.initializeForWorkflow(workflow) match {
       case Success(inputs) =>
-        dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
+        dataAccess.createWorkflow(workflowDescriptor, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
       case Failure(ex) => Future.failed(ex)
     }
   }

@@ -5,6 +5,7 @@ import javax.ws.rs.Path
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.typesafe.config.Config
 import com.wordnik.swagger.annotations._
+import cromwell.binding.WorkflowSourceFiles
 import cromwell.engine.WorkflowId
 import cromwell.engine.workflow.ValidateActor
 import spray.http.StatusCodes
@@ -146,7 +147,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "version", required = true, dataType = "string", paramType = "path", value = "API Version", allowableValues = CromwellApiService.VersionAllowableValues),
     new ApiImplicitParam(name = "wdlSource", required = true, dataType = "File", paramType = "form", value = "WDL Source"),
-    new ApiImplicitParam(name = "workflowInputs", required = true, dataType = "File", paramType = "form", value = "WDL JSON")
+    new ApiImplicitParam(name = "workflowInputs", required = true, dataType = "File", paramType = "form", value = "WDL JSON"),
+    new ApiImplicitParam(name = "workflowOptions", required = true, dataType = "File", paramType = "form", value = "Workflow Options JSON")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 201, message = "Successful Request", response = classOf[WorkflowSubmitResponse]),
@@ -156,16 +158,30 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def submitRoute =
     path("workflows" / Segment) { version =>
       post {
-        formFields("wdlSource", "workflowInputs") { (wdlSource, workflowInputs) =>
-
-          val tryMap = Try(workflowInputs.parseJson)
-          tryMap match {
-            case Success(JsObject(json)) =>
-              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowSubmit(wdlSource, workflowInputs, json))
-            case Success(o) =>
-              complete(StatusCodes.BadRequest, "Expecting JSON object as workflow inputs")
-            case Failure(ex) =>
+        formFields("wdlSource", "workflowInputs", "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
+          val tryInputsMap = Try(workflowInputs.parseJson)
+          val tryOptionsMap = Try(workflowOptions.getOrElse("{}").parseJson)
+          (tryInputsMap, tryOptionsMap) match {
+            case (Success(JsObject(inputs)), Success(JsObject(options))) =>
+              if (!options.values.exists(_.isInstanceOf[JsString])) {
+                complete(StatusCodes.BadRequest, "Workflow options must be a string -> string map")
+              }
+              val parsedWorkflowOptions = options map {
+                case (k, v) => k -> v.asInstanceOf[JsString].value
+              }
+              requestContext => perRequest(
+                requestContext,
+                CromwellApiHandler.props(workflowManager),
+                CromwellApiHandler.WorkflowSubmit(
+                  WorkflowSourceFiles(wdlSource, workflowInputs, workflowOptions.getOrElse("{}"))
+                )
+              )
+            case (Success(_), _) | (_, Success(_)) =>
+              complete(StatusCodes.BadRequest, "Expecting JSON object for workflowInputs and workflowOptions fields")
+            case (Failure(ex), _) =>
               complete(StatusCodes.BadRequest, "workflowInput JSON was malformed")
+            case (_, Failure(ex)) =>
+              complete(StatusCodes.BadRequest, "workflowOptions JSON was malformed")
           }
         }
       }

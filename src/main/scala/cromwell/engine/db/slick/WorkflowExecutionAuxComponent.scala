@@ -9,6 +9,7 @@ case class WorkflowExecutionAux
   workflowExecutionId: Int,
   wdlSource: Clob,
   jsonInputs: Clob,
+  workflowOptions: Clob,
   workflowExecutionAuxId: Option[Int] = None
 )
 
@@ -22,8 +23,9 @@ trait WorkflowExecutionAuxComponent {
     def workflowExecutionId = column[Int]("WORKFLOW_EXECUTION_ID")
     def wdlSource = column[Clob]("WDL_SOURCE")
     def jsonInputs = column[Clob]("JSON_INPUTS")
+    def workflowOptions = column[Clob]("WORKFLOW_OPTIONS")
 
-    override def * = (workflowExecutionId, wdlSource, jsonInputs, workflowExecutionAuxId.?) <>
+    override def * = (workflowExecutionId, wdlSource, jsonInputs, workflowOptions, workflowExecutionAuxId.?) <>
       (WorkflowExecutionAux.tupled, WorkflowExecutionAux.unapply)
 
     def workflowExecution = foreignKey(

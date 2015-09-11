@@ -516,13 +516,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                          callStatus: CallStatus): Future[Unit] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-
-      count <- dataAccess.executionStatusesAndRcsByWorkflowExecutionIdAndScopeKeys(
-        workflowExecutionResult.workflowExecutionId.get, scopeKeys).update(callStatus.executionStatus.toString, callStatus.rc)
-
+      executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
+      count <- executions.map(e => (e.status, e.rc)).update(callStatus.executionStatus.toString, callStatus.rc)
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
-
     } yield ()
 
     runTransaction(action)

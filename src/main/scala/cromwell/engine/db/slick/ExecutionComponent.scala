@@ -84,7 +84,7 @@ trait ExecutionComponent {
     } yield (execution.status, execution.rc))
 
   // see workflowExecutionsByStatuses
-  def executionStatusesAndRcsByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {
+  def executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {
     val falseRep: Rep[Boolean] = false
     val workflowFilteredQuery = for {
       execution <- executions
@@ -101,6 +101,6 @@ trait ExecutionComponent {
       scopeID.map({
         case (name, index) => exec.callFqn === name && exec.index === index
       }).fold(falseRep)(_ || _)
-    } map { x => ( x.status, x.rc ) }
+    } 
   }
 }

@@ -106,7 +106,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
     val tag = makeTag(backendCall)
     val sgeJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.name}"
-    val argv = Seq("qsub", "-N", sgeJobName, "-V", "-b", "n", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
+    val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"$tag backend command: $backendCommandString")
 
@@ -115,7 +115,14 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val process = argv.run(ProcessLogger(qsubStdoutWriter writeWithNewline, qsubStderrWriter writeWithNewline))
     val rc: Int = process.exitValue()
     Vector(qsubStdoutWriter, qsubStderrWriter) foreach { _.flushAndClose() }
-    val jobId = "^Your job (\\d+)".r.findFirstMatchIn(qsubStdoutFile.slurp).map(_.group(1).toInt)
+
+    // The -terse option to qsub makes it so stdout only has the job ID, if it was successfully launched
+    val jobId = Try(qsubStdoutFile.slurp.stripLineEnd.toInt) match {
+      case Success(id) => Some(id)
+      case Failure(ex) =>
+        logger.error(s"$tag Could not find SGE job ID from qsub stdout file.\n\nCheck the qsub stderr file for possible errors: ${qsubStderrFile.toAbsolutePath.toString}")
+        None
+    }
     logger.info(s"$tag qsub rc=$rc, job ID=${jobId.getOrElse("NONE")}")
     (rc, jobId)
   }

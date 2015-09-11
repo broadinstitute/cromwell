@@ -1181,4 +1181,29 @@ object SampleWdl {
 
     override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).getAbsolutePath)
   }
+
+  object FileClobber extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task read_line {
+        |  File in
+        |  command { cat ${in} }
+        |  output { String out = read_string(stdout()) }
+        |}
+        |
+        |workflow two {
+        |  call read_line as x
+        |  call read_line as y
+        |}
+      """.stripMargin
+
+    val tempDir1 = Files.createTempDirectory("FileClobber1")
+    val tempDir2 = Files.createTempDirectory("FileClobber2")
+    val firstFile = createFile(name="file.txt", contents="first file.txt", dir=tempDir1)
+    val secondFile = createFile(name="file.txt", contents="second file.txt", dir=tempDir2)
+
+    override val rawInputs = Map(
+      "two.x.in" -> firstFile.getAbsolutePath,
+      "two.y.in" -> secondFile.getAbsolutePath
+    )
+  }
 }

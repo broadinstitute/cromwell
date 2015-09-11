@@ -121,7 +121,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
     val inputs = coercedInputs ++ declarations
-    WorkflowDescriptor(WorkflowId(uuid), namespace, source, sampleWdl.wdlJson, inputs)
+    val workflowSources = WorkflowSourceFiles(source, sampleWdl.wdlJson, "{}")
+    WorkflowDescriptor(WorkflowId(uuid), workflowSources)
   }
 
   private def buildFsmWorkflowActor(sampleWdl: SampleWdl, runtime: String) = {
@@ -152,7 +153,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
              runtime: String = "",
              terminalState: WorkflowState = WorkflowSucceeded): (TestActorRef[WorkflowManagerActor], WorkflowId) = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
     var workflowId: WorkflowId = null
     eventFilter.intercept {
       within(timeoutDuration) {
@@ -171,7 +173,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                              runtime: String = "",
                              terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.asWorkflowSources())
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
@@ -245,7 +247,8 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                                   stdout: Option[Seq[String]] = None,
                                   stderr: Option[Seq[String]] = None) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
     runSingleCallWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, index, stdout, stderr)
   }
 
@@ -255,7 +258,9 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                                           stdout: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
                                           stderr: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]]) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, sampleWdl.rawInputs)
+    // TODO: these two lines seem to be duplicated a lot
+    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
     runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, stdout, stderr)
   }
 

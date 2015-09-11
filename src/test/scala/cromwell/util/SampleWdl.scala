@@ -1,19 +1,34 @@
 package cromwell.util
 
 import java.io.{File, FileWriter}
-import java.nio.file.{Path, Files}
+import java.nio.file.{Files, Path}
 
 import cromwell.binding._
-import cromwell.binding.values.WdlFile
+import spray.json._
+import scala.language.postfixOps
 
 trait SampleWdl {
   def wdlSource(runtime: String = ""): WdlSource
-
+  def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
   val rawInputs: WorkflowRawInputs
 
-  def wdlJson: WdlJson = {
-    "{" + rawInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
+  implicit object AnyJsonFormat extends JsonFormat[Any] {
+    def write(x: Any) = x match {
+      case n: Int => JsNumber(n)
+      case s: String => JsString(s)
+      case b: Boolean if b => JsTrue
+      case b: Boolean if !b => JsFalse
+      case s: Seq[Any] => JsArray(s map {_.toJson} toVector)
+    }
+    def read(value: JsValue) = ???
   }
+
+  implicit object RawInputsJsonFormat extends JsonFormat[WorkflowRawInputs] {
+    def write(inputs: WorkflowRawInputs) = JsObject(inputs map { case (k, v) => k -> v.toJson })
+    def read(value: JsValue) = ???
+  }
+
+  def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
 
   private def write(file: File, contents: String) = {
     val writer = new FileWriter(file)
@@ -807,7 +822,7 @@ object SampleWdl {
         |    input: files=files
         |  }
         |  call count_lines {
-        |    input: files=concat.concatenated
+        |    input: files=[concat.concatenated]
         |  }
         |  call find
         |  call count_lines as count_lines_array {

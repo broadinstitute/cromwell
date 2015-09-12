@@ -40,6 +40,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
   * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
   * [GET /workflows/:version/:id/logs](#get-workflowsversionidlogs)
+  * [GET /workflows/:version/:id/call-metadata](#get-workflowsversionidcallmetadata)
   * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
@@ -1088,6 +1089,89 @@ Server: spray-can/1.3.3
             {
                 "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr6126967977036995110.tmp",
                 "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout6128485235785447571.tmp"
+            }
+        ]
+    }
+}
+```
+
+## GET /workflows/:version/:id/call-metadata
+
+This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format.
+In addition to stdout and stderr this also returns inputs, start and end date, backend-specific job id, and
+return code.
+  
+### Notes
+
+- The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
+  check with Chet first).
+  
+- It seems strange that callers want inputs to calls but not outputs (other than stdout and stderr).
+
+- We never actually specify the backend on which the call executed.  One might be able to infer that from
+  the shape of the job id, but then again maybe not.
+ 
+- Date formats should be specified and probably made more than second granular.
+
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/call-metadata
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/call-metadata
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 379
+Content-Type: application/json; charset=UTF-8
+Date: Mon, 03 Aug 2015 17:11:28 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
+    "call-metadata": {
+        "call.ps": [
+            {
+                "inputs": {},
+                "start": "Mon, 03 Aug 2015 17:09:20 GMT",
+                "end": "Mon, 03 Aug 2015 17:09:21 GMT",
+                "jobid": "EI_Wku_7KRjY29CDl-eI6EEgw7vetLsXKgpwcm9kdaaaaaaa",
+                "rc": "0",
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr612696797703aaaaaaa.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+            }
+        ],
+        "call.cgrep": [
+            {
+                "inputs": {
+                  "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+                },
+                "start": "Mon, 03 Aug 2015 17:09:21 GMT",
+                "end": "Mon, 03 Aug 2015 17:09:22 GMT",
+                "jobid": "EI_Wku_7KRjY29CDl-eI6EEgw7vetLsXKgpwcm9kdbbbbbbb",
+                "rc": "0",
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr612696797703bbbbbbb.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout612848523578bbbbbbb.tmp"
+            }
+        ],
+        "call.wc": [
+            {   
+                "inputs": {
+                  "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+                },
+                "start": "Mon, 03 Aug 2015 17:09:21 GMT",
+                "end": "Mon, 03 Aug 2015 17:09:22 GMT",
+                "jobid": "EI_Wku_7KRjY29CDl-eI6EEgw7vetLsXKgpwcm9kdccccccc",
+                "rc": "0",
+                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr612696797703ccccccc.tmp",
+                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout612848523578ccccccc.tmp"
             }
         ]
     }

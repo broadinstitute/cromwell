@@ -3,7 +3,7 @@ package cromwell.webservice
 import com.wordnik.swagger.annotations.{ApiModel, ApiModelProperty}
 import cromwell.binding.FullyQualifiedName
 import cromwell.binding.values.WdlValue
-import cromwell.engine.backend.StdoutStderr
+import cromwell.engine.backend.{CallMetadata, StdoutStderr}
 
 import scala.annotation.meta.field
 
@@ -71,3 +71,13 @@ case class CallStdoutStderrResponse
   @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
   logs: Map[String, Seq[StdoutStderr]]
 )
+
+@ApiModel(value = "CallMetadata")
+case class CallMetadataResponse
+(
+  @(ApiModelProperty@field)(required = true, value = "The identifier of the workflow")
+  id: String,
+  @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
+  metadata: Map[String, Seq[CallMetadata]]
+)
+

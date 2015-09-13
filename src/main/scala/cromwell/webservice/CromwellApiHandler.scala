@@ -20,6 +20,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
+import cromwell.engine.backend.{CallMetadata => Metadata}
 
 object CromwellApiHandler {
 
@@ -42,6 +43,8 @@ object CromwellApiHandler {
   case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
   
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
+
+  final case class CallMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
@@ -129,6 +132,15 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       eventualCallLogs onComplete {
         case Success(logs) =>
           context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, logs))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case CallMetadata(id) =>
+      val eventualMetadata = ask(workflowManager, WorkflowManagerActor.CallMetadata(id)).mapTo[Map[String, Seq[Metadata]]]
+      eventualMetadata onComplete {
+        case Success(metadata) =>
+          context.parent ! RequestComplete(StatusCodes.OK, CallMetadataResponse(id.toString, metadata))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }

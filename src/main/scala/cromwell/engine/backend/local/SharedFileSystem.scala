@@ -2,6 +2,7 @@ package cromwell.engine.backend.local
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
+import java.security.MessageDigest
 
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
@@ -179,7 +180,8 @@ trait SharedFileSystem {
 
   private def stageWdlFile(call: Option[Call], wdlFile: WdlFile, hostInputsPath: Path): Try[WdlFile] = {
     val originalPath = Paths.get(wdlFile.value)
-    val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
+    val directoryIdentifier = MessageDigest.getInstance("MD5").digest(originalPath.toAbsolutePath.getParent.toString.getBytes) map {byte => f"$byte%02x"} mkString
+    val executionPath = hostInputsPath.resolve(s"${directoryIdentifier.substring(0,8)}-${originalPath.getFileName.toString}")
 
     val attemptedLocalization = Stream(Localizers: _*) map { _(call, originalPath, executionPath) } find { _.isSuccess }
     attemptedLocalization match {

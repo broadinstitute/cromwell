@@ -92,5 +92,5 @@ trait BackendCall {
    * Block while executing this call.  Return a Success(Map[CallOutputs]) if the
    * Call ran successfully.  Otherwise return a Failure.
    */
-  def execute: Try[CallOutputs]
+  def execute: ExecutionResult
 }

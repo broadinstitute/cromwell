@@ -1,13 +1,11 @@
 package cromwell.engine.backend.sge
 
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{Call, CallInputs, WorkflowDescriptor}
+import cromwell.binding.{CallInputs, WorkflowDescriptor}
 import cromwell.engine.AbortRegistrationFunction
-import cromwell.engine.backend.{LocalFileSystemBackendCall, BackendCall}
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
-
-import scala.util.Try
 
 case class SgeBackendCall(backend: SgeBackend,
                           workflowDescriptor: WorkflowDescriptor,
@@ -23,5 +21,5 @@ case class SgeBackendCall(backend: SgeBackend,
   val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr)
   val lookupFunction: String => WdlValue = inputName => locallyQualifiedInputs.get(inputName).get
   callRootPath.toFile.mkdirs
-  def execute: Try[Map[String, WdlValue]] = backend.execute(this)
+  def execute: ExecutionResult = backend.execute(this)
 }

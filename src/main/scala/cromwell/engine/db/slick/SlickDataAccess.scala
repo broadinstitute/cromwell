@@ -269,11 +269,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       executionKeyAndStatusResults <- dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionId(
         workflowExecutionResult.workflowExecutionId.get).result
 
-      executionStatuses = (executionKeyAndStatusResults map { e =>
-        (ExecutionDatabaseKey(e._1, e._2.toIndex), e._3)
-      }).toMap mapValues ExecutionStatus.withName
+      executionStatuses = executionKeyAndStatusResults map {
+        case (fqn, indexInt, status, rc) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status, rc)) }
 
-    } yield executionStatuses
+    } yield executionStatuses.toMap
 
     runTransaction(action)
   }
@@ -287,10 +286,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       executionKeyAndStatusResults <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
-      executionStatuses = (executionKeyAndStatusResults map { e =>
-        (ExecutionDatabaseKey(e._1, e._2.toIndex), e._3)
-      }).toMap mapValues ExecutionStatus.withName
-    } yield executionStatuses
+      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc) =>
+        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status, rc)) }
+    } yield executionStatuses.toMap
+
     runTransaction(action)
   }
 
@@ -299,10 +298,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.toString).result.head
 
-      executionStatuses <- dataAccess.executionStatusByWorkflowExecutionIdAndCallKey(
+      executionStatuses <- dataAccess.executionStatusAndRcByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
-      maybeStatus = executionStatuses.headOption map ExecutionStatus.withName
+      maybeStatus = executionStatuses.headOption map { case (execStatus, rc) => CallStatus(execStatus, rc) }
     } yield maybeStatus
     runTransaction(action)
   }
@@ -360,18 +359,17 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       backendInfo = jobResultOption match {
         case Some(localJobResult: LocalJob) =>
           new LocalCallBackendInfo(
-            ExecutionStatus.withName(executionResult.status),
-            localJobResult.pid,
-            localJobResult.rc)
+            CallStatus(executionResult.status, executionResult.rc),
+            localJobResult.pid)
         case Some(jesJobResult: JesJob) =>
           new JesCallBackendInfo(
-            ExecutionStatus.withName(executionResult.status),
+            CallStatus(executionResult.status, executionResult.rc),
             jesJobResult.jesId,
             jesJobResult.jesStatus)
         case Some(sgeJobResult: SgeJob) =>
           new SgeCallBackendInfo(
-          ExecutionStatus.withName(executionResult.status),
-          sgeJobResult.sgeJobNumber)
+            CallStatus(executionResult.status, executionResult.rc),
+            sgeJobResult.sgeJobNumber)
         case _ =>
           throw new IllegalArgumentException(
             s"Unknown backend from db for (uuid, fqn): " +
@@ -383,31 +381,33 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  // TODO it's confusing that CallBackendInfo has a CallStatus in it when that information doesn't go to the
+  // backend info tables.  But this method does use the CallStatus data from the CallBackendInfo to update the
+  // Execution table.
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
                                           call: Call,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
 
     require(backendInfo != null, "backend info is null")
+    val callStatus = backendInfo.status
 
     val action = for {
 
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(
         workflowId.toString, call.fullyQualifiedName).result.head
 
-      executionStatusQuery = dataAccess.executionStatusesByExecutionId(
+      executionStatusQuery = dataAccess.executionStatusesAndRcsByExecutionId(
         executionResult.executionId.get)
 
-      executionUpdate <- executionStatusQuery.update(
-        backendInfo.status.toString)
+      executionUpdate <- executionStatusQuery.update(callStatus.executionStatus.toString, callStatus.rc)
 
       _ = require(executionUpdate == 1, s"Unexpected execution update count $executionUpdate")
 
       backendUpdate <- backendInfo match {
         case localBackendInfo: LocalCallBackendInfo =>
-          dataAccess.localJobPidsAndRcsByExecutionId(
+          dataAccess.localJobPidsByExecutionId(
             executionResult.executionId.get).update(
-              localBackendInfo.processId,
-              localBackendInfo.resultCode)
+              localBackendInfo.processId)
 
         case jesBackendInfo: JesCallBackendInfo =>
           dataAccess.jesJobIdsAndJesStatusesByExecutionId(
@@ -516,13 +516,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                          callStatus: CallStatus): Future[Unit] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-
-      count <- dataAccess.executionStatusesByWorkflowExecutionIdAndScopeKeys(
-        workflowExecutionResult.workflowExecutionId.get, scopeKeys).update(callStatus.toString)
-
+      executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
+      count <- executions.map(e => (e.status, e.rc)).update(callStatus.executionStatus.toString, callStatus.rc)
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
-
     } yield ()
 
     runTransaction(action)

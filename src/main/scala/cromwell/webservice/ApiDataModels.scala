@@ -4,6 +4,7 @@ import com.wordnik.swagger.annotations.{ApiModel, ApiModelProperty}
 import cromwell.binding.FullyQualifiedName
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.{CallMetadata, StdoutStderr}
+import org.joda.time.DateTime
 
 import scala.annotation.meta.field
 
@@ -73,11 +74,23 @@ case class CallStdoutStderrResponse
 )
 
 @ApiModel(value = "CallMetadata")
-case class CallMetadataResponse
+case class WorkflowMetadataResponse
 (
   @(ApiModelProperty@field)(required = true, value = "The identifier of the workflow")
   id: String,
+  @(ApiModelProperty@field)(required = true, value = "Date and time the workflow was submitted")
+  submission: DateTime,
+  @(ApiModelProperty@field)(required = true, value = "Date and time the workflow started execution")
+  start: DateTime,
+  @(ApiModelProperty@field)(required = true, value = "Date and time the workflow ended execution")
+  end: DateTime,
+  @(ApiModelProperty@field)(required = true, value = "Workflow status")
+  status: String,
+  @(ApiModelProperty@field)(required = true, value = "Workflow inputs")
+  inputs: Map[String, String],
+  @(ApiModelProperty@field)(required = true, value = "Workflow outputs")
+  outputs: Map[String, String],
   @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
-  metadata: Map[String, Seq[CallMetadata]]
+  calls: Map[String, Seq[CallMetadata]]
 )
 

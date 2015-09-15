@@ -75,7 +75,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ callMetadataRoute
+    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute
 
   @Path("/{version}/{id}/status")
   @ApiOperation(
@@ -333,11 +333,11 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   // Jay hooked us up with fancy YAML so we don't need no stinkin' annotations.  Basically this
   // behaves like the endpoint above except the map will have more keys and the values can be
   // things other than just strings.  See README.md.
-  def callMetadataRoute =
-    path("workflows" / Segment / Segment / "call-metadata") { (version, workflowId) =>
+  def metadataRoute =
+    path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallMetadata(w))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowMetadata(w))
         case Failure(_) =>
           complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
       }

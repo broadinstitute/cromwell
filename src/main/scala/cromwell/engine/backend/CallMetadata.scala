@@ -7,6 +7,6 @@ case class CallMetadata(inputs: Map[String, String],
                         start: DateTime,
                         end: DateTime,
                         jobid: String,
-                        rc: Int,
+                        rc: Option[Int],
                         stdout: WdlFile,
                         stderr: WdlFile)

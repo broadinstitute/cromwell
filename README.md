@@ -1097,22 +1097,20 @@ Server: spray-can/1.3.3
 
 ## GET /workflows/:version/:id/metadata
 
-This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format.
-In addition to stdout and stderr this also returns inputs, start and end date, backend-specific job id, and
-return code.  A future version of this will also return metadata for the workflow itself (DSDEEPB-1264).
+This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
+(i.e. shards are accounted for by an array of maps, in the same order as the shards).
+Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
+Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
+return code, stdout and stderr.  Date formats are ISO with milliseconds.
   
 ### Notes
 
 - The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
   check with Chet first).
   
-- It seems strange that callers want all inputs to calls but only outputs which are files.
-
 - We never actually specify the backend on which the call executed.  One might be able to infer that from
   the shape of the job id, but then again maybe not.
  
-- Date formats should be specified and probably made more than second granular.
-
 
 cURL:
 
@@ -1136,40 +1134,55 @@ Server: spray-can/1.3.3
 
 {
     "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
-    "metadata": {
-        "call.ps": [
+    "submission": "2015-08-03T09:15:37.050-04:00",
+    "start": "2015-08-03T09:15:37.052-04:00",
+    "end": "2015-08-03T09:15:37.096-04:00",
+    "status": "SUCCEEDED",
+    "inputs": {},
+    "outputs": {},
+    "calls": {
+        "three_step.ps": [
             {
                 "inputs": {},
+                "outputs": {
+                  "procs": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+                },
                 "start": "2015-08-03T09:15:37.067-04:00",
                 "end": "2015-08-03T09:15:37.080-04:00",
                 "jobid": "EI_Wku_7KRjY29CDl-eI6EEgw7vetLsXKgpwcm9kdaaaaaaa",
-                "rc": "0",
+                "rc": 0,
                 "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stderr612696797703aaaaaaa.tmp",
                 "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
             }
         ],
-        "call.cgrep": [
+        "three_step.cgrep": [
             {
                 "inputs": {
                   "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
                 },
+                "outputs": {
+                  "count": "8"
+                },
                 "start": "2015-08-03T09:15:37.083-04:00",
                 "end": "2015-08-03T09:15:37.088-04:00",
                 "jobid": "EI_Wku_7KRjY29CDl-eI6EEgw7vetLsXKgpwcm9kdbbbbbbb",
-                "rc": "0",
+                "rc": 0,
                 "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stderr612696797703bbbbbbb.tmp",
                 "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-cgrep/stdout612848523578bbbbbbb.tmp"
             }
         ],
-        "call.wc": [
+        "three_step.wc": [
             {   
                 "inputs": {
                   "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
                 },
+                "outputs": {
+                  "count": "8"
+                },
                 "start": "2015-08-03T09:15:37.082-04:00",
                 "end": "2015-08-03T09:15:37.086-04:00",
                 "jobid": "EI_Wku_7KRjY29CDl-eI6EEgw7vetLsXKgpwcm9kdccccccc",
-                "rc": "0",
+                "rc": 0,
                 "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stderr612696797703ccccccc.tmp",
                 "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-wc/stdout612848523578ccccccc.tmp"
             }

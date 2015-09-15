@@ -17,6 +17,8 @@ import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
+import cromwell.webservice.WorkflowMetadataResponse
+import org.joda.time.DateTime
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -39,7 +41,7 @@ object WorkflowManagerActor {
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
-  final case class CallMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
+  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
 
@@ -83,9 +85,16 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
-    case CallMetadata(workflowId) =>
-      // TODO at least put fake stuff for integration.  Stdout and stderr can be had from workflowStdoutStderr.
-      sender ! Map.empty
+    case WorkflowMetadata(workflowId) =>
+      sender ! WorkflowMetadataResponse(
+        id = workflowId.toString,
+        submission = new DateTime(),
+        start = new DateTime(),
+        end = new DateTime(),
+        status = "FINE_THANKS_FOR_ASKING",
+        inputs = Map.empty,
+        outputs = Map.empty,
+        calls = Map.empty)
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future

@@ -6,7 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.binding.{WdlJson, WdlSource, WorkflowRawInputs}
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallMetadata => Metadata, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
@@ -20,7 +20,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
-import cromwell.engine.backend.{CallMetadata => Metadata}
 
 object CromwellApiHandler {
 
@@ -44,7 +43,7 @@ object CromwellApiHandler {
   
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
 
-  final case class CallMetadata(id: WorkflowId) extends WorkflowManagerMessage
+  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
@@ -136,11 +135,10 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
 
-    case CallMetadata(id) =>
-      val eventualMetadata = ask(workflowManager, WorkflowManagerActor.CallMetadata(id)).mapTo[Map[String, Seq[Metadata]]]
-      eventualMetadata onComplete {
-        case Success(metadata) =>
-          context.parent ! RequestComplete(StatusCodes.OK, CallMetadataResponse(id.toString, metadata))
+    case WorkflowMetadata(id) =>
+      val eventualMetadataResponse = ask(workflowManager, WorkflowManagerActor.WorkflowMetadata(id)).mapTo[WorkflowMetadataResponse]
+      eventualMetadataResponse onComplete {
+        case Success(metadata) => context.parent ! RequestComplete(StatusCodes.OK, metadata)
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }

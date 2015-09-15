@@ -30,26 +30,23 @@ object DataAccess {
       Await.ready(dataAccess.shutdown(), Duration.Inf)
     }
   }
-
-  // TODO PLEASE RENAME ME
-  case class WorkflowInfo(workflowId: WorkflowId, wdlSource: WdlSource, wdlJson: WdlJson)
 }
 
 trait DataAccess {
-
-  import DataAccess._
   /**
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
-  def createWorkflow(workflowInfo: WorkflowInfo,
+  def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                      workflowInputs: Traversable[SymbolStoreEntry],
                      calls: Traversable[Scope],
                      backend: Backend): Future[Unit]
 
   def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]]
 
-  def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]]
+  def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor]
+
+  def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]]
 
   def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo]
 

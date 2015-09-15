@@ -31,7 +31,6 @@ object JesBackend {
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
   lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
-  lazy val CromwellExecutionBucket = JesConf.getString("baseExecutionBucket")
   lazy val EndpointUrl = new URL(JesConf.getString("endpointUrl"))
   lazy val JesConnection = JesInterface(GoogleApplicationName, EndpointUrl)
 
@@ -48,14 +47,15 @@ object JesBackend {
 
   val JesCromwellRoot = "/cromwell_root"
 
-  def callGcsPath(workflowId: String, workflowName: String, callName: String, index: ExecutionIndex): String = {
+  def callGcsPath(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): String = {
     val shardPath = index map { i => s"/shard-$i"} getOrElse ""
-    s"$CromwellExecutionBucket/$workflowName/$workflowId/call-$callName$shardPath"
+    val bucket = descriptor.workflowOptions.getOrElse("jes_gcs_root", JesConf.getString("baseExecutionBucket"))
+    s"$bucket/${descriptor.namespace.workflow.name}/${descriptor.id}/call-$callName$shardPath"
   }
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
-    def callDir(key: CallKey) = callGcsPath(descriptor.id.toString, descriptor.name, key.scope.name, key.index)
+    def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.name, key.index)
   }
 
   def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
@@ -152,8 +152,8 @@ class JesBackend extends Backend with LazyLogging {
     JesOutput(value, engineFunctions.gcsPathFromAnyString(value).toString, Paths.get(value))
   }
 
-  override def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr = {
-    val base = callGcsPath(workflowId.toString, workflowName, callName, index)
+  override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
+    val base = callGcsPath(descriptor, callName, index)
     StdoutStderr(
       stdout = WdlFile(s"$base/$LocalStdoutValue"),
       stderr = WdlFile(s"$base/$LocalStderrValue")

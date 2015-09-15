@@ -81,15 +81,15 @@ case class WorkflowMetadataResponse
   @(ApiModelProperty@field)(required = true, value = "Date and time the workflow was submitted")
   submission: DateTime,
   @(ApiModelProperty@field)(required = true, value = "Date and time the workflow started execution")
-  start: DateTime,
+  start: Option[DateTime],
   @(ApiModelProperty@field)(required = true, value = "Date and time the workflow ended execution")
-  end: DateTime,
+  end: Option[DateTime],
   @(ApiModelProperty@field)(required = true, value = "Workflow status")
-  status: String,
+  status: Option[String],
   @(ApiModelProperty@field)(required = true, value = "Workflow inputs")
   inputs: Map[String, String],
   @(ApiModelProperty@field)(required = true, value = "Workflow outputs")
-  outputs: Map[String, String],
+  outputs: Option[Map[String, String]],
   @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
   calls: Map[String, Seq[CallMetadata]]
 )

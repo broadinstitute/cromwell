@@ -12,7 +12,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.{Backend, StdoutStderr}
+import cromwell.engine.backend.{CallMetadata, Backend, StdoutStderr}
 import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
@@ -85,16 +85,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
-    case WorkflowMetadata(workflowId) =>
-      sender ! WorkflowMetadataResponse(
-        id = workflowId.toString,
-        submission = new DateTime(),
-        start = new DateTime(),
-        end = new DateTime(),
-        status = "FINE_THANKS_FOR_ASKING",
-        inputs = Map.empty,
-        outputs = Map.empty,
-        calls = Map.empty)
+    case WorkflowMetadata(workflowId) => workflowMetadata(workflowId) pipeTo sender
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
@@ -201,6 +192,32 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       callToStatusMap <- dataAccess.getExecutionStatuses(workflowId)
       callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap mapValues(_.executionStatus)))
     } yield callToLogsMap
+  }
+
+  private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
+    for {
+      callStandardStreamsMap <- workflowStdoutStderr(id)
+      callMetadatas = callStandardStreamsMap mapValues { seq =>
+        seq map { streams =>
+          CallMetadata(
+            inputs = Map.empty,
+            start = Option(new DateTime()),
+            end = Option(new DateTime()),
+            jobid = None,
+            rc = None,
+            Option(streams.stdout),
+            Option(streams.stderr))
+        }
+      }
+    } yield WorkflowMetadataResponse(
+      id = id.toString,
+      submission = new DateTime(),
+      start = Option(new DateTime()),
+      end = Option(new DateTime()),
+      status = Option("AWESOME"),
+      inputs = Map.empty,
+      outputs = None,
+      calls = Map.empty)
   }
 
   private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,

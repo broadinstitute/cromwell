@@ -4,9 +4,9 @@ import cromwell.binding.values.WdlFile
 import org.joda.time.DateTime
 
 case class CallMetadata(inputs: Map[String, String],
-                        start: DateTime,
-                        end: DateTime,
-                        jobid: String,
+                        start: Option[DateTime],
+                        end: Option[DateTime],
+                        jobid: Option[String],
                         rc: Option[Int],
-                        stdout: WdlFile,
-                        stderr: WdlFile)
+                        stdout: Option[WdlFile],
+                        stderr: Option[WdlFile])

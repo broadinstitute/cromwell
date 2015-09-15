@@ -1138,14 +1138,16 @@ Server: spray-can/1.3.3
     "start": "2015-08-03T09:15:37.052-04:00",
     "end": "2015-08-03T09:15:37.096-04:00",
     "status": "SUCCEEDED",
-    "inputs": {},
+    "inputs": {
+        "three_step.cgrep.pattern": "..."
+    },
     "outputs": {},
     "calls": {
         "three_step.ps": [
             {
                 "inputs": {},
                 "outputs": {
-                  "procs": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+                    "procs": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
                 },
                 "start": "2015-08-03T09:15:37.067-04:00",
                 "end": "2015-08-03T09:15:37.080-04:00",
@@ -1158,10 +1160,10 @@ Server: spray-can/1.3.3
         "three_step.cgrep": [
             {
                 "inputs": {
-                  "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+                    "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
                 },
                 "outputs": {
-                  "count": "8"
+                    "count": "8"
                 },
                 "start": "2015-08-03T09:15:37.083-04:00",
                 "end": "2015-08-03T09:15:37.088-04:00",
@@ -1174,10 +1176,10 @@ Server: spray-can/1.3.3
         "three_step.wc": [
             {   
                 "inputs": {
-                  "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
+                    "in_file": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/call-ps/stdout612848523578aaaaaaa.tmp"
                 },
                 "outputs": {
-                  "count": "8"
+                    "count": "8"
                 },
                 "start": "2015-08-03T09:15:37.082-04:00",
                 "end": "2015-08-03T09:15:37.086-04:00",

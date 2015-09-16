@@ -102,6 +102,31 @@ object RuntimeAttributeSpec {
       |}
     """.stripMargin
 
+  val WorkflowWithFailOnRc =
+    """
+      |task echoWithFailOnRc {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    failOnRc: "true"
+      |  }
+      |}
+      |task echoWithoutFailOnRc {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    failOnRc: "false"
+      |  }
+      |}
+      |
+      |workflow echo_wf {
+      |  call echoWithFailOnRc
+      |  call echoWithoutFailOnRc
+      |}
+    """.stripMargin
+
   val WorkflowWithFullGooglyConfig =
     """
       |task googly_task {
@@ -189,6 +214,17 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     val echoWithoutFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnStderr")
     assert(echoWithoutFailOnStderrIndex >= 0)
     assert(!namespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
+  }
+
+  "WDL file with failOnRc runtime" should "identify failOnRc for (and only for) appropriate tasks" in {
+    val namespaceWithFailOnRc = NamespaceWithWorkflow.load(WorkflowWithFailOnRc, BackendType.LOCAL)
+    val echoWithFailOnRcIndex = namespaceWithFailOnRc.workflow.calls.indexWhere(call => call.name == "echoWithFailOnRc")
+    assert(echoWithFailOnRcIndex >= 0)
+    assert(namespaceWithFailOnRc.workflow.calls(echoWithFailOnRcIndex).failOnRc)
+
+    val echoWithoutFailOnRcIndex = namespaceWithFailOnRc.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnRc")
+    assert(echoWithoutFailOnRcIndex >= 0)
+    assert(!namespaceWithFailOnRc.workflow.calls(echoWithoutFailOnRcIndex).failOnRc)
   }
 
   "WDL file with Googly config" should "parse up properly" in {

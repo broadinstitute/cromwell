@@ -14,6 +14,7 @@ import Scalaz._
 case class RuntimeAttributes(docker: Option[String],
               defaultZones: Seq[String],
               failOnStderr: Boolean,
+              failOnRc: Boolean,
               cpu: Long,
               preemptible: Boolean,
               defaultDisks: Seq[Disk],
@@ -50,6 +51,7 @@ object RuntimeAttributes {
     val Cpu = 1L
     val Disk = Vector(LocalizationDisk)
     val FailOnStderr = false
+    val FailOnRc = true
     val Memory = 2.0
     val Preemptible = false
     val Zones = Vector("us-central1-a")
@@ -59,12 +61,13 @@ object RuntimeAttributes {
     val docker = attributeMap.get(DOCKER)
     val zones = attributeMap.get(DEFAULT_ZONES) map { _.split("\\s+").toVector } getOrElse Defaults.Zones
     val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
+    val failOnRc = validateFailOnRc(attributeMap.get(FAIL_ON_RC))
     val cpu = validateCpu(attributeMap.get(CPU))
     val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
     val disks = validateLocalDisks(attributeMap.get(DEFAULT_DISKS))
     val memory = validateMemory(attributeMap.get(MEMORY))
 
-    (failOnStderr |@| cpu |@| preemptible |@| disks |@| memory){ RuntimeAttributes(docker, zones, _, _, _, _, _) }
+    (failOnStderr |@| failOnRc |@| cpu |@| preemptible |@| disks |@| memory){ RuntimeAttributes(docker, zones, _, _, _, _, _, _) }
   }
 
   private def validateCpu(value: Option[String]): ValidationNel[String, Long] = {
@@ -77,6 +80,10 @@ object RuntimeAttributes {
 
   private def validateFailOnStderr(value: Option[String]): ValidationNel[String, Boolean] = {
     value map validateBoolean getOrElse Defaults.FailOnStderr.successNel
+  }
+
+  private def validateFailOnRc(value: Option[String]): ValidationNel[String, Boolean] = {
+    value map validateBoolean getOrElse Defaults.FailOnRc.successNel
   }
 
   private def validateLocalDisks(value: Option[String]): ValidationNel[String, Seq[Disk]] = {

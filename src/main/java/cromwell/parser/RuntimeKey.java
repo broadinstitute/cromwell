@@ -2,6 +2,7 @@ package cromwell.parser;
 
 import static cromwell.parser.BackendType.JES;
 import static cromwell.parser.BackendType.LOCAL;
+import static cromwell.parser.BackendType.SGE;
 
 /**
  * Backend runtime keys and the backends which are known to support them.
@@ -11,7 +12,8 @@ public enum RuntimeKey {
     DEFAULT_DISKS("defaultDisks", JES),
     DEFAULT_ZONES("defaultZones", JES),
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
-    FAIL_ON_STDERR("failOnStderr", LOCAL, JES),
+    FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE),
+    FAIL_ON_RC("failOnRc", LOCAL, SGE),
     MEMORY("memory", JES),
     PREEMPTIBLE("preemptible", JES);
 

@@ -140,7 +140,8 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     logger.info(s"$tag SGE job completed (rc=$jobRc)")
     (jobRc, backendCall.stderr.toFile.length) match {
       case (r, _) if r == 143 => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-      case (r, _) if r != 0 => FailedExecution(new Throwable(s"$tag SGE job failed because of non-zero return code: $r"), Option(r))
+      case (r, _) if r != 0 && backendCall.call.failOnRc =>
+        FailedExecution(new Exception(s"$tag SGE job failed because of non-zero return code: $r"), Option(r))
       case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
         FailedExecution(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"), Option(0))
       case (_, _) =>

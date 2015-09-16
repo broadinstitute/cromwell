@@ -165,16 +165,21 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     if (backendCall.call.failOnStderr && stderrFileLength > 0) {
       FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
     } else {
+
+      def processSuccess() = {
+        postProcess(backendCall) match {
+          case Success(outputs) => SuccessfulExecution(outputs)
+          case Failure(e) =>
+            val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
+            FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
+        }
+      }
+
       rc match {
-        case Success(0) =>
-          postProcess(backendCall) match {
-            case Success(outputs) => SuccessfulExecution(outputs)
-            case Failure(e) =>
-              val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
-              FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
-          }
+        case Success(0) => processSuccess()
         case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-        case Success(badRc) => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}"), Option(badRc))
+        case Success(badRc) if !backendCall.call.failOnRc => processSuccess()
+        case Success(badRc) if backendCall.call.failOnRc => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}"), Option(badRc))
         case Failure(e) => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}", e))
       }
     }

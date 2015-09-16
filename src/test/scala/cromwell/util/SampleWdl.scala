@@ -1220,4 +1220,33 @@ object SampleWdl {
       "two.y.in" -> secondFile.getAbsolutePath
     )
   }
+
+  object FailOnRc extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        task A {
+        |  command {
+        |    python -c "print(321);exit(123)"
+        |  }
+        |  output {
+        |    Int A_out = read_int(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task B {
+        |  Int B_in
+        |  command {
+        |    echo ${B_in}
+        |  }
+        |}
+        |
+        |
+        |workflow w {
+        |  call A
+        |  call B {input: B_in=A.A_out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+    override lazy val rawInputs = Map("" -> "...")
+  }
 }

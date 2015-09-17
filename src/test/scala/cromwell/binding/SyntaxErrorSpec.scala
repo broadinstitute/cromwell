@@ -230,5 +230,33 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin)
   }
+  it should "detect when task output section declares an output with incompatible types" in {
+    expectError(
+      """task a {
+        |  command { ./script }
+        |  output {
+        |    Array[String] x = "bad value"
+        |  }
+        |}
+        |
+        |workflow w {
+        |  call a
+        |}
+      """.stripMargin)
+  }
+  it should "detect when task output section declares an output with incompatible types 2" in {
+    expectError(
+      """task a {
+        |  command { ./script }
+        |  output {
+        |    Int x = "bad value"
+        |  }
+        |}
+        |
+        |workflow w {
+        |  call a
+        |}
+      """.stripMargin)
+  }
 }
 

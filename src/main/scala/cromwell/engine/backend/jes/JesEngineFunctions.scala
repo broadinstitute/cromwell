@@ -1,25 +1,23 @@
 package cromwell.engine.backend.jes
 
-import java.security.MessageDigest
-
-import cromwell.binding.WdlStandardLibraryFunctions
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.util.google.GoogleCloudStoragePath
-import org.apache.commons.codec.binary.Base64
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
- * Implementation of engine functions for the JES backend.
+ * Implementation of WDL standard library functions for the JES backend.
  */
-//case class JesEngineFunctions(executionContext.callDir: GoogleCloudStoragePath, jesConnection: JesInterface) extends WdlStandardLibraryFunctions {
 case class JesEngineFunctions(jesBackendCall: JesBackendCall) extends WdlStandardLibraryFunctions {
 
   private def readFromPath(value: String): String = {
-    val tryParse = GoogleCloudStoragePath.parse(value)
-    val gcsPathToUse: GoogleCloudStoragePath = if (tryParse.isSuccess) { tryParse.get } else { GoogleCloudStoragePath(gcsPathFromAnyString(value)) }
-    jesBackendCall.jesConnection.storage.slurpFile(gcsPathToUse)
+    val gcsPath = GoogleCloudStoragePath.parse(value) match {
+      case Success(path) => path
+      case Failure(ex) => GoogleCloudStoragePath(jesBackendCall.callDir + s"/$value")
+    }
+    jesBackendCall.jesConnection.storage.slurpFile(gcsPath)
   }
   
   /**
@@ -58,8 +56,16 @@ case class JesEngineFunctions(jesBackendCall: JesBackendCall) extends WdlStandar
   /**
    * Try to read an integer from the file referenced by the specified `WdlValue`.
    */
-  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
+  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
     read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
+  }
+
+  /**
+   * Try to read an float from the file referenced by the specified `WdlValue`.
+   */
+  override protected def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
+    read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
+  }
 
   /**
    * Try to read a string from the file referenced by the specified `WdlValue`.
@@ -68,14 +74,6 @@ case class JesEngineFunctions(jesBackendCall: JesBackendCall) extends WdlStandar
     for {
       singleArgument <- extractSingleArgument(params)
       string = fileContentsToString(singleArgument)
-    } yield WdlString(string)
-  }
-
-  def gcsPathFromAnyString(value: String) = {
-    jesBackendCall.callDir + md5(value)
-  }
-
-  def md5(value: String): String = {
-    new String(Base64.encodeBase64(MessageDigest.getInstance("MD5").digest(value.getBytes)))
+    } yield WdlString(string.trim)
   }
 }

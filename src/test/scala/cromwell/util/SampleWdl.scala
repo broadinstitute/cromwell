@@ -592,53 +592,6 @@ object SampleWdl {
     override val rawInputs: Map[String, Any] = Map.empty
   }
 
-  object OutputTypeChecking extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
-    """
-      |task ps {
-      |  command {
-      |    ps
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |}
-      |
-      |task cgrep {
-      |  String pattern
-      |  File in_file
-      |  command {
-      |    grep '${pattern}' ${in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = stdout()
-      |  }
-      |}
-      |
-      |task wc {
-      |  File in_file
-      |  command {
-      |    cat ${in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |}
-      |
-      |workflow three_step {
-      |  call ps
-      |  call cgrep {
-      |    input: in_file=ps.procs
-      |  }
-      |  call wc {
-      |    input: in_file=ps.procs
-      |  }
-      |}
-    """.stripMargin
-
-    override val rawInputs: WorkflowRawInputs = Map("three_step.cgrep.pattern" -> "x")
-  }
-
   object ReadLinesFunctionWdl extends SampleWdl {
     val CannedOutput =
       """java

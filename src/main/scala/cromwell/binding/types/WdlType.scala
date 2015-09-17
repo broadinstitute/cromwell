@@ -1,8 +1,8 @@
 package cromwell.binding.types
 
 import cromwell.binding.AstTools.EnhancedAstNode
-import cromwell.binding.values.WdlValue
-import cromwell.binding.{WdlSource, WdlSyntaxErrorFormatter}
+import cromwell.binding.values._
+import cromwell.binding.{WdlExpressionException, WdlSource, WdlSyntaxErrorFormatter}
 import cromwell.parser.WdlParser
 
 import scala.collection.JavaConverters._
@@ -33,6 +33,8 @@ trait WdlType {
     }
   }
 
+  def isCoerceableFrom(otherType: WdlType): Boolean = false
+
   def toWdlString: String
 
   /**
@@ -54,6 +56,32 @@ trait WdlType {
 
     ast.wdlValue(this, wdlSyntaxErrorFormatter)
   }
+
+  def invalid(operation: String) = Failure(new WdlExpressionException(s"Cannot perform operation: $operation"))
+  def add(rhs: WdlType): Try[WdlType] = invalid(s"$this + $rhs")
+  def subtract(rhs: WdlType): Try[WdlType] = invalid(s"$this - $rhs")
+  def multiply(rhs: WdlType): Try[WdlType] = invalid(s"$this * $rhs")
+  def divide(rhs: WdlType): Try[WdlType] = invalid(s"$this / $rhs")
+  def mod(rhs: WdlType): Try[WdlType] = invalid(s"$this % $rhs")
+  def equals(rhs: WdlType): Try[WdlType] = invalid(s"$this == $rhs")
+  def notEquals(rhs: WdlType): Try[WdlType] = equals(rhs) map {x => WdlBooleanType}
+  def lessThan(rhs: WdlType): Try[WdlType] = invalid(s"$this < $rhs")
+  def lessThanOrEqual(rhs: WdlType): Try[WdlType] = (lessThan(rhs), equals(rhs)) match {
+    case (Success(b:WdlType), _) if b == WdlBooleanType => Success(WdlBooleanType)
+    case (_, Success(b:WdlType)) if b == WdlBooleanType => Success(WdlBooleanType)
+    case (_, _) => invalid(s"$this <= $rhs")
+  }
+  def greaterThan(rhs: WdlType): Try[WdlType] = invalid(s"$this > $rhs")
+  def greaterThanOrEqual(rhs: WdlType): Try[WdlType] = (greaterThan(rhs), equals(rhs)) match {
+    case (Success(b:WdlType), _) if b == WdlBooleanType => Success(WdlBooleanType)
+    case (_, Success(b:WdlType)) if b == WdlBooleanType => Success(WdlBooleanType)
+    case (_, _) => invalid(s"$this >= $rhs")
+  }
+  def or(rhs: WdlType): Try[WdlType] = invalid(s"$this || $rhs")
+  def and(rhs: WdlType): Try[WdlType] = invalid(s"$this && $rhs")
+  def not: Try[WdlType] = invalid(s"!$this")
+  def unaryPlus: Try[WdlType] = invalid(s"+$this")
+  def unaryMinus: Try[WdlType] = invalid(s"-$this")
 }
 
 object WdlType {
@@ -65,8 +93,11 @@ object WdlType {
     WdlArrayType(WdlAnyType), WdlBooleanType, WdlObjectType
   )
 
-  def homogeneousType(values: Iterable[WdlValue]): Try[WdlType] = {
-    values.map(_.wdlType).toSet match {
+  def homogeneousTypeFromValues(values: Iterable[WdlValue]): Try[WdlType] =
+    homogeneousTypeFromTypes(values.map(_.wdlType))
+
+  def homogeneousTypeFromTypes(types: Iterable[WdlType]): Try[WdlType] = {
+    types.toSet match {
       case s if s.isEmpty => Failure(new WdlTypeException(s"Can't have empty Array/Map declarations (can't infer type)"))
       case s if s.size == 1 => Success(s.head)
       case _ => Failure(new WdlTypeException("Arrays/Maps must have homogeneous types"))

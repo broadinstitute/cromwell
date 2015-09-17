@@ -1,13 +1,12 @@
 package cromwell
 
 import java.nio.file.Files
-import java.util.UUID
 
 import akka.testkit._
+import cromwell.binding.expression.{NoFunctions, WdlFunctions}
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import cromwell.binding.values._
-import cromwell.binding.{NamespaceWithWorkflow, NoFunctions, WdlFunctions}
-import cromwell.engine.backend.local.{LocalBackend, LocalEngineFunctions}
+import cromwell.binding.NamespaceWithWorkflow
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 
@@ -57,9 +56,9 @@ class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
       val writeMapTask = ns.findTask("write_map").getOrElse {
         fail("Expected to find task 'write_map'")
       }
-      class CannedFunctions extends WdlFunctions {
+      class CannedFunctions extends WdlFunctions[WdlValue] {
         def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile("/test/map/path"))
-        def getFunction(name: String): WdlFunction = name match {
+        override def getFunction(name: String): WdlFunction = name match {
           case "write_map" => write_map
           case _ => throw new UnsupportedOperationException("Only write_map should be called")
         }

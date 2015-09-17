@@ -38,11 +38,17 @@ case class GoogleCloudStorage(client: Storage) {
   def uploadObject(gcsPath: GoogleCloudStoragePath, fileContent: String): Unit = {
     val fileBytes = fileContent.getBytes
     val bais = new ByteArrayInputStream(fileBytes)
-    uploadObject(gcsPath, bais, fileBytes.length)
+    uploadObject(gcsPath, bais, fileBytes.length, "application/octet-stream")
   }
 
-  def uploadObject(gcsPath: GoogleCloudStoragePath, inputStream: InputStream, byteCount: Long): Unit = {
-    val mediaContent: InputStreamContent = new InputStreamContent("application/octet-stream", inputStream)
+  def uploadJson(gcsPath: GoogleCloudStoragePath, fileContent: String): Unit = {
+    val fileBytes = fileContent.getBytes
+    val bais = new ByteArrayInputStream(fileBytes)
+    uploadObject(gcsPath, bais, fileBytes.length, "application/json")
+  }
+
+  def uploadObject(gcsPath: GoogleCloudStoragePath, inputStream: InputStream, byteCount: Long, contentType: String): Unit = {
+    val mediaContent: InputStreamContent = new InputStreamContent(contentType, inputStream)
     mediaContent.setLength(byteCount)
 
     val insertObject = client.objects.insert(gcsPath.bucket, null, mediaContent)
@@ -55,6 +61,10 @@ case class GoogleCloudStorage(client: Storage) {
     }
 
     insertObject.execute()
+  }
+
+  def deleteObject(gcsPath: GoogleCloudStoragePath): Unit = {
+    client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
   }
 
   def downloadObject(gcsPath: GoogleCloudStoragePath): Array[Byte] = {

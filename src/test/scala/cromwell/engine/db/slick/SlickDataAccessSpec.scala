@@ -47,7 +47,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr =
       throw new NotImplementedError
 
-    override def initializeForWorkflow(workflow: WorkflowDescriptor) =
+    override def initializeForWorkflow(workflow: WorkflowDescriptor, dataAccess: DataAccess) =
       throw new NotImplementedError
 
     override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
@@ -65,6 +65,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
     override def backendType: BackendType =
       throw new NotImplementedError
+
+    override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
+
+    override def assertWorkflowOptions(options: Map[String, String]): Unit = {}
   }
 
   // Tests against main database used for command line

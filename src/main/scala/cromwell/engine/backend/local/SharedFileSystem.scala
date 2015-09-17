@@ -9,8 +9,8 @@ import cromwell.binding._
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.WorkflowId
 import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
+import cromwell.engine.db.DataAccess
 import org.apache.commons.io.FileUtils
 
 import scala.collection.JavaConverters._
@@ -96,7 +96,7 @@ trait SharedFileSystem {
    * Creates host execution directory, inputs path, and outputs path.  Stages any input files into the workflow-inputs
    * directory and localizes their paths relative to the container.
    */
-  def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[HostInputs] = {
+  def initializeForWorkflow(descriptor: WorkflowDescriptor, dataAccess: DataAccess): Try[HostInputs] = {
     val hostExecutionDirectory = LocalBackend.hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
     val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath

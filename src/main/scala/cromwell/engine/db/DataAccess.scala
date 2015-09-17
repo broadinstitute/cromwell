@@ -5,6 +5,8 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.slick._
+import cromwell.engine.backend.jes.GcsUserAuthInformation
+
 import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
@@ -91,6 +93,8 @@ trait DataAccess {
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
+
+  def storeGcsAuthInfo(info: GcsUserAuthInformation): Unit = ???
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]

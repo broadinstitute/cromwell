@@ -196,7 +196,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         Send a message to self to trigger an actor shutdown. Run on a short timer to help enable some
         unit test instrumentation
        */
-      if (toState.isTerminal) setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
+      if (toState.isTerminal) {
+        backend.cleanUpForWorkflow(workflow)
+        setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
+      }
   }
 
   private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
@@ -506,7 +509,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     val workflowDescriptor = WorkflowDescriptor(workflow.id, workflow.sourceFiles)
     // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
-    backend.initializeForWorkflow(workflow) match {
+    backend.initializeForWorkflow(workflow, dataAccess) match {
       case Success(inputs) =>
         dataAccess.createWorkflow(workflowDescriptor, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
       case Failure(ex) => Future.failed(ex)

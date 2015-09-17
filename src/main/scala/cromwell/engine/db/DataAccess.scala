@@ -5,6 +5,8 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.slick._
+import cromwell.engine.backend.jes.GcsUserAuthInformation
+
 import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 

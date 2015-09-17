@@ -184,4 +184,10 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
       }
     }
   }
+
+  // Nothing to do currently
+  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
+
+  // No workflow options for local backend yet
+  override def assertWorkflowOptions(options: Map[String, String]): Unit = {}
 }

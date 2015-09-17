@@ -66,7 +66,7 @@ object JesBackend {
   def stdoutJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
   def localizationDiskInput(): JesInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, new File(JesCromwellRoot).toPath)
   def authGcsCredentialsPath(gcsPath: Option[String]): Option[JesInput] =
-    gcsPath.flatMap(x => Some(JesInput(ExtraConfigParamName, x, Paths.get(""), "LITERAL")))
+    gcsPath.map(JesInput(ExtraConfigParamName, _, Paths.get(""), "LITERAL"))
 
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(

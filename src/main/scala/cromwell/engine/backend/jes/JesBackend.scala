@@ -33,6 +33,7 @@ object JesBackend {
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
   lazy val EndpointUrl = new URL(JesConf.getString("endpointUrl"))
   lazy val JesConnection = JesInterface(GoogleApplicationName, EndpointUrl)
+  lazy val DockerHubCredentials = Try(JesConf.getString("dockerhubCredentialsPath")).toOption
 
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
@@ -41,9 +42,12 @@ object JesBackend {
    */
   val LocalStdoutParamName = "job_stdout"
   val LocalStderrParamName = "job_stderr"
+  val ExtraConfigParamName = "__extra_config_gcs_path"
+  val WorkingDiskParamName = "working_disk"
 
   val LocalStdoutValue = "job.stdout.txt"
   val LocalStderrValue = "job.stderr.txt"
+  val LocalWorkingDiskValue = "disk://local-disk"
 
   val JesCromwellRoot = "/cromwell_root"
 
@@ -60,27 +64,30 @@ object JesBackend {
 
   def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrParamName, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
   def stdoutJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStdoutParamName, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
-  def localizationDiskInput(): JesInput = JesInput("working_disk", "disk://local-disk", new File(JesCromwellRoot).toPath)
+  def localizationDiskInput(): JesInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, new File(JesCromwellRoot).toPath)
+  def authGcsCredentialsPath(gcsPath: Option[String]): Option[JesInput] =
+    gcsPath.map(JesInput(ExtraConfigParamName, _, Paths.get(""), "LITERAL"))
 
   // For now we want to always redirect stdout and stderr. This could be problematic if that's what the WDL calls stuff, but oh well
   def standardParameters(callGcsPath: String): Seq[JesParameter] = Seq(
     stdoutJesOutput(callGcsPath),
     stderrJesOutput(callGcsPath),
     localizationDiskInput()
-  )
+  ) ++ authGcsCredentialsPath(DockerHubCredentials)
 
   sealed trait JesParameter {
     def name: String
     def gcs: String
     def local: Path
+    def parameterType: String
 
     final val isInput = this.isInstanceOf[JesInput]
     final val isOutput = !isInput
-    final val toGoogleParameter = new Parameter().setName(name).setValue(local.toString).setType("REFERENCE")
+    final val toGoogleParameter = new Parameter().setName(name).setValue(local.toString).setType(parameterType)
   }
 
-  final case class JesInput(name: String, gcs: String, local: Path) extends JesParameter
-  final case class JesOutput(name: String, gcs: String, local: Path) extends JesParameter
+  final case class JesInput(name: String, gcs: String, local: Path, parameterType: String = "REFERENCE") extends JesParameter
+  final case class JesOutput(name: String, gcs: String, local: Path, parameterType: String = "REFERENCE") extends JesParameter
 }
 
 class JesBackend extends Backend with LazyLogging {

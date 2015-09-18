@@ -42,7 +42,7 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, swaggerService: Swa
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = workflowRoutes ~ swaggerService.uiRoutes
+  def possibleRoutes = options { complete(StatusCodes.OK) } ~ workflowRoutes ~ swaggerService.uiRoutes
 
   def receive = runRoute(possibleRoutes)
 }

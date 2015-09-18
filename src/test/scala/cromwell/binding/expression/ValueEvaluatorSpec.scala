@@ -310,6 +310,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     // Files -- 'etc_f', 'etc2_f', and 'sudoers_f' are all variables that resolve to WdlFile
     ("etc_f + sudoers_s", WdlFile("/etc/sudoers")),
     ("etc_f + sudoers_f", WdlFile("/etc/sudoers")),
+    (""" "/foo" + etc_f """, WdlString("/foo/etc")),
     ("etc_f == etc_f", WdlBoolean.True),
     ("etc_f == etc2_f", WdlBoolean.False),
     ("etc_f != etc2_f", WdlBoolean.True),

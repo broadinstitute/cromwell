@@ -20,7 +20,7 @@ case object WdlStringType extends WdlPrimitiveType {
   }
 
   override def add(rhs: WdlType): Try[WdlType] = rhs match {
-    case WdlStringType | WdlIntegerType | WdlFloatType => Success(WdlStringType)
+    case WdlStringType | WdlIntegerType | WdlFloatType | WdlFileType => Success(WdlStringType)
     case _ => invalid(s"$this + $rhs")
   }
 

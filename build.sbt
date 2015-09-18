@@ -1,5 +1,4 @@
-import sbtassembly.Plugin.AssemblyKeys._
-import sbtassembly.Plugin._
+import sbtassembly.MergeStrategy
 import sbtrelease.ReleasePlugin._
 
 name := "cromwell"

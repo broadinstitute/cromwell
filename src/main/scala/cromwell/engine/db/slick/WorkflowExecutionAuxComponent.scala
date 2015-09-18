@@ -45,4 +45,10 @@ trait WorkflowExecutionAuxComponent {
       workflowExecutionAux <- workflowExecutionAuxes
       if workflowExecutionAux.workflowExecutionId === workflowExecutionId
     } yield workflowExecutionAux)
+
+  val workflowOptionsFromWorkflowId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      workflowExecutionAux <- workflowExecutionAuxes
+      if workflowExecutionAux.workflowExecutionId === workflowExecutionId
+    } yield workflowExecutionAux.workflowOptions)
 }

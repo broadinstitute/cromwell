@@ -3,6 +3,7 @@ package cromwell.engine.backend
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
+import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.CallKey
 
 import scala.util.Try

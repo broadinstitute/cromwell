@@ -4,7 +4,9 @@ import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
 import cromwell.binding._
+import cromwell.engine.WorkflowSourceFiles
 import spray.json._
+
 import scala.language.postfixOps
 
 trait SampleWdl {

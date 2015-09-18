@@ -198,6 +198,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
        */
       if (toState.isTerminal) {
         backend.cleanUpForWorkflow(workflow)
+        dataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
         setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
       }
   }
@@ -511,7 +512,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
     backend.initializeForWorkflow(workflow) match {
       case Success(inputs) =>
-        dataAccess.createWorkflow(workflowDescriptor, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
+        dataAccess.createWorkflow(
+          workflowDescriptor,
+          buildSymbolStoreEntries(workflow.namespace, inputs),
+          workflow.namespace.workflow.children, backend
+        )
       case Failure(ex) => Future.failed(ex)
     }
   }

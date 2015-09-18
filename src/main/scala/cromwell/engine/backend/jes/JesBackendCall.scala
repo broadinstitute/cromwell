@@ -2,9 +2,9 @@ package cromwell.engine.backend.jes
 
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.{BackendCall, ExecutionResult}
 import cromwell.engine.workflow.CallKey
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.google.GoogleCloudStoragePath
 
 case class JesBackendCall(backend: JesBackend,

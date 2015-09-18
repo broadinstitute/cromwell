@@ -4,7 +4,7 @@ import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.webservice.{CromwellApiServiceActor, SwaggerService}
+import cromwell.webservice.CromwellApiServiceActor
 import spray.can.Http
 
 import scala.concurrent.duration._
@@ -19,7 +19,7 @@ object CromwellServer extends DefaultWorkflowManagerSystem {
   // So, we're not shutting down dataAccess during this.workflowManagerActor.postStop() nor this.service.postStop().
   // Not sure otherwise when this server is really shutting down, so this.dataAccess currently never explicitly closed.
   // Shouldn't be an issue unless perhaps test code tries to launch multiple servers and leaves dangling connections.
-  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, SwaggerService.from(conf)), "cromwell-service")
+  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor), "cromwell-service")
 
   implicit val timeout = Timeout(5.seconds)
 

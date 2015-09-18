@@ -16,8 +16,8 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.CallKey
-import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
+import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.parser.BackendType
 import cromwell.util.google.GoogleCloudStoragePath
 
@@ -27,7 +27,6 @@ import scala.util.{Failure, Success, Try}
 
 object JesBackend {
   private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
-  lazy val GoogleProject = JesConf.getString("project")
   lazy val GoogleApplicationName = JesConf.getString("applicationName")
   lazy val EndpointUrl = new URL(JesConf.getString("endpointUrl"))
   lazy val JesConnection = JesInterface(GoogleApplicationName, EndpointUrl)
@@ -80,6 +79,10 @@ object JesBackend {
   def workflowGcsPath(descriptor: WorkflowDescriptor): String = {
     val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, JesConf.getString("baseExecutionBucket"))
     s"$bucket/${descriptor.namespace.workflow.name}/${descriptor.id}"
+  }
+
+  def googleProject(descriptor: WorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse("google_project", JesConf.getString("project"))
   }
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
@@ -160,33 +163,38 @@ class JesBackend extends Backend with LazyLogging {
   override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => mapInputValue(k, v) }
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
+  private def writeAuthenticationFile(workflow: WorkflowDescriptor, userAuth: Option[GcsUserAuthInformation]) = {
+    val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+    GcsAuth.generateJson(DockerHubCredentials, userAuth) foreach { content =>
+      logger.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
+      JesConnection.storage.uploadJson(path, content)
+    }
+  }
+
   /*
    * No need to copy GCS inputs for the workflow we should be able to directly reference them
    * Create an authentication json file containing docker credentials and/or user account information
    */
   override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs] = {
-    val userJson = if (authenticationMode == RefreshTokenMode) {
-      getGcsAuthInformation(workflow)
-    } else None
+    def writeWithRefreshToken() = getGcsAuthInformation(workflow) map { userAuth => writeAuthenticationFile(workflow, Option(userAuth)) }
 
-    GcsAuth.generateJson(DockerHubCredentials, userJson) foreach { content =>
-      val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
-      logger.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
-      JesConnection.storage.uploadJson(path, content)
+    authenticationMode match {
+      case RefreshTokenMode => writeWithRefreshToken().map(_ => workflow.actualInputs)
+      case _ =>
+        writeAuthenticationFile(workflow, None)
+        Success(workflow.actualInputs)
     }
-
-    Success(workflow.actualInputs)
   }
 
-  override def assertWorkflowOptions(options: Map[String, String]) = {
+  override def assertWorkflowOptions(options: WorkflowOptions) = {
     // Warn for unrecognized option keys
-    options.keySet.diff(OptionKeys) match {
+    options.toMap.keySet.diff(OptionKeys) match {
       case unknowns if unknowns.nonEmpty => logger.warn(s"Unrecognized workflow option(s): ${unknowns.mkString(", ")}")
       case _ =>
     }
 
     if (authenticationMode == RefreshTokenMode) {
-      Seq(AccountOptionKey, RefreshTokenOptionKey) filterNot options.keySet match {
+      Seq(AccountOptionKey, RefreshTokenOptionKey) filterNot options.toMap.keySet match {
         case missing if missing.nonEmpty =>
           throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
         case _ =>
@@ -272,7 +280,7 @@ class JesBackend extends Backend with LazyLogging {
     logger.info(s"$tag `$command`")
     JesConnection.storage.uploadObject(backendCall.gcsExecPath, command)
 
-    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, GoogleProject, JesConnection).run
+    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, googleProject(backendCall.workflowDescriptor), JesConnection).run
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
     val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))

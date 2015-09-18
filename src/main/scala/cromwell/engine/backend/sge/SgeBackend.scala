@@ -3,12 +3,12 @@ package cromwell.engine.backend.sge
 import java.nio.file.Files
 
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.{CallInputs, WorkflowDescriptor}
+import cromwell.binding.CallInputs
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
@@ -156,5 +156,5 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
 
   // No workflow options for sge yet
-  override def assertWorkflowOptions(options: Map[String, String]): Unit = {}
+  override def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 }

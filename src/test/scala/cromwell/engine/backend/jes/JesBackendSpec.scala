@@ -2,8 +2,10 @@ package cromwell.engine.backend.jes
 
 import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.binding.{Call, CallInputs}
+import cromwell.engine.workflow.WorkflowOptions
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
+import spray.json.JsObject
 
 class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
 
@@ -42,9 +44,9 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   "workflow options existence" should "be verified when in 'RefreshTokenMode'" in {
-    val goodOptions = Map("account_name" -> "account", "refresh_token" -> "token")
-    val missingToken = Map("account_name" -> "account")
-    val missingAccount = Map("refresh_token" -> "token")
+    val goodOptions = WorkflowOptions.fromMap(Map("account_name" -> "account", "refresh_token" -> "token")).get
+    val missingToken = WorkflowOptions.fromMap(Map("account_name" -> "account")).get
+    val missingAccount = WorkflowOptions.fromMap(Map("refresh_token" -> "token")).get
     val jesBackend = new JesBackend() {
       override lazy val authenticationMode = RefreshTokenMode
     }
@@ -67,7 +69,7 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     } should have message s"Missing parameters in workflow options: account_name"
 
     the [IllegalArgumentException] thrownBy {
-      jesBackend.assertWorkflowOptions(Map.empty)
+      jesBackend.assertWorkflowOptions(WorkflowOptions.fromMap(Map.empty[String, String]).get)
     } should have message s"Missing parameters in workflow options: account_name, refresh_token"
   }
 }

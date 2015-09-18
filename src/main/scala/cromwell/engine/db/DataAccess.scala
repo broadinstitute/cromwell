@@ -8,7 +8,7 @@ import cromwell.engine.db.slick._
 import cromwell.engine.backend.jes.GcsUserAuthInformation
 
 import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
-import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
+import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -109,4 +109,6 @@ trait DataAccess {
   def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]]
 
   def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]]
+
+  def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String): Future[Unit]
 }

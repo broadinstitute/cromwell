@@ -3,11 +3,11 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
+import cromwell.binding.WdlSource
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{WdlSource, WorkflowDescriptor}
-import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.{AbortedExecution, FailedExecution, SuccessfulExecution}
 import cromwell.engine.workflow.CallKey
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.SampleWdl
 
 class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") {

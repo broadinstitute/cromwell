@@ -5,7 +5,6 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
 import cromwell.binding
-import cromwell.binding.{WorkflowSourceFiles, WorkflowOptionsJson, WdlJson, WdlSource}
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, SubscribeToWorkflow, WorkflowOutputs}
 import spray.json._

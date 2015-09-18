@@ -1,8 +1,6 @@
 grammar {
   lexer {
     partials {
-      r'"([^\"]+)"' -> _dquote_string
-      r'\'([^\']+)\'' -> _squote_string
       r'[a-zA-Z]' -> _identifier_start
       r'[a-zA-Z0-9_]' -> _identifier_follow
       r'(Array|Map|Object|Boolean|Int|Float|Uri|File|String)(?!{%_identifier_follow%})' -> _type
@@ -41,13 +39,13 @@ grammar {
 
     # TODO: these should probably be partials...
     enum {
-      python: r'"([^\"]*)"'
-      java: "\"([^\"]*)\""
-    } -> :string[1]
+      python: r'"([^\\\"\n]|\\[\\"\'nrbtfav\?]|\\[0-7]{1,3}|\\x[0-9a-fA-F]+|\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*"'
+      java: "\\\"(?>[^\\\\\\\"\\n]|\\\\[\\\"\\'nrbtfav\\\\?]|\\\\[0-7]{1,3}|\\\\x[0-9a-fA-F]+|\\\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*\\\""
+    } -> unescape(:string)
     enum {
-      python: r'\'([^\']*)\''
-      java: "'([^']*)'"
-    } -> :string[1]
+      python: r'\'([^\\\'\n]|\\[\\"\'nrbtfav\?]|\\[0-7]{1,3}|\\x[0-9a-fA-F]+|\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*\''
+      java: "'(?>[^\\\\\\'\\n]|\\\\[\\\"\\'nrbtfav\\\\?]|\\\\[0-7]{1,3}|\\\\x[0-9a-fA-F]+|\\\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*'"
+    } -> unescape(:string)
 
     r':' -> :colon
     r',' -> :comma
@@ -155,7 +153,6 @@ grammar {
       r'=' -> :equal
       r'\.' -> :dot
       r'\{' -> :lbrace
-      r'\}' -> :rbrace
       r'\(' -> :lparen
       r'\)' -> :rparen
       r'\[' -> :lsquare
@@ -173,20 +170,38 @@ grammar {
 
       # Literals
       enum {
-        python: r'"([^\"]+)"'
-        java: "\"([^\"]+)\""
-      } -> :string[1]
+        python: r'"([^\\\"\n]|\\[\\"\'nrbtfav\?]|\\[0-7]{1,3}|\\x[0-9a-fA-F]+|\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*"'
+        java: "\\\"(?>[^\\\\\\\"\\n]|\\\\[\\\"\\'nrbtfav\\\\?]|\\\\[0-7]{1,3}|\\\\x[0-9a-fA-F]+|\\\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*\\\""
+      } -> unescape(:string)
       enum {
-        python: r'\'([^\']+)\''
-        java: "'([^']+)'"
-      } -> :string[1]
+        python: r'\'([^\\\'\n]|\\[\\"\'nrbtfav\?]|\\[0-7]{1,3}|\\x[0-9a-fA-F]+|\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*\''
+        java: "'(?>[^\\\\\\'\\n]|\\\\[\\\"\\'nrbtfav\\\\?]|\\\\[0-7]{1,3}|\\\\x[0-9a-fA-F]+|\\\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*'"
+      } -> unescape(:string)
       r'-?[0-9]+\.[0-9]+' -> :float
       r'[0-9]+' -> :integer
     }
 
     code<python> << PYTHON
     def init():
-        return {'context': None}
+        return {
+            'context': None,
+            'replacements': {
+                re.compile(r"\\n"): 0x000A,
+                re.compile(r"\\r"): 0x000D,
+                re.compile(r"\\b"): 0x0008,
+                re.compile(r"\\t"): 0x0009,
+                re.compile(r"\\a"): 0x0007,
+                re.compile(r"\\v"): 0x000B,
+                re.compile(r'\\"'): 0x0022,
+                re.compile(r"\\'"): 0x0027,
+                re.compile(r"\\\?"): 0x003F
+            },
+            'escapes': {
+                re.compile(r'(\\([0-7]{1,3}))'): 8,
+                re.compile(r'(\\[xX]([0-9a-fA-F]{1,4}))'): 16,
+                re.compile(r'(\\[uU]([0-9a-fA-F]{4}))'): 16
+            }
+        }
     def workflow(ctx, terminal, source_string, line, col):
         ctx.user_context['context'] = 'workflow'
         default_action(ctx, terminal, source_string, line, col)
@@ -197,6 +212,17 @@ grammar {
         if ctx.user_context['context'] == 'workflow':
             ctx.stack.append('wf_output')
         default_action(ctx, terminal, source_string, line, col)
+    def unescape(ctx, terminal, source_string, line, col):
+
+        for regex, c in ctx.user_context['replacements'].items():
+            source_string = regex.sub(chr(c), source_string)
+
+        source_string = source_string.replace("\u005C\u005C", "\u005C")
+
+        for regex, base in ctx.user_context['escapes'].items():
+            for escape_sequence, number in regex.findall(source_string):
+                source_string = source_string.replace(escape_sequence, chr(int(number, base)))
+        default_action(ctx, terminal, source_string[1:-1], line, col)
     PYTHON
 
     code<java> << JAVA
@@ -220,6 +246,9 @@ grammar {
             ctx.stack.push("wf_output");
         }
         default_action(ctx, terminal, source_string, line, col);
+    }
+    public void unescape(LexerContext ctx, TerminalIdentifier terminal, String source_string, int line, int col) {
+        default_action(ctx, terminal, StringEscapeUtils.unescapeJava(source_string.substring(1, source_string.length() - 1)), line, col);
     }
     JAVA
   }

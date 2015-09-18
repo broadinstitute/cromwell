@@ -1,7 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.types.WdlStringType
-
+import org.apache.commons.lang3.StringEscapeUtils
 import scala.util.{Success, Try}
 
 case class WdlString(value: String) extends WdlPrimitive {
@@ -29,6 +29,6 @@ case class WdlString(value: String) extends WdlPrimitive {
     case _ => invalid(s"$value > $rhs")
   }
 
-  override def toWdlString = "\"" + value + "\""
+  override def toWdlString = "\"" + StringEscapeUtils.escapeJava(value) + "\""
   override def valueString = value
 }

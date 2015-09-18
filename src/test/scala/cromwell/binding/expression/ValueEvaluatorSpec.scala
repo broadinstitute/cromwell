@@ -313,7 +313,14 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("etc_f == etc_f", WdlBoolean.True),
     ("etc_f == etc2_f", WdlBoolean.False),
     ("etc_f != etc2_f", WdlBoolean.True),
-    ("etc_f == etc_s", WdlBoolean.True)
+    ("etc_f == etc_s", WdlBoolean.True),
+
+    // String escaping
+    (""" "abc" """, WdlString("abc")),
+    (""" "a\nb" """, WdlString("a\nb")),
+    (""" "a\nb\t" """, WdlString("a\nb\t")),
+    (""" "a\n\"b\t\"" """, WdlString("a\n\"b\t\"")),
+    (""" "be \u266f or be \u266e, just don't be \u266d" """, WdlString("be \u266f or be \u266e, just don't be \u266d"))
   )
 
   val badIdentifierExpressions = Table(
@@ -360,5 +367,11 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     it should s"error when evaluating: $expression" in {
       identifierEvalError(expression)
     }
+  }
+
+  "A string with special characters in it" should "convert to escape sequences when converted to WDL" in {
+    WdlString("a\nb").toWdlString shouldEqual "\"a\\nb\""
+    WdlString("a\nb\t").toWdlString shouldEqual "\"a\\nb\\t\""
+    WdlString("be \u266f or be \u266e, just don't be \u266d").toWdlString shouldEqual "\"be \\u266F or be \\u266E, just don't be \\u266D\""
   }
 }

@@ -5,7 +5,7 @@ import org.joda.time.DateTime
 
 case class CallMetadata(inputs: Map[String, String],
                         status: String,
-                        backend: String,
+                        backend: Option[String],
                         outputs: Option[Map[String, String]],
                         start: Option[DateTime],
                         end: Option[DateTime],

@@ -205,8 +205,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       key -> seqOfStreams.map { streams =>
         CallMetadata(
           inputs = Map("input_key" -> "input_value"),
-          backend = "UnknownBackend",
           status = "UnknownStatus",
+          backend = Option("UnknownBackend"),
           outputs = Option(Map("output_key" -> "output_value")),
           start = Option(new DateTime()),
           end = Option(new DateTime()),

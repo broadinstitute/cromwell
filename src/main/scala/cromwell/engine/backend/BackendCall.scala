@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.binding._
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
 import cromwell.engine.workflow.CallKey
 
@@ -92,5 +93,5 @@ trait BackendCall {
    * Block while executing this call.  Return a Success(Map[CallOutputs]) if the
    * Call ran successfully.  Otherwise return a Failure.
    */
-  def execute: Try[CallOutputs]
+  def execute: ExecutionResult
 }

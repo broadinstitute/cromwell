@@ -1,5 +1,6 @@
 package cromwell.binding
 
+import cromwell.binding.types.WdlType
 import cromwell.parser.WdlParser._
 
 import scala.collection.JavaConverters._
@@ -187,6 +188,13 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
     s"""ERROR: Array type should have exactly one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
      |
      |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
+  def taskOutputExpressionTypeDoesNotMatchDeclaredType(outputName: Terminal, outputType: WdlType, expressionType: WdlType) = {
+    s"""ERROR: ${outputName.getSourceString} is declared as a ${outputType.toWdlString} but the expression evaluates to a ${expressionType.toWdlString}:
+       |
+       |${pointToSource(outputName)}
      """.stripMargin
   }
 }

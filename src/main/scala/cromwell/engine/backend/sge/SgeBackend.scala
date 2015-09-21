@@ -3,10 +3,10 @@ package cromwell.engine.backend.sge
 import java.nio.file.Files
 
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.{Call, CallInputs, CallOutputs, WorkflowDescriptor}
+import cromwell.binding.{CallInputs, CallOutputs, WorkflowDescriptor}
 import cromwell.engine.backend.Backend.RestartableWorkflow
+import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
-import cromwell.engine.backend.{Backend, TaskAbortedException}
 import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
@@ -33,18 +33,18 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): Try[CallOutputs] =  {
+  override def execute(backendCall: BackendCall): ExecutionResult =  {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"$tag `$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand)
         launchQsub(backendCall) match {
-          case (qsubRc, _) if qsubRc != 0 => Failure(new Throwable(s"Error: qsub exited with return code: $qsubRc"))
-          case (_, None) => Failure(new Throwable(s"Could not parse Job ID from qsub output"))
+          case (qsubRc, _) if qsubRc != 0 => FailedExecution(new Throwable(s"Error: qsub exited with return code: $qsubRc"))
+          case (_, None) => FailedExecution(new Throwable(s"Could not parse Job ID from qsub output"))
           case (_, Some(sgeJobId)) => pollForSgeJobCompletionThenPostProcess(backendCall, sgeJobId)
         }
-      case Failure(ex) => Failure(ex)
+      case Failure(ex) => FailedExecution(ex)
     }
   }
 
@@ -106,7 +106,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
     val tag = makeTag(backendCall)
     val sgeJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.name}"
-    val argv = Seq("qsub", "-N", sgeJobName, "-V", "-b", "n", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
+    val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"$tag backend command: $backendCommandString")
 
@@ -115,7 +115,14 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val process = argv.run(ProcessLogger(qsubStdoutWriter writeWithNewline, qsubStderrWriter writeWithNewline))
     val rc: Int = process.exitValue()
     Vector(qsubStdoutWriter, qsubStderrWriter) foreach { _.flushAndClose() }
-    val jobId = "^Your job (\\d+)".r.findFirstMatchIn(qsubStdoutFile.slurp).map(_.group(1).toInt)
+
+    // The -terse option to qsub makes it so stdout only has the job ID, if it was successfully launched
+    val jobId = Try(qsubStdoutFile.slurp.stripLineEnd.toInt) match {
+      case Success(id) => Some(id)
+      case Failure(ex) =>
+        logger.error(s"$tag Could not find SGE job ID from qsub stdout file.\n\nCheck the qsub stderr file for possible errors: ${qsubStderrFile.toAbsolutePath.toString}")
+        None
+    }
     logger.info(s"$tag qsub rc=$rc, job ID=${jobId.getOrElse("NONE")}")
     (rc, jobId)
   }
@@ -124,7 +131,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
    * This waits for a given SGE job to finish.  When finished, it post-processes the job
    * and returns the outputs for the call
    */
-  private def pollForSgeJobCompletionThenPostProcess(backendCall: BackendCall, sgeJobId: Int): Try[CallOutputs] = {
+  private def pollForSgeJobCompletionThenPostProcess(backendCall: BackendCall, sgeJobId: Int): ExecutionResult = {
     val tag = makeTag(backendCall)
     val abortFunction = killSgeJob(backendCall, sgeJobId)
     val waitUntilCompleteFunction = waitUntilComplete(backendCall)
@@ -132,14 +139,16 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val jobRc = waitUntilCompleteFunction
     logger.info(s"$tag SGE job completed (rc=$jobRc)")
     (jobRc, backendCall.stderr.toFile.length) match {
-      case (r, _) if r == 143 =>
-        Failure(new TaskAbortedException()) // Special case to check for SIGTERM exit code - implying abort
-      case (r, _) if r != 0 =>
-        Failure(new Throwable(s"$tag SGE job failed because of non-zero return code: $r"))
+      case (r, _) if r == 143 => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
+      case (r, _) if r != 0 && backendCall.call.failOnRc =>
+        FailedExecution(new Exception(s"$tag SGE job failed because of non-zero return code: $r"), Option(r))
       case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
-        Failure(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"))
+        FailedExecution(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"), Option(0))
       case (_, _) =>
-        postProcess(backendCall)
+        postProcess(backendCall) match {
+          case Success(callOutputs) =>  SuccessfulExecution(callOutputs)
+          case Failure(e) => FailedExecution(e)
+        }
     }
   }
 }

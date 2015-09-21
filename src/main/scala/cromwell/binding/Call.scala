@@ -1,6 +1,8 @@
 package cromwell.binding
 
 import cromwell.binding.AstTools.EnhancedAstNode
+import cromwell.binding.expression.WdlFunctions
+import cromwell.binding.values.WdlValue
 import cromwell.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import scala.util.Try
 import scala.language.postfixOps
@@ -98,7 +100,7 @@ case class Call(alias: Option[String],
   /**
    * Instantiate the abstract command line corresponding to this call using the specified inputs.
    */
-  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions): Try[String] =
+  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions[WdlValue]): Try[String] =
     task.instantiateCommand(inputs, functions)
 
   /**
@@ -110,4 +112,9 @@ case class Call(alias: Option[String],
    * Whether the call should be considered to have failed if any stderr is generated.
    */
   def failOnStderr: Boolean = task.runtimeAttributes.failOnStderr
+
+  /**
+   * Whether the call should be considered to have failed if a non-zero result code is generated.
+   */
+  def failOnRc: Boolean = task.runtimeAttributes.failOnRc
 }

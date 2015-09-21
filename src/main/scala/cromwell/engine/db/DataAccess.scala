@@ -4,6 +4,7 @@ import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
+import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
 
@@ -30,26 +31,23 @@ object DataAccess {
       Await.ready(dataAccess.shutdown(), Duration.Inf)
     }
   }
-
-  // TODO PLEASE RENAME ME
-  case class WorkflowInfo(workflowId: WorkflowId, wdlSource: WdlSource, wdlJson: WdlJson)
 }
 
 trait DataAccess {
-
-  import DataAccess._
   /**
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
-  def createWorkflow(workflowInfo: WorkflowInfo,
+  def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                      workflowInputs: Traversable[SymbolStoreEntry],
                      calls: Traversable[Scope],
                      backend: Backend): Future[Unit]
 
   def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]]
 
-  def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]]
+  def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor]
+
+  def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]]
 
   def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo]
 
@@ -66,6 +64,10 @@ trait DataAccess {
   /** Returns all outputs for this workflowId */
   def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
+  def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+
+  def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]]
 
@@ -75,12 +77,16 @@ trait DataAccess {
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue]): Future[Unit]
 
-  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], scopeStatus: ExecutionStatus): Future[Unit]
+  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
+    setStatus(workflowId, keys, CallStatus(executionStatus, None))
+  }
 
-  def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
+  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus): Future[Unit]
+
+  def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, CallStatus]]
 
   /** Return all execution entries for the FQN, including collector and shards if any */
-  def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, ExecutionStatus]]
+  def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, CallStatus]]
 
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 
@@ -88,4 +94,17 @@ trait DataAccess {
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]
+
+  def getExecutions(id: Int): Future[Traversable[Execution]]
+
+  /** Fetch the workflow having the specified `WorkflowId`. */
+  def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]
+
+  def getWorkflowExecutionAux(id: Int): Future[WorkflowExecutionAux]
+
+  def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]]
+
+  def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]]
+
+  def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]]
 }

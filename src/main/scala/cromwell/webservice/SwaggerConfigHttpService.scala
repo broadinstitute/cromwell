@@ -61,9 +61,9 @@ trait SwaggerUiHttpService extends HttpService {
       pathPrefix(uiPath) {
         // when the user hits the doc url, redirect to the index.html with api docs specified on the url
         pathEndOrSingleSlash { context =>
-          context.redirect(s"$baseUrl/$uiPath/index.html?url=$baseUrl/$docsPath", StatusCodes.TemporaryRedirect)
+          context.redirect(s"$baseUrl/$uiPath/index.html?url=$baseUrl/swagger/cromwell.yaml", StatusCodes.TemporaryRedirect)
         } ~ {
-          getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
+          getFromResourceDirectory("swagger/") ~ getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
         }
       }
     }

@@ -39,7 +39,7 @@ object MockWorkflowManagerActor {
 class MockWorkflowManagerActor extends Actor  {
 
   def receive = {
-    case SubmitWorkflow(wdlSource, wdlJson, rawInputs) =>
+    case SubmitWorkflow(sources) =>
       sender ! MockWorkflowManagerActor.submittedWorkflowId
 
     case WorkflowStatus(id) =>
@@ -240,14 +240,27 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  it should "return 400 for a malformed JSON " in {
+  it should "return 400 for a malformed workflow inputs JSON " in {
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {
           status
         }
-        assertResult("workflowInput JSON was malformed") {
+        assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return 400 for a malformed workflow options JSON " in {
+    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString(), "workflowOptions" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
+      submitRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
           responseAs[String]
         }
       }

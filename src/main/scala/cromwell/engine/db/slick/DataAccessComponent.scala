@@ -1,5 +1,6 @@
 package cromwell.engine.db.slick
 
+import cromwell.engine.WorkflowId
 import slick.driver.JdbcProfile
 
 import scala.reflect.runtime._
@@ -28,6 +29,33 @@ class DataAccessComponent(val driver: JdbcProfile)
       localJobs.schema ++
       jesJobs.schema ++
       sgeJobs.schema
+
+  def jesJobInfo(id: WorkflowId): Query[(Executions, JesJobs), (Execution, JesJob), Seq] = for {
+    workflowExecution <- workflowExecutions
+    execution <- executions
+    jesJob <- jesJobs
+    if workflowExecution.workflowExecutionUuid === id.toString
+    if execution.workflowExecutionId === workflowExecution.workflowExecutionId
+    if jesJob.executionId === execution.executionId
+  } yield (execution, jesJob)
+
+  def localJobInfo(id: WorkflowId) = for {
+    workflowExecution <- workflowExecutions
+    execution <- executions
+    localJob <- localJobs
+    if workflowExecution.workflowExecutionUuid === id.toString
+    if execution.workflowExecutionId === workflowExecution.workflowExecutionId
+    if localJob.executionId === execution.executionId
+  } yield (execution, localJob)
+
+  def sgeJobInfo(id: WorkflowId) = for {
+    workflowExecution <- workflowExecutions
+    execution <- executions
+    sgeJob <- sgeJobs
+    if workflowExecution.workflowExecutionUuid === id.toString
+    if execution.workflowExecutionId === workflowExecution.workflowExecutionId
+    if sgeJob.executionId === execution.executionId
+  } yield (execution, sgeJob)
 }
 
 object DataAccessComponent {

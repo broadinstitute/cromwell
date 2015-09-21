@@ -1,10 +1,9 @@
-import sbtassembly.Plugin.AssemblyKeys._
-import sbtassembly.Plugin._
+import sbtassembly.MergeStrategy
 import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.10"
+version := "0.11"
 
 organization := "org.broadinstitute"
 
@@ -30,6 +29,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-slf4j" % akkaV,
   "commons-codec" % "commons-codec" % "1.10",
   "commons-io" % "commons-io" % "2.4",
+  "org.apache.commons" % "commons-lang3" % "3.4",
   "ch.qos.logback" % "logback-classic" % "1.1.3",
   "ch.qos.logback" % "logback-access" % "1.1.3",
   "org.codehaus.janino" % "janino" % "2.7.8",

@@ -15,36 +15,32 @@ object WdlBoolean {
   */
 class WdlBoolean private(val value: Boolean) extends WdlPrimitive {
   val wdlType = WdlBooleanType
-  override def equals(rhs: WdlValue): Try[WdlBoolean] = {
-    rhs match {
-      case r:WdlBoolean => Success(WdlBoolean(value == r.value))
-      case _ => invalid(s"$value || $rhs")
-    }
+
+  override def equals(rhs: WdlValue): Try[WdlBoolean] = rhs match {
+    case r:WdlBoolean => Success(WdlBoolean(value == r.value))
+    case _ => invalid(s"$value || $rhs")
   }
-  override def lessThan(rhs: WdlValue): Try[WdlBoolean] = {
-    rhs match {
-      case r:WdlBoolean => Success(WdlBoolean(value < r.value))
-      case _ => invalid(s"$value < $rhs")
-    }
+
+  override def lessThan(rhs: WdlValue): Try[WdlBoolean] = rhs match {
+    case r:WdlBoolean => Success(WdlBoolean(value < r.value))
+    case _ => invalid(s"$value < $rhs")
   }
-  override def greaterThan(rhs: WdlValue): Try[WdlBoolean] = {
-    rhs match {
-      case r:WdlBoolean => Success(WdlBoolean(value > r.value))
-      case _ => invalid(s"$value > $rhs")
-    }
+
+  override def greaterThan(rhs: WdlValue): Try[WdlBoolean] = rhs match {
+    case r:WdlBoolean => Success(WdlBoolean(value > r.value))
+    case _ => invalid(s"$value > $rhs")
   }
-  override def or(rhs: WdlValue): Try[WdlBoolean] = {
-    rhs match {
-      case r:WdlBoolean => Success(WdlBoolean(value || r.value))
-      case _ => invalid(s"$value || $rhs")
-    }
+
+  override def or(rhs: WdlValue): Try[WdlBoolean] = rhs match {
+    case r:WdlBoolean => Success(WdlBoolean(value || r.value))
+    case _ => invalid(s"$value || $rhs")
   }
-  override def and(rhs: WdlValue): Try[WdlBoolean] = {
-    rhs match {
-      case r:WdlBoolean => Success(WdlBoolean(value && r.value))
-      case _ => invalid(s"$value && $rhs")
-    }
+
+  override def and(rhs: WdlValue): Try[WdlBoolean] = rhs match {
+    case r:WdlBoolean => Success(WdlBoolean(value && r.value))
+    case _ => invalid(s"$value && $rhs")
   }
+
   override def not: Try[WdlValue] = Success(WdlBoolean(!value))
   override def toWdlString = value.toString
 }

@@ -11,6 +11,7 @@ case class Execution
   callFqn: String,
   index: Int,
   status: String,
+  rc: Option[Int] = None,
   executionId: Option[Int] = None
   )
 
@@ -30,7 +31,9 @@ trait ExecutionComponent {
 
     def status = column[String]("STATUS")
 
-    override def * = (workflowExecutionId, callFqn, index, status, executionId.?) <>
+    def rc = column[Option[Int]]("RC")
+
+    override def * = (workflowExecutionId, callFqn, index, status, rc, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(
@@ -49,22 +52,22 @@ trait ExecutionComponent {
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
-    } yield (execution.callFqn, execution.index, execution.status))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc))
 
-  val executionStatusByWorkflowExecutionIdAndCallKey = Compiled(
+  val executionStatusAndRcByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
       if execution.index === index
-    } yield execution.status)
+    } yield (execution.status, execution.rc))
 
   val executionStatusByWorkflowExecutionIdAndCallFqn = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
-    } yield (execution.callFqn, execution.index, execution.status))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc))
 
   val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
@@ -74,14 +77,20 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
-  val executionStatusesByExecutionId = Compiled(
+  val executionsByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+    } yield execution)
+
+  val executionStatusesAndRcsByExecutionId = Compiled(
     (executionId: Rep[Int]) => for {
       execution <- executions
       if execution.executionId === executionId
-    } yield execution.status)
+    } yield (execution.status, execution.rc))
 
   // see workflowExecutionsByStatuses
-  def executionStatusesByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {
+  def executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {
     val falseRep: Rep[Boolean] = false
     val workflowFilteredQuery = for {
       execution <- executions
@@ -98,6 +107,6 @@ trait ExecutionComponent {
       scopeID.map({
         case (name, index) => exec.callFqn === name && exec.index === index
       }).fold(falseRep)(_ || _)
-    } map { _.status }
+    }
   }
 }

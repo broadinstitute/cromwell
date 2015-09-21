@@ -2,6 +2,7 @@ package cromwell.engine.backend.local
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
+import java.security.MessageDigest
 
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
@@ -63,7 +64,7 @@ trait SharedFileSystem {
     val outputMappings = backendCall.call.task.outputs map { taskOutput =>
       val tryConvertedValue =
         for {
-          expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions, interpolateStrings=true)
+          expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions)
           convertedValue <- outputAutoConversion(backendCall, taskOutput, expressionValue)
           pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, backendCall.callRootPath))
         } yield pathAdjustedValue
@@ -83,8 +84,8 @@ trait SharedFileSystem {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(workflowId: WorkflowId, workflowName: String, callName: String, index: ExecutionIndex): StdoutStderr = {
-    val dir = LocalBackend.hostCallPath(workflowName, workflowId, callName, index)
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
+    val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.name, descriptor.id, callName, index)
     StdoutStderr(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
@@ -179,7 +180,8 @@ trait SharedFileSystem {
 
   private def stageWdlFile(call: Option[Call], wdlFile: WdlFile, hostInputsPath: Path): Try[WdlFile] = {
     val originalPath = Paths.get(wdlFile.value)
-    val executionPath = hostInputsPath.resolve(originalPath.getFileName.toString)
+    val directoryIdentifier = MessageDigest.getInstance("MD5").digest(originalPath.toAbsolutePath.getParent.toString.getBytes) map {byte => f"$byte%02x"} mkString
+    val executionPath = hostInputsPath.resolve(s"${directoryIdentifier.substring(0,8)}-${originalPath.getFileName.toString}")
 
     val attemptedLocalization = Stream(Localizers: _*) map { _(call, originalPath, executionPath) } find { _.isSuccess }
     attemptedLocalization match {

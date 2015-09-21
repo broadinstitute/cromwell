@@ -8,7 +8,7 @@ import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.{Backend, TaskAbortedException}
+import cromwell.engine.backend._
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
@@ -89,14 +89,14 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): Try[CallOutputs] =  {
+  override def execute(backendCall: BackendCall): ExecutionResult =  {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"$tag `$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
         runSubprocess(backendCall)
-      case Failure(ex) => Failure(ex)
+      case Failure(ex) => FailedExecution(ex)
     }
   }
 
@@ -108,8 +108,8 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
-      val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, status) if StatusesNeedingUpdate.contains(status) => callFqn }
-      dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
+      val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
+      dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
     }
 
     val seqOfFutures = restartableWorkflows map { workflow =>
@@ -145,7 +145,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   private def buildDockerRunCommand(backendCall: BackendCall, image: String): String =
     s"docker run --rm -v ${backendCall.workflowRootPath.toAbsolutePath}:${backendCall.dockerContainerExecutionDir} -i $image"
 
-  private def runSubprocess(backendCall: BackendCall): Try[CallOutputs] = {
+  private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
     val tag = makeTag(backendCall)
     val (_, stdoutWriter) = backendCall.stdout.fileAndWriter
     val (_, stderrWriter) = backendCall.stderr.fileAndWriter
@@ -163,12 +163,24 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     val stderrFileLength = Files.size(backendCall.stderr)
     val rc = Try(backendCall.rc.slurp.stripLineEnd.toInt)
     if (backendCall.call.failOnStderr && stderrFileLength > 0) {
-      Failure(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
+      FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
     } else {
+
+      def processSuccess() = {
+        postProcess(backendCall) match {
+          case Success(outputs) => SuccessfulExecution(outputs)
+          case Failure(e) =>
+            val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
+            FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
+        }
+      }
+
       rc match {
-        case Success(0) => postProcess(backendCall)
-        case Success(143) => Failure(new TaskAbortedException()) // Special case to check for SIGTERM exit code - implying abort
-        case _ => Failure(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}"))
+        case Success(0) => processSuccess()
+        case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
+        case Success(badRc) if !backendCall.call.failOnRc => processSuccess()
+        case Success(badRc) if backendCall.call.failOnRc => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}"), Option(badRc))
+        case Failure(e) => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}", e))
       }
     }
   }

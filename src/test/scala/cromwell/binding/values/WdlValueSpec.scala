@@ -25,8 +25,8 @@ class WdlValueSpec extends FlatSpec with Matchers {
     (WdlInteger(0), "0"),
     (WdlInteger(Int.MaxValue), "2147483647"),
     (WdlInteger(Int.MinValue), "-2147483648"),
-    (WdlString(""), "\"\""),
-    (WdlString("test\\'/string"), "\"test\\'/string\""))
+    (WdlString(""), "\"\"")
+  )
 
   forAll(wdlValueRawStrings) { (wdlValue, rawString) =>
     it should s"exactly convert a ${wdlValue.typeName} to/from WDL source '$rawString'" in {

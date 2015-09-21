@@ -1,6 +1,5 @@
 package cromwell.engine.workflow
 
-
 import akka.actor.FSM.{SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
@@ -12,25 +11,27 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.{Backend, StdoutStderr}
-import cromwell.engine.db.DataAccess.WorkflowInfo
+import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
+import cromwell.engine.db.slick._
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
+import cromwell.webservice.WorkflowMetadataResponse
+import org.joda.time.DateTime
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-
 
 object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
   class CallNotFoundException(message: String) extends RuntimeException(message)
 
   sealed trait WorkflowManagerActorMessage
-  case class SubmitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs) extends WorkflowManagerActorMessage
+  case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
@@ -39,6 +40,7 @@ object WorkflowManagerActor {
   case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
+  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
 
   def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
 
@@ -67,8 +69,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   def receive = LoggingReceive {
-    case SubmitWorkflow(wdlSource, wdlJson, inputs) =>
-      submitWorkflow(wdlSource, wdlJson, inputs, maybeWorkflowId = None) pipeTo sender
+    case SubmitWorkflow(source) =>
+      submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => dataAccess.getWorkflowState(id) pipeTo sender
     case WorkflowAbort(id) =>
       workflowStore.toMap.get(id) match {
@@ -82,6 +84,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
+    case WorkflowMetadata(workflowId) => workflowMetadata(workflowId) pipeTo sender
     case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
@@ -137,12 +140,9 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     }
   }
 
-  /* Return value here is a tuple: (workflow name, call name)
-   * TODO: This should use a more sophisticated way of resolving FQNs.  See DSDEEPB-986
-   */
-  private def assertCallFqnWellFormed(callFqn: FullyQualifiedName): Try[(String, String)] = {
-    callFqn.split("\\.").toSeq match {
-      case s: Seq[String] if s.size >= 2 => Success(s.head, s.last)
+  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
+    descriptor.namespace.resolve(callFqn) match {
+      case Some(c: Call) => Success(c.name)
       case _ => Failure(new UnsupportedOperationException("Expected a fully qualified name to have at least two parts"))
     }
   }
@@ -160,23 +160,22 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
     for {
-      _ <- assertWorkflowExistence(workflowId)
-      _ <- assertCallExistence(workflowId, callFqn)
-      (wf, call) <- Future.fromTry(assertCallFqnWellFormed(callFqn))
-      callLogKeys <- getCallLogKeys(workflowId, callFqn)
-      callStandardOutput <- Future.successful( callLogKeys map { key => backend.stdoutStderr(workflowId, wf, call, key.index) })
-    } yield callStandardOutput
+        _ <- assertWorkflowExistence(workflowId)
+        descriptor <- dataAccess.getWorkflow(workflowId)
+        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
+        callLogKeys <- getCallLogKeys(workflowId, callFqn)
+        callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
+      } yield callStandardOutput
   }
 
-
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
-    def logMapFromStatusMap(statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
           (key, status) <- sortedMap if status.isTerminal && hasLogs(statusMap.keys)(key)
-          (wf, callLqn) = assertCallFqnWellFormed(key.fqn).get
-          callStandardOutput = backend.stdoutStderr(workflowId, wf, callLqn, key.index)
+          callName = assertCallFqnWellFormed(descriptor, key.fqn).get
+          callStandardOutput = backend.stdoutStderr(descriptor, callName, key.index)
         } yield key.fqn -> callStandardOutput
 
         callsToPaths groupBy { _._1 } mapValues { v => v map { _._2 } }
@@ -185,21 +184,94 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
     for {
       _ <- assertWorkflowExistence(workflowId)
+      descriptor <- dataAccess.getWorkflow(workflowId)
       callToStatusMap <- dataAccess.getExecutionStatuses(workflowId)
-      callToLogsMap <- Future.fromTry(logMapFromStatusMap(callToStatusMap))
+      x = callToStatusMap mapValues { _.executionStatus }
+      callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, callToStatusMap mapValues { _.executionStatus }))
     } yield callToLogsMap
   }
 
-  private def submitWorkflow(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs,
+  private def buildCallMetadata(executions: Traversable[Execution],
+                                standardStreamsMap: Map[FullyQualifiedName, Seq[StdoutStderr]],
+                                callInputs: Traversable[Symbol],
+                                callOutputs: Traversable[Symbol],
+                                jobInfos: Map[ExecutionDatabaseKey, Any]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
+
+    // add straightforward queries for call inputs and outputs
+    // navigate the keys of the map and indices of their arrays to effectively unify the data
+    // into CallMetadata.
+    // figure out how to get job IDs and maybe on which backend the call executed
+    standardStreamsMap map { case (key, seqOfStreams) =>
+      key -> seqOfStreams.map { streams =>
+        CallMetadata(
+          inputs = Map("input_key" -> "input_value"),
+          status = "UnknownStatus",
+          backend = Option("UnknownBackend"),
+          outputs = Option(Map("output_key" -> "output_value")),
+          start = Option(new DateTime()),
+          end = Option(new DateTime()),
+          jobId = Option("COMPLETELY-MADE-UP-ID"),
+          rc = Option(0),
+          stdout = Option(streams.stdout),
+          stderr = Option(streams.stderr))
+      }
+    }
+  }
+
+  private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
+                                    workflowExecutionAux: WorkflowExecutionAux,
+                                    workflowOutputs: binding.WorkflowOutputs,
+                                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]]): WorkflowMetadataResponse = {
+
+    val startDate = new DateTime(workflowExecution.startDt)
+    val endDate = workflowExecution.endDt map { new DateTime(_) }
+    val outputs = Option(workflowOutputs mapValues { _.valueString })
+    val workflowInputsString = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream).mkString
+    // The casting here looks rough but should be safe if the workflow has gotten through submission?
+    val workflowInputsMap = workflowInputsString.parseJson.asInstanceOf[JsObject].fields map {
+      case (k, v) => k -> v.asInstanceOf[JsString].value
+    }
+
+    WorkflowMetadataResponse(
+      id = workflowExecution.workflowExecutionUuid.toString,
+      status = workflowExecution.status,
+      // We currently do not make a distinction between the submission and start dates of a workflow, but it's
+      // possible at least theoretically that a workflow might not begin to execute immediately upon submission.
+      submission = startDate,
+      start = Option(startDate),
+      end = endDate,
+      inputs = workflowInputsMap,
+      outputs = outputs,
+      calls = callMetadata)
+  }
+
+  private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
+    for {
+      workflowExecution <- dataAccess.getWorkflowExecution(id)
+      workflowOutputs <- workflowOutputs(id)
+      // The workflow has been persisted in the DB so we know the workflowExecutionId must be non-null,
+      // so the .get on the Option is safe.
+      workflowExecutionAux <- dataAccess.getWorkflowExecutionAux(workflowExecution.workflowExecutionId.get)
+      callStandardStreamsMap <- workflowStdoutStderr(id)
+      executions <- dataAccess.getExecutions(workflowExecution.workflowExecutionId.get)
+      callInputs <- dataAccess.getAllInputs(id)
+      callOutputs <- dataAccess.getAllOutputs(id)
+      jesJobs <- dataAccess.jesJobInfo(id)
+      localJobs <- dataAccess.localJobInfo(id)
+      sgeJobs <- dataAccess.sgeJobInfo(id)
+
+      callMetadata = buildCallMetadata(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
+      workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
+
+    } yield workflowMetadata
+  }
+
+  private def submitWorkflow(source: WorkflowSourceFiles,
                              maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
     val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
-      eventualNamespace <- Future(NamespaceWithWorkflow.load(wdlSource, BackendType))
-      coercedInputs <- Future.fromTry(eventualNamespace.coerceRawInputs(inputs))
-      declarations <- Future.fromTry(eventualNamespace.staticDeclarationsRecursive(coercedInputs))
-      inputs = coercedInputs ++ declarations
-      descriptor = new WorkflowDescriptor(workflowId, eventualNamespace, wdlSource, wdlJson, inputs)
+      descriptor <- Future.fromTry(Try(new WorkflowDescriptor(workflowId, source)))
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
@@ -218,9 +290,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     futureId
   }
 
-  private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Unit = {
-    submitWorkflow(restartableWorkflow.source, restartableWorkflow.json, restartableWorkflow.inputs, Option(restartableWorkflow.id))
-  }
+  private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Unit =
+    submitWorkflow(restartableWorkflow.source, Option(restartableWorkflow.id))
 
   private def updateWorkflowState(workflow: WorkflowActorRef, state: WorkflowState): Future[Unit] = {
     val id = idByWorkflow(workflow)
@@ -232,33 +303,20 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   }
 
   private def restartIncompleteWorkflows(): Unit = {
-    // If the clob inputs for this workflow can be converted to JSON, return the JSON
-    // version of those inputs in a Some().  Otherwise return None.
-    def clobToJsonInputs(workflowInfo: WorkflowInfo): Option[binding.WorkflowRawInputs] = {
-      workflowInfo.wdlJson.parseJson match {
-        case JsObject(rawInputs) => Option(rawInputs)
-        case x =>
-          log.error(s"$tag Error restarting workflow ${workflowInfo.workflowId}: expected JSON inputs, got '$x'.")
-          None
-      }
-    }
-
     type QuantifierAndPlural = (String, String)
     def pluralize(num: Int): QuantifierAndPlural = {
       (if (num == 0) "no" else num.toString, if (num == 1) "" else "s")
     }
 
-    def buildRestartableWorkflows(workflowInfos: Traversable[WorkflowInfo]): Seq[RestartableWorkflow] = {
+    def buildRestartableWorkflows(workflowDescriptors: Traversable[WorkflowDescriptor]): Seq[RestartableWorkflow] = {
       (for {
-        workflowInfo <- workflowInfos
-        jsonInputs = clobToJsonInputs(workflowInfo)
-        if jsonInputs.isDefined
-      } yield RestartableWorkflow(workflowInfo.workflowId, workflowInfo.wdlSource, workflowInfo.wdlJson, jsonInputs.get)).toSeq
+        workflowDescriptor <- workflowDescriptors
+      } yield RestartableWorkflow(workflowDescriptor.id, workflowDescriptor.sourceFiles)).toSeq
     }
 
     val result = for {
-      workflowInfos <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
-      restartableWorkflows = buildRestartableWorkflows(workflowInfos)
+      workflowDescriptors <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      restartableWorkflows = buildRestartableWorkflows(workflowDescriptors)
       _ <- backend.handleCallRestarts(restartableWorkflows, dataAccess)
     } yield {
         val num = restartableWorkflows.length

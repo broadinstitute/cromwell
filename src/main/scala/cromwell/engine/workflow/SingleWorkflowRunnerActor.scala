@@ -1,11 +1,11 @@
 package cromwell.engine.workflow
 
-import akka.actor.FSM.{CurrentState, Transition}
+import akka.actor.FSM.Transition
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
 import cromwell.binding
-import cromwell.binding.{WdlJson, WdlSource}
+import cromwell.binding.{WorkflowSourceFiles, WorkflowOptionsJson, WdlJson, WdlSource}
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, SubscribeToWorkflow, WorkflowOutputs}
 import spray.json._
@@ -17,8 +17,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object SingleWorkflowRunnerActor {
-  def props(wdlSource: WdlSource, wdlJson: WdlJson, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
-    Props(new SingleWorkflowRunnerActor(wdlSource, wdlJson, inputs, workflowManager))
+  def props(source: WorkflowSourceFiles, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
+    Props(new SingleWorkflowRunnerActor(source, inputs, workflowManager))
   }
 }
 
@@ -27,8 +27,7 @@ object SingleWorkflowRunnerActor {
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
  */
-case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
-                                     wdlJson: WdlJson,
+case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                      inputs: binding.WorkflowRawInputs,
                                      workflowManager: ActorRef) extends Actor with CromwellActor {
   val log = Logging(context.system, classOf[SingleWorkflowRunnerActor])
@@ -38,7 +37,7 @@ case class SingleWorkflowRunnerActor(wdlSource: WdlSource,
 
   override def preStart(): Unit = {
     log.info(s"$tag: launching workflow")
-    val eventualId = workflowManager.ask(SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
+    val eventualId = workflowManager.ask(SubmitWorkflow(source)).mapTo[WorkflowId]
     eventualId onComplete {
       case Success(x) => subscribeToWorkflow(x)
       case Failure(e) =>

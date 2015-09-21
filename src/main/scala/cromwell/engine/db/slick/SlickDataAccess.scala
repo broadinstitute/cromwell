@@ -15,14 +15,13 @@ import cromwell.engine.backend.Backend
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db._
-import cromwell.engine.workflow.{ScatterKey, ExecutionStoreKey, CallKey, OutputKey}
+import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.language.implicitConversions
+import scala.language.{postfixOps, implicitConversions}
 
 object SlickDataAccess {
   type IoValue = String
@@ -79,6 +78,13 @@ object SlickDataAccess {
   lazy val log = LoggerFactory.getLogger("slick")
 }
 
+/**
+ * Data Access implementation using Slick.
+ *
+ * NOTE: the uses of .head below will cause an exception to be thrown
+ * if the list is empty.  In every use case as of the writing of this comment,
+ * those exceptions would have been wrapped in a failed Future and returned.
+ */
 class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
 
   def this(databaseConfig: Config) = this(
@@ -145,7 +151,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
    * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
-  override def createWorkflow(workflowInfo: WorkflowInfo,
+  override def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                               workflowInputs: Traversable[SymbolStoreEntry],
                               scopes: Traversable[Scope],
                               backend: Backend): Future[Unit] = {
@@ -159,14 +165,16 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
       workflowExecutionInsert <- dataAccess.workflowExecutionsAutoInc +=
         new WorkflowExecution(
-          workflowInfo.workflowId.toString,
+          workflowDescriptor.id.toString,
           WorkflowSubmitted.toString,
           new Date().toTimestamp)
 
       _ <- dataAccess.workflowExecutionAuxesAutoInc += new WorkflowExecutionAux(
         workflowExecutionInsert.workflowExecutionId.get,
-        workflowInfo.wdlSource.toClob,
-        workflowInfo.wdlJson.toClob)
+        workflowDescriptor.sourceFiles.wdlSource.toClob,
+        workflowDescriptor.sourceFiles.inputsJson.toClob,
+        workflowDescriptor.sourceFiles.workflowOptionsJson.toClob
+      )
 
       symbolInsert <- dataAccess.symbolsAutoInc ++= toSymbols(workflowExecutionInsert, workflowInputs)
 
@@ -269,11 +277,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       executionKeyAndStatusResults <- dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionId(
         workflowExecutionResult.workflowExecutionId.get).result
 
-      executionStatuses = (executionKeyAndStatusResults map { e =>
-        (ExecutionDatabaseKey(e._1, e._2.toIndex), e._3)
-      }).toMap mapValues ExecutionStatus.withName
+      executionStatuses = executionKeyAndStatusResults map {
+        case (fqn, indexInt, status, rc) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status, rc)) }
 
-    } yield executionStatuses
+    } yield executionStatuses.toMap
 
     runTransaction(action)
   }
@@ -287,10 +294,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       executionKeyAndStatusResults <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
-      executionStatuses = (executionKeyAndStatusResults map { e =>
-        (ExecutionDatabaseKey(e._1, e._2.toIndex), e._3)
-      }).toMap mapValues ExecutionStatus.withName
-    } yield executionStatuses
+      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc) =>
+        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status, rc)) }
+    } yield executionStatuses.toMap
+
     runTransaction(action)
   }
 
@@ -299,36 +306,53 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.toString).result.head
 
-      executionStatuses <- dataAccess.executionStatusByWorkflowExecutionIdAndCallKey(
+      executionStatuses <- dataAccess.executionStatusAndRcByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
-      maybeStatus = executionStatuses.headOption map ExecutionStatus.withName
+      maybeStatus = executionStatuses.headOption map { case (execStatus, rc) => CallStatus(execStatus, rc) }
     } yield maybeStatus
     runTransaction(action)
   }
 
-  override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowInfo]] = {
+  override def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor] = {
+    val action = for {
+      workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+      workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionId(workflowExecutionResult.workflowExecutionId.get).result.head
+      workflowDescriptor = WorkflowDescriptor(
+        workflowId,
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+      )
+    } yield workflowDescriptor
+
+    runTransaction(action)
+  }
+
+  override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]] = {
 
     val action = for {
 
       workflowExecutionResults <- dataAccess.workflowExecutionsByStatuses(states.map(_.toString)).result
 
-      workflowInfos <- DBIO.sequence(
+      workflowDescriptors <- DBIO.sequence(
         workflowExecutionResults map { workflowExecutionResult =>
 
           val workflowExecutionAuxResult = dataAccess.workflowExecutionAuxesByWorkflowExecutionId(
             workflowExecutionResult.workflowExecutionId.get).result.head
 
           workflowExecutionAuxResult map { workflowExecutionAux =>
-            new WorkflowInfo(
+            new WorkflowDescriptor(
               WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
-              workflowExecutionAux.wdlSource.toRawString,
-              workflowExecutionAux.jsonInputs.toRawString)
+              WorkflowSourceFiles(
+                workflowExecutionAux.wdlSource.toRawString,
+                workflowExecutionAux.jsonInputs.toRawString,
+                workflowExecutionAux.workflowOptions.toRawString
+              )
+            )
           }
         }
       )
 
-    } yield workflowInfos
+    } yield workflowDescriptors
 
     runTransaction(action)
   }
@@ -360,18 +384,17 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       backendInfo = jobResultOption match {
         case Some(localJobResult: LocalJob) =>
           new LocalCallBackendInfo(
-            ExecutionStatus.withName(executionResult.status),
-            localJobResult.pid,
-            localJobResult.rc)
+            CallStatus(executionResult.status, executionResult.rc),
+            localJobResult.pid)
         case Some(jesJobResult: JesJob) =>
           new JesCallBackendInfo(
-            ExecutionStatus.withName(executionResult.status),
+            CallStatus(executionResult.status, executionResult.rc),
             jesJobResult.jesId,
             jesJobResult.jesStatus)
         case Some(sgeJobResult: SgeJob) =>
           new SgeCallBackendInfo(
-          ExecutionStatus.withName(executionResult.status),
-          sgeJobResult.sgeJobNumber)
+            CallStatus(executionResult.status, executionResult.rc),
+            sgeJobResult.sgeJobNumber)
         case _ =>
           throw new IllegalArgumentException(
             s"Unknown backend from db for (uuid, fqn): " +
@@ -383,31 +406,33 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  // TODO it's confusing that CallBackendInfo has a CallStatus in it when that information doesn't go to the
+  // backend info tables.  But this method does use the CallStatus data from the CallBackendInfo to update the
+  // Execution table.
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
                                           call: Call,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
 
     require(backendInfo != null, "backend info is null")
+    val callStatus = backendInfo.status
 
     val action = for {
 
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(
         workflowId.toString, call.fullyQualifiedName).result.head
 
-      executionStatusQuery = dataAccess.executionStatusesByExecutionId(
+      executionStatusQuery = dataAccess.executionStatusesAndRcsByExecutionId(
         executionResult.executionId.get)
 
-      executionUpdate <- executionStatusQuery.update(
-        backendInfo.status.toString)
+      executionUpdate <- executionStatusQuery.update(callStatus.executionStatus.toString, callStatus.rc)
 
       _ = require(executionUpdate == 1, s"Unexpected execution update count $executionUpdate")
 
       backendUpdate <- backendInfo match {
         case localBackendInfo: LocalCallBackendInfo =>
-          dataAccess.localJobPidsAndRcsByExecutionId(
+          dataAccess.localJobPidsByExecutionId(
             executionResult.executionId.get).update(
-              localBackendInfo.processId,
-              localBackendInfo.resultCode)
+              localBackendInfo.processId)
 
         case jesBackendInfo: JesCallBackendInfo =>
           dataAccess.jesJobIdsAndJesStatusesByExecutionId(
@@ -516,15 +541,92 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                          callStatus: CallStatus): Future[Unit] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-
-      count <- dataAccess.executionStatusesByWorkflowExecutionIdAndScopeKeys(
-        workflowExecutionResult.workflowExecutionId.get, scopeKeys).update(callStatus.toString)
-
+      executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
+      count <- executions.map(e => (e.status, e.rc)).update(callStatus.executionStatus.toString, callStatus.rc)
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
-
     } yield ()
 
     runTransaction(action)
   }
+
+  override def getExecutions(id: Int): Future[Traversable[Execution]] = {
+    val action = for {
+      executions <- dataAccess.executionsByWorkflowExecutionId(id).result
+    } yield executions
+
+    runTransaction(action)
+  }
+
+  override def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution] = {
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.headOption
+    } yield workflowExecution
+
+    runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"Workflow $workflowId not found.")) }
+  }
+
+  override def getWorkflowExecutionAux(id: Int): Future[WorkflowExecutionAux] = {
+    val action = for {
+      workflowExecutionAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionId(id).result.headOption
+    } yield workflowExecutionAux
+
+    runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"No workflow execution aux found for ID '$id'.")) }
+  }
+
+  override def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]] = {
+    val action = for {
+      inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
+    } yield inputs
+
+    runTransaction(action)
+  }
+
+  override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]] = {
+    val action = for {
+      inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
+    } yield inputs
+
+    runTransaction(action)
+  }
+
+  override def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]] = {
+    val action = for {
+      executionAndJob <- dataAccess.jesJobInfo(id).result
+    } yield executionAndJob
+
+    val futureResults = runTransaction(action)
+    futureResults map { results =>
+      results map { case (execution, job) =>
+          ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
+      } toMap
+    }
+  }
+
+  override def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]] = {
+    val action = for {
+      executionAndJob <- dataAccess.localJobInfo(id).result
+    } yield executionAndJob
+
+    val futureResults = runTransaction(action)
+    futureResults map { results =>
+      results map { case (execution, job) =>
+        ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
+      } toMap
+    }
+  }
+
+  override def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]] = {
+    val action = for {
+      executionAndJob <- dataAccess.sgeJobInfo(id).result
+    } yield executionAndJob
+
+    val futureResults = runTransaction(action)
+    futureResults map { results =>
+      results map { case (execution, job) =>
+        ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
+      } toMap
+    }
+  }
+
 }

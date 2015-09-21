@@ -3,13 +3,13 @@ package cromwell.engine.workflow
 import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
 import cromwell.binding._
+import cromwell.binding.expression.NoFunctions
 import cromwell.binding.types.WdlArrayType
-import cromwell.binding.values.{WdlArray, WdlObject, WdlValue}
+import cromwell.binding.values.{WdlCallOutputsObject, WdlArray, WdlObject, WdlValue}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.Backend
-import cromwell.engine.db.DataAccess.WorkflowInfo
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.TerminalUtil
@@ -30,7 +30,7 @@ object WorkflowActor {
   case class AbortComplete(call: OutputKey) extends WorkflowActorMessage
   case class CallStarted(call: OutputKey) extends WorkflowActorMessage
   case class CallCompleted(call: OutputKey, callOutputs: CallOutputs) extends WorkflowActorMessage
-  case class CallFailed(call: OutputKey, failure: String) extends WorkflowActorMessage
+  case class CallFailed(call: OutputKey, rc: Option[Int], failure: String) extends WorkflowActorMessage
   case object Terminate extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
@@ -81,7 +81,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[CallKey]): Try[CallOutputs] = Try {
     val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
-      fetchCallOutputEntries(e) map { _.value } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
+      fetchCallOutputEntries(e) map { _.outputs } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
@@ -132,8 +132,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           log.error(e, e.getMessage)
           goto(WorkflowFailed)
       }
-    case Event(CallFailed(callKey, failure), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Failed)
+    case Event(CallFailed(callKey, rc, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed, rc)
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
     case Event(AbortComplete(callKey), NoFailureMessage) =>
@@ -160,10 +160,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   when(WorkflowAborting) {
     case Event(AbortComplete(callKey), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Aborted)
+      persistStatus(callKey, ExecutionStatus.Aborted, None)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallFailed(callKey, failure), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Failed)
+    case Event(CallFailed(callKey, rc, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed, rc)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
     case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
       awaitCallComplete(callKey, outputs)
@@ -199,19 +199,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       if (toState.isTerminal) setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
   }
 
-  private def persistStatus(key: ExecutionStoreKey, callStatus: CallStatus): Future[Unit] = {
-    persistStatus(Iterable(key), callStatus)
+  private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
+    persistStatuses(Iterable(key), status, rc)
   }
 
-  private def persistStatus(key: Traversable[ExecutionStoreKey], callStatus: CallStatus): Future[Unit] = {
-    executionStore ++= key map { _ -> callStatus }
+  private def persistStatuses(key: Traversable[ExecutionStoreKey], executionStatus: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
+    executionStore ++= key map { _ -> executionStatus }
 
     key foreach { k =>
       val indexLog = k.index.map(i => s" (shard $i)").getOrElse("")
-      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $callStatus.")
+      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $executionStatus.")
     }
 
-    dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, callStatus)
+    dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, CallStatus(executionStatus, rc))
   }
 
   private def awaitCallComplete(key: OutputKey, outputs: CallOutputs): Try[Unit] = {
@@ -224,7 +224,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
     for {
       _ <- dataAccess.setOutputs(workflow.id, key, outputs)
-      _ <- persistStatus(key, ExecutionStatus.Done)
+      _ <- persistStatus(key, ExecutionStatus.Done, Option(0))
     } yield()
   }
 
@@ -323,7 +323,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlObject] = {
+  private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlCallOutputsObject] = {
     workflow.calls find { _.name == name } match {
       case Some(matchedCall) =>
         /**
@@ -338,7 +338,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           case s: Scatter => key.index
           case _ => None
         }
-        fetchCallOutputEntries(findOutputKey(matchedCall, index) getOrElse {
+        fetchCallOutputEntries(findCallKey(matchedCall, index) getOrElse {
           throw new WdlExpressionException(s"Could not find a callKey for name '${matchedCall.name}'")
         })
       case None => Failure(new WdlExpressionException(s"Could not find a call with name '$name'"))
@@ -379,12 +379,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     attemptedResolutions.getOrElse(orElse).get
   }
 
-  private def findOutputKey(call: Call, index: ExecutionIndex): Option[OutputKey] = {
-    executionStore find {
-      case (k, _) => k.scope == call && k.index == index
-    } collect {
-      case (k: OutputKey, _) => k
-    }
+  private def findCallKey(call: Call, index: ExecutionIndex): Option[OutputKey] = {
+    executionStore.collect({
+      case (k: OutputKey, _) if k.scope == call && k.index == index => k
+    }).headOption
   }
 
   def fetchLocallyQualifiedInputs(callKey: CallKey): Future[Map[String, WdlValue]] = {
@@ -395,9 +393,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     def lookup(identifier: String): WdlValue = {
       /* This algorithm defines three ways to lookup an identifier in order of their precedence:
        *
-       *   1) Look for a WdlNamespace with matching name
-       *   2) Look for a Call with a matching name (perhaps using a scope resolution algorithm)
-       *   3) Look for a Declaration with a matching name (perhaps using a scope resolution algorithm)
+       *   1) Traverse up the scope hierarchy and see if the variable reference any scatter item
+       *   2) Look for a WdlNamespace with matching name
+       *   3) Look for a Call with a matching name (perhaps using a scope resolution algorithm)
+       *   4) Look for a Declaration with a matching name (perhaps using a scope resolution algorithm)
        *
        *  Each method is tried individually and the first to return a Success value takes precedence.
        */
@@ -409,13 +408,29 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
     fetchCallInputEntries(callKey.scope).map { entries =>
       entries.map { entry =>
+        // .get are used below because the exception will be captured by the Future
+        val taskInput = findTaskInput(entry.scope, entry.key.name).get
+
         val value = entry.wdlValue match {
-          case Some(e: WdlExpression) => e.evaluate(lookup, new NoFunctions).get
-          case Some(v) => v
-          case _ => throw new WdlExpressionException("Unknown error")
+          case Some(e: WdlExpression) => e.evaluate(lookup, new NoFunctions)
+          case Some(v) => Success(v)
+          case _ => Failure(new WdlExpressionException("Unknown error"))
         }
-        entry.key.name -> value
+        val coercedValue = value.map(x => taskInput.wdlType.coerceRawValue(x).get)
+        entry.key.name -> coercedValue.get
       }.toMap
+    }
+  }
+
+  private def findTaskInput(callFqn: String, inputName: String): Try[TaskInput] = {
+    val exception = new WdlExpressionException(s"Could not find task input '$inputName' for call '$callFqn'")
+    workflow.namespace.resolve(callFqn) match {
+      case Some(c:Call) =>
+        c.task.inputs.find(_.name == inputName) match {
+          case Some(i) => Success(i)
+          case None => Failure(exception)
+        }
+      case _ => Failure(exception)
     }
   }
 
@@ -438,12 +453,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     Await.result(futureValue, AkkaTimeout)
   }
 
-  private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlObject] = {
+  private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlCallOutputsObject] = {
     val futureValue = dataAccess.getOutputs(workflow.id, ExecutionDatabaseKey(outputKey.scope.fullyQualifiedName, outputKey.index)).map {callOutputEntries =>
       val callOutputsAsMap = callOutputEntries.map(entry => entry.key.name -> entry.wdlValue).toMap
       callOutputsAsMap find { case (k, v) => v.isEmpty } match {
         case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${outputKey.scope.name} because some of its inputs are not defined (i.e. ${noneValue._1}"))
-        case None => Success(WdlObject(callOutputsAsMap.map {
+        // TODO: .asInstanceOf[Call]?
+        case None => Success(WdlCallOutputsObject(outputKey.scope.asInstanceOf[Call], callOutputsAsMap.map {
           case (k, v) => k -> v.getOrElse {
             throw new WdlExpressionException(s"Could not retrieve output $k value for call ${outputKey.scope.name}")
           }
@@ -462,7 +478,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def createStore: Future[ExecutionStore] = {
     def isInScatterBlock(c: Call) = c.ancestry.exists(_.isInstanceOf[Scatter])
     dataAccess.getExecutionStatuses(workflow.id) map { statuses =>
-      statuses map { case(k, v) =>
+      statuses map { case (k, v) =>
         val key: ExecutionStoreKey = (workflow.namespace.resolve(k.fqn), k.index) match {
           case (Some(c: Call), Some(i)) => CallKey(c, Some(i), None)
           case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c, None)
@@ -470,7 +486,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           case (Some(s: Scatter), None) => ScatterKey(s, None, None)
           case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
         }
-        key -> v
+        key -> v.executionStatus
       }
     }
   }
@@ -487,13 +503,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   def createWorkflow(): Future[Unit] = {
-    // TODO sanify WorkflowInfo/WorkflowDescriptor, the latter largely duplicates the former now.
-    val workflowInfo = WorkflowInfo(workflow.id, workflow.wdlSource, workflow.wdlJson)
+    val workflowDescriptor = WorkflowDescriptor(workflow.id, workflow.sourceFiles)
     // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
     // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
     backend.initializeForWorkflow(workflow) match {
       case Success(inputs) =>
-        dataAccess.createWorkflow(workflowInfo, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
+        dataAccess.createWorkflow(workflowDescriptor, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
       case Failure(ex) => Future.failed(ex)
     }
   }
@@ -532,8 +547,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         val newEntries = scatterKey.populate(a.value.size)
         val createScatter = for {
           _ <- dataAccess.insertCalls(workflow.id, newEntries.keys, backend)
-          _ <- persistStatus(newEntries.keys, ExecutionStatus.NotStarted)
-          _ <- persistStatus(scatterKey, ExecutionStatus.Done)
+          _ <- persistStatuses(newEntries.keys, ExecutionStatus.NotStarted, None)
+          _ <- persistStatus(scatterKey, ExecutionStatus.Done, Some(0))
         } yield ()
         Await.result(createScatter, AkkaTimeout)
         newEntries.keys
@@ -544,12 +559,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def processRunnableCollector(collector: CollectorKey): Try[Iterable[ExecutionStoreKey]] = {
-    persistStatus(collector, ExecutionStatus.Starting)
+    persistStatus(collector, ExecutionStatus.Starting, None)
     val shards: Iterable[CallKey] = findShardEntries(collector) collect { case (k: CallKey, _) => k }
 
     generateCollectorOutput(collector, shards) match {
       case Failure(e) =>
-        self ! CallFailed(collector, e.getMessage)
+        self ! CallFailed(collector, None, e.getMessage)
       case Success(outputs) =>
         log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
         self ! CallCompleted(collector, outputs)
@@ -559,7 +574,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def processRunnableCall(callKey: CallKey, status: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
-    persistStatus(callKey, ExecutionStatus.Starting)
+    persistStatus(callKey, ExecutionStatus.Starting, None)
     val futureCallInputs = for {
       allInputs <- fetchLocallyQualifiedInputs(callKey)
     } yield allInputs

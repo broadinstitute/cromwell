@@ -3,6 +3,7 @@ package cromwell.binding
 import java.io.File
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
+import cromwell.binding.expression.NoFunctions
 import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser._

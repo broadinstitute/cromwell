@@ -1,19 +1,33 @@
 package cromwell.util
 
 import java.io.{File, FileWriter}
-import java.nio.file.{Path, Files}
+import java.nio.file.{Files, Path}
 
 import cromwell.binding._
-import cromwell.binding.values.WdlFile
+import spray.json._
+import scala.language.postfixOps
 
 trait SampleWdl {
   def wdlSource(runtime: String = ""): WdlSource
-
+  def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
   val rawInputs: WorkflowRawInputs
 
-  def wdlJson: WdlJson = {
-    "{" + rawInputs.collect { case (k, v) => s""" "$k": "$v"""" }.mkString(",\n") + "}"
+  implicit object AnyJsonFormat extends JsonFormat[Any] {
+    def write(x: Any) = x match {
+      case n: Int => JsNumber(n)
+      case s: String => JsString(s)
+      case b: Boolean => if(b) JsTrue else JsFalse
+      case s: Seq[Any] => JsArray(s map {_.toJson} toVector)
+    }
+    def read(value: JsValue) = ???
   }
+
+  implicit object RawInputsJsonFormat extends JsonFormat[WorkflowRawInputs] {
+    def write(inputs: WorkflowRawInputs) = JsObject(inputs map { case (k, v) => k -> v.toJson })
+    def read(value: JsValue) = ???
+  }
+
+  def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
 
   private def write(file: File, contents: String) = {
     val writer = new FileWriter(file)
@@ -578,53 +592,6 @@ object SampleWdl {
     override val rawInputs: Map[String, Any] = Map.empty
   }
 
-  object OutputTypeChecking extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
-    """
-      |task ps {
-      |  command {
-      |    ps
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |}
-      |
-      |task cgrep {
-      |  String pattern
-      |  File in_file
-      |  command {
-      |    grep '${pattern}' ${in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = stdout()
-      |  }
-      |}
-      |
-      |task wc {
-      |  File in_file
-      |  command {
-      |    cat ${in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |}
-      |
-      |workflow three_step {
-      |  call ps
-      |  call cgrep {
-      |    input: in_file=ps.procs
-      |  }
-      |  call wc {
-      |    input: in_file=ps.procs
-      |  }
-      |}
-    """.stripMargin
-
-    override val rawInputs: WorkflowRawInputs = Map("three_step.cgrep.pattern" -> "x")
-  }
-
   object ReadLinesFunctionWdl extends SampleWdl {
     val CannedOutput =
       """java
@@ -807,7 +774,7 @@ object SampleWdl {
         |    input: files=files
         |  }
         |  call count_lines {
-        |    input: files=concat.concatenated
+        |    input: files=[concat.concatenated]
         |  }
         |  call find
         |  call count_lines as count_lines_array {
@@ -1180,5 +1147,59 @@ object SampleWdl {
            |""".stripMargin
 
     override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).getAbsolutePath)
+  }
+
+  object FileClobber extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task read_line {
+        |  File in
+        |  command { cat ${in} }
+        |  output { String out = read_string(stdout()) }
+        |}
+        |
+        |workflow two {
+        |  call read_line as x
+        |  call read_line as y
+        |}
+      """.stripMargin
+
+    val tempDir1 = Files.createTempDirectory("FileClobber1")
+    val tempDir2 = Files.createTempDirectory("FileClobber2")
+    val firstFile = createFile(name="file.txt", contents="first file.txt", dir=tempDir1)
+    val secondFile = createFile(name="file.txt", contents="second file.txt", dir=tempDir2)
+
+    override val rawInputs = Map(
+      "two.x.in" -> firstFile.getAbsolutePath,
+      "two.y.in" -> secondFile.getAbsolutePath
+    )
+  }
+
+  object FailOnRc extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        task A {
+        |  command {
+        |    python -c "print(321);exit(123)"
+        |  }
+        |  output {
+        |    Int A_out = read_int(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task B {
+        |  Int B_in
+        |  command {
+        |    echo ${B_in}
+        |  }
+        |}
+        |
+        |
+        |workflow w {
+        |  call A
+        |  call B {input: B_in=A.A_out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+    override lazy val rawInputs = Map("" -> "...")
   }
 }

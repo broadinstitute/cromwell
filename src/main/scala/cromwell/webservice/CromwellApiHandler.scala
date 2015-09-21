@@ -4,13 +4,13 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
-import cromwell.binding.{WdlJson, WdlSource, WorkflowRawInputs}
+import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
-import cromwell.webservice.CromwellApiHandler._
+import cromwell.webservice.CromwellApiHandler.{CallOutputs, WorkflowOutputs, _}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{binding, engine}
 import spray.http.StatusCodes
@@ -29,7 +29,7 @@ object CromwellApiHandler {
 
   sealed trait WorkflowManagerMessage
 
-  case class WorkflowSubmit(wdlSource: WdlSource, wdlJson: WdlJson, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
+  case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
 
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
 
@@ -42,6 +42,8 @@ object CromwellApiHandler {
   case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
   
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
+
+  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
@@ -82,8 +84,8 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
           }
       }
 
-    case WorkflowSubmit(wdlSource, wdlJson, inputs) =>
-      val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(wdlSource, wdlJson, inputs)).mapTo[WorkflowId]
+    case WorkflowSubmit(source) =>
+      val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(source)).mapTo[WorkflowId]
       workflowManagerResponseFuture.onComplete {
         case Success(id) =>
           context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
@@ -129,6 +131,14 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       eventualCallLogs onComplete {
         case Success(logs) =>
           context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, logs))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case WorkflowMetadata(id) =>
+      val eventualMetadataResponse = ask(workflowManager, WorkflowManagerActor.WorkflowMetadata(id)).mapTo[WorkflowMetadataResponse]
+      eventualMetadataResponse onComplete {
+        case Success(metadata) => context.parent ! RequestComplete(StatusCodes.OK, metadata)
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }

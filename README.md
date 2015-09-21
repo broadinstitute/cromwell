@@ -8,6 +8,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 
 <!---toc start-->
 
+* [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
 * [API Documentation](#api-documentation)
@@ -40,6 +41,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
   * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
   * [GET /workflows/:version/:id/logs](#get-workflowsversionidlogs)
+  * [GET /workflows/:version/:id/metadata](#get-workflowsversionidmetadata)
   * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
@@ -51,6 +53,12 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
     * [cromwell.engine](#cromwellengine)
 
 <!---toc end-->
+
+# Mailing List
+
+The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstite.org. 
+
+If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.
 
 # Requirements
 
@@ -148,11 +156,13 @@ inputs <WDL file>
   workflow.  Fill in the values in this JSON document and
   pass it in to the 'run' subcommand.
 
-run <WDL file> <JSON inputs file>
+run <WDL file> [<JSON inputs file> [<JSON workflow options]]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
-  print out the outputs in JSON format.
+  print out the outputs in JSON format.  The workflow
+  options file specifies some runtime configuration for the
+  workflow (see README for details)
 
 parse <WDL file>
 
@@ -226,14 +236,39 @@ Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workf
 
 ```
 $ java -jar cromwell.jar run 3step.wdl inputs.json
-[INFO] [06/10/2015 09:20:19.945] [ForkJoinPool-2-worker-13] [akka://cromwell-system/user/$b] Workflow ID: bdcc70e6-e6d7-4483-949b-7c3c2199e26c
-[INFO] [06/10/2015 09:20:19.968] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: ps
-[INFO] [06/10/2015 09:20:20.094] [cromwell-system-akka.actor.default-dispatcher-5] [akka://cromwell-system/user/$a/$a] Starting calls: cgrep, wc
-[INFO] [06/10/2015 09:20:20.123] [cromwell-system-akka.actor.default-dispatcher-2] [akka://cromwell-system/user/$b] Workflow complete: Succeeded
+... play-by-play output ...
 {
   "three_step.ps.procs": "/var/folders/kg/c7vgxnn902lc3qvc2z2g81s89xhzdz/T/stdout1272284837004786003.tmp",
   "three_step.cgrep.count": 0,
   "three_step.wc.count": 13
+}
+```
+
+The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.json` extension.  For example, this will assume that `3step.json` exists:
+
+```
+$ java -jar cromwell.jar run 3step.wdl
+```
+
+If your workflow has no inputs, you can specify `-` as the value for the inputs parameter:
+
+```
+$ java -jar cromwell.jar run my_workflow.wdl -
+```
+
+The final optinal parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
+
+The only workflow option that has any meaning currently is the `jes_gcs_root`, which will be used in the JES backend.  See the section on the [JES backend](#google-jes) for more details.
+
+```
+$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
+```
+
+Where `wf_options.json` would contain:
+
+```
+{
+  "jes_gcs_root": "gs://my-bucket/workflows"
 }
 ```
 
@@ -262,11 +297,17 @@ test.wdl
 ```
 task abc {
   String in
-  command { echo ${in} }
-  output {String out = read_string(stdout())}
+  command {
+    echo ${in}
+  }
+  output {
+    String out = read_string(stdout())
+  }
 }
 
-workflow wf { call abc }
+workflow wf {
+  call abc
+}
 ```
 
 This WDL file can be formatted in HTML as follows:
@@ -770,7 +811,11 @@ All web server requests include an API version in the url. The current version i
 
 ## POST /workflows/:version
 
-This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The two elements in the body must be named `wdl` and `inputs`.  The `wdl` element contains the WDL file to run while the `inputs` contains a JSON file of the inputs to the workflow.
+This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
+
+* `wdlSource` - *Required* Contains the WDL file to submit for execution.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from the CLI with the [inputs](#inputs) sub-command.
+* `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 
 cURL:
 
@@ -859,6 +904,65 @@ Server: spray-can/1.3.3
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
     "status": "Submitted"
 }
+```
+
+To specify workflow options as well:
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+```
+
+HTTPie:
+
+```
+http --print=HBhb --form POST http://localhost:8000/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+```
+
+Request (some parts truncated for brevity):
+
+```
+POST /workflows/v1 HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 1472
+Content-Type: multipart/form-data; boundary=f3fd038395644de596c460257626edd7
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="wdlSource"
+
+task x { ... }
+task y { ... }
+task z { ... }
+
+workflow sfrazer {
+  call x
+  call y
+  call z {
+    input: example="gs://my-bucket/cromwell-executions/sfrazer/example.txt", int=3000
+  }
+}
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowInputs"; filename="jes0.json"
+
+{
+  "sfrazer.x.x": "100"
+}
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
+
+{
+  "jes_gcs_root": "gs://sfrazer-dev/workflows"
+}
+
+--f3fd038395644de596c460257626edd7--
 ```
 
 ## GET /workflows/:version/:id/status
@@ -1094,6 +1198,108 @@ Server: spray-can/1.3.3
 }
 ```
 
+## GET /workflows/:version/:id/metadata
+
+This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
+(i.e. shards are accounted for by an array of maps, in the same order as the shards).
+Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
+Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
+return code, stdout and stderr.  Date formats are ISO with milliseconds.
+  
+### Notes
+
+- The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
+  check with Chet first).
+  
+- We never actually specify the backend on which the call executed.  One might be able to infer that from
+  the shape of the job id, but then again maybe not.
+ 
+
+cURL:
+
+```
+$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Server: spray-can/1.3.3
+Date: Fri, 18 Sep 2015 22:31:20 GMT
+Content-Type: application/json; charset=UTF-8
+Content-Length: 2389
+{
+  "calls": {
+    "three_step.wc": [{
+      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stdout",
+      "outputs": {
+        "output_key": "output_value"
+      },
+      "inputs": {
+        "input_key": "input_value"
+      },
+      "status": "UnknownStatus",
+      "jobId": "COMPLETELY-MADE-UP-ID",
+      "backend": "UnknownBackend",
+      "end": "2015-09-18T18:31:20.702-04:00",
+      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stderr",
+      "start": "2015-09-18T18:31:20.702-04:00",
+      "rc": 0
+    }],
+    "three_step.ps": [{
+      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
+      "outputs": {
+        "output_key": "output_value"
+      },
+      "inputs": {
+        "input_key": "input_value"
+      },
+      "status": "UnknownStatus",
+      "jobId": "COMPLETELY-MADE-UP-ID",
+      "backend": "UnknownBackend",
+      "end": "2015-09-18T18:31:20.702-04:00",
+      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stderr",
+      "start": "2015-09-18T18:31:20.702-04:00",
+      "rc": 0
+    }],
+    "three_step.cgrep": [{
+      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stdout",
+      "outputs": {
+        "output_key": "output_value"
+      },
+      "inputs": {
+        "input_key": "input_value"
+      },
+      "status": "UnknownStatus",
+      "jobId": "COMPLETELY-MADE-UP-ID",
+      "backend": "UnknownBackend",
+      "end": "2015-09-18T18:31:20.702-04:00",
+      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stderr",
+      "start": "2015-09-18T18:31:20.702-04:00",
+      "rc": 0
+    }]
+  },
+  "outputs": {
+    "three_step.cgrep.count": "3",
+    "three_step.ps.procs": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
+    "three_step.wc.count": "3"
+  },
+  "id": "6a679113-8c15-4c27-ab5e-936875cdd728",
+  "inputs": {
+    "three_step.cgrep.pattern": "..."
+  },
+  "submission": "2015-09-18T18:31:09.595-04:00",
+  "status": "Succeeded",
+  "start": "2015-09-18T18:31:09.595-04:00"
+}
+```
+
 ## POST /workflows/:version/:id/abort
 
 cURL:
@@ -1129,7 +1335,14 @@ Server: spray-can/1.3.3
 Install the latest version of [Hermes](http://github.com/scottfrazer/hermes), then run the following command within this directory:
 
 ```
-hermes generate src/main/resources/grammar.hgr --language=java --directory=src/main/java --name=wdl --java-package=cromwell.parser --java-use-apache-commons --header
+hermes generate src/main/resources/grammar.hgr \
+  --language=java \
+  --directory=src/main/java \
+  --name=wdl \
+  --java-package=cromwell.parser \
+  --java-use-apache-commons \
+  --java-imports=org.apache.commons.lang3.StringEscapeUtils \
+  --header
 ```
 
 The grammar for the WDL lexer/parser is defined in `src/main/resources/grammar.hgr`.  Any changes to that grammar should result in a regeneration of the parser and then run the unit tests.  Changing the AST could be disruptive if keys are renamed or objects restructured too much.  It's best to find these issues as soon as possible.

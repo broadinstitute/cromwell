@@ -27,7 +27,8 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     val namespace = NamespaceWithWorkflow.load(sampleWdl.wdlSource(), BackendType.LOCAL)
     val rawInputs = rawInputsOverride.getOrElse(sampleWdl.rawInputs)
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), namespace, sampleWdl.wdlSource(), sampleWdl.wdlJson, coercedInputs)
+    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), sampleWdl.wdlJson, "{}")
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
   }
 
@@ -85,22 +86,6 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
       fsm ! Start
       within(TestExecutionTimeout) {
         awaitCond(fsm.stateName == WorkflowFailed)
-      }
-    }
-
-    "typecheck outputs" in {
-      val message = s"""Error processing 'three_step.cgrep.count':
-             |
-             |Value WdlFile.* cannot be converted to Int
-           """.stripMargin
-      within(TestExecutionTimeout) {
-        waitForErrorWithException(message) {
-          val fsm = buildWorkflowFSMRef(SampleWdl.OutputTypeChecking)
-
-          assert(fsm.stateName == WorkflowSubmitted)
-          fsm ! Start
-          awaitCond(fsm.stateName == WorkflowFailed)
-        }
       }
     }
   }

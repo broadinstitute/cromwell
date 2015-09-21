@@ -59,7 +59,7 @@ trait SymbolComponent {
                                                        io: String, scopeOption: Option[String], indexOption: Option[Int]) = {
     scopeOption match {
       case Some(scope) => symbolsByWorkflowExecutionUuidAndIoAndScopeAndIndex(workflowExecutionUuid, io, scope, indexOption.fromIndex)
-      case None => symbolsByWorkflowExecutionUuidAndIo(workflowExecutionUuid, io)
+      case None => symbolsByWorkflowExecutionUuidAndIoNoIndex(workflowExecutionUuid, io)
     }
   }
 
@@ -81,6 +81,14 @@ trait SymbolComponent {
     } yield symbol)
 
   val symbolsByWorkflowExecutionUuidAndIo = Compiled(
+    (workflowExecutionUuid: Rep[String], io: Rep[String]) => for {
+      symbol <- symbols
+      if symbol.io === io
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield symbol)
+
+  val symbolsByWorkflowExecutionUuidAndIoNoIndex = Compiled(
     (workflowExecutionUuid: Rep[String], io: Rep[String]) => for {
       symbol <- symbols
       if symbol.io === io && symbol.index === ExecutionIndex.IndexNone

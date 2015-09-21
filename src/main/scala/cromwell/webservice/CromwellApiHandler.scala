@@ -10,9 +10,7 @@ import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
-import cromwell.webservice.CromwellApiHandler.CallOutputs
-import cromwell.webservice.CromwellApiHandler.WorkflowOutputs
-import cromwell.webservice.CromwellApiHandler._
+import cromwell.webservice.CromwellApiHandler.{CallOutputs, WorkflowOutputs, _}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{binding, engine}
 import spray.http.StatusCodes
@@ -44,6 +42,8 @@ object CromwellApiHandler {
   case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
   
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
+
+  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
@@ -131,6 +131,14 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       eventualCallLogs onComplete {
         case Success(logs) =>
           context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, logs))
+        case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case WorkflowMetadata(id) =>
+      val eventualMetadataResponse = ask(workflowManager, WorkflowManagerActor.WorkflowMetadata(id)).mapTo[WorkflowMetadataResponse]
+      eventualMetadataResponse onComplete {
+        case Success(metadata) => context.parent ! RequestComplete(StatusCodes.OK, metadata)
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }

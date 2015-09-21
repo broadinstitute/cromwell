@@ -279,6 +279,68 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/workflows/{version}/{workflowId}/metadata':
+    get:
+      summary: Query for workflow and call-level metadata for a specified workflow
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: workflowId
+          description: Workflow ID
+          required: true
+          type: string
+          in: path
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/WorkflowMetadataResponse'
+          examples:
+            application/json: |-
+              {
+                "calls": {
+                  "w.hello": [{
+                    "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/w/ebde7097-5608-4f8c-8fe9-b766ab9dc1db/call-hello/stdout",
+                    "outputs": {
+                      "output_key": "output_value"
+                    },
+                    "inputs": {
+                      "input_key": "input_value"
+                    },
+                    "status": "Unknown",
+                    "jobId": "COMPLETELY-MADE-UP-ID",
+                    "end": "2015-09-17T17:45:27.813-04:00",
+                    "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/w/ebde7097-5608-4f8c-8fe9-b766ab9dc1db/call-hello/stderr",
+                    "start": "2015-09-17T17:45:27.812-04:00",
+                    "rc": 0
+                  }]
+                },
+                "outputs": {
+                  "w.hello.salutation": "Hello FireCloud!"
+                },
+                "id": "ebde7097-5608-4f8c-8fe9-b766ab9dc1db",
+                "inputs": {
+                  "w.hello.addressee": "FireCloud"
+                },
+                "submission": "2015-09-17T17:45:16.331-04:00",
+                "status": "Succeeded",
+                "start": "2015-09-17T17:45:16.331-04:00"
+              }
+        '400':
+          description: Malformed Workflow ID
+        '404':
+          description: Workflow ID Not Found
+        '500':
+          description: Internal Error
+      security:
+        - google_oauth:
+            - openid
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -334,3 +396,73 @@ definitions:
       status:
         type: string
         description: The status of the workflow
+  WorkflowMetadataResponse:
+    description: 'Workflow and call level metadata'
+    required:
+      - id
+      - status
+      - submission
+    properties:
+      id:
+        type: string
+        description: The identifier of the workflow
+      status:
+        type: string
+        description: The status of the workflow
+      submission:
+        type: string
+        format: date-time
+        description: Submission datetime of the workflow in ISO8601 format with milliseconds
+      start:
+        type: string
+        format: date-time
+        description: Start datetime of the workflow in ISO8601 format with milliseconds
+      end:
+        type: string
+        format: date-time
+        description: End datetime of the workflow in ISO8601 format with milliseconds
+      inputs:
+        type: object
+        description: Map of input keys to stringified input values
+      outputs:
+        type: object
+        description: Map of output keys to stringified output values
+      calls:
+        type: object
+        description: Map of call fully qualified names to lists of call metadata
+  CallMetadata:
+    description: 'Call level metadata'
+    required:
+      - inputs
+      - status
+    properties:
+      inputs:
+        type: object
+        description: Mapping of input fully qualified names to stringified values
+      status:
+        type: string
+        description: Status
+      backend:
+        type: string
+        description: The type of backend on which the call executed (e.g. JES, SGE, Local)
+      start:
+        type: string
+        format: date-time
+        description: Start datetime of the call execution in ISO8601 format with milliseconds
+      end:
+        type: string
+        format: date-time
+        description: End datetime of the call execution in ISO8601 format with milliseconds
+      jobId:
+        type: string
+        description: Backend-specific job ID
+      rc:
+        type: int
+        description: Call execution return code
+      stdout:
+        type: string
+        description: Path to the standard output file for this call
+      stderr:
+        type: string
+        description: Path to the standard error file for this call
+

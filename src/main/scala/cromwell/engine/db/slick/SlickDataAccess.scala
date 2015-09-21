@@ -242,7 +242,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
               None)
         case j: JesBackend =>
           // FIXME: Placeholder for now, discussed w/ Khalid
-          dataAccess.jesJobsAutoInc += new JesJob(executionInsert.executionId.get, 0, "", None)
+          dataAccess.jesJobsAutoInc += new JesJob(executionInsert.executionId.get, None, None, None)
         case s: SgeBackend =>
           dataAccess.sgeJobsAutoInc += new SgeJob(executionInsert.executionId.get, 0)
         case null =>
@@ -389,8 +389,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
         case Some(jesJobResult: JesJob) =>
           new JesCallBackendInfo(
             CallStatus(executionResult.status, executionResult.rc),
-            jesJobResult.jesId,
-            jesJobResult.jesStatus)
+            jesJobResult.jesId map JesId,
+            jesJobResult.jesStatus map JesStatus)
         case Some(sgeJobResult: SgeJob) =>
           new SgeCallBackendInfo(
             CallStatus(executionResult.status, executionResult.rc),
@@ -435,10 +435,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
               localBackendInfo.processId)
 
         case jesBackendInfo: JesCallBackendInfo =>
-          dataAccess.jesJobIdsAndJesStatusesByExecutionId(
+          dataAccess.jesIdsAndJesStatusesByExecutionId(
             executionResult.executionId.get).update(
-              jesBackendInfo.jesId,
-              jesBackendInfo.jesStatus
+              jesBackendInfo.jesId map { _.id },
+              jesBackendInfo.jesStatus map { _.status }
             )
 
         case sgeBackendInfo: SgeCallBackendInfo =>

@@ -13,7 +13,7 @@ package object db {
 
   // Uniquely identify an entry in the execution table
   case class ExecutionDatabaseKey(fqn: FullyQualifiedName, index: ExecutionIndex)
-  // jesId and jesStatus should have stronger types
-  type JesId = Int
-  type JesStatus = String
+
+  case class JesId(id: String)
+  case class JesStatus(status: String)
 }

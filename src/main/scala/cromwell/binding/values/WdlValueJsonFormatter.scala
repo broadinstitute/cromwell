@@ -1,5 +1,6 @@
 package cromwell.binding.values
 
+import cromwell.binding.WdlExpression
 import spray.json._
 
 object WdlValueJsonFormatter extends DefaultJsonProtocol {
@@ -13,6 +14,7 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case o: WdlObject => JsObject()
       case a: WdlArray => new JsArray(a.value.map(write).toVector)
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
+      case e: WdlExpression => JsString(e.toWdlString)
     }
     def read(value: JsValue) = ???
   }

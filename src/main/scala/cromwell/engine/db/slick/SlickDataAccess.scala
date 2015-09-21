@@ -574,18 +574,20 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"No workflow execution aux found for ID '$id'.")) }
   }
 
-  override def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]] = {
+  override def getAllInputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = for {
       inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
-    } yield inputs
+      symbolStoreInputs = inputs map toSymbolStoreEntry
+    } yield symbolStoreInputs
 
     runTransaction(action)
   }
 
-  override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]] = {
+  override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = for {
-      inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
-    } yield inputs
+      outputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
+      symbolStoreOutputs = outputs map toSymbolStoreEntry
+    } yield symbolStoreOutputs
 
     runTransaction(action)
   }

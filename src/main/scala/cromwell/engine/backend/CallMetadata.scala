@@ -1,15 +1,16 @@
 package cromwell.engine.backend
 
-import cromwell.binding.values.WdlFile
+import cromwell.binding.values.{WdlValue, WdlFile}
 import org.joda.time.DateTime
 
-case class CallMetadata(inputs: Map[String, String],
-                        status: String,
+case class CallMetadata(inputs: Map[String, WdlValue],
+                        executionStatus: String,
                         backend: Option[String],
-                        outputs: Option[Map[String, String]],
+                        backendStatus: Option[String],
+                        outputs: Option[Map[String, WdlValue]],
                         start: Option[DateTime],
                         end: Option[DateTime],
                         jobId: Option[String],
-                        rc: Option[Int],
+                        returnCode: Option[Int],
                         stdout: Option[WdlFile],
                         stderr: Option[WdlFile])

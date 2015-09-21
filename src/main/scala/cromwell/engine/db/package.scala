@@ -14,6 +14,6 @@ package object db {
   // Uniquely identify an entry in the execution table
   case class ExecutionDatabaseKey(fqn: FullyQualifiedName, index: ExecutionIndex)
   // jesId and jesStatus should have stronger types
-  type JesId = Int
-  type JesStatus = String
+  type JesId = Option[String]
+  type JesStatus = Option[String]
 }

@@ -306,7 +306,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.toString).result.head
 
-      executionStatuses <- dataAccess.executionStatusAndRcByWorkflowExecutionIdAndCallKey(
+      executionStatuses <- dataAccess.executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
       maybeStatus = executionStatuses.headOption map { case (execStatus, rc) => CallStatus(execStatus, rc) }
@@ -421,10 +421,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(
         workflowId.toString, call.fullyQualifiedName).result.head
 
-      executionStatusQuery = dataAccess.executionStatusesAndRcsByExecutionId(
+      executionStatusQuery = dataAccess.executionStatusesAndReturnCodesByExecutionId(
         executionResult.executionId.get)
 
-      executionUpdate <- executionStatusQuery.update(callStatus.executionStatus.toString, callStatus.rc)
+      executionUpdate <- executionStatusQuery.update(callStatus.executionStatus.toString, callStatus.returnCode)
 
       _ = require(executionUpdate == 1, s"Unexpected execution update count $executionUpdate")
 
@@ -542,7 +542,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
-      count <- executions.map(e => (e.status, e.rc)).update(callStatus.executionStatus.toString, callStatus.rc)
+      count <- executions.map(e => (e.status, e.rc)).update(callStatus.executionStatus.toString, callStatus.returnCode)
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
     } yield ()

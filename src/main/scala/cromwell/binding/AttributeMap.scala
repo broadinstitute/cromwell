@@ -12,8 +12,9 @@ object AttributeMap {
   }
 }
 
-case class AttributeMap(attrs: Map[String, String]) {
-  def get(key: RuntimeKey): Option[String] = attrs.get(key.key)
+case class AttributeMap(attrs: Map[String, Seq[String]]) {
+  def get(key: RuntimeKey): Option[String] = attrs.get(key.key).flatMap(_.headOption)
+  def getSeq(key: RuntimeKey): Option[Seq[String]] = attrs.get(key.key)
 
   def unsupportedKeys(backendType: BackendType): Seq[String] = {
     val supportedKeys = backendType.supportedKeys map { _.key }

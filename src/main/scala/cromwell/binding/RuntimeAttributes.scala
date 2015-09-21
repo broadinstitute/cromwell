@@ -2,19 +2,22 @@ package cromwell.binding
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
+import cromwell.binding.expression.NoFunctions
+import cromwell.binding.values._
 import cromwell.parser.RuntimeKey._
 import cromwell.parser.WdlParser.{Ast, AstList}
 import cromwell.parser.{BackendType, MemorySize, RuntimeKey}
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 case class RuntimeAttributes(docker: Option[String],
               defaultZones: Seq[String],
               failOnStderr: Boolean,
-              failOnRc: Boolean,
+              continueOnReturnCode: ContinueOnReturnCode,
               cpu: Long,
               preemptible: Boolean,
               defaultDisks: Seq[Disk],
@@ -51,7 +54,7 @@ object RuntimeAttributes {
     val Cpu = 1L
     val Disk = Vector(LocalizationDisk)
     val FailOnStderr = false
-    val FailOnRc = true
+    val ContinueOnReturnCode = ContinueOnReturnCodeSet(Set(0))
     val Memory = 2.0
     val Preemptible = false
     val Zones = Vector("us-central1-a")
@@ -61,13 +64,15 @@ object RuntimeAttributes {
     val docker = attributeMap.get(DOCKER)
     val zones = attributeMap.get(DEFAULT_ZONES) map { _.split("\\s+").toVector } getOrElse Defaults.Zones
     val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
-    val failOnRc = validateFailOnRc(attributeMap.get(FAIL_ON_RC))
+    val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.getSeq(CONTINUE_ON_RETURN_CODE))
     val cpu = validateCpu(attributeMap.get(CPU))
     val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
     val disks = validateLocalDisks(attributeMap.get(DEFAULT_DISKS))
     val memory = validateMemory(attributeMap.get(MEMORY))
 
-    (failOnStderr |@| failOnRc |@| cpu |@| preemptible |@| disks |@| memory){ RuntimeAttributes(docker, zones, _, _, _, _, _, _) }
+    (failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
+      RuntimeAttributes(docker, zones, _, _, _, _, _, _)
+    }
   }
 
   private def validateCpu(value: Option[String]): ValidationNel[String, Long] = {
@@ -82,8 +87,20 @@ object RuntimeAttributes {
     value map validateBoolean getOrElse Defaults.FailOnStderr.successNel
   }
 
-  private def validateFailOnRc(value: Option[String]): ValidationNel[String, Boolean] = {
-    value map validateBoolean getOrElse Defaults.FailOnRc.successNel
+  private def validateContinueOnReturnCode(value: Option[Seq[String]]): ValidationNel[String, ContinueOnReturnCode] = {
+    value.map(_.map(_.toLowerCase)) match {
+      case Some(Seq("true")) => ContinueOnReturnCodeFlag(true).successNel
+      case Some(Seq("false")) => ContinueOnReturnCodeFlag(false).successNel
+      case Some(seq) =>
+        val nels = seq map validateContinueOnReturnCode
+        val defaultReturnCodeNel = Set.empty[Int].successNel[String]
+        nels.foldLeft(defaultReturnCodeNel)((acc, v) => (acc |@| v) { (a, v) => a + v }) map ContinueOnReturnCodeSet
+      case None => Defaults.ContinueOnReturnCode.successNel
+    }
+  }
+
+  private def validateContinueOnReturnCode(returnCode: String): ValidationNel[String, Int] = {
+    validateInt(returnCode)
   }
 
   private def validateLocalDisks(value: Option[String]): ValidationNel[String, Seq[Disk]] = {
@@ -175,6 +192,14 @@ object RuntimeAttributes {
     }
   }
 
+  private def validateInt(value: String): ValidationNel[String, Int] = {
+    try {
+      value.toInt.successNel
+    } catch {
+      case _: IllegalArgumentException => s"$value not convertable to an Int".failureNel[Int]
+    }
+  }
+
   private def validateLong(value: String): ValidationNel[String, Long] = {
     try {
       value.toLong.successNel
@@ -183,11 +208,25 @@ object RuntimeAttributes {
     }
   }
 
-  private def processRuntimeAttribute(ast: Ast): (String, String) = {
-    (ast.getAttribute("key").sourceString, ast.getAttribute("value").sourceString)
+  private def processRuntimeAttribute(ast: Ast): (String, Seq[String]) = {
+    val key = ast.getAttribute("key").sourceString
+    val seq = Option(ast.getAttribute("value")) map { valAttr =>
+      // TODO: NoFunctions should be converted to a case object or a constant
+      WdlExpression.evaluate(valAttr, NoLookup, new NoFunctions) match {
+        case scala.util.Success(wdlPrimitive: WdlPrimitive) => Seq(wdlPrimitive.valueString)
+        case scala.util.Success(wdlArray: WdlArray) => wdlArray.value.map(_.valueString)
+        case scala.util.Success(wdlValue: WdlValue) =>
+          throw new IllegalArgumentException(
+            s"WdlType not supported for $key, ${wdlValue.wdlType}: ${wdlValue.valueString}")
+        case null =>
+          throw new IllegalArgumentException(s"value was null: $key}")
+        case scala.util.Failure(f) => throw f
+      }
+    } getOrElse Seq.empty
+    (key, seq)
   }
 
-  private def processRuntimeAttributes(astList: AstList): Map[String, String] = {
+  private def processRuntimeAttributes(astList: AstList): Map[String, Seq[String]] = {
     astList.asScala.toVector map { a => processRuntimeAttribute(a.asInstanceOf[Ast]) } toMap
   }
 
@@ -200,7 +239,7 @@ object RuntimeAttributes {
       val asts = ast.findAsts(AstNodeName.Runtime)
       if (asts.size > 1) throw new UnsupportedOperationException("Only one runtime block may be defined per task")
       val astList = asts.headOption map { _.getAttribute("map").asInstanceOf[AstList] }
-      AttributeMap(astList map processRuntimeAttributes getOrElse Map.empty[String, String])
+      AttributeMap(astList map processRuntimeAttributes getOrElse Map.empty[String, Seq[String]])
     }
   }
 

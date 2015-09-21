@@ -1176,7 +1176,7 @@ object SampleWdl {
     )
   }
 
-  object FailOnRc extends SampleWdl {
+  object ContinueOnReturnCode extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         task A {

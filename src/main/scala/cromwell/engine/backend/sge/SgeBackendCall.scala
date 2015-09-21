@@ -17,7 +17,7 @@ case class SgeBackendCall(backend: SgeBackend,
   val stdout = callRootPath.resolve("stdout")
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script.sh")
-  val rc = callRootPath.resolve("rc")
+  val returnCode = callRootPath.resolve("rc")
   val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr)
   val lookupFunction: String => WdlValue = inputName => locallyQualifiedInputs.get(inputName).get
   callRootPath.toFile.mkdirs

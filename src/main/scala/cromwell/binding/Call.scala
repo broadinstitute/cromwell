@@ -114,7 +114,8 @@ case class Call(alias: Option[String],
   def failOnStderr: Boolean = task.runtimeAttributes.failOnStderr
 
   /**
-   * Whether the call should be considered to have failed if a non-zero result code is generated.
+   * Whether the call should not be considered to have failed if a non-zero result code is generated,
+   * or one of the supplied result code is generated.
    */
-  def failOnRc: Boolean = task.runtimeAttributes.failOnRc
+  def continueOnReturnCode: ContinueOnReturnCode = task.runtimeAttributes.continueOnReturnCode
 }

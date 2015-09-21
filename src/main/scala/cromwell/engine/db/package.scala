@@ -5,10 +5,12 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 
 package object db {
-  case class CallStatus(executionStatus: ExecutionStatus, rc: Option[Int])
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int])
 
   object CallStatus {
-    def apply(statusName: String, rc: Option[Int] = None): CallStatus = CallStatus(ExecutionStatus.withName(statusName), rc)
+    def apply(statusName: String, returnCode: Option[Int] = None): CallStatus = {
+      CallStatus(ExecutionStatus.withName(statusName), returnCode)
+    }
   }
 
   // Uniquely identify an entry in the execution table

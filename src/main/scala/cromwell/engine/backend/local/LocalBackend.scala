@@ -161,7 +161,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     Vector(stdoutWriter, stderrWriter) foreach { _.flushAndClose() }
 
     val stderrFileLength = Files.size(backendCall.stderr)
-    val rc = Try(backendCall.rc.slurp.stripLineEnd.toInt)
+    val returnCode = Try(backendCall.returnCode.slurp.stripLineEnd.toInt)
     if (backendCall.call.failOnStderr && stderrFileLength > 0) {
       FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
     } else {
@@ -175,18 +175,18 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         }
       }
 
-      val badRcMessage =
-         s"""Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: return code was ${rc.getOrElse("(none)")}
+      val badReturnCodeMessage =
+         s"""Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
             |
             |Full command was: $backendCommandString
           """.stripMargin
 
-      rc match {
-        case Success(0) => processSuccess()
+      val continueOnReturnCode = backendCall.call.continueOnReturnCode
+      returnCode match {
         case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-        case Success(badRc) if !backendCall.call.failOnRc => processSuccess()
-        case Success(badRc) if backendCall.call.failOnRc => FailedExecution(new Throwable(badRcMessage), Option(badRc))
-        case Failure(e) => FailedExecution(new Throwable(badRcMessage, e))
+        case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess()
+        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode))
+        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e))
       }
     }
   }

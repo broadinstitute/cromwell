@@ -23,5 +23,5 @@ case object AbortedExecution extends ExecutionResult
 /**
  * Failed execution, possibly having a return code.
  */
-final case class FailedExecution(e: Throwable, rc: Option[Int] = None) extends ExecutionResult
+final case class FailedExecution(e: Throwable, returnCode: Option[Int] = None) extends ExecutionResult
 

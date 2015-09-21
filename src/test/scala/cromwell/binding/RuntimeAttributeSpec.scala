@@ -2,7 +2,7 @@ package cromwell.binding
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.parser.BackendType
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{EitherValues, Matchers, FlatSpec}
 import RuntimeAttributeSpec._
 import RuntimeAttributes.EnhancedAst
 
@@ -102,28 +102,73 @@ object RuntimeAttributeSpec {
       |}
     """.stripMargin
 
-  val WorkflowWithFailOnRc =
+  val WorkflowWithContinueOnReturnCode =
     """
-      |task echoWithFailOnRc {
+      |task echoWithSingleContinueOnReturnCode {
       |  command {
       |    cat non_existent_file
       |  }
       |  runtime {
-      |    failOnRc: "true"
+      |    continueOnReturnCode: 123
       |  }
       |}
-      |task echoWithoutFailOnRc {
+      |task echoWithExpressionContinueOnReturnCode {
       |  command {
       |    cat non_existent_file
       |  }
       |  runtime {
-      |    failOnRc: "false"
+      |    continueOnReturnCode: 123 + 321
+      |  }
+      |}
+      |task echoWithListContinueOnReturnCode {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    continueOnReturnCode: [0, 1, 2, 3]
+      |  }
+      |}
+      |task echoWithTrueContinueOnReturnCode {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    continueOnReturnCode: true
+      |  }
+      |}
+      |task echoWithFalseContinueOnReturnCode {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    continueOnReturnCode: false
+      |  }
+      |}
+      |task echoWithTrueStringContinueOnReturnCode {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    continueOnReturnCode: "true"
+      |  }
+      |}
+      |task echoWithFalseStringContinueOnReturnCode {
+      |  command {
+      |    cat non_existent_file
+      |  }
+      |  runtime {
+      |    continueOnReturnCode: "false"
       |  }
       |}
       |
       |workflow echo_wf {
-      |  call echoWithFailOnRc
-      |  call echoWithoutFailOnRc
+      |  call echoWithSingleContinueOnReturnCode
+      |  call echoWithExpressionContinueOnReturnCode
+      |  call echoWithListContinueOnReturnCode
+      |  call echoWithTrueContinueOnReturnCode
+      |  call echoWithFalseContinueOnReturnCode
+      |  call echoWithTrueStringContinueOnReturnCode
+      |  call echoWithFalseStringContinueOnReturnCode
       |}
     """.stripMargin
 
@@ -196,7 +241,7 @@ object RuntimeAttributeSpec {
     """.stripMargin
 }
 
-class RuntimeAttributeSpec extends FlatSpec with Matchers {
+class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime, BackendType.LOCAL)
 
   it should "have docker information" in {
@@ -216,15 +261,64 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers {
     assert(!namespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
   }
 
-  "WDL file with failOnRc runtime" should "identify failOnRc for (and only for) appropriate tasks" in {
-    val namespaceWithFailOnRc = NamespaceWithWorkflow.load(WorkflowWithFailOnRc, BackendType.LOCAL)
-    val echoWithFailOnRcIndex = namespaceWithFailOnRc.workflow.calls.indexWhere(call => call.name == "echoWithFailOnRc")
-    assert(echoWithFailOnRcIndex >= 0)
-    assert(namespaceWithFailOnRc.workflow.calls(echoWithFailOnRcIndex).failOnRc)
+  "WDL file with continueOnReturnCode runtime" should "identify continueOnReturnCode for (and only for) appropriate tasks" in {
+    val namespaceWithContinueOnReturnCode = NamespaceWithWorkflow.load(WorkflowWithContinueOnReturnCode, BackendType.LOCAL)
 
-    val echoWithoutFailOnRcIndex = namespaceWithFailOnRc.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnRc")
-    assert(echoWithoutFailOnRcIndex >= 0)
-    assert(!namespaceWithFailOnRc.workflow.calls(echoWithoutFailOnRcIndex).failOnRc)
+    val echoWithSingleContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithSingleContinueOnReturnCode"
+      }
+    echoWithSingleContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithSingleContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(123)))
+
+    val echoWithExpressionContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithExpressionContinueOnReturnCode"
+      }
+    echoWithExpressionContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithExpressionContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(444)))
+
+    val echoWithListContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithListContinueOnReturnCode"
+      }
+    echoWithListContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithListContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(0, 1, 2, 3)))
+
+    val echoWithTrueContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithTrueContinueOnReturnCode"
+      }
+    echoWithTrueContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithTrueContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(true))
+
+    val echoWithFalseContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithFalseContinueOnReturnCode"
+      }
+    echoWithFalseContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithFalseContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(false))
+
+    val echoWithTrueStringContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithTrueStringContinueOnReturnCode"
+      }
+    echoWithTrueStringContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithTrueStringContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(true))
+
+    val echoWithFalseStringContinueOnReturnCodeIndex =
+      namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
+        call.name == "echoWithFalseStringContinueOnReturnCode"
+      }
+    echoWithFalseStringContinueOnReturnCodeIndex should be >= 0
+    namespaceWithContinueOnReturnCode.workflow.calls(echoWithFalseStringContinueOnReturnCodeIndex)
+      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(false))
   }
 
   "WDL file with Googly config" should "parse up properly" in {

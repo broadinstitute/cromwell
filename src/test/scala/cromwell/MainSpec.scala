@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.EventFilter
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.server.WorkflowManagerSystem
+import cromwell.server.{DataAccessObject, WorkflowManagerSystem}
 import cromwell.util.SampleWdl.ThreeStep
 import cromwell.util.{FileUtil, SampleWdl}
 import org.scalatest.{FlatSpec, Matchers}
@@ -14,7 +14,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-class TestWorkflowManagerSystem extends WorkflowManagerSystem {
+class TestWorkflowManagerSystem extends WorkflowManagerSystem with DataAccessObject {
   override lazy val backend = new LocalBackend
   override implicit val actorSystem = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
 }

@@ -167,7 +167,7 @@ class JesBackend extends Backend with LazyLogging {
    */
   override def initializeForWorkflow(workflow: WorkflowDescriptor, dataAccess: DataAccess): Try[HostInputs] = {
     val userJson = if (authenticationMode == RefreshTokenMode) {
-      storeGcsAuthInformation(workflow, dataAccess)
+      getGcsAuthInformation(workflow, dataAccess)
     } else None
 
     GcsAuth.generateJson(DockerHubCredentials, userJson) foreach { content =>
@@ -202,17 +202,14 @@ class JesBackend extends Backend with LazyLogging {
     Future(JesConnection.storage.deleteObject(GoogleCloudStoragePath(gcsAuthFilePath(workflow))))
   }
 
-  //TODO: Store information in encrypted K/V Cromwell DB (hence the dataAccess parameter)
   /**
-   * Store user auth information in encrypted cromwell DB and return a GcsUserAuthInformation
+   * Get a GcsUserAuthInformation from workflow options
    */
-  def storeGcsAuthInformation(workflow: WorkflowDescriptor, dataAccess: DataAccess) = {
-    val gcsAuthInfo = for {
+  def getGcsAuthInformation(workflow: WorkflowDescriptor, dataAccess: DataAccess) = {
+    for {
       account <- workflow.workflowOptions.get(AccountOptionKey)
       token <- workflow.workflowOptions.get(RefreshTokenOptionKey)
     } yield GcsUserAuthInformation(account, token)
-//    gcsAuthInfo foreach dataAccess.storeGcsAuthInfo // Not implemented yet
-    gcsAuthInfo
   }
 
   override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {

@@ -94,8 +94,6 @@ trait DataAccess {
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
 
-  def storeGcsAuthInfo(info: GcsUserAuthInformation): Unit = ???
-
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]
 

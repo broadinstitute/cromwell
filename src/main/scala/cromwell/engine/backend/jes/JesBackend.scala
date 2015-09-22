@@ -4,7 +4,6 @@ import java.io.File
 import java.math.BigInteger
 import java.net.URL
 import java.nio.file.{Path, Paths}
-import java.security.MessageDigest
 
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.config.{Config, ConfigException, ConfigFactory}
@@ -165,13 +164,13 @@ class JesBackend extends Backend with LazyLogging {
 
   def generateJesInputs(backendCall: BackendCall): Iterable[JesInput] = {
     val adjustedPaths = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs)
-    def mkInput(k: String, v: WdlFile) = JesInput(k, backendCall.lookupFunction(k).valueString, Paths.get(v.valueString))
+    def mkInput(fileTag: String, location: WdlFile) = JesInput(fileTag, backendCall.lookupFunction(fileTag).valueString, Paths.get(location.valueString))
     adjustedPaths collect {
-      case (k: String, v: WdlFile) =>
-        logger.info(s"${makeTag(backendCall)}: $k -> ${v.valueString}")
-        Seq(mkInput(k, v))
-      case (k: String, v: WdlArray) => v.value.collect { case f: WdlFile => mkInput(k, f) }
-      case (k: String, v: WdlMap) => v.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(k, f) }
+      case (fileTag: String, location: WdlFile) =>
+        logger.info(s"${makeTag(backendCall)}: $fileTag -> ${location.valueString}")
+        Seq(mkInput(fileTag, location))
+      case (fileTag: String, location: WdlArray) => location.value.collect { case f: WdlFile => mkInput(fileTag, f) }
+      case (fileTag: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(fileTag, f) }
     } flatten
   }
 
@@ -198,11 +197,11 @@ class JesBackend extends Backend with LazyLogging {
 
     val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, GoogleProject, JesConnection).run
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
-    run.waitUntilRunningOrComplete()
+    val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
 
     try {
-      val status = run.waitUntilComplete(None)
+      val status = run.waitUntilComplete(initializedStatus)
 
       val outputMappings = backendCall.call.task.outputs map {taskOutput =>
         taskOutput.name -> taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions)

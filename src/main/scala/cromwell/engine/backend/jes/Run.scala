@@ -1,8 +1,10 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
+import cromwell.engine.{ExecutionStatus, db}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
+import cromwell.engine.db.{JesStatus, JesId, JesCallBackendInfo, DataAccess}
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
 
@@ -57,10 +59,15 @@ object Run  {
   }
 }
 
-case class Run(name: String, pipeline: Pipeline, tag: String) {
+case class Run(jesId: String, pipeline: Pipeline, tag: String) {
+
+  val dataAccess = DataAccess()
+
+  lazy val workflowId = pipeline.workflow.id
+  lazy val call = pipeline.call
 
   def status(): RunStatus = {
-    val op = pipeline.genomicsService.operations().get(name).execute
+    val op = pipeline.genomicsService.operations().get(jesId).execute
 
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
@@ -72,8 +79,26 @@ case class Run(name: String, pipeline: Pipeline, tag: String) {
     }
   }
 
+  final def waitUntilComplete(previousStatus: RunStatus): TerminalRunStatus = {
+    val terminalStatus = waitForStatus(Option(previousStatus), {
+      case x: TerminalRunStatus => true
+      case _ => false
+    })
+
+    terminalStatus match {
+      case x: TerminalRunStatus => x
+      case _ => Failed(-1, "Unexpectedly stopped checking status.") // Assuming waitForStatus works, this never happens.
+    }
+  }
+
+  final def waitUntilRunningOrComplete: RunStatus = waitForStatus(None, {
+    case Running => true
+    case x: TerminalRunStatus => true
+    case _ => false
+  })
+
   @tailrec
-  final def waitUntilComplete(previousStatus: Option[RunStatus]): TerminalRunStatus = {
+  final def waitForStatus(previousStatus: Option[RunStatus], breakout: RunStatus => Boolean): RunStatus = {
     val currentStatus = status()
 
     if (!(previousStatus contains currentStatus)) {
@@ -81,30 +106,22 @@ case class Run(name: String, pipeline: Pipeline, tag: String) {
       // just use the state names.
       val prevStateName = previousStatus map { _.toString } getOrElse "-"
       Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
+
+      // Update the database state:
+      val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(jesId)), Option(JesStatus(currentStatus.toString)))
+      dataAccess.updateExecutionBackendInfo(workflowId, call, newBackendInfo)
     }
 
-    currentStatus match {
-      case x: TerminalRunStatus => x
-      case _ =>
-        Thread.sleep(5000)
-        waitUntilComplete(Option(currentStatus))
-    }
-  }
-
-  @tailrec
-  final def waitUntilRunningOrComplete(): Unit = {
-    val currentStatus = status()
-    currentStatus match {
-      case Initializing => // Done
-      case x: TerminalRunStatus => // Done
-      case _ =>
-        Thread.sleep(5000)
-        waitUntilRunningOrComplete()
+    if(breakout(currentStatus)) {
+      currentStatus
+    } else {
+      Thread.sleep(1000)
+      waitForStatus(Option(currentStatus), breakout)
     }
   }
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
-    pipeline.genomicsService.operations().cancel(name, cancellationRequest).execute
+    pipeline.genomicsService.operations().cancel(jesId, cancellationRequest).execute
   }
 }

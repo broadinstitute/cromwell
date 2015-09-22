@@ -96,7 +96,7 @@ object JesBackend {
 
   // Create an input parameter containing the path to this authentication file
   def gcsAuthParameter(descriptor: WorkflowDescriptor) = {
-    if(AuthenticationMode == RefreshTokenMode || DockerHubCredentials.isDefined) {
+    if (AuthenticationMode == RefreshTokenMode || DockerHubCredentials.isDefined) {
       authGcsCredentialsPath(Option(gcsAuthFilePath(descriptor)))
     } else None
   }

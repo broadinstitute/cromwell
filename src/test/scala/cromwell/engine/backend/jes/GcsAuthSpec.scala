@@ -2,13 +2,13 @@ package cromwell.engine.backend.jes
 
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
-import play.api.libs.json._
+import spray.json._
 
 
 class GcsAuthSpec extends FlatSpec with Matchers with MockitoSugar {
 
   def normalize(str: String) = {
-    Json.prettyPrint(Json.parse(str))
+    str.parseJson.prettyPrint
   }
 
   "GcsAuthMode" should "parse AuthenticationMode" in {

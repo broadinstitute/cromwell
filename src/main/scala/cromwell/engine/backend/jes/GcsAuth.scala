@@ -1,31 +1,20 @@
 package cromwell.engine.backend.jes
 
-import play.api.libs.json._
+
+import spray.json._
 
 object GcsAuth {
-  val boilerplateJson = Json.parse(s"""
-       |{
-       |  "auths" : {}
-       |}
-     """.stripMargin)
-
-  /**
-   * Add the JsObject parameters to the `auths` entry
-   */
-  def authTransformer(authJsons: Seq[JsObject]) = (__ \ 'auths).json.update {
-    __.read[JsObject] map { o =>
-      o ++ authJsons.reduce(_ ++ _)
-    }
-  }
 
   /**
    * Generates a json containing auth information based on the parameters provided.
    * @return a string representation of the json
    */
   def generateJson(dockerAuth: Option[DockerAuthInformation], userAuth: Option[GcsUserAuthInformation]) = {
-    Seq(dockerAuth, userAuth).flatten map { _.toJsObject } match {
+    Seq(dockerAuth, userAuth).flatten map { _.toMap } match {
       case Nil => None
-      case jsons => boilerplateJson.transform(authTransformer(jsons)).asOpt map { Json.prettyPrint(_) }
+      case jsons =>
+        val authsValues = jsons.reduce(_ ++ _) mapValues JsObject.apply
+        Option(JsObject("auths" -> JsObject(authsValues)).prettyPrint)
     }
   }
 }
@@ -37,35 +26,32 @@ object GcsAuthMode {
     case nop => throw new IllegalArgumentException(s"$nop is not a recognized authentication mode")
   }
 }
+
 // Authentication modes supported
 sealed trait GcsAuthMode
 object ServiceAccountMode extends GcsAuthMode
 object RefreshTokenMode extends GcsAuthMode
-
 
 sealed trait AuthInformation {
   val account: String
   val token: String
   val context: String
 
-  implicit def authWrites[T <: AuthInformation] = new Writes[T] {
-    override def writes(o: T): JsValue = {
-      Json.obj(
-        context -> Json.obj(
-          "account" -> JsString(o.account),
-          "token" -> JsString(o.token)
-        )
-      )
-    }
-  }
-
-  def toJsObject: JsObject = Json.toJson(this).as[JsObject]
+  def toMap = Map(
+    context -> Map(
+      "account" -> JsString(account),
+      "token" -> JsString(token)
+    )
+  )
 }
 
-// Authentication entries supported in the "per workflow" configuration file
+// User Authentication coming from the workflow options
 case class GcsUserAuthInformation(account: String, token: String) extends AuthInformation {
   override val context = "gcloud"
 }
+
+// Docker Authentication coming from the configuration file
+// TODO (discussed with Miguel): Change to be read from workflow options too ?
 case class DockerAuthInformation(account: String, token: String) extends AuthInformation {
   override val context = "docker"
 }

@@ -165,9 +165,9 @@ class JesBackend extends Backend with LazyLogging {
    * No need to copy GCS inputs for the workflow we should be able to directly reference them
    * Create an authentication json file containing docker credentials and/or user account information
    */
-  override def initializeForWorkflow(workflow: WorkflowDescriptor, dataAccess: DataAccess): Try[HostInputs] = {
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs] = {
     val userJson = if (authenticationMode == RefreshTokenMode) {
-      getGcsAuthInformation(workflow, dataAccess)
+      getGcsAuthInformation(workflow)
     } else None
 
     GcsAuth.generateJson(DockerHubCredentials, userJson) foreach { content =>
@@ -205,7 +205,7 @@ class JesBackend extends Backend with LazyLogging {
   /**
    * Get a GcsUserAuthInformation from workflow options
    */
-  def getGcsAuthInformation(workflow: WorkflowDescriptor, dataAccess: DataAccess) = {
+  def getGcsAuthInformation(workflow: WorkflowDescriptor) = {
     for {
       account <- workflow.workflowOptions.get(AccountOptionKey)
       token <- workflow.workflowOptions.get(RefreshTokenOptionKey)
@@ -269,7 +269,6 @@ class JesBackend extends Backend with LazyLogging {
 
   private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesParameter], jesOutputs: Seq[JesParameter]): ExecutionResult = {
     val tag = makeTag(backendCall)
-    // FIXME: Ignore all the errors!
     val jesParameters = standardParameters(backendCall.callGcsPath) ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
     logger.info(s"$tag `$command`")
     JesConnection.storage.uploadObject(backendCall.gcsExecPath, command)

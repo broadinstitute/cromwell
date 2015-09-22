@@ -47,7 +47,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr =
       throw new NotImplementedError
 
-    override def initializeForWorkflow(workflow: WorkflowDescriptor, dataAccess: DataAccess) =
+    override def initializeForWorkflow(workflow: WorkflowDescriptor) =
       throw new NotImplementedError
 
     override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],

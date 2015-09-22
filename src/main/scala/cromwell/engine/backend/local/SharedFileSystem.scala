@@ -96,7 +96,7 @@ trait SharedFileSystem {
    * Creates host execution directory, inputs path, and outputs path.  Stages any input files into the workflow-inputs
    * directory and localizes their paths relative to the container.
    */
-  def initializeForWorkflow(descriptor: WorkflowDescriptor, dataAccess: DataAccess): Try[HostInputs] = {
+  def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[HostInputs] = {
     val hostExecutionDirectory = LocalBackend.hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
     val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath

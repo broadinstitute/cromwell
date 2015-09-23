@@ -3,11 +3,11 @@ package cromwell.util.google
 import java.io.{File, FileInputStream, InputStreamReader}
 import java.nio.file.Paths
 
-import com.google.api.client.auth.oauth2.Credential
+import com.google.api.client.auth.oauth2.{BearerToken, Credential}
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets, GoogleCredential}
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
-import com.google.api.client.http.HttpTransport
+import com.google.api.client.http.{BasicAuthentication, GenericUrl, HttpTransport}
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.typesafe.config.{Config, ConfigFactory}
@@ -20,6 +20,8 @@ object GoogleCredentialFactory {
 
   lazy val from: (JsonFactory, HttpTransport) => Credential = GoogleAuthScheme match {
     case "user" => forUser(GoogleConf.getConfig("userAuth"))
+    case "access" => forAccessToken(GoogleConf.getConfig("accessTokenAuth"))
+    case "refresh" => forRefreshToken(GoogleConf.getConfig("refreshTokenAuth"))
     case "service" => forServiceAccount(GoogleConf.getConfig("serviceAuth"))
   }
 
@@ -35,6 +37,35 @@ object GoogleCredentialFactory {
       clientSecrets,
       GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
     new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user)
+  }
+
+  private def forAccessToken(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+    // FIXME: THIS SHOULD BE PASSED IN ON A PER CALL BASIS!!
+    val accessToken = config.getString("accessTokenValue")
+
+    new GoogleCredential.Builder()
+      .setTransport(httpTransport)
+      .setJsonFactory(jsonFactory)
+      .build()
+    .setAccessToken(accessToken)
+  }
+
+  private def forRefreshToken(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+
+    // FIXME: this should be facored out as it's the same as the forUser case
+    val secrets = Paths.get(config.getString("secretsFile"))
+    val secretStream = new InputStreamReader(new FileInputStream(secrets.toFile))
+    val clientSecrets = GoogleClientSecrets.load(jsonFactory, secretStream)
+
+    // FIXME: THIS SHOULD BE PASSED IN ON A PER CALL BASIS!!
+    val refreshToken = config.getString("refreshTokenValue")
+
+    new GoogleCredential.Builder()
+      .setTransport(httpTransport)
+      .setJsonFactory(jsonFactory)
+      .setClientSecrets(clientSecrets)
+      .build()
+      .setRefreshToken(refreshToken)
   }
 
   private def forServiceAccount(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {

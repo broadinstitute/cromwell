@@ -21,11 +21,18 @@ object SharedFileSystem {
   val SharedFileSystemConf = ConfigFactory.load.getConfig("backend").getConfig("shared-filesystem")
   val CromwellExecutionRoot = SharedFileSystemConf.getString("root")
   val LocalizationStrategies = SharedFileSystemConf.getStringList("localization").asScala
-  val Localizers = LocalizationStrategies map {
+  val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
     case "hard-link" => localizePathViaHardLink _
     case "soft-link" => localizePathViaSymbolicLink _
     case "copy" => localizePathViaCopy _
     case unsupported => throw new UnsupportedOperationException(s"Localization strategy $unsupported is not recognized")
+  })
+
+  /**
+   * Return a `Success` result if the file has already been localized, otherwise `Failure`.
+   */
+  private def localizePathAlreadyLocalized(call: Option[Call], originalPath: Path, executionPath: Path): Try[Unit] = {
+    if (Files.exists(executionPath)) Success(()) else Failure(new Throwable)
   }
 
   private def localizePathViaCopy(call: Option[Call], originalPath: Path, executionPath: Path): Try[Unit] = {

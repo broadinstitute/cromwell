@@ -1,5 +1,7 @@
 package cromwell.engine.backend.jes
 
+import java.net.URL
+
 import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.binding.{Call, CallInputs}
 import org.scalatest.mock.MockitoSugar
@@ -46,7 +48,8 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     val missingToken = Map("account_name" -> "account")
     val missingAccount = Map("refresh_token" -> "token")
     val jesBackend = new JesBackend() {
-      override lazy val authenticationMode = RefreshTokenMode
+      override def getConf = new JesAttributes(applicationName = "",
+      project = "", executionBucket = "", endpointUrl = new URL(""), authMode = RefreshTokenMode, docker = None)
     }
 
     try {

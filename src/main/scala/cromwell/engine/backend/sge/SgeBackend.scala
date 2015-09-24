@@ -19,7 +19,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
-class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
+class SgeBackend(val dataAccess: DataAccess) extends Backend with SharedFileSystem with LazyLogging {
   type BackendCall = SgeBackendCall
 
   import LocalBackend.WriteWithNewline

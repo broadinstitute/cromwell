@@ -5,12 +5,14 @@ import com.google.api.services.genomics.model.CreatePipelineRequest
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.{Call, WorkflowDescriptor}
 import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.CallKey
 
 import scala.collection.JavaConverters._
 
 object Pipeline extends LazyLogging {
-  def apply(command: String, workflow: WorkflowDescriptor, key: CallKey, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {
+  def apply(command: String, workflow: WorkflowDescriptor, key: CallKey, jesParameters: Seq[JesParameter],
+            projectId: String, jesConnection: JesInterface, dataAccess: DataAccess): Pipeline = {
     val call = key.scope
     val tag = s"JES Pipeline [UUID(${workflow.shortId}):${call.name}]"
     logger.debug(s"$tag Command line is: $command")
@@ -38,7 +40,8 @@ object Pipeline extends LazyLogging {
                  call, 
                  jesParameters, 
                  runtimeInfo, 
-                 jesConnection.genomics)
+                 jesConnection.genomics,
+                 dataAccess)
   }
 }
 
@@ -51,6 +54,7 @@ case class Pipeline(command: String,
                     call: Call,
                     jesParameters: Seq[JesParameter],
                     runtimeInfo: JesRuntimeInfo,
-                    genomicsService: Genomics) {
+                    genomicsService: Genomics,
+                    dataAccess: DataAccess) {
   def run: Run = Run(this)
 }

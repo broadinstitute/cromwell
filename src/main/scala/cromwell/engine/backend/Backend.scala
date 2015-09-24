@@ -23,11 +23,10 @@ import scala.util.{Failure, Success, Try}
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
-  def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
-  def from(name: String) = name.toLowerCase match {
-    case "local" => new LocalBackend
-    case "jes" => new JesBackend
-    case "sge" => new SgeBackend
+  def from(backendType: BackendType, dataAccess: DataAccess) = backendType match {
+    case BackendType.LOCAL => new LocalBackend(dataAccess)
+    case BackendType.JES => new JesBackend(dataAccess)
+    case BackendType.SGE => new SgeBackend(dataAccess)
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)

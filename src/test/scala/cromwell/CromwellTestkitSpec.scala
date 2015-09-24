@@ -126,7 +126,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {
-    TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend))
+    TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend(dataAccess)))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

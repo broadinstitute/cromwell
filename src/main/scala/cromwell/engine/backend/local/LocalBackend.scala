@@ -77,7 +77,7 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
+class LocalBackend(val dataAccess: DataAccess) extends Backend with SharedFileSystem with LazyLogging {
   type BackendCall = LocalBackendCall
 
   import LocalBackend._

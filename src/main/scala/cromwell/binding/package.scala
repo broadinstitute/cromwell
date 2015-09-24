@@ -1,7 +1,6 @@
 package cromwell
 
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.Backend
 import spray.json._
 import scala.util.{Try, Success, Failure}
 import cromwell.binding.values.WdlValue
@@ -48,8 +47,8 @@ package object binding {
       case _ => throw new Throwable(s"Workflow ${id.toString} contains bad workflow options JSON: ${sourceFiles.inputsJson}")
     }
 
-    val backendType = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
-    val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backendType.backendType)
+    val backendType = BackendType.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+    val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)
 

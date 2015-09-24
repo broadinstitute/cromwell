@@ -1,18 +1,9 @@
 package cromwell
 
-import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.Backend
 import org.scalatest.Tag
 
 object CromwellSpec {
-  val BackendConfText =
-    """
-      |backend {
-      |   backend = "local"
-      |}
-    """.stripMargin
-  val Config = ConfigFactory.parseString(CromwellSpec.BackendConfText).getConfig("backend")
-  val BackendInstance = Backend.from(Config)
+  val BackendType = cromwell.parser.BackendType.LOCAL
 
   object DockerTest extends Tag("DockerTest")
 }

@@ -33,7 +33,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
     "run the Hello World workflow" in {
       withDataAccess { dataAccess =>
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test the WorkflowManagerActor")
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType), self, "Test the WorkflowManagerActor")
 
         val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
           messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.asWorkflowSources()))
@@ -56,7 +56,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "Not try to restart any workflows when there are no workflows in restartable states" in {
       withDataAccess { dataAccess =>
         waitForPattern("Found no workflows to restart.") {
-          TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "No workflows")
+          TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType), self, "No workflows")
         }
       }
     }
@@ -79,7 +79,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
             val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
             val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
             for {
-              _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
+              _ <- dataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend(dataAccess))
               _ <- dataAccess.updateWorkflowState(workflowId, workflowState)
               _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
             } yield ()
@@ -94,7 +94,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
               // Both the previously in-flight call and the never-started call should get started.
               waitForPattern("starting calls: hello.hello", occurrences = 2) {
                 waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
-                  TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "2 restartable workflows")
+                  TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType), self, "2 restartable workflows")
                 }
               }
             }
@@ -106,7 +106,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "Handle coercion failures gracefully" in {
       withDataAccess { dataAccess =>
         within(TestExecutionTimeout) {
-          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test WorkflowManagerActor coercion failures")
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType), self, "Test WorkflowManagerActor coercion failures")
           waitForErrorWithException("Workflow failed submission") {
             Try {
               messageAndWait[WorkflowId](SubmitWorkflow(Incr.asWorkflowSources()))
@@ -122,7 +122,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
     "error when running a workflowless WDL" in {
       withDataAccess { dataAccess =>
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test a workflowless submission")
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType), self, "Test a workflowless submission")
         Try(messageAndWait[WorkflowId](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources()))) match {
           case Success(_) => fail("Expected submission to fail due to no runnable workflows")
           case Failure(e) => e.getMessage shouldBe "Namespace does not have a local workflow to run"
@@ -133,7 +133,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "error when asked for outputs of a nonexistent workflow" in {
       withDataAccess { dataAccess =>
         within(TestExecutionTimeout) {
-          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType),
             self, "Test WorkflowManagerActor output lookup failure")
           val id = WorkflowId(UUID.randomUUID())
           Try {
@@ -149,7 +149,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "error when asked for call logs of a nonexistent workflow" in {
       withDataAccess { dataAccess =>
         within(TestExecutionTimeout) {
-          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType),
             self, "Test WorkflowManagerActor call log lookup failure")
           val id = WorkflowId.randomId()
           val noIndex = Try {
@@ -165,7 +165,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     "error when asked for logs of a nonexistent workflow" in {
       withDataAccess { dataAccess =>
         within(TestExecutionTimeout) {
-          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance),
+          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendType),
             self, "Test WorkflowManagerActor log lookup failure")
           val id = WorkflowId.randomId()
           Try {

@@ -29,7 +29,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), sampleWdl.wdlJson, "{}")
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend, dataAccess))
+    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend(dataAccess), dataAccess))
   }
 
   val TestExecutionTimeout = 5000 milliseconds

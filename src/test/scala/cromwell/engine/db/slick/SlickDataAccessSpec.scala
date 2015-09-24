@@ -31,8 +31,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
-  lazy val localBackend = new LocalBackend
-
 	val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
 
   object UnknownBackend extends Backend {
@@ -81,6 +79,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     lazy val testDatabase = new TestSlickDatabase(path)
     lazy val canConnect = testRequired || testDatabase.isValidConnection.futureValue
     lazy val dataAccess = testDatabase.slickDataAccess
+    lazy val localBackend = new LocalBackend(dataAccess)
 
     it should "(if hsqldb) have transaction isolation mvcc" in {
       assume(canConnect || testRequired)

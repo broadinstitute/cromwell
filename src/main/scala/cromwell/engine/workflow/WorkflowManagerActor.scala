@@ -15,6 +15,7 @@ import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
 import cromwell.engine.db.slick._
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.parser.BackendType
 import cromwell.util.WriteOnceStore
 import cromwell.webservice.WorkflowMetadataResponse
 import org.joda.time.DateTime
@@ -42,10 +43,12 @@ object WorkflowManagerActor {
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
 
-  def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
+  def props(dataAccess: DataAccess, backendType: BackendType = BackendType): Props = {
+    val backend = Backend.from(backendType, dataAccess)
+    Props(new WorkflowManagerActor(dataAccess, backend))
+  }
 
-  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
-  lazy val BackendType = BackendInstance.backendType
+  lazy val BackendType = cromwell.parser.BackendType.from(ConfigFactory.load.getConfig("backend"))
 }
 
 /**

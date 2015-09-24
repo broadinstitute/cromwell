@@ -95,7 +95,7 @@ object JesBackend {
   final case class JesOutput(name: String, gcs: String, local: Path, parameterType: String = "REFERENCE") extends JesParameter
 }
 
-class JesBackend extends Backend with LazyLogging {
+class JesBackend(val dataAccess: DataAccess) extends Backend with LazyLogging {
   type BackendCall = JesBackendCall
 
   /**
@@ -195,7 +195,8 @@ class JesBackend extends Backend with LazyLogging {
     logger.info(s"$tag `$command`")
     JesConnection.storage.uploadObject(backendCall.gcsExecPath, command)
 
-    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, GoogleProject, JesConnection).run
+    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor,
+      backendCall.key, jesParameters, GoogleProject, JesConnection, dataAccess).run
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
     val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))

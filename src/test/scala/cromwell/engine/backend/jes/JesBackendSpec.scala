@@ -24,7 +24,8 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend().adjustInputPaths(ignoredCall, inputs)
+    // NOTE: This test currently does not require storage. If that changes, use a withDataAccess() lender.
+    val mappedInputs: CallInputs  = new JesBackend(dataAccess = null).adjustInputPaths(ignoredCall, inputs)
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))

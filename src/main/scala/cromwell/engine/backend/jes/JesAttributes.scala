@@ -17,7 +17,8 @@ object JesAttributes {
     val jesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
     val refConf: Config = ConfigFactory.parseResources("jes.conf")
 
-    jesConf.checkValidAndWarnNotRecognized(refConf, "Jes", "dockerAccount", "dockerToken")
+    jesConf.checkValidWrapped(refConf, "Jes")
+    jesConf.warnNotRecognized(refConf, "Jes", "dockerAccount", "dockerToken")
 
     val applicationName = jesConf.getString("applicationName")
     val project = jesConf.getString("project")

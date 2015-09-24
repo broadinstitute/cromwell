@@ -16,7 +16,7 @@ object ConfigUtil {
     extends ConfigException.ValidationFailed(validationException.problems()) {
     override def getMessage: String = {
       val problems = validationException.problems().map(_.problem()).mkString(", ")
-      s"$context: Configuration Validation failed: $problems"
+      s"$context configuration validation failed : $problems"
     }
   }
 
@@ -36,28 +36,31 @@ object ConfigUtil {
 
     /**
      * Checks that the configuration is valid compared to refConfig (i.e. at least all same keys with same type).
-     * For keys that are in the configuration but not in the reference configuration, log a warning.
-     * @param optionalKeys keys that should not be considered unrecognized if they are present but are not in the reference configuration
+     * Wrap the exception to add some context information about what this config is about.
+     * @param context String to be added as a prefix in the Exception message if validation fails
      */
-    def checkValidAndWarnNotRecognized(refConfig: Config, context: String, optionalKeys: String*) = {
+    def checkValidWrapped(refConfig: Config, context: String) = {
       try {
         config.checkValid(refConfig)
       } catch {
         case e: ConfigException.ValidationFailed => throw new ConfigValidationException(context, e)
         case t: Throwable => throw t
       }
-      warnNotRecognized(config, refConfig, context, optionalKeys)
     }
 
-  }
-  
-  def warnNotRecognized(config: Config, refConf: Config, context: String, optionalKeys: Seq[String]) = {
-    val refKeys = refConf.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
-    val confKeys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
+    /**
+     * For keys that are in the configuration but not in the reference configuration, log a warning.
+     * @param context String to be added as a prefix in the Exception message if validation fails
+     * @param optionalKeys keys that should not be considered unrecognized if they are present but are not in the reference configuration
+     */
+    def warnNotRecognized(refConf: Config, context: String, optionalKeys: String*) = {
+      val refKeys = refConf.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
+      val confKeys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
 
-    confKeys.diff(refKeys ++ optionalKeys) match {
-      case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key for $context: ${warnings.mkString(", ")}")
-      case _ =>
+      confKeys.diff(refKeys ++ optionalKeys) match {
+        case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key(s) for $context: ${warnings.mkString(", ")}")
+        case _ =>
+      }
     }
   }
 }

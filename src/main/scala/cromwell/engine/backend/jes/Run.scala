@@ -1,6 +1,7 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
+import com.typesafe.config.ConfigFactory
 import cromwell.engine.{ExecutionStatus, db}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
@@ -15,6 +16,10 @@ import scala.language.postfixOps
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
   lazy val Log = LoggerFactory.getLogger("main")
+  lazy val maximumPollingInterval = ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval") * 1000
+  val initialPollingInterval = 500
+  val pollingBackoffFactor = 1.1
+  lazy val dataAccess = DataAccess()
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
@@ -57,11 +62,36 @@ object Run  {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
   }
+
+  @tailrec
+  private final def waitForStatus(run: Run, previousStatus: Option[RunStatus], pollingInterval: Double, breakout: RunStatus => Boolean): RunStatus = {
+    val currentStatus = run.status()
+
+    if (!(previousStatus contains currentStatus)) {
+      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
+      // just use the state names.
+      val prevStateName = previousStatus map { _.toString } getOrElse "-"
+      Log.info(s"${run.tag}: Status change from $prevStateName to $currentStatus")
+
+      // Update the database state:
+      val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
+      dataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
+    }
+
+    if (breakout(currentStatus)) {
+      currentStatus
+    } else {
+      Thread.sleep(pollingInterval.toInt)
+      waitForStatus(run, Option(currentStatus), nextPollingInterval(pollingInterval, maximumPollingInterval), breakout)
+    }
+  }
+
+  private final def nextPollingInterval(previousPollingInterval: Double, maximumPollingInterval: Int): Double = {
+    Math.min(previousPollingInterval * pollingBackoffFactor, maximumPollingInterval)
+  }
 }
 
 case class Run(jesId: String, pipeline: Pipeline, tag: String) {
-
-  val dataAccess = DataAccess()
 
   lazy val workflowId = pipeline.workflow.id
   lazy val call = pipeline.call
@@ -80,7 +110,7 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
   }
 
   final def waitUntilComplete(previousStatus: RunStatus): TerminalRunStatus = {
-    val terminalStatus = waitForStatus(Option(previousStatus), {
+    val terminalStatus = Run.waitForStatus(this, Option(previousStatus), initialPollingInterval, {
       case x: TerminalRunStatus => true
       case _ => false
     })
@@ -91,34 +121,11 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
     }
   }
 
-  final def waitUntilRunningOrComplete: RunStatus = waitForStatus(None, {
+  final def waitUntilRunningOrComplete: RunStatus = Run.waitForStatus(this, None, initialPollingInterval, {
     case Running => true
     case x: TerminalRunStatus => true
     case _ => false
   })
-
-  @tailrec
-  final def waitForStatus(previousStatus: Option[RunStatus], breakout: RunStatus => Boolean): RunStatus = {
-    val currentStatus = status()
-
-    if (!(previousStatus contains currentStatus)) {
-      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
-      // just use the state names.
-      val prevStateName = previousStatus map { _.toString } getOrElse "-"
-      Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
-
-      // Update the database state:
-      val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(jesId)), Option(JesStatus(currentStatus.toString)))
-      dataAccess.updateExecutionBackendInfo(workflowId, call, newBackendInfo)
-    }
-
-    if(breakout(currentStatus)) {
-      currentStatus
-    } else {
-      Thread.sleep(1000)
-      waitForStatus(Option(currentStatus), breakout)
-    }
-  }
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()

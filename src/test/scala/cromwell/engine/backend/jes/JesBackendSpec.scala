@@ -48,8 +48,8 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     val missingToken = Map("account_name" -> "account")
     val missingAccount = Map("refresh_token" -> "token")
     val jesBackend = new JesBackend() {
-      override def getConf = new JesAttributes(applicationName = "",
-      project = "", executionBucket = "", endpointUrl = new URL(""), authMode = RefreshTokenMode, docker = None)
+      override lazy val conf = new JesAttributes(applicationName = "",
+      project = "", executionBucket = "", endpointUrl = new URL("http://fakeurl.com"), authMode = RefreshTokenMode, docker = None)
     }
 
     try {

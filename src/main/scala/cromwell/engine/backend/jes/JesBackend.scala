@@ -24,8 +24,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object JesBackend {
-  val JesConf = JesAttributes()
-  val JesConnection = JesInterface(JesConf.applicationName, JesConf.endpointUrl)
+  lazy val JesConf = JesAttributes()
+  lazy val JesConnection = JesInterface(JesConf.applicationName, JesConf.endpointUrl)
 
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
@@ -104,12 +104,8 @@ object JesBackend {
 class JesBackend extends Backend with LazyLogging {
   type BackendCall = JesBackendCall
 
-
   // FIXME: not ideal but allows overriding this method in the tests to pass a mocked configuration
-  def getConf() = JesBackend.JesConf
-
-  // Forces conf resolution and throw an exception if configuration is not complete.
-  val conf = getConf()
+  lazy val conf = JesConf
 
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path

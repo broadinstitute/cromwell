@@ -196,7 +196,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         Send a message to self to trigger an actor shutdown. Run on a short timer to help enable some
         unit test instrumentation
        */
-      if (toState.isTerminal) setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
+      if (toState.isTerminal) {
+        backend.cleanUpForWorkflow(workflow)
+        setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
+      }
   }
 
   private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {

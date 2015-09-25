@@ -1,12 +1,13 @@
 package cromwell
 
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.Backend
-import spray.json._
-import scala.util.{Try, Success, Failure}
 import cromwell.binding.values.WdlValue
 import cromwell.engine.WorkflowId
-import cromwell.parser.BackendType
+import cromwell.engine.backend.Backend
+import spray.json._
+
+import scala.language.implicitConversions
+import scala.util.{Success, Try}
 
 /**
  * ==WDL Bindings for Scala==
@@ -45,10 +46,13 @@ package object binding {
           throw new Throwable(s"Workflow ${id.toString} options JSON is not a String -> String map: ${sourceFiles.workflowOptionsJson}")
         }
         options map { case (k, v) => k -> v.asInstanceOf[JsString].value }
-      case _ => throw new Throwable(s"Workflow ${id.toString} contains bad workflow options JSON: ${sourceFiles.inputsJson}")
+      case _ => throw new Throwable(s"Workflow ${id.toString} contains bad workflow options JSON: ${sourceFiles.workflowOptionsJson}")
     }
 
     val backendType = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+
+    backendType.assertWorkflowOptions(workflowOptions)
+
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backendType.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

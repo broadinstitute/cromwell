@@ -6,11 +6,12 @@ import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.binding.{Call, CallInputs}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
+import org.specs2.mock.Mockito
 
-class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
+class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar with Mockito {
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
-    val ignoredCall = mock[Call]
+    val ignoredCall = org.scalatest.mock.MockitoSugar.mock[Call]
     val stringKey = "abc"
     val stringVal = WdlString("abc")
     val localFileKey = "lf"
@@ -48,8 +49,13 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     val missingToken = Map("account_name" -> "account")
     val missingAccount = Map("refresh_token" -> "token")
     val jesBackend = new JesBackend() {
-      override lazy val conf = new JesAttributes(applicationName = "",
-      project = "", executionBucket = "", endpointUrl = new URL("http://fakeurl.com"), authMode = RefreshTokenMode, docker = None)
+      override lazy val conf = new JesAttributes(
+        applicationName = anyString,
+        project = anyString,
+        executionBucket = anyString,
+        endpointUrl = any[URL],
+        authMode = RefreshTokenMode,
+        docker = None)
     }
 
     try {

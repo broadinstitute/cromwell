@@ -21,10 +21,7 @@ object Backend {
   def from(name: String) = try {
     name.toLowerCase match {
       case "local" => new LocalBackend
-      case "jes" =>
-        new JesBackend {
-          conf //forces configuration resolution to fail now if something is missing
-        }
+      case "jes" => new JesBackend { conf } //forces configuration resolution to fail now if something is missing
       case "sge" => new SgeBackend
       case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
     }

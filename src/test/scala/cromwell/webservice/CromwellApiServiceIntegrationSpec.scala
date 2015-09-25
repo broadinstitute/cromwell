@@ -16,8 +16,8 @@ import scala.concurrent.duration.Duration
 
 class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   def actorRefFactory = system
-  val dataAccess = DataAccess()
-  val workflowManager = system.actorOf(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance))
+  val dataAccess = DataAccess.instance
+  val workflowManager = system.actorOf(WorkflowManagerActor.props(CromwellSpec.BackendInstance))
   val version = "v1"
 
   override protected def afterAll() {

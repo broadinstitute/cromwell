@@ -12,10 +12,10 @@ trait WorkflowManagerSystem {
   implicit val actorSystem = ActorSystem(systemName)
 
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
-  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(dataAccess, backend), "WorkflowManagerActor")
+  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(backend), "WorkflowManagerActor")
 
   // Lazily created as the primary consumer is the workflowManagerActor.
-  private lazy val dataAccess: DataAccess = DataAccess()
+  private lazy val dataAccess: DataAccess = DataAccess.instance
 
   /**
    * Should be called after the system is no longer in use.

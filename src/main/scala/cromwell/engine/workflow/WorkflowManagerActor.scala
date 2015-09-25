@@ -42,7 +42,7 @@ object WorkflowManagerActor {
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
 
-  def props(dataAccess: DataAccess, backend: Backend): Props = Props(new WorkflowManagerActor(dataAccess, backend))
+  def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
   lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
   lazy val BackendType = BackendInstance.backendType
@@ -55,7 +55,7 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Actor with CromwellActor {
+class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   import WorkflowManagerActor._
   private val log = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
@@ -71,7 +71,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   def receive = LoggingReceive {
     case SubmitWorkflow(source) =>
       submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
-    case WorkflowStatus(id) => dataAccess.getWorkflowState(id) pipeTo sender
+    case WorkflowStatus(id) => DataAccess.instance.getWorkflowState(id) pipeTo sender
     case WorkflowAbort(id) =>
       workflowStore.toMap.get(id) match {
         case Some(x) =>
@@ -96,14 +96,14 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
    */
   private def assertWorkflowExistence(id: WorkflowId): Future[Any] = {
     // Confirm the workflow exists by querying its state.  If no state is found the workflow doesn't exist.
-    dataAccess.getWorkflowState(id) map {
+    DataAccess.instance.getWorkflowState(id) map {
       case None => throw new WorkflowNotFoundException(s"Workflow '$id' not found")
       case _ =>
     }
   }
 
   private def assertCallExistence(id: WorkflowId, callFqn: FullyQualifiedName): Future[Any] = {
-    dataAccess.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None)) map {
+    DataAccess.instance.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None)) map {
       case None => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case _ =>
     }
@@ -113,7 +113,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
    * Retrieve the entries that produce stdout and stderr.
    */
   private def getCallLogKeys(id: WorkflowId, callFqn: FullyQualifiedName): Future[Seq[ExecutionDatabaseKey]] = {
-    dataAccess.getExecutionStatuses(id, callFqn) map {
+    DataAccess.instance.getExecutionStatuses(id, callFqn) map {
       case map if map.isEmpty => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case entries =>
         val callKeys = entries.keys filterNot isCollector(entries.keys)
@@ -124,7 +124,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
-      outputs <- dataAccess.getOutputs(id)
+      outputs <- DataAccess.instance.getOutputs(id)
     } yield {
       SymbolStoreEntry.toWorkflowOutputs(outputs)
     }
@@ -134,7 +134,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
-      outputs <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None))
+      outputs <- DataAccess.instance.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None))
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }
@@ -161,7 +161,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
     for {
         _ <- assertWorkflowExistence(workflowId)
-        descriptor <- dataAccess.getWorkflow(workflowId)
+        descriptor <- DataAccess.instance.getWorkflow(workflowId)
         callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
@@ -184,8 +184,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
     for {
       _ <- assertWorkflowExistence(workflowId)
-      descriptor <- dataAccess.getWorkflow(workflowId)
-      callToStatusMap <- dataAccess.getExecutionStatuses(workflowId)
+      descriptor <- DataAccess.instance.getWorkflow(workflowId)
+      callToStatusMap <- DataAccess.instance.getExecutionStatuses(workflowId)
       x = callToStatusMap mapValues { _.executionStatus }
       callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, callToStatusMap mapValues { _.executionStatus }))
     } yield callToLogsMap
@@ -247,18 +247,18 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
     for {
-      workflowExecution <- dataAccess.getWorkflowExecution(id)
+      workflowExecution <- DataAccess.instance.getWorkflowExecution(id)
       workflowOutputs <- workflowOutputs(id)
       // The workflow has been persisted in the DB so we know the workflowExecutionId must be non-null,
       // so the .get on the Option is safe.
-      workflowExecutionAux <- dataAccess.getWorkflowExecutionAux(workflowExecution.workflowExecutionId.get)
+      workflowExecutionAux <- DataAccess.instance.getWorkflowExecutionAux(workflowExecution.workflowExecutionId.get)
       callStandardStreamsMap <- workflowStdoutStderr(id)
-      executions <- dataAccess.getExecutions(workflowExecution.workflowExecutionId.get)
-      callInputs <- dataAccess.getAllInputs(id)
-      callOutputs <- dataAccess.getAllOutputs(id)
-      jesJobs <- dataAccess.jesJobInfo(id)
-      localJobs <- dataAccess.localJobInfo(id)
-      sgeJobs <- dataAccess.sgeJobInfo(id)
+      executions <- DataAccess.instance.getExecutions(workflowExecution.workflowExecutionId.get)
+      callInputs <- DataAccess.instance.getAllInputs(id)
+      callOutputs <- DataAccess.instance.getAllOutputs(id)
+      jesJobs <- DataAccess.instance.jesJobInfo(id)
+      localJobs <- DataAccess.instance.localJobInfo(id)
+      sgeJobs <- DataAccess.instance.sgeJobInfo(id)
 
       callMetadata = buildCallMetadata(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
@@ -272,7 +272,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val futureId = for {
       descriptor <- Future.fromTry(Try(new WorkflowDescriptor(workflowId, source)))
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend, dataAccess), s"WorkflowActor-$workflowId")
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
     } yield {
       val isRestart = maybeWorkflowId.isDefined
@@ -295,7 +295,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
   private def updateWorkflowState(workflow: WorkflowActorRef, state: WorkflowState): Future[Unit] = {
     val id = idByWorkflow(workflow)
-    dataAccess.updateWorkflowState(id, state)
+    DataAccess.instance.updateWorkflowState(id, state)
   }
 
   private def idByWorkflow(workflow: WorkflowActorRef): WorkflowId = {
@@ -315,9 +315,9 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     }
 
     val result = for {
-      workflowDescriptors <- dataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      workflowDescriptors <- DataAccess.instance.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
       restartableWorkflows = buildRestartableWorkflows(workflowDescriptors)
-      _ <- backend.handleCallRestarts(restartableWorkflows, dataAccess)
+      _ <- backend.handleCallRestarts(restartableWorkflows)
     } yield {
         val num = restartableWorkflows.length
         val (displayNum, plural) = pluralize(num)

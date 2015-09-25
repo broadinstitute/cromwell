@@ -3,11 +3,11 @@ package cromwell.engine.backend.sge
 import java.nio.file.Files
 
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.{CallInputs, CallOutputs, WorkflowDescriptor}
+import cromwell.binding.{CallInputs, WorkflowDescriptor}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
-import cromwell.engine.db.DataAccess
+import cromwell.engine.db.{CallStatus, SgeCallBackendInfo, DataAccess}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.parser.BackendType
@@ -42,14 +42,21 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         launchQsub(backendCall) match {
           case (qsubRc, _) if qsubRc != 0 => FailedExecution(new Throwable(s"Error: qsub exited with return code: $qsubRc"))
           case (_, None) => FailedExecution(new Throwable(s"Could not parse Job ID from qsub output"))
-          case (_, Some(sgeJobId)) => pollForSgeJobCompletionThenPostProcess(backendCall, sgeJobId)
+          case (_, Some(sgeJobId)) =>
+            updateSgeJobTable(backendCall, "Running", None, Option(sgeJobId))
+            pollForSgeJobCompletionThenPostProcess(backendCall, sgeJobId)
         }
       case Failure(ex) => FailedExecution(ex)
     }
   }
 
+  private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]) = {
+    val backendInfo = SgeCallBackendInfo(CallStatus(status, rc), sgeJobId)
+    DataAccess.instance.updateExecutionBackendInfo(call.workflowDescriptor.id, call.call, backendInfo)
+  }
+
   // TODO: Not much thought was given to this function
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
                                  (implicit ec: ExecutionContext): Future[Any] = {
     Future.successful(Unit)
   }
@@ -139,16 +146,27 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val jobRc = waitUntilCompleteFunction
     logger.info(s"$tag SGE job completed (rc=$jobRc)")
     (jobRc, backendCall.stderr.toFile.length) match {
-      case (r, _) if r == 143 => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
+      case (r, _) if r == 143 =>
+        updateSgeJobTable(backendCall, ExecutionStatus.Aborted.toString, Option(jobRc), Option(sgeJobId))
+        AbortedExecution // Special case to check for SIGTERM exit code - implying abort
       case (r, _) if r != 0 && backendCall.call.failOnRc =>
+        updateSgeJobTable(backendCall, ExecutionStatus.Failed.toString, Option(jobRc), Option(sgeJobId))
         FailedExecution(new Exception(s"$tag SGE job failed because of non-zero return code: $r"), Option(r))
       case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
+        updateSgeJobTable(backendCall, ExecutionStatus.Failed.toString, Option(jobRc), Option(sgeJobId))
         FailedExecution(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"), Option(0))
       case (_, _) =>
+        updateSgeJobTable(backendCall, ExecutionStatus.Done.toString, Option(jobRc), Option(sgeJobId))
         postProcess(backendCall) match {
           case Success(callOutputs) =>  SuccessfulExecution(callOutputs)
           case Failure(e) => FailedExecution(e)
         }
     }
   }
+
+  // Nothing to do currently
+  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
+
+  // No workflow options for sge yet
+  override def assertWorkflowOptions(options: Map[String, String]): Unit = {}
 }

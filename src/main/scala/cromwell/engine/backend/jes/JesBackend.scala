@@ -45,7 +45,7 @@ object JesBackend {
   val GcsRootOptionKey = "jes_gcs_root"
   val OptionKeys = Set(AccountOptionKey, RefreshTokenOptionKey, GcsRootOptionKey)
 
-  def gcsAuthFilePath(descriptor: WorkflowDescriptor) = {
+  def gcsAuthFilePath(descriptor: WorkflowDescriptor): String = {
     val wfPath = workflowGcsPath(descriptor)
     s"$wfPath/gcloudauth.json"
   }
@@ -73,7 +73,7 @@ object JesBackend {
     gcsPath.map(JesInput(ExtraConfigParamName, _, Paths.get(""), "LITERAL"))
 
   // Create an input parameter containing the path to this authentication file
-  def gcsAuthParameter(descriptor: WorkflowDescriptor) = {
+  def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
     if (JesConf.authMode == RefreshTokenMode || JesConf.docker.isDefined) {
       authGcsCredentialsPath(Option(gcsAuthFilePath(descriptor)))
     } else None
@@ -157,7 +157,7 @@ class JesBackend extends Backend with LazyLogging {
     Success(workflow.actualInputs)
   }
 
-  override def assertWorkflowOptions(options: Map[String, String]) = {
+  override def assertWorkflowOptions(options: Map[String, String]): Unit = {
     // Warn for unrecognized option keys
     options.keySet.diff(OptionKeys) match {
       case unknowns if unknowns.nonEmpty => logger.warn(s"Unrecognized workflow option(s): ${unknowns.mkString(", ")}")
@@ -176,14 +176,14 @@ class JesBackend extends Backend with LazyLogging {
   /**
    * Delete authentication file in gcs once workflow is in a terminal state.
    */
-  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = {
+  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
     Future(JesConnection.storage.deleteObject(GoogleCloudStoragePath(gcsAuthFilePath(workflow))))
   }
 
   /**
    * Get a GcsUserAuthInformation from workflow options
    */
-  def getGcsAuthInformation(workflow: WorkflowDescriptor) = {
+  def getGcsAuthInformation(workflow: WorkflowDescriptor): Option[GcsUserAuthInformation] = {
     for {
       account <- workflow.workflowOptions.get(AccountOptionKey)
       token <- workflow.workflowOptions.get(RefreshTokenOptionKey)

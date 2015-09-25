@@ -1,12 +1,15 @@
 package cromwell.engine.backend.jes
 
-import java.net.{MalformedURLException, URL}
+import java.net.URL
 
-import com.typesafe.config.{ConfigException, Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import cromwell.util.ConfigUtil._
-import scala.util.Try
+import cromwell.util.ReferenceConfiguration
+
+import scala.collection.JavaConversions._
+import scala.language.postfixOps
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 case class JesAttributes(applicationName: String,
                          project: String,
@@ -16,30 +19,34 @@ case class JesAttributes(applicationName: String,
                          dockerCredentials: Option[DockerCredentials])
 object JesAttributes {
 
+  private val requiredConfig = ConfigFactory.parseMap(Map(
+    "applicationName" -> "",
+    "project" -> "",
+    "baseExecutionBucket" -> "",
+    "endpointUrl" -> "",
+    "authenticationMode" -> ""
+  ))
+
+  private val optionalConfig = Option(ConfigFactory.parseMap(Map(
+    "dockerAccount" -> "",
+    "dockerToken" -> ""
+  )))
+
+  val referenceJesConf = ReferenceConfiguration(requiredConfig, optionalConfig, "Jes")
+
   def apply(): JesAttributes = {
     val jesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
-    val refConf: Config = ConfigFactory.parseResources("jes.conf")
-    val context = "Jes"
-    // Those are commented in the reference configuration so they don't fail validation if they are missing
-    val optionalKeys = Seq("dockerAccount", "dockerToken")
 
-    jesConf.checkValidWrapped(refConf, context)
-    jesConf.warnNotRecognized(refConf, context, optionalKeys)
+    jesConf.checkValidWithWarnings(referenceJesConf)
 
     val applicationName = jesConf.getString("applicationName")
     val project = jesConf.getString("project")
     val executionBucket = jesConf.getString("baseExecutionBucket")
 
-    val endpointUrl: ValidationNel[String, URL] = try {
-      jesConf.getURL("endpointUrl").successNel
-    } catch {
-      case e: MalformedURLException => e.getMessage.failureNel
-    }
-
-    val authMode: ValidationNel[String, GcsAuthMode] = try {
-      GcsAuthMode.fromString(jesConf.getString("authenticationMode")).successNel
-    } catch {
-      case e: IllegalArgumentException => e.getMessage.failureNel
+    // values requiring extended validation
+    val endpointUrl: ValidationNel[String, URL] = jesConf.validateURL("endpointUrl")
+    val authMode: ValidationNel[String, GcsAuthMode] = {
+      jesConf.getString("authenticationMode").validateAny[GcsAuthMode, IllegalArgumentException] { GcsAuthMode.fromString }
     }
 
     val dockerCredentials = for {
@@ -51,7 +58,7 @@ object JesAttributes {
       case Success(r) => r
       case Failure(f) =>
         val errorMessages = f.list.mkString(", ")
-        throw new IllegalArgumentException(s"RuntimeAttribute is not valid: Errors: $errorMessages")
+        throw new IllegalArgumentException(s"Jes Configuration is not valid: Errors: $errorMessages")
     }
   }
 

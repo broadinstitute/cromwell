@@ -1,12 +1,14 @@
 package cromwell.util
 
-import java.net.URL
+import java.net.{MalformedURLException, URL}
 
-import com.typesafe.config.{ConfigValue, Config, ConfigException}
+import com.typesafe.config.{ConfigValue, Config, ConfigException, ConfigFactory}
 import org.slf4j.{LoggerFactory, Logger}
-
+import scala.reflect.{ClassTag, classTag}
 import scala.collection.JavaConversions._
 import scala.util.Try
+import scalaz._
+import Scalaz._
 
 object ConfigUtil {
 
@@ -21,7 +23,9 @@ object ConfigUtil {
   }
 
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
-    
+
+    def keys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
+
     def getStringOption(key: String): Option[String] = {
       Try(config.getString(key)) match {
         case scala.util.Success(value) => Option(value)
@@ -29,38 +33,59 @@ object ConfigUtil {
         case scala.util.Failure(e) => throw e
       }
     }
-    
-    def getURL(key: String): URL = {
-      new URL(config.getString(key))
-    }
 
     /**
      * Checks that the configuration is valid compared to refConfig (i.e. at least all same keys with same type).
      * Wrap the exception to add some context information about what this config is about.
-     * @param context String to be added as a prefix in the Exception message if validation fails
      */
-    def checkValidWrapped(refConfig: Config, context: String) = {
+    def checkValidWithWarnings(refConfig: ReferenceConfiguration) = {
       try {
-        config.checkValid(refConfig)
+        config.checkValid(refConfig.requiredConfig)
+        warnNotRecognized(refConfig)
       } catch {
-        case e: ConfigException.ValidationFailed => throw new ConfigValidationException(context, e)
+        case e: ConfigException.ValidationFailed => throw new ConfigValidationException(refConfig.context, e)
         case t: Throwable => throw t
       }
     }
 
     /**
      * For keys that are in the configuration but not in the reference configuration, log a warning.
-     * @param context String to be added as a prefix in the Exception message if validation fails
-     * @param optionalKeys keys that should not be considered unrecognized if they are present but are not in the reference configuration
      */
-    def warnNotRecognized(refConf: Config, context: String, optionalKeys: Seq[String] = Nil) = {
-      val refKeys = refConf.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
-      val confKeys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
-
-      confKeys.diff(refKeys ++ optionalKeys) match {
-        case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key(s) for $context: ${warnings.mkString(", ")}")
+    def warnNotRecognized(refConf: ReferenceConfiguration) = {
+      keys.diff(refConf.keys) match {
+        case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key(s) for ${refConf.context}: ${warnings.mkString(", ")}")
         case _ =>
       }
     }
+
+    /**
+     * Validates that the value for this key is a well formed URL.
+     */
+    def validateURL(key: String): ValidationNel[String, URL] = key.validateAny { url =>
+      new URL(config.getString(url))
+    }
+
   }
+
+  implicit class EnhancedValidation[I <: AnyRef](val value: I) extends AnyVal {
+    /**
+     * Validates this value by applying validationFunction to it and returning a Validation:
+     * Returns successNel upon success.
+     * If an exception is thrown AND is a subtype of E, return failureNel with the exception message. 
+     * @param validationFunction function that should throw an exception if this value is found not to be valid
+     * @tparam O return type of mappingFunction
+     * @tparam E Restricts the subtype of Exception that should be caught during validation
+     */
+      def validateAny[O, E <: Exception: ClassTag](validationFunction: I => O): ValidationNel[String, O] = try {
+        validationFunction(value).successNel
+      } catch {
+        case e if classTag[E].runtimeClass.isInstance(e) => e.getMessage.failureNel
+      }
+  }
+
+}
+
+case class ReferenceConfiguration(requiredConfig: Config, optionalConfig: Option[Config], context: String) {
+  import ConfigUtil._
+  lazy val keys = requiredConfig.keys ++ optionalConfig.getOrElse(ConfigFactory.empty()).keys
 }

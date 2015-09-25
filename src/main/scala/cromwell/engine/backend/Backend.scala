@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import com.typesafe.config.Config
+import com.typesafe.config.{ConfigException, Config}
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
@@ -18,12 +18,23 @@ import scala.util.Try
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
   def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
-  def from(name: String) = name.toLowerCase match {
-    case "local" => new LocalBackend
-    case "jes" => new JesBackend
-    case "sge" => new SgeBackend
-    case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
+  def from(name: String) = try {
+    name.toLowerCase match {
+      case "local" => new LocalBackend
+      case "jes" => new JesBackend
+      case "sge" => new SgeBackend
+      case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
+    }
+  } catch {
+    case e: ExceptionInInitializerError =>
+      e.getCause match {
+          // Unwrap cause if it is a configuration validation exception for more clarity
+        case c: ConfigException.ValidationFailed => throw c
+        case _ => throw e
+      }
+    case t: Throwable => throw t
   }
+
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
 }
 

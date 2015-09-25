@@ -32,7 +32,6 @@ object Backend {
         case c: ConfigException.ValidationFailed => throw c
         case _ => throw e
       }
-    case t: Throwable => throw t
   }
 
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)

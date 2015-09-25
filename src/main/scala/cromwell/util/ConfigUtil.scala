@@ -53,7 +53,7 @@ object ConfigUtil {
      * @param context String to be added as a prefix in the Exception message if validation fails
      * @param optionalKeys keys that should not be considered unrecognized if they are present but are not in the reference configuration
      */
-    def warnNotRecognized(refConf: Config, context: String, optionalKeys: String*) = {
+    def warnNotRecognized(refConf: Config, context: String, optionalKeys: Seq[String] = Nil) = {
       val refKeys = refConf.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
       val confKeys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
 

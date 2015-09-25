@@ -5,6 +5,7 @@ import java.math.BigInteger
 import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Parameter
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.NoFunctions
@@ -104,7 +105,7 @@ object JesBackend {
 class JesBackend extends Backend with LazyLogging {
   type BackendCall = JesBackendCall
 
-  // FIXME: not ideal but allows overriding this method in the tests to pass a mocked configuration
+  // FIXME: not ideal but allows overriding this value in the tests to pass a mocked configuration
   lazy val conf = JesConf
 
   /**

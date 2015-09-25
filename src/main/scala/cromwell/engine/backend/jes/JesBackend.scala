@@ -15,7 +15,6 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
 import cromwell.parser.BackendType
@@ -318,7 +317,8 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
+  // FIXME: Still needs FIXing
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 
   override def backendType = BackendType.JES
 }

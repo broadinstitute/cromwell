@@ -70,7 +70,7 @@ trait Backend {
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
    */
-  def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any]
+  def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext): Future[Any]
 
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call

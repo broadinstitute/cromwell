@@ -19,7 +19,6 @@ object Run  {
   lazy val maximumPollingInterval = ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval") * 1000
   val initialPollingInterval = 500
   val pollingBackoffFactor = 1.1
-  lazy val dataAccess = DataAccess()
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
@@ -75,7 +74,7 @@ object Run  {
 
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
-      dataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
+      DataAccess.instance.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
     }
 
     if (breakout(currentStatus)) {

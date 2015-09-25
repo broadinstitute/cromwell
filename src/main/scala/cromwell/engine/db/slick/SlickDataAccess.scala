@@ -140,7 +140,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     case o => wdlType.fromWdlString(dbValue)
   }
 
-  override def shutdown() = database.shutdown
+  override def shutdown() = Future.successful(()) //database.shutdown
 
   // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {

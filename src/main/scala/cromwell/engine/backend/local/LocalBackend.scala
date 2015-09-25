@@ -103,18 +103,18 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
+      DataAccess.instance.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
     }
 
     val seqOfFutures = restartableWorkflows map { workflow =>
       for {
-        callsToStatuses <- dataAccess.getExecutionStatuses(workflow.id)
+        callsToStatuses <- DataAccess.instance.getExecutionStatuses(workflow.id)
         _ <- updateNonTerminalCalls(workflow.id, callsToStatuses)
       } yield ()
     }

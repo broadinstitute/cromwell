@@ -50,8 +50,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def initializeForWorkflow(workflow: WorkflowDescriptor) =
       throw new NotImplementedError
 
-    override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
-                                    dataAccess: DataAccess)(implicit ec: ExecutionContext) =
+    override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext) =
       throw new NotImplementedError
 
     override def bindCall(workflowDescriptor: WorkflowDescriptor,
@@ -635,11 +634,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId, call, null)
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
-    }
-
-    it should "shutdown the database" in {
-      assume(canConnect || testRequired)
-      dataAccess.shutdown().futureValue
     }
   }
 }

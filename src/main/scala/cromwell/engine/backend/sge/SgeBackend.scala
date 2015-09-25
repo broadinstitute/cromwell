@@ -19,10 +19,6 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
-object SgeBackend {
-  val dataAccess = DataAccess()
-}
-
 class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   type BackendCall = SgeBackendCall
 
@@ -56,11 +52,11 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
 
   private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]) = {
     val backendInfo = SgeCallBackendInfo(CallStatus(status, rc), sgeJobId)
-    SgeBackend.dataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, call.call, backendInfo)
+    DataAccess.instance.updateExecutionBackendInfo(call.workflowDescriptor.id, call.call, backendInfo)
   }
 
   // TODO: Not much thought was given to this function
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
                                  (implicit ec: ExecutionContext): Future[Any] = {
     Future.successful(Unit)
   }

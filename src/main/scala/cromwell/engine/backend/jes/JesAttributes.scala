@@ -10,7 +10,7 @@ case class JesAttributes(applicationName: String,
                          executionBucket: String,
                          endpointUrl: URL,
                          authMode: GcsAuthMode,
-                         docker: Option[DockerAuthInformation])
+                         dockerCredentials: Option[DockerCredentials])
 object JesAttributes {
 
   def apply(): JesAttributes = {
@@ -25,17 +25,17 @@ object JesAttributes {
     val executionBucket = jesConf.getString("baseExecutionBucket")
     val endpointUrl = jesConf.getURL("endpointUrl")
     val authMode = GcsAuthMode.fromString(jesConf.getString("authenticationMode"))
-    val docker = for {
+    val dockerCredentials = for {
       account <- jesConf.getStringOption("dockerAccount")
       token <- jesConf.getStringOption("dockerToken")
-    } yield DockerAuthInformation(account, token)
+    } yield DockerCredentials(account, token)
 
     JesAttributes(applicationName,
       project,
       executionBucket,
       endpointUrl,
       authMode,
-      docker)
+      dockerCredentials)
   }
 
 }

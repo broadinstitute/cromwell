@@ -55,7 +55,7 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar with Mocki
         executionBucket = anyString,
         endpointUrl = any[URL],
         authMode = RefreshTokenMode,
-        docker = None)
+        dockerCredentials = None)
     }
 
     try {

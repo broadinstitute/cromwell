@@ -40,7 +40,7 @@ object JesBackend {
   val ExtraConfigParamName = "__extra_config_gcs_path"
   val JesCromwellRoot = "/cromwell_root"
 
-  //Workflow options keys
+  // Workflow options keys
   val AccountOptionKey = "account_name"
   val RefreshTokenOptionKey = "refresh_token"
   val GcsRootOptionKey = "jes_gcs_root"
@@ -75,7 +75,7 @@ object JesBackend {
 
   // Create an input parameter containing the path to this authentication file
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if (JesConf.authMode == RefreshTokenMode || JesConf.docker.isDefined) {
+    if (JesConf.authMode == RefreshTokenMode || JesConf.dockerCredentials.isDefined) {
       authGcsCredentialsPath(Option(gcsAuthFilePath(descriptor)))
     } else None
   }
@@ -149,7 +149,7 @@ class JesBackend extends Backend with LazyLogging {
       getGcsAuthInformation(workflow)
     } else None
 
-    GcsAuth.generateJson(conf.docker, userJson) foreach { content =>
+    GcsAuth.generateJson(conf.dockerCredentials, userJson) foreach { content =>
       val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
       logger.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
       JesConnection.storage.uploadJson(path, content)

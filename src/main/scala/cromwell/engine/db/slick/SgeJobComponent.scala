@@ -1,7 +1,7 @@
 package cromwell.engine.db.slick
 
 case class SgeJob (executionId: Int,
-                   sgeJobNumber: Int,
+                   sgeJobNumber: Option[Int],
                    sgeJobId: Option[Int] = None)
 
 trait SgeJobComponent {
@@ -14,7 +14,7 @@ trait SgeJobComponent {
 
     def executionId = column[Int]("EXECUTION_ID")
 
-    def sgeJobNumber = column[Int]("SGE_JOB_NUMBER")
+    def sgeJobNumber = column[Option[Int]]("SGE_JOB_NUMBER")
 
     override def * = (executionId, sgeJobNumber, sgeJobId.?) <> (SgeJob.tupled, SgeJob.unapply)
 

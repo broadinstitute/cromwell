@@ -18,4 +18,5 @@
     <include file="changesets/rc.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_options.xml" relativeToChangelogFile="true" />
     <include file="changesets/jes_id_update.xml" relativeToChangelogFile="true" />
+    <include file="changesets/optional_sge_ids.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

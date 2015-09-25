@@ -149,8 +149,6 @@ object Main extends App {
       case e: Exception =>
         println("Unable to process inputs")
         e.printStackTrace()
-    } finally {
-      workflowManagerSystem.shutdown() // Future[Unit], but give it a shot
     }
   }
 

@@ -71,9 +71,9 @@ object ConfigUtil {
     /**
      * Validates this value by applying validationFunction to it and returning a Validation:
      * Returns successNel upon success.
-     * If an exception is thrown AND is a subtype of E, return failureNel with the exception message. 
+     * If an exception is thrown and is a subtype of E, return failureNel with the exception message.
      * @param validationFunction function that should throw an exception if this value is found not to be valid
-     * @tparam O return type of mappingFunction
+     * @tparam O return type of validationFunction
      * @tparam E Restricts the subtype of Exception that should be caught during validation
      */
       def validateAny[O, E <: Exception: ClassTag](validationFunction: I => O): ValidationNel[String, O] = try {
@@ -85,7 +85,7 @@ object ConfigUtil {
 
 }
 
-case class ReferenceConfiguration(requiredConfig: Config, optionalConfig: Option[Config], context: String) {
+case class ReferenceConfiguration(context: String, requiredConfig: Config, optionalConfig: Option[Config]) {
   import ConfigUtil._
   lazy val keys = requiredConfig.keys ++ optionalConfig.getOrElse(ConfigFactory.empty()).keys
 }

@@ -32,7 +32,7 @@ object JesAttributes {
     "dockerToken" -> ""
   )))
 
-  val referenceJesConf = ReferenceConfiguration(requiredConfig, optionalConfig, "Jes")
+  val referenceJesConf = ReferenceConfiguration("Jes", requiredConfig, optionalConfig)
 
   def apply(): JesAttributes = {
     val jesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
@@ -45,9 +45,7 @@ object JesAttributes {
 
     // values requiring extended validation
     val endpointUrl: ValidationNel[String, URL] = jesConf.validateURL("endpointUrl")
-    val authMode: ValidationNel[String, GcsAuthMode] = {
-      jesConf.getString("authenticationMode").validateAny[GcsAuthMode, IllegalArgumentException] { GcsAuthMode.fromString }
-    }
+    val authMode: ValidationNel[String, GcsAuthMode] = jesConf.getString("authenticationMode") validateAny GcsAuthMode.fromString
 
     val dockerCredentials = for {
       account <- jesConf.getStringOption("dockerAccount")

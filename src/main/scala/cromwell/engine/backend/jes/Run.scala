@@ -67,7 +67,6 @@ object Run  {
   private final def waitForStatus(run: Run, previousStatus: Option[RunStatus], pollingInterval: Double, breakout: RunStatus => Boolean): RunStatus = {
     val currentStatus = run.status()
 
-    Log.info(s"${run.tag}: DEBUG DEBUG $currentStatus")
     if (!(previousStatus contains currentStatus)) {
       // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
       // just use the state names.

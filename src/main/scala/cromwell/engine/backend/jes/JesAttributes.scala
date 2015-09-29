@@ -19,31 +19,26 @@ case class JesAttributes(applicationName: String,
                          dockerCredentials: Option[DockerCredentials])
 object JesAttributes {
 
-  private val requiredConfig = ConfigFactory.parseMap(Map(
-    "applicationName" -> "",
-    "project" -> "",
-    "baseExecutionBucket" -> "",
-    "endpointUrl" -> "",
-    "authenticationMode" -> ""
-  ))
+  private val keys = Set(
+    "applicationName",
+    "project",
+    "baseExecutionBucket",
+    "endpointUrl",
+    "authenticationMode",
+    "dockerAccount",
+    "dockerToken"
+  )
 
-  private val optionalConfig = Option(ConfigFactory.parseMap(Map(
-    "dockerAccount" -> "",
-    "dockerToken" -> ""
-  )))
-
-  val referenceJesConf = ReferenceConfiguration("Jes", requiredConfig, optionalConfig)
+  private val context = "Jes"
 
   def apply(): JesAttributes = {
     val jesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
 
-    jesConf.checkValidWithWarnings(referenceJesConf)
+    jesConf.warnNotRecognized(keys, context)
 
-    val applicationName = jesConf.getString("applicationName")
-    val project = jesConf.getString("project")
-    val executionBucket = jesConf.getString("baseExecutionBucket")
-
-    // values requiring extended validation
+    val applicationName: ValidationNel[String, String] = jesConf.validateString("applicationName")
+    val project: ValidationNel[String, String] = jesConf.validateString("project")
+    val executionBucket: ValidationNel[String, String] = jesConf.validateString("baseExecutionBucket")
     val endpointUrl: ValidationNel[String, URL] = jesConf.validateURL("endpointUrl")
     val authMode: ValidationNel[String, GcsAuthMode] = jesConf.getString("authenticationMode") validateAny GcsAuthMode.fromString
 
@@ -52,7 +47,9 @@ object JesAttributes {
       token <- jesConf.getStringOption("dockerToken")
     } yield DockerCredentials(account, token)
 
-    (endpointUrl |@| authMode) { JesAttributes(applicationName, project, executionBucket, _, _, dockerCredentials) } match {
+    (applicationName |@| project |@| executionBucket |@| endpointUrl |@| authMode) {
+      JesAttributes(_, _, _, _, _, dockerCredentials)
+    } match {
       case Success(r) => r
       case Failure(f) =>
         val errorMessages = f.list.mkString(", ")

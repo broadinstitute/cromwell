@@ -35,25 +35,11 @@ object ConfigUtil {
     }
 
     /**
-     * Checks that the configuration is valid compared to refConfig (i.e. at least all same keys with same type).
-     * Wrap the exception to add some context information about what this config is about.
+     * For keys that are in the configuration but not in the reference keySet, log a warning.
      */
-    def checkValidWithWarnings(refConfig: ReferenceConfiguration) = {
-      try {
-        config.checkValid(refConfig.requiredConfig)
-        warnNotRecognized(refConfig)
-      } catch {
-        case e: ConfigException.ValidationFailed => throw new ConfigValidationException(refConfig.context, e)
-        case t: Throwable => throw t
-      }
-    }
-
-    /**
-     * For keys that are in the configuration but not in the reference configuration, log a warning.
-     */
-    def warnNotRecognized(refConf: ReferenceConfiguration) = {
-      keys.diff(refConf.keys) match {
-        case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key(s) for ${refConf.context}: ${warnings.mkString(", ")}")
+    def warnNotRecognized(keySet: Set[String], context: String) = {
+      keys.diff(keySet) match {
+        case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key(s) for $context: ${warnings.mkString(", ")}")
         case _ =>
       }
     }
@@ -63,6 +49,12 @@ object ConfigUtil {
      */
     def validateURL(key: String): ValidationNel[String, URL] = key.validateAny { url =>
       new URL(config.getString(url))
+    }
+
+    def validateString(key: String): ValidationNel[String, String] = try {
+      config.getString(key).successNel
+    } catch {
+      case e: ConfigException.Missing => "Could not find key: $key".failureNel
     }
 
   }

@@ -5,14 +5,15 @@ import java.nio.file.{Files, Paths}
 
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
-import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor}
+import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor, WorkflowOptions}
 import cromwell.parser.WdlParser.SyntaxError
 import cromwell.server.{CromwellServer, DefaultWorkflowManagerSystem, WorkflowManagerSystem}
 import cromwell.util.FileUtil.EnhancedPath
 import org.slf4j.LoggerFactory
 import spray.json._
 
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -129,8 +130,17 @@ object Main extends App {
         case _ => throw new RuntimeException("Expecting a JSON object")
       }
 
+      val options = WorkflowOptions.fromJsonObject(workflowOptions.parseJson.asInstanceOf[JsObject]) match {
+        case Success(x) => x
+        case Failure(ex) =>
+          System.err.println(s"ERROR: Could not parse workflow options:\n")
+          System.err.println(ex.getMessage)
+          System.exit(1)
+          ???
+      }
+
       inputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
-      val sources = WorkflowSourceFiles(wdlSource, inputsJson, workflowOptions)
+      val sources = WorkflowSourceFiles(wdlSource, inputsJson, options.asPrettyJson)
       val singleWorkflowRunner = SingleWorkflowRunnerActor.props(sources, inputs, workflowManagerSystem.workflowManagerActor)
       workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner, "SingleWorkflowRunnerActor")
       workflowManagerSystem.actorSystem.awaitTermination()

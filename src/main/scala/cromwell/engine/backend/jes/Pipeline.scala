@@ -3,7 +3,8 @@ package cromwell.engine.backend.jes
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.CreatePipelineRequest
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.{Call, WorkflowDescriptor}
+import cromwell.binding.Call
+import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.workflow.CallKey
 
@@ -29,7 +30,7 @@ object Pipeline extends LazyLogging {
     logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s=>s"  $s").mkString("\n")}")
     val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
     logger.info(s"$tag Pipeline ID is $pipelineId")
-    
+    logger.info(s"$tag Project ID: $projectId")
     new Pipeline(command, 
                  pipelineId, 
                  projectId, 

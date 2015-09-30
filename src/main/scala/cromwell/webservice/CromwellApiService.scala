@@ -1,45 +1,26 @@
 package cromwell.webservice
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
-import com.typesafe.config.Config
-import cromwell.binding.WorkflowSourceFiles
-import cromwell.engine.WorkflowId
-import cromwell.engine.workflow.ValidateActor
+import akka.actor.{Actor, ActorRef, Props}
+import cromwell.engine.workflow.{ValidateActor, WorkflowOptions}
+import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
 
-import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success, Try}
 
-object SwaggerService {
-  /*
-    Because of the implicit arg requirement apply() doesn't work here, so falling back to the less
-    idiomatic (but not unheard of) from().
-   */
-  def from(conf: Config)(implicit actorRefFactory: ActorRefFactory): SwaggerService = {
-    new SwaggerService(conf.getConfig("swagger"))
-  }
-}
-
-class SwaggerService(override val swaggerConfig: Config)
-                    (implicit val actorRefFactory: ActorRefFactory)
-  extends SwaggerConfigHttpService {
-  override def apiTypes = Vector(typeOf[CromwellApiService])
-}
-
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, swaggerService: SwaggerService): Props = {
-    Props(new CromwellApiServiceActor(workflowManagerActorRef, swaggerService))
+  def props(workflowManagerActorRef: ActorRef): Props = {
+    Props(new CromwellApiServiceActor(workflowManagerActorRef))
   }
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, swaggerService: SwaggerService) extends Actor with CromwellApiService {
+class CromwellApiServiceActor(val workflowManager: ActorRef) extends Actor with CromwellApiService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = options { complete(StatusCodes.OK) } ~ workflowRoutes ~ swaggerService.uiRoutes
+  def possibleRoutes = options { complete(StatusCodes.OK) } ~ workflowRoutes
 
   def receive = runRoute(possibleRoutes)
 }
@@ -89,20 +70,23 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           val tryInputsMap = Try(workflowInputs.getOrElse("{}").parseJson)
           val tryOptionsMap = Try(workflowOptions.getOrElse("{}").parseJson)
           (tryInputsMap, tryOptionsMap) match {
-            case (Success(JsObject(inputs)), Success(JsObject(options))) =>
-              if (!options.values.exists(_.isInstanceOf[JsString])) {
+            case (Success(JsObject(_)), Success(options: JsObject)) =>
+              if (!options.fields.values.exists(_.isInstanceOf[JsString])) {
                 complete(StatusCodes.BadRequest, "Workflow options must be a string -> string map")
               }
-              val parsedWorkflowOptions = options map {
-                case (k, v) => k -> v.asInstanceOf[JsString].value
+              WorkflowOptions.fromJsonObject(options) match {
+                case Success(wfOptions) =>
+                  requestContext => perRequest(
+                    requestContext,
+                    CromwellApiHandler.props(workflowManager),
+                    CromwellApiHandler.WorkflowSubmit(
+                      WorkflowSourceFiles(
+                        wdlSource, workflowInputs.getOrElse("{}"), wfOptions.asPrettyJson
+                      )
+                    )
+                  )
+                case Failure(ex) => complete(StatusCodes.PreconditionFailed, s"Could not encrypt workflow options: ${ex.getMessage}")
               }
-              requestContext => perRequest(
-                requestContext,
-                CromwellApiHandler.props(workflowManager),
-                CromwellApiHandler.WorkflowSubmit(
-                  WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
-                )
-              )
             case (Success(_), _) | (_, Success(_)) =>
               complete(StatusCodes.BadRequest, "Expecting JSON object for workflowInputs and workflowOptions fields")
             case (Failure(ex), _) =>

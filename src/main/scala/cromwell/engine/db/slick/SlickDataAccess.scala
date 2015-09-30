@@ -629,4 +629,14 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     }
   }
 
+  override def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String): Future[Unit] = {
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.id.toString).result.head
+      count <- dataAccess.workflowOptionsFromWorkflowId(workflowExecution.workflowExecutionId.get).update(workflowOptionsJson.toClob)
+      _ = require(count == 1, s"Unexpected workflow aux update count $count")
+    } yield ()
+
+    runTransaction(action)
+  }
+
 }

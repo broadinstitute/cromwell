@@ -18,6 +18,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [inputs](#inputs)
   * [run](#run)
   * [parse](#parse)
+  * [highlight](#highlight)
   * [server](#server)
 * [Getting Started with WDL](#getting-started-with-wdl)
   * [Hello World WDL](#hello-world-wdl)
@@ -33,6 +34,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Local Backend](#local-backend)
   * [Sun GridEngine](#sun-gridengine)
   * [Google JES](#google-jes)
+    * [Authentication Modes](#authentication-modes)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /workflows/:version](#post-workflowsversion)
@@ -268,8 +270,8 @@ Where `wf_options.json` would contain:
 
 ```
 {
-  "jes_gcs_root": "gs://my-bucket/workflows"
-  "account_name": "my.google.account@gmail.com"
+  "jes_gcs_root": "gs://my-bucket/workflows",
+  "account_name": "my.google.account@gmail.com",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
 }
 ```
@@ -799,7 +801,85 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES
 
-... more to come ...
+Google JES (Job Execution Service) is a Docker-as-a-service from Google.  JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+
+```hocon
+backend {
+  backend = "jes"
+
+  jes {
+    applicationName = "cromwell"
+
+    // Google project
+    project = "broad-dsde-dev"
+
+    // Location to store workflow results, must be a gs:// URL
+    baseExecutionBucket = "gs://your-bucket/cromwell-executions"
+
+    // Root URL for the API
+    endpointUrl = "https://genomics.googleapis.com/"
+
+    // Polling for completion backs-off gradually for slower-running jobs.
+    // This is the maximum polling interval (in seconds):
+    maximumPollingInterval = 600
+
+    // Authentication mode: either 'service_account' or 'refresh_token'
+    // 'refresh_token' mode will require workflow options to provide a
+    // value for 'refresh_token' for every workflow request
+    authenticationMode = "service_account"
+
+    // Optional Dockerhub Credentials
+    // dockerAccount = ""
+    // dockerToken = ""
+  }
+
+  ...
+}
+```
+
+It is also necessary to fill out the `google` stanza in the configuration file.  This stanza will set up the service account that Cromwell uses to write certain files to GCS.
+
+```hocon
+google {
+  authScheme = "service"
+
+  // If authScheme is "user"
+  userAuth {
+    // user = ""
+    // secretsFile = ""
+    // dataStoreDir = ""
+  }
+
+  // If authScheme is "service"
+  serviceAuth {
+    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
+  }
+}
+```
+
+### Authentication Modes
+
+The JES backend has two authentication modes: `service_account`, and `refresh_token`.  These authentication modes determine how Cromwell will authenticate with JES
+
+In `refresh_token` mode, a refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
+
+```
+$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
+```
+
+Where `wf_options.json` would contain:
+
+```
+{
+  "account_name": "my.google.account@gmail.com",
+  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+The refresh token is passed to JES when the job is launched and localization of data and running of the job is done with that refresh token user's account.
+
+In `service_account` mode, the values in the `google {...}` stanza are used to launch jobs and provide localization.  If you are new to using the JES backend, it is easiest to start with in `service_account` mode.
 
 # REST API
 
@@ -1207,15 +1287,14 @@ This endpoint returns a superset of the data from #get-workflowsversionidlogs in
 Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
 Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
 return code, stdout and stderr.  Date formats are ISO with milliseconds.
-  
+
 ### Notes
 
 - The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
   check with Chet first).
-  
+
 - We never actually specify the backend on which the call executed.  One might be able to infer that from
   the shape of the job id, but then again maybe not.
- 
 
 cURL:
 

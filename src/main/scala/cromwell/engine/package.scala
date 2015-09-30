@@ -2,10 +2,16 @@ package cromwell
 
 import java.util.UUID
 
+import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
+import cromwell.engine.backend.Backend
+import cromwell.engine.workflow.WorkflowOptions
+import spray.json._
+
 import scala.language.implicitConversions
+import scala.util.{Success, Try, Failure}
 
 /**
  * ==Cromwell Execution Engine==
@@ -25,6 +31,41 @@ package object engine {
     def fromString(id:String): WorkflowId = new WorkflowId(UUID.fromString(id))
     def randomId() = WorkflowId(UUID.randomUUID())
   }
+
+  /**
+   * Constructs a representation of a particular workflow invocation.  As with other
+   * case classes and apply() methods, this will throw an exception if it cannot be
+   * created
+   */
+  case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
+    val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
+      case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
+      case Success(other) => throw new Throwable(s"Expecting workflow options to be a JSON object, got $other")
+      case Failure(ex) => throw ex
+    }
+
+    val backendType = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+    val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backendType.backendType)
+    val name = namespace.workflow.name
+    val shortId = id.toString.split("-")(0)
+
+    backendType.assertWorkflowOptions(workflowOptions)
+
+    val rawInputs = Try(sourceFiles.inputsJson.parseJson) match {
+      case Success(JsObject(inputs)) => inputs
+      case _ => throw new Throwable(s"Workflow ${id.toString} contains bad inputs JSON: ${sourceFiles.inputsJson}")
+    }
+
+    // Currently we are throwing an exception if construction of the workflow descriptor fails, hence .get on the Trys
+    val coercedInputs = namespace.coerceRawInputs(rawInputs).get
+    val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
+    val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
+  }
+
+  /**
+   * Represents the collection of source files that a user submits to run a workflow
+   */
+  case class WorkflowSourceFiles(wdlSource: WdlSource, inputsJson: WdlJson, workflowOptionsJson: WorkflowOptionsJson)
 
   case class CallReference(workflowName: String, workflowId: WorkflowId, callName: String) {
     override def toString = s"UUID(${workflowId.shortString})/$callName"

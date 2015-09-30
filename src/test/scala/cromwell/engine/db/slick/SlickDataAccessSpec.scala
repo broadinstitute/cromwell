@@ -12,7 +12,7 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey, LocalCallBackendInfo}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalactic.StringNormalizations._
@@ -68,7 +68,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
     override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
 
-    override def assertWorkflowOptions(options: Map[String, String]): Unit = {}
+    override def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
   }
 
   // Tests against main database used for command line

@@ -9,6 +9,7 @@ import cromwell.binding._
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
 import cromwell.engine.db.DataAccess
 import org.apache.commons.io.FileUtils

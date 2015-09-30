@@ -10,7 +10,7 @@ import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
 
@@ -175,12 +175,18 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         }
       }
 
+      val badRcMessage =
+         s"""Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: return code was ${rc.getOrElse("(none)")}
+            |
+            |Full command was: $backendCommandString
+          """.stripMargin
+
       rc match {
         case Success(0) => processSuccess()
         case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
         case Success(badRc) if !backendCall.call.failOnRc => processSuccess()
-        case Success(badRc) if backendCall.call.failOnRc => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}"), Option(badRc))
-        case Failure(e) => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}", e))
+        case Success(badRc) if backendCall.call.failOnRc => FailedExecution(new Throwable(badRcMessage), Option(badRc))
+        case Failure(e) => FailedExecution(new Throwable(badRcMessage, e))
       }
     }
   }
@@ -189,5 +195,5 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
 
   // No workflow options for local backend yet
-  override def assertWorkflowOptions(options: Map[String, String]): Unit = {}
+  override def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 }

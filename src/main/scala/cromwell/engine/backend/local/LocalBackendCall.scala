@@ -1,10 +1,10 @@
 package cromwell.engine.backend.local
 
+import cromwell.binding.CallInputs
 import cromwell.binding.values.WdlValue
-import cromwell.binding.{CallInputs, WorkflowDescriptor}
-import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 
 case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,

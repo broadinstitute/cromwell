@@ -9,7 +9,7 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.parser.BackendType
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -83,7 +83,7 @@ trait Backend {
    * Validate that workflow options contain all required information.
    */
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
-  def assertWorkflowOptions(options: Map[String, String])
+  def assertWorkflowOptions(options: WorkflowOptions)
 
   def makeTag(backendCall: BackendCall): String =
     s"${this.getClass.getSimpleName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"

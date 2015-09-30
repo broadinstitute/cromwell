@@ -18,7 +18,7 @@ class GcsAuthSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   "generateJson" should "generate the correct json content depending on the available configuration" in {
-    val dockerAuth = Option(DockerAuthInformation("my@docker.account", "mydockertoken"))
+    val dockerAuth = Option(DockerCredentials("my@docker.account", "mydockertoken"))
     val userAuth = Option(GcsUserAuthInformation("my@email.com", "myrefreshtoken"))
 
     GcsAuth.generateJson(None, None) shouldBe None

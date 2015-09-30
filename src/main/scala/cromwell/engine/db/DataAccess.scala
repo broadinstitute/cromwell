@@ -66,9 +66,9 @@ trait DataAccess {
   /** Returns all outputs for this workflowId */
   def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
-  def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+  def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
-  def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+  def getAllInputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]]

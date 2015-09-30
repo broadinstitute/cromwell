@@ -1288,13 +1288,6 @@ Workflow metadata includes submission, start, and end datetimes, as well as stat
 Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
 return code, stdout and stderr.  Date formats are ISO with milliseconds.
 
-### Notes
-
-- The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
-  check with Chet first).
-
-- We never actually specify the backend on which the call executed.  One might be able to infer that from
-  the shape of the job id, but then again maybe not.
 
 cURL:
 
@@ -1311,73 +1304,101 @@ $ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/m
 Response:
 ```
 HTTP/1.1 200 OK
+Server spray-can/1.3.3 is not blacklisted
 Server: spray-can/1.3.3
-Date: Fri, 18 Sep 2015 22:31:20 GMT
+Date: Tue, 29 Sep 2015 18:06:42 GMT
 Content-Type: application/json; charset=UTF-8
-Content-Length: 2389
+Content-Length: 5628
 {
   "calls": {
-    "three_step.wc": [{
-      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stdout",
+    "sc_test.do_prepare": [{
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/stdout",
       "outputs": {
-        "output_key": "output_value"
+        "split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ad"]
       },
       "inputs": {
-        "input_key": "input_value"
+        "input_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/workflow-inputs/e46345ba-11.txt"
       },
-      "status": "UnknownStatus",
-      "jobId": "COMPLETELY-MADE-UP-ID",
-      "backend": "UnknownBackend",
-      "end": "2015-09-18T18:31:20.702-04:00",
-      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stderr",
-      "start": "2015-09-18T18:31:20.702-04:00",
-      "rc": 0
+      "returnCode": 0,
+      "backend": "Local",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/stderr"
     }],
-    "three_step.ps": [{
-      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
+    "sc_test.do_scatter": [{
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/stdout",
       "outputs": {
-        "output_key": "output_value"
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/output.txt"
       },
       "inputs": {
-        "input_key": "input_value"
+        "input_file": "f"
       },
-      "status": "UnknownStatus",
-      "jobId": "COMPLETELY-MADE-UP-ID",
-      "backend": "UnknownBackend",
-      "end": "2015-09-18T18:31:20.702-04:00",
-      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stderr",
-      "start": "2015-09-18T18:31:20.702-04:00",
-      "rc": 0
+      "returnCode": 0,
+      "backend": "Local",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/stderr"
+    }, {
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stdout",
+      "outputs": {
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/output.txt"
+      },
+      "inputs": {
+        "input_file": "f"
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stderr"
+    }, {
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stdout",
+      "outputs": {
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/output.txt"
+      },
+      "inputs": {
+        "input_file": "f"
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stderr"
+    }, {
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stdout",
+      "outputs": {
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/output.txt"
+      },
+      "inputs": {
+        "input_file": "f"
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stderr"
     }],
-    "three_step.cgrep": [{
-      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stdout",
+    "sc_test.do_gather": [{
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/stdout",
       "outputs": {
-        "output_key": "output_value"
+        "sum": 11
       },
       "inputs": {
-        "input_key": "input_value"
+        "input_files": "do_scatter.count_file"
       },
-      "status": "UnknownStatus",
-      "jobId": "COMPLETELY-MADE-UP-ID",
-      "backend": "UnknownBackend",
-      "end": "2015-09-18T18:31:20.702-04:00",
-      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stderr",
-      "start": "2015-09-18T18:31:20.702-04:00",
-      "rc": 0
+      "returnCode": 0,
+      "backend": "Local",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/stderr"
     }]
   },
   "outputs": {
-    "three_step.cgrep.count": "3",
-    "three_step.ps.procs": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
-    "three_step.wc.count": "3"
+    "sc_test.do_gather.sum": 11,
+    "sc_test.do_prepare.split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ad"],
+    "sc_test.do_scatter.count_file": ["/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/output.txt"]
   },
-  "id": "6a679113-8c15-4c27-ab5e-936875cdd728",
+  "id": "6efd83b7-39df-47d7-bb2d-96ebb9f093a2",
   "inputs": {
-    "three_step.cgrep.pattern": "..."
+    "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
   },
-  "submission": "2015-09-18T18:31:09.595-04:00",
+  "submission": "2015-09-29T14:06:32.120-04:00",
   "status": "Succeeded",
-  "start": "2015-09-18T18:31:09.595-04:00"
+  "start": "2015-09-29T14:06:32.120-04:00"
 }
 ```
 

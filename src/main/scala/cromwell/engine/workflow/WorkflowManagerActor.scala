@@ -116,7 +116,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     dataAccess.getExecutionStatuses(id, callFqn) map {
       case map if map.isEmpty => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case entries =>
-        val callKeys = entries.keys filterNot isCollector(entries.keys)
+        val callKeys = entries.keys filterNot { _.isCollector(entries.keys) }
         callKeys.toSeq.sortBy(_.index)
     }
   }
@@ -147,15 +147,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     }
   }
 
-  private def isCollector(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
-    key.index.isEmpty &&
-      (entries exists { e =>
-        (e.fqn == key.fqn) && e.index.isDefined
-      })
-  }
-
   private def hasLogs(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
-    !key.fqn.isScatter && !isCollector(entries)(key)
+    !key.fqn.isScatter && !key.isCollector(entries)
   }
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
@@ -173,7 +166,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
-          (key, status) <- sortedMap if status.isTerminal && hasLogs(statusMap.keys)(key)
+          (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
           callStandardOutput = backend.stdoutStderr(descriptor, callName, key.index)
         } yield key.fqn -> callStandardOutput
@@ -191,33 +184,6 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
     } yield callToLogsMap
   }
 
-  private def buildCallMetadata(executions: Traversable[Execution],
-                                standardStreamsMap: Map[FullyQualifiedName, Seq[StdoutStderr]],
-                                callInputs: Traversable[Symbol],
-                                callOutputs: Traversable[Symbol],
-                                jobInfos: Map[ExecutionDatabaseKey, Any]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
-
-    // add straightforward queries for call inputs and outputs
-    // navigate the keys of the map and indices of their arrays to effectively unify the data
-    // into CallMetadata.
-    // figure out how to get job IDs and maybe on which backend the call executed
-    standardStreamsMap map { case (key, seqOfStreams) =>
-      key -> seqOfStreams.map { streams =>
-        CallMetadata(
-          inputs = Map("input_key" -> "input_value"),
-          status = "UnknownStatus",
-          backend = Option("UnknownBackend"),
-          outputs = Option(Map("output_key" -> "output_value")),
-          start = Option(new DateTime()),
-          end = Option(new DateTime()),
-          jobId = Option("COMPLETELY-MADE-UP-ID"),
-          rc = Option(0),
-          stdout = Option(streams.stdout),
-          stderr = Option(streams.stderr))
-      }
-    }
-  }
-
   private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
                                     workflowExecutionAux: WorkflowExecutionAux,
                                     workflowOutputs: binding.WorkflowOutputs,
@@ -225,12 +191,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
 
     val startDate = new DateTime(workflowExecution.startDt)
     val endDate = workflowExecution.endDt map { new DateTime(_) }
-    val outputs = Option(workflowOutputs mapValues { _.valueString })
-    val workflowInputsString = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream).mkString
-    // The casting here looks rough but should be safe if the workflow has gotten through submission?
-    val workflowInputsMap = workflowInputsString.parseJson.asInstanceOf[JsObject].fields map {
-      case (k, v) => k -> v.asInstanceOf[JsString].value
-    }
+    val workflowInputs = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream).mkString.parseJson.asInstanceOf[JsObject]
 
     WorkflowMetadataResponse(
       id = workflowExecution.workflowExecutionUuid.toString,
@@ -240,8 +201,8 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       submission = startDate,
       start = Option(startDate),
       end = endDate,
-      inputs = workflowInputsMap,
-      outputs = outputs,
+      inputs = workflowInputs,
+      outputs = Option(workflowOutputs),
       calls = callMetadata)
   }
 
@@ -260,7 +221,7 @@ class WorkflowManagerActor(dataAccess: DataAccess, backend: Backend) extends Act
       localJobs <- dataAccess.localJobInfo(id)
       sgeJobs <- dataAccess.sgeJobInfo(id)
 
-      callMetadata = buildCallMetadata(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
+      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata

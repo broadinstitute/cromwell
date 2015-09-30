@@ -146,7 +146,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.getExecutionStatus(workflowId, ExecutionDatabaseKey(callFqn, None)) map { status =>
           status.get.executionStatus shouldBe ExecutionStatus.NotStarted
-          status.get.rc shouldBe None
+          status.get.returnCode shouldBe None
         }
       } yield ()).futureValue
     }
@@ -287,7 +287,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             key.fqn should be(expectedFqn)
             key.index should be(None)
             status.executionStatus should be(if (updateStatus) ExecutionStatus.Running else ExecutionStatus.NotStarted)
-            status.rc should be(None)
+            status.returnCode should be(None)
           }
           _ <- dataAccess.insertCalls(workflowId, Seq(CallKey(call, Option(0), None)), localBackend)
           _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(0)))
@@ -297,12 +297,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             result should contain key callKey
             val callStatus = result.get(callKey).get
             callStatus.executionStatus should be(if (updateStatus) ExecutionStatus.Running else ExecutionStatus.NotStarted)
-            callStatus.rc should be(None)
+            callStatus.returnCode should be(None)
 
             result should contain key shardKey
             val shardStatus = result.get(shardKey).get
             shardStatus.executionStatus should be(ExecutionStatus.Done)
-            shardStatus.rc should be(Option(0))
+            shardStatus.returnCode should be(Option(0))
           }
         } yield ()).futureValue
       }
@@ -327,7 +327,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           key.fqn should be("call.fully.qualified.scope")
           key.index should be(None)
           status.executionStatus should be(ExecutionStatus.NotStarted)
-          status.rc shouldBe None
+          status.returnCode shouldBe None
         }
       } yield ()).futureValue
     }
@@ -578,7 +578,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.status.executionStatus should be(ExecutionStatus.Running)
-          insertResultLocalCall.status.rc shouldBe None
+          insertResultLocalCall.status.returnCode shouldBe None
           insertResultLocalCall.processId shouldNot be(empty)
           insertResultLocalCall.processId.get should be(123)
         }
@@ -608,7 +608,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.status.executionStatus should be(ExecutionStatus.Running)
-          insertResultLocalCall.status.rc should be(None)
+          insertResultLocalCall.status.returnCode should be(None)
           insertResultLocalCall.processId shouldNot be(empty)
           insertResultLocalCall.processId.get should be(123)
         }
@@ -616,7 +616,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.status.executionStatus should be(ExecutionStatus.Failed)
-          insertResultLocalCall.status.rc should be(Some(1))
+          insertResultLocalCall.status.returnCode should be(Some(1))
           insertResultLocalCall.processId shouldNot be(empty)
           insertResultLocalCall.processId.get should be(321)
         }

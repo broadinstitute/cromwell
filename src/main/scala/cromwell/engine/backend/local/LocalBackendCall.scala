@@ -18,7 +18,7 @@ case class LocalBackendCall(backend: LocalBackend,
     case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.name, key.index)
     case None => callRootPath
   }
-  val rc = callRootPath.resolve("rc")
+  val returnCode = callRootPath.resolve("rc")
   val stdout = callRootPath.resolve("stdout")
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script")

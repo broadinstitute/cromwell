@@ -35,6 +35,15 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Sun GridEngine](#sun-gridengine)
   * [Google JES](#google-jes)
     * [Authentication Modes](#authentication-modes)
+* [Runtime Attributes](#runtime-attributes)
+  * [continueOnReturnCode](#continueonreturncode)
+  * [cpu](#cpu)
+  * [defaultDisks](#defaultdisks)
+  * [defaultZones](#defaultzones)
+  * [failOnStderr](#failonstderr)
+  * [docker](#docker)
+  * [memory](#memory)
+  * [preemptible](#preemptible)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /workflows/:version](#post-workflowsversion)
@@ -880,6 +889,169 @@ Where `wf_options.json` would contain:
 The refresh token is passed to JES when the job is launched and localization of data and running of the job is done with that refresh token user's account.
 
 In `service_account` mode, the values in the `google {...}` stanza are used to launch jobs and provide localization.  If you are new to using the JES backend, it is easiest to start with in `service_account` mode.
+
+# Runtime Attributes
+
+Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.
+
+For example:
+
+```
+task jes_task {
+  command {
+    echo "Hello JES!"
+  }
+  runtime {
+    docker: "ubuntu:latest"
+    memory: "4G"
+    cpu: "3"
+    defaultZones: "US_Metro MX_Metro"
+    defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+  }
+}
+workflow jes_workflow {
+  call jes_task
+}
+```
+
+This table lists the currently available runtime attributes for cromwell:
+
+| Runtime Attribute    | LOCAL |  JES  |  SGE  |
+| -------------------- |:-----:|:-----:|:-----:|
+| continueOnReturnCode |   x   |   x   |   x   |
+| cpu                  |       |   x   |       |
+| defaultDisks         |       |   x   |       |
+| defaultZones         |       |   x   |       |
+| docker               |   x   |   x   |   x   |
+| failOnStderr         |   x   |   x   |   x   |
+| memory               |       |   x   |       |
+| preemptible          |       |   x   |       |
+
+## continueOnReturnCode
+
+When each task finishes it returns a code. Normally, a non-zero return code indicates a failure. However you can override this behavior by specifying the `continueOnReturnCode` attribute.
+
+When set to false, any non-zero return code will be considered a failure. When set to true, all return codes will be considered successful.
+
+```
+runtime {
+  continueOnReturnCode: true
+}
+```
+
+When set to an integer, or an array of integers, only those integers will be considered as successful return codes.
+
+```
+runtime {
+  continueOnReturnCode: 1
+}
+```
+
+```
+runtime {
+  continueOnReturnCode: [0, 1]
+}
+```
+
+Defaults to "0".
+
+## cpu
+
+Passed to JES: "The minimum number of cores to use."
+
+```
+runtime {
+  cpu: 2
+}
+```
+
+Defaults to "1".
+
+## defaultDisks
+
+Passed to JES: "Disks to attach."
+
+The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
+
+1. Disk name
+2. Disk size in GB
+3. Disk type
+
+... more to come ...
+
+```
+runtime {
+  defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+}
+```
+
+Defaults to "local-disk 100 LOCAL_SSD".
+
+## defaultZones
+
+Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
+
+The zones are specified as a space separated list, with no commas.
+
+```
+runtime {
+  defaultZones: "US_Metro MX_Metro"
+}
+```
+
+Defaults to "us-central1-a".
+
+## docker
+
+When specified, cromwell will run your task within the specified Docker image.
+
+```
+runtime {
+  docker: "ubuntu:latest"
+}
+```
+
+This attribute is mandatory when submitting tasks to JES. When running on other backends, they default to not running the process within Docker.
+
+## failOnStderr
+
+Some programs write to the standard error stream when there is an error, but still return a zero exit code. Set `failOnStderr` to true for these tasks, and it will be considered a failure if anything is written to the standard error stream.
+
+```
+runtime {
+  failOnStderr: true
+}
+```
+
+Defaults to "false".
+
+## memory
+
+Passed to JES: "The minimum amount of RAM to use."
+
+The memory size is specified as an amount and units of memory, for example "4 G".
+
+```
+runtime {
+  memory: "4G"
+}
+```
+
+Defaults to "2G".
+
+## preemptible
+
+Passed to JES: "If applicable, preemptible machines may be used for the run."
+
+... more to come ...
+
+```
+runtime {
+  preemptible: true
+}
+```
+
+Defaults to "false".
 
 # REST API
 

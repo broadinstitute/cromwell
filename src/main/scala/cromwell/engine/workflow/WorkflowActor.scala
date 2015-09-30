@@ -30,7 +30,7 @@ object WorkflowActor {
   case class AbortComplete(call: OutputKey) extends WorkflowActorMessage
   case class CallStarted(call: OutputKey) extends WorkflowActorMessage
   case class CallCompleted(call: OutputKey, callOutputs: CallOutputs) extends WorkflowActorMessage
-  case class CallFailed(call: OutputKey, rc: Option[Int], failure: String) extends WorkflowActorMessage
+  case class CallFailed(call: OutputKey, returnCode: Option[Int], failure: String) extends WorkflowActorMessage
   case object Terminate extends WorkflowActorMessage
 
   def props(descriptor: WorkflowDescriptor, backend: Backend, dataAccess: DataAccess): Props = {
@@ -132,8 +132,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           log.error(e, e.getMessage)
           goto(WorkflowFailed)
       }
-    case Event(CallFailed(callKey, rc, failure), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Failed, rc)
+    case Event(CallFailed(callKey, returnCode, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed, returnCode)
       goto(WorkflowFailed) using FailureMessage(failure)
     case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
     case Event(AbortComplete(callKey), NoFailureMessage) =>
@@ -162,8 +162,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     case Event(AbortComplete(callKey), NoFailureMessage) =>
       persistStatus(callKey, ExecutionStatus.Aborted, None)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallFailed(callKey, rc, failure), NoFailureMessage) =>
-      persistStatus(callKey, ExecutionStatus.Failed, rc)
+    case Event(CallFailed(callKey, returnCode, failure), NoFailureMessage) =>
+      persistStatus(callKey, ExecutionStatus.Failed, returnCode)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
     case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
       awaitCallComplete(callKey, outputs)
@@ -203,11 +203,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       }
   }
 
-  private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
-    persistStatuses(Iterable(key), status, rc)
+  private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus,
+                            returnCode: Option[Int] = None): Future[Unit] = {
+    persistStatuses(Iterable(key), status, returnCode)
   }
 
-  private def persistStatuses(key: Traversable[ExecutionStoreKey], executionStatus: ExecutionStatus, rc: Option[Int] = None): Future[Unit] = {
+  private def persistStatuses(key: Traversable[ExecutionStoreKey], executionStatus: ExecutionStatus,
+                              returnCode: Option[Int] = None): Future[Unit] = {
     executionStore ++= key map { _ -> executionStatus }
 
     key foreach { k =>
@@ -215,7 +217,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $executionStatus.")
     }
 
-    dataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, CallStatus(executionStatus, rc))
+    dataAccess.setStatus(workflow.id, key map { k =>
+      ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)
+    }, CallStatus(executionStatus, returnCode))
   }
 
   private def awaitCallComplete(key: OutputKey, outputs: CallOutputs): Try[Unit] = {

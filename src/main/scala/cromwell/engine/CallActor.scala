@@ -110,7 +110,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     executionResult match {
       case SuccessfulExecution(outputs) => context.parent ! WorkflowActor.CallCompleted(key, outputs)
       case AbortedExecution => context.parent ! WorkflowActor.AbortComplete(key)
-      case FailedExecution(e, rc) => context.parent ! WorkflowActor.CallFailed(key, rc, e.getMessage)
+      case FailedExecution(e, returnCode) => context.parent ! WorkflowActor.CallFailed(key, returnCode, e.getMessage)
     }
 
     goto(CallDone)

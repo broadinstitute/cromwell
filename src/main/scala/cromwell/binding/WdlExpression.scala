@@ -165,3 +165,8 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   def prerequisiteCallNames: Set[LocallyQualifiedName] = this.toMemberAccesses map { _.lhs }
   def toMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
 }
+
+case object NoLookup extends ScopedLookupFunction {
+  def apply(value: String): WdlValue =
+    throw new UnsupportedOperationException(s"No identifiers should be looked up: $value")
+}

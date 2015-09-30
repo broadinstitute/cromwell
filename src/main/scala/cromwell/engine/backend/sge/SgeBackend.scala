@@ -40,7 +40,8 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         logger.info(s"$tag `$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand)
         launchQsub(backendCall) match {
-          case (qsubRc, _) if qsubRc != 0 => FailedExecution(new Throwable(s"Error: qsub exited with return code: $qsubRc"))
+          case (qsubReturnCode, _) if qsubReturnCode != 0 => FailedExecution(
+            new Throwable(s"Error: qsub exited with return code: $qsubReturnCode"))
           case (_, None) => FailedExecution(new Throwable(s"Could not parse Job ID from qsub output"))
           case (_, Some(sgeJobId)) => pollForSgeJobCompletionThenPostProcess(backendCall, sgeJobId)
         }
@@ -61,8 +62,8 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   private def waitUntilComplete(backendCall: BackendCall): Int = {
     val tag = makeTag(backendCall)
     @tailrec
-    def recursiveWait(): Int = Files.exists(backendCall.rc) match {
-      case true => backendCall.rc.toFile.slurp.stripLineEnd.toInt
+    def recursiveWait(): Int = Files.exists(backendCall.returnCode) match {
+      case true => backendCall.returnCode.toFile.slurp.stripLineEnd.toInt
       case false =>
         logger.info(s"$tag 'rc' file does not exist yet")
         Thread.sleep(5000)
@@ -80,12 +81,12 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val (_, qdelStderrWriter) = backendCall.callRootPath.resolve("qdel.stderr").fileAndWriter
     val argv = Seq("qdel", sgeJobId.toString)
     val process = argv.run(ProcessLogger(qdelStdoutWriter writeWithNewline, qdelStderrWriter writeWithNewline))
-    val rc: Int = process.exitValue()
+    val returnCode: Int = process.exitValue()
     Vector(qdelStdoutWriter, qdelStderrWriter) foreach { _.flushAndClose() }
-    val (_, rcWriter) = backendCall.rc.fileAndWriter
+    val (_, rcWriter) = backendCall.returnCode.fileAndWriter
     rcWriter.writeWithNewline("143")
     rcWriter.flushAndClose()
-    logger.debug(s"qdel $sgeJobId (rc=$rc)")
+    logger.debug(s"qdel $sgeJobId (returnCode=$returnCode)")
   }
 
   /**
@@ -113,7 +114,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val (qsubStdoutFile, qsubStdoutWriter) = backendCall.callRootPath.resolve("qsub.stdout").fileAndWriter
     val (qsubStderrFile, qsubStderrWriter) = backendCall.callRootPath.resolve("qsub.stderr").fileAndWriter
     val process = argv.run(ProcessLogger(qsubStdoutWriter writeWithNewline, qsubStderrWriter writeWithNewline))
-    val rc: Int = process.exitValue()
+    val returnCode: Int = process.exitValue()
     Vector(qsubStdoutWriter, qsubStderrWriter) foreach { _.flushAndClose() }
 
     // The -terse option to qsub makes it so stdout only has the job ID, if it was successfully launched
@@ -123,8 +124,8 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         logger.error(s"$tag Could not find SGE job ID from qsub stdout file.\n\nCheck the qsub stderr file for possible errors: ${qsubStderrFile.toAbsolutePath.toString}")
         None
     }
-    logger.info(s"$tag qsub rc=$rc, job ID=${jobId.getOrElse("NONE")}")
-    (rc, jobId)
+    logger.info(s"$tag qsub returnCode=$returnCode, job ID=${jobId.getOrElse("NONE")}")
+    (returnCode, jobId)
   }
 
   /**
@@ -136,12 +137,13 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     val abortFunction = killSgeJob(backendCall, sgeJobId)
     val waitUntilCompleteFunction = waitUntilComplete(backendCall)
     backendCall.callAbortRegistrationFunction.register(AbortFunction(abortFunction))
-    val jobRc = waitUntilCompleteFunction
-    logger.info(s"$tag SGE job completed (rc=$jobRc)")
-    (jobRc, backendCall.stderr.toFile.length) match {
+    val jobReturnCode = waitUntilCompleteFunction
+    val continueOnReturnCode = backendCall.call.continueOnReturnCode
+    logger.info(s"$tag SGE job completed (returnCode=$jobReturnCode)")
+    (jobReturnCode, backendCall.stderr.toFile.length) match {
       case (r, _) if r == 143 => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-      case (r, _) if r != 0 && backendCall.call.failOnRc =>
-        FailedExecution(new Exception(s"$tag SGE job failed because of non-zero return code: $r"), Option(r))
+      case (r, _) if !continueOnReturnCode.continueFor(r) =>
+        FailedExecution(new Exception(s"$tag SGE job failed because of return code: $r"), Option(r))
       case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
         FailedExecution(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"), Option(0))
       case (_, _) =>

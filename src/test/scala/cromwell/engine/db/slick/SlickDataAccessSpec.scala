@@ -12,7 +12,7 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalactic.StringNormalizations._
@@ -80,6 +80,22 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     lazy val testDatabase = new TestSlickDatabase(path)
     lazy val canConnect = testRequired || testDatabase.isValidConnection.futureValue
     lazy val dataAccess = testDatabase.slickDataAccess
+
+    /**
+     *  Assert that the specified workflow has the appropriate number of calls in appropriately terminal states per
+     *  the `ExpectedTerminal` function.  This function maps from an FQN + index pair to a Boolean expectation.
+     */
+    type ExpectedTerminal = (FullyQualifiedName, Int) => Boolean
+    def assertTerminalExecution(id: WorkflowId, expectedCount: Int, expectedTerminal: ExpectedTerminal): Future[Unit] = {
+      for {
+        _ <- dataAccess.getExecutions(id) map { executions =>
+          executions should have size expectedCount
+          executions foreach { execution =>
+            execution.endDt.isDefined shouldBe expectedTerminal(execution.callFqn, execution.index)
+          }
+        }
+      } yield ()
+    }
 
     it should "(if hsqldb) have transaction isolation mvcc" in {
       assume(canConnect || testRequired)
@@ -307,6 +323,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             shardStatus.executionStatus should be(ExecutionStatus.Done)
             shardStatus.returnCode should be(Option(0))
           }
+          // Two calls, the call with an index is supposed to be Done and should therefore get an end date.
+          _ <- assertTerminalExecution(workflowId, expectedCount = 2, expectedTerminal = (_, index) => index == 0)
         } yield ()).futureValue
       }
     }
@@ -332,6 +350,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           status.executionStatus should be(ExecutionStatus.NotStarted)
           status.returnCode shouldBe None
         }
+        _ <- assertTerminalExecution(workflowId, expectedCount = 1, expectedTerminal = (_, _) => false)
       } yield ()).futureValue
     }
 

@@ -76,12 +76,12 @@ trait DataAccess {
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]
 
-  def getExecutions(id: Int): Future[Traversable[Execution]]
+  def getExecutions(id: WorkflowId): Future[Traversable[Execution]]
 
   /** Fetch the workflow having the specified `WorkflowId`. */
   def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]
 
-  def getWorkflowExecutionAux(id: Int): Future[WorkflowExecutionAux]
+  def getWorkflowExecutionAux(id: WorkflowId): Future[WorkflowExecutionAux]
 
   def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]]
 

@@ -28,7 +28,7 @@ package object engine {
   }
 
   object WorkflowId {
-    def fromString(id:String): WorkflowId = new WorkflowId(UUID.fromString(id))
+    def fromString(id: String): WorkflowId = new WorkflowId(UUID.fromString(id))
     def randomId() = WorkflowId(UUID.randomUUID())
   }
 

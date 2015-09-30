@@ -15,11 +15,8 @@ trait JesJobComponent {
 
   class JesJobs(tag: Tag) extends Table[JesJob](tag, "JES_JOB") {
     def jesJobId = column[Int]("JES_JOB_ID", O.PrimaryKey, O.AutoInc)
-
     def executionId = column[Int]("EXECUTION_ID")
-
     def jesId = column[Option[String]]("JES_ID")
-
     def jesStatus = column[Option[String]]("JES_STATUS")
 
     override def * = (executionId, jesId, jesStatus, jesJobId.?) <>

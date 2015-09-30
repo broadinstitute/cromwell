@@ -32,15 +32,10 @@ object CromwellApiHandler {
   case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
 
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
-
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
-
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
-  
   case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
-
   case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
-  
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
 
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
@@ -64,7 +59,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Some(workflowState) =>
           context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, workflowState.toString))
       }
-
     case WorkflowAbort(id) =>
       val futureStatus = queryWorkflowManager(WorkflowManagerActor.WorkflowStatus(id))
       futureStatus onSuccess {
@@ -98,7 +92,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
               context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
           }
       }
-
     case WorkflowOutputs(id) =>
       val eventualWorkflowOutputs = ask(workflowManager, WorkflowManagerActor.WorkflowOutputs(id)).mapTo[binding.WorkflowOutputs]
       eventualWorkflowOutputs onComplete {
@@ -106,7 +99,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
-
     case CallOutputs(id, callFqn) =>
       val eventualCallOutputs = ask(workflowManager, WorkflowManagerActor.CallOutputs(id, callFqn)).mapTo[binding.CallOutputs]
       eventualCallOutputs onComplete {
@@ -115,7 +107,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex: WorkflowManagerActor.CallNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, s"Call $callFqn not found for workflow '$id'.")
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
-
     case CallStdoutStderr(id, callFqn) =>
       val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.CallStdoutStderr(id, callFqn)).mapTo[Seq[StdoutStderr]]
       eventualCallLogs onComplete {
@@ -125,7 +116,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex: Backend.StdoutStderrException) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
-
     case WorkflowStdoutStderr(id) =>
       val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.WorkflowStdoutStderr(id)).mapTo[Map[String, Seq[StdoutStderr]]]
       eventualCallLogs onComplete {

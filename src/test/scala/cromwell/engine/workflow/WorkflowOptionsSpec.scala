@@ -1,8 +1,10 @@
 package cromwell.engine.workflow
 
+import cromwell.util.EncryptionSpec
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json._
-import scala.util.{Try, Success, Failure}
+
+import scala.util.{Failure, Success}
 
 class WorkflowOptionsSpec extends Matchers with WordSpecLike {
   val workflowOptionsJson =
@@ -14,6 +16,8 @@ class WorkflowOptionsSpec extends Matchers with WordSpecLike {
 
   "WorkflowOptions" should {
     "parse workflow options properly" in {
+      EncryptionSpec.assumeAes256Cbc()
+
       WorkflowOptions.fromJsonObject(workflowOptionsJson) match {
         case Success(options) =>
           options.get("key") shouldEqual Success("value")

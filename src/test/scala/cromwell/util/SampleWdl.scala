@@ -1205,4 +1205,36 @@ object SampleWdl {
       """.stripMargin.replaceAll("RUNTIME", runtime)
     override lazy val rawInputs = Map("" -> "...")
   }
+
+  object FilePassingWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task a {
+        |  File in
+        |  String out_name = "out"
+        |
+        |  command {
+        |    cat ${in} > ${out_name}
+        |  }
+        |  RUNTIME
+        |  output {
+        |    File out = "out"
+        |    File out_interpolation = "${out_name}"
+        |    String contents = read_string("${out_name}")
+        |  }
+        |}
+        |
+        |workflow file_passing {
+        |  File f
+        |
+        |  call a {input: in=f}
+        |  call a as b {input: in=a.out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    private val fileContents = s"foo bar baz"
+
+    override val rawInputs: WorkflowRawInputs = Map(
+      "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath
+    )
+  }
 }

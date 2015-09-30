@@ -78,7 +78,7 @@ trait BackendCall {
    * expression `read_lines(my_file_var)` would have to call lookupFunction()("my_file_var")
    * during expression evaluation
    */
-  def lookupFunction: String => WdlValue
+  def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(locallyQualifiedInputs, key.scope.task.declarations, engineFunctions)
 
   /**
    * Attempt to evaluate all the ${...} tags in a command and return a String representation

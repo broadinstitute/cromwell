@@ -24,10 +24,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
   override def toString: String = "${" + s"$attributesToString${expression.toWdlString}" + "}"
 
   override def instantiate(declarations: Seq[Declaration], parameters: Map[String, WdlValue], functions: WdlFunctions[WdlValue] = new NoFunctions): String = {
-    case class VariableNotFoundException(variable: String) extends RuntimeException(s"Could not find variable: $variable")
-    def lookup(key: String) = parameters.getOrElse(key, throw new VariableNotFoundException(key))
-
-    val value = expression.evaluate(lookup, functions) match {
+    val value = expression.evaluate(WdlExpression.standardLookupFunction(parameters, declarations, functions), functions) match {
       case Success(v) => v
       case Failure(f) => f match {
         case v: VariableNotFoundException => declarations.find(_.name == v.variable) match {

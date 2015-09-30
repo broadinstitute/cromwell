@@ -2,7 +2,7 @@ package cromwell.binding
 
 import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.WdlExpression._
-import cromwell.binding.expression.{TypeEvaluator, FileEvaluator, ValueEvaluator, WdlFunctions}
+import cromwell.binding.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator, WdlFunctions}
 import cromwell.binding.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
 import cromwell.binding.types._
 import cromwell.binding.values._
@@ -11,9 +11,10 @@ import cromwell.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
+case class VariableNotFoundException(variable: String, cause: Throwable = null) extends Exception(s"Variable '$variable' not found", cause)
 
 object WdlExpression {
 
@@ -80,6 +81,45 @@ object WdlExpression {
 
   def evaluateType(ast: AstNode, lookup: (String) => WdlType, functions: WdlFunctions[WdlType]) =
     TypeEvaluator(lookup, functions).evaluate(ast)
+
+  /**
+   * Provides a lookup function that will attempt to resolve an identifier as follows:
+   *
+   * 1) Resolve as a task input parameter
+   * 2) Resolve as a declaration
+   *
+   * For example:
+   *
+   * task test {
+   *   String x = "x"
+   *   String y = x + "y"
+   *
+   *   command {
+   *     echo ${y + "z"}
+   *   }
+   * }
+   *
+   * when evaluating the expression `y + "z"`, lookup("y") will be called which first tries resolveParameter("y") and fails
+   * Then tries resolveDeclaration("y") which find declaration for String y and evaluate the expression `x + "y"`.  In
+   * the process of evaluating that it needs to call lookup("x") which gets it's value from resolveDeclaration("x") = WdlString("x")
+   *
+   * This will allow the expression `y + "z"` to evaluate to the string "xyz"
+   */
+  def standardLookupFunction(parameters: Map[String, WdlValue], declarations: Seq[Declaration], functions: WdlFunctions[WdlValue]): String => WdlValue = {
+    def resolveParameter(name: String): Try[WdlValue] = parameters.get(name) match {
+      case Some(value) => Success(value)
+      case None => Failure(new WdlExpressionException(s"Could not resolve variable '$name' as an input parameter"))
+    }
+    def resolveDeclaration(lookup: ScopedLookupFunction)(name: String) = declarations.find(_.name == name) match {
+      case Some(d) => d.expression.map(_.evaluate(lookup, functions)).getOrElse(Failure(new WdlExpressionException(s"Could not evaluate declaration: $d")))
+      case None => Failure(new WdlExpressionException(s"Could not resolve variable '$name' as a declaration"))
+    }
+    def lookup(key: String): WdlValue = {
+      val attemptedResolution = Stream(resolveParameter _, resolveDeclaration(lookup) _) map { _(key) } find { _.isSuccess }
+      attemptedResolution.getOrElse(throw new VariableNotFoundException(key)).get
+    }
+    lookup
+  }
 
   def fromString(expression: WdlSource): WdlExpression = {
     val tokens = parser.lex(expression, "string")

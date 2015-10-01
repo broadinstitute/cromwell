@@ -1,7 +1,6 @@
 package cromwell.engine.backend.local
 
 import cromwell.binding.CallInputs
-import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
@@ -23,7 +22,6 @@ case class LocalBackendCall(backend: LocalBackend,
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script")
   val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr)
-  val lookupFunction: String => WdlValue = inputName => locallyQualifiedInputs.get(inputName).get
   callRootPath.toFile.mkdirs
   def execute: ExecutionResult = backend.execute(this)
 }

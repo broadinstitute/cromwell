@@ -10,13 +10,14 @@ import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.NoFunctions
+import cromwell.binding.types.{WdlFileType, WdlType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.{WorkflowOptions, CallKey}
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.parser.BackendType
 import cromwell.util.google.GoogleCloudStoragePath
@@ -274,7 +275,7 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesParameter], jesOutputs: Seq[JesParameter]): ExecutionResult = {
+  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesInput], jesOutputs: Seq[JesOutput]): ExecutionResult = {
     val tag = makeTag(backendCall)
     val jesParameters = standardParameters(backendCall.callGcsPath) ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
     logger.info(s"$tag `$command`")
@@ -285,11 +286,33 @@ class JesBackend extends Backend with LazyLogging {
     val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
 
+    def wdlFileToGcsPath(value: WdlValue, coerceTo: WdlType) =
+      if (coerceTo == WdlFileType && WdlFileType.isCoerceableFrom(value.wdlType))
+        jesOutputs find { _.name == value.valueString } map { j => WdlFile(j.gcs) } getOrElse value
+      else
+        value
+
     try {
       val status = run.waitUntilComplete(initializedStatus)
 
       val outputMappings = backendCall.call.task.outputs map {taskOutput =>
-        taskOutput.name -> taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions)
+        /**
+         * this will evaluate the task output expression and coerces it to the task output's type.
+         * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
+         * return a WdlFile that represents the GCS path and not the local path.  For example,
+         *
+         * output {
+         *   File x = "out" + ".txt"
+         * }
+         *
+         * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
+         * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
+         * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
+         */
+        val attemptedValue = taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions) map { wdlValue =>
+          wdlFileToGcsPath(wdlValue, taskOutput.wdlType)
+        }
+        taskOutput.name -> attemptedValue
       } toMap
 
       lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(backendCall.callGcsPath).gcs))

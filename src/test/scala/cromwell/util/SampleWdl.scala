@@ -69,12 +69,13 @@ object SampleWdl {
         |  output {
         |    String salutation = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow hello {
         |  call hello
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     val Addressee = "hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")

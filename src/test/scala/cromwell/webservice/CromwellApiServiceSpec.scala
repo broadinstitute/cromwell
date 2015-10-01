@@ -136,6 +136,16 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
   val version = "v1"
 
+  "Cromwell swagger docs" should "return 200" in {
+    Get("/swagger/cromwell.yaml") ~>
+      docsRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+      }
+  }
+
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}") ~>
       sealRoute(queryRoute) ~>

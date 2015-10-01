@@ -20,7 +20,7 @@ class CromwellApiServiceActor(val workflowManager: ActorRef) extends Actor with 
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = options { complete(StatusCodes.OK) } ~ workflowRoutes
+  def possibleRoutes = options { complete(StatusCodes.OK) } ~ docsRoute ~ workflowRoutes
 
   def receive = runRoute(possibleRoutes)
 }
@@ -38,6 +38,10 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
     callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute
+
+  def docsRoute = path("swagger" / "cromwell.yaml") {
+    getFromResource("swagger/cromwell.yaml")
+  }
 
   def queryRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>

@@ -9,7 +9,7 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.{WorkflowOptions, CallKey}
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -20,7 +20,7 @@ object Backend {
   def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
   def from(name: String) = name.toLowerCase match {
     case "local" => new LocalBackend
-    case "jes" => new JesBackend
+    case "jes" => new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
     case "sge" => new SgeBackend
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
@@ -51,7 +51,7 @@ trait Backend {
   /**
    * Do whatever cleaning up work is required when a workflow reaches a terminal state.
    */
-  def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any]
+  def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
 
   /**
    * Execute the Call (wrapped in a BackendCall), return the outputs if it is
@@ -83,7 +83,7 @@ trait Backend {
    * Validate that workflow options contain all required information.
    */
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
-  def assertWorkflowOptions(options: WorkflowOptions)
+  def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
   def makeTag(backendCall: BackendCall): String =
     s"${this.getClass.getSimpleName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"

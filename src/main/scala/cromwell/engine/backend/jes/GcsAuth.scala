@@ -9,7 +9,7 @@ object GcsAuth {
    * Generates a json containing auth information based on the parameters provided.
    * @return a string representation of the json
    */
-  def generateJson(dockerAuth: Option[DockerAuthInformation], userAuth: Option[GcsUserAuthInformation]) = {
+  def generateJson(dockerAuth: Option[DockerCredentials], userAuth: Option[GcsUserAuthInformation]) = {
     Seq(dockerAuth, userAuth).flatten map { _.toMap } match {
       case Nil => None
       case jsons =>
@@ -52,6 +52,6 @@ case class GcsUserAuthInformation(account: String, token: String) extends AuthIn
 
 // Docker Authentication coming from the configuration file
 // TODO (discussed with Miguel): Change to be read from workflow options too ?
-case class DockerAuthInformation(account: String, token: String) extends AuthInformation {
+case class DockerCredentials(account: String, token: String) extends AuthInformation {
   override val context = "docker"
 }

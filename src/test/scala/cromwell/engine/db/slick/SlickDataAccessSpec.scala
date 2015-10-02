@@ -64,10 +64,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
     override def backendType: BackendType =
       throw new NotImplementedError
-
-    override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
-
-    override def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
   }
 
   // Tests against main database used for command line

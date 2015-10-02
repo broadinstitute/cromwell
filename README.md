@@ -267,7 +267,7 @@ If your workflow has no inputs, you can specify `-` as the value for the inputs 
 $ java -jar cromwell.jar run my_workflow.wdl -
 ```
 
-The final optinal parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
+The final optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
 Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes) for more details.
 

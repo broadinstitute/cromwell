@@ -182,10 +182,4 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     }
     (executionResult, jobReturnCode)
   }
-
-  // Nothing to do currently
-  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful({})
-
-  // No workflow options for sge yet
-  override def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 }

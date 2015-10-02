@@ -1,5 +1,7 @@
 package cromwell.engine.backend.jes
 
+import java.net.URL
+
 import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.binding.{Call, CallInputs}
 import cromwell.engine.workflow.WorkflowOptions
@@ -45,12 +47,20 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
 
   "workflow options existence" should "be verified when in 'RefreshTokenMode'" in {
     EncryptionSpec.assumeAes256Cbc()
+    val anyString = ""
+    val anyURL: URL = null
 
     val goodOptions = WorkflowOptions.fromMap(Map("account_name" -> "account", "refresh_token" -> "token")).get
     val missingToken = WorkflowOptions.fromMap(Map("account_name" -> "account")).get
     val missingAccount = WorkflowOptions.fromMap(Map("refresh_token" -> "token")).get
     val jesBackend = new JesBackend() {
-      override lazy val authenticationMode = RefreshTokenMode
+      override lazy val JesConf = new JesAttributes(
+        applicationName = anyString,
+        project = anyString,
+        executionBucket = anyString,
+        endpointUrl = anyURL,
+        authMode = RefreshTokenMode,
+        dockerCredentials = None)
     }
 
     try {

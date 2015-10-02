@@ -4,8 +4,7 @@ import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, 
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
-import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.{DataAccess, JesCallBackendInfo, JesId, JesStatus}
+import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
 import cromwell.engine.{ExecutionStatus, db}
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
@@ -75,7 +74,8 @@ object Run  {
 
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
-      globalDataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
+      // TODO: Re-add
+      //globalDataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
     }
 
     if (breakout(currentStatus)) {

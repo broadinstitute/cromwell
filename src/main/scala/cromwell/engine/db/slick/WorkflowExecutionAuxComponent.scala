@@ -40,10 +40,11 @@ trait WorkflowExecutionAuxComponent {
   val workflowExecutionAuxesAutoInc = workflowExecutionAuxes returning workflowExecutionAuxes.
     map(_.workflowExecutionAuxId) into ((a, id) => a.copy(workflowExecutionAuxId = Some(id)))
 
-  val workflowExecutionAuxesByWorkflowExecutionId = Compiled(
-    (workflowExecutionId: Rep[Int]) => for {
+  val workflowExecutionAuxesByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
       workflowExecutionAux <- workflowExecutionAuxes
-      if workflowExecutionAux.workflowExecutionId === workflowExecutionId
+      workflowExecution <- workflowExecutionAux.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowExecutionAux)
 
   val workflowOptionsFromWorkflowId = Compiled(

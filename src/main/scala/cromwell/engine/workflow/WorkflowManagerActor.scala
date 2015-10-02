@@ -13,8 +13,8 @@ import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
 import cromwell.engine.db.DataAccess._
+import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
-import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
 import cromwell.webservice.WorkflowMetadataResponse
@@ -213,9 +213,9 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       workflowOutputs <- workflowOutputs(id)
       // The workflow has been persisted in the DB so we know the workflowExecutionId must be non-null,
       // so the .get on the Option is safe.
-      workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(workflowExecution.workflowExecutionId.get)
+      workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callStandardStreamsMap <- workflowStdoutStderr(id)
-      executions <- globalDataAccess.getExecutions(workflowExecution.workflowExecutionId.get)
+      executions <- globalDataAccess.getExecutions(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
       jesJobs <- globalDataAccess.jesJobInfo(id)

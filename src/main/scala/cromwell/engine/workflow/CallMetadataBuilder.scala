@@ -6,6 +6,7 @@ import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.SymbolStoreEntry
+import org.joda.time.DateTime
 
 import scala.language.postfixOps
 
@@ -182,8 +183,8 @@ object CallMetadataBuilder {
         backend = metadata.backend,
         backendStatus = metadata.backendStatus,
         outputs = Option(outputsMap.toMap),
-        start = None,
-        end = None,
+        start = metadata.execution.startDt map { new DateTime(_) },
+        end = metadata.execution.endDt map { new DateTime(_) },
         jobId = metadata.jobId,
         returnCode = metadata.execution.rc,
         stdout = metadata.streams map { _.stdout },

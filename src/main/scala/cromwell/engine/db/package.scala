@@ -5,7 +5,10 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 
 package object db {
-  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int])
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int]) {
+    def isTerminal: Boolean = executionStatus.isTerminal
+    def isStarting: Boolean = executionStatus == ExecutionStatus.Starting
+  }
 
   object CallStatus {
     def apply(statusName: String, returnCode: Option[Int] = None): CallStatus = {

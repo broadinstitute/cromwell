@@ -66,6 +66,15 @@ trait ExecutionComponent {
       if execution.callFqn === callFqn
     } yield (execution.callFqn, execution.index, execution.status, execution.rc))
 
+  val executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex = Compiled(
+    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int]) => for {
+      execution <- executions
+      if execution.callFqn === callFqn
+      if execution.index === index
+      workflowExecution <- execution.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield execution)
+
   val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
       execution <- executions

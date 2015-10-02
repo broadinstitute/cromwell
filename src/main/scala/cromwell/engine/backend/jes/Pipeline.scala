@@ -3,7 +3,6 @@ package cromwell.engine.backend.jes
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.CreatePipelineRequest
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.Call
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.workflow.CallKey
@@ -35,8 +34,8 @@ object Pipeline extends LazyLogging {
                  pipelineId, 
                  projectId, 
                  gcsPath, 
-                 workflow, 
-                 call, 
+                 workflow,
+                 key,
                  jesParameters, 
                  runtimeInfo, 
                  jesConnection.genomics)
@@ -49,7 +48,7 @@ case class Pipeline(command: String,
                     projectId: String,
                     gcsPath: String,
                     workflow: WorkflowDescriptor,
-                    call: Call,
+                    key: CallKey,
                     jesParameters: Seq[JesParameter],
                     runtimeInfo: JesRuntimeInfo,
                     genomicsService: Genomics) {

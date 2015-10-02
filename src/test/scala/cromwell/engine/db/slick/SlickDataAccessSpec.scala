@@ -217,7 +217,15 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Nil, localBackend)
+        _ <- dataAccess.getWorkflowExecution(workflowId) map { w =>
+          w.status shouldBe WorkflowSubmitted.toString
+          w.endDt shouldBe None
+        }
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowSucceeded)
+        _ <- dataAccess.getWorkflowExecution(workflowId) map { w =>
+          w.status shouldBe WorkflowSucceeded.toString
+          w.endDt should not be None
+        }
         _ <- dataAccess.getWorkflowState(workflowId) map { result =>
           result shouldNot be(empty)
           result.get should be(WorkflowSucceeded)

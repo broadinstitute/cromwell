@@ -8,13 +8,15 @@ import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.genomics.Genomics
-import cromwell.util.google.{GoogleCloudStorage, GoogleCredentialFactory}
+import cromwell.engine.backend.jes.JesInterface.GoogleGenomics
+import cromwell.util.google.{GoogleCredentialFactory, GoogleCloudStorage}
 
 
 object JesInterface {
+  val jsonFactory = JacksonFactory.getDefaultInstance
+  val httpTransport = GoogleNetHttpTransport.newTrustedTransport
+
   def apply(appName: String, endpointUrl: URL): JesInterface = {
-    val jsonFactory = JacksonFactory.getDefaultInstance
-    val httpTransport = GoogleNetHttpTransport.newTrustedTransport
     val credential = GoogleCredentialFactory.from(jsonFactory, httpTransport)
     val genomics = GoogleGenomics.from(appName, endpointUrl, credential, jsonFactory, httpTransport)
     val storage = GoogleCloudStorage(appName, credential, jsonFactory, httpTransport)

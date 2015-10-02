@@ -17,7 +17,7 @@ import scala.util.Try
 
 object Backend {
   lazy val LocalBackend = new LocalBackend
-  lazy val JesBackend = new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
+  lazy val JesBackend = new JesBackend { jesConf } //forces configuration resolution to fail now if something is missing
   lazy val SgeBackend = new SgeBackend
 
   class StdoutStderrException(message: String) extends RuntimeException(message)
@@ -101,5 +101,12 @@ trait Backend {
     val cls = this.getClass.getSimpleName
     val clsString = if (cls.startsWith("anon")) "" else s"$cls "
     s"$clsString[UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+  }
+
+  def makeTag(workflowDescriptor: WorkflowDescriptor): String = {
+    // Sometimes the class name is `anon$1`.  In cases like that, don't print it in the log because it's not adding value
+    val cls = this.getClass.getSimpleName
+    val clsString = if (cls.startsWith("anon")) "" else s"$cls "
+    s"$clsString[UUID(${workflowDescriptor.shortId})]"
   }
 }

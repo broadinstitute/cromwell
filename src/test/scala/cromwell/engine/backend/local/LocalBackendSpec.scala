@@ -5,12 +5,13 @@ import java.nio.file.Paths
 import cromwell.CromwellTestkitSpec
 import cromwell.binding.WdlSource
 import cromwell.binding.values.WdlValue
-import cromwell.engine.backend.{AbortedExecution, FailedExecution, SuccessfulExecution}
+import cromwell.engine.backend.{Backend, AbortedExecution, FailedExecution, SuccessfulExecution}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.SampleWdl
+import org.specs2.mock.Mockito
 
-class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") {
+class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") with Mockito {
 
   object StdoutWdl extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
@@ -60,6 +61,13 @@ class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") {
 
     "allow stderr if failOnStderr is not set" in {
       testFailOnStderr(stderrDescriptor("runtime {failOnStderr: false}"), expectSuccess = true)
+    }
+
+    "make a log tag from a workflowDescriptor" in {
+      val wd = mock[WorkflowDescriptor]
+      wd.shortId returns "SHORTID"
+      val backend = new LocalBackend()
+      backend.makeTag(wd) shouldBe "LocalBackend [UUID(SHORTID)]"
     }
   }
 }

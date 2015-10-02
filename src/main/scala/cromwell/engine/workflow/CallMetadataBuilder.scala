@@ -183,7 +183,7 @@ object CallMetadataBuilder {
         backend = metadata.backend,
         backendStatus = metadata.backendStatus,
         outputs = Option(outputsMap.toMap),
-        start = Option(new DateTime(metadata.execution.startDt)),
+        start = metadata.execution.startDt map { new DateTime(_) },
         end = metadata.execution.endDt map { new DateTime(_) },
         jobId = metadata.jobId,
         returnCode = metadata.execution.rc,

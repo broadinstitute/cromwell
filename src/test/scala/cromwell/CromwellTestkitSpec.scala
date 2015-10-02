@@ -15,7 +15,6 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
@@ -61,13 +60,6 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     EventFilter.info(pattern = pattern, occurrences = 1).intercept {
       block
     }
-  }
-
-  val dataAccess = DataAccess()
-
-  override protected def afterAll() = {
-    super.afterAll()
-    dataAccess.shutdown()
   }
 
   /**
@@ -126,7 +118,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {
-    TestActorRef(new WorkflowManagerActor(dataAccess, new LocalBackend))
+    TestActorRef(new WorkflowManagerActor(new LocalBackend))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

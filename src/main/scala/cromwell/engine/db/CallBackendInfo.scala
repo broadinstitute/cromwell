@@ -8,4 +8,4 @@ final case class LocalCallBackendInfo(status: CallStatus, processId: Option[Int]
 
 final case class JesCallBackendInfo(status: CallStatus, jesId: Option[JesId], jesStatus: Option[JesStatus]) extends CallBackendInfo
 
-final case class SgeCallBackendInfo(status: CallStatus, sgeJobNumber: Int) extends CallBackendInfo
+final case class SgeCallBackendInfo(status: CallStatus, sgeJobNumber: Option[Int]) extends CallBackendInfo

@@ -11,8 +11,8 @@ import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{Backend, ExecutionResult, StdoutStderr}
-import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey, LocalCallBackendInfo}
-import cromwell.engine.workflow.{WorkflowOptions, CallKey}
+import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalactic.StringNormalizations._
@@ -50,8 +50,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def initializeForWorkflow(workflow: WorkflowDescriptor) =
       throw new NotImplementedError
 
-    override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow],
-                                    dataAccess: DataAccess)(implicit ec: ExecutionContext) =
+    override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext) =
       throw new NotImplementedError
 
     override def bindCall(workflowDescriptor: WorkflowDescriptor,
@@ -399,7 +398,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
     it should "fail to get inputs for a null call" in {
       assume(canConnect || testRequired)
-      val workflowId:WorkflowId = WorkflowId(UUID.randomUUID())
+      val workflowId: WorkflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
 
       (for {
@@ -452,12 +451,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, None, None), Map(symbolLqn -> new WdlString("testStringValue")))
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0), None), Map(symbolLqn -> new WdlString("testStringValueShard")))
-        callOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map {  results =>
+        callOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.head.key.index should be(None)
           results.head.wdlValue.get should be(new WdlString("testStringValue"))
           results
         }
-        shardOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0))) map {  results =>
+        shardOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0))) map { results =>
           results.head.key.index should be(Some(0))
           results.head.wdlValue.get should be(new WdlString("testStringValueShard"))
           results

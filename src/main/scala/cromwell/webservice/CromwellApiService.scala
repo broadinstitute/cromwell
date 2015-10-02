@@ -75,21 +75,23 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           val tryOptionsMap = Try(workflowOptions.getOrElse("{}").parseJson)
           (tryInputsMap, tryOptionsMap) match {
             case (Success(JsObject(_)), Success(options: JsObject)) =>
-              if (!options.fields.values.exists(_.isInstanceOf[JsString])) {
+              if (!options.fields.values.forall(_.isInstanceOf[JsString])) {
                 complete(StatusCodes.BadRequest, "Workflow options must be a string -> string map")
               }
-              WorkflowOptions.fromJsonObject(options) match {
-                case Success(wfOptions) =>
-                  requestContext => perRequest(
-                    requestContext,
-                    CromwellApiHandler.props(workflowManager),
-                    CromwellApiHandler.WorkflowSubmit(
-                      WorkflowSourceFiles(
-                        wdlSource, workflowInputs.getOrElse("{}"), wfOptions.asPrettyJson
+              else {
+                WorkflowOptions.fromJsonObject(options) match {
+                  case Success(wfOptions) =>
+                    requestContext => perRequest(
+                      requestContext,
+                      CromwellApiHandler.props(workflowManager),
+                      CromwellApiHandler.WorkflowSubmit(
+                        WorkflowSourceFiles(
+                          wdlSource, workflowInputs.getOrElse("{}"), wfOptions.asPrettyJson
+                        )
                       )
                     )
-                  )
-                case Failure(ex) => complete(StatusCodes.PreconditionFailed, s"Could not encrypt workflow options: ${ex.getMessage}")
+                  case Failure(ex) => complete(StatusCodes.PreconditionFailed, s"Could not encrypt workflow options: ${ex.getMessage}")
+                }
               }
             case (Success(_), _) | (_, Success(_)) =>
               complete(StatusCodes.BadRequest, "Expecting JSON object for workflowInputs and workflowOptions fields")

@@ -2,10 +2,11 @@ package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.{ExecutionStatus, db}
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
-import cromwell.engine.db.{JesStatus, JesId, JesCallBackendInfo, DataAccess}
+import cromwell.engine.db.DataAccess._
+import cromwell.engine.db.{DataAccess, JesCallBackendInfo, JesId, JesStatus}
+import cromwell.engine.{ExecutionStatus, db}
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
 
@@ -19,7 +20,6 @@ object Run  {
   lazy val maximumPollingInterval = ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval") * 1000
   val initialPollingInterval = 500
   val pollingBackoffFactor = 1.1
-  lazy val dataAccess = DataAccess()
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
@@ -75,7 +75,7 @@ object Run  {
 
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
-      dataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
+      globalDataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
     }
 
     if (breakout(currentStatus)) {

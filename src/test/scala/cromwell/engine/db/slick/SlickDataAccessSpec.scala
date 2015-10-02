@@ -667,32 +667,28 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
+      // Assert a singular `Execution` in `executions`, and that the dates of the `Execution` are defined
+      // or not as specified by `startDefined` and `endDefined`.
+      def assertDates(startDefined: Boolean, endDefined: Boolean)(executions: Traversable[Execution]): Unit = {
+        executions should have size 1
+        executions foreach { e =>
+          e.startDt.isDefined shouldBe startDefined
+          e.endDt.isDefined shouldBe endDefined
+        }
+      }
+
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
-        _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(callFqn, None)), ExecutionStatus.NotStarted)
-        _ <- dataAccess.getExecutions(workflowId) map { executions =>
-          executions should have size 1
-          executions foreach { e =>
-            e.startDt shouldBe None
-            e.endDt shouldBe None
-          }
-        }
-        _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(callFqn, None)), ExecutionStatus.Starting)
-        _ <- dataAccess.getExecutions(workflowId) map { executions =>
-          executions should have size 1
-          executions foreach { e =>
-            e.startDt should not be None
-            e.endDt shouldBe None
-          }
-        }
-        _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(callFqn, None)), ExecutionStatus.Done)
-        _ <- dataAccess.getExecutions(workflowId) map { executions =>
-          executions should have size 1
-          executions foreach { e =>
-            e.startDt should not be None
-            e.endDt should not be None
-          }
-        }
+        callKeys = Seq(ExecutionDatabaseKey(callFqn, None))
+
+        _ <- dataAccess.setStatus(workflowId, callKeys, ExecutionStatus.NotStarted)
+        _ <- dataAccess.getExecutions(workflowId) map assertDates(startDefined = false, endDefined = false)
+
+        _ <- dataAccess.setStatus(workflowId, callKeys, ExecutionStatus.Starting)
+        _ <- dataAccess.getExecutions(workflowId) map assertDates(startDefined = true, endDefined = false)
+
+        _ <- dataAccess.setStatus(workflowId, callKeys, ExecutionStatus.Done)
+        _ <- dataAccess.getExecutions(workflowId) map assertDates(startDefined = true, endDefined = true)
       } yield()).futureValue
     }
 

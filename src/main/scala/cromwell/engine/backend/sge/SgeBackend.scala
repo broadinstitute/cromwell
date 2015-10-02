@@ -7,7 +7,6 @@ import cromwell.binding.{Call, CallInputs}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
-import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, SgeCallBackendInfo}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, _}
@@ -74,7 +73,9 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
 
   private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]): Future[Unit] = {
     val backendInfo = SgeCallBackendInfo(CallStatus(status, rc), sgeJobId)
-    globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, call.call, backendInfo)
+    // TODO: re-add
+    //globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, call.call, backendInfo)
+    Future.successful(())
   }
 
   // TODO: Not much thought was given to this function

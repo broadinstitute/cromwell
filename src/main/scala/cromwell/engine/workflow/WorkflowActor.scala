@@ -555,6 +555,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       case Success(a: WdlArray) => Try {
         val newEntries = scatterKey.populate(a.value.size)
         val createScatter = for {
+          _ <- persistStatus(scatterKey, ExecutionStatus.Starting, None)
           _ <- globalDataAccess.insertCalls(workflow.id, newEntries.keys, backend)
           _ <- persistStatuses(newEntries.keys, ExecutionStatus.NotStarted, None)
           _ <- persistStatus(scatterKey, ExecutionStatus.Done, Some(0))

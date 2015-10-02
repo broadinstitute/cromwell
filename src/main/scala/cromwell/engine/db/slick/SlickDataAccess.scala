@@ -1,7 +1,7 @@
 package cromwell.engine.db.slick
 
 import java.sql.{Clob, Timestamp}
-import java.util.{Calendar, Date, UUID}
+import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
 import _root_.slick.util.ConfigExtensionMethods._
@@ -232,7 +232,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
           index = key.index.fromIndex,
           status = ExecutionStatus.NotStarted.toString,
           rc = None,
-          startDt = new Date().toTimestamp,
+          startDt = None,
           endDt = None)
 
       // Depending on the backend, insert a job specific row
@@ -531,11 +531,18 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   override def setStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
                          callStatus: CallStatus): Future[Unit] = {
-    val endTime = if (callStatus.isTerminal) Option(new Timestamp(Calendar.getInstance().getTime.getTime)) else None
+
+    // Describes a function from an input `Executions` to a projection of fields to be updated.
+    type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]])
+    // If the call status is Starting, target the start date for update, otherwise target the end date.  The end date
+    // is only set to a non-None value if the status is terminal.
+    val projectionFn: ProjectionFunction = if (callStatus.isStarting) e => (e.status, e.startDt, e.rc) else e => (e.status, e.endDt, e.rc)
+    val maybeDate = if (callStatus.isStarting || callStatus.isTerminal) Option(new Date().toTimestamp) else None
+
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
-      count <- executions.map(e => (e.status, e.endDt, e.rc)).update((callStatus.executionStatus.toString, endTime, callStatus.returnCode))
+      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode))
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
     } yield ()

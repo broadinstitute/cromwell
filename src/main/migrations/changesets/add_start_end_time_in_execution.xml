@@ -5,9 +5,7 @@
 
     <changeSet author="jgentry" id="add-start-end-time-in-execution">
         <addColumn tableName="EXECUTION">
-           <column name="START_DT" type="datetime">
-                <constraints nullable="false"/>
-            </column>
+           <column name="START_DT" type="datetime"/>
         </addColumn>
         <addColumn tableName="EXECUTION">
             <column name="END_DT" type="datetime"/>

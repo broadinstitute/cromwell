@@ -659,6 +659,43 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
+    it should "update call start and end dates appropriately" in {
+      assume(canConnect || testRequired)
+      val callFqn = "call.fully.qualified.scope"
+      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
+      val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
+      val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
+        _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(callFqn, None)), ExecutionStatus.NotStarted)
+        _ <- dataAccess.getExecutions(workflowId) map { executions =>
+          executions should have size 1
+          executions foreach { e =>
+            e.startDt shouldBe None
+            e.endDt shouldBe None
+          }
+        }
+        _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(callFqn, None)), ExecutionStatus.Starting)
+        _ <- dataAccess.getExecutions(workflowId) map { executions =>
+          executions should have size 1
+          executions foreach { e =>
+            e.startDt should not be None
+            e.endDt shouldBe None
+          }
+        }
+        _ <- dataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(callFqn, None)), ExecutionStatus.Done)
+        _ <- dataAccess.getExecutions(workflowId) map { executions =>
+          executions should have size 1
+          executions foreach { e =>
+            e.startDt should not be None
+            e.endDt should not be None
+          }
+        }
+      } yield()).futureValue
+    }
+
     it should "shutdown the database" in {
       assume(canConnect || testRequired)
       dataAccess.shutdown().futureValue

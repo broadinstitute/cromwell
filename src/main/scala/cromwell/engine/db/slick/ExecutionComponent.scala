@@ -12,7 +12,7 @@ case class Execution(workflowExecutionId: Int,
                      index: Int,
                      status: String,
                      rc: Option[Int] = None,
-                     startDt: Timestamp,
+                     startDt: Option[Timestamp] = None,
                      endDt: Option[Timestamp] = None,
                      executionId: Option[Int] = None)
 
@@ -28,7 +28,7 @@ trait ExecutionComponent {
     def index = column[Int]("IDX")
     def status = column[String]("STATUS")
     def rc = column[Option[Int]]("RC")
-    def startDt = column[Timestamp]("START_DT")
+    def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
 
     override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, executionId.?) <>

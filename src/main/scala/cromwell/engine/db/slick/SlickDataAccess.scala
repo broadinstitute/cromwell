@@ -255,11 +255,10 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   override def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]] = {
-
     val action = for {
-      workflowExecutionStatusOption <- dataAccess.workflowExecutionStatusesByWorkflowExecutionUuid(
+      maybeWorkflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.id.toString).result.headOption
-      workflowState = workflowExecutionStatusOption map WorkflowState.fromString
+      workflowState = maybeWorkflowExecution map { w => WorkflowState.fromString(w.status) }
     } yield workflowState
 
     runTransaction(action)
@@ -358,9 +357,11 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   override def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit] = {
+    val query = dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).extract
+    val endDate = if (workflowState.isTerminal) Option(new Date().toTimestamp) else None
+
     val action = for {
-      count <- dataAccess.workflowExecutionStatusesByWorkflowExecutionUuid(
-        workflowId.toString).update(workflowState.toString)
+      count <- query.map(w => (w.status, w.endDt)).update(workflowState.toString, endDate)
       _ = require(count == 1, s"Unexpected workflow execution update count $count")
     } yield ()
 

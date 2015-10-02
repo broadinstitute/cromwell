@@ -45,12 +45,6 @@ trait WorkflowExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowExecution)
 
-  val workflowExecutionStatusesByWorkflowExecutionUuid = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
-      workflowExecution <- workflowExecutions
-      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowExecution.status)
-
   // NOTE: No precompile for you!
   // [Compile] works for all functions ... consisting only of individual columns
   // - http://slick.typesafe.com/doc/3.0.0/queries.html

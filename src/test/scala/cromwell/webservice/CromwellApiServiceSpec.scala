@@ -11,7 +11,8 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{Entry, FlatSpec, Matchers}
+import org.yaml.snakeyaml.Yaml
 import spray.http._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -142,6 +143,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(StatusCodes.OK) {
           status
+        }
+        assertResult("2.0") {
+          new Yaml()
+            .loadAs(responseAs[String], classOf[java.util.Map[String, AnyRef]])
+            .get("swagger")
         }
       }
   }

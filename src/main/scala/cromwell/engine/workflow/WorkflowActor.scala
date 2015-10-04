@@ -545,6 +545,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def isWorkflowAborted: Boolean = executionStore.values forall { state => isTerminal(state) || state == ExecutionStatus.NotStarted }
 
   private def processRunnableScatter(scatterKey: ScatterKey, status: ExecutionStatus): Try[Iterable[ExecutionStoreKey]] = {
+    persistStatus(scatterKey, ExecutionStatus.Starting, None)
     val rootWorkflow = scatterKey.scope.rootScope match {
       case w: Workflow => w
       case _ => throw new WdlExpressionException(s"Expected scatter '$scatterKey' to have a workflow root scope.")

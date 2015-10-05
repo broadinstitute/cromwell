@@ -37,12 +37,12 @@ case class JesEngineFunctions(jesBackendCall: JesBackendCall) extends WdlStandar
   }
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(jesBackendCall.callDir.bucket, jesBackendCall.callDir.objectName + "/" + JesBackend.LocalStdoutValue)
+    val newPath = GoogleCloudStoragePath(jesBackendCall.callDir.bucket, jesBackendCall.callDir.objectName + "/" + JesBackendCall.StdoutFilename)
     Success(WdlFile(newPath.toString))
   }
 
   override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(jesBackendCall.callDir.bucket, jesBackendCall.callDir.objectName + "/" + JesBackend.LocalStderrValue)
+    val newPath = GoogleCloudStoragePath(jesBackendCall.callDir.bucket, jesBackendCall.callDir.objectName + "/" + JesBackendCall.StderrFilename)
     Success(WdlFile(newPath.toString))
   }
 

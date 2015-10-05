@@ -5,15 +5,27 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 
 package object db {
-  case class CallStatus(executionStatus: ExecutionStatus, rc: Option[Int])
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int]) {
+    def isTerminal: Boolean = executionStatus.isTerminal
+    def isStarting: Boolean = executionStatus == ExecutionStatus.Starting
+  }
 
   object CallStatus {
-    def apply(statusName: String, rc: Option[Int] = None): CallStatus = CallStatus(ExecutionStatus.withName(statusName), rc)
+    def apply(statusName: String, returnCode: Option[Int] = None): CallStatus = {
+      CallStatus(ExecutionStatus.withName(statusName), returnCode)
+    }
   }
 
   // Uniquely identify an entry in the execution table
-  case class ExecutionDatabaseKey(fqn: FullyQualifiedName, index: ExecutionIndex)
-  // jesId and jesStatus should have stronger types
-  type JesId = Int
-  type JesStatus = String
+  case class ExecutionDatabaseKey(fqn: FullyQualifiedName, index: ExecutionIndex) {
+    def isCollector(keys: Traversable[ExecutionDatabaseKey]): Boolean = {
+      index.isEmpty &&
+        (keys exists { e =>
+          (e.fqn == fqn) && e.index.isDefined
+        })
+    }
+  }
+
+  case class JesId(id: String)
+  case class JesStatus(status: String)
 }

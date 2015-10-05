@@ -5,6 +5,7 @@ import cromwell.binding.FullyQualifiedName
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.{CallMetadata, StdoutStderr}
 import org.joda.time.DateTime
+import spray.json.JsObject
 
 import scala.annotation.meta.field
 
@@ -87,9 +88,9 @@ case class WorkflowMetadataResponse
   @(ApiModelProperty@field)(required = true, value = "Date and time the workflow ended execution")
   end: Option[DateTime],
   @(ApiModelProperty@field)(required = true, value = "Workflow inputs")
-  inputs: Map[String, String],
+  inputs: JsObject,
   @(ApiModelProperty@field)(required = true, value = "Workflow outputs")
-  outputs: Option[Map[String, String]],
+  outputs: Option[Map[String, WdlValue]],
   @(ApiModelProperty@field)(required = true, value = "The fully qualified name of the call")
   calls: Map[String, Seq[CallMetadata]]
 )

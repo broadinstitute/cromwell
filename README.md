@@ -18,6 +18,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [inputs](#inputs)
   * [run](#run)
   * [parse](#parse)
+  * [highlight](#highlight)
   * [server](#server)
 * [Getting Started with WDL](#getting-started-with-wdl)
   * [Hello World WDL](#hello-world-wdl)
@@ -33,6 +34,16 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Local Backend](#local-backend)
   * [Sun GridEngine](#sun-gridengine)
   * [Google JES](#google-jes)
+    * [Authentication Modes](#authentication-modes)
+* [Runtime Attributes](#runtime-attributes)
+  * [continueOnReturnCode](#continueonreturncode)
+  * [cpu](#cpu)
+  * [defaultDisks](#defaultdisks)
+  * [defaultZones](#defaultzones)
+  * [failOnStderr](#failonstderr)
+  * [docker](#docker)
+  * [memory](#memory)
+  * [preemptible](#preemptible)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /workflows/:version](#post-workflowsversion)
@@ -56,7 +67,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 
 # Mailing List
 
-The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstite.org. 
+The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstitute.org.
 
 If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.
 
@@ -256,9 +267,9 @@ If your workflow has no inputs, you can specify `-` as the value for the inputs 
 $ java -jar cromwell.jar run my_workflow.wdl -
 ```
 
-The final optinal parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
+The final optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
-The only workflow option that has any meaning currently is the `jes_gcs_root`, which will be used in the JES backend.  See the section on the [JES backend](#google-jes) for more details.
+Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes) for more details.
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -268,7 +279,9 @@ Where `wf_options.json` would contain:
 
 ```
 {
-  "jes_gcs_root": "gs://my-bucket/workflows"
+  "jes_gcs_root": "gs://my-bucket/workflows",
+  "account_name": "my.google.account@gmail.com",
+  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
 }
 ```
 
@@ -797,7 +810,248 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES
 
+Google JES (Job Execution Service) is a Docker-as-a-service from Google.  JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+
+```hocon
+backend {
+  backend = "jes"
+
+  jes {
+    applicationName = "cromwell"
+
+    // Google project
+    project = "broad-dsde-dev"
+
+    // Location to store workflow results, must be a gs:// URL
+    baseExecutionBucket = "gs://your-bucket/cromwell-executions"
+
+    // Root URL for the API
+    endpointUrl = "https://genomics.googleapis.com/"
+
+    // Polling for completion backs-off gradually for slower-running jobs.
+    // This is the maximum polling interval (in seconds):
+    maximumPollingInterval = 600
+
+    // Authentication mode: either 'service_account' or 'refresh_token'
+    // 'refresh_token' mode will require workflow options to provide a
+    // value for 'refresh_token' for every workflow request
+    authenticationMode = "service_account"
+
+    // Optional Dockerhub Credentials
+    // dockerAccount = ""
+    // dockerToken = ""
+  }
+
+  ...
+}
+```
+
+It is also necessary to fill out the `google` stanza in the configuration file.  This stanza will set up the service account that Cromwell uses to write certain files to GCS.
+
+```hocon
+google {
+  authScheme = "service"
+
+  // If authScheme is "user"
+  userAuth {
+    // user = ""
+    // secretsFile = ""
+    // dataStoreDir = ""
+  }
+
+  // If authScheme is "service"
+  serviceAuth {
+    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
+  }
+}
+```
+
+### Authentication Modes
+
+The JES backend has two authentication modes: `service_account`, and `refresh_token`.  These authentication modes determine how Cromwell will authenticate with JES
+
+In `refresh_token` mode, a refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
+
+```
+$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
+```
+
+Where `wf_options.json` would contain:
+
+```
+{
+  "account_name": "my.google.account@gmail.com",
+  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+The refresh token is passed to JES when the job is launched and localization of data and running of the job is done with that refresh token user's account.
+
+In `service_account` mode, the values in the `google {...}` stanza are used to launch jobs and provide localization.  If you are new to using the JES backend, it is easiest to start with in `service_account` mode.
+
+# Runtime Attributes
+
+Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.
+
+For example:
+
+```
+task jes_task {
+  command {
+    echo "Hello JES!"
+  }
+  runtime {
+    docker: "ubuntu:latest"
+    memory: "4G"
+    cpu: "3"
+    defaultZones: "US_Metro MX_Metro"
+    defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+  }
+}
+workflow jes_workflow {
+  call jes_task
+}
+```
+
+This table lists the currently available runtime attributes for cromwell:
+
+| Runtime Attribute    | LOCAL |  JES  |  SGE  |
+| -------------------- |:-----:|:-----:|:-----:|
+| continueOnReturnCode |   x   |   x   |   x   |
+| cpu                  |       |   x   |       |
+| defaultDisks         |       |   x   |       |
+| defaultZones         |       |   x   |       |
+| docker               |   x   |   x   |   x   |
+| failOnStderr         |   x   |   x   |   x   |
+| memory               |       |   x   |       |
+| preemptible          |       |   x   |       |
+
+## continueOnReturnCode
+
+When each task finishes it returns a code. Normally, a non-zero return code indicates a failure. However you can override this behavior by specifying the `continueOnReturnCode` attribute.
+
+When set to false, any non-zero return code will be considered a failure. When set to true, all return codes will be considered successful.
+
+```
+runtime {
+  continueOnReturnCode: true
+}
+```
+
+When set to an integer, or an array of integers, only those integers will be considered as successful return codes.
+
+```
+runtime {
+  continueOnReturnCode: 1
+}
+```
+
+```
+runtime {
+  continueOnReturnCode: [0, 1]
+}
+```
+
+Defaults to "0".
+
+## cpu
+
+Passed to JES: "The minimum number of cores to use."
+
+```
+runtime {
+  cpu: 2
+}
+```
+
+Defaults to "1".
+
+## defaultDisks
+
+Passed to JES: "Disks to attach."
+
+The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
+
+1. Disk name
+2. Disk size in GB
+3. Disk type
+
 ... more to come ...
+
+```
+runtime {
+  defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+}
+```
+
+Defaults to "local-disk 100 LOCAL_SSD".
+
+## defaultZones
+
+Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
+
+The zones are specified as a space separated list, with no commas.
+
+```
+runtime {
+  defaultZones: "US_Metro MX_Metro"
+}
+```
+
+Defaults to "us-central1-a".
+
+## docker
+
+When specified, cromwell will run your task within the specified Docker image.
+
+```
+runtime {
+  docker: "ubuntu:latest"
+}
+```
+
+This attribute is mandatory when submitting tasks to JES. When running on other backends, they default to not running the process within Docker.
+
+## failOnStderr
+
+Some programs write to the standard error stream when there is an error, but still return a zero exit code. Set `failOnStderr` to true for these tasks, and it will be considered a failure if anything is written to the standard error stream.
+
+```
+runtime {
+  failOnStderr: true
+}
+```
+
+Defaults to "false".
+
+## memory
+
+Passed to JES: "The minimum amount of RAM to use."
+
+The memory size is specified as an amount and units of memory, for example "4 G".
+
+```
+runtime {
+  memory: "4G"
+}
+```
+
+Defaults to "2G".
+
+## preemptible
+
+Passed to JES: "If applicable, preemptible machines may be used for the run."
+
+... more to come ...
+
+```
+runtime {
+  preemptible: true
+}
+```
+
+Defaults to "false".
 
 # REST API
 
@@ -1205,15 +1459,7 @@ This endpoint returns a superset of the data from #get-workflowsversionidlogs in
 Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
 Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
 return code, stdout and stderr.  Date formats are ISO with milliseconds.
-  
-### Notes
 
-- The logs endpoints could possibly be deleted once this is implemented, nobody is calling those anyway (but
-  check with Chet first).
-  
-- We never actually specify the backend on which the call executed.  One might be able to infer that from
-  the shape of the job id, but then again maybe not.
- 
 
 cURL:
 
@@ -1230,73 +1476,113 @@ $ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/m
 Response:
 ```
 HTTP/1.1 200 OK
+Server spray-can/1.3.3 is not blacklisted
 Server: spray-can/1.3.3
-Date: Fri, 18 Sep 2015 22:31:20 GMT
+Date: Thu, 01 Oct 2015 22:18:07 GMT
 Content-Type: application/json; charset=UTF-8
-Content-Length: 2389
+Content-Length: 6192
 {
   "calls": {
-    "three_step.wc": [{
-      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stdout",
+    "sc_test.do_prepare": [{
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/stdout",
       "outputs": {
-        "output_key": "output_value"
+        "split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ad"]
       },
       "inputs": {
-        "input_key": "input_value"
+        "input_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/workflow-inputs/e46345ba-11.txt"
       },
-      "status": "UnknownStatus",
-      "jobId": "COMPLETELY-MADE-UP-ID",
-      "backend": "UnknownBackend",
-      "end": "2015-09-18T18:31:20.702-04:00",
-      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-wc/stderr",
-      "start": "2015-09-18T18:31:20.702-04:00",
-      "rc": 0
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-01T18:17:56.651-04:00",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/stderr",
+      "start": "2015-10-01T18:17:56.204-04:00"
     }],
-    "three_step.ps": [{
-      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
+    "sc_test.do_scatter": [{
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/stdout",
       "outputs": {
-        "output_key": "output_value"
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/output.txt"
       },
       "inputs": {
-        "input_key": "input_value"
+        "input_file": "f"
       },
-      "status": "UnknownStatus",
-      "jobId": "COMPLETELY-MADE-UP-ID",
-      "backend": "UnknownBackend",
-      "end": "2015-09-18T18:31:20.702-04:00",
-      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stderr",
-      "start": "2015-09-18T18:31:20.702-04:00",
-      "rc": 0
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-01T18:17:56.777-04:00",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/stderr",
+      "start": "2015-10-01T18:17:56.676-04:00"
+    }, {
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/stdout",
+      "outputs": {
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/output.txt"
+      },
+      "inputs": {
+        "input_file": "f"
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-01T18:17:56.819-04:00",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/stderr",
+      "start": "2015-10-01T18:17:56.676-04:00"
+    }, {
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/stdout",
+      "outputs": {
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/output.txt"
+      },
+      "inputs": {
+        "input_file": "f"
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-01T18:17:56.806-04:00",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/stderr",
+      "start": "2015-10-01T18:17:56.676-04:00"
+    }, {
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/stdout",
+      "outputs": {
+        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/output.txt"
+      },
+      "inputs": {
+        "input_file": "f"
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-01T18:17:56.793-04:00",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/stderr",
+      "start": "2015-10-01T18:17:56.676-04:00"
     }],
-    "three_step.cgrep": [{
-      "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stdout",
+    "sc_test.do_gather": [{
+      "executionStatus": "Done",
+      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_gather/stdout",
       "outputs": {
-        "output_key": "output_value"
+        "sum": 11
       },
       "inputs": {
-        "input_key": "input_value"
+        "input_files": "do_scatter.count_file"
       },
-      "status": "UnknownStatus",
-      "jobId": "COMPLETELY-MADE-UP-ID",
-      "backend": "UnknownBackend",
-      "end": "2015-09-18T18:31:20.702-04:00",
-      "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-cgrep/stderr",
-      "start": "2015-09-18T18:31:20.702-04:00",
-      "rc": 0
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-01T18:17:56.895-04:00",
+      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_gather/stderr",
+      "start": "2015-10-01T18:17:56.206-04:00"
     }]
   },
   "outputs": {
-    "three_step.cgrep.count": "3",
-    "three_step.ps.procs": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/three_step/bcc68b4d-0c47-4d7a-a0e1-dbc96469ec1a/call-ps/stdout",
-    "three_step.wc.count": "3"
+    "sc_test.do_gather.sum": 11,
+    "sc_test.do_prepare.split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ad"],
+    "sc_test.do_scatter.count_file": ["/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/output.txt"]
   },
-  "id": "6a679113-8c15-4c27-ab5e-936875cdd728",
+  "id": "167dafe7-f474-482a-8194-01a1b770cdfd",
   "inputs": {
-    "three_step.cgrep.pattern": "..."
+    "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
   },
-  "submission": "2015-09-18T18:31:09.595-04:00",
+  "submission": "2015-10-01T18:17:56.113-04:00",
   "status": "Succeeded",
-  "start": "2015-09-18T18:31:09.595-04:00"
+  "start": "2015-10-01T18:17:56.113-04:00"
 }
 ```
 

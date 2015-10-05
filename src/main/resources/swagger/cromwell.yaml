@@ -305,32 +305,94 @@ paths:
             application/json: |-
               {
                 "calls": {
-                  "w.hello": [{
-                    "stdout": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/w/ebde7097-5608-4f8c-8fe9-b766ab9dc1db/call-hello/stdout",
+                  "sc_test.do_prepare": [{
+                    "executionStatus": "Done",
+                    "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/stdout",
                     "outputs": {
-                      "output_key": "output_value"
+                      "split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ad"]
                     },
                     "inputs": {
-                      "input_key": "input_value"
+                      "input_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/workflow-inputs/e46345ba-11.txt"
                     },
-                    "status": "Unknown",
-                    "jobId": "COMPLETELY-MADE-UP-ID",
-                    "end": "2015-09-17T17:45:27.813-04:00",
-                    "stderr": "/Users/mcovarr/gitrepos/cromwell/cromwell-executions/w/ebde7097-5608-4f8c-8fe9-b766ab9dc1db/call-hello/stderr",
-                    "start": "2015-09-17T17:45:27.812-04:00",
-                    "rc": 0
+                    "returnCode": 0,
+                    "backend": "Local",
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/stderr"
+                  }],
+                  "sc_test.do_scatter": [{
+                    "executionStatus": "Done",
+                    "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/stdout",
+                    "outputs": {
+                      "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/output.txt"
+                    },
+                    "inputs": {
+                      "input_file": "f"
+                    },
+                    "returnCode": 0,
+                    "backend": "Local",
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/stderr"
+                  }, {
+                    "executionStatus": "Done",
+                    "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stdout",
+                    "outputs": {
+                      "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/output.txt"
+                    },
+                    "inputs": {
+                      "input_file": "f"
+                    },
+                    "returnCode": 0,
+                    "backend": "Local",
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stderr"
+                  }, {
+                    "executionStatus": "Done",
+                    "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stdout",
+                    "outputs": {
+                      "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/output.txt"
+                    },
+                    "inputs": {
+                      "input_file": "f"
+                    },
+                    "returnCode": 0,
+                    "backend": "Local",
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stderr"
+                  }, {
+                    "executionStatus": "Done",
+                    "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stdout",
+                    "outputs": {
+                      "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/output.txt"
+                    },
+                    "inputs": {
+                      "input_file": "f"
+                    },
+                    "returnCode": 0,
+                    "backend": "Local",
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stderr"
+                  }],
+                  "sc_test.do_gather": [{
+                    "executionStatus": "Done",
+                    "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/stdout",
+                    "outputs": {
+                      "sum": 11
+                    },
+                    "inputs": {
+                      "input_files": "do_scatter.count_file"
+                    },
+                    "returnCode": 0,
+                    "backend": "Local",
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/stderr"
                   }]
                 },
                 "outputs": {
-                  "w.hello.salutation": "Hello FireCloud!"
+                  "sc_test.do_gather.sum": 11,
+                  "sc_test.do_prepare.split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/temp_ad"],
+                  "sc_test.do_scatter.count_file": ["/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/output.txt"]
                 },
-                "id": "ebde7097-5608-4f8c-8fe9-b766ab9dc1db",
+                "id": "6efd83b7-39df-47d7-bb2d-96ebb9f093a2",
                 "inputs": {
-                  "w.hello.addressee": "FireCloud"
+                  "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
                 },
-                "submission": "2015-09-17T17:45:16.331-04:00",
+                "submission": "2015-09-29T14:06:32.120-04:00",
                 "status": "Succeeded",
-                "start": "2015-09-17T17:45:16.331-04:00"
+                "start": "2015-09-29T14:06:32.120-04:00"
               }
         '400':
           description: Malformed Workflow ID
@@ -423,10 +485,10 @@ definitions:
         description: End datetime of the workflow in ISO8601 format with milliseconds
       inputs:
         type: object
-        description: Map of input keys to stringified input values
+        description: Map of input keys to input values
       outputs:
         type: object
-        description: Map of output keys to stringified output values
+        description: Map of output keys to output values
       calls:
         type: object
         description: Map of call fully qualified names to lists of call metadata
@@ -439,12 +501,15 @@ definitions:
       inputs:
         type: object
         description: Mapping of input fully qualified names to stringified values
-      status:
+      executionStatus:
         type: string
-        description: Status
+        description: Status in Cromwell execution terms.
       backend:
         type: string
         description: The type of backend on which the call executed (e.g. JES, SGE, Local)
+      backendStatus:
+        type: string
+        description: Status in backend-specific terms.  Currently this will only be defined for the JES backend.
       start:
         type: string
         format: date-time
@@ -456,7 +521,7 @@ definitions:
       jobId:
         type: string
         description: Backend-specific job ID
-      rc:
+      returnCode:
         type: int
         description: Call execution return code
       stdout:

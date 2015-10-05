@@ -1,6 +1,6 @@
 package cromwell.engine.backend.local
 
-import java.io.Writer
+import java.io.{FileWriter, BufferedWriter, Writer}
 import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
@@ -9,11 +9,14 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
+import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
+import cromwell.util.TailedWriter
 
+import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
@@ -103,18 +106,18 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
                                  (implicit ec: ExecutionContext): Future[Any] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      dataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
+      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
     }
 
     val seqOfFutures = restartableWorkflows map { workflow =>
       for {
-        callsToStatuses <- dataAccess.getExecutionStatuses(workflow.id)
+        callsToStatuses <- globalDataAccess.getExecutionStatuses(workflow.id)
         _ <- updateNonTerminalCalls(workflow.id, callsToStatuses)
       } yield ()
     }
@@ -147,23 +150,30 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
 
   private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
     val tag = makeTag(backendCall)
-    val (_, stdoutWriter) = backendCall.stdout.fileAndWriter
-    val (_, stderrWriter) = backendCall.stderr.fileAndWriter
+    val stdoutWriter = backendCall.stdout.untailed
+    val stderrTailed = backendCall.stderr.tailed(100)
     val dockerRun = backendCall.call.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
     val argv = Seq("/bin/bash", "-c", s"cat ${backendCall.script} | $dockerRun /bin/bash <&0")
-    val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrWriter writeWithNewline))
+    val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
 
     // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => process.destroy()))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"$tag command: $backendCommandString")
-    process.exitValue() // blocks until process finishes
-    Vector(stdoutWriter, stderrWriter) foreach { _.flushAndClose() }
+    val processReturnCode = process.exitValue() // blocks until process finishes
+    Vector(stdoutWriter.writer, stderrTailed.writer) foreach { _.flushAndClose() }
 
-    val stderrFileLength = Files.size(backendCall.stderr)
-    val rc = Try(backendCall.rc.slurp.stripLineEnd.toInt)
+    val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
+    val returnCode = Try(
+      if (processReturnCode == 0 || backendCall.call.docker.isEmpty) {
+        backendCall.returnCode.slurp.stripLineEnd.toInt
+      } else {
+        throw new Exception(s"Unexpected process exit code: $processReturnCode")
+      }
+    )
     if (backendCall.call.failOnStderr && stderrFileLength > 0) {
-      FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
+      FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
+        s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
     } else {
 
       def processSuccess() = {
@@ -175,12 +185,20 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         }
       }
 
-      rc match {
-        case Success(0) => processSuccess()
+      val badReturnCodeMessage =
+         s"""Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
+            |
+            |Full command was: $backendCommandString
+            |
+            |${stderrTailed.tailString}
+          """.stripMargin
+
+      val continueOnReturnCode = backendCall.call.continueOnReturnCode
+      returnCode match {
         case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-        case Success(badRc) if !backendCall.call.failOnRc => processSuccess()
-        case Success(badRc) if backendCall.call.failOnRc => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}"), Option(badRc))
-        case Failure(e) => FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: $rc\n\nFull command was: ${argv.mkString(" ")}", e))
+        case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess()
+        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode))
+        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e))
       }
     }
   }

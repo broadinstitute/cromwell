@@ -1,32 +1,26 @@
 package cromwell.engine.backend
 
-import java.nio.file.{Files, Paths}
-
 import com.typesafe.config.Config
-import cromwell.binding
-import cromwell.binding.WdlExpression.ScopedLookupFunction
 import cromwell.binding._
-import cromwell.binding.types.{WdlFileType, WdlMapType}
-import cromwell.binding.values.{WdlFile, WdlMap, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
-import cromwell.engine.backend.local.{LocalBackendCall, LocalBackend, LocalEngineFunctions}
+import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
   def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
   def from(name: String) = name.toLowerCase match {
     case "local" => new LocalBackend
-    case "jes" => new JesBackend
+    case "jes" => new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
     case "sge" => new SgeBackend
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
@@ -55,6 +49,11 @@ trait Backend {
   def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs]
 
   /**
+   * Do whatever cleaning up work is required when a workflow reaches a terminal state.
+   */
+  def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
+
+  /**
    * Execute the Call (wrapped in a BackendCall), return the outputs if it is
    * successful, otherwise, returns Failure with a reason why the execution failed
    */
@@ -71,7 +70,7 @@ trait Backend {
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
    */
-  def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any]
+  def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext): Future[Any]
 
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
@@ -79,6 +78,12 @@ trait Backend {
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr
 
   def backendType: BackendType
+
+  /**
+   * Validate that workflow options contain all required information.
+   */
+  @throws[IllegalArgumentException]("if a value is missing / incorrect")
+  def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
   def makeTag(backendCall: BackendCall): String =
     s"${this.getClass.getSimpleName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"

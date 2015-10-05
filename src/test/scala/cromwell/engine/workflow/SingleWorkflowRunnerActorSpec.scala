@@ -1,13 +1,15 @@
 package cromwell.engine.workflow
 
+import akka.testkit.TestActorRef
+import cromwell.CromwellTestkitSpec
+import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.SampleWdl.ThreeStep
-import cromwell.{CromwellSpec, CromwellTestkitSpec}
 
 import scala.language.postfixOps
 
 class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec("SingleWorkflowRunnerActorSpec") {
-  val workflowManagerActor = system.actorOf(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance))
-  val props = SingleWorkflowRunnerActor.props(ThreeStep.asWorkflowSources(), ThreeStep.rawInputs, workflowManagerActor)
+  val workflowManager = TestActorRef(new WorkflowManagerActor(new LocalBackend))
+  val props = SingleWorkflowRunnerActor.props(ThreeStep.asWorkflowSources(), ThreeStep.rawInputs, workflowManager)
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {

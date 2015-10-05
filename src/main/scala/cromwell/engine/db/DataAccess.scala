@@ -6,31 +6,12 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
-import cromwell.engine.{SymbolStoreEntry, WorkflowId, WorkflowState}
+import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 object DataAccess {
-  def apply(): DataAccess = new slick.SlickDataAccess()
-
-  /**
-   * Creates a DataAccess instance, loans it to the function,
-   * and then attempts to shut down the instance.
-   *
-   * @param f Function to run on the data access.
-   * @tparam T Return type of the function.
-   * @return Result of calling the function with the dataAccess instance.
-   */
-  def withDataAccess[T](f: DataAccess => T): T = {
-    val dataAccess = DataAccess()
-    try {
-      f(dataAccess)
-    } finally {
-      // NOTE: shutdown result thrown away
-      Await.ready(dataAccess.shutdown(), Duration.Inf)
-    }
-  }
+  val globalDataAccess: DataAccess = new slick.SlickDataAccess()
 }
 
 trait DataAccess {
@@ -64,9 +45,9 @@ trait DataAccess {
   /** Returns all outputs for this workflowId */
   def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
-  def getAllOutputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+  def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
-  def getAllInputs(workflowId: WorkflowId): Future[Traversable[Symbol]]
+  def getAllInputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]]
@@ -95,16 +76,18 @@ trait DataAccess {
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
   def shutdown(): Future[Unit]
 
-  def getExecutions(id: Int): Future[Traversable[Execution]]
+  def getExecutions(id: WorkflowId): Future[Traversable[Execution]]
 
   /** Fetch the workflow having the specified `WorkflowId`. */
   def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]
 
-  def getWorkflowExecutionAux(id: Int): Future[WorkflowExecutionAux]
+  def getWorkflowExecutionAux(id: WorkflowId): Future[WorkflowExecutionAux]
 
   def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]]
 
   def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]]
 
   def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]]
+
+  def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String): Future[Unit]
 }

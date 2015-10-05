@@ -17,4 +17,7 @@
     <include file="changesets/change_execution_unique_constraint.xml" relativeToChangelogFile="true" />
     <include file="changesets/rc.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_options.xml" relativeToChangelogFile="true" />
+    <include file="changesets/jes_id_update.xml" relativeToChangelogFile="true" />
+    <include file="changesets/optional_sge_ids.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_start_end_time_in_execution.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

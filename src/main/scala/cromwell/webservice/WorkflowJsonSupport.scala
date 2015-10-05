@@ -23,7 +23,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     override def write(obj: DateTime) = JsString(parserISO.print(obj))
     override def read(json: JsValue) : DateTime = ???
   }
-  implicit val callMetadataProtocol = jsonFormat10(CallMetadata)
+  implicit val callMetadataProtocol = jsonFormat11(CallMetadata)
   implicit val workflowMetadataResponse = jsonFormat8(WorkflowMetadataResponse)
 }
 

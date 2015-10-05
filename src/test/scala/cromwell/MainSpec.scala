@@ -11,9 +11,6 @@ import cromwell.util.SampleWdl.ThreeStep
 import cromwell.util.{FileUtil, SampleWdl}
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 class TestWorkflowManagerSystem extends WorkflowManagerSystem {
   override lazy val backend = new LocalBackend
   override implicit val actorSystem = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
@@ -124,7 +121,6 @@ class MainSpec extends FlatSpec with Matchers {
       val (wdl, inputs) = wdlAndInputs(ThreeStep)
       Main.run(Array(wdl, inputs), workflowManagerSystem)
     }
-    Await.result(workflowManagerSystem.shutdown(), Duration.Inf)
   }
 
   it should "print usage" in {

@@ -11,7 +11,8 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{Entry, FlatSpec, Matchers}
+import org.yaml.snakeyaml.Yaml
 import spray.http._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -135,6 +136,21 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   def actorRefFactory = system
   val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
   val version = "v1"
+
+  "Cromwell swagger docs" should "return 200" in {
+    Get("/swagger/cromwell.yaml") ~>
+      docsRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult("2.0") {
+          new Yaml()
+            .loadAs(responseAs[String], classOf[java.util.Map[String, AnyRef]])
+            .get("swagger")
+        }
+      }
+  }
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}") ~>

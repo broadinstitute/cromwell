@@ -1,19 +1,20 @@
 package cromwell.engine.db.slick
 
+import java.sql.Timestamp
+
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.db.ExecutionDatabaseKey
 
 import scala.language.postfixOps
 
-case class Execution
-(
-  workflowExecutionId: Int,
-  callFqn: String,
-  index: Int,
-  status: String,
-  rc: Option[Int] = None,
-  executionId: Option[Int] = None
-  )
+case class Execution(workflowExecutionId: Int,
+                     callFqn: String,
+                     index: Int,
+                     status: String,
+                     rc: Option[Int] = None,
+                     startDt: Option[Timestamp] = None,
+                     endDt: Option[Timestamp] = None,
+                     executionId: Option[Int] = None)
 
 trait ExecutionComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
@@ -22,25 +23,21 @@ trait ExecutionComponent {
 
   class Executions(tag: Tag) extends Table[Execution](tag, "EXECUTION") {
     def executionId = column[Int]("EXECUTION_ID", O.PrimaryKey, O.AutoInc)
-
     def workflowExecutionId = column[Int]("WORKFLOW_EXECUTION_ID")
-
     def callFqn = column[String]("CALL_FQN")
-
     def index = column[Int]("IDX")
-
     def status = column[String]("STATUS")
-
     def rc = column[Option[Int]]("RC")
+    def startDt = column[Option[Timestamp]]("START_DT")
+    def endDt = column[Option[Timestamp]]("END_DT")
 
-    override def * = (workflowExecutionId, callFqn, index, status, rc, executionId.?) <>
+    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(
       "FK_EXECUTION_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
 
-    def uniqueKey = index("UK_WORKFLOW_CALL_INDEX",
-      (workflowExecutionId, callFqn, index), unique = true)
+    def uniqueKey = index("UK_WORKFLOW_CALL_INDEX", (workflowExecutionId, callFqn, index), unique = true)
   }
 
   protected val executions = TableQuery[Executions]
@@ -54,7 +51,7 @@ trait ExecutionComponent {
       if execution.workflowExecutionId === workflowExecutionId
     } yield (execution.callFqn, execution.index, execution.status, execution.rc))
 
-  val executionStatusAndRcByWorkflowExecutionIdAndCallKey = Compiled(
+  val executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
@@ -77,13 +74,14 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
-  val executionsByWorkflowExecutionId = Compiled(
-    (workflowExecutionId: Rep[Int]) => for {
+  val executionsByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
       execution <- executions
-      if execution.workflowExecutionId === workflowExecutionId
+      workflowExecution <- execution.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
-  val executionStatusesAndRcsByExecutionId = Compiled(
+  val executionStatusesAndReturnCodesByExecutionId = Compiled(
     (executionId: Rep[Int]) => for {
       execution <- executions
       if execution.executionId === executionId
@@ -98,6 +96,7 @@ trait ExecutionComponent {
     } yield execution
 
     val scopeID = scopeKeys.map(k => (k.fqn, k.index.fromIndex)).toIterable
+
     /*
      * FIXME: This is bad, there is probably a better way
      * We want entries that have the right workflowID AND a (fqn, index) pair which is in scopeKeys

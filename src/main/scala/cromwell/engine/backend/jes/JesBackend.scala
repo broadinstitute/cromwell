@@ -2,23 +2,23 @@ package cromwell.engine.backend.jes
 
 import java.io.File
 import java.math.BigInteger
-import java.net.URL
 import java.nio.file.{Path, Paths}
-import java.security.MessageDigest
 
 import com.google.api.services.genomics.model.Parameter
-import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.NoFunctions
+import cromwell.binding.types.{WdlFileType, WdlType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
-import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess
+import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
+import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.parser.BackendType
 import cromwell.util.google.GoogleCloudStoragePath
 
@@ -27,24 +27,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object JesBackend {
-  private lazy val JesConf = ConfigFactory.load.getConfig("backend").getConfig("jes")
-  lazy val GoogleProject = JesConf.getString("project")
-  lazy val GoogleApplicationName = JesConf.getString("applicationName")
-  lazy val EndpointUrl = new URL(JesConf.getString("endpointUrl"))
-  lazy val JesConnection = JesInterface(GoogleApplicationName, EndpointUrl)
-
-  implicit class EnhancedConfig(val config: Config) extends AnyVal {
-    def getStringOption(key: String): Option[String] = {
-      Try(config.getString(key)) match {
-        case Success(value) => Option(value)
-        case Failure(e: ConfigException.Missing) => None
-        case Failure(e) => throw e
-      }
-    }
-  }
-
-  lazy val DockerHubCredentials = JesConf.getStringOption("dockerhubCredentialsPath")
-
   /*
     FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
     where stdout.txt is input and output. Redirect stdout/stderr to a different name, but it'll be localized back
@@ -57,16 +39,11 @@ object JesBackend {
   val ExtraConfigParamName = "__extra_config_gcs_path"
   val JesCromwellRoot = "/cromwell_root"
 
-  def callGcsPath(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): String = {
-    val shardPath = index map { i => s"/shard-$i"} getOrElse ""
-    val bucket = descriptor.workflowOptions.getOrElse("jes_gcs_root", JesConf.getString("baseExecutionBucket"))
-    s"$bucket/${descriptor.namespace.workflow.name}/${descriptor.id}/call-$callName$shardPath"
-  }
-
-  // Decoration around WorkflowDescriptor to generate bucket names and the like
-  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends AnyVal {
-    def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.name, key.index)
-  }
+  // Workflow options keys
+  val AccountOptionKey = "account_name"
+  val RefreshTokenOptionKey = "refresh_token"
+  val GcsRootOptionKey = "jes_gcs_root"
+  val OptionKeys = Set(AccountOptionKey, RefreshTokenOptionKey, GcsRootOptionKey)
 
   def stderrJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStderrValue, s"$callGcsPath/$LocalStderrValue", Paths.get(LocalStderrValue))
   def stdoutJesOutput(callGcsPath: String): JesOutput = JesOutput(LocalStdoutValue, s"$callGcsPath/$LocalStdoutValue", Paths.get(LocalStdoutValue))
@@ -79,7 +56,12 @@ object JesBackend {
     stdoutJesOutput(callGcsPath),
     stderrJesOutput(callGcsPath),
     localizationDiskInput()
-  ) ++ authGcsCredentialsPath(DockerHubCredentials)
+  )
+
+  // Decoration around WorkflowDescriptor to generate bucket names and the like
+  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends JesBackend {
+    def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.name, key.index)
+  }
 
   sealed trait JesParameter {
     def name: String
@@ -98,6 +80,13 @@ object JesBackend {
 
 class JesBackend extends Backend with LazyLogging {
   type BackendCall = JesBackendCall
+
+  /*
+   * NOTE: Those have been moved from JesBackend object to the class,
+   * so if we were ever to instantiate several backends, as many JesConf/JesConnection would be created as well
+   */
+  lazy val JesConf = JesAttributes()
+  lazy val JesConnection = JesInterface(JesConf.applicationName, JesConf.endpointUrl)
 
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
@@ -131,8 +120,61 @@ class JesBackend extends Backend with LazyLogging {
   override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => mapInputValue(k, v) }
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  // No need to copy GCS inputs for the workflow we should be able to directly reference them
-  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs] = Success(workflow.actualInputs)
+  private def writeAuthenticationFile(workflow: WorkflowDescriptor, userAuth: Option[GcsUserAuthInformation]) = {
+    val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+    GcsAuth.generateJson(JesConf.dockerCredentials, userAuth) foreach { content =>
+      logger.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
+      JesConnection.storage.uploadJson(path, content)
+    }
+  }
+
+  /*
+   * No need to copy GCS inputs for the workflow we should be able to directly reference them
+   * Create an authentication json file containing docker credentials and/or user account information
+   */
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs] = {
+    def writeWithRefreshToken() = getGcsAuthInformation(workflow) map { userAuth => writeAuthenticationFile(workflow, Option(userAuth)) }
+
+    JesConf.authMode match {
+      case RefreshTokenMode => writeWithRefreshToken().map(_ => workflow.actualInputs)
+      case _ =>
+        writeAuthenticationFile(workflow, None)
+        Success(workflow.actualInputs)
+    }
+  }
+
+  override def assertWorkflowOptions(options: WorkflowOptions): Unit = {
+    // Warn for unrecognized option keys
+    options.toMap.keySet.diff(OptionKeys) match {
+      case unknowns if unknowns.nonEmpty => logger.warn(s"Unrecognized workflow option(s): ${unknowns.mkString(", ")}")
+      case _ =>
+    }
+
+    if (JesConf.authMode == RefreshTokenMode) {
+      Seq(AccountOptionKey, RefreshTokenOptionKey) filterNot options.toMap.keySet match {
+        case missing if missing.nonEmpty =>
+          throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
+        case _ =>
+      }
+    }
+  }
+
+  /**
+   * Delete authentication file in gcs once workflow is in a terminal state.
+   */
+  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
+    Future(JesConnection.storage.deleteObject(GoogleCloudStoragePath(gcsAuthFilePath(workflow))))
+  }
+
+  /**
+   * Get a GcsUserAuthInformation from workflow options
+   */
+  def getGcsAuthInformation(workflow: WorkflowDescriptor): Try[GcsUserAuthInformation] = {
+    for {
+      account <- workflow.workflowOptions.get(AccountOptionKey)
+      token <- workflow.workflowOptions.get(RefreshTokenOptionKey)
+    } yield GcsUserAuthInformation(account, token)
+  }
 
   override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
     val base = callGcsPath(descriptor, callName, index)
@@ -165,13 +207,13 @@ class JesBackend extends Backend with LazyLogging {
 
   def generateJesInputs(backendCall: BackendCall): Iterable[JesInput] = {
     val adjustedPaths = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs)
-    def mkInput(k: String, v: WdlFile) = JesInput(k, backendCall.lookupFunction(k).valueString, Paths.get(v.valueString))
+    def mkInput(fileTag: String, location: WdlFile) = JesInput(fileTag, backendCall.lookupFunction(fileTag).valueString, Paths.get(location.valueString))
     adjustedPaths collect {
-      case (k: String, v: WdlFile) =>
-        logger.info(s"${makeTag(backendCall)}: $k -> ${v.valueString}")
-        Seq(mkInput(k, v))
-      case (k: String, v: WdlArray) => v.value.collect { case f: WdlFile => mkInput(k, f) }
-      case (k: String, v: WdlMap) => v.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(k, f) }
+      case (fileTag: String, location: WdlFile) =>
+        logger.info(s"${makeTag(backendCall)}: $fileTag -> ${location.valueString}")
+        Seq(mkInput(fileTag, location))
+      case (fileTag: String, location: WdlArray) => location.value.collect { case f: WdlFile => mkInput(fileTag, f) }
+      case (fileTag: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(fileTag, f) }
     } flatten
   }
 
@@ -189,23 +231,44 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesParameter], jesOutputs: Seq[JesParameter]): ExecutionResult = {
+  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesInput], jesOutputs: Seq[JesOutput]): ExecutionResult = {
     val tag = makeTag(backendCall)
-    // FIXME: Ignore all the errors!
-    val jesParameters = standardParameters(backendCall.callGcsPath) ++ jesInputs ++ jesOutputs
+    val jesParameters = standardParameters(backendCall.callGcsPath) ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
     logger.info(s"$tag `$command`")
     JesConnection.storage.uploadObject(backendCall.gcsExecPath, command)
 
-    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, GoogleProject, JesConnection).run
+    val run = Pipeline(s"/bin/bash exec.sh > $LocalStdoutValue 2> $LocalStderrValue", backendCall.workflowDescriptor, backendCall.key, jesParameters, googleProject(backendCall.workflowDescriptor), JesConnection).run
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
-    run.waitUntilRunningOrComplete()
+    val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
 
+    def wdlFileToGcsPath(value: WdlValue, coerceTo: WdlType) =
+      if (coerceTo == WdlFileType && WdlFileType.isCoerceableFrom(value.wdlType))
+        jesOutputs find { _.name == value.valueString } map { j => WdlFile(j.gcs) } getOrElse value
+      else
+        value
+
     try {
-      val status = run.waitUntilComplete(None)
+      val status = run.waitUntilComplete(initializedStatus)
 
       val outputMappings = backendCall.call.task.outputs map {taskOutput =>
-        taskOutput.name -> taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions)
+        /**
+         * this will evaluate the task output expression and coerces it to the task output's type.
+         * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
+         * return a WdlFile that represents the GCS path and not the local path.  For example,
+         *
+         * output {
+         *   File x = "out" + ".txt"
+         * }
+         *
+         * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
+         * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
+         * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
+         */
+        val attemptedValue = taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions) map { wdlValue =>
+          wdlFileToGcsPath(wdlValue, taskOutput.wdlType)
+        }
+        taskOutput.name -> attemptedValue
       } toMap
 
       lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(stderrJesOutput(backendCall.callGcsPath).gcs))
@@ -242,7 +305,36 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow], dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
+  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext): Future[Any] = Future("FIXME")
 
   override def backendType = BackendType.JES
+
+  def gcsAuthFilePath(descriptor: WorkflowDescriptor): String = {
+    val wfPath = workflowGcsPath(descriptor)
+    s"$wfPath/gcloudauth.json"
+  }
+
+  def callGcsPath(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): String = {
+    val shardPath = index map { i => s"/shard-$i"} getOrElse ""
+    val workflowPath = workflowGcsPath(descriptor)
+    s"$workflowPath/call-$callName$shardPath"
+  }
+
+  def workflowGcsPath(descriptor: WorkflowDescriptor): String = {
+    val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, JesConf.executionBucket)
+    s"$bucket/${descriptor.namespace.workflow.name}/${descriptor.id}"
+  }
+
+  def googleProject(descriptor: WorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse("google_project", JesConf.project)
+  }
+
+
+
+  // Create an input parameter containing the path to this authentication file
+  def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
+    if (JesConf.authMode == RefreshTokenMode || JesConf.dockerCredentials.isDefined) {
+      authGcsCredentialsPath(Option(gcsAuthFilePath(descriptor)))
+    } else None
+  }
 }

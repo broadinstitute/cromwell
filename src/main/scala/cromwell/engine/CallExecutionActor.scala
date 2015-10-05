@@ -27,7 +27,7 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     result match {
       case SuccessfulExecution(_) => log.info(s"$tag: successful execution.")
       case AbortedExecution => log.info(s"$tag: aborted.")
-      case FailedExecution(e, rc) => log.error(e, s"$tag: failed execution, rc = $rc")
+      case FailedExecution(e, returnCode) => log.error(e, s"$tag: failed execution, returnCode = $returnCode")
     }
 
     context.parent ! CallActor.ExecutionFinished(backendCall.call, result)

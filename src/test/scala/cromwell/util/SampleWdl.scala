@@ -4,7 +4,9 @@ import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
 import cromwell.binding._
+import cromwell.engine.WorkflowSourceFiles
 import spray.json._
+
 import scala.language.postfixOps
 
 trait SampleWdl {
@@ -67,12 +69,13 @@ object SampleWdl {
         |  output {
         |    String salutation = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow hello {
         |  call hello
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     val Addressee = "hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")
@@ -1174,7 +1177,7 @@ object SampleWdl {
     )
   }
 
-  object FailOnRc extends SampleWdl {
+  object ContinueOnReturnCode extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
         task A {
@@ -1201,5 +1204,37 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
     override lazy val rawInputs = Map("" -> "...")
+  }
+
+  object FilePassingWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task a {
+        |  File in
+        |  String out_name = "out"
+        |
+        |  command {
+        |    cat ${in} > ${out_name}
+        |  }
+        |  RUNTIME
+        |  output {
+        |    File out = "out"
+        |    File out_interpolation = "${out_name}"
+        |    String contents = read_string("${out_name}")
+        |  }
+        |}
+        |
+        |workflow file_passing {
+        |  File f
+        |
+        |  call a {input: in=f}
+        |  call a as b {input: in=a.out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    private val fileContents = s"foo bar baz"
+
+    override val rawInputs: WorkflowRawInputs = Map(
+      "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath
+    )
   }
 }

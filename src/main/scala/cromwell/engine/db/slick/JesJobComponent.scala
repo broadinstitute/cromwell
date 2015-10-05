@@ -3,8 +3,8 @@ package cromwell.engine.db.slick
 case class JesJob
 (
   executionId: Int,
-  jesId: Int,
-  jesStatus: String,
+  jesId: Option[String],
+  jesStatus: Option[String],
   jesJobId: Option[Int] = None
   )
 
@@ -15,12 +15,9 @@ trait JesJobComponent {
 
   class JesJobs(tag: Tag) extends Table[JesJob](tag, "JES_JOB") {
     def jesJobId = column[Int]("JES_JOB_ID", O.PrimaryKey, O.AutoInc)
-
     def executionId = column[Int]("EXECUTION_ID")
-
-    def jesId = column[Int]("JES_ID")
-
-    def jesStatus = column[String]("JES_STATUS")
+    def jesId = column[Option[String]]("JES_ID")
+    def jesStatus = column[Option[String]]("JES_STATUS")
 
     override def * = (executionId, jesId, jesStatus, jesJobId.?) <>
       (JesJob.tupled, JesJob.unapply)
@@ -43,9 +40,9 @@ trait JesJobComponent {
       if jesJob.executionId === executionId
     } yield jesJob)
 
-  val jesJobIdsAndJesStatusesByExecutionId = Compiled(
+  val jesIdsAndJesStatusesByExecutionId = Compiled(
     (executionId: Rep[Int]) => for {
       jesJob <- jesJobs
       if jesJob.executionId === executionId
-    } yield (jesJob.jesJobId, jesJob.jesStatus))
+    } yield (jesJob.jesId, jesJob.jesStatus))
 }

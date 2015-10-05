@@ -3,3 +3,4 @@ log
 target
 .artifactory
 cromwell-executions
+cromwell-test-executions

@@ -1,6 +1,6 @@
 package cromwell.engine.backend.local
 
-import java.io.{FileWriter, BufferedWriter, Writer}
+import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
@@ -10,13 +10,11 @@ import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
+import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
-import cromwell.util.TailedWriter
 
-import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._

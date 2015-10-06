@@ -277,7 +277,7 @@ class JesBackend extends Backend with LazyLogging {
         case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedExecution(new Throwable(s"Workflow $workflowId: disallowed command return code: " + returnCode.get))
         case Run.Success =>
-          handleSuccess(outputMappings, backendCall.workflowDescriptor)
+          handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get)
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
@@ -292,7 +292,7 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  private def handleSuccess(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor): ExecutionResult = {
+  private def handleSuccess(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor, returnCode: Int): ExecutionResult = {
     val taskOutputEvaluationFailures = outputMappings filter { _._2.isFailure }
     val outputValues = if (taskOutputEvaluationFailures.isEmpty) {
       Success(outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue })
@@ -302,7 +302,7 @@ class JesBackend extends Backend with LazyLogging {
     }
 
     outputValues match {
-      case Success(outputs) => SuccessfulExecution(outputs)
+      case Success(outputs) => SuccessfulExecution(outputs, returnCode)
       case Failure(e) => FailedExecution(e)
     }
   }

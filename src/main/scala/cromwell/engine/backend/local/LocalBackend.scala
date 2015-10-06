@@ -174,9 +174,9 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
     } else {
 
-      def processSuccess() = {
+      def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => SuccessfulExecution(outputs)
+          case Success(outputs) => SuccessfulExecution(outputs, rc)
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
@@ -194,7 +194,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
       val continueOnReturnCode = backendCall.call.continueOnReturnCode
       returnCode match {
         case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-        case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess()
+        case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
         case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode))
         case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e))
       }

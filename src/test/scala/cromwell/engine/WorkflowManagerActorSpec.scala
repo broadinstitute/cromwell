@@ -21,6 +21,7 @@ import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.webservice.WorkflowMetadataResponse
 import cromwell.{CromwellSpec, CromwellTestkitSpec, binding}
 
+import scala.annotation.tailrec
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -187,49 +188,69 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     }
 
     "build metadata correctly" in {
-
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(CromwellSpec.BackendInstance), self, "Test Workflow metadata construction")
-
-      val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
-        messageAndWait[WorkflowId](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources()))
-      }
-
-      val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
-      status shouldEqual WorkflowSucceeded
-
-      val metadata = messageAndWait[WorkflowMetadataResponse](WorkflowMetadata(workflowId))
-      metadata should not be null
-
-      metadata.status shouldBe WorkflowSucceeded.toString
-      metadata.start shouldBe defined
-      metadata.end shouldBe defined
-      metadata.outputs shouldBe defined
-      metadata.outputs.get should have size 5
-      metadata.calls should have size 5
-
-      // ok if this explodes, it's a test
-      val devOutputs = metadata.outputs.get.get("w.A.A_out").get
-      val wdlArray = devOutputs.asInstanceOf[WdlArray]
-      wdlArray.wdlType shouldBe WdlArrayType(WdlStringType)
-
-      (wdlArray.value map { case WdlString(string) => string }) shouldEqual Vector("jeff", "chris", "miguel", "thibault", "khalid", "scott")
-
-      val devCalls = metadata.calls.get("w.C").get
-      devCalls should have size 6
-      devCalls foreach { call =>
-        call.start shouldBe defined
-        call.end shouldBe defined
-        call.jobId should not be defined
-        call.returnCode.get shouldBe 0
-        call.stdout shouldBe defined
-        call.stderr shouldBe defined
-        call.inputs should have size 1
-        call.backend.get shouldEqual "Local"
-        call.backendStatus should not be defined
-        call.executionStatus shouldBe "Done"
-      }
-
-      (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)
+      // Sometimes fails if the database hasn't been written in time. For now, wait a bit before retry
+      // TODO: fixing this properly will involve waiting for database updates before verifying them.
+      verifyMetadata(5, 1)
     }
+  }
+
+  @tailrec
+  private def verifyMetadata(allowedIterations: Int, currentIteration: Int): Unit = {
+    val attempt = Try(verifyMetadataInner)
+    attempt match {
+      case Success(_) =>
+      case Failure(e) =>
+        if(currentIteration >= allowedIterations) {
+          throw e
+        } else {
+          Thread.sleep(2000)
+          verifyMetadata(allowedIterations, currentIteration + 1)
+        }
+    }
+  }
+
+  private def verifyMetadataInner: Unit = {
+    implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(CromwellSpec.BackendInstance), self, "Test Workflow metadata construction")
+
+    val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
+      messageAndWait[WorkflowId](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources()))
+    }
+
+    val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
+    status shouldEqual WorkflowSucceeded
+
+    val metadata = messageAndWait[WorkflowMetadataResponse](WorkflowMetadata(workflowId))
+    metadata should not be null
+
+    metadata.status shouldBe WorkflowSucceeded.toString
+    metadata.start shouldBe defined
+    metadata.end shouldBe defined
+    metadata.outputs shouldBe defined
+    metadata.outputs.get should have size 5
+    metadata.calls should have size 5
+
+    // ok if this explodes, it's a test
+    val devOutputs = metadata.outputs.get.get("w.A.A_out").get
+    val wdlArray = devOutputs.asInstanceOf[WdlArray]
+    wdlArray.wdlType shouldBe WdlArrayType(WdlStringType)
+
+    (wdlArray.value map { case WdlString(string) => string }) shouldEqual Vector("jeff", "chris", "miguel", "thibault", "khalid", "scott")
+
+    val devCalls = metadata.calls.get("w.C").get
+    devCalls should have size 6
+    devCalls foreach { call =>
+      call.start shouldBe defined
+      call.end shouldBe defined
+      call.jobId should not be defined
+      call.returnCode shouldBe Option(0)
+      call.stdout shouldBe defined
+      call.stderr shouldBe defined
+      call.inputs should have size 1
+      call.backend shouldEqual Option("Local")
+      call.backendStatus should not be defined
+      call.executionStatus shouldBe "Done"
+    }
+
+    (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)
   }
 }

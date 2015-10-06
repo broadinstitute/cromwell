@@ -218,7 +218,10 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       devCalls should have size 6
       devCalls foreach { call =>
         call.start shouldBe defined
-        call.end shouldBe defined
+        Try { call.end shouldBe defined } match {
+          case Failure(e) => throw new Exception(s"$call does not have an end time", e)
+          case Success(_) => ()
+        }
         call.jobId should not be defined
         call.returnCode.get shouldBe 0
         call.stdout shouldBe defined

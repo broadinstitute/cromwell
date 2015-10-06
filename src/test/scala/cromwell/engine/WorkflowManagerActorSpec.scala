@@ -3,7 +3,7 @@ package cromwell.engine
 import java.util.UUID
 
 import akka.pattern.ask
-import akka.testkit.{EventFilter, TestActorRef}
+import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.binding._
 import cromwell.binding.command.CommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
@@ -30,7 +30,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
   "A WorkflowManagerActor" should {
 
-    val TestExecutionTimeout = 5000 milliseconds
+    val TestExecutionTimeout = 5.seconds.dilated
 
     "run the Hello World workflow" in {
 

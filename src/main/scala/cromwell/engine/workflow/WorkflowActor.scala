@@ -190,37 +190,46 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   */
   onTransition {
     case fromState -> toState =>
-      log.info(s"$tag transitioning from $fromState to $toState.")
-      globalDataAccess.updateWorkflowState(workflow.id, toState)
-      /*
-        Send a message to self to trigger an actor shutdown. Run on a short timer to help enable some
-        unit test instrumentation
-       */
-      if (toState.isTerminal) {
-        backend.cleanUpForWorkflow(workflow)
-        globalDataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
-        setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
+      def handleTerminalWorkflow: Future[Unit] = {
+        for {
+          _ <- backend.cleanUpForWorkflow(workflow)
+          _ <- globalDataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
+          //  Send a message to self to trigger an actor shutdown. Run on a short timer to help enable some
+          //  unit test instrumentation
+          _ = setTimer(s"WorkflowActor termination message: $tag", Terminate, AkkaTimeout, DontRepeatTimer)
+        } yield ()
       }
+
+      for {
+        // Write the new workflow state before logging the change, tests assume the change is in effect when
+        // the message is logged.
+        _ <- globalDataAccess.updateWorkflowState(workflow.id, toState)
+        _ = log.info(s"$tag transitioning from $fromState to $toState.")
+        _ <- handleTerminalWorkflow if toState.isTerminal
+      } yield ()
   }
 
   private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus,
-                            returnCode: Option[Int] = None): Future[Unit] = {
-    persistStatuses(Iterable(key), status, returnCode)
+                            returnCode: Option[Int] = None): Unit = {
+    Await.result(persistStatuses(Iterable(key), status, returnCode), Duration.Inf)
   }
 
   private def persistStatuses(key: Traversable[ExecutionStoreKey], executionStatus: ExecutionStatus,
                               returnCode: Option[Int] = None): Future[Unit] = {
-    executionStore ++= key map { _ -> executionStatus }
 
-    key foreach { k =>
+    val databaseKeys = key map { k =>
       val indexLog = k.index.map(i => s" (shard $i)").getOrElse("")
       log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $executionStatus.")
+      ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)
     }
 
-    globalDataAccess.setStatus(workflow.id, key map { k =>
-      ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)
-    }, CallStatus(executionStatus, returnCode))
-    globalDataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, CallStatus(executionStatus, returnCode))
+    for {
+      // Write the status to the database before updating the store, the store is what is examined to
+      // determine workflow doneness and if that persisted workflow representation is not consistent,
+      // tests may see unexpected values.
+      _ <- globalDataAccess.setStatus(workflow.id, databaseKeys, CallStatus(executionStatus, returnCode))
+      _ = executionStore ++= key map { _ -> executionStatus }
+    } yield ()
   }
 
   private def awaitCallComplete(key: OutputKey, outputs: CallOutputs, returnCode: Int): Try[Unit] = {
@@ -233,7 +242,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
     for {
       _ <- globalDataAccess.setOutputs(workflow.id, key, outputs)
-      _ <- persistStatus(key, ExecutionStatus.Done, Option(returnCode))
+      _ = persistStatus(key, ExecutionStatus.Done, Option(returnCode))
     } yield()
   }
 
@@ -554,11 +563,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     collection match {
       case Success(a: WdlArray) => Try {
         val newEntries = scatterKey.populate(a.value.size)
+        persistStatus(scatterKey, ExecutionStatus.Starting, None)
         val createScatter = for {
-          _ <- persistStatus(scatterKey, ExecutionStatus.Starting, None)
           _ <- globalDataAccess.insertCalls(workflow.id, newEntries.keys, backend)
           _ <- persistStatuses(newEntries.keys, ExecutionStatus.NotStarted, None)
-          _ <- persistStatus(scatterKey, ExecutionStatus.Done, Some(0))
+          _ = persistStatus(scatterKey, ExecutionStatus.Done, Some(0))
         } yield ()
         Await.result(createScatter, AkkaTimeout)
         newEntries.keys

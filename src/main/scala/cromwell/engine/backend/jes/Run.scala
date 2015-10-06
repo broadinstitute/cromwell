@@ -4,8 +4,9 @@ import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, 
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.jes.JesBackend.JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
+import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
-import cromwell.engine.{ExecutionStatus, db}
+import cromwell.engine.workflow.CallKey
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
 
@@ -22,7 +23,7 @@ object Run  {
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
-    val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.call.name}]"
+    val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.scope.name}]"
 
     rpr.setInputs(pipeline.jesParameters.filter(_.isInput).toRunMap)
     Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
@@ -73,9 +74,8 @@ object Run  {
       Log.info(s"${run.tag}: Status change from $prevStateName to $currentStatus")
 
       // Update the database state:
-      val newBackendInfo = JesCallBackendInfo(db.CallStatus(ExecutionStatus.Running.toString), Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
-      // TODO: Re-add
-      //globalDataAccess.updateExecutionBackendInfo(run.workflowId, run.call, newBackendInfo)
+      val newBackendInfo = JesCallBackendInfo(Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
+      globalDataAccess.updateExecutionBackendInfo(run.workflowId, CallKey(run.call, run.pipeline.key.index), newBackendInfo)
     }
 
     if (breakout(currentStatus)) {
@@ -94,7 +94,7 @@ object Run  {
 case class Run(jesId: String, pipeline: Pipeline, tag: String) {
 
   lazy val workflowId = pipeline.workflow.id
-  lazy val call = pipeline.call
+  lazy val call = pipeline.key.scope
 
   def status(): RunStatus = {
     val op = pipeline.genomicsService.operations().get(jesId).execute

@@ -157,8 +157,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                               backend: Backend): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => CallKey(call, None, None)
-      case scatter: Scatter => ScatterKey(scatter, None, None)
+      case call: Call => CallKey(call, None)
+      case scatter: Scatter => ScatterKey(scatter, None)
     }
 
     val action = for {
@@ -378,18 +378,12 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       jobResultOption = localJobResultOption orElse jesJobResultOption orElse sgeJobResultOption
       backendInfo = jobResultOption match {
         case Some(localJobResult: LocalJob) =>
-          new LocalCallBackendInfo(
-            CallStatus(executionResult.status, executionResult.rc),
-            localJobResult.pid)
+          new LocalCallBackendInfo(localJobResult.pid)
         case Some(jesJobResult: JesJob) =>
-          new JesCallBackendInfo(
-            CallStatus(executionResult.status, executionResult.rc),
-            jesJobResult.jesId map JesId,
+          new JesCallBackendInfo(jesJobResult.jesId map JesId,
             jesJobResult.jesStatus map JesStatus)
         case Some(sgeJobResult: SgeJob) =>
-          new SgeCallBackendInfo(
-            CallStatus(executionResult.status, executionResult.rc),
-            sgeJobResult.sgeJobNumber)
+          new SgeCallBackendInfo(sgeJobResult.sgeJobNumber)
         case _ =>
           throw new IllegalArgumentException(
             s"Unknown backend from db for (uuid, fqn): " +
@@ -405,21 +399,16 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   // backend info tables.  But this method does use the CallStatus data from the CallBackendInfo to update the
   // Execution table.
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
-                                          call: Call,
+                                          callKey: CallKey,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
     require(backendInfo != null, "backend info is null")
-    val callStatus = backendInfo.status
 
+    import ExecutionIndex._
     val action = for {
-      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(
-        workflowId.toString, call.fullyQualifiedName).result.head
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex).result.head
 
       executionStatusQuery = dataAccess.executionStatusesAndReturnCodesByExecutionId(
         executionResult.executionId.get)
-
-      executionUpdate <- executionStatusQuery.update(callStatus.executionStatus.toString, callStatus.returnCode)
-
-      _ = require(executionUpdate == 1, s"Unexpected execution update count $executionUpdate")
 
       backendUpdate <- backendInfo match {
         case localBackendInfo: LocalCallBackendInfo =>
@@ -639,5 +628,4 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     runTransaction(action)
   }
-
 }

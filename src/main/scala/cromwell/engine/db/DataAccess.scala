@@ -5,7 +5,7 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.Backend
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.{ExecutionStoreKey, OutputKey}
+import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
 
 import scala.concurrent.Future
@@ -32,7 +32,7 @@ trait DataAccess {
 
   def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo]
 
-  def updateExecutionBackendInfo(workflowId: WorkflowId, call: Call, backendInfo: CallBackendInfo): Future[Unit]
+  def updateExecutionBackendInfo(workflowId: WorkflowId, callKey: CallKey, backendInfo: CallBackendInfo): Future[Unit]
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit]
 

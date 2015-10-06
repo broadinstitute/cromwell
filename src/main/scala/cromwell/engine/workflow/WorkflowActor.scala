@@ -489,10 +489,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     globalDataAccess.getExecutionStatuses(workflow.id) map { statuses =>
       statuses map { case (k, v) =>
         val key: ExecutionStoreKey = (workflow.namespace.resolve(k.fqn), k.index) match {
-          case (Some(c: Call), Some(i)) => CallKey(c, Some(i), None)
-          case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c, None)
-          case (Some(c: Call), None) => CallKey(c, None, None)
-          case (Some(s: Scatter), None) => ScatterKey(s, None, None)
+          case (Some(c: Call), Some(i)) => CallKey(c, Some(i))
+          case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c)
+          case (Some(c: Call), None) => CallKey(c, None)
+          case (Some(s: Scatter), None) => ScatterKey(s, None)
           case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
         }
         key -> v.executionStatus

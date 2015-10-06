@@ -265,22 +265,19 @@ class JesBackend extends Backend with LazyLogging {
       } toMap
 
       lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs))
-      lazy val tryReturnCode = Try(backendCall.downloadRcFile.trim.toInt)
+      lazy val returnCode = Try(backendCall.downloadRcFile.trim.toInt)
       lazy val workflowId = backendCall.workflowDescriptor.id
       lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
 
       status match {
         case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
           FailedExecution(new Throwable(s"Workflow $workflowId: stderr has length $stderrLength for command: $command"))
-        case Run.Success if tryReturnCode.isFailure =>
-          FailedExecution(new Throwable(s"Workflow $workflowId: failed to download or parse return code file", tryReturnCode.failed.get))
-        case Run.Success if continueOnReturnCode.continueFor(tryReturnCode.get) =>
-          unwrapOutputValues(outputMappings, backendCall.workflowDescriptor) match {
-            case Success(outputs) => SuccessfulExecution(outputs)
-            case Failure(e) => FailedExecution(e)
-          }
+        case Run.Success if returnCode.isFailure =>
+          FailedExecution(new Throwable(s"Workflow $workflowId: failed to download or parse return code file", returnCode.failed.get))
+        case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
+          FailedExecution(new Throwable(s"Workflow $workflowId: disallowed command return code: " + returnCode.get))
         case Run.Success =>
-          FailedExecution(new Throwable(s"Workflow $workflowId: disallowed command return code: " + tryReturnCode.get))
+          handleSuccess(outputMappings, backendCall.workflowDescriptor)
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
@@ -295,13 +292,17 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  private def unwrapOutputValues(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor): Try[Map[String, WdlValue]] = {
+  private def handleSuccess(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor): ExecutionResult = {
     val taskOutputEvaluationFailures = outputMappings filter { _._2.isFailure }
-    if (taskOutputEvaluationFailures.isEmpty) {
+    val outputValues = if (taskOutputEvaluationFailures.isEmpty) {
       Success(outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue })
     } else {
       val message = taskOutputEvaluationFailures collect { case (name, Failure(e)) => s"$name: $e" } mkString "\n"
       Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
+    }
+    outputValues match {
+      case Success(outputs) => SuccessfulExecution(outputs)
+      case Failure(e) => FailedExecution(e)
     }
   }
 

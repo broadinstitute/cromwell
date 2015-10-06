@@ -36,11 +36,6 @@ case class JesBackendCall(backend: JesBackend,
 
   def jesCommandLine = s"/bin/bash exec.sh > $StdoutFilename 2> $StderrFilename"
 
-  def downloadRcFile: String = {
-    val path = GoogleCloudStoragePath(rcJesOutput.gcs)
-    new String(backend.JesConnection.storage.downloadObject(path))
-  }
-
   val callGcsPath = backend.callGcsPath(workflowDescriptor, call.name, key.index)
   val callDir = GoogleCloudStoragePath(callGcsPath)
   val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
@@ -54,4 +49,5 @@ case class JesBackendCall(backend: JesBackend,
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput) 
   def rcGcsPath = rcJesOutput.gcs
   def execute: ExecutionResult = backend.execute(this)
+  def downloadRcFile = jesConnection.storage.slurpFile(GoogleCloudStoragePath(callGcsPath, RcFilename))
 }

@@ -17,10 +17,22 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   protected def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = fail("read_objects")
   protected def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = fail("read_objects")
   protected def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = fail("read_json")
-  protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = fail("read_int")
   protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = fail("read_string")
-  protected def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = fail("read_float")
-  protected def read_boolean(params: Seq[Try[WdlValue]]): Try[WdlBoolean] = fail("read_boolean")
+  /**
+   * Try to read an integer from the file referenced by the specified `WdlValue`.
+   */
+  protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
+    read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
+  /**
+   * Try to read a float from the file referenced by the specified `WdlValue`.
+   */
+  protected def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] =
+    read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
+  /**
+   * Try to read a boolean from the file referenced by the specified `WdlValue`.
+   */
+  protected def read_boolean(params: Seq[Try[WdlValue]]): Try[WdlBoolean] =
+    read_string(params) map { s => WdlBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
   protected def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_lines")
   protected def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_tsv")
   protected def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_map")

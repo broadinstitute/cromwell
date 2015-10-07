@@ -30,7 +30,7 @@ object WorkflowActor {
   case object AbortWorkflow extends WorkflowActorMessage
   case class AbortComplete(call: OutputKey) extends WorkflowActorMessage
   case class CallStarted(call: OutputKey) extends WorkflowActorMessage
-  case class CallCompleted(call: OutputKey, callOutputs: CallOutputs) extends WorkflowActorMessage
+  case class CallCompleted(call: OutputKey, callOutputs: CallOutputs, returnCode: Int) extends WorkflowActorMessage
   case class CallFailed(call: OutputKey, returnCode: Option[Int], failure: String) extends WorkflowActorMessage
   case object Terminate extends WorkflowActorMessage
 
@@ -124,8 +124,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     case Event(CallStarted(callKey), NoFailureMessage) =>
       persistStatus(callKey, ExecutionStatus.Running)
       stay()
-    case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
-      awaitCallComplete(callKey, outputs) match {
+    case Event(CallCompleted(callKey, outputs, returnCode), NoFailureMessage) =>
+      awaitCallComplete(callKey, outputs, returnCode) match {
         case Success(_) =>
           if (isWorkflowDone) goto(WorkflowSucceeded) else startRunnableCalls()
         case Failure(e) =>
@@ -165,8 +165,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     case Event(CallFailed(callKey, returnCode, failure), NoFailureMessage) =>
       persistStatus(callKey, ExecutionStatus.Failed, returnCode)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallCompleted(callKey, outputs), NoFailureMessage) =>
-      awaitCallComplete(callKey, outputs)
+    case Event(CallCompleted(callKey, outputs, returnCode), NoFailureMessage) =>
+      awaitCallComplete(callKey, outputs, returnCode)
       if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
     case m =>
       log.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
@@ -223,17 +223,17 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     globalDataAccess.setStatus(workflow.id, key map { k => ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index) }, CallStatus(executionStatus, returnCode))
   }
 
-  private def awaitCallComplete(key: OutputKey, outputs: CallOutputs): Try[Unit] = {
-    val callFuture = handleCallCompleted(key, outputs)
+  private def awaitCallComplete(key: OutputKey, outputs: CallOutputs, returnCode: Int): Try[Unit] = {
+    val callFuture = handleCallCompleted(key, outputs, returnCode)
     Await.ready(callFuture, AkkaTimeout)
     callFuture.value.get
   }
 
-  private def handleCallCompleted(key: OutputKey, outputs: CallOutputs): Future[Unit] = {
+  private def handleCallCompleted(key: OutputKey, outputs: CallOutputs, returnCode: Int): Future[Unit] = {
     log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
     for {
       _ <- globalDataAccess.setOutputs(workflow.id, key, outputs)
-      _ <- persistStatus(key, ExecutionStatus.Done, Option(0))
+      _ <- persistStatus(key, ExecutionStatus.Done, Option(returnCode))
     } yield()
   }
 
@@ -577,7 +577,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         self ! CallFailed(collector, None, e.getMessage)
       case Success(outputs) =>
         log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
-        self ! CallCompleted(collector, outputs)
+        self ! CallCompleted(collector, outputs, 0)
     }
 
     Success(Seq.empty[ExecutionStoreKey])

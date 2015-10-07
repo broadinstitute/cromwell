@@ -163,11 +163,6 @@ object CallMetadataBuilder {
     val executionMap = executionMapTransformers.foldLeft(Map.empty: ExecutionMap) {
       case (map, transformer) => map ++ transformer(map) }
 
-    def symbolToMapEntry(symbol: Symbol) = {
-      val clob = symbol.wdlValue.get
-      symbol.name -> clob.getSubString(1, clob.length().toInt)
-    }
-
     // Convert from the convenience AssembledCallMetadata format to the CallMetadata format
     // that the endpoint needs to serve up.
     def constructCallMetadata(metadata: AssembledCallMetadata): CallMetadata = {

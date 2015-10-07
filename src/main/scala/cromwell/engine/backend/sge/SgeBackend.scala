@@ -65,7 +65,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
       case FailedExecution(_, _) => ExecutionStatus.Failed
-      case SuccessfulExecution(_) => ExecutionStatus.Done
+      case SuccessfulExecution(_, _) => ExecutionStatus.Done
     }).toString
 
   private def recordDatabaseFailure(call: Call, status: String, rc: Int): PartialFunction[Throwable, Unit] = {
@@ -174,9 +174,9 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         FailedExecution(new Exception(s"$tag SGE job failed because of return code: $r"), Option(r))
       case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
         FailedExecution(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"), Option(0))
-      case (_, _) =>
+      case (r, _) =>
         postProcess(backendCall) match {
-          case Success(callOutputs) => SuccessfulExecution(callOutputs)
+          case Success(callOutputs) => SuccessfulExecution(callOutputs, r)
           case Failure(e) => FailedExecution(e)
         }
     }

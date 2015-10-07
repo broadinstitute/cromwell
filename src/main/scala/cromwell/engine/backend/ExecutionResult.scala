@@ -13,7 +13,7 @@ sealed trait ExecutionResult
 /**
  * A successful execution with resolved outputs.
  */
-final case class SuccessfulExecution(outputs: CallOutputs) extends ExecutionResult
+final case class SuccessfulExecution(outputs: CallOutputs, returnCode: Int) extends ExecutionResult
 
 /**
  * A user-requested abort of the command.

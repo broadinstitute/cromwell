@@ -12,14 +12,16 @@ import org.slf4j.LoggerFactory
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.language.postfixOps
+
 
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
   lazy val Log = LoggerFactory.getLogger("main")
-  lazy val maximumPollingInterval = ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval") * 1000
-  val initialPollingInterval = 500
-  val pollingBackoffFactor = 1.1
+  lazy val MaximumPollingInterval = ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval") * 1000
+  val InitialPollingInterval = 5 seconds
+  val PollingBackoffFactor = 1.1
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
@@ -82,12 +84,12 @@ object Run  {
       currentStatus
     } else {
       Thread.sleep(pollingInterval.toInt)
-      waitForStatus(run, Option(currentStatus), nextPollingInterval(pollingInterval, maximumPollingInterval), breakout)
+      waitForStatus(run, Option(currentStatus), nextPollingInterval(pollingInterval, MaximumPollingInterval), breakout)
     }
   }
 
   private final def nextPollingInterval(previousPollingInterval: Double, maximumPollingInterval: Int): Double = {
-    Math.min(previousPollingInterval * pollingBackoffFactor, maximumPollingInterval)
+    Math.min(previousPollingInterval * PollingBackoffFactor, maximumPollingInterval)
   }
 }
 
@@ -110,7 +112,7 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
   }
 
   final def waitUntilComplete(previousStatus: RunStatus): TerminalRunStatus = {
-    val terminalStatus = Run.waitForStatus(this, Option(previousStatus), initialPollingInterval, {
+    val terminalStatus = Run.waitForStatus(this, Option(previousStatus), InitialPollingInterval.toMillis, {
       case x: TerminalRunStatus => true
       case _ => false
     })
@@ -121,7 +123,7 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
     }
   }
 
-  final def waitUntilRunningOrComplete: RunStatus = Run.waitForStatus(this, None, initialPollingInterval, {
+  final def waitUntilRunningOrComplete: RunStatus = Run.waitForStatus(this, None, InitialPollingInterval.toMillis, {
     case Running => true
     case x: TerminalRunStatus => true
     case _ => false

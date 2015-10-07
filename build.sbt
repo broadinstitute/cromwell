@@ -88,7 +88,13 @@ val customMergeStrategy: String => MergeStrategy = {
 
 assemblyMergeStrategy in assembly := customMergeStrategy
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+// The reason why -Xmax-classfile-name is set is because this will fail
+// to build on Docker otherwise.  The reason why it's 200 is because it
+// fails if the value is too close to 256 (even 254 fails).  For more info:
+//
+// https://github.com/sbt/sbt-assembly/issues/69
+// https://github.com/scala/pickling/issues/10
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
 
 lazy val DockerTest = config("docker") extend Test
 

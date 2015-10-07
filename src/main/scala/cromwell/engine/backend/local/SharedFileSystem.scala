@@ -232,15 +232,9 @@ trait SharedFileSystem {
    */
   private def outputAutoConversion(backendCall: LocalFileSystemBackendCall, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
     rawOutputValue match {
-      case v: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(backendCall, v.value), taskOutput, backendCall.call.fullyQualifiedName)
-      case m: WdlMap if taskOutput.wdlType.isInstanceOf[WdlMapType] => taskOutput.wdlType.coerceRawValue(m)
-      case a: WdlArray if taskOutput.wdlType.isInstanceOf[WdlArrayType] => taskOutput.wdlType.coerceRawValue(a)
-      case v if v.wdlType == taskOutput.wdlType => Success(v)
-      case _ => Failure(new RuntimeException(
-          s"""Error processing '${backendCall.call.fullyQualifiedName}.${taskOutput.name}':
-             |
-             |Value $rawOutputValue cannot be converted to ${taskOutput.wdlType.toWdlString}
-           """.stripMargin))
+      case rhs if rhs.wdlType == taskOutput.wdlType => Success(rhs)
+      case rhs: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(backendCall, rhs.value), taskOutput, backendCall.call.fullyQualifiedName)
+      case rhs => taskOutput.wdlType.coerceRawValue(rhs)
     }
   }
 

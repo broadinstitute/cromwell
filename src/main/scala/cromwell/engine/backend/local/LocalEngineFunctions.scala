@@ -61,12 +61,6 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends WdlSta
   }
 
   /**
-   * Try to read an integer from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] =
-    read_string(params).map { s => WdlInteger(s.value.trim.toInt) }
-
-  /**
    * Try to read a string from the file referenced by the specified `WdlValue`.
    */
   override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {

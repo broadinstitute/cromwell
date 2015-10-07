@@ -54,20 +54,6 @@ case class JesEngineFunctions(jesBackendCall: JesBackendCall) extends WdlStandar
   }
 
   /**
-   * Try to read an integer from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
-    read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
-  }
-
-  /**
-   * Try to read an float from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
-    read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
-  }
-
-  /**
    * Try to read a string from the file referenced by the specified `WdlValue`.
    */
   override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {

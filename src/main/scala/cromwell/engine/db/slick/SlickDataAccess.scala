@@ -395,9 +395,6 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
-  // TODO it's confusing that CallBackendInfo has a CallStatus in it when that information doesn't go to the
-  // backend info tables.  But this method does use the CallStatus data from the CallBackendInfo to update the
-  // Execution table.
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
                                           callKey: CallKey,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
@@ -405,10 +402,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     import ExecutionIndex._
     val action = for {
-      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex).result.head
-
-      executionStatusQuery = dataAccess.executionStatusesAndReturnCodesByExecutionId(
-        executionResult.executionId.get)
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(
+        workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex).result.head
 
       backendUpdate <- backendInfo match {
         case localBackendInfo: LocalCallBackendInfo =>

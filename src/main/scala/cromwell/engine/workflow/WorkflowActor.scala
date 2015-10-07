@@ -634,14 +634,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def executionsAsTable: Seq[Seq[String]] = {
     val futureRows = globalDataAccess.getExecutionStatuses(workflow.id) map { entries =>
       entries.map({ case(k, v) =>
-        Seq(k.fqn.toString, k.index.getOrElse("").toString, v.toString)
+        Seq(k.fqn.toString, k.index.getOrElse("").toString, v.executionStatus.toString, v.returnCode.getOrElse("").toString)
       })
     }
     Await.result(futureRows, AkkaTimeout).toSeq
   }
 
   private def executionsMarkdownTable: Option[String] = {
-    val header = Seq("SCOPE", "INDEX", "STATUS")
+    val header = Seq("SCOPE", "INDEX", "STATUS", "RETURN CODE")
     executionsAsTable match {
       case rows: Seq[Seq[String]] if rows.isEmpty => None
       case rows => Some(TerminalUtil.mdTable(rows.toSeq, header))

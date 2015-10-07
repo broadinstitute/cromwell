@@ -7,19 +7,19 @@ import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
 import cromwell.engine.workflow.CallKey
+import cromwell.util.TryUtil
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import scala.util.Failure
 
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
   lazy val Log = LoggerFactory.getLogger("main")
-  lazy val MaximumPollingInterval = ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval") * 1000
+  lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   val InitialPollingInterval = 5 seconds
   val PollingBackoffFactor = 1.1
 
@@ -64,33 +64,6 @@ object Run  {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
   }
-
-  @tailrec
-  private final def waitForStatus(run: Run, previousStatus: Option[RunStatus], pollingInterval: Double, breakout: RunStatus => Boolean): RunStatus = {
-    val currentStatus = run.status()
-
-    if (!(previousStatus contains currentStatus)) {
-      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
-      // just use the state names.
-      val prevStateName = previousStatus map { _.toString } getOrElse "-"
-      Log.info(s"${run.tag}: Status change from $prevStateName to $currentStatus")
-
-      // Update the database state:
-      val newBackendInfo = JesCallBackendInfo(Option(JesId(run.jesId)), Option(JesStatus(currentStatus.toString)))
-      globalDataAccess.updateExecutionBackendInfo(run.workflowId, CallKey(run.call, run.pipeline.key.index), newBackendInfo)
-    }
-
-    if (breakout(currentStatus)) {
-      currentStatus
-    } else {
-      Thread.sleep(pollingInterval.toInt)
-      waitForStatus(run, Option(currentStatus), nextPollingInterval(pollingInterval, MaximumPollingInterval), breakout)
-    }
-  }
-
-  private final def nextPollingInterval(previousPollingInterval: Double, maximumPollingInterval: Int): Double = {
-    Math.min(previousPollingInterval * PollingBackoffFactor, maximumPollingInterval)
-  }
 }
 
 case class Run(jesId: String, pipeline: Pipeline, tag: String) {
@@ -111,19 +84,53 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
     }
   }
 
-  final def waitUntilComplete(previousStatus: RunStatus): TerminalRunStatus = {
-    val terminalStatus = Run.waitForStatus(this, Option(previousStatus), InitialPollingInterval.toMillis, {
-      case x: TerminalRunStatus => true
-      case _ => false
-    })
+  private final def waitForStatus(previousStatus: Option[RunStatus], breakout: RunStatus => Boolean): RunStatus = {
 
-    terminalStatus match {
-      case x: TerminalRunStatus => x
-      case _ => Failed(-1, "Unexpectedly stopped checking status.") // Assuming waitForStatus works, this never happens.
+    def checkStatus(previousStatus: Option[RunStatus]): RunStatus = {
+      val currentStatus = status()
+
+      if (!(previousStatus contains currentStatus)) {
+        // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
+        // just use the state names.
+        val prevStateName = previousStatus map { _.toString } getOrElse "-"
+        Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
+
+        // Update the database state:
+        val newBackendInfo = JesCallBackendInfo(Option(JesId(jesId)), Option(JesStatus(currentStatus.toString)))
+        globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
+      }
+
+      currentStatus
+    }
+
+    val attemptedStatus = TryUtil.retryBlock(
+      fn = checkStatus,
+      isSuccess = breakout,
+      retries = None,
+      pollingInterval = InitialPollingInterval,
+      pollingBackOffFactor = PollingBackoffFactor,
+      maxPollingInterval = MaximumPollingInterval,
+      priorValue = previousStatus
+    )
+
+    attemptedStatus match {
+      case util.Success(x) => x
+      case Failure(_) => Failed(-1, "Unexpectedly stopped checking status.") // Assuming TryUtil.retryBlock works, this should not happen
     }
   }
 
-  final def waitUntilRunningOrComplete: RunStatus = Run.waitForStatus(this, None, InitialPollingInterval.toMillis, {
+  final def waitUntilComplete(previousStatus: RunStatus): TerminalRunStatus = {
+    val terminalStatus = waitForStatus(Option(previousStatus), {
+      case x: TerminalRunStatus => true
+      case _ => false
+    })
+    terminalStatus match {
+      case x: TerminalRunStatus => x
+      case _ => Failed(-1, "Unexpectedly stopped checking status")
+    }
+  }
+
+  final def waitUntilRunningOrComplete: RunStatus = waitForStatus(None, {
     case Running => true
     case x: TerminalRunStatus => true
     case _ => false

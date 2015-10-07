@@ -7,7 +7,7 @@ import java.nio.file.{Path, Paths}
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
-import cromwell.binding.expression.NoFunctions
+import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import cromwell.binding.types.{WdlFileType, WdlType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
@@ -175,6 +175,8 @@ class JesBackend extends Backend with LazyLogging {
                         abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
     JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
+
+  override def engineFunctions: WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext(JesConnection.storage)
 
   def execute(backendCall: BackendCall): ExecutionResult = {
     val tag = makeTag(backendCall)

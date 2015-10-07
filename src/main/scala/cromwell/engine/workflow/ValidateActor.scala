@@ -43,7 +43,6 @@ class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource, WorkflowManagerActor.BackendType))
       inputs <- Future(wdlJson.parseJson).map(_.asJsObject.fields)
       coercedInputs <- Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
-      _ <- Future.fromTry(namespaceWithWorkflow.staticDeclarationsRecursive(coercedInputs))
     } yield () // Validate that the future run and return `Success[Unit]` aka (), or `Failure[Exception]`
 
     futureValidation onComplete {

@@ -33,7 +33,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
           case Some(d) => throw new UnsupportedOperationException(s"Parameter ${v.variable} is required, but no value is specified")
           case None => throw new UnsupportedOperationException(s"This should not happen: could not find declaration for ${v.variable}")
         }
-        case _ => throw new UnsupportedOperationException(s"Could not evaluate expression: ${expression.toString}")
+        case e => throw new UnsupportedOperationException(s"Could not evaluate expression: ${expression.toWdlString}", e)
       }
     }
 

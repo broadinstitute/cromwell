@@ -6,12 +6,12 @@ import java.security.MessageDigest
 
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
+import cromwell.binding.expression.WdlStandardLibraryFunctions
+import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
-import cromwell.engine.db.DataAccess
 import org.apache.commons.io.FileUtils
 
 import scala.collection.JavaConverters._
@@ -66,6 +66,8 @@ object SharedFileSystem {
 trait SharedFileSystem {
 
   import SharedFileSystem._
+
+  val engineFunctions: WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
     // Evaluate output expressions, performing conversions from String -> File where required.

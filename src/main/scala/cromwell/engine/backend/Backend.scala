@@ -2,6 +2,7 @@ package cromwell.engine.backend
 
 import com.typesafe.config.Config
 import cromwell.binding._
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -71,6 +72,11 @@ trait Backend {
                key: CallKey,
                locallyQualifiedInputs: CallInputs,
                abortRegistrationFunction: AbortRegistrationFunction): BackendCall
+
+  /**
+   * Engine functions that don't need a Call context (e.g. read_lines(), read_float(), etc)
+   */
+  def engineFunctions: WdlStandardLibraryFunctions
 
   /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.

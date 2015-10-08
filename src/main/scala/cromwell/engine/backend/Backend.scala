@@ -8,7 +8,6 @@ import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 
@@ -16,14 +15,20 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 object Backend {
+  lazy val LocalBackend = new LocalBackend
+  lazy val JesBackend = new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
+  lazy val SgeBackend = new SgeBackend
+
   class StdoutStderrException(message: String) extends RuntimeException(message)
+
   def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
   def from(name: String) = name.toLowerCase match {
-    case "local" => new LocalBackend
-    case "jes" => new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
-    case "sge" => new SgeBackend
+    case "local" => LocalBackend
+    case "jes" => JesBackend
+    case "sge" => SgeBackend
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
+
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
 }
 

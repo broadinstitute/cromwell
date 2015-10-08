@@ -1,6 +1,7 @@
 package cromwell.webservice
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import com.typesafe.config.Config
 import cromwell.engine.workflow.{ValidateActor, WorkflowOptions}
 import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
 import spray.http.StatusCodes
@@ -8,19 +9,38 @@ import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
 
+import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success, Try}
 
-object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef): Props = {
-    Props(new CromwellApiServiceActor(workflowManagerActorRef))
+
+object SwaggerService {
+  /*
+    Because of the implicit arg requirement apply() doesn't work here, so falling back to the less
+    idiomatic (but not unheard of) from().
+   */
+  def from(conf: Config)(implicit actorRefFactory: ActorRefFactory): SwaggerService = {
+    new SwaggerService(conf.getConfig("swagger"))
   }
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef) extends Actor with CromwellApiService {
+class SwaggerService(override val swaggerConfig: Config)
+                    (implicit val actorRefFactory: ActorRefFactory)
+  extends SwaggerConfigHttpService {
+  override def apiTypes = Vector(typeOf[CromwellApiService])
+}
+
+
+object CromwellApiServiceActor {
+  def props(workflowManagerActorRef: ActorRef, swaggerService: SwaggerService): Props = {
+    Props(new CromwellApiServiceActor(workflowManagerActorRef, swaggerService))
+  }
+}
+
+class CromwellApiServiceActor(val workflowManager: ActorRef, swaggerService: SwaggerService) extends Actor with CromwellApiService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = options { complete(StatusCodes.OK) } ~ docsRoute ~ workflowRoutes
+  def possibleRoutes = options { complete(StatusCodes.OK) } ~ docsRoute ~ swaggerService.uiRoutes ~ workflowRoutes
 
   def receive = runRoute(possibleRoutes)
 }

@@ -4,6 +4,7 @@ import java.sql.SQLException
 import java.util.UUID
 
 import cromwell.binding._
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
@@ -57,6 +58,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                           key: CallKey,
                           locallyQualifiedInputs: CallInputs,
                           abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
+      throw new NotImplementedError
+
+    override def engineFunctions: WdlStandardLibraryFunctions =
       throw new NotImplementedError
 
     override def execute(bc: BackendCall): ExecutionResult =

@@ -11,7 +11,7 @@ import cromwell.engine.workflow.WorkflowOptions
 import spray.json._
 
 import scala.language.implicitConversions
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Success, Try}
 
 /**
  * ==Cromwell Execution Engine==
@@ -44,12 +44,12 @@ package object engine {
       case Failure(ex) => throw ex
     }
 
-    val backendType = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
-    val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backendType.backendType)
+    val backend = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+    val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)
 
-    backendType.assertWorkflowOptions(workflowOptions)
+    backend.assertWorkflowOptions(workflowOptions)
 
     val rawInputs = Try(sourceFiles.inputsJson.parseJson) match {
       case Success(JsObject(inputs)) => inputs
@@ -58,7 +58,7 @@ package object engine {
 
     // Currently we are throwing an exception if construction of the workflow descriptor fails, hence .get on the Trys
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
+    val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions).get
     val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   }
 

@@ -10,37 +10,12 @@ import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 
 import scala.util.{Failure, Success, Try}
 
-class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends WdlStandardLibraryFunctions {
-
-  /**
-   * Read the entire contents of a file from the specified `WdlValue`, where the file can be
-   * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
-   * directly as a `WdlFile`.
-   *
-   * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
-   *                                       to be wrapped in a `Try`.
-   */
-  private def fileContentsToString(value: WdlValue): String = {
+class LocalEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions {
+  protected def fileContentsToString(value: WdlValue): String = {
     value match {
       case f: WdlFile => new File(f.value).slurp
-      case s: WdlString => cwd.resolve(s.value).slurp
+      case s: WdlString => Paths.get(s.value).slurp
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
-    }
-  }
-
-  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    if (params.nonEmpty) {
-      Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
-    } else {
-      Success(WdlFile(stdout.toAbsolutePath.toString))
-    }
-  }
-
-  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    if (params.nonEmpty) {
-      Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
-    } else {
-      Success(WdlFile(stderr.toAbsolutePath.toString))
     }
   }
 
@@ -68,6 +43,41 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends WdlSta
       singleArgument <- extractSingleArgument(params)
       string = fileContentsToString(singleArgument)
     } yield WdlString(string.stripSuffix("\n"))
+  }
+}
+
+class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalEngineFunctionsWithoutCallContext {
+
+  /**
+   * Read the entire contents of a file from the specified `WdlValue`, where the file can be
+   * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
+   * directly as a `WdlFile`.
+   *
+   * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
+   *                                       to be wrapped in a `Try`.
+   */
+  override def fileContentsToString(value: WdlValue): String = {
+    value match {
+      case f: WdlFile => new File(f.value).slurp
+      case s: WdlString => cwd.resolve(s.value).slurp
+      case e => throw new UnsupportedOperationException("Unsupported argument " + e)
+    }
+  }
+
+  override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    if (params.nonEmpty) {
+      Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
+    } else {
+      Success(WdlFile(stdout.toAbsolutePath.toString))
+    }
+  }
+
+  override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+    if (params.nonEmpty) {
+      Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
+    } else {
+      Success(WdlFile(stderr.toAbsolutePath.toString))
+    }
   }
 
   override protected def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {

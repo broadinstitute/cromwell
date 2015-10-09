@@ -108,12 +108,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String, uuid: UUID): WorkflowDescriptor = {
-    val source = sampleWdl.wdlSource(runtime)
-    val namespace = NamespaceWithWorkflow.load(source, BackendType.LOCAL)
-    val coercedInputs = namespace.coerceRawInputs(sampleWdl.rawInputs).get
-    val declarations = namespace.staticDeclarationsRecursive(coercedInputs).get
-    val inputs = coercedInputs ++ declarations
-    val workflowSources = WorkflowSourceFiles(source, sampleWdl.wdlJson, "{}")
+    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     WorkflowDescriptor(WorkflowId(uuid), workflowSources)
   }
 

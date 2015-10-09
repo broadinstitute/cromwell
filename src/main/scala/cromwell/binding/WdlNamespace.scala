@@ -3,7 +3,7 @@ package cromwell.binding
 import java.io.File
 
 import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
-import cromwell.binding.expression.NoFunctions
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser._
@@ -107,13 +107,13 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
    * For the declarations that have an expression attached to it already, evaluate the expression
    * and return the value for storage in the symbol store
    */
-  def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs): Try[WorkflowCoercedInputs] = {
+  def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
     import scala.collection.mutable
     val collected = mutable.Map[String, WdlValue]()
     val allDeclarations = workflow.declarations ++ workflow.calls.flatMap {_.task.declarations}
 
     val evaluatedDeclarations = allDeclarations.filter {_.expression.isDefined}.map {decl =>
-      val value = decl.expression.get.evaluate(declarationLookupFunction(decl, collected.toMap ++ userInputs), new NoFunctions)
+      val value = decl.expression.get.evaluate(declarationLookupFunction(decl, collected.toMap ++ userInputs), wdlFunctions)
       collected += (decl.fullyQualifiedName -> value.get)
       val coercedValue = value match {
         case Success(s) => decl.wdlType.coerceRawValue(s)

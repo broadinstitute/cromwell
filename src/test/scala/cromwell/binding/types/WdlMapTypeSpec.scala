@@ -1,6 +1,6 @@
 package cromwell.binding.types
 
-import cromwell.binding.values.{WdlMap, WdlInteger, WdlString}
+import cromwell.binding.values.{WdlObject, WdlMap, WdlInteger, WdlString}
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsObject, JsArray, JsNumber}
@@ -13,6 +13,12 @@ class WdlMapTypeSpec extends FlatSpec with Matchers  {
     WdlString("b") -> WdlInteger(2),
     WdlString("c") -> WdlInteger(3)
   ))
+  val coerceableObject = WdlObject(Map(
+    "a" -> WdlString("1"),
+    "b" -> WdlString("2"),
+    "c" -> WdlString("3")
+  ))
+
   "WdlMap" should "stringify its value" in {
     stringIntMap.toWdlString shouldEqual "{\"a\": 1, \"b\": 2, \"c\": 3}"
   }
@@ -33,6 +39,14 @@ class WdlMapTypeSpec extends FlatSpec with Matchers  {
   }
   it should "convert WDL source code to WdlMap" in {
     WdlMapType(WdlStringType, WdlIntegerType).fromWdlString("{\"a\": 1, \"b\": 2, \"c\": 3}") shouldEqual stringIntMap
+  }
+  it should "coerce a coerceable object into a WdlMap" in {
+    WdlMapType(WdlStringType, WdlIntegerType).coerceRawValue(coerceableObject) match {
+      case Success(v) =>
+        v.wdlType shouldEqual WdlMapType(WdlStringType, WdlIntegerType)
+        v.toWdlString shouldEqual stringIntMap.toWdlString
+      case Failure(f) => fail("Failed to coerce a map to an object")
+    }
   }
   it should "NOT successfully convert WDL source code to WdlMap if passed a bogus AST" in {
     try {

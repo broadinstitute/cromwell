@@ -11,7 +11,7 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case f: WdlFloat => JsNumber(f.value)
       case b: WdlBoolean => JsBoolean(b.value)
       case f: WdlFile => JsString(f.value)
-      case o: WdlObject => JsObject()
+      case o: WdlObject => new JsObject(o.value map {case(k, v) => k -> write(v)})
       case a: WdlArray => new JsArray(a.value.map(write).toVector)
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case e: WdlExpression => JsString(e.toWdlString)

@@ -90,6 +90,10 @@ trait Backend {
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  def makeTag(backendCall: BackendCall): String =
-    s"${this.getClass.getSimpleName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+  def makeTag(backendCall: BackendCall): String = {
+    // Sometimes the class name is `anon$1`.  In cases like that, don't print it in the log because it's not adding value
+    val cls = this.getClass.getSimpleName
+    val clsString = if (cls.startsWith("anon")) "" else s"$cls "
+    s"$clsString[UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+  }
 }

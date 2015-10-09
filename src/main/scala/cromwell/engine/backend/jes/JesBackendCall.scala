@@ -10,6 +10,8 @@ import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.google.GoogleCloudStoragePath
 
+import scala.util.Try
+
 
 object JesBackendCall {
   
@@ -49,5 +51,5 @@ case class JesBackendCall(backend: JesBackend,
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput) 
   def rcGcsPath = rcJesOutput.gcs
   def execute: ExecutionResult = backend.execute(this)
-  def downloadRcFile = jesConnection.storage.slurpFile(GoogleCloudStoragePath(callGcsPath, RcFilename))
+  def downloadRcFile: Try[String] = GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(jesConnection.storage.slurpFile)
 }

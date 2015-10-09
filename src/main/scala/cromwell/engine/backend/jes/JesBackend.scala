@@ -17,8 +17,10 @@ import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.parser.BackendType
+import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -214,23 +216,47 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
-  private def uploadCommandScript(backendCall: BackendCall, command: String): Unit = {
+  private def uploadCommandScript(backendCall: BackendCall, command: String): Try[Unit] = {
     val fileContent =
       s"""
          |#!/bin/bash
          |$command
          |echo $$? > ${JesBackendCall.RcFilename}
        """.stripMargin.trim
-    JesConnection.storage.uploadObject(backendCall.gcsExecPath, fileContent)
+
+    def attemptToUploadObject(priorAttempt: Option[Unit]) = JesConnection.storage.uploadObject(backendCall.gcsExecPath, fileContent)
+
+    TryUtil.retryBlock(
+      fn = attemptToUploadObject,
+      retries = Some(10),
+      pollingInterval = 5 seconds,
+      pollingBackOffFactor = 1,
+      maxPollingInterval = 10 seconds,
+      failMessage = Some(s"${makeTag(backendCall)} Exception occurred while uploading script to ${backendCall.gcsExecPath}")
+    )
   }
 
-  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesInput], jesOutputs: Seq[JesOutput]): ExecutionResult = {
-    val tag = makeTag(backendCall)
-    val jesParameters = backendCall.standardParameters ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
-    logger.info(s"$tag `$command`")
-    uploadCommandScript(backendCall, command)
+  private def createJesRun(backendCall: BackendCall, jesParameters: Seq[JesParameter]): Try[Run] = {
+    def attemptToCreateJesRun(priorAttempt: Option[Run]): Run = Pipeline(
+      backendCall.jesCommandLine,
+      backendCall.workflowDescriptor,
+      backendCall.key,
+      jesParameters,
+      googleProject(backendCall.workflowDescriptor),
+      JesConnection
+    ).run
 
-    val run = Pipeline(backendCall.jesCommandLine, backendCall.workflowDescriptor, backendCall.key, jesParameters, googleProject(backendCall.workflowDescriptor), JesConnection).run
+    TryUtil.retryBlock(
+      fn = attemptToCreateJesRun,
+      retries = Some(10),
+      pollingInterval = 5 seconds,
+      pollingBackOffFactor = 1,
+      maxPollingInterval = 10 seconds,
+      failMessage = Some(s"${makeTag(backendCall)} Exception occurred while creating JES Run")
+    )
+  }
+
+  private def pollJesRun(run: Run, backendCall: BackendCall, jesOutputs: Seq[JesOutput]): ExecutionResult = {
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
     val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
@@ -265,30 +291,47 @@ class JesBackend extends Backend with LazyLogging {
       } toMap
 
       lazy val stderrLength: BigInteger = JesConnection.storage.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs))
-      lazy val returnCode = Try(backendCall.downloadRcFile.trim.toInt)
-      lazy val workflowId = backendCall.workflowDescriptor.id
+      lazy val returnCode = backendCall.downloadRcFile.map(_.trim.toInt)
       lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
 
       status match {
         case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
-          FailedExecution(new Throwable(s"Workflow $workflowId: stderr has length $stderrLength for command: $command"))
+          FailedExecution(new Throwable(s"${makeTag(backendCall)} execution failed: stderr has length $stderrLength"))
         case Run.Success if returnCode.isFailure =>
-          FailedExecution(new Throwable(s"Workflow $workflowId: failed to download or parse return code file", returnCode.failed.get))
+          FailedExecution(new Throwable(s"${makeTag(backendCall)} execution failed: could not download or parse return code file", returnCode.failed.get))
         case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
-          FailedExecution(new Throwable(s"Workflow $workflowId: disallowed command return code: " + returnCode.get))
+          FailedExecution(new Throwable(s"${makeTag(backendCall)} execution failed: disallowed command return code: " + returnCode.get))
         case Run.Success =>
           handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get)
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
           } else {
-            new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: errorCode $errorCode for command: $command. Message: $errorMessage")
+            new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.name} failed: error code $errorCode. Message: $errorMessage")
           }
           FailedExecution(throwable)
       }
     }
     catch {
       case e: Exception => FailedExecution(e)
+    }
+  }
+
+  private def runWithJes(backendCall: BackendCall, command: String, jesInputs: Seq[JesInput], jesOutputs: Seq[JesOutput]): ExecutionResult = {
+    val tag = makeTag(backendCall)
+    val jesParameters = backendCall.standardParameters ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
+    logger.info(s"$tag `$command`")
+
+    val jesJobSetup = for {
+      _ <- uploadCommandScript(backendCall, command)
+      run <- createJesRun(backendCall, jesParameters)
+    } yield run
+
+    jesJobSetup match {
+      case Failure(ex) =>
+        logger.error(s"$tag Failed to create a JES run", ex)
+        FailedExecution(ex)
+      case Success(run) => pollJesRun(run, backendCall, jesOutputs)
     }
   }
 

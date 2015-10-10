@@ -205,7 +205,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         // the message is logged.
         _ <- globalDataAccess.updateWorkflowState(workflow.id, toState)
         _ = log.info(s"$tag transitioning from $fromState to $toState.")
-        _ <- handleTerminalWorkflow if toState.isTerminal
+        _ <- if (toState.isTerminal) handleTerminalWorkflow else Future.successful({})
       } yield ()
   }
 

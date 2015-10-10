@@ -1,4 +1,4 @@
-package lenthall.util
+package lenthall.config
 
 import com.typesafe.config.Config
 

@@ -39,7 +39,7 @@ case class SwaggerUiInfo(swaggerUiVersion: String,
 trait ConfigSwaggerUiHttpService extends SwaggerUiHttpService {
   def swaggerUiConfig: Config
 
-  import lenthall.util.ScalaConfig._
+  import lenthall.config.ScalaConfig._
 
   val swaggerUiInfo = {
     var info = SwaggerUiInfo(swaggerUiConfig.getString("uiVersion"))

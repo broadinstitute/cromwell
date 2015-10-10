@@ -1,7 +1,7 @@
-package lenthall.test
+package lenthall.test.logging
 
 import ch.qos.logback.classic.Level
-import lenthall.test.TestLogger._
+import lenthall.test.logging.TestLogger._
 import org.scalatest.{FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}
 

@@ -1,4 +1,4 @@
-package lenthall.test
+package lenthall.test.logging
 
 import java.io.ByteArrayOutputStream
 

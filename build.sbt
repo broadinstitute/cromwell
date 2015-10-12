@@ -30,6 +30,7 @@ libraryDependencies ++= Seq(
   "org.webjars" % "swagger-ui" % "2.1.1" % Provided,
   "io.spray" %% "spray-routing" % sprayV % Provided,
   "io.spray" %% "spray-http" % sprayV % Provided,
+  "io.spray" %% "spray-can" % sprayV % Provided,
   "com.typesafe.akka" %% "akka-actor" % akkaV % Provided,
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,

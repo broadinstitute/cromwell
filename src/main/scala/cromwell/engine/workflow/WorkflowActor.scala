@@ -23,8 +23,6 @@ import scala.util.{Failure, Success, Try}
 
 object WorkflowActor {
   sealed trait WorkflowActorMessage
-  case object Start extends WorkflowActorMessage
-  case object Restart extends WorkflowActorMessage
   case object Complete extends WorkflowActorMessage
   case object GetFailureMessage extends WorkflowActorMessage
   case object AbortWorkflow extends WorkflowActorMessage
@@ -33,6 +31,27 @@ object WorkflowActor {
   case class CallCompleted(call: OutputKey, callOutputs: CallOutputs, returnCode: Int) extends WorkflowActorMessage
   case class CallFailed(call: OutputKey, returnCode: Option[Int], failure: String) extends WorkflowActorMessage
   case object Terminate extends WorkflowActorMessage
+  case class ExecutionStoreCreated(startMode: StartMode) extends WorkflowActorMessage
+  case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
+
+  sealed trait StartMode {
+    def runInitialization(actor: WorkflowActor): Future[Unit]
+  }
+
+  case object Start extends WorkflowActorMessage with StartMode {
+    override def runInitialization(actor: WorkflowActor): Future[Unit] = {
+      // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
+      // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
+      actor.initializeWorkflow match {
+        case Success(inputs) => actor.createWorkflow(inputs)
+        case Failure(ex) => Future.failed(ex)
+      }
+    }
+  }
+  
+  case object Restart extends WorkflowActorMessage with StartMode {
+    override def runInitialization(actor: WorkflowActor): Future[Unit] = Future.successful(())
+  }
 
   def props(descriptor: WorkflowDescriptor, backend: Backend): Props = {
     Props(WorkflowActor(descriptor, backend))
@@ -61,19 +80,17 @@ object WorkflowActor {
 case class WorkflowActor(workflow: WorkflowDescriptor,
                          backend: Backend)
   extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
+
+  def createWorkflow(inputs: HostInputs): Future[Unit] = {
+    globalDataAccess.createWorkflow(
+      workflow, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
+  }
+
   private var executionStore: ExecutionStore = _
   val tag: String = s"WorkflowActor [UUID(${workflow.shortId})]"
   override val log = Logging(context.system, classOf[WorkflowActor])
 
   startWith(WorkflowSubmitted, NoFailureMessage)
-
-  def initWorkflow(initialization: Future[Unit] = Future.successful(())): ExecutionStore = {
-    val futureStore = for {
-      _ <- initialization
-      store <- createStore
-    } yield store
-    Await.result(futureStore, AkkaTimeout)
-  }
 
  /**
    * Try to generate output for a collector call, by collecting outputs for all of its shards.
@@ -108,16 +125,37 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
+  private def initializeExecutionStore(initializationCode: Future[Unit], startMode: StartMode): Unit = {
+    val futureStore = for {
+      _ <- initializationCode
+      store <- createStore
+    } yield store
+
+    futureStore onComplete {
+      case Success(store) =>
+        executionStore = store
+        self ! ExecutionStoreCreated(startMode)
+      case Failure(t) =>
+        self ! AsyncFailure(t)
+    }
+  }
+
+  private def initializeWorkflow: Try[HostInputs] = backend.initializeForWorkflow(workflow)
+
   when(WorkflowSubmitted) {
-    case Event(Restart, NoFailureMessage) =>
-      executionStore = initWorkflow()
+    case Event(startMode: StartMode, NoFailureMessage) =>
+      log.info(s"$tag $startMode message received")
+      initializeExecutionStore(startMode.runInitialization(this), startMode)
+      stay()
+    case Event(ExecutionStoreCreated(startMode), NoFailureMessage) =>
+      if (startMode == Restart) {
+        symbolsMarkdownTable foreach { table => log.info(s"Initial symbols:\n\n$table") }
+        executionsMarkdownTable foreach { table => log.info(s"Initial executions:\n\n$table") } 
+      }
       startRunnableCalls()
-    case Event(Start, NoFailureMessage) =>
-      log.info(s"$tag Start message received")
-      executionStore = initWorkflow(createWorkflow())
-      symbolsMarkdownTable foreach { table => log.info(s"Initial symbols:\n\n$table") }
-      executionsMarkdownTable foreach { table => log.info(s"Initial executions:\n\n$table") }
-      startRunnableCalls()
+    case Event(AsyncFailure(t), NoFailureMessage) =>
+      log.error(t.getMessage, t)
+      goto(WorkflowFailed)
   }
 
   when(WorkflowRunning) {
@@ -518,17 +556,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
 
     inputSymbols.toSet ++ callSymbols.toSet
-  }
-
-  def createWorkflow(): Future[Unit] = {
-    val workflowDescriptor = WorkflowDescriptor(workflow.id, workflow.sourceFiles)
-    // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
-    // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
-    backend.initializeForWorkflow(workflow) match {
-      case Success(inputs) =>
-        globalDataAccess.createWorkflow(workflowDescriptor, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
-      case Failure(ex) => Future.failed(ex)
-    }
   }
 
   /**

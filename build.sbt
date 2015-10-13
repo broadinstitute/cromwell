@@ -113,3 +113,6 @@ testOptions in DockerTest += Tests.Argument("-n", "DockerTest")
 testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
 
 test in assembly := {}
+
+parallelExecution := false
+

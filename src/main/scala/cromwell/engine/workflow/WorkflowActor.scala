@@ -33,6 +33,7 @@ object WorkflowActor {
   case object Terminate extends WorkflowActorMessage
   case class ExecutionStoreCreated(startMode: StartMode) extends WorkflowActorMessage
   case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
+  final case class PerformTransition(toState: WorkflowState) extends WorkflowActorMessage
 
   sealed trait StartMode {
     def runInitialization(actor: WorkflowActor): Future[Unit]
@@ -75,6 +76,8 @@ object WorkflowActor {
   def isTerminal(status: ExecutionStatus): Boolean = TerminalStates contains status
   def isDone(entry: ExecutionStoreEntry): Boolean = entry._2 == ExecutionStatus.Done
   def isShard(key: CallKey): Boolean = key.index.isDefined
+
+  private val MarkdownMaxColumnChars = 100
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor,
@@ -111,10 +114,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   /**
-   * Attempt to start all runnable calls.  If successful, go to the `WorkflowRunning` state if not already in that
-   * state, otherwise remain in `WorkflowRunning`.  If not successful, go to `WorkflowFailed`.
+   * Attempt to start all runnable calls and return the next FSM state.  If successful this will be
+   * `WorkflowRunning`, otherwise `WorkflowFailed`.
    */
-  private def startRunnableCalls() = {
+  private def startRunnableCalls(): State = {
     tryStartingRunnableCalls() match {
       case Success(entries) =>
         if (entries.nonEmpty) tryStartingRunnableCalls()
@@ -142,6 +145,25 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   private def initializeWorkflow: Try[HostInputs] = backend.initializeForWorkflow(workflow)
 
+  /**
+   * Dump symbol and execution tables, start runnable calls, and message self to transition to the appropriate
+   * next state.
+   */
+  private def handleRestart(): Unit = {
+    val workflowState = for {
+      symbols <- symbolsMarkdownTable
+      _ = symbols foreach { table => log.info(s"Initial symbols:\n\n$table") }
+      executions <- executionsMarkdownTable
+      _ = executions foreach { table => log.info(s"Initial executions:\n\n$table") }
+      state = startRunnableCalls()
+    } yield state.stateName
+
+    workflowState onComplete {
+      case Success(state) => self ! PerformTransition(state)
+      case Failure(t) => self ! AsyncFailure(t)
+    }
+  }
+
   when(WorkflowSubmitted) {
     case Event(startMode: StartMode, NoFailureMessage) =>
       log.info(s"$tag $startMode message received")
@@ -149,10 +171,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       stay()
     case Event(ExecutionStoreCreated(startMode), NoFailureMessage) =>
       if (startMode == Restart) {
-        symbolsMarkdownTable foreach { table => log.info(s"Initial symbols:\n\n$table") }
-        executionsMarkdownTable foreach { table => log.info(s"Initial executions:\n\n$table") } 
+        handleRestart()
+        stay()
+      } else {
+        startRunnableCalls()
       }
-      startRunnableCalls()
+    case Event(PerformTransition(toState), NoFailureMessage) =>
+      goto(toState)
     case Event(AsyncFailure(t), NoFailureMessage) =>
       log.error(t.getMessage, t)
       goto(WorkflowFailed)
@@ -238,13 +263,17 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         } yield ()
       }
 
-      for {
+      val transitionFuture = for {
         // Write the new workflow state before logging the change, tests assume the change is in effect when
         // the message is logged.
         _ <- globalDataAccess.updateWorkflowState(workflow.id, toState)
         _ = log.info(s"$tag transitioning from $fromState to $toState.")
         _ <- if (toState.isTerminal) handleTerminalWorkflow else Future.successful({})
       } yield ()
+
+      transitionFuture recover {
+        case e: Exception => log.error(e, s"Failed to transition workflow status from $fromState to $toState for $tag")
+      }
   }
 
   private def persistStatus(key: ExecutionStoreKey, status: ExecutionStatus,
@@ -504,11 +533,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     Await.result(futureValue, AkkaTimeout)
   }
 
-  private def fetchAllEntries: Traversable[SymbolStoreEntry] = {
-    val futureValue = globalDataAccess.getAll(workflow.id)
-    Await.result(futureValue, AkkaTimeout)
-  }
-
   private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlCallOutputsObject] = {
     val futureValue = globalDataAccess.getOutputs(workflow.id, ExecutionDatabaseKey(outputKey.scope.fullyQualifiedName, outputKey.index)).map {callOutputEntries =>
       val callOutputsAsMap = callOutputEntries.map(entry => entry.key.name -> entry.wdlValue).toMap
@@ -536,7 +560,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     globalDataAccess.getExecutionStatuses(workflow.id) map { statuses =>
       statuses map { case (k, v) =>
         val key: ExecutionStoreKey = (workflow.namespace.resolve(k.fqn), k.index) match {
-          case (Some(c: Call), Some(i)) => CallKey(c, Some(i))
+          case (Some(c: Call), Some(i)) => CallKey(c, Option(i))
           case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c)
           case (Some(c: Call), None) => CallKey(c, None)
           case (Some(s: Scatter), None) => ScatterKey(s, None)
@@ -594,7 +618,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
         val createScatter = for {
           _ <- globalDataAccess.insertCalls(workflow.id, newEntries.keys, backend)
           _ <- persistStatuses(newEntries.keys, ExecutionStatus.NotStarted, None)
-          _ = persistStatus(scatterKey, ExecutionStatus.Done, Some(0))
+          _ = persistStatus(scatterKey, ExecutionStatus.Done, Option(0))
         } yield ()
         Await.result(createScatter, AkkaTimeout)
         newEntries.keys
@@ -633,45 +657,57 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
     }
   }
 
-  private val MarkdownMaxColumnChars = 100
-
-  private def symbolsAsTable: Seq[Seq[String]] = fetchAllEntries.map({ entry =>
-    val valueString = entry.wdlValue match {
-      case Some(value) => s"(${value.wdlType.toWdlString}) " + value.valueString
-      case _ => ""
+  private def symbolsAsTable: Future[Traversable[Seq[String]]] = {
+    def buildColumnData(entry: SymbolStoreEntry): Seq[String] = {
+      // If the value of this symbol store entry is defined, that value truncated to MarkdownMaxColumnChars,
+      // otherwise the empty string.
+      def columnValue(entry: SymbolStoreEntry): String = {
+        entry.wdlValue map { value =>
+          s"(${value.wdlType.toWdlString}) ${value.valueString}".take(MarkdownMaxColumnChars)
+        } getOrElse ""
+      }
+      // The Markdown columns as a Seq[String].
+      Seq(
+        entry.key.scope,
+        entry.key.name,
+        entry.key.index.map(_.toString).getOrElse(""),
+        if (entry.key.input) "INPUT" else "OUTPUT",
+        entry.wdlType.toWdlString,
+        columnValue(entry)
+      )
     }
-    Seq(
-      entry.key.scope,
-      entry.key.name,
-      entry.key.index.map(_.toString).getOrElse(""),
-      if (entry.key.input) "INPUT" else "OUTPUT",
-      entry.wdlType.toWdlString,
-      if (valueString.length > MarkdownMaxColumnChars) valueString.substring(0, MarkdownMaxColumnChars) else valueString
-    )
-  }).toSeq
 
-  private def symbolsMarkdownTable: Option[String] = {
+    for {
+      symbols <- globalDataAccess.getAllSymbolStoreEntries(workflow.id)
+      columnData = symbols map buildColumnData
+    } yield columnData
+  }
+
+  private def symbolsMarkdownTable: Future[Option[String]] = {
     val header = Seq("SCOPE", "NAME", "INDEX", "I/O", "TYPE", "VALUE")
-    symbolsAsTable match {
-      case rows: Seq[Seq[String]] if rows.isEmpty => None
-      case rows => Some(TerminalUtil.mdTable(rows, header))
+    symbolsAsTable map {
+      case rows if rows.isEmpty => None
+      case rows => Option(TerminalUtil.mdTable(rows.toSeq, header))
     }
   }
 
-  private def executionsAsTable: Seq[Seq[String]] = {
-    val futureRows = globalDataAccess.getExecutionStatuses(workflow.id) map { entries =>
-      entries.map({ case(k, v) =>
-        Seq(k.fqn.toString, k.index.getOrElse("").toString, v.executionStatus.toString, v.returnCode.getOrElse("").toString)
-      })
+  private def executionsAsTable: Future[Iterable[Seq[String]]] = {
+    def buildColumnData(statusEntry: (ExecutionDatabaseKey, CallStatus)): Seq[String] = {
+      val (k, v) = statusEntry
+      Seq(k.fqn.toString, k.index.getOrElse("").toString, v.executionStatus.toString, v.returnCode.getOrElse("").toString)
     }
-    Await.result(futureRows, AkkaTimeout).toSeq
+
+    for {
+      executionStatuses <- globalDataAccess.getExecutionStatuses(workflow.id)
+      columnData = executionStatuses map buildColumnData
+    } yield columnData
   }
 
-  private def executionsMarkdownTable: Option[String] = {
+  private def executionsMarkdownTable: Future[Option[String]] = {
     val header = Seq("SCOPE", "INDEX", "STATUS", "RETURN CODE")
-    executionsAsTable match {
-      case rows: Seq[Seq[String]] if rows.isEmpty => None
-      case rows => Some(TerminalUtil.mdTable(rows.toSeq, header))
+    executionsAsTable map {
+      case rows if rows.isEmpty => None
+      case rows => Option(TerminalUtil.mdTable(rows.toSeq, header))
     }
   }
 }

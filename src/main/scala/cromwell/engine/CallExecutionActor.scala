@@ -5,6 +5,7 @@ import akka.event.{Logging, LoggingReceive}
 import cromwell.engine.backend._
 
 import scala.language.postfixOps
+import scala.util.Try
 
 object CallExecutionActor {
   sealed trait CallExecutionActorMessage
@@ -22,7 +23,10 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
 
   private def execute(): Unit = {
     log.info(s"$tag: starting ${backendCall.call.name} for workflow ${backendCall.workflowDescriptor.shortId}")
-    val result = backendCall.execute
+    // If the actual execution throws an exception, catch and wrap with a `FailedExecution`.
+    // Ideally the backend would map a command execution failure to a `FailedExecution`, but
+    // if an exception propagates out of `execute` it should not take down this actor.
+    val result = Try(backendCall.execute) recover { case e: Exception => FailedExecution(e, None) } get
 
     result match {
       case SuccessfulExecution(_, _) => log.info(s"$tag: successful execution.")

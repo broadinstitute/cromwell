@@ -38,7 +38,7 @@ trait DataAccess {
 
   def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]]
 
-  def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
+  def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   // TODO needed to support compatibility with current code, this seems like an inefficient way of getting
   // TODO workflow outputs.

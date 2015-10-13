@@ -481,7 +481,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     futureResults map toSymbolStoreEntries
   }
 
-  override def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+  override def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.allSymbols(workflowId.toString).result
 
     val futureResults = runTransaction(action)

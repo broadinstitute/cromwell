@@ -41,10 +41,11 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [cpu](#cpu)
   * [defaultDisks](#defaultdisks)
   * [defaultZones](#defaultzones)
-  * [failOnStderr](#failonstderr)
   * [docker](#docker)
+  * [failOnStderr](#failonstderr)
   * [memory](#memory)
   * [preemptible](#preemptible)
+* [Logging](#logging)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
@@ -1129,6 +1130,28 @@ runtime {
 ```
 
 Defaults to "false".
+
+# Logging
+
+Cromwell accepts three Java Properties for controlling logging:
+
+* `LOG_ROOT` - Specifies the directory where logs will be written (default `.`)
+* `LOG_MODE` - Accepts either `server`, `console`, or `server,console` (default `console`).  In `server` mode, logs will be written to `LOG_ROOT`
+* `LOG_LEVEL` - Level at which to log (default `info`)
+
+If the command `java -DLOG_MODE=server,console -DLOG_ROOT=log -jar cromwell.jar run my_workflow.wdl my_workflow.json` were run three times, we'd see this in the `log` directory:
+
+```
+log
+├── cromwell.2015-10-26.log
+├── workflow.319df202-a60f-47c8-b886-bd4821747c68.log
+├── workflow.36e07688-9e47-45bd-9930-aff58471541e.log
+└── workflow.7dad065d-9d7a-4450-91c8-1f7ece184851.log
+```
+
+There would also be logging to the standard out stream as well.
+
+The `cromwell.<date>.log` file contains an aggregate of every log message, while the `workflow.<uuid>.log` files contain only log messages that pertain to that particular workflow.
 
 # REST API
 

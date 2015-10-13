@@ -11,7 +11,9 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -95,21 +97,21 @@ trait Backend {
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  def makeTag(backendCall: BackendCall): String = {
-    // Sometimes the class name is `anon$1`.  In cases like that, don't print it in the log because it's not adding value
-    val cls = this.getClass.getSimpleName
-    val clsString = if (cls.startsWith("anon")) "" else s"$cls "
-    s"$clsString[UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}]"
-  }
-
-  def makeTag(workflowDescriptor: WorkflowDescriptor): String = {
-    // Sometimes the class name is `anon$1`.  In cases like that, don't print it in the log because it's not adding value
-    val cls = this.getClass.getSimpleName
-    val clsString = if (cls.startsWith("anon")) "" else s"$cls "
-    s"$clsString[UUID(${workflowDescriptor.shortId})]"
-  }
+  private def backendClass = backendType.toString.toLowerCase.capitalize + "Backend"
 
   /** Default implementation assumes backends do not support resume, returns an empty Map. */
   def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
 
+  def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
+    backendClass,
+    descriptor,
+    otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
+  )
+
+  def workflowLoggerWithCall(backendCall: BackendCall) = WorkflowLogger(
+    backendClass,
+    backendCall.workflowDescriptor,
+    otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
+    callTag = Option(backendCall.key.tag)
+  )
 }

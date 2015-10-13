@@ -6,10 +6,12 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.workflow.CallKey
+import cromwell.logging.WorkflowLogger
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 
-object Pipeline extends LazyLogging {
+object Pipeline {
 
   def apply(command: String,
             workflow: WorkflowDescriptor,
@@ -20,8 +22,14 @@ object Pipeline extends LazyLogging {
             runIdForResumption: Option[String]): Pipeline = {
 
     val call = key.scope
-    val tag = s"JES Pipeline [UUID(${workflow.shortId}):${key.tag}]"
-    logger.debug(s"$tag Command line is: $command")
+    val logger = WorkflowLogger(
+      "JES Pipeline",
+      workflow,
+      otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
+      callTag = Option(key.tag)
+    )
+
+    logger.debug(s"Command line is: $command")
     val runtimeInfo = JesRuntimeInfo(command, call)
 
     val gcsPath = workflow.callDir(key)
@@ -36,11 +44,11 @@ object Pipeline extends LazyLogging {
 
     def createPipeline = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
 
-    logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s => s"  $s").mkString("\n")}")
+    logger.info(s"Pipeline parameters are:\n${cpr.getParameters.asScala.map(s => s"  $s").mkString("\n")}")
     val pipelineId = if (runIdForResumption.isDefined) None else Option(createPipeline)
 
-    logger.info(s"$tag Pipeline ID is $pipelineId")
-    logger.info(s"$tag Project ID: $projectId")
+    logger.info(s"Pipeline ID is ${pipelineId.getOrElse("(none)")}")
+    logger.info(s"Project ID: $projectId")
     new Pipeline(command,
                  pipelineId,
                  projectId,

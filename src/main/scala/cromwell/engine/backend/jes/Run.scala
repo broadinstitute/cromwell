@@ -8,6 +8,7 @@ import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
 import cromwell.engine.workflow.CallKey
+import cromwell.logging.WorkflowLogger
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
 
@@ -17,17 +18,22 @@ import scala.language.postfixOps
 
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
-  lazy val Log = LoggerFactory.getLogger("main")
   lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   val InitialPollingInterval = 5 seconds
   val PollingBackoffFactor = 1.1
 
   def apply(pipeline: Pipeline): Run = {
-    val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.tag}]"
+    val logger = WorkflowLogger(
+      "JES Run",
+      pipeline.workflow,
+      otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
+      callTag = Option(pipeline.key.tag)
+    )
+
     if (pipeline.pipelineId.isDefined == pipeline.runIdForResumption.isDefined) {
       val message =
         s"""
-          |$tag: Exactly one of JES pipeline ID or run ID for resumption must be specified to create a Run.
+          |${logger.tag}: Exactly one of JES pipeline ID or run ID for resumption must be specified to create a Run.
           |pipelineId = ${pipeline.pipelineId}, runIdForResumption = ${pipeline.runIdForResumption}.
         """.stripMargin
       throw new RuntimeException(message)
@@ -38,10 +44,10 @@ object Run  {
       val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
 
       rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)
-      Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
+      logger.info(s"Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
 
       rpr.setOutputs(pipeline.jesParameters.collect({ case i: JesOutput => i }).toRunMap)
-      Log.info(s"$tag Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
+      logger.info(s"Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
       val logging = new Logging()
       logging.setGcsPath(pipeline.gcsPath)
@@ -51,7 +57,7 @@ object Run  {
       rpr.setResources(pipeline.runtimeInfo.resources)
 
       val runId = pipeline.genomicsService.pipelines().run(rpr).execute().getName
-      Log.info(s"$tag JES run ID is $runId")
+      logger.info(s"JES Run ID is $runId")
       runId
     }
 
@@ -59,7 +65,7 @@ object Run  {
     // resumption of a previous run, and runIdForResumption will be defined.  The Run code takes care of polling
     // in both the newly created and resumed scenarios.
     val runId = if (pipeline.pipelineId.isDefined) runPipeline else pipeline.runIdForResumption.get
-    new Run(runId, pipeline, tag)
+    new Run(runId, pipeline, logger)
   }
 
   private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
@@ -89,7 +95,7 @@ object Run  {
   }
 }
 
-case class Run(runId: String, pipeline: Pipeline, tag: String) {
+case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
 
   lazy val workflowId = pipeline.workflow.id
   lazy val call = pipeline.key.scope
@@ -114,7 +120,7 @@ case class Run(runId: String, pipeline: Pipeline, tag: String) {
       // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
       // just use the state names.
       val prevStateName = previousStatus map { _.toString } getOrElse "-"
-      Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
+      logger.info(s"Status change from $prevStateName to $currentStatus")
 
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))

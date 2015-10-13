@@ -2,12 +2,14 @@ package cromwell.engine
 
 import akka.actor.FSM.NullFunction
 import akka.actor.{LoggingFSM, Props}
+import akka.event.Logging
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.CallActorState
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
+import cromwell.logging.WorkflowLogger
 
 import scala.language.postfixOps
 
@@ -46,16 +48,22 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   startWith(CallNotStarted, None)
 
   val call = key.scope
-  val tag = s"CallActor [UUID(${workflowDescriptor.shortId}):${key.tag}]"
+  val akkaLogger = Logging(context.system, classOf[CallActor])
+  val logger = WorkflowLogger(
+    "CallActor",
+    workflowDescriptor,
+    akkaLogger = Option(akkaLogger),
+    callTag = Option(key.tag)
+  )
 
   // Called on every state transition.
   onTransition {
     case _ -> CallDone =>
-      log.debug(s"$tag CallActor is done, shutting down.")
+      logger.debug(s"done, shutting down.")
       context.stop(self)
     case fromState -> toState =>
       // Only log this at debug - these states are never seen or used outside of the CallActor itself.
-      log.debug(s"$tag transitioning from $fromState to $toState.")
+      logger.debug(s"transitioning from $fromState to $toState.")
   }
 
   when(CallNotStarted) {
@@ -87,25 +95,25 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   when(CallDone) {
     case Event(e, _) =>
-      log.warning(s"$tag received unexpected event $e while in state $stateName")
+      logger.warn(s"received unexpected event $e while in state $stateName")
       stay()
   }
 
   whenUnhandled {
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
     case Event(e, _) =>
-      log.warning(s"$tag received unhandled event $e while in state $stateName")
+      logger.warn(s"received unhandled event $e while in state $stateName")
       stay()
   }
 
   private def tryAbort(abortFunction: Option[AbortFunction]): CallActor.this.State = {
     abortFunction match {
       case Some(af) =>
-        log.info("Abort function called.")
+        logger.info("Abort function called.")
         af.function()
         goto(CallAborting) using abortFunction
       case None =>
-        log.warning("Call abort failed because the provided abort function was null.")
+        logger.warn("Call abort failed because the provided abort function was null.")
         goto(CallRunningAbortRequested) using abortFunction
     }
   }

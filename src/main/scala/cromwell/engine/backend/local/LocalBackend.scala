@@ -3,7 +3,6 @@ package cromwell.engine.backend.local
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
-import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
@@ -78,7 +77,7 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
+class LocalBackend extends Backend with SharedFileSystem {
   type BackendCall = LocalBackendCall
 
   import LocalBackend._
@@ -91,10 +90,10 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
   }
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
-    val tag = makeTag(backendCall)
+    val logger = workflowLoggerWithCall(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
-        logger.info(s"$tag `$instantiatedCommand`")
+        logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
         runSubprocess(backendCall)
       case Failure(ex) => FailedExecution(ex)
@@ -145,7 +144,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
 
 
   private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
-    val tag = makeTag(backendCall)
+    val logger = workflowLoggerWithCall(backendCall)
     val stdoutWriter = backendCall.stdout.untailed
     val stderrTailed = backendCall.stderr.tailed(100)
     val dockerRun = backendCall.call.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
@@ -155,15 +154,19 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => process.destroy()))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
-    logger.info(s"$tag command: $backendCommandString")
+    logger.info(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
     Vector(stdoutWriter.writer, stderrTailed.writer) foreach { _.flushAndClose() }
 
     val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
     val returnCode = Try(
       if (processReturnCode == 0 || backendCall.call.docker.isEmpty) {
-        backendCall.returnCode.slurp.stripLineEnd.toInt
+        val rc = backendCall.returnCode.slurp.stripLineEnd.toInt
+        logger.info(s"Return code: $rc")
+        rc
       } else {
+        logger.error(s"Non-zero return code: $processReturnCode")
+        logger.error(s"Standard error was:\n\n${stderrTailed.tailString}\n")
         throw new Exception(s"Unexpected process exit code: $processReturnCode")
       }
     )

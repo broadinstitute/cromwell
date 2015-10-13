@@ -81,7 +81,7 @@ val customMergeStrategy: String => MergeStrategy = {
         MergeStrategy.filterDistinctLines
       case _ => MergeStrategy.deduplicate
     }
-  case "asm-license.txt" | "overview.html" =>
+  case "asm-license.txt" | "overview.html" | "cobertura.properties" =>
     MergeStrategy.discard
   case _ => MergeStrategy.deduplicate
 }

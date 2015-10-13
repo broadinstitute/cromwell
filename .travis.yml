@@ -4,6 +4,12 @@ scala:
   - 2.11.7
 jdk:
   - oraclejdk8
-
 script: sbt clean coverage test
-after_success: sbt 'set unmanagedSourceDirectories in Compile := Seq(file("."))' coveralls
+after_success:
+  - sbt coveralls
+  - src/bin/publish_snapshot.sh
+deploy:
+  provider: script
+  script: src/bin/publish_release.sh
+  on:
+    tags: true

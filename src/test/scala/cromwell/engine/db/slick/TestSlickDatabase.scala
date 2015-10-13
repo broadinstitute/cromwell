@@ -7,16 +7,20 @@ import liquibase.Liquibase
 import liquibase.database.DatabaseConnection
 import liquibase.resource.{FileSystemResourceAccessor, ResourceAccessor}
 import org.slf4j.LoggerFactory
+import slick.backend.DatabaseConfig
+import slick.driver.JdbcProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class TestSlickDatabase(configPath: String) {
 
-  private lazy val databaseConfig = DatabaseConfig.rootDatabaseConfig.getConfig(configPath)
+  private lazy val databaseConfig = SlickDataAccess.getDatabaseConfig(configPath)
   private lazy val log = LoggerFactory.getLogger(classOf[TestSlickDatabase])
 
+  private lazy val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
+
   // NOTE: Using the import below for isValidConnection, but maybe not the lazy instance if the check fails.
-  lazy val dataAccessComponent: DataAccessComponent = new DataAccessComponent(databaseConfig.getString("slick.driver"))
+  lazy val dataAccessComponent: DataAccessComponent = new DataAccessComponent(slickConfig.driver)
 
   import dataAccessComponent.driver.api._
 
@@ -32,7 +36,7 @@ class TestSlickDatabase(configPath: String) {
     implicit val executionContext = ExecutionContext.global
     Future {
       log.debug("Opening test connection setup for " + configPath)
-      Database.forConfig("", databaseConfig)
+      slickConfig.db
     } flatMap { database =>
       database.run(SimpleDBIO(_.connection.isValid(1))) andThen {
         case _ =>
@@ -47,10 +51,10 @@ class TestSlickDatabase(configPath: String) {
   }
 
   lazy val slickDataAccess =
-    if (this.databaseConfig == DatabaseConfig.databaseConfig)
+    if (this.databaseConfig == SlickDataAccess.defaultDatabaseConfig)
       new SlickDataAccess() // Test the no-args constructor
     else
-      new SlickDataAccess(databaseConfig, dataAccessComponent)
+      new SlickDataAccess(databaseConfig)
 
   def useLiquibase = databaseConfig.hasPath("liquibase")
 

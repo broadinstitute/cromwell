@@ -8,7 +8,7 @@ case class LocalJob
   )
 
 trait LocalJobComponent {
-  this: DriverComponent with ExecutionComponent =>
+  this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
 
   import driver.api._
 
@@ -40,4 +40,14 @@ trait LocalJobComponent {
       localJob <- localJobs
       if localJob.executionId === executionId
     } yield localJob.pid)
+
+  val localJobsWithExecutionsByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowExecution <- workflowExecutions
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecution.workflowExecutionId
+      localJob <- localJobs
+      if localJob.executionId === execution.executionId
+    } yield (execution, localJob))
 }

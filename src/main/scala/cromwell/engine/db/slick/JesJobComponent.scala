@@ -9,7 +9,7 @@ case class JesJob
   )
 
 trait JesJobComponent {
-  this: DriverComponent with ExecutionComponent =>
+  this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
 
   import driver.api._
 
@@ -45,4 +45,11 @@ trait JesJobComponent {
       jesJob <- jesJobs
       if jesJob.executionId === executionId
     } yield (jesJob.jesId, jesJob.jesStatus))
+
+  val jesJobsWithExecutionsByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+    workflowExecution <- workflowExecutions if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    execution <- executions if execution.workflowExecutionId === workflowExecution.workflowExecutionId
+    jesJob <- jesJobs if jesJob.executionId === execution.executionId
+  } yield (execution, jesJob))
 }

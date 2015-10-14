@@ -1,12 +1,21 @@
-import com.typesafe.sbt.SbtGit._
+import com.typesafe.sbt.SbtGit.GitCommand
 
 name := "lenthall"
-
-version := "0.13-SNAPSHOT"
 
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
+
+// Upcoming release, or current if we're on the master branch
+git.baseVersion := "0.13"
+
+// Shorten the git commit hash
+git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) }
+
+// Travis will deploy tagged releases, add -SNAPSHOT for all local builds
+git.gitUncommittedChanges := true
+
+versionWithGit
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.2.1",
@@ -18,7 +27,7 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.5" % Test
 )
 
-shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), version.value)}
+shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), git.baseVersion.value)}
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 

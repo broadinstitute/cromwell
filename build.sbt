@@ -17,6 +17,8 @@ val DowngradedSprayV = "1.3.1"
 
 val akkaV = "2.3.12"
 
+val slickV = "3.1.0"
+
 val googleClientApiV = "1.20.0"
 
 resolvers ++= Seq(
@@ -41,8 +43,8 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.1.3",
   "ch.qos.logback" % "logback-access" % "1.1.3",
   "org.codehaus.janino" % "janino" % "2.7.8",
-  "com.typesafe.slick" %% "slick" % "3.0.3",
-  "com.zaxxer" % "HikariCP" % "2.3.3",
+  "com.typesafe.slick" %% "slick" % slickV,
+  "com.typesafe.slick" %% "slick-hikaricp" % slickV,
   "org.hsqldb" % "hsqldb" % "2.3.2",
   "com.google.gcloud" % "gcloud-java" % "latest.integration",
   "com.google.api-client" % "google-api-client-java6" % googleClientApiV,

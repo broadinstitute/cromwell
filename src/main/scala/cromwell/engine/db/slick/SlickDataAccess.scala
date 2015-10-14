@@ -4,7 +4,6 @@ import java.sql.{Clob, Timestamp}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
-import _root_.slick.util.ConfigExtensionMethods._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.binding._
 import cromwell.binding.types.{WdlPrimitiveType, WdlType}
@@ -17,6 +16,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import lenthall.config.ScalaConfig._
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration

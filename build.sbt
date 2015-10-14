@@ -17,13 +17,23 @@ git.gitUncommittedChanges := true
 
 versionWithGit
 
+val sprayV = "1.3.3"
+
+val akkaV = "2.3.12"
+
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.2.1",
   "org.slf4j" % "slf4j-api" % "1.7.7",
   //---------- Provided libraries -------------------//
   "org.scalaz" %% "scalaz-core" % "7.1.4" % Provided,
   "ch.qos.logback" % "logback-classic" % "1.1.3" % Provided,
+  "org.webjars" % "swagger-ui" % "2.1.1" % Provided,
+  "io.spray" %% "spray-routing" % sprayV % Provided,
+  "io.spray" %% "spray-http" % sprayV % Provided,
+  "io.spray" %% "spray-can" % sprayV % Provided,
+  "com.typesafe.akka" %% "akka-actor" % akkaV % Provided,
   //---------- Test libraries -------------------//
+  "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test
 )
 

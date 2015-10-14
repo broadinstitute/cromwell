@@ -1,7 +1,7 @@
-package lenthall.util
+package lenthall.config
 
 import com.typesafe.config.ConfigFactory
-import lenthall.util.ScalaConfig._
+import lenthall.config.ScalaConfig._
 import org.scalatest.{FlatSpec, Matchers}
 
 class ScalaConfigSpec extends FlatSpec with Matchers {

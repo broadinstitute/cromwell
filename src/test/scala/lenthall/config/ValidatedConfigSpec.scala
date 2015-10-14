@@ -1,10 +1,10 @@
-package lenthall.util
+package lenthall.config
 
 import java.net.URL
 
 import com.typesafe.config.ConfigFactory
-import lenthall.test.TestLogger
-import lenthall.util.ValidatedConfig._
+import lenthall.config.ValidatedConfig._
+import lenthall.test.logging.TestLogger
 import org.scalatest.{FlatSpec, Matchers}
 
 import scalaz.Scalaz._

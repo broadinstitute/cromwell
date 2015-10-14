@@ -25,7 +25,8 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.broadinstitute" %% "lenthall" % lenthallV,
-  "com.gettyimages" %% "spray-swagger" % "0.5.1",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
+  "org.joda" % "joda-convert" % "1.8.1",
   "org.webjars" % "swagger-ui" % "2.1.1",
   "io.spray" %% "spray-can" % sprayV,
   "io.spray" %% "spray-routing" % sprayV,

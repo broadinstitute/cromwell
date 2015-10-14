@@ -9,6 +9,8 @@ organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
+val lenthallV = "0.13-eb2dd2d-SNAPSHOT"
+
 val sprayV = "1.3.2"
 
 val DowngradedSprayV = "1.3.1"
@@ -17,8 +19,14 @@ val akkaV = "2.3.12"
 
 val googleClientApiV = "1.20.0"
 
+resolvers ++= Seq(
+  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
+  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/")
+
 libraryDependencies ++= Seq(
-  "com.gettyimages" %% "spray-swagger" % "0.5.1",
+  "org.broadinstitute" %% "lenthall" % lenthallV,
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
+  "org.joda" % "joda-convert" % "1.8.1",
   "org.webjars" % "swagger-ui" % "2.1.1",
   "io.spray" %% "spray-can" % sprayV,
   "io.spray" %% "spray-routing" % sprayV,

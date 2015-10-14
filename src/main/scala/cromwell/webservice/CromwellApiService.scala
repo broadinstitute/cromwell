@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import com.typesafe.config.Config
 import cromwell.engine.workflow.{ValidateActor, WorkflowOptions}
 import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
+import lenthall.spray.{SwaggerUiInfo, ConfigSwaggerUiHttpService}
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
@@ -23,10 +24,9 @@ object SwaggerService {
   }
 }
 
-class SwaggerService(override val swaggerConfig: Config)
+class SwaggerService(override val swaggerUiConfig: Config)
                     (implicit val actorRefFactory: ActorRefFactory)
-  extends SwaggerConfigHttpService {
-  override def apiTypes = Vector(typeOf[CromwellApiService])
+  extends ConfigSwaggerUiHttpService {
 }
 
 
@@ -40,7 +40,7 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, swaggerService: Swa
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = options { complete(StatusCodes.OK) } ~ docsRoute ~ swaggerService.uiRoutes ~ workflowRoutes
+  def possibleRoutes = options { complete(StatusCodes.OK) } ~ docsRoute ~ swaggerService.swaggerUiRoutes ~ workflowRoutes
 
   def receive = runRoute(possibleRoutes)
 }

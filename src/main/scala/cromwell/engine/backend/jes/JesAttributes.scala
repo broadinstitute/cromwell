@@ -3,7 +3,8 @@ package cromwell.engine.backend.jes
 import java.net.URL
 
 import com.typesafe.config.ConfigFactory
-import cromwell.util.ConfigUtil._
+import lenthall.config.ScalaConfig._
+import lenthall.config.ValidatedConfig._
 
 import scala.language.postfixOps
 import scalaz.Scalaz._

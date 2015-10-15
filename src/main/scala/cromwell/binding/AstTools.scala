@@ -52,6 +52,28 @@ object AstTools {
     }
 
     def wdlValue(wdlType: WdlType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlValue = {
+
+      def astToMap(ast: Ast) = {
+        val mapType = wdlType.asInstanceOf[WdlMapType]
+        val elements = ast.getAttribute("map").asInstanceOf[AstList].asScala.toVector.map({ kvnode =>
+          val k = kvnode.asInstanceOf[Ast].getAttribute("key").wdlValue(mapType.keyType, wdlSyntaxErrorFormatter)
+          val v = kvnode.asInstanceOf[Ast].getAttribute("value").wdlValue(mapType.valueType, wdlSyntaxErrorFormatter)
+          k -> v
+        }).toMap
+
+        WdlMap(mapType, elements)
+      }
+
+      def astToObject(ast: Ast) = {
+        val elements = ast.getAttribute("map").asInstanceOf[AstList].asScala.toVector.map({ kvnode =>
+          val k = kvnode.asInstanceOf[Ast].getAttribute("key").sourceString
+          val v = kvnode.asInstanceOf[Ast].getAttribute("value").wdlValue(WdlStringType, wdlSyntaxErrorFormatter)
+          k -> v
+        }).toMap
+
+        WdlObject(elements)
+      }
+
       astNode match {
         case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlStringType => WdlString(t.getSourceString)
         case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlFileType => WdlFile(t.getSourceString)
@@ -61,21 +83,15 @@ object AstTools {
           case "true" => WdlBoolean.True
           case "false" => WdlBoolean.False
         }
-        // TODO: The below cases, ArrayLiteral and MapLiteral are brittle.  They recursively call this wdlValue().
+        // TODO: The below cases, ArrayLiteral and MapLiteral, ObjectLiteral are brittle. They recursively call this wdlValue().
         // However, those recursive calls might contain full-on expressions instead of just other literals.  This
         // whole thing ought to be part of the regular expression evaluator, though I imagine that's non-trivial.
         case a: Ast if a.getName == "ArrayLiteral" && wdlType.isInstanceOf[WdlArrayType] =>
           val arrType = wdlType.asInstanceOf[WdlArrayType]
           val elements = a.getAttribute("values").astListAsVector map {node => node.wdlValue(arrType.memberType, wdlSyntaxErrorFormatter)}
           WdlArray(arrType, elements)
-        case a: Ast if a.getName == "MapLiteral" && wdlType.isInstanceOf[WdlMapType] =>
-          val mapType = wdlType.asInstanceOf[WdlMapType]
-          val elements = a.getAttribute("map").asInstanceOf[AstList].asScala.toVector.map({ kvnode =>
-            val k = kvnode.asInstanceOf[Ast].getAttribute("key").wdlValue(mapType.keyType, wdlSyntaxErrorFormatter)
-            val v = kvnode.asInstanceOf[Ast].getAttribute("value").wdlValue(mapType.valueType, wdlSyntaxErrorFormatter)
-            k -> v
-          }).toMap
-          WdlMap(mapType, elements)
+        case a: Ast if a.getName == "MapLiteral" && wdlType.isInstanceOf[WdlMapType] => astToMap(a)
+        case a: Ast if a.getName == "ObjectLiteral" && wdlType == WdlObjectType => astToObject(a)
         case _ => throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
       }
     }

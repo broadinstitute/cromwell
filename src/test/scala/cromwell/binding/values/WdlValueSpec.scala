@@ -1,8 +1,7 @@
 package cromwell.binding.values
 
-import cromwell.binding.{WdlExpression, WdlNamespace}
-import cromwell.parser.BackendType
-import cromwell.util.SampleWdl
+import cromwell.binding.WdlExpression
+import cromwell.binding.types.{WdlMapType, WdlStringType}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -25,7 +24,9 @@ class WdlValueSpec extends FlatSpec with Matchers {
     (WdlInteger(0), "0"),
     (WdlInteger(Int.MaxValue), "2147483647"),
     (WdlInteger(Int.MinValue), "-2147483648"),
-    (WdlString(""), "\"\"")
+    (WdlString(""), "\"\""),
+    (WdlObject(Map("one" -> WdlString("two"))), "object {one: \"two\"}"),
+    (WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(WdlString("one") -> WdlString("two"))), "{\"one\": \"two\"}")
   )
 
   forAll(wdlValueRawStrings) { (wdlValue, rawString) =>
@@ -84,19 +85,6 @@ class WdlValueSpec extends FlatSpec with Matchers {
       fromRawString shouldNot be(wdlValue)
       fromRawString.toWdlString should be(wdlValue.toWdlString)
       fromRawString.wdlType should be(wdlType)
-    }
-  }
-
-  val notImplementRawString = Table(
-    "wdlValue",
-    WdlObject(Map("key" -> WdlString("value"))),
-    WdlNamespace.load(SampleWdl.HelloWorld.wdlSource(), BackendType.LOCAL))
-
-  forAll(notImplementRawString) { wdlValue =>
-    it should s"not implement a ${wdlValue.typeName} raw string" in {
-      a [NotImplementedError] should be thrownBy wdlValue.toWdlString
-      val wdlType = wdlValue.wdlType
-      a [NotImplementedError] should be thrownBy wdlType.fromWdlString("")
     }
   }
 }

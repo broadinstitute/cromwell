@@ -1,7 +1,7 @@
 package cromwell.engine.backend.jes
 
 import cromwell.binding.expression.WdlStandardLibraryFunctions
-import cromwell.binding.types.{WdlArrayType, WdlStringType}
+import cromwell.binding.types.{WdlObjectType, WdlArrayType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.util.google.{GoogleCloudStorage, GoogleCloudStoragePath}
 
@@ -38,6 +38,31 @@ class JesEngineFunctionsWithoutCallContext(storage: GoogleCloudStorage) extends 
       singleArgument <- extractSingleArgument(params)
       lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
     } yield WdlArray(WdlArrayType(WdlStringType), lines)
+  }
+
+  override protected def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      contents <- Success(fileContentsToString(singleArgument))
+      wdlMap <- WdlMap.fromTsv(contents)
+    } yield wdlMap
+  }
+
+  private def extractObjectOrArray(params: Seq[Try[WdlValue]]) = for {
+    singleArgument <- extractSingleArgument(params)
+    contents <- Success(fileContentsToString(singleArgument))
+    wdlObjects <- WdlObject.fromTsv(contents)
+  } yield wdlObjects
+
+  override protected def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = {
+    extractObjectOrArray(params) map {
+      case array if array.length == 1 => array.head
+      case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
+    }
+  }
+
+  override def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    extractObjectOrArray(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
   }
 
   /**

@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick" % slickV,
   "com.typesafe.slick" %% "slick-hikaricp" % slickV,
   "org.hsqldb" % "hsqldb" % "2.3.2",
-  "com.google.gcloud" % "gcloud-java" % "latest.integration",
+  "com.google.gcloud" % "gcloud-java" % "0.0.9",
   "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
   "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,

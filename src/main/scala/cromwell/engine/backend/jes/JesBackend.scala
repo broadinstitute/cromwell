@@ -8,7 +8,7 @@ import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import cromwell.binding.types.{WdlFileType, WdlType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -87,26 +87,25 @@ class JesBackend extends Backend with LazyLogging {
   }
 
   /**
-   * Takes a single FQN to WdlValue pair and maps google cloud storage (GCS) paths into an appropriate local file path.
+   * Takes a single WdlValue and maps google cloud storage (GCS) paths into an appropriate local file path.
    * If the input is not a WdlFile, or the WdlFile is not a GCS path, the mapping is a noop.
    *
-   * @param fqn the FQN of the input variable
    * @param wdlValue the value of the input
    * @return a new FQN to WdlValue pair, with WdlFile paths modified if appropriate.
    */
-  def mapInputValue(fqn: String, wdlValue: WdlValue): (String, WdlValue) = {
+  private def mapInputGcsPath(wdlValue: WdlValue): WdlValue = {
     wdlValue match {
       case WdlFile(path) =>
         GoogleCloudStoragePath.parse(path) match {
-          case Success(gcsPath) => (fqn, WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString))
-          case Failure(e) => (fqn, wdlValue)
+          case Success(gcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString)
+          case Failure(e) => wdlValue
         }
-      case array:WdlArray => fqn -> array.map(v => mapInputValue("bogus", v)._2) // TODO: this is ugly.
-      case _ => (fqn, wdlValue)
+      case array: WdlArray => array map mapInputGcsPath
+      case _ => wdlValue
     }
   }
 
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => mapInputValue(k, v) }
+  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => (k, mapInputGcsPath(v)) }
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor, userAuth: Option[GcsUserAuthInformation]) = {
@@ -192,16 +191,34 @@ class JesBackend extends Backend with LazyLogging {
     }
   }
 
+  /**
+   * Creates a set of JES inputs for a backend call.
+   */
   def generateJesInputs(backendCall: BackendCall): Iterable[JesInput] = {
     val adjustedPaths = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs)
-    def mkInput(fileTag: String, location: WdlFile) = JesInput(fileTag, backendCall.lookupFunction(fileTag).valueString, Paths.get(location.valueString))
+    def mkInput(locallyQualifiedInputName: String, location: WdlFile) = JesInput(locallyQualifiedInputName, backendCall.lookupFunction(locallyQualifiedInputName).valueString, Paths.get(location.valueString))
     adjustedPaths collect {
-      case (fileTag: String, location: WdlFile) =>
-        logger.info(s"${makeTag(backendCall)}: $fileTag -> ${location.valueString}")
-        Seq(mkInput(fileTag, location))
-      case (fileTag: String, location: WdlArray) => location.value.collect { case f: WdlFile => mkInput(fileTag, f) }
-      case (fileTag: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(fileTag, f) }
+      case (locallyQualifiedInputName: String, location: WdlFile) =>
+        logger.info(s"${makeTag(backendCall)}: $locallyQualifiedInputName -> ${location.valueString}")
+        Seq(mkInput(locallyQualifiedInputName, location))
+      case (locallyQualifiedInputName: String, localPathWdlArray: WdlArray) =>
+        backendCall.lookupFunction(locallyQualifiedInputName) match {
+          case WdlArray(wdlType: WdlArrayType, remotePathArray: Seq[WdlValue]) =>
+            jesInputsFromArray(locallyQualifiedInputName, remotePathArray, localPathWdlArray.value)
+        }
+      case (locallyQualifiedInputName: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(locallyQualifiedInputName, f) }
     } flatten
+  }
+
+  /**
+   * Takes two arrays of WDL values and generates any necessary JES inputs from them.
+   */
+  private def jesInputsFromArray(jesNamePrefix: String, remotePathArray: Seq[WdlValue], localPathArray: Seq[WdlValue]): Iterable[JesInput] = {
+    (remotePathArray zip localPathArray zipWithIndex) flatMap {
+      case ((WdlArray(_, innerRemotePathArray: Seq[WdlValue]), WdlArray(_, innerLocalPathArray: Seq[WdlValue])), index) =>
+        jesInputsFromArray(s"$jesNamePrefix-$index", innerRemotePathArray, innerLocalPathArray)
+      case ((remotePath, localPath), index) => Seq(JesInput(s"$jesNamePrefix-$index", remotePath.valueString, Paths.get(localPath.valueString)))
+    }
   }
 
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {

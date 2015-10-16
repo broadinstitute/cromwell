@@ -8,7 +8,7 @@ import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import cromwell.binding.types.{WdlFileType, WdlType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -199,9 +199,22 @@ class JesBackend extends Backend with LazyLogging {
       case (fileTag: String, location: WdlFile) =>
         logger.info(s"${makeTag(backendCall)}: $fileTag -> ${location.valueString}")
         Seq(mkInput(fileTag, location))
-      case (fileTag: String, location: WdlArray) => location.value.collect { case f: WdlFile => mkInput(fileTag, f) }
+      case (fileTag: String, location: WdlArray) => inputsFromArray(fileTag, location.value, backendCall)
       case (fileTag: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(fileTag, f) }
     } flatten
+  }
+
+  def inputsFromArray(fileTag: String, locations: Seq[WdlValue], backendCall: BackendCall): Iterable[JesInput] = {
+    val localPath = backendCall.lookupFunction(fileTag)
+    localPath match {
+      case WdlArray(wdlType: WdlArrayType, localPathArray: Seq[WdlValue]) => inputsFromArrays(fileTag, locations zip localPathArray zipWithIndex)
+    }
+  }
+
+  private def inputsFromArrays(fileTagPrefix: String, locationsAndGCSs: Seq[((WdlValue, WdlValue), Int)]): Iterable[JesInput] = {
+    locationsAndGCSs map {
+      case ((local, remote), index) => JesInput(s"$fileTagPrefix-$index", remote.valueString, Paths.get(local.valueString))
+    }
   }
 
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {

@@ -37,8 +37,8 @@ object CallMetadataBuilder {
     def extract(job: Any): BackendValues = {
       job match {
         case ji: LocalJob => BackendValues("Local")
-        case ji: JesJob => BackendValues("JES", jobId = Option(ji.jesId.toString), status = ji.jesStatus)
-        case ji: SgeJob => BackendValues("SGE", jobId = Option(ji.sgeJobNumber.toString))
+        case ji: JesJob => BackendValues("JES", jobId = ji.jesId, status = ji.jesStatus)
+        case ji: SgeJob => BackendValues("SGE", jobId = ji.sgeJobNumber map { _.toString })
       }
     }
   }
@@ -162,11 +162,6 @@ object CallMetadataBuilder {
     // Fold a zero ExecutionMap across this Seq of functions.
     val executionMap = executionMapTransformers.foldLeft(Map.empty: ExecutionMap) {
       case (map, transformer) => map ++ transformer(map) }
-
-    def symbolToMapEntry(symbol: Symbol) = {
-      val clob = symbol.wdlValue.get
-      symbol.name -> clob.getSubString(1, clob.length().toInt)
-    }
 
     // Convert from the convenience AssembledCallMetadata format to the CallMetadata format
     // that the endpoint needs to serve up.

@@ -1,6 +1,6 @@
 package cromwell.binding.types
 
-import cromwell.binding.values.{WdlArray, WdlFile, WdlString}
+import cromwell.binding.values.{WdlValue, WdlArray, WdlFile, WdlString}
 import spray.json.JsArray
 
 case class WdlArrayType(memberType: WdlType) extends WdlType {
@@ -25,5 +25,16 @@ case class WdlArrayType(memberType: WdlType) extends WdlType {
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {
     case a: WdlArrayType => memberType.isCoerceableFrom(a.memberType)
     case _ => false
+  }
+}
+
+object WdlArrayType {
+
+  implicit class WdlArrayEnhanced(wdlType: WdlType) extends WdlType {
+
+    override protected def coercion: PartialFunction[Any, WdlValue] = wdlType.coercion
+    override def toWdlString: String = wdlType.toWdlString
+
+    def isAnArrayOf(genericType: WdlType) = wdlType.isInstanceOf[WdlArrayType] && wdlType.asInstanceOf[WdlArrayType].memberType == genericType
   }
 }

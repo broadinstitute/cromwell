@@ -4,7 +4,8 @@ import java.sql.{Clob, Timestamp}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
-import _root_.slick.util.ConfigExtensionMethods._
+import _root_.slick.backend.DatabaseConfig
+import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.binding._
 import cromwell.binding.types.{WdlPrimitiveType, WdlType}
@@ -17,6 +18,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import lenthall.config.ScalaConfig._
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
@@ -27,6 +29,28 @@ object SlickDataAccess {
   type IoValue = String
   val IoInput = "INPUT"
   val IoOutput = "OUTPUT"
+
+  lazy val rootConfig = ConfigFactory.load()
+  /*
+   VERY TEMPORARY!
+   Turns out, Slick has a way to load databases from configs: DatabaseConfig
+   http://slick.typesafe.com/doc/3.0.0/database.html?highlight=databaseconfig#databaseconfig
+
+   To switch over to this config format, we need to rename:
+
+     1. Property name "driver" renamed to "db.driver"
+     2. Property name "slick.driver" renamed to "driver"
+     3. Property value with the slick driver needs to append "$"
+
+   To make sure the code continues to run during this switch, the application.conf's have been updated ahead of time
+   with the temporary "databaseSlickDriverConfigSwitch" configuration.
+  */
+  private lazy val rootDatabaseConfig = rootConfig.getConfig(
+    if (rootConfig.hasPath("databaseSlickDriverConfigSwitch")) "databaseSlickDriverConfigSwitch" else "database")
+  private lazy val databaseConfigName = rootDatabaseConfig.getStringOption("config")
+  lazy val defaultDatabaseConfig = databaseConfigName.map(getDatabaseConfig).getOrElse(rootDatabaseConfig)
+
+  def getDatabaseConfig(path: String) = rootDatabaseConfig.getConfig(path)
 
   implicit class DateToTimestamp(val date: Date) extends AnyVal {
     def toTimestamp = new Timestamp(date.getTime)
@@ -44,7 +68,7 @@ object SlickDataAccess {
     /**
      * Returns either the "url" or "properties.url"
      */
-    def urlKey = if (config.hasPath("url")) "url" else "properties.url"
+    def urlKey = if (config.hasPath("db.url")) "db.url" else "db.properties.url"
 
     /**
      * Returns the value of either the "url" or "properties.url"
@@ -85,25 +109,25 @@ object SlickDataAccess {
  * if the list is empty.  In every use case as of the writing of this comment,
  * those exceptions would have been wrapped in a failed Future and returned.
  */
-class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponent) extends DataAccess {
+class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
-  def this(databaseConfig: Config) = this(
-    databaseConfig,
-    new DataAccessComponent(databaseConfig.getString("slick.driver")))
+  import SlickDataAccess._
 
-  def this() = this(DatabaseConfig.databaseConfig)
+  def this() = this(SlickDataAccess.defaultDatabaseConfig)
+
+  private val configWithUniqueSchema = this.databaseConfig.withUniqueSchema
+
+  val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", configWithUniqueSchema)
+  val dataAccess = new DataAccessComponent(slickConfig.driver)
 
   // NOTE: Used for slick flatMap. May switch to custom ExecutionContext the future
   private implicit val executionContext = ExecutionContext.global
-
-  import SlickDataAccess._
 
   // Allows creation of a Database, plus implicits for running transactions
   import dataAccess.driver.api._
 
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
-  private val configWithUniqueSchema = databaseConfig.withUniqueSchema
-  val database = Database.forConfig("", configWithUniqueSchema)
+  val database = slickConfig.db
 
   // Possibly create the database
   {
@@ -124,7 +148,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     // generate unique schema instances that don't conflict.
     //
     // Otherwise, create one DataAccess and hold on to the reference.
-    if (databaseConfig.getBooleanOr("slick.createSchema")) {
+    if (this.databaseConfig.getBooleanOr("slick.createSchema")) {
       Await.result(database.run(dataAccess.schema.create), Duration.Inf)
     }
   }
@@ -157,8 +181,8 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
                               backend: Backend): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => CallKey(call, None, None)
-      case scatter: Scatter => ScatterKey(scatter, None, None)
+      case call: Call => CallKey(call, None)
+      case scatter: Scatter => ScatterKey(scatter, None)
     }
 
     val action = for {
@@ -378,18 +402,12 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
       jobResultOption = localJobResultOption orElse jesJobResultOption orElse sgeJobResultOption
       backendInfo = jobResultOption match {
         case Some(localJobResult: LocalJob) =>
-          new LocalCallBackendInfo(
-            CallStatus(executionResult.status, executionResult.rc),
-            localJobResult.pid)
+          new LocalCallBackendInfo(localJobResult.pid)
         case Some(jesJobResult: JesJob) =>
-          new JesCallBackendInfo(
-            CallStatus(executionResult.status, executionResult.rc),
-            jesJobResult.jesId map JesId,
+          new JesCallBackendInfo(jesJobResult.jesId map JesId,
             jesJobResult.jesStatus map JesStatus)
         case Some(sgeJobResult: SgeJob) =>
-          new SgeCallBackendInfo(
-            CallStatus(executionResult.status, executionResult.rc),
-            sgeJobResult.sgeJobNumber)
+          new SgeCallBackendInfo(sgeJobResult.sgeJobNumber)
         case _ =>
           throw new IllegalArgumentException(
             s"Unknown backend from db for (uuid, fqn): " +
@@ -401,25 +419,15 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
-  // TODO it's confusing that CallBackendInfo has a CallStatus in it when that information doesn't go to the
-  // backend info tables.  But this method does use the CallStatus data from the CallBackendInfo to update the
-  // Execution table.
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
-                                          call: Call,
+                                          callKey: CallKey,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
     require(backendInfo != null, "backend info is null")
-    val callStatus = backendInfo.status
 
+    import ExecutionIndex._
     val action = for {
-      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(
-        workflowId.toString, call.fullyQualifiedName).result.head
-
-      executionStatusQuery = dataAccess.executionStatusesAndReturnCodesByExecutionId(
-        executionResult.executionId.get)
-
-      executionUpdate <- executionStatusQuery.update(callStatus.executionStatus.toString, callStatus.returnCode)
-
-      _ = require(executionUpdate == 1, s"Unexpected execution update count $executionUpdate")
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(
+        workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex).result.head
 
       backendUpdate <- backendInfo match {
         case localBackendInfo: LocalCallBackendInfo =>
@@ -447,6 +455,9 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
     runTransaction(action)
   }
 
+  private def toSymbolStoreEntries(symbolResults: Traversable[Symbol]) =
+    symbolResults map toSymbolStoreEntry
+
   private def toSymbolStoreEntry(symbolResult: Symbol) = {
     val wdlType = WdlType.fromWdlString(symbolResult.wdlType)
     new SymbolStoreEntry(
@@ -463,21 +474,19 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   override def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]] = {
     val Array(scope, varName) = fqn.split("\\.(?=[^\\.]+$)") // e.g. "a.b.c.d" => Seq("a.b.c", "d")
-    val action = for {
-      symbolResults <- dataAccess.symbolsByScopeAndName(workflowId.toString, scope, varName).result
-      symbolStoreEntries = symbolResults map toSymbolStoreEntry
-    } yield symbolStoreEntries
+    val action = dataAccess.symbolsByScopeAndName(workflowId.toString, scope, varName).result
 
-    runTransaction(action)
+    val futureResults = runTransaction(action)
+
+    futureResults map toSymbolStoreEntries
   }
 
   override def getAll(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
-    val action = for {
-      symbolResults <- dataAccess.allSymbols(workflowId.toString).result
-      symbolStoreEntries = symbolResults map toSymbolStoreEntry
-    } yield symbolStoreEntries
+    val action = dataAccess.allSymbols(workflowId.toString).result
 
-    runTransaction(action)
+    val futureResults = runTransaction(action)
+
+    futureResults map toSymbolStoreEntries
   }
 
   /** Get all inputs for the scope of this key. */
@@ -499,14 +508,13 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   private def getSymbols(workflowId: WorkflowId, ioValue: IoValue,
                          callFqnOption: Option[FullyQualifiedName] = None, callIndexOption: Option[Int] = None): Future[Traversable[SymbolStoreEntry]] = {
-    val action = for {
-      symbolResults <- dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
-        workflowId.toString, ioValue, callFqnOption, callIndexOption
-      ).result
-      symbolStoreEntries = symbolResults map toSymbolStoreEntry
-    } yield symbolStoreEntries
+    val action = dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
+      workflowId.toString, ioValue, callFqnOption, callIndexOption
+    ).result
 
-    runTransaction(action)
+    val futureResults = runTransaction(action)
+
+    futureResults map toSymbolStoreEntries
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
@@ -550,50 +558,42 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
   }
 
   override def getExecutions(id: WorkflowId): Future[Traversable[Execution]] = {
-    val action = for {
-      executions <- dataAccess.executionsByWorkflowExecutionUuid(id.toString).result
-    } yield executions
+    val action = dataAccess.executionsByWorkflowExecutionUuid(id.toString).result
 
     runTransaction(action)
   }
 
   override def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution] = {
-    val action = for {
-      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.headOption
-    } yield workflowExecution
+    val action = dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.headOption
 
     runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"Workflow $workflowId not found.")) }
   }
 
   override def getWorkflowExecutionAux(id: WorkflowId): Future[WorkflowExecutionAux] = {
-    val action = for {
-      workflowExecutionAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(id.toString).result.headOption
-    } yield workflowExecutionAux
+    val action = dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(id.toString).result.headOption
 
     runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"No workflow execution aux found for ID '$id'.")) }
   }
 
   override def getAllInputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
-    val action = for {
-      inputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
-      symbolStoreInputs = inputs map toSymbolStoreEntry
-    } yield symbolStoreInputs
+    val action = dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
 
-    runTransaction(action)
+    val futureResults = runTransaction(action)
+
+    futureResults map toSymbolStoreEntries
   }
 
   override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
-    val action = for {
-      outputs <- dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
-      symbolStoreOutputs = outputs map toSymbolStoreEntry
-    } yield symbolStoreOutputs
+    val action = dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
 
-    runTransaction(action)
+    val futureResults = runTransaction(action)
+
+    futureResults map toSymbolStoreEntries
   }
 
   override def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]] = {
     val action = for {
-      executionAndJob <- dataAccess.jesJobInfo(id).result
+      executionAndJob <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
     val futureResults = runTransaction(action)
@@ -606,7 +606,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   override def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]] = {
     val action = for {
-      executionAndJob <- dataAccess.localJobInfo(id).result
+      executionAndJob <- dataAccess.localJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
     val futureResults = runTransaction(action)
@@ -619,7 +619,7 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
   override def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]] = {
     val action = for {
-      executionAndJob <- dataAccess.sgeJobInfo(id).result
+      executionAndJob <- dataAccess.sgeJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
     val futureResults = runTransaction(action)
@@ -639,5 +639,4 @@ class SlickDataAccess(databaseConfig: Config, val dataAccess: DataAccessComponen
 
     runTransaction(action)
   }
-
 }

@@ -11,10 +11,12 @@ case class WdlMapType(keyType: WdlType, valueType: WdlType) extends WdlType {
     case m: Map[_, _] if m.isEmpty => WdlMap(WdlMapType(keyType, valueType), Map())
     case js: JsObject if js.fields.nonEmpty => WdlMap.coerceMap(js.fields, this)
     case wdlMap: WdlMap => WdlMap.coerceMap(wdlMap.value, this)
+    case o: WdlObject => WdlMap.coerceMap(o.value, this)
   }
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {
     case m: WdlMapType => keyType.isCoerceableFrom(m.keyType) && valueType.isCoerceableFrom(m.valueType)
+    case WdlObjectType => keyType.isCoerceableFrom(WdlStringType) && valueType.isCoerceableFrom(WdlStringType)
     case _ => false
   }
 }

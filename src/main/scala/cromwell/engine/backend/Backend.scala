@@ -2,13 +2,13 @@ package cromwell.engine.backend
 
 import com.typesafe.config.Config
 import cromwell.binding._
+import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 
@@ -16,14 +16,20 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 object Backend {
+  lazy val LocalBackend = new LocalBackend
+  lazy val JesBackend = new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
+  lazy val SgeBackend = new SgeBackend
+
   class StdoutStderrException(message: String) extends RuntimeException(message)
+
   def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
   def from(name: String) = name.toLowerCase match {
-    case "local" => new LocalBackend
-    case "jes" => new JesBackend { JesConf } //forces configuration resolution to fail now if something is missing
-    case "sge" => new SgeBackend
+    case "local" => LocalBackend
+    case "jes" => JesBackend
+    case "sge" => SgeBackend
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
+
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
 }
 
@@ -68,6 +74,11 @@ trait Backend {
                abortRegistrationFunction: AbortRegistrationFunction): BackendCall
 
   /**
+   * Engine functions that don't need a Call context (e.g. read_lines(), read_float(), etc)
+   */
+  def engineFunctions: WdlStandardLibraryFunctions
+
+  /**
    * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
    */
   def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext): Future[Any]
@@ -85,6 +96,10 @@ trait Backend {
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  def makeTag(backendCall: BackendCall): String =
-    s"${this.getClass.getSimpleName} [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+  def makeTag(backendCall: BackendCall): String = {
+    // Sometimes the class name is `anon$1`.  In cases like that, don't print it in the log because it's not adding value
+    val cls = this.getClass.getSimpleName
+    val clsString = if (cls.startsWith("anon")) "" else s"$cls "
+    s"$clsString[UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+  }
 }

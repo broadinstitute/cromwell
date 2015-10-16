@@ -3,11 +3,13 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.12"
+version := "0.13"
 
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
+
+val lenthallV = "0.13"
 
 val sprayV = "1.3.2"
 
@@ -15,10 +17,18 @@ val DowngradedSprayV = "1.3.1"
 
 val akkaV = "2.3.12"
 
+val slickV = "3.1.0"
+
 val googleClientApiV = "1.20.0"
 
+resolvers ++= Seq(
+  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
+  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/")
+
 libraryDependencies ++= Seq(
-  "com.gettyimages" %% "spray-swagger" % "0.5.1",
+  "org.broadinstitute" %% "lenthall" % lenthallV,
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
+  "org.joda" % "joda-convert" % "1.8.1",
   "org.webjars" % "swagger-ui" % "2.1.1",
   "io.spray" %% "spray-can" % sprayV,
   "io.spray" %% "spray-routing" % sprayV,
@@ -33,14 +43,14 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.1.3",
   "ch.qos.logback" % "logback-access" % "1.1.3",
   "org.codehaus.janino" % "janino" % "2.7.8",
-  "com.typesafe.slick" %% "slick" % "3.0.0",
-  "com.zaxxer" % "HikariCP" % "2.3.3",
+  "com.typesafe.slick" %% "slick" % slickV,
+  "com.typesafe.slick" %% "slick-hikaricp" % slickV,
   "org.hsqldb" % "hsqldb" % "2.3.2",
   "com.google.gcloud" % "gcloud-java" % "latest.integration",
   "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
   "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
-  "mysql" % "mysql-connector-java" % "5.1.35",
+  "mysql" % "mysql-connector-java" % "5.1.36",
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
@@ -81,14 +91,20 @@ val customMergeStrategy: String => MergeStrategy = {
         MergeStrategy.filterDistinctLines
       case _ => MergeStrategy.deduplicate
     }
-  case "asm-license.txt" | "overview.html" =>
+  case "asm-license.txt" | "overview.html" | "cobertura.properties" =>
     MergeStrategy.discard
   case _ => MergeStrategy.deduplicate
 }
 
 assemblyMergeStrategy in assembly := customMergeStrategy
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+// The reason why -Xmax-classfile-name is set is because this will fail
+// to build on Docker otherwise.  The reason why it's 200 is because it
+// fails if the value is too close to 256 (even 254 fails).  For more info:
+//
+// https://github.com/sbt/sbt-assembly/issues/69
+// https://github.com/scala/pickling/issues/10
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
 
 lazy val DockerTest = config("docker") extend Test
 
@@ -107,3 +123,6 @@ testOptions in DockerTest += Tests.Argument("-n", "DockerTest")
 testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
 
 test in assembly := {}
+
+parallelExecution := false
+

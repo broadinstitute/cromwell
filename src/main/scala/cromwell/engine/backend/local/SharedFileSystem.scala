@@ -6,12 +6,12 @@ import java.security.MessageDigest
 
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
+import cromwell.binding.expression.WdlStandardLibraryFunctions
+import cromwell.binding.types.WdlFileType
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
-import cromwell.engine.db.DataAccess
 import org.apache.commons.io.FileUtils
 
 import scala.collection.JavaConverters._
@@ -66,6 +66,8 @@ object SharedFileSystem {
 trait SharedFileSystem {
 
   import SharedFileSystem._
+
+  val engineFunctions: WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
     // Evaluate output expressions, performing conversions from String -> File where required.
@@ -232,15 +234,9 @@ trait SharedFileSystem {
    */
   private def outputAutoConversion(backendCall: LocalFileSystemBackendCall, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
     rawOutputValue match {
-      case v: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(backendCall, v.value), taskOutput, backendCall.call.fullyQualifiedName)
-      case m: WdlMap if taskOutput.wdlType.isInstanceOf[WdlMapType] => taskOutput.wdlType.coerceRawValue(m)
-      case a: WdlArray if taskOutput.wdlType.isInstanceOf[WdlArrayType] => taskOutput.wdlType.coerceRawValue(a)
-      case v if v.wdlType == taskOutput.wdlType => Success(v)
-      case _ => Failure(new RuntimeException(
-          s"""Error processing '${backendCall.call.fullyQualifiedName}.${taskOutput.name}':
-             |
-             |Value $rawOutputValue cannot be converted to ${taskOutput.wdlType.toWdlString}
-           """.stripMargin))
+      case rhs if rhs.wdlType == taskOutput.wdlType => Success(rhs)
+      case rhs: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(backendCall, rhs.value), taskOutput, backendCall.call.fullyQualifiedName)
+      case rhs => taskOutput.wdlType.coerceRawValue(rhs)
     }
   }
 

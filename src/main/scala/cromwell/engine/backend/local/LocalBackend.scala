@@ -1,6 +1,6 @@
 package cromwell.engine.backend.local
 
-import java.io.{FileWriter, BufferedWriter, Writer}
+import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.LazyLogging
@@ -10,13 +10,11 @@ import cromwell.engine._
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.{CallStatus, DataAccess, ExecutionDatabaseKey}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
+import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
-import cromwell.util.TailedWriter
 
-import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
@@ -176,9 +174,9 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
     } else {
 
-      def processSuccess() = {
+      def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => SuccessfulExecution(outputs)
+          case Success(outputs) => SuccessfulExecution(outputs, rc)
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
@@ -196,7 +194,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
       val continueOnReturnCode = backendCall.call.continueOnReturnCode
       returnCode match {
         case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
-        case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess()
+        case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
         case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode))
         case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e))
       }

@@ -7,8 +7,9 @@ import cromwell.binding.{Call, CallInputs}
 import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
-import cromwell.engine.db.{CallStatus, SgeCallBackendInfo}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.db.DataAccess._
+import cromwell.engine.db.SgeCallBackendInfo
+import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
@@ -64,7 +65,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
       case FailedExecution(_, _) => ExecutionStatus.Failed
-      case SuccessfulExecution(_) => ExecutionStatus.Done
+      case SuccessfulExecution(_, _) => ExecutionStatus.Done
     }).toString
 
   private def recordDatabaseFailure(call: Call, status: String, rc: Int): PartialFunction[Throwable, Unit] = {
@@ -72,10 +73,8 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
   }
 
   private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]): Future[Unit] = {
-    val backendInfo = SgeCallBackendInfo(CallStatus(status, rc), sgeJobId)
-    // TODO: re-add
-    //globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, call.call, backendInfo)
-    Future.successful(())
+    val backendInfo = SgeCallBackendInfo(sgeJobId)
+    globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, CallKey(call.call, call.key.index), backendInfo)
   }
 
   // TODO: Not much thought was given to this function
@@ -175,9 +174,9 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         FailedExecution(new Exception(s"$tag SGE job failed because of return code: $r"), Option(r))
       case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
         FailedExecution(new Throwable(s"$tag SGE job failed because there were $stderrLength bytes on standard error"), Option(0))
-      case (_, _) =>
+      case (r, _) =>
         postProcess(backendCall) match {
-          case Success(callOutputs) => SuccessfulExecution(callOutputs)
+          case Success(callOutputs) => SuccessfulExecution(callOutputs, r)
           case Failure(e) => FailedExecution(e)
         }
     }

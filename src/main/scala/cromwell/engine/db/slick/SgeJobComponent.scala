@@ -5,7 +5,7 @@ case class SgeJob (executionId: Int,
                    sgeJobId: Option[Int] = None)
 
 trait SgeJobComponent {
-  this: DriverComponent with ExecutionComponent =>
+  this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
 
   import driver.api._
 
@@ -33,4 +33,13 @@ trait SgeJobComponent {
       if sgeJob.executionId === executionId
     } yield sgeJob.sgeJobNumber)
 
+  val sgeJobsWithExecutionsByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowExecution <- workflowExecutions
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecution.workflowExecutionId
+      sgeJob <- sgeJobs
+      if sgeJob.executionId === execution.executionId
+    } yield (execution, sgeJob))
 }

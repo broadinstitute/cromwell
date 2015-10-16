@@ -9,17 +9,16 @@ import scala.language.postfixOps
 sealed trait ExecutionStoreKey {
   def scope: Scope
   def index: Option[Int]
-  def parent: Option[ExecutionStoreKey]
 }
 
 trait OutputKey extends ExecutionStoreKey
 
-case class CallKey(scope: Call, index: Option[Int], parent: Option[ExecutionStoreKey]) extends OutputKey
-case class CollectorKey(scope: Call, parent: Option[ExecutionStoreKey]) extends OutputKey {
+case class CallKey(scope: Call, index: Option[Int]) extends OutputKey
+case class CollectorKey(scope: Call) extends OutputKey {
   override val index: Option[Int] = None
 }
 
-case class ScatterKey(scope: Scatter, index: Option[Int], parent: Option[ExecutionStoreKey]) extends ExecutionStoreKey {
+case class ScatterKey(scope: Scatter, index: Option[Int]) extends ExecutionStoreKey {
 
   /**
    * Creates a sub-ExecutionStore with Starting entries for each of the scoped children.
@@ -35,8 +34,8 @@ case class ScatterKey(scope: Scatter, index: Option[Int], parent: Option[Executi
     val parent = Option(this)
     scope match {
       case call: Call =>
-        val shards = (0 until count) map { i => CallKey(call, Option(i), parent) }
-        shards :+ CollectorKey(call, parent)
+        val shards = (0 until count) map { i => CallKey(call, Option(i)) }
+        shards :+ CollectorKey(call)
       case scatter: Scatter =>
         throw new UnsupportedOperationException("Nested Scatters are not supported (yet).")
       case e =>

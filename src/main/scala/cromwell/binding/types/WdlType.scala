@@ -43,6 +43,7 @@ trait WdlType {
    * @param wdlSource source code representing the WdlValue
    * @return The WdlValue
    */
+  //TODO: return a Try ?
   def fromWdlString(wdlSource: WdlSource): WdlValue = {
     val tokens = WdlType.parser.lex(wdlSource, "string")
     val terminalMap = tokens.asScala.toVector.map {(_, wdlSource)}.toMap

@@ -26,6 +26,7 @@ object WdlExpression {
     def isMemberAccess: Boolean = ast.getName == "MemberAccess"
     def isArrayLiteral: Boolean = ast.getName == "ArrayLiteral"
     def isMapLiteral: Boolean = ast.getName == "MapLiteral"
+    def isObjectLiteral: Boolean = ast.getName == "ObjectLiteral"
     def isArrayOrMapLookup: Boolean = ast.getName == "ArrayOrMapLookup"
     def params = ast.getAttribute("params").asInstanceOf[AstList].asScala.toVector
     def name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
@@ -70,7 +71,8 @@ object WdlExpression {
     "read_float",
     "read_boolean",
     "read_lines",
-    "read_map"
+    "read_map",
+    "read_object"
   )
 
   def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions[WdlValue]): Try[WdlValue] =

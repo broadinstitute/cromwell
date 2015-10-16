@@ -2,8 +2,9 @@ package cromwell.engine.backend.jes
 
 import java.net.URL
 
-import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.util.ConfigUtil._
+import com.typesafe.config.ConfigFactory
+import lenthall.config.ScalaConfig._
+import lenthall.config.ValidatedConfig._
 
 import scala.language.postfixOps
 import scalaz.Scalaz._
@@ -23,6 +24,7 @@ object JesAttributes {
     "baseExecutionBucket",
     "endpointUrl",
     "authenticationMode",
+    "maximumPollingInterval",
     "dockerAccount",
     "dockerToken"
   )

@@ -20,7 +20,7 @@ object GoogleCloudStoragePath {
     val gsUriRegex = """gs://([^/]*)/(.*)""".r
     value match {
       case gsUriRegex(bucket, objectName) => Success(GoogleCloudStoragePath(bucket, objectName))
-      case _ => Failure(new IllegalArgumentException())
+      case _ => Failure(new IllegalArgumentException(s"Not a valid Google Cloud Storage URI: ${value}"))
     }
   }
 }

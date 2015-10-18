@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.FSM.{SubscribeTransitionCallBack, Transition}
+import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.pipe
@@ -86,7 +86,6 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
     case WorkflowMetadata(workflowId) => workflowMetadata(workflowId) pipeTo sender
-    case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
       workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
@@ -239,7 +238,6 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     } yield {
       val isRestart = maybeWorkflowId.isDefined
       workflowActor ! (if (isRestart) Restart else Start)
-      workflowActor ! SubscribeTransitionCallBack(self)
       workflowId
     }
 
@@ -254,11 +252,6 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Unit =
     submitWorkflow(restartableWorkflow.source, Option(restartableWorkflow.id))
-
-  private def updateWorkflowState(workflow: WorkflowActorRef, state: WorkflowState): Future[Unit] = {
-    val id = idByWorkflow(workflow)
-    globalDataAccess.updateWorkflowState(id, state)
-  }
 
   private def idByWorkflow(workflow: WorkflowActorRef): WorkflowId = {
     workflowStore.toMap collectFirst { case (k, v) if v == workflow => k } get

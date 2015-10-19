@@ -86,7 +86,7 @@ trait BackendCall {
    * which is why it returns a Try[String]
    */
   def instantiateCommand: Try[String] = {
-    val backendInputs = backend.adjustInputPaths(call, locallyQualifiedInputs)
+    val backendInputs = backend.adjustInputPaths(key, locallyQualifiedInputs, workflowDescriptor)
     call.instantiateCommandLine(backendInputs, engineFunctions)
   }
 

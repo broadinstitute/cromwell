@@ -43,8 +43,9 @@ trait Backend {
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs
+  def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs
 
+  // FIXME: This is never called...
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs
 
   /**

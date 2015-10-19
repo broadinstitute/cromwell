@@ -7,9 +7,9 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.duration.Duration
 import scala.util.{Success, Failure, Try}
 
-case class AggregatedException[A](exceptions: Seq[Failure[A]]) extends Exception {
+case class AggregatedException[A](exceptions: Seq[Failure[A]], prefixError: String = "") extends Exception {
   override def getMessage: String = {
-    exceptions.map(_.exception.getMessage).mkString("\n")
+    prefixError + exceptions.map(_.exception.getMessage).mkString("\n")
   }
 }
 
@@ -87,10 +87,21 @@ object TryUtil extends LazyLogging {
     }
   }
 
-  def sequence[A](s: Seq[Try[A]]): Try[Seq[A]] = {
-    s.collect({case f: Failure[_] => f}) match {
-      case failures if failures.nonEmpty => Failure(new AggregatedException(failures))
-      case _ => Success(s.map(_.get))
+  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
+    tries collect { case f: Failure[_] => f } match {
+      case failures if failures.nonEmpty => Failure(new AggregatedException(failures.toSeq, prefixErrorMessage))
+      case _ => Success(unbox())
     }
   }
+
+  def sequence[T](tries: Seq[Try[T]], prefixErrorMessage: String = ""): Try[Seq[T]] = {
+    def unbox = tries map { _.get }
+    sequenceIterable(tries, unbox _, prefixErrorMessage)
+  }
+
+  def sequenceMap[T, U](tries: Map[T, Try[U]], prefixErrorMessage: String = ""): Try[Map[T, U]] = {
+    def unbox = tries mapValues { _.get }
+    sequenceIterable(tries.values, unbox _, prefixErrorMessage)
+  }
+
 }

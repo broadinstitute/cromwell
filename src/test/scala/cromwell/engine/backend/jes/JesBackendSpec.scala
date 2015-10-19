@@ -1,11 +1,12 @@
 package cromwell.engine.backend.jes
 
 import java.net.URL
+
+import cromwell.binding.CallInputs
 import cromwell.binding.values.{WdlFile, WdlString}
-import cromwell.binding.{Call, CallInputs}
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.workflow.WorkflowOptions
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
 import cromwell.util.google.SimpleClientSecrets
 import org.scalatest.{FlatSpec, Matchers}
@@ -23,7 +24,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       project = anyString,
       executionBucket = anyString,
       endpointUrl = anyURL,
-      authMode = ServiceAccountMode,
+      authMode = JesAuthMode.fromString("service"),
       dockerCredentials = None,
       googleSecrets = Some(SimpleClientSecrets("myclientId", "myclientSecret"))) {
       override val localizeWithRefreshToken = true
@@ -32,7 +33,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
-    val ignoredCall = mock[Call]
+    val ignoredCall = mock[CallKey]
     val stringKey = "abc"
     val stringVal = WdlString("abc")
     val localFileKey = "lf"
@@ -47,7 +48,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend().adjustInputPaths(ignoredCall, inputs)
+    val mappedInputs: CallInputs  = new JesBackend().adjustInputPaths(ignoredCall, inputs, mock[WorkflowDescriptor])
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))

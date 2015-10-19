@@ -119,12 +119,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
    */
   private def startRunnableCalls(): State = {
     tryStartingRunnableCalls() match {
-      case Success(entries) =>
-        if (entries.nonEmpty) {
-          startRunnableCalls()
-        } else {
-          goto(WorkflowRunning)
-        }
+      case Success(entries) => if (entries.nonEmpty) startRunnableCalls() else goto(WorkflowRunning)
       case Failure(e) =>
         log.error(e, e.getMessage)
         goto(WorkflowFailed)

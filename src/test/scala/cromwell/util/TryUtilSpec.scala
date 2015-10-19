@@ -22,7 +22,7 @@ class TryUtilSpec extends FlatSpec with Matchers {
   it should "Retry a function until it works" in {
     val value = TryUtil.retryBlock(
       fn = failNTimes(4),
-      retries = Some(5),
+      retryLimit = Some(5),
       pollingInterval = 50 milliseconds,
       pollingBackOffFactor = 1,
       maxPollingInterval = 10 seconds,
@@ -34,7 +34,7 @@ class TryUtilSpec extends FlatSpec with Matchers {
   it should "Fail if it hits the max retry count" in {
     val value = TryUtil.retryBlock(
       fn = failNTimes(4),
-      retries = Some(4),
+      retryLimit = Some(4),
       pollingInterval = 50 milliseconds,
       pollingBackOffFactor = 1,
       maxPollingInterval = 10 seconds,

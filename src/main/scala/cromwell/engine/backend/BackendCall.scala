@@ -95,4 +95,6 @@ trait BackendCall {
    * Call ran successfully.  Otherwise return a Failure.
    */
   def execute: ExecutionResult
+
+  def resume(jobKey: JobKey): ExecutionResult
 }

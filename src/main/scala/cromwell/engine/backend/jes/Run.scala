@@ -24,25 +24,41 @@ object Run  {
   val PollingBackoffFactor = 1.1
 
   def apply(pipeline: Pipeline): Run = {
-    val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
     val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.tag}]"
+    if (!(pipeline.pipelineId.isDefined ^ pipeline.runIdForResumption.isDefined)) {
+      val message =
+        s"""
+          |$tag: Exactly one of JES pipeline ID or run ID for resumption must be specified to create a Run.
+          |pipelineId = ${pipeline.pipelineId}, runIdForResumption = ${pipeline.runIdForResumption}.
+        """.stripMargin
+      throw new RuntimeException(message)
+    }
+    def runPipeline: String = {
+      val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
 
-    rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)
-    Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
+      rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)
+      Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
 
-    rpr.setOutputs(pipeline.jesParameters.collect({ case i: JesOutput => i }).toRunMap)
-    Log.info(s"$tag Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
+      rpr.setOutputs(pipeline.jesParameters.collect({ case i: JesOutput => i }).toRunMap)
+      Log.info(s"$tag Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
-    val logging = new Logging()
-    logging.setGcsPath(pipeline.gcsPath)
-    rpr.setLogging(logging)
+      val logging = new Logging()
+      logging.setGcsPath(pipeline.gcsPath)
+      rpr.setLogging(logging)
 
-    // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
-    rpr.setResources(pipeline.runtimeInfo.resources)
+      // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
+      rpr.setResources(pipeline.runtimeInfo.resources)
 
-    val id = pipeline.genomicsService.pipelines().run(rpr).execute().getName
-    Log.info(s"$tag JES ID is $id")
-    new Run(id, pipeline, tag)
+      val runId = pipeline.genomicsService.pipelines().run(rpr).execute().getName
+      Log.info(s"$tag JES run ID is $runId")
+      runId
+    }
+
+    // Only run the pipeline if the pipeline ID is defined.  The pipeline ID not being defined corresponds to a
+    // resumption of a previous run, and runIdForResumption will be defined.  The Run code takes care of polling
+    // in both the newly created and resumed scenarios.
+    val runId = if (pipeline.pipelineId.isDefined) runPipeline else pipeline.runIdForResumption.get
+    new Run(runId, pipeline, tag)
   }
 
   private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
@@ -66,13 +82,13 @@ object Run  {
   }
 }
 
-case class Run(jesId: String, pipeline: Pipeline, tag: String) {
+case class Run(runId: String, pipeline: Pipeline, tag: String) {
 
   lazy val workflowId = pipeline.workflow.id
   lazy val call = pipeline.key.scope
 
   def status(): RunStatus = {
-    val op = pipeline.genomicsService.operations().get(jesId).execute
+    val op = pipeline.genomicsService.operations().get(runId).execute
 
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
@@ -96,7 +112,7 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
         Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
 
         // Update the database state:
-        val newBackendInfo = JesCallBackendInfo(Option(JesId(jesId)), Option(JesStatus(currentStatus.toString)))
+        val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
         globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
       }
 
@@ -106,7 +122,7 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
     val attemptedStatus = TryUtil.retryBlock(
       fn = checkStatus,
       isSuccess = breakout,
-      retries = None,
+      retryLimit = None,
       pollingInterval = InitialPollingInterval,
       pollingBackOffFactor = PollingBackoffFactor,
       maxPollingInterval = MaximumPollingInterval,
@@ -138,6 +154,6 @@ case class Run(jesId: String, pipeline: Pipeline, tag: String) {
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
-    pipeline.genomicsService.operations().cancel(jesId, cancellationRequest).execute
+    pipeline.genomicsService.operations().cancel(runId, cancellationRequest).execute
   }
 }

@@ -9,7 +9,19 @@ import scala.util.Try
 
 object CallExecutionActor {
   sealed trait CallExecutionActorMessage
-  case object Execute extends CallExecutionActorMessage
+
+  sealed trait ExecutionMode extends CallExecutionActorMessage {
+    def execute(backendCall: BackendCall): ExecutionResult
+  }
+
+  case object Execute extends ExecutionMode {
+    override def execute(backendCall: BackendCall) = backendCall.execute
+  }
+
+  final case class Resume(jobKey: JobKey) extends ExecutionMode {
+    override def execute(backendCall: BackendCall) = backendCall.resume(jobKey)
+  }
+
   def props(backendCall: BackendCall): Props = Props(new CallExecutionActor(backendCall))
 }
 
@@ -21,12 +33,12 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
 
   val tag = s"CallExecutionActor [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}]"
 
-  private def execute(): Unit = {
+  private def execute(executionMode: ExecutionMode): Unit = {
     log.info(s"$tag: starting ${backendCall.call.name} for workflow ${backendCall.workflowDescriptor.shortId}")
     // If the actual execution throws an exception, catch and wrap with a `FailedExecution`.
     // Ideally the backend would map a command execution failure to a `FailedExecution`, but
     // if an exception propagates out of `execute` it should not take down this actor.
-    val result = Try(backendCall.execute) recover { case e: Exception => FailedExecution(e, None) } get
+    val result = Try(executionMode.execute(backendCall)) recover { case e: Exception => FailedExecution(e, None) } get
 
     result match {
       case SuccessfulExecution(_, _) => log.info(s"$tag: successful execution.")
@@ -39,7 +51,7 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
   }
 
   override def receive = LoggingReceive {
-    case Execute => execute()
+    case mode: ExecutionMode => execute(mode)
     case badMessage => log.error(s"$tag: unexpected message $badMessage.")
   }
 }

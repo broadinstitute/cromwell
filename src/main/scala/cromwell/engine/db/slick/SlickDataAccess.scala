@@ -11,9 +11,10 @@ import cromwell.binding._
 import cromwell.binding.types.{WdlPrimitiveType, WdlType}
 import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend.Backend
-import cromwell.engine.backend.jes.JesBackend
+import cromwell.engine.backend.jes.{JesBackend, JesJobKey}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db._
@@ -302,7 +303,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         workflowExecutionResult.workflowExecutionId.get).result
 
       executionStatuses = executionKeyAndStatusResults map {
-        case (fqn, indexInt, status, rc) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status, rc)) }
+        case (fqn, indexInt, status, rc) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc)) }
 
     } yield executionStatuses.toMap
 
@@ -318,7 +319,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
       executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc) =>
-        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status, rc)) }
+        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc)) }
     } yield executionStatuses.toMap
 
     runTransaction(action)
@@ -331,7 +332,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionStatuses <- dataAccess.executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
-      maybeStatus = executionStatuses.headOption map { case (execStatus, rc) => CallStatus(execStatus, rc) }
+      maybeStatus = executionStatuses.headOption map { case (status, rc) => CallStatus(status.toExecutionStatus, rc) }
     } yield maybeStatus
     runTransaction(action)
   }
@@ -537,9 +538,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def setStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
-                         callStatus: CallStatus): Future[Unit] = {
-
+  private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
+                              callStatus: CallStatus): DBIO[Unit] = {
     // Describes a function from an input `Executions` to a projection of fields to be updated.
     type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]])
     // If the call status is Starting, target the start date for update, otherwise target the end date.  The end date
@@ -547,18 +547,28 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val projectionFn: ProjectionFunction = if (callStatus.isStarting) e => (e.status, e.startDt, e.rc) else e => (e.status, e.endDt, e.rc)
     val maybeDate = if (callStatus.isStarting || callStatus.isTerminal) Option(new Date().toTimestamp) else None
 
-    val action = for {
+    for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
       count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode))
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
     } yield ()
-    runTransaction(action)
+  }
+
+  override def setStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
+                         callStatus: CallStatus): Future[Unit] = {
+    if (scopeKeys.isEmpty) Future.successful(()) else runTransaction(setStatusAction(workflowId, scopeKeys, callStatus))
   }
 
   override def getExecutions(id: WorkflowId): Future[Traversable[Execution]] = {
     val action = dataAccess.executionsByWorkflowExecutionUuid(id.toString).result
+
+    runTransaction(action)
+  }
+
+  override def getExecutionsForRestart(id: WorkflowId): Future[Traversable[Execution]] = {
+    val action = dataAccess.executionsForRestartByWorkflowExecutionUuid(id.toString).result
 
     runTransaction(action)
   }
@@ -638,5 +648,36 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     } yield ()
 
     runTransaction(action)
+  }
+
+  override def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit] = {
+    // These executions have no corresponding recorded operation ID and are therefore not resumable.
+    def collectNonResumableDatabaseKeys(executionsAndJobs: Seq[(Execution, JesJob)]): Seq[ExecutionDatabaseKey] = {
+      executionsAndJobs collect {
+        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesJobId.isEmpty =>
+          ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+      }
+    }
+    val action = for {
+      executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
+      nonResumableDatabaseKeys = collectNonResumableDatabaseKeys(executionsAndJobs)
+      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None))
+    } yield ()
+    runTransaction(action)
+  }
+
+  override def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJobKey]] = {
+    // These executions have a corresponding recorded operation ID and should therefore be resumable.
+    def collectResumableKeyPairs(executionsAndJobs: Traversable[(Execution, JesJob)]): Traversable[(ExecutionDatabaseKey, JesJobKey)] = {
+      executionsAndJobs collect {
+        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesJobId.nonEmpty =>
+          (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex), JesJobKey(job.jesId.get))
+      }
+    }
+    val action = for {
+      executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
+      resumableKeyPairs = collectResumableKeyPairs(executionsAndJobs)
+    } yield resumableKeyPairs
+    runTransaction(action) map { _.toMap }
   }
 }

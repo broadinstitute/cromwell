@@ -10,7 +10,6 @@ import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -250,41 +249,30 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     futureId
   }
 
-  private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Unit =
-    submitWorkflow(restartableWorkflow.source, Option(restartableWorkflow.id))
-
-  private def idByWorkflow(workflow: WorkflowActorRef): WorkflowId = {
-    workflowStore.toMap collectFirst { case (k, v) if v == workflow => k } get
+  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): Unit = {
+    log.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
+    submitWorkflow(restartableWorkflow.sourceFiles, Option(restartableWorkflow.id))
   }
 
   private def restartIncompleteWorkflows(): Unit = {
-    type QuantifierAndPlural = (String, String)
-    def pluralize(num: Int): QuantifierAndPlural = {
-      (if (num == 0) "no" else num.toString, if (num == 1) "" else "s")
-    }
+    def logRestarts(restartableWorkflows: Traversable[WorkflowDescriptor]): Unit = {
+      val num = restartableWorkflows.size
+      val displayNum = if (num == 0) "no" else num.toString
+      val plural = if (num == 1) "" else "s"
 
-    def buildRestartableWorkflows(workflowDescriptors: Traversable[WorkflowDescriptor]): Seq[RestartableWorkflow] = {
-      (for {
-        workflowDescriptor <- workflowDescriptors
-      } yield RestartableWorkflow(workflowDescriptor.id, workflowDescriptor.sourceFiles)).toSeq
+      log.info(s"$tag Found $displayNum workflow$plural to restart.")
+
+      if (num > 0) {
+        val ids = restartableWorkflows.map { _.id.toString }.toSeq.sorted
+        log.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
+      }
     }
 
     val result = for {
-      workflowDescriptors <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
-      restartableWorkflows = buildRestartableWorkflows(workflowDescriptors)
-      _ <- backend.handleCallRestarts(restartableWorkflows)
-    } yield {
-        val num = restartableWorkflows.length
-        val (displayNum, plural) = pluralize(num)
-        log.info(s"$tag Found $displayNum workflow$plural to restart.")
-
-        if (num > 0) {
-          val ids = restartableWorkflows.map { _.id.toString }.sorted
-          log.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
-        }
-
-        restartableWorkflows foreach restartWorkflow
-    }
+      restartableWorkflows <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      _ = logRestarts(restartableWorkflows)
+      _ = restartableWorkflows foreach restartWorkflow
+    } yield ()
 
     result recover {
       case e: Throwable => log.error(e, e.getMessage)

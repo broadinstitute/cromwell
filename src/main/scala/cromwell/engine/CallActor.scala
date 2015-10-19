@@ -5,6 +5,7 @@ import akka.actor.{LoggingFSM, Props}
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.CallActorState
+import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 
@@ -13,7 +14,11 @@ import scala.language.postfixOps
 object CallActor {
 
   sealed trait CallActorMessage
-  case object Start extends CallActorMessage
+  sealed trait StartMode extends CallActorMessage {
+    def executionMessage: CallExecutionActorMessage
+  }
+  case object Start extends StartMode { override val executionMessage = CallExecutionActor.Execute }
+  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
   final case class ExecutionFinished(call: Call, executionResult: ExecutionResult) extends CallActorMessage
@@ -54,11 +59,11 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   }
 
   when(CallNotStarted) {
-    case Event(Start, _) =>
+    case Event(startMode: StartMode, _) =>
       sender() ! WorkflowActor.CallStarted(key)
       val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
       val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
-      context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! CallExecutionActor.Execute
+      context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }

@@ -3,6 +3,7 @@ package cromwell.engine.db.slick
 import java.sql.Timestamp
 
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine.ExecutionStatus
 import cromwell.engine.db.ExecutionDatabaseKey
 
 import scala.language.postfixOps
@@ -88,6 +89,14 @@ trait ExecutionComponent {
       execution <- executions
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield execution)
+
+  val executionsForRestartByWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      execution <- executions
+      workflowExecution <- execution.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+      if !(execution.status === ExecutionStatus.NotStarted.toString || execution.status === ExecutionStatus.Done.toString)
     } yield execution)
 
   val executionStatusesAndReturnCodesByExecutionId = Compiled(

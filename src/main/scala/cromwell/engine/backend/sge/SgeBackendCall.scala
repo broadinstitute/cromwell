@@ -2,7 +2,7 @@ package cromwell.engine.backend.sge
 
 import cromwell.binding.CallInputs
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
+import cromwell.engine.backend.{JobKey, BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 
@@ -20,4 +20,6 @@ case class SgeBackendCall(backend: SgeBackend,
   val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr)
   callRootPath.toFile.mkdirs
   def execute: ExecutionResult = backend.execute(this)
+  // TODO add resume support
+  override def resume(jobKey: JobKey) = ???
 }

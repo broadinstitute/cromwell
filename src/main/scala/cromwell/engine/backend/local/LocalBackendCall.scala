@@ -1,7 +1,7 @@
 package cromwell.engine.backend.local
 
 import cromwell.binding.CallInputs
-import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
+import cromwell.engine.backend.{JobKey, BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 
@@ -24,4 +24,5 @@ case class LocalBackendCall(backend: LocalBackend,
   val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr)
   callRootPath.toFile.mkdirs
   def execute: ExecutionResult = backend.execute(this)
+  override def resume(jobKey: JobKey) = ???
 }

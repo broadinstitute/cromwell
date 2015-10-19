@@ -10,7 +10,15 @@ import cromwell.engine.workflow.CallKey
 import scala.collection.JavaConverters._
 
 object Pipeline extends LazyLogging {
-  def apply(command: String, workflow: WorkflowDescriptor, key: CallKey, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {
+
+  def apply(command: String,
+            workflow: WorkflowDescriptor,
+            key: CallKey,
+            jesParameters: Seq[JesParameter],
+            projectId: String,
+            jesConnection: JesInterface,
+            runIdForResumption: Option[String]): Pipeline = {
+
     val call = key.scope
     val tag = s"JES Pipeline [UUID(${workflow.shortId}):${key.tag}]"
     logger.debug(s"$tag Command line is: $command")
@@ -26,31 +34,35 @@ object Pipeline extends LazyLogging {
 
     cpr.setParameters(jesParameters.map(_.toGoogleParameter).toVector.asJava)
 
-    logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s=>s"  $s").mkString("\n")}")
-    val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
+    def createPipeline = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
+
+    logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s => s"  $s").mkString("\n")}")
+    val pipelineId = if (runIdForResumption.isDefined) None else Option(createPipeline)
+
     logger.info(s"$tag Pipeline ID is $pipelineId")
     logger.info(s"$tag Project ID: $projectId")
-    new Pipeline(command, 
-                 pipelineId, 
-                 projectId, 
-                 gcsPath, 
+    new Pipeline(command,
+                 pipelineId,
+                 projectId,
+                 gcsPath,
                  workflow,
                  key,
-                 jesParameters, 
-                 runtimeInfo, 
-                 jesConnection.genomics)
+                 jesParameters,
+                 runtimeInfo,
+                 jesConnection.genomics,
+                 runIdForResumption)
   }
 }
 
-// Note that id is the JES id not the workflow id
-case class Pipeline(command: String,
-                    id: String,
-                    projectId: String,
-                    gcsPath: String,
-                    workflow: WorkflowDescriptor,
-                    key: CallKey,
-                    jesParameters: Seq[JesParameter],
-                    runtimeInfo: JesRuntimeInfo,
-                    genomicsService: Genomics) {
+case class Pipeline private(command: String,
+                            pipelineId: Option[String],
+                            projectId: String,
+                            gcsPath: String,
+                            workflow: WorkflowDescriptor,
+                            key: CallKey,
+                            jesParameters: Seq[JesParameter],
+                            runtimeInfo: JesRuntimeInfo,
+                            genomicsService: Genomics,
+                            runIdForResumption: Option[String]) {
   def run: Run = Run(this)
 }

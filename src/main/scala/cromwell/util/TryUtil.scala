@@ -41,12 +41,12 @@ object TryUtil extends LazyLogging {
    * or it will trigger another retry.  if isSuccess is omitted, the only way the fn can
    * fail is if it throws an exception.
    *
-   * Use `retries` value of None indicates to retry indefinitely.
+   * Use `retryLimit` value of None indicates to retry indefinitely.
    */
   @annotation.tailrec
   def retryBlock[T](fn: Option[T] => T,
                     isSuccess: T => Boolean = defaultSuccessFunction _,
-                    retries: Option[Int],
+                    retryLimit: Option[Int],
                     pollingInterval: Duration,
                     pollingBackOffFactor: Double,
                     maxPollingInterval: Duration,
@@ -56,16 +56,16 @@ object TryUtil extends LazyLogging {
     def logFailures(attempt: Try[T]): Unit = {
       attempt recover {
         case t: Throwable =>
-          val retryString = retries map { _.toString} getOrElse "(none)"
+          val retryString = retryLimit map { _.toString} getOrElse "(none)"
           logger.warn(t.getMessage, t)
       }
     }
 
     Try { fn(priorValue) } match {
       case Success(x) if isSuccess(x) => Success(x)
-      case value if (retries.isDefined && retries.get > 1) || retries.isEmpty =>
+      case value if (retryLimit.isDefined && retryLimit.get > 1) || retryLimit.isEmpty =>
         logFailures(value)
-        val retryCountMessage = if (retries.getOrElse(0) > 0) s" (${retries.getOrElse(0) - 1} more retries) " else ""
+        val retryCountMessage = if (retryLimit.getOrElse(0) > 0) s" (${retryLimit.getOrElse(0) - 1} more retries) " else ""
         val retryMessage = s"Retrying in $pollingInterval$retryCountMessage..."
         failMessage foreach { m => logger.warn(s"$m.  $retryMessage") }
 
@@ -74,7 +74,7 @@ object TryUtil extends LazyLogging {
         retryBlock(
           fn,
           isSuccess,
-          retries.map(_ - 1),
+          retryLimit.map(_ - 1),
           Duration(Math.min((pollingInterval.toMillis * pollingBackOffFactor).toLong, maxPollingInterval.toMillis), "milliseconds"),
           pollingBackOffFactor,
           maxPollingInterval,

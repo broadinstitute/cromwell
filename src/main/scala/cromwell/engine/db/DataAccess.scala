@@ -3,7 +3,7 @@ package cromwell.engine.db
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{JobKey, Backend}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
@@ -78,6 +78,8 @@ trait DataAccess {
 
   def getExecutions(id: WorkflowId): Future[Traversable[Execution]]
 
+  def getExecutionsForRestart(id: WorkflowId): Future[Traversable[Execution]]
+
   /** Fetch the workflow having the specified `WorkflowId`. */
   def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]
 
@@ -90,4 +92,8 @@ trait DataAccess {
   def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]]
 
   def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String): Future[Unit]
+
+  def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit]
+
+  def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JobKey]]
 }

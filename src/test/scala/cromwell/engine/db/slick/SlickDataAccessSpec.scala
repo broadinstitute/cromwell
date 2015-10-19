@@ -9,9 +9,8 @@ import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
-import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.backend.{Backend, ExecutionResult, StdoutStderr}
+import cromwell.engine.backend.{JobKey, Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
 import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
@@ -51,7 +50,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def initializeForWorkflow(workflow: WorkflowDescriptor) =
       throw new NotImplementedError
 
-    override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext) =
+    override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) =
       throw new NotImplementedError
 
     override def bindCall(workflowDescriptor: WorkflowDescriptor,

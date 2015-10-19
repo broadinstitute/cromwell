@@ -1,6 +1,6 @@
 package cromwell.binding.types
 
-import cromwell.binding.values.{WdlFloat, WdlInteger, WdlString}
+import cromwell.binding.values.{WdlFile, WdlFloat, WdlInteger, WdlString}
 import spray.json.JsString
 
 import scala.util.{Try, Success}
@@ -12,6 +12,7 @@ case object WdlStringType extends WdlPrimitiveType {
     case s: String => WdlString(s)
     case s: JsString => WdlString(s.value)
     case s: WdlString => s
+    case f: WdlFile => WdlString(f.value)
   }
 
   private def comparisonOperator(rhs: WdlType, symbol: String): Try[WdlType] = rhs match {

@@ -47,7 +47,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     }
 
     "fail to construct with missing inputs" in {
-      intercept[UnsatisfiedInputsException]  {
+      intercept[UnsatisfiedInputsException] {
         buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = "{}")
       }
     }
@@ -76,9 +76,9 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     "gracefully handle malformed WDL" in {
       within(TestExecutionTimeout) {
         val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
-        fsm ! Start
-        awaitCond(fsm.stateName == WorkflowSubmitted)
-        awaitCond(fsm.stateName == WorkflowFailed)
+        waitForPattern("transitioning from Submitted to Failed") {
+          fsm ! Start
+        }
       }
     }
   }

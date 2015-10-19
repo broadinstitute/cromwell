@@ -1,10 +1,11 @@
 package cromwell.engine.backend.jes
 
+import java.io.File
 import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.values.WdlFile
-import cromwell.engine.backend.jes.JesBackend.JesOutput
+import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.{StdoutStderr, BackendCall, ExecutionResult}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
@@ -47,8 +48,9 @@ case class JesBackendCall(backend: JesBackend,
   lazy val stderrJesOutput = jesOutput(callGcsPath, StderrFilename)
   lazy val stdoutJesOutput = jesOutput(callGcsPath, StdoutFilename)
   lazy val rcJesOutput = jesOutput(callGcsPath, RcFilename)
+  lazy val diskInput = JesInput("working_disk", "disk://local-disk", new File(JesBackend.JesCromwellRoot).toPath)
   
-  def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput) 
+  def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
   def rcGcsPath = rcJesOutput.gcs
   def execute: ExecutionResult = backend.execute(this)
   def downloadRcFile: Try[String] = GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(jesConnection.storage.slurpFile)

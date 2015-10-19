@@ -1,6 +1,5 @@
 package cromwell.engine.backend.jes
 
-import java.io.File
 import java.math.BigInteger
 import java.nio.file.{Path, Paths}
 
@@ -26,13 +25,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object JesBackend {
-  /*
-    FIXME: At least for now the only files that can be used are stdout/stderr. However this leads to a problem
-    where stdout.txt is input and output. Redirect stdout/stderr to a different name, but it'll be localized back
-    in GCS as stdout/stderr. Yes, it's hacky.
-   */
-  val LocalWorkingDiskValue = "disk://local-disk"
-  val WorkingDiskParamName = "working_disk"
   val ExtraConfigParamName = "__extra_config_gcs_path"
   val JesCromwellRoot = "/cromwell_root"
 
@@ -41,8 +33,6 @@ object JesBackend {
   val RefreshTokenOptionKey = "refresh_token"
   val GcsRootOptionKey = "jes_gcs_root"
   val OptionKeys = Set(AccountOptionKey, RefreshTokenOptionKey, GcsRootOptionKey)
-
-  def localizationDiskInput(): JesInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, new File(JesCromwellRoot).toPath)
 
   def authGcsCredentialsPath(gcsPath: Option[String]): Option[JesInput] =
     gcsPath.map(JesInput(ExtraConfigParamName, _, Paths.get(""), "LITERAL"))
@@ -69,7 +59,6 @@ object JesBackend {
 
 class JesBackend extends Backend with LazyLogging {
   type BackendCall = JesBackendCall
-
   /*
    * NOTE: Those have been moved from JesBackend object to the class,
    * so if we were ever to instantiate several backends, as many JesConf/JesConnection would be created as well

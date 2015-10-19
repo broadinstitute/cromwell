@@ -120,8 +120,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   private def startRunnableCalls(): State = {
     tryStartingRunnableCalls() match {
       case Success(entries) =>
-        if (entries.nonEmpty) tryStartingRunnableCalls()
-        goto(WorkflowRunning)
+        if (entries.nonEmpty) {
+          startRunnableCalls()
+        } else {
+          goto(WorkflowRunning)
+        }
       case Failure(e) =>
         log.error(e, e.getMessage)
         goto(WorkflowFailed)
@@ -501,7 +504,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
           case Some(v) => Success(v)
           case _ => Failure(new WdlExpressionException("Unknown error"))
         }
-        val coercedValue = value.map(x => taskInput.wdlType.coerceRawValue(x).get)
+        val coercedValue = value.flatMap(x => taskInput.wdlType.coerceRawValue(x))
         entry.key.name -> coercedValue.get
       }.toMap
     }

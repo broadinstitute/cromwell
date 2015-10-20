@@ -283,8 +283,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
                               returnCode: Option[Int] = None): Future[Unit] = {
 
     val databaseKeys = key map { k =>
-      val indexLog = k.index.map(i => s" (shard $i)").getOrElse("")
-      log.info(s"$tag persisting status of ${k.scope.fullyQualifiedName}$indexLog to $executionStatus.")
+      log.info(s"$tag persisting status of ${k.tag} to $executionStatus.")
       ExecutionDatabaseKey(k.scope.fullyQualifiedName, k.index)
     }
 
@@ -304,7 +303,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
   }
 
   private def handleCallCompleted(key: OutputKey, outputs: CallOutputs, returnCode: Int): Future[Unit] = {
-    log.info(s"$tag handling completion of call '${key.scope.fullyQualifiedName}'.")
+    log.info(s"$tag handling completion of call '${key.tag}'.")
     for {
       _ <- globalDataAccess.setOutputs(workflow.id, key, outputs)
       _ = persistStatus(key, ExecutionStatus.Done, Option(returnCode))
@@ -313,18 +312,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
 
   private def startActor(callKey: CallKey, locallyQualifiedInputs: Map[String, WdlValue]): Unit = {
     if (locallyQualifiedInputs.nonEmpty) {
-      log.info(s"$tag inputs for call '${callKey.scope.fullyQualifiedName}':")
-      locallyQualifiedInputs foreach { input =>
-        log.info(s"$tag     ${input._1} -> ${input._2}")
-      }
+      val inputs = locallyQualifiedInputs map { case(lqn, value) => s"  $lqn -> $value" } mkString "\n"
+      log.info(s"$tag inputs for call '${callKey.tag}':\n$inputs")
     } else {
-      log.info(s"$tag no inputs for call '${callKey.scope.fullyQualifiedName}'")
+      log.info(s"$tag no inputs for call '${callKey.tag}'")
     }
 
     val callActorProps = CallActor.props(callKey, locallyQualifiedInputs, backend, workflow)
     val callActor = context.actorOf(callActorProps)
     callActor ! CallActor.Start
-    log.info(s"$tag created call actor for ${callKey.scope.fullyQualifiedName}.")
+    log.info(s"$tag created call actor for ${callKey.tag}.")
   }
 
   private def tryStartingRunnableCalls(): Try[Traversable[ExecutionStoreKey]] = {
@@ -634,7 +631,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       case Failure(e) =>
         self ! CallFailed(collector, None, e.getMessage)
       case Success(outputs) =>
-        log.info(s"Collection complete for Scattered Call ${collector.scope.fullyQualifiedName}.")
+        log.info(s"Collection complete for Scattered Call ${collector.tag}.")
         self ! CallCompleted(collector, outputs, 0)
     }
 

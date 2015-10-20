@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 object Pipeline extends LazyLogging {
   def apply(command: String, workflow: WorkflowDescriptor, key: CallKey, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {
     val call = key.scope
-    val tag = s"JES Pipeline [UUID(${workflow.shortId}):${call.name}]"
+    val tag = s"JES Pipeline [UUID(${workflow.shortId}):${key.tag}]"
     logger.debug(s"$tag Command line is: $command")
     val runtimeInfo = JesRuntimeInfo(command, call)
 

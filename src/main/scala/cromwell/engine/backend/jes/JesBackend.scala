@@ -316,7 +316,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           } else {
             new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.name} failed: error code $errorCode. Message: $errorMessage")
           }
-          FailedExecution(throwable)
+          FailedExecution(throwable, Option(errorCode))
       }
     }
     catch {

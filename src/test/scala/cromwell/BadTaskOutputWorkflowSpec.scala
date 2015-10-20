@@ -21,7 +21,7 @@ class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec("BadTaskOutputWorkfl
     "fail properly in a unknown Docker environment" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"persisting status of hello.hello to Failed", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of hello to Failed", occurrences = 1),
         runtime = """
                     |runtime {
                     |  docker: "/fauxbuntu:nosuchversion"

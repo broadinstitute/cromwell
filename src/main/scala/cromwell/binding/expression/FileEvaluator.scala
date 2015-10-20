@@ -6,6 +6,7 @@ import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser.{Ast, AstNode}
 import cromwell.binding.AstTools.EnhancedAstNode
+import cromwell.util.TryUtil
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -111,12 +112,9 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
         }
       case a: Ast if a.isArrayLiteral =>
         val values = a.getAttribute("values").astListAsVector.map(evaluateRecursive)
-        values.partition {_.isSuccess} match {
-          case (_, failures) if failures.nonEmpty =>
-            val message = failures.collect {case f: Failure[_] => f.exception.getMessage}.mkString("\n")
-            Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
-          case (successes, _) =>
-            Success(successes.flatMap(_.get))
+        TryUtil.sequence(values) match {
+          case Success(v) => Success(v.flatten)
+          case f => f.map(_.flatten)
         }
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>

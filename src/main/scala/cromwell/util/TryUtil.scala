@@ -7,6 +7,12 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.duration.Duration
 import scala.util.{Success, Failure, Try}
 
+case class AggregatedException[A](exceptions: Seq[Failure[A]]) extends Exception {
+  override def getMessage: String = {
+    exceptions.map(_.exception.getMessage).mkString("\n")
+  }
+}
+
 object TryUtil extends LazyLogging {
   private def stringifyFailure[T](failure: Try[T]): String = {
     val stringWriter = new StringWriter()
@@ -67,6 +73,13 @@ object TryUtil extends LazyLogging {
           value.toOption
         )
       case f => f
+    }
+  }
+
+  def sequence[A](s: Seq[Try[A]]): Try[Seq[A]] = {
+    s.collect({case f: Failure[_] => f}) match {
+      case failures if failures.nonEmpty => Failure(new AggregatedException(failures))
+      case _ => Success(s.map(_.get))
     }
   }
 }

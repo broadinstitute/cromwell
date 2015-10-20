@@ -192,8 +192,9 @@ class JesBackend extends Backend with LazyLogging {
         Seq(mkInput(locallyQualifiedInputName, location))
       case (locallyQualifiedInputName: String, localPathWdlArray: WdlArray) =>
         backendCall.lookupFunction(locallyQualifiedInputName) match {
-          case WdlArray(wdlType: WdlArrayType, remotePathArray: Seq[WdlValue]) =>
+          case WdlArray(WdlArrayType(memberType), remotePathArray: Seq[WdlValue]) if memberType == WdlFileType || memberType == WdlArrayType =>
             jesInputsFromArray(locallyQualifiedInputName, remotePathArray, localPathWdlArray.value)
+          case _ => Seq[JesInput]() // Empty list.
         }
       case (locallyQualifiedInputName: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(locallyQualifiedInputName, f) }
     } flatten

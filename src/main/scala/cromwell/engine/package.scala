@@ -67,12 +67,7 @@ package object engine {
    */
   case class WorkflowSourceFiles(wdlSource: WdlSource, inputsJson: WdlJson, workflowOptionsJson: WorkflowOptionsJson)
 
-  case class CallReference(workflowName: String, workflowId: WorkflowId, callName: String) {
-    override def toString = s"UUID(${workflowId.shortString})/$callName"
-  }
-
   case class AbortFunction(function: ()=>Unit)
-  case class IndexedAbortFunction(callReference: CallReference, callAbortFunction: AbortFunction)
   case class AbortRegistrationFunction(register: AbortFunction=>Unit)
 
   sealed trait WorkflowState {

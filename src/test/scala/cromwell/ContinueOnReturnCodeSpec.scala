@@ -11,7 +11,7 @@ class ContinueOnReturnCodeSpec extends CromwellTestkitSpec("ContinueOnReturnCode
     "have correct contents in stdout/stderr files for a call that implicitly continues on return code" in {
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
-        eventFilter = EventFilter.info(pattern = s"persisting status of w.A to Failed", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of A to Failed", occurrences = 1),
         stdout = Map("w.A" -> Seq("321\n")),
         stderr = Map("w.A" -> Seq("")),
         terminalState = WorkflowFailed
@@ -22,7 +22,7 @@ class ContinueOnReturnCodeSpec extends CromwellTestkitSpec("ContinueOnReturnCode
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: false}",
-        eventFilter = EventFilter.info(pattern = s"persisting status of w.A to Failed", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of A to Failed", occurrences = 1),
         stdout = Map("w.A" -> Seq("321\n")),
         stderr = Map("w.A" -> Seq("")),
         terminalState = WorkflowFailed
@@ -33,7 +33,7 @@ class ContinueOnReturnCodeSpec extends CromwellTestkitSpec("ContinueOnReturnCode
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: true}",
-        eventFilter = EventFilter.info(pattern = s"persisting status of w.B to Done", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of B to Done", occurrences = 1),
         stdout = Map("w.A" -> Seq("321\n"), "w.B" -> Seq("321\n")),
         stderr = Map("w.A" -> Seq(""), "w.B" -> Seq(""))
       )
@@ -43,7 +43,7 @@ class ContinueOnReturnCodeSpec extends CromwellTestkitSpec("ContinueOnReturnCode
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: 123}",
-        eventFilter = EventFilter.info(pattern = s"persisting status of w.B to Done", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of B to Done", occurrences = 1),
         stdout = Map("w.A" -> Seq("321\n"), "w.B" -> Seq("321\n")),
         stderr = Map("w.A" -> Seq(""), "w.B" -> Seq(""))
       )
@@ -53,7 +53,7 @@ class ContinueOnReturnCodeSpec extends CromwellTestkitSpec("ContinueOnReturnCode
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: [123]}",
-        eventFilter = EventFilter.info(pattern = s"persisting status of w.B to Done", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of B to Done", occurrences = 1),
         stdout = Map("w.A" -> Seq("321\n"), "w.B" -> Seq("321\n")),
         stderr = Map("w.A" -> Seq(""), "w.B" -> Seq(""))
       )

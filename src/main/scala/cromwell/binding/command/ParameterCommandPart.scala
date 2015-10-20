@@ -31,7 +31,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
           /* Allow an expression to fail evaluation if one of the variables that it requires is optional (the type has ? after it, e.g. String?) */
           case Some(d) if d.postfixQuantifier.contains("?") => if (attributes.contains("default")) WdlString(attributes.get("default").head) else WdlString("")
           case Some(d) => throw new UnsupportedOperationException(s"Parameter ${v.variable} is required, but no value is specified")
-          case None => throw new UnsupportedOperationException(s"This should not happen: could not find declaration for ${v.variable}")
+          case None => throw new UnsupportedOperationException(s"Could not find declaration for ${v.variable}")
         }
         case e => throw new UnsupportedOperationException(s"Could not evaluate expression: ${expression.toWdlString}", e)
       }

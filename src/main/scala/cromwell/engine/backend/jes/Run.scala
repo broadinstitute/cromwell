@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.jes.JesBackend.JesParameter
+import cromwell.engine.backend.jes.JesBackend.{JesOutput, JesInput, JesParameter}
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
@@ -27,10 +27,10 @@ object Run  {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
     val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.scope.name}]"
 
-    rpr.setInputs(pipeline.jesParameters.filter(_.isInput).toRunMap)
+    rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)
     Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
 
-    rpr.setOutputs(pipeline.jesParameters.filter(_.isOutput).toRunMap)
+    rpr.setOutputs(pipeline.jesParameters.collect({ case i: JesOutput => i }).toRunMap)
     Log.info(s"$tag Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
     val logging = new Logging()

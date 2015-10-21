@@ -6,12 +6,11 @@ import java.nio.file.Paths
 import cromwell.binding._
 import cromwell.binding.values.WdlFile
 import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
-import cromwell.engine.backend.{StdoutStderr, BackendCall, ExecutionResult}
+import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
+import cromwell.engine.backend.{BackendCall, ExecutionResult, StdoutStderr}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.google.GoogleCloudStoragePath
-
-import scala.util.Try
 
 
 object JesBackendCall {
@@ -29,11 +28,11 @@ object JesBackendCall {
   private def jesOutput(callGcsPath: String, filename: String): JesOutput = JesOutput(filename, s"$callGcsPath/$filename", Paths.get(filename))
 }
 
-case class JesBackendCall(backend: JesBackend,
-                          workflowDescriptor: WorkflowDescriptor,
-                          key: CallKey,
-                          locallyQualifiedInputs: CallInputs,
-                          callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall {
+class JesBackendCall(val backend: JesBackend,
+                     val workflowDescriptor: WorkflowDescriptor,
+                     val key: CallKey,
+                     val locallyQualifiedInputs: CallInputs,
+                     val callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with ProductionJesAuthentication {
 
   import JesBackendCall._
 
@@ -42,7 +41,7 @@ case class JesBackendCall(backend: JesBackend,
   val callGcsPath = backend.callGcsPath(workflowDescriptor, call.name, key.index)
   val callDir = GoogleCloudStoragePath(callGcsPath)
   val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
-  val jesConnection = backend.JesConnection
+
   val engineFunctions = new JesEngineFunctions(this)
   
   lazy val stderrJesOutput = jesOutput(callGcsPath, StderrFilename)
@@ -52,6 +51,9 @@ case class JesBackendCall(backend: JesBackend,
   
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
   def rcGcsPath = rcJesOutput.gcs
+
   def execute: ExecutionResult = backend.execute(this)
-  def downloadRcFile: Try[String] = GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(jesConnection.storage.slurpFile)
+
+  def downloadRcFile = authenticated { connection => GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(connection.storage.slurpFile) }
+
 }

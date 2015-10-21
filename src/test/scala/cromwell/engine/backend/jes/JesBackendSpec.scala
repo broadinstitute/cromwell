@@ -1,15 +1,35 @@
 package cromwell.engine.backend.jes
 
 import java.net.URL
-
 import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.binding.{Call, CallInputs}
+import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.EncryptionSpec
-import org.scalatest.mock.MockitoSugar
+import cromwell.util.google.SimpleClientSecrets
 import org.scalatest.{FlatSpec, Matchers}
+import org.specs2.mock.Mockito
 
-class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
+import scala.util.Success
+
+class JesBackendSpec extends FlatSpec with Matchers with Mockito {
+
+  val jesBackend = new JesBackend() {
+    private val anyString = ""
+    private val anyURL: URL = null
+    override lazy val jesConf = new JesAttributes(
+      applicationName = anyString,
+      project = anyString,
+      executionBucket = anyString,
+      endpointUrl = anyURL,
+      authMode = ServiceAccountMode,
+      dockerCredentials = None,
+      googleSecrets = Some(SimpleClientSecrets("myclientId", "myclientSecret"))) {
+      override val localizeWithRefreshToken = true
+    }
+    override lazy val jesConnection = null
+  }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
     val ignoredCall = mock[Call]
@@ -45,23 +65,11 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     }
   }
 
-  "workflow options existence" should "be verified when in 'RefreshTokenMode'" in {
+  "workflow options existence" should "be verified when localizing with Refresh Token" in {
     EncryptionSpec.assumeAes256Cbc()
-    val anyString = ""
-    val anyURL: URL = null
 
-    val goodOptions = WorkflowOptions.fromMap(Map("account_name" -> "account", "refresh_token" -> "token")).get
-    val missingToken = WorkflowOptions.fromMap(Map("account_name" -> "account")).get
-    val missingAccount = WorkflowOptions.fromMap(Map("refresh_token" -> "token")).get
-    val jesBackend = new JesBackend() {
-      override lazy val JesConf = new JesAttributes(
-        applicationName = anyString,
-        project = anyString,
-        executionBucket = anyString,
-        endpointUrl = anyURL,
-        authMode = RefreshTokenMode,
-        dockerCredentials = None)
-    }
+    val goodOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "token")).get
+    val missingToken = WorkflowOptions.fromMap(Map.empty).get
 
     try {
       jesBackend.assertWorkflowOptions(goodOptions)
@@ -75,13 +83,15 @@ class JesBackendSpec extends FlatSpec with Matchers with MockitoSugar {
     the [IllegalArgumentException] thrownBy {
       jesBackend.assertWorkflowOptions(missingToken)
     } should have message s"Missing parameters in workflow options: refresh_token"
-
-    the [IllegalArgumentException] thrownBy {
-      jesBackend.assertWorkflowOptions(missingAccount)
-    } should have message s"Missing parameters in workflow options: account_name"
-
-    the [IllegalArgumentException] thrownBy {
-      jesBackend.assertWorkflowOptions(WorkflowOptions.fromMap(Map.empty[String, String]).get)
-    } should have message s"Missing parameters in workflow options: account_name, refresh_token"
   }
+
+  it should "create a GcsAuthInformation instance" in {
+    val workflowDescriptor = mock[WorkflowDescriptor]
+    val mockedWfOptions = mock[WorkflowOptions]
+    workflowDescriptor.workflowOptions returns mockedWfOptions
+    mockedWfOptions.get("refresh_token") returns Success("myRefreshToken")
+
+    jesBackend.getGcsAuthInformation(workflowDescriptor) shouldBe Some(GcsLocalizing(jesBackend.jesConf.googleSecrets.get, "myRefreshToken"))
+  }
+
 }

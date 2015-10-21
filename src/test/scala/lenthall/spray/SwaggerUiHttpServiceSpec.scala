@@ -7,80 +7,312 @@ import spray.http.HttpHeaders.Location
 import spray.http.{StatusCodes, Uri}
 import spray.testkit.ScalatestRouteTest
 
-trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with SwaggerUiHttpService with ScalatestRouteTest
+trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
+  override def actorRefFactory = system
+
+  override def swaggerUiVersion = TestSwaggerUiVersion
+}
+
+trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
+SwaggerResourceHttpService {
+  override def actorRefFactory = system
+}
+
+trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with
+SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestUiVersion = "2.1.1"
+  val TestSwaggerUiVersion = "2.1.1"
+  val SwaggerIndexPreamble =
+    """
+      |<!DOCTYPE html>
+      |<html>
+      |<head>
+      |  <meta charset="UTF-8">
+      |  <title>Swagger UI</title>""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
 }
 
 class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
+  behavior of "SwaggerUiHttpService"
+
+  it should "redirect / to /swagger" in {
+    Get() ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.TemporaryRedirect)
+      header("Location") should be(Option(Location(Uri("/swagger"))))
+    }
+  }
+
+  it should "redirect /swagger to the index.html" in {
+    Get("/swagger") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.TemporaryRedirect)
+      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
+    }
+  }
+
+  it should "return index.html from the swagger-ui jar" in {
+    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.OK)
+    }
+  }
+}
+
+class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
+  override def swaggerUiFromRoot = false
 
   behavior of "SwaggerUiHttpService"
 
-  override def actorRefFactory = system
+  it should "not redirect / to /swagger" in {
+    Get() ~> sealRoute(swaggerUiRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+  }
 
-  override val swaggerUiInfo = SwaggerUiInfo(TestUiVersion)
-
-  it should "redirect to the index.html when requesting /swagger" in {
-    Get("/swagger") ~> swaggerUiRoutes ~> check {
+  it should "redirect /swagger to the index.html" in {
+    Get("/swagger") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
       header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
     }
   }
 
   it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoutes ~> check {
+    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
     }
   }
 }
 
-class DefaultConfigSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec with ConfigSwaggerUiHttpService {
+class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
+  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = $TestSwaggerUiVersion")
 
-  behavior of "ConfigSwaggerUiHttpService"
+  behavior of "SwaggerUiConfigHttpService"
 
-  override def actorRefFactory = system
-
-  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = $TestUiVersion")
-
-  it should "redirect to the index.html when requesting /swagger" in {
-    Get("/swagger") ~> swaggerUiRoutes ~> check {
+  it should "redirect /swagger to the index.html" in {
+    Get("/swagger") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
       header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
     }
   }
 
   it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoutes ~> check {
+    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
+      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
     }
   }
 }
 
-class OverriddenConfigSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec with ConfigSwaggerUiHttpService {
-
-  behavior of "ConfigSwaggerUiHttpService"
-
-  override def actorRefFactory = system
-
+class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
   override def swaggerUiConfig = ConfigFactory.parseString(
     s"""
        |baseUrl = /base
        |docsPath = swagger/lenthall.yaml
        |uiPath = ui/path
-       |uiVersion = $TestUiVersion
+       |uiVersion = $TestSwaggerUiVersion
      """.stripMargin)
 
-  it should "redirect to the index.html under /base when requesting /ui/path" in {
-    Get("/ui/path") ~> swaggerUiRoutes ~> check {
+  behavior of "SwaggerUiConfigHttpService"
+
+  it should "redirect /ui/path to the index.html under /base" in {
+    Get("/ui/path") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
       header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/lenthall.yaml"))))
     }
   }
 
   it should "return index.html from the swagger-ui jar" in {
-    Get("/ui/path/index.html") ~> swaggerUiRoutes ~> check {
+    Get("/ui/path/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
+      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
+    }
+  }
+}
+
+class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  behavior of "SwaggerResourceHttpService"
+
+  it should "service swagger yaml" in {
+    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should startWith("swagger: '2.0'\n")
+    }
+
+    Options("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should be("OK")
+    }
+  }
+
+  it should "not service swagger json" in {
+    Get("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+  }
+
+  it should "not service /swagger" in {
+    Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+  }
+}
+
+class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  override def swaggerResourceType = "json"
+
+  behavior of "SwaggerResourceHttpService"
+
+  it should "service swagger json" in {
+    Get("/swagger/testservice.json") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should startWith("{\n  \"swagger\": \"2.0\",\n")
+    }
+
+    Options("/swagger/testservice.json") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should be("OK")
+    }
+  }
+
+  it should "not service swagger yaml" in {
+    Get("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+  }
+
+  it should "not service /swagger" in {
+    Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+  }
+}
+
+class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  override def swaggerResourceOptionsOk = false
+
+  behavior of "SwaggerResourceHttpService"
+
+  it should "service swagger yaml with options not allowed" in {
+    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should startWith("swagger: '2.0'\n")
+    }
+
+    Options("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.MethodNotAllowed)
+    }
+  }
+
+  it should "not service swagger json" in {
+    Get("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.MethodNotAllowed)
+    }
+  }
+
+  it should "not service /swagger" in {
+    Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+      status should be(StatusCodes.MethodNotAllowed)
+    }
+  }
+}
+
+class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  behavior of "SwaggerUiResourceHttpService"
+
+  it should "redirect /swagger to /swagger/index.html with yaml" in {
+    Get("/swagger") ~> swaggerUiResourceRoute ~> check {
+      status should be(StatusCodes.TemporaryRedirect)
+      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/swagger/testservice.yaml"))))
+    }
+  }
+
+  it should "service swagger yaml" in {
+    Get("/swagger/testservice.yaml") ~> swaggerUiResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should startWith("swagger: '2.0'\n")
+    }
+
+    Options("/swagger/testservice.yaml") ~> swaggerUiResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should be("OK")
+    }
+  }
+
+  it should "not service swagger json" in {
+    Get("/swagger/testservice.json") ~> sealRoute(swaggerUiResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger/testservice.json") ~> sealRoute(swaggerUiResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+  }
+}
+
+
+class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  override def swaggerResourceType = "json"
+
+  behavior of "SwaggerUiResourceHttpService"
+
+  it should "redirect /swagger to /swagger/index.html with yaml with json" in {
+    Get("/swagger") ~> swaggerUiResourceRoute ~> check {
+      status should be(StatusCodes.TemporaryRedirect)
+      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/swagger/testservice.json"))))
+    }
+  }
+
+  it should "service swagger json" in {
+    Get("/swagger/testservice.json") ~> swaggerUiResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should startWith("{\n  \"swagger\": \"2.0\",\n")
+    }
+
+    Options("/swagger/testservice.json") ~> swaggerUiResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should be("OK")
+    }
+  }
+
+  it should "not service swagger yaml" in {
+    Get("/swagger/testservice.yaml") ~> sealRoute(swaggerUiResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
+    }
+
+    Options("/swagger/testservice.yaml") ~> sealRoute(swaggerUiResourceRoute) ~> check {
+      status should be(StatusCodes.NotFound)
     }
   }
 }

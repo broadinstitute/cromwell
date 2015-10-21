@@ -4,6 +4,8 @@ import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
 import cromwell.binding._
+import cromwell.binding.types.{WdlArrayType, WdlStringType}
+import cromwell.binding.values._
 import cromwell.engine.WorkflowSourceFiles
 import spray.json._
 
@@ -20,6 +22,10 @@ trait SampleWdl {
       case s: String => JsString(s)
       case b: Boolean => if(b) JsTrue else JsFalse
       case s: Seq[Any] => JsArray(s map {_.toJson} toVector)
+      case a: WdlArray => write(a.value)
+      case s: WdlString => JsString(s.value)
+      case i: WdlInteger => JsNumber(i.value)
+      case f: WdlFloat => JsNumber(f.value)
     }
     def read(value: JsValue) = ???
   }
@@ -1286,5 +1292,45 @@ object SampleWdl {
         "w.map_file" -> createCannedFile("map.txt", CannedMap).getAbsolutePath
       )
     }
+  }
+
+  object ArrayOfArrays extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task subtask {
+        |  Array[File] a
+        |  command {
+        |    cat ${sep=" " a}
+        |  }
+        |  output {
+        |    String concatenated = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  Array[Array[File]] nested_file
+        |
+        |  scatter(n in nested_file) {
+        |    call subtask {
+        |      input: a=n
+        |    }
+        |  }
+        |}
+      """.stripMargin
+
+    val tempDir = Files.createTempDirectory("ArrayOfArray")
+    val firstFile = createCannedFile(prefix="first", contents="foo\n", dir=Some(tempDir))
+    val secondFile = createCannedFile(prefix="second", contents="bar\nbaz\n", dir=Some(tempDir))
+    val thirdFile = createCannedFile(prefix="third", contents="third\n", dir=Some(tempDir))
+    val fourthFile = createCannedFile(prefix="fourth", contents="fourth\n", dir=Some(tempDir))
+
+    override val rawInputs = Map(
+      "wf.nested_file" ->
+        WdlArray(WdlArrayType(WdlArrayType(WdlStringType)),
+        Seq(
+          WdlArray(WdlArrayType(WdlStringType), Seq(firstFile.getAbsolutePath, secondFile.getAbsolutePath).map(WdlString)),
+          WdlArray(WdlArrayType(WdlStringType), Seq(thirdFile.getAbsolutePath, fourthFile.getAbsolutePath).map(WdlString))
+        )
+      )
+    )
   }
 }

@@ -19,7 +19,7 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
 
   private val log = Logging(context.system, classOf[CallExecutionActor])
 
-  def tag = s"CallExecutionActor [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}]"
+  val tag = s"CallExecutionActor [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}]"
 
   private def execute(): Unit = {
     log.info(s"$tag: starting ${backendCall.call.name} for workflow ${backendCall.workflowDescriptor.shortId}")

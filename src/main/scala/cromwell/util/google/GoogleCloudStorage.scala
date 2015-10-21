@@ -7,10 +7,13 @@ import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.http.{HttpTransport, InputStreamContent}
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.DateTime
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
 import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
+
+import scala.util.{Failure, Success, Try}
 
 object GoogleCloudStorage {
   def apply(appName: String, credential: Credential, jsonFactory: JsonFactory, httpTransport: HttpTransport): GoogleCloudStorage = {
@@ -80,6 +83,15 @@ case class GoogleCloudStorage(client: Storage) {
 
   def slurpFile(file: GoogleCloudStoragePath): String = {
     new String(downloadObject(file), "UTF-8")
+  }
+
+  def exists(gcsPath: GoogleCloudStoragePath): Boolean = {
+    val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
+    Try(getObject.execute) match {
+      case Success(_) => true
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 => false
+      case Failure(ex) => throw ex
+    }
   }
 
   def objectSize(gcsPath: GoogleCloudStoragePath): BigInteger = {

@@ -25,7 +25,7 @@ object Run  {
 
   def apply(pipeline: Pipeline): Run = {
     val rpr = new RunPipelineRequest().setPipelineId(pipeline.id).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
-    val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.scope.name}]"
+    val tag: String = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.tag}]"
 
     rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)
     Log.info(s"$tag Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")

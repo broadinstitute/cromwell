@@ -76,7 +76,7 @@ object TryUtil extends LazyLogging {
     }
   }
 
-  def flatten[A](s: Seq[Try[A]]): Try[Seq[A]] = {
+  def sequence[A](s: Seq[Try[A]]): Try[Seq[A]] = {
     s.collect({case f: Failure[_] => f}) match {
       case failures if failures.nonEmpty => Failure(new AggregatedException(failures))
       case _ => Success(s.map(_.get))

@@ -112,7 +112,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
         }
       case a: Ast if a.isArrayLiteral =>
         val values = a.getAttribute("values").astListAsVector.map(evaluateRecursive)
-        TryUtil.flatten(values) match {
+        TryUtil.sequence(values) match {
           case Success(v) => Success(v.flatten)
           case f => f.map(_.flatten)
         }

@@ -23,7 +23,7 @@ case class WdlArrayType(memberType: WdlType) extends WdlType {
     case wdlArray: WdlArray if wdlArray.wdlType.memberType == memberType => wdlArray
     case wdlArray: WdlArray if wdlArray.wdlType.memberType == WdlAnyType => coerceIterable(wdlArray.value)
     case wdlArray: WdlArray if wdlArray.wdlType.memberType.isInstanceOf[WdlArrayType] && memberType.isInstanceOf[WdlArrayType] =>
-      TryUtil.flatten(wdlArray.value.map(memberType.coerceRawValue)) match {
+      TryUtil.sequence(wdlArray.value.map(memberType.coerceRawValue)) match {
         case Success(values) => WdlArray(WdlArrayType(memberType), values)
         case Failure(ex) => throw ex
       }

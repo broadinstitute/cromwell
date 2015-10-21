@@ -1,8 +1,9 @@
 package cromwell.binding.types
 
 import cromwell.binding.values.{WdlValue, WdlArray, WdlFile, WdlString}
+import cromwell.util.TryUtil
 import spray.json.JsArray
-import scala.util.Failure
+import scala.util.{Success, Failure}
 
 case class WdlArrayType(memberType: WdlType) extends WdlType {
   val toWdlString: String = s"Array[${memberType.toWdlString}]"
@@ -22,13 +23,10 @@ case class WdlArrayType(memberType: WdlType) extends WdlType {
     case wdlArray: WdlArray if wdlArray.wdlType.memberType == memberType => wdlArray
     case wdlArray: WdlArray if wdlArray.wdlType.memberType == WdlAnyType => coerceIterable(wdlArray.value)
     case wdlArray: WdlArray if wdlArray.wdlType.memberType.isInstanceOf[WdlArrayType] && memberType.isInstanceOf[WdlArrayType] =>
-      val coercedElements = wdlArray.value.map(memberType.coerceRawValue)
-      val coercedArray = coercedElements.collect({case x: Failure[_] => x}) match {
-        case failures if failures.nonEmpty =>
-          throw new UnsupportedOperationException(failures.map(f => s"Could not coerce $wdlArray: ${f.exception.getMessage}").mkString("\n"))
-        case _ => coercedElements.map(_.get) // .get because they're all Success
+      TryUtil.flatten(wdlArray.value.map(memberType.coerceRawValue)) match {
+        case Success(values) => WdlArray(WdlArrayType(memberType), values)
+        case Failure(ex) => throw ex
       }
-      WdlArray(WdlArrayType(memberType), coercedArray)
 
   }
 

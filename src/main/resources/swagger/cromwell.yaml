@@ -10,6 +10,7 @@ info:
   termsOfService: 'http://www.github.com/broadinstitute/cromwell'
 produces:
   - application/json
+basePath: /api
 paths:
   '/workflows/{version}/{id}/abort':
     post:
@@ -22,7 +23,7 @@ paths:
           in: path
           default: v1
         - name: id
-          description: workflow identifier
+          description: Workflow ID
           required: true
           type: string
           in: path
@@ -132,8 +133,9 @@ paths:
           required: true
           type: string
           in: path
+          default: v1
         - name: id
-          description: Workflow Identifier
+          description: Workflow ID
           required: true
           type: string
           in: path
@@ -151,7 +153,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{workflowId}/outputs/{callFqn}':
+  '/workflows/{version}/{id}/outputs/{callFqn}':
     get:
       summary: Query for call outputs based on workflow id and call fully qualified name
       parameters:
@@ -161,7 +163,7 @@ paths:
           type: string
           in: path
           default: v1
-        - name: workflowId
+        - name: id
           description: Workflow ID
           required: true
           type: string
@@ -196,7 +198,7 @@ paths:
           in: path
           default: v1
         - name: id
-          description: Workflow Identifier
+          description: Workflow ID
           required: true
           type: string
           in: path
@@ -216,7 +218,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{workflowId}/logs/{callFqn}':
+  '/workflows/{version}/{id}/logs/{callFqn}':
     get:
       summary: Query standard output and error of a call from its fully qualified name
       parameters:
@@ -226,7 +228,7 @@ paths:
           type: string
           in: path
           default: v1
-        - name: workflowId
+        - name: id
           description: Workflow ID
           required: true
           type: string
@@ -250,7 +252,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{workflowId}/logs':
+  '/workflows/{version}/{id}/logs':
     get:
       summary: Query for the standard output and error of all calls in a workflow
       parameters:
@@ -260,7 +262,7 @@ paths:
           type: string
           in: path
           default: v1
-        - name: workflowId
+        - name: id
           description: Workflow ID
           required: true
           type: string
@@ -279,7 +281,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{workflowId}/metadata':
+  '/workflows/{version}/{id}/metadata':
     get:
       summary: Query for workflow and call-level metadata for a specified workflow
       parameters:
@@ -289,7 +291,7 @@ paths:
           type: string
           in: path
           default: v1
-        - name: workflowId
+        - name: id
           description: Workflow ID
           required: true
           type: string

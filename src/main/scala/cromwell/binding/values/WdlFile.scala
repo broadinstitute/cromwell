@@ -16,8 +16,7 @@ case class WdlFile(value: String) extends WdlPrimitive {
   val wdlType: WdlType = WdlFileType
 
   override def add(rhs: WdlValue): Try[WdlValue] = rhs match {
-    case r: WdlString => Success(WdlFile(WdlFile.appendPathsWithSlashSeparators(value, r.value)))
-    case r: WdlFile => Success(WdlFile(WdlFile.appendPathsWithSlashSeparators(value, r.value)))
+    case r: WdlString => Success(WdlFile(value + r.value))
     case _ => invalid(s"$value + $rhs")
   }
 

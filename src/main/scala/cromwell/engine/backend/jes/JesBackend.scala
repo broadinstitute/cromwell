@@ -2,6 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.math.BigInteger
 import java.nio.file.{Path, Paths}
+import java.util.UUID
 
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
@@ -64,14 +65,14 @@ object JesBackend {
    * @param wdlValue the value of the input
    * @return a new FQN to WdlValue pair, with WdlFile paths modified if appropriate.
    */
-  private def mapInputGcsPath(wdlValue: WdlValue): WdlValue = {
+  private def gcsPathToLocal(wdlValue: WdlValue): WdlValue = {
     wdlValue match {
       case WdlFile(path) =>
         GoogleCloudStoragePath.parse(path) match {
           case Success(gcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString)
           case Failure(e) => wdlValue
         }
-      case array: WdlArray => array map mapInputGcsPath
+      case array: WdlArray => array map gcsPathToLocal
       case _ => wdlValue
     }
   }
@@ -102,8 +103,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   type BackendCall = JesBackendCall
 
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => (k, mapInputGcsPath(v)) }
-  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => (k, gcsPathToLocal(v)) }
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs map { case (k,v) => (k, gcsPathToLocal(v)) }
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
     val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
@@ -219,15 +220,23 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
       taskOutput.expression.evaluateFiles(backendCall.lookupFunction, new NoFunctions, taskOutput.wdlType) match {
-        case Success(wdlFiles) => wdlFiles.map(_.valueString)
+        case Success(wdlFiles) => wdlFiles map gcsPathToLocal map (_.valueString)
         case Failure(ex) =>
           logger.warn(s"${makeTag(backendCall)} Could not evaluate $taskOutput: ${ex.getMessage}")
           Seq.empty[String]
       }
     }
     wdlFileOutputs.distinct map { filePath =>
-      JesOutput(filePath, s"${backendCall.callGcsPath}/$filePath", Paths.get(filePath))
+      JesOutput(makeSafeJesReferenceName(filePath), s"${backendCall.callGcsPath}/$filePath", Paths.get(filePath))
     }
+  }
+
+  /**
+   * If the desired reference name is too long, we don't want to break JES or risk collisions by arbitrary truncation. So,
+   * make it a nice random string.
+   */
+  private def makeSafeJesReferenceName(referenceName: String) = {
+    if (referenceName.length <= 127) referenceName else UUID.randomUUID().toString
   }
 
   private def uploadCommandScript(backendCall: BackendCall, command: String): Try[Unit] = authenticated { implicit connection =>
@@ -263,6 +272,37 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     )
   }
 
+  /**
+   * Turns a GCS path representing a workflow input into the GCS path where the file would be mirrored to in this workflow:
+   * task x {
+   *  File x
+   *  ...
+   *  Output {
+   *    File mirror = x
+   *  }
+   * }
+   *
+   * This function is more useful in working out the common prefix when the filename is modified somehow
+   * in the workflow (e.g. "-new.txt" is appended)
+   */
+  private def gcsInputToGcsOutput(backendCall: BackendCall, inputValue: WdlValue): WdlValue = {
+    // Convert to the local path where the file is localized to in the VM:
+    val vmLocalizationPath = gcsPathToLocal(inputValue)
+
+    vmLocalizationPath match {
+      // If it's a file, work out where the file would be delocalized to, otherwise no-op:
+      case x : WdlFile =>
+        val delocalizationPath = s"${backendCall.callGcsPath}/${vmLocalizationPath.valueString}"
+        WdlFile(delocalizationPath)
+      case other => other
+    }
+  }
+
+  private def customLookupFunction(backendCall: BackendCall) = { toBeLookedUp: String =>
+    val originalLookup = backendCall.lookupFunction
+    gcsInputToGcsOutput(backendCall, originalLookup(toBeLookedUp))
+  }
+
   private def pollJesRun(run: Run, backendCall: BackendCall, jesOutputs: Seq[JesOutput]): ExecutionResult = authenticated { connection =>
     // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
     val initializedStatus = run.waitUntilRunningOrComplete
@@ -291,7 +331,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
          * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
          * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
          */
-        val attemptedValue = taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions) map { wdlValue =>
+        val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) map { wdlValue =>
           wdlFileToGcsPath(wdlValue, taskOutput.wdlType)
         }
         taskOutput.name -> attemptedValue

@@ -52,6 +52,7 @@ libraryDependencies ++= Seq(
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
   "mysql" % "mysql-connector-java" % "5.1.36",
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
+  "com.github.pathikrit" %% "better-files" % "2.13.0",
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,

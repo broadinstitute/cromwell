@@ -9,8 +9,8 @@ import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, ExecutionResult, StdoutStderr}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.util.StringDigestion._
 import cromwell.util.google.GoogleCloudStoragePath
-
 
 object JesBackendCall {
   
@@ -58,4 +58,8 @@ class JesBackendCall(val backend: JesBackend,
 
   def downloadRcFile = authenticated { connection => GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(connection.storage.slurpFile) }
 
+  /**
+   * Determine the output directory for the files matching a particular glob.
+   */
+  def globOutputPath(glob: String) = s"$callGcsPath/glob-${glob.md5Sum}/"
 }

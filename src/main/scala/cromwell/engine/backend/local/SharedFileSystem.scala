@@ -14,7 +14,6 @@ import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
 import cromwell.engine.workflow.CallKey
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -193,12 +192,12 @@ trait SharedFileSystem {
       val adjustedPath = toDestPath(path)
       localize(path, adjustedPath) map { Unit =>
         val finalPath = postProcessor map { _(adjustedPath) } getOrElse adjustedPath
-        new WdlFile(finalPath.toAbsolutePath.toString)
+        WdlFile(finalPath.toAbsolutePath.toString)
       }
     }
 
     wdlValue match {
-      case WdlFile(path) => adjustFile(Paths.get(path))
+      case wdlFile: WdlFile => adjustFile(Paths.get(wdlFile.value))
       case WdlArray(t, values) => adjustArray(t, values)
       case WdlMap(t, values) => adjustMap(t, values)
       case x => Success(x)

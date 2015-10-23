@@ -24,6 +24,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Hello World WDL](#hello-world-wdl)
   * [Modifying Task Outputs](#modifying-task-outputs)
   * [Referencing Files on Disk](#referencing-files-on-disk)
+  * [Using Globs to Specify Output](#using-globs-to-specify-output)
   * [Using String Interpolation](#using-string-interpolation)
   * [Aliasing Calls](#aliasing-calls)
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
@@ -442,6 +443,7 @@ task hello {
   }
   output {
     String response = read_string("out")
+    File responseFile = "out"
   }
 }
 
@@ -450,11 +452,33 @@ workflow test {
 }
 ```
 
-In this example, standard output was redirected to the file "out".  In WDL, `String` data types can be coerced into `File` data types.  Since the `read_string` function needs a file path to read from, it converts `"out"` to a file path and then performs the `read_string` operation.  The output could also be defined as follows:
+In this example, we specify two outputs.  Standard output was redirected to the file "out".
+In WDL, `String` data types can be coerced into `File` data types.  The `responseFile` will thus give us a reference to the file.  Since the `read_string` function needs a file path to read from, it converts `"out"` to a file path and then performs the `read_string` operation.
+
+## Using Globs to Specify Output
+
+We can use the glob() function to read multiple files at once:
 
 ```
-File response = "out"
+task globber {
+  command <<<
+    for i in `seq 1 5`
+    do
+      mkdir out-$i
+      echo "globbing is my number $i best hobby" > out-$i/$i.txt
+    done
+  >>>
+  output {
+    Array[File] outFiles = glob("out-*/*.txt")
+  }
+}
+
+workflow test {
+  call globber 
+}
 ```
+
+The `outFiles` output array will contain all files found by evaluating the specified glob. 
 
 ## Using String Interpolation
 

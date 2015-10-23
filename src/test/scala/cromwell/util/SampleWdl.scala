@@ -1378,4 +1378,39 @@ object SampleWdl {
       )
     )
   }
+
+  object GlobtasticWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        task A {
+        |  command {
+        |    mkdir out
+        |    echo a > out/a.txt
+        |    echo b > out/b.txt
+        |    echo c > out/c.txt
+        |  }
+        |  output {
+        |    Array[File] A_out = glob("out/*.txt")
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task B {
+        |  Array[File] B_in
+        |  command {
+        |    cat ${sep=' ' B_in}
+        |  }
+        |  output {
+        |    String B_out = read_string(stdout())
+        |  }
+        |}
+        |
+        |
+        |workflow w {
+        |  call A
+        |  call B {input: B_in=A.A_out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+    override lazy val rawInputs = Map("" -> "...")
+  }
 }

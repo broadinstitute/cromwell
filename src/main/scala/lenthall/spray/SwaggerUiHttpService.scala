@@ -40,9 +40,11 @@ trait SwaggerUiHttpService extends HttpService {
    */
   def swaggerUiFromRoot = true
 
-  private def routeFromRoot = pathEndOrSingleSlash {
-    // Redirect / to the swagger UI
-    redirect(s"$swaggerUiBaseUrl/$swaggerUiPath", StatusCodes.TemporaryRedirect)
+  private def routeFromRoot = get {
+    pathEndOrSingleSlash {
+      // Redirect / to the swagger UI
+      redirect(s"$swaggerUiBaseUrl/$swaggerUiPath", StatusCodes.TemporaryRedirect)
+    }
   }
 
   /**
@@ -108,8 +110,8 @@ trait SwaggerResourceHttpService extends HttpService {
   def swaggerResourceType = "yaml"
 
   /**
-   * Swagger needs HTTP OPTIONS requests to return 200 / OK. When true (the default), the swaggerResourceRoute will
-   * return 200 / OK for requests for OPTIONS on the swagger resource.
+   * Swagger UI sends HTTP OPTIONS before ALL requests, and expects a status 200 / OK. When true (the default) the
+   * swaggerResourceRoute will return 200 / OK for requests for OPTIONS.
    *
    * See also:
    * - https://github.com/swagger-api/swagger-ui/issues/1209
@@ -118,7 +120,7 @@ trait SwaggerResourceHttpService extends HttpService {
    *
    * @return True if status code 200 should be returned for HTTP OPTIONS requests for the swagger resource.
    */
-  def swaggerResourceOptionsOk = true
+  def swaggerAllOptionsOk = true
 
   /**
    * @return The path to the swagger docs.
@@ -137,12 +139,10 @@ trait SwaggerResourceHttpService extends HttpService {
       }
     }
 
-    if (swaggerResourceOptionsOk) {
+    if (swaggerAllOptionsOk) {
       route ~ options {
-        swaggerDocsDirective {
-          // Also return 200 / OK for OPTIONS.
-          complete(StatusCodes.OK)
-        }
+        // Also return status 200 / OK for all OPTIONS requests.
+        complete(StatusCodes.OK)
       }
     } else route
   }

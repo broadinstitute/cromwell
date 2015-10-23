@@ -2,6 +2,7 @@ package lenthall.spray
 
 import com.typesafe.config.ConfigFactory
 import lenthall.spray.SwaggerUiHttpServiceSpec._
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.HttpHeaders.Location
 import spray.http.{StatusCodes, Uri}
@@ -14,8 +15,11 @@ trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRout
 }
 
 trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
-SwaggerResourceHttpService {
+TableDrivenPropertyChecks with SwaggerResourceHttpService {
   override def actorRefFactory = system
+
+  val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
+    "/api/example?with=param", "/api/example/path")
 }
 
 trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with
@@ -42,6 +46,12 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
     }
   }
 
+  it should "not return options for /" in {
+    Options() ~> sealRoute(swaggerUiRoute) ~> check {
+      status should be(StatusCodes.MethodNotAllowed)
+    }
+  }
+
   it should "redirect /swagger to the index.html" in {
     Get("/swagger") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
@@ -64,6 +74,12 @@ class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   it should "not redirect / to /swagger" in {
     Get() ~> sealRoute(swaggerUiRoute) ~> check {
       status should be(StatusCodes.NotFound)
+    }
+  }
+
+  it should "not return options for /" in {
+    Options() ~> sealRoute(swaggerUiRoute) ~> check {
+      status should be(StatusCodes.MethodNotAllowed)
     }
   }
 
@@ -137,19 +153,10 @@ class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
       status should be(StatusCodes.OK)
       responseAs[String] should startWith("swagger: '2.0'\n")
     }
-
-    Options("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should be("OK")
-    }
   }
 
   it should "not service swagger json" in {
     Get("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-    }
-
-    Options("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
@@ -158,9 +165,14 @@ class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
     Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
+  }
 
-    Options("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
+  it should "return options for all routes" in {
+    forAll(testPathsForOptions) { path =>
+      Options(path) ~> swaggerResourceRoute ~> check {
+        status should be(StatusCodes.OK)
+        responseAs[String] should be("OK")
+      }
     }
   }
 }
@@ -177,19 +189,10 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
       status should be(StatusCodes.OK)
       responseAs[String] should startWith("{\n  \"swagger\": \"2.0\",\n")
     }
-
-    Options("/swagger/testservice.json") ~> swaggerResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should be("OK")
-    }
   }
 
   it should "not service swagger yaml" in {
     Get("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-    }
-
-    Options("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
@@ -198,9 +201,14 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
     Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
+  }
 
-    Options("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
+  it should "return options for all routes" in {
+    forAll(testPathsForOptions) { path =>
+      Options(path) ~> swaggerResourceRoute ~> check {
+        status should be(StatusCodes.OK)
+        responseAs[String] should be("OK")
+      }
     }
   }
 }
@@ -208,18 +216,14 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
 class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
   override def swaggerServiceName = "testservice"
 
-  override def swaggerResourceOptionsOk = false
+  override def swaggerAllOptionsOk = false
 
   behavior of "SwaggerResourceHttpService"
 
-  it should "service swagger yaml with options not allowed" in {
+  it should "service swagger yaml" in {
     Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
       status should be(StatusCodes.OK)
       responseAs[String] should startWith("swagger: '2.0'\n")
-    }
-
-    Options("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
     }
   }
 
@@ -227,19 +231,19 @@ class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpService
     Get("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
-
-    Options("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
-    }
   }
 
   it should "not service /swagger" in {
     Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
+  }
 
-    Options("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
+  it should "not return options for all routes" in {
+    forAll(testPathsForOptions) { path =>
+      Options(path) ~> sealRoute(swaggerResourceRoute) ~> check {
+        status should be(StatusCodes.MethodNotAllowed)
+      }
     }
   }
 }
@@ -261,20 +265,20 @@ class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
       status should be(StatusCodes.OK)
       responseAs[String] should startWith("swagger: '2.0'\n")
     }
-
-    Options("/swagger/testservice.yaml") ~> swaggerUiResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should be("OK")
-    }
   }
 
   it should "not service swagger json" in {
     Get("/swagger/testservice.json") ~> sealRoute(swaggerUiResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
+  }
 
-    Options("/swagger/testservice.json") ~> sealRoute(swaggerUiResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
+  it should "return options for all routes" in {
+    forAll(testPathsForOptions) { path =>
+      Options(path) ~> swaggerUiResourceRoute ~> check {
+        status should be(StatusCodes.OK)
+        responseAs[String] should be("OK")
+      }
     }
   }
 }
@@ -299,20 +303,20 @@ class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
       status should be(StatusCodes.OK)
       responseAs[String] should startWith("{\n  \"swagger\": \"2.0\",\n")
     }
-
-    Options("/swagger/testservice.json") ~> swaggerUiResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should be("OK")
-    }
   }
 
   it should "not service swagger yaml" in {
     Get("/swagger/testservice.yaml") ~> sealRoute(swaggerUiResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
+  }
 
-    Options("/swagger/testservice.yaml") ~> sealRoute(swaggerUiResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
+  it should "return options for all routes" in {
+    forAll(testPathsForOptions) { path =>
+      Options(path) ~> swaggerUiResourceRoute ~> check {
+        status should be(StatusCodes.OK)
+        responseAs[String] should be("OK")
+      }
     }
   }
 }

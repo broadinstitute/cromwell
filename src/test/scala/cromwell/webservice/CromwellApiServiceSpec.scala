@@ -11,7 +11,8 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
-import org.scalatest.{Entry, FlatSpec, Matchers}
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.{FlatSpec, Matchers}
 import org.yaml.snakeyaml.Yaml
 import spray.http._
 import spray.json.DefaultJsonProtocol._
@@ -126,20 +127,13 @@ class MockWorkflowManagerActor extends Actor  {
   }
 }
 
-object CromwellApiServiceSpec {
-  val MissingInputsJson: String = "{}"
-  val MalformedInputsJson : String = "foobar bad json!"
-  val MalformedWdl : String = "foobar bad wdl!"
-}
-
-class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
+class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRouteTest with Matchers
+with TableDrivenPropertyChecks {
   def actorRefFactory = system
-  val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
-  val version = "v1"
 
   "Cromwell swagger docs" should "return 200" in {
     Get("/swagger/cromwell.yaml") ~>
-      docsRoute ~>
+      swaggerUiResourceRoute ~>
       check {
         assertResult(StatusCodes.OK) {
           status
@@ -150,7 +144,50 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
             .get("swagger")
         }
       }
+
+    Get("/swagger/index.html") ~>
+      swaggerUiResourceRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult("<!DOCTYPE html>") {
+          responseAs[String].take(15)
+        }
+      }
   }
+
+  "Cromwell swagger route" should "return 200" in {
+    val pathExamples = Table("path", "/", "/swagger", "/swagger/cromwell.yaml", "/swagger/index.html", "/api",
+      "/api/workflows/", "/api/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",
+      "/api/workflows/v1/validate", "/workflows", "/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",
+      "/workflows/v1/validate")
+
+    forAll(pathExamples) { path =>
+      Options(path) ~>
+        swaggerUiResourceRoute ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          assertResult("OK") {
+            responseAs[String]
+          }
+        }
+    }
+  }
+}
+
+object CromwellApiServiceSpec {
+  val MissingInputsJson: String = "{}"
+  val MalformedInputsJson : String = "foobar bad json!"
+  val MalformedWdl : String = "foobar bad wdl!"
+}
+
+class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
+  def actorRefFactory = system
+  val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
+  val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}") ~>

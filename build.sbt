@@ -9,7 +9,7 @@ organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
-val lenthallV = "0.13"
+val lenthallV = "0.14-2ce072a-SNAPSHOT"
 
 val sprayV = "1.3.2"
 
@@ -125,4 +125,3 @@ testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
 test in assembly := {}
 
 parallelExecution := false
-

@@ -9,6 +9,10 @@ import scala.language.postfixOps
 sealed trait ExecutionStoreKey {
   def scope: Scope
   def index: Option[Int]
+  def tag: String = {
+    val shard = index.map(x => s":$x").getOrElse("")
+    s"${scope.name}$shard"
+  }
 }
 
 trait OutputKey extends ExecutionStoreKey
@@ -31,7 +35,6 @@ case class ScatterKey(scope: Scatter, index: Option[Int]) extends ExecutionStore
   }
 
   private def explode(scope: Scope, count: Int): Seq[ExecutionStoreKey] = {
-    val parent = Option(this)
     scope match {
       case call: Call =>
         val shards = (0 until count) map { i => CallKey(call, Option(i)) }

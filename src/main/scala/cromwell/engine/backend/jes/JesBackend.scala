@@ -153,10 +153,29 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   /**
-   * Delete authentication file in gcs once workflow is in a terminal state.
+   * Delete authentication file in GCS once workflow is in a terminal state.
+   *
+   * First queries for the existence of the auth file, then deletes it if it exists.
+   * If either of these operations fails, then a Future.failure is returned
    */
   override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = authenticated { connection =>
-    Future(connection.storage.deleteObject(GoogleCloudStoragePath(gcsAuthFilePath(workflow))))
+    val gcsAuthFile = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+    def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = connection.storage.exists(gcsAuthFile)
+    def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = connection.storage.deleteObject(gcsAuthFile)
+    val tag = s"Workflow ${workflow.shortId}:"
+    withRetry(gcsCheckAuthFileExists, s"$tag failed to query for auth file: $gcsAuthFile") match {
+      case Success(exists) if exists =>
+        withRetry(gcsAttemptToDeleteObject, s"$tag failed to delete auth file: $gcsAuthFile") match {
+          case Success(_) => Future.successful(Unit)
+          case Failure(ex) =>
+            logger.error(s"$tag Could not delete the auth file $gcsAuthFile", ex)
+            Future.failed(ex)
+        }
+      case Failure(ex) =>
+        logger.error(s"$tag Could not query for the existence of the auth file $gcsAuthFile", ex)
+        Future.failed(ex)
+      case _ => Future.successful(Unit)
+    }
   }
 
   override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
@@ -262,14 +281,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       connection
     ).run
 
-    TryUtil.retryBlock(
-      fn = attemptToCreateJesRun,
-      retries = Some(10),
-      pollingInterval = 5 seconds,
-      pollingBackOffFactor = 1,
-      maxPollingInterval = 10 seconds,
-      failMessage = Some(s"${makeTag(backendCall)} Exception occurred while creating JES Run")
-    )
+    withRetry(attemptToCreateJesRun, s"${makeTag(backendCall)} Exception occurred while creating JES Run")
   }
 
   /**
@@ -356,7 +368,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           } else {
             new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.name} failed: error code $errorCode. Message: $errorMessage")
           }
-          FailedExecution(throwable)
+          FailedExecution(throwable, Option(errorCode))
+
       }
     }
     catch {

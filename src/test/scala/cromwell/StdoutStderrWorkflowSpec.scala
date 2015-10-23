@@ -11,7 +11,7 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
     "have correct contents in stdout/stderr files for a call" in {
       runWdlAndAssertStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"persisting status of hello.hello to Done", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of hello to Done", occurrences = 1),
         fqn = "hello.hello",
         index = None,
         stdout = Some(Seq("Hello world!\n")),
@@ -21,7 +21,7 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
     "have correct contents in stdout/stderr files for a workflow" in {
       runWdlAndAssertWorkflowStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"persisting status of hello.hello to Done", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of hello to Done", occurrences = 1),
         stdout = Map("hello.hello" -> Seq("Hello world!\n")),
         stderr = Map("hello.hello" -> Seq(""))
       )
@@ -29,7 +29,7 @@ class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflow
     "have correct contents in stdout/stderr files in a Docker environment" taggedAs DockerTest in {
       runWdlAndAssertStdoutStderr(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"persisting status of hello.hello to Done", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"persisting status of hello to Done", occurrences = 1),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"

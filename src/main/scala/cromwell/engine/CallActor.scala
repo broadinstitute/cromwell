@@ -41,8 +41,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   startWith(CallNotStarted, None)
 
   val call = key.scope
-  val callReference = CallReference(workflowDescriptor.name, workflowDescriptor.id, call.fullyQualifiedName)
-  val tag = s"CallActor [$callReference]"
+  val tag = s"CallActor [UUID(${workflowDescriptor.shortId}):${key.tag}]"
 
   // Called on every state transition.
   onTransition {
@@ -57,7 +56,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   when(CallNotStarted) {
     case Event(Start, _) =>
       sender() ! WorkflowActor.CallStarted(key)
-      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction(callReference)))
+      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
       val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
       context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! CallExecutionActor.Execute
       goto(CallRunningAbortUnavailable)
@@ -116,7 +115,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     goto(CallDone)
   }
 
-  private def registerAbortFunction(callReference: CallReference)(abortFunction: AbortFunction): Unit = {
+  private def registerAbortFunction(abortFunction: AbortFunction): Unit = {
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }
 }

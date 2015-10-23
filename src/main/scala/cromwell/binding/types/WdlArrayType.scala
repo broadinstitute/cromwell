@@ -1,9 +1,10 @@
 package cromwell.binding.types
 
-import cromwell.binding.values.{WdlValue, WdlArray, WdlFile, WdlString}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.util.TryUtil
 import spray.json.JsArray
-import scala.util.{Success, Failure}
+
+import scala.util.{Failure, Success}
 
 case class WdlArrayType(memberType: WdlType) extends WdlType {
   val toWdlString: String = s"Array[${memberType.toWdlString}]"

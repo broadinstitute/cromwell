@@ -39,6 +39,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   protected def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_object")
   protected def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_objects")
   protected def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_json")
+  protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = fail("glob")
 }
 
 class NoFunctions extends WdlStandardLibraryFunctions
@@ -62,4 +63,5 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   protected def write_object(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   protected def write_objects(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   protected def write_json(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
+  protected def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
 }

@@ -134,7 +134,7 @@ trait SharedFileSystem {
     def adjustPath(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
       val (name, value) = nameAndValue
       val adjusted = value match {
-        case WdlFile(path) => containerPath(path)
+        case WdlFile(path, _) => containerPath(path)
         case WdlArray(t, values) => new WdlArray(t, values map { adjustPath(name, _)._2 })
         case WdlMap(t, values) => new WdlMap(t, values mapValues { adjustPath(name, _)._2 })
         case x => x

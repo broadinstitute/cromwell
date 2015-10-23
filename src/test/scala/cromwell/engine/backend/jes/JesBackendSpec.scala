@@ -1,6 +1,7 @@
 package cromwell.engine.backend.jes
 
 import java.net.URL
+
 import cromwell.binding.values.{WdlFile, WdlString}
 import cromwell.binding.{Call, CallInputs}
 import cromwell.engine.WorkflowDescriptor
@@ -55,12 +56,12 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
     }
 
     mappedInputs.get(localFileKey).get match {
-      case WdlFile(v) => assert(v.equalsIgnoreCase(localFileVal.value))
+      case WdlFile(v, _) => assert(v.equalsIgnoreCase(localFileVal.value))
       case _ => fail("test setup error")
     }
 
     mappedInputs.get(gcsFileKey).get match {
-      case WdlFile(v) => assert(v.equalsIgnoreCase("/cromwell_root/blah/abc"))
+      case WdlFile(v, _) => assert(v.equalsIgnoreCase("/cromwell_root/blah/abc"))
       case _ => fail("test setup error")
     }
   }

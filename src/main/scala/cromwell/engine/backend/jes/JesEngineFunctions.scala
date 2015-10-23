@@ -1,11 +1,13 @@
 package cromwell.engine.backend.jes
 
 import cromwell.binding.expression.WdlStandardLibraryFunctions
-import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlStringType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
 import cromwell.binding.values._
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
+import cromwell.util.DigestionUtil
 import cromwell.util.google.GoogleCloudStoragePath
 
+import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 /**
@@ -78,13 +80,20 @@ class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions w
       string = fileContentsToString(singleArgument)
     } yield WdlString(string.trim)
   }
-
 }
 
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
 class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext {
+
+  override protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      files = authenticated { _.storage.listContents(s"${jesBackendCall.callGcsPath}/globbed-${DigestionUtil.md5Sum(singleArgument.valueString)}") }
+      wdlFiles = files map { WdlFile(_) }
+    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
+  }
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
     val newPath = GoogleCloudStoragePath(jesBackendCall.stdoutJesOutput.gcs)

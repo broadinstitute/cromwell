@@ -2,7 +2,6 @@ package cromwell.engine.backend.jes
 
 import java.math.BigInteger
 import java.nio.file.{Path, Paths}
-import java.util.UUID
 
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
@@ -18,8 +17,8 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortFunction, AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.parser.BackendType
-import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
+import cromwell.util.{DigestionUtil, TryUtil}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -78,9 +77,9 @@ object JesBackend {
    */
   private def gcsPathToLocal(wdlValue: WdlValue): WdlValue = {
     wdlValue match {
-      case WdlFile(path) =>
+      case WdlFile(path, isGlob) =>
         GoogleCloudStoragePath.parse(path) match {
-          case Success(gcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString)
+          case Success(gcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString, isGlob)
           case Failure(e) => wdlValue
         }
       case array: WdlArray => array map gcsPathToLocal
@@ -249,23 +248,28 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
       taskOutput.expression.evaluateFiles(backendCall.lookupFunction, new NoFunctions, taskOutput.wdlType) match {
-        case Success(wdlFiles) => wdlFiles map gcsPathToLocal map (_.valueString)
+        case Success(wdlFiles) => wdlFiles map gcsPathToLocal
         case Failure(ex) =>
           logger.warn(s"${makeTag(backendCall)} Could not evaluate $taskOutput: ${ex.getMessage}")
           Seq.empty[String]
       }
     }
-    wdlFileOutputs.distinct map { filePath =>
-      JesOutput(makeSafeJesReferenceName(filePath), s"${backendCall.callGcsPath}/$filePath", localFilePathFromRelativePath(filePath))
+
+    // Create the mappings. GLOB mappings require special treatment (i.e. stick everything matching the glob in a folder)
+    wdlFileOutputs.distinct map {
+      file => file match {
+        case WdlFile(filePath, GlobOrNot.NotGlob) => JesOutput(makeSafeJesReferenceName(filePath), s"${backendCall.callGcsPath}/$filePath", localFilePathFromRelativePath(filePath))
+        case WdlFile(filePath, GlobOrNot.YesGlob) => JesOutput(makeSafeJesReferenceName(filePath), s"${backendCall.callGcsPath}/globbed-${DigestionUtil.md5Sum(filePath)}/", localFilePathFromRelativePath(filePath))
+      }
     }
   }
 
   /**
    * If the desired reference name is too long, we don't want to break JES or risk collisions by arbitrary truncation. So,
-   * make it a nice random string.
+   * just use a hash. We only do this when needed to give better traceability in the normal case.
    */
   private def makeSafeJesReferenceName(referenceName: String) = {
-    if (referenceName.length <= 127) referenceName else UUID.randomUUID().toString
+    if (referenceName.length <= 127) referenceName else DigestionUtil.md5Sum(referenceName)
   }
 
   private def uploadCommandScript(backendCall: BackendCall, command: String): Try[Unit] = authenticated { implicit connection =>

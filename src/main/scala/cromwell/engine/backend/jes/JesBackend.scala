@@ -32,10 +32,12 @@ object JesBackend {
     where stdout.txt is input and output. Redirect stdout/stderr to a different name, but it'll be localized back
     in GCS as stdout/stderr. Yes, it's hacky.
    */
-  val LocalWorkingDiskValue = "disk://local-disk"
+  val LocalWorkingDiskValue = s"disk://${RuntimeAttributes.LocalDiskName}"
+  val ExecParamName = "exec"
   val WorkingDiskParamName = "working_disk"
   val ExtraConfigParamName = "__extra_config_gcs_path"
   val JesCromwellRoot = "/cromwell_root"
+  val JesExecScript = "exec.sh"
 
   // Workflow options keys
   val RefreshTokenOptionKey = "refresh_token"
@@ -56,6 +58,15 @@ object JesBackend {
    */
   def localFilePathFromCloudStoragePath(gcsPath: GoogleCloudStoragePath): Path = {
     Paths.get(JesCromwellRoot + "/" + gcsPath.bucket + "/" + gcsPath.objectName)
+  }
+
+  /**
+   * Takes a possibly relative path and returns an absolute path, possibly under the JesCromwellRoot.
+   * @param path The input path
+   * @return A path which absolute
+   */
+  def localFilePathFromRelativePath(path: String): Path = {
+    Paths.get(if (path.startsWith("/")) path else JesCromwellRoot + "/" + path)
   }
 
   /**
@@ -193,10 +204,9 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   def execute(backendCall: BackendCall): ExecutionResult = {
     val tag = makeTag(backendCall)
-    val cmdInput = JesInput("exec", backendCall.gcsExecPath.toString, Paths.get("exec.sh"))
     logger.info(s"$tag Call GCS path: ${backendCall.callGcsPath}")
 
-    val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq :+ cmdInput
+    val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq :+ backendCall.cmdInput
     val jesOutputs: Seq[JesOutput] = generateJesOutputs(backendCall)
 
     backendCall.instantiateCommand match {
@@ -246,7 +256,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       }
     }
     wdlFileOutputs.distinct map { filePath =>
-      JesOutput(makeSafeJesReferenceName(filePath), s"${backendCall.callGcsPath}/$filePath", Paths.get(filePath))
+      JesOutput(makeSafeJesReferenceName(filePath), s"${backendCall.callGcsPath}/$filePath", localFilePathFromRelativePath(filePath))
     }
   }
 
@@ -262,6 +272,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     val fileContent =
       s"""
          |#!/bin/bash
+         |cd $JesCromwellRoot && \\
          |$command
          |echo $$? > ${JesBackendCall.RcFilename}
        """.stripMargin.trim

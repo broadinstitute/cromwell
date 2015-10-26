@@ -52,10 +52,19 @@ object TryUtil extends LazyLogging {
                     maxPollingInterval: Duration,
                     failMessage: Option[String] = None,
                     priorValue: Option[T] = None): Try[T] = {
+
+    def logFailures(attempt: Try[T]): Unit = {
+      attempt recover {
+        case t: Throwable =>
+          val retryString = retries map { _.toString} getOrElse "(none)"
+          logger.warn(t.getMessage, t)
+      }
+    }
+
     Try { fn(priorValue) } match {
       case Success(x) if isSuccess(x) => Success(x)
       case value if (retries.isDefined && retries.get > 1) || retries.isEmpty =>
-
+        logFailures(value)
         val retryCountMessage = if (retries.getOrElse(0) > 0) s" (${retries.getOrElse(0) - 1} more retries) " else ""
         val retryMessage = s"Retrying in $pollingInterval$retryCountMessage..."
         failMessage foreach { m => logger.warn(s"$m.  $retryMessage") }
@@ -72,7 +81,9 @@ object TryUtil extends LazyLogging {
           failMessage,
           value.toOption
         )
-      case f => f
+      case f =>
+        logFailures(f)
+        f
     }
   }
 

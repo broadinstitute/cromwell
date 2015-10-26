@@ -731,7 +731,7 @@ When cromwell runs a workflow through either of these two backends, it first cre
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
 
-Any input files to the workflow need to be localized into `<workflow_root>/workflow-inputs`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
+Any input files to a call need to be localized in the `<call_dir>`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
 
 * `hard-link` - This will create a hard link (not symbolic) link to the file
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
@@ -810,7 +810,7 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google.  JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
 
 ```hocon
 backend {
@@ -831,22 +831,13 @@ backend {
     // Polling for completion backs-off gradually for slower-running jobs.
     // This is the maximum polling interval (in seconds):
     maximumPollingInterval = 600
-
-    // Authentication mode: either 'service_account' or 'refresh_token'
-    // 'refresh_token' mode will require workflow options to provide a
-    // value for 'refresh_token' for every workflow request
-    authenticationMode = "service_account"
-
-    // Optional Dockerhub Credentials
-    // dockerAccount = ""
-    // dockerToken = ""
   }
 
   ...
 }
 ```
 
-It is also necessary to fill out the `google` stanza in the configuration file.  This stanza will set up the service account that Cromwell uses to write certain files to GCS.
+It is also necessary to fill out the `google` stanza in the configuration file. This stanza will set up the service / user account that Cromwell uses to write certain files to GCS as well as run jobs.
 
 ```hocon
 google {
@@ -867,11 +858,35 @@ google {
 }
 ```
 
-### Authentication Modes
+### Data Localization
 
-The JES backend has two authentication modes: `service_account`, and `refresh_token`.  These authentication modes determine how Cromwell will authenticate with JES
+Data localization can be performed on behalf of an other entity (typically a user). 
+This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `authScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
+To enable this feature, two pieces of configuration are needed:
 
-In `refresh_token` mode, a refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
+**1 - ClientID/Secret**
+
+An entry must be added in the `google` stanza, indicating a pair of client ID / client Secret that have been used to generate a refresh token for the entity that will be used during localization:
+
+```hocon
+google {
+  authScheme = "service"
+
+  serviceAuth {
+    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
+  }
+  
+  localizeWithRefreshToken = {
+    client_id = "myclientid.apps.googleusercontent.com"
+    client_secret = "clientsecretpassphrase"
+  }
+}
+```
+
+**2 - Refresh Token**
+
+A refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -881,14 +896,42 @@ Where `wf_options.json` would contain:
 
 ```
 {
-  "account_name": "my.google.account@gmail.com",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
 }
 ```
 
-The refresh token is passed to JES when the job is launched and localization of data and running of the job is done with that refresh token user's account.
+The refresh token is passed to JES along with the client ID and Secret pair, which allows JES to localize and delocalize data as the entity represented by the refresh token.
+Note that upon generation of the refresh token, the application must ask for GCS read/write permission using the appropriate scope.
+ 
+### Docker
 
-In `service_account` mode, the values in the `google {...}` stanza are used to launch jobs and provide localization.  If you are new to using the JES backend, it is easiest to start with in `service_account` mode.
+It is possible to reference private docker images in dockerhub to be run on JES.
+However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
+
+```
+docker {
+  dockerAccount = "mydockeraccount@mail.com"
+  dockerToken = "mydockertoken"
+}
+```
+
+It is now possible to reference an image only this account has access to:
+
+```
+task mytask {
+  command {
+    ...
+  }
+  runtime {
+    docker: "private_repo/image"
+    memory: "8 GB"
+    cpu: "1"
+  }
+  ...
+}
+```
+
+Note that if the docker image to be used is public there is no need to add this configuration.
 
 # Runtime Attributes
 

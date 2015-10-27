@@ -1,11 +1,10 @@
 package cromwell.engine.backend.jes
 
-import java.io.File
 import java.nio.file.Paths
 
 import cromwell.binding._
 import cromwell.binding.values.WdlFile
-import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
+import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, ExecutionResult, StdoutStderr}
 import cromwell.engine.workflow.CallKey
@@ -25,7 +24,9 @@ object JesBackendCall {
   val StdoutFilename = "job.stdout.txt"
   val StderrFilename = "job.stderr.txt"
   val RcFilename = "job.rc.txt"
-  private def jesOutput(callGcsPath: String, filename: String): JesOutput = JesOutput(filename, s"$callGcsPath/$filename", Paths.get(filename))
+
+  private def jesOutput(callGcsPath: String, filename: String): JesOutput =
+    JesOutput(filename, s"$callGcsPath/$filename", localFilePathFromRelativePath(filename))
 }
 
 class JesBackendCall(val backend: JesBackend,
@@ -34,23 +35,24 @@ class JesBackendCall(val backend: JesBackend,
                      val locallyQualifiedInputs: CallInputs,
                      val callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with ProductionJesAuthentication {
 
+  import JesBackend._
   import JesBackendCall._
 
-  def jesCommandLine = s"/bin/bash exec.sh > $StdoutFilename 2> $StderrFilename"
+  def jesCommandLine = s"/bin/bash ${cmdInput.local} > ${stdoutJesOutput.local} 2> ${stderrJesOutput.local}"
 
   val callGcsPath = backend.callGcsPath(workflowDescriptor, call.name, key.index)
   val callDir = GoogleCloudStoragePath(callGcsPath)
-  val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/exec.sh")
+  val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/" + JesExecScript)
 
   val engineFunctions = new JesEngineFunctions(this)
-  
+
   lazy val stderrJesOutput = jesOutput(callGcsPath, StderrFilename)
   lazy val stdoutJesOutput = jesOutput(callGcsPath, StdoutFilename)
   lazy val rcJesOutput = jesOutput(callGcsPath, RcFilename)
-  lazy val diskInput = JesInput("working_disk", "disk://local-disk", new File(JesBackend.JesCromwellRoot).toPath)
+  lazy val cmdInput = JesInput(ExecParamName, gcsExecPath.toString, localFilePathFromRelativePath(JesExecScript))
+  lazy val diskInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, Paths.get(JesCromwellRoot))
   
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
-  def rcGcsPath = rcJesOutput.gcs
 
   def execute: ExecutionResult = backend.execute(this)
 

@@ -1017,18 +1017,28 @@ Passed to JES: "Disks to attach."
 The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
 
 1. Disk name
-2. Disk size in GB
+2. Disk size in GB (not applicable for LOCAL)
 3. Disk type
+
+The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google. All disks are set to auto-delete after the job completes.
 
 ... more to come ...
 
 ```
 runtime {
-  defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+  defaultDisks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
 }
 ```
 
-Defaults to "local-disk 100 LOCAL_SSD".
+To change the size of the local disk, set the type of the disk named "local-disk" to a persistent type, and specify the size in GB.
+
+```
+runtime {
+  defaultDisks: "local-disk 11 SSD"
+}
+```
+
+Defaults to "local-disk LOCAL".
 
 ## defaultZones
 

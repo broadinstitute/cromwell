@@ -70,8 +70,6 @@ trait Backend {
    */
   def execute(backendCall: BackendCall): ExecutionResult
 
-  def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult
-
   /**
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
@@ -117,6 +115,7 @@ trait Backend {
     s"$clsString[UUID(${workflowDescriptor.shortId})]"
   }
 
+  /** Default implementation assumes backends do not support resume, returns an empty Map. */
   def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
 
 }

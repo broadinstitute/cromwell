@@ -96,5 +96,11 @@ trait BackendCall {
    */
   def execute: ExecutionResult
 
-  def resume(jobKey: JobKey): ExecutionResult
+  /**
+   * The default implementation of this method is not expected to be called and simply throws a `NotImplementedError`.
+   * If the corresponding backend does not override `Backend#findResumableExecutions` to return resumable executions,
+   * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
+   * `BackendCall` should override this method to actually do the resumption work.
+   */
+  def resume(jobKey: JobKey): ExecutionResult = ???
 }

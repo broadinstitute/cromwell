@@ -62,8 +62,6 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     }
   }
 
-  override def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult = ???
-
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
       case FailedExecution(_, _) => ExecutionStatus.Failed

@@ -65,8 +65,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def execute(bc: BackendCall): ExecutionResult =
       throw new NotImplementedError
 
-    override def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult = ???
-
     override def backendType: BackendType =
       throw new NotImplementedError
   }

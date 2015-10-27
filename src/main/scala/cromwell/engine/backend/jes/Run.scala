@@ -33,7 +33,9 @@ object Run  {
         """.stripMargin
       throw new RuntimeException(message)
     }
+
     def runPipeline: String = {
+
       val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
 
       rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)

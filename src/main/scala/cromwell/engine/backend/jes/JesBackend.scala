@@ -231,7 +231,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   override def execute(backendCall: BackendCall): ExecutionResult = executeOrResume(backendCall, runIdForResumption = None)
 
-  override def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult = {
+  def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult = {
     val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.operationId }
     executeOrResume(backendCall, runIdForResumption = runId)
   }

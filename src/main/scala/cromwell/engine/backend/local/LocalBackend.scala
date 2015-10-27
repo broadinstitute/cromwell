@@ -101,8 +101,6 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     }
   }
 
-  override def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult = ???
-
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */

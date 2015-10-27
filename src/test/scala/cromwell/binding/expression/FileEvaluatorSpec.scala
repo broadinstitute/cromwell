@@ -1,8 +1,8 @@
 package cromwell.binding.expression
 
+import cromwell.binding.WdlExpression
 import cromwell.binding.types._
 import cromwell.binding.values._
-import cromwell.binding.WdlExpression
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}

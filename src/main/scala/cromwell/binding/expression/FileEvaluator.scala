@@ -1,11 +1,11 @@
 package cromwell.binding.expression
 
+import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.WdlExpression._
 import cromwell.binding.WdlExpressionException
 import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser.{Ast, AstNode}
-import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.util.TryUtil
 
 import scala.language.postfixOps
@@ -39,9 +39,9 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
 
   private def evalValue(ast: AstNode): Try[WdlValue] = valueEvaluator.evaluate(ast)
 
-  private def evalValueToWdlFile(ast: AstNode): Try[Seq[WdlFile]] = {
+  private def evalValueToWdlFile(ast: AstNode): Try[WdlFile] = {
     evalValue(ast) match {
-      case Success(p: WdlPrimitive) => Success(Seq(WdlFile(p.valueString)))
+      case Success(p: WdlPrimitive) => Success(WdlFile(p.valueString))
       case Success(_) => Failure(new WdlExpressionException(s"Expecting a primitive type from AST:\n${ast.toPrettyString}"))
       case Failure(e) => Failure(e)
     }
@@ -78,9 +78,15 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
    */
   private def evaluateRecursive(ast: AstNode): Try[Seq[WdlFile]] = {
     ast match {
+      case a: Ast if a.isGlobFunctionCall =>
+        evalValueToWdlFile(a.params.head) match {
+          case Success(WdlFile(value, _)) => Success(Seq(WdlFile(value, GlobOrNot.YesGlob)))
+          case Failure(e) => Failure(e)
+        }
+
       case a: Ast if a.isFunctionCallWithOneFileParameter =>
         evalValueToWdlFile(a.params.head) match {
-          case Success(v) => Success(v)
+          case Success(v) => Success(Seq(v))
           case _ => evaluateRecursive(a.params.head)
         }
       case a: Ast if a.isBinaryOperator =>

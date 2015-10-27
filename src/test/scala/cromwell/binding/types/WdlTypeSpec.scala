@@ -1,6 +1,5 @@
 package cromwell.binding.types
 
-import cromwell.binding.types._
 import cromwell.binding.values._
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.prop.TableDrivenPropertyChecks._

@@ -11,6 +11,7 @@ import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
+import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.yaml.snakeyaml.Yaml

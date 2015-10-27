@@ -40,4 +40,8 @@ trait WdlValue {
    * for types like WdlString where extra syntax is added on
    */
   def valueString: String = toWdlString
+
+  def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
+    if (filterFn.isDefinedAt(this)) Seq(filterFn(this)) else Nil
+  }
 }

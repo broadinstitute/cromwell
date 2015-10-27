@@ -7,7 +7,6 @@ import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
@@ -89,7 +88,8 @@ object JesBackend {
           case Success(gcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString, wdlFile.isGlob)
           case Failure(e) => wdlValue
         }
-      case array: WdlArray => array map gcsPathToLocal
+      case wdlArray: WdlArray => wdlArray map gcsPathToLocal
+      case wdlMap: WdlMap => wdlMap map { case (k, v) => gcsPathToLocal(k) -> gcsPathToLocal(v) }
       case _ => wdlValue
     }
   }
@@ -255,32 +255,19 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   /**
    * Creates a set of JES inputs for a backend call.
+   * Note that duplicates input files (same gcs path) will be (re-)localized every time they are referenced.
    */
   def generateJesInputs(backendCall: BackendCall): Iterable[JesInput] = {
-    val log = workflowLoggerWithCall(backendCall)
-    val adjustedPaths = adjustInputPaths(backendCall.key, backendCall.locallyQualifiedInputs, backendCall.workflowDescriptor)
-    def mkInput(locallyQualifiedInputName: String, location: WdlFile) = JesInput(locallyQualifiedInputName, backendCall.lookupFunction(locallyQualifiedInputName).valueString, Paths.get(location.valueString))
-    adjustedPaths collect {
-      case (locallyQualifiedInputName: String, location: WdlFile) =>
-        log.info(s"$locallyQualifiedInputName -> ${location.valueString}")
-        Seq(mkInput(locallyQualifiedInputName, location))
-      case (locallyQualifiedInputName: String, localPathWdlArray: WdlArray) =>
-        backendCall.lookupFunction(locallyQualifiedInputName) match {
-          case WdlArray(WdlArrayType(memberType), remotePathArray: Seq[WdlValue]) if memberType == WdlFileType || memberType == WdlArrayType =>
-            jesInputsFromArray(locallyQualifiedInputName, remotePathArray, localPathWdlArray.value)
-          case _ => Seq[JesInput]() // Empty list.
-        }
-      case (locallyQualifiedInputName: String, location: WdlMap) => location.value flatMap { case (k, v) => Seq(k, v) } collect { case f: WdlFile => mkInput(locallyQualifiedInputName, f) }
-    } flatten
+    backendCall.locallyQualifiedInputs mapValues { _.collectAsSeq { case w: WdlFile => w } } flatMap {
+      case (name, files) => jesInputsFromWdlFiles(name, files, files map { gcsPathToLocal(_).asInstanceOf[WdlFile] })
+    }
   }
 
   /**
-   * Takes two arrays of WDL values and generates any necessary JES inputs from them.
+   * Takes two arrays of WDL Files and generates any necessary JES inputs from them.
    */
-  private def jesInputsFromArray(jesNamePrefix: String, remotePathArray: Seq[WdlValue], localPathArray: Seq[WdlValue]): Iterable[JesInput] = {
+  private def jesInputsFromWdlFiles(jesNamePrefix: String, remotePathArray: Seq[WdlFile], localPathArray: Seq[WdlFile]): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
-      case ((WdlArray(_, innerRemotePathArray: Seq[WdlValue]), WdlArray(_, innerLocalPathArray: Seq[WdlValue])), index) =>
-        jesInputsFromArray(s"$jesNamePrefix-$index", innerRemotePathArray, innerLocalPathArray)
       case ((remotePath, localPath), index) => Seq(JesInput(s"$jesNamePrefix-$index", remotePath.valueString, Paths.get(localPath.valueString)))
     }
   }
@@ -368,6 +355,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       case x : WdlFile =>
         val delocalizationPath = s"${backendCall.callGcsPath}/${vmLocalizationPath.valueString}"
         WdlFile(delocalizationPath)
+      case a: WdlArray => WdlArray(a.wdlType, a.value map { f => gcsInputToGcsOutput(backendCall, f) })
+      case m: WdlMap => WdlMap(m.wdlType, m.value map { case (k, v) => gcsInputToGcsOutput(backendCall, k) -> gcsInputToGcsOutput(backendCall, v) })
       case other => other
     }
   }
@@ -377,33 +366,39 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     gcsInputToGcsOutput(backendCall, originalLookup(toBeLookedUp))
   }
 
+  def wdlValueToGcsPath(jesOutputs: Seq[JesOutput])(value: WdlValue): WdlValue = {
+    def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst { case o if o.name == makeSafeJesReferenceName(wdlFile.valueString) => WdlFile(o.gcs) } getOrElse value
+    value match {
+      case wdlArray: WdlArray => wdlArray map wdlValueToGcsPath(jesOutputs)
+      case wdlMap: WdlMap => wdlMap map {
+        case (k, v) => wdlValueToGcsPath(jesOutputs)(k) -> wdlValueToGcsPath(jesOutputs)(v)
+      }
+      case file: WdlFile => toGcsPath(file)
+      case other => other
+    }
+  }
+
   def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionResult = authenticated { connection =>
     val log = workflowLoggerWithCall(handle.backendCall)
-
-    def wdlFileToGcsPath(value: WdlValue, coerceTo: WdlType) =
-      if (coerceTo == WdlFileType && WdlFileType.isCoerceableFrom(value.wdlType))
-        handle.jesOutputs find { _.name == value.valueString } map { j => WdlFile(j.gcs) } getOrElse value
-      else
-        value
 
     try {
       val backendCall = handle.backendCall
       val outputMappings = backendCall.call.task.outputs map { taskOutput =>
-      /**
-       * this will evaluate the task output expression and coerces it to the task output's type.
-       * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
-       * return a WdlFile that represents the GCS path and not the local path.  For example,
-       *
-       * output {
-       *   File x = "out" + ".txt"
-       * }
-       *
-       * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
-       * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
-       * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
-       */
-        val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) map { wdlValue =>
-          wdlFileToGcsPath(wdlValue, taskOutput.wdlType)
+        /**
+         * this will evaluate the task output expression and coerces it to the task output's type.
+         * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
+         * return a WdlFile that represents the GCS path and not the local path.  For example,
+         *
+         * output {
+         *   File x = "out" + ".txt"
+         * }
+         *
+         * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
+         * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
+         * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
+         */
+        val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) flatMap { wdlValue =>
+          taskOutput.wdlType.coerceRawValue(wdlValue) map wdlValueToGcsPath(handle.jesOutputs)
         }
         taskOutput.name -> attemptedValue
       } toMap

@@ -46,14 +46,14 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [preemptible](#preemptible)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
-  * [POST /workflows/:version](#post-workflowsversion)
-  * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
-  * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
-  * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
-  * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
-  * [GET /workflows/:version/:id/logs](#get-workflowsversionidlogs)
-  * [GET /workflows/:version/:id/metadata](#get-workflowsversionidmetadata)
-  * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
+  * [POST /api/workflows/:version](#post-apiworkflowsversion)
+  * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
+  * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
+  * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
+  * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
+  * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
+  * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
+  * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -1106,7 +1106,7 @@ The following sub-sections define which HTTP Requests the web server can accept 
 
 All web server requests include an API version in the url. The current version is `v1`.
 
-## POST /workflows/:version
+## POST /api/workflows/:version
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
@@ -1117,19 +1117,19 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 cURL:
 
 ```
-$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
 ```
 
 Request:
 
 ```
-POST /workflows/v1 HTTP/1.1
+POST /api/workflows/v1 HTTP/1.1
 Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
@@ -1209,19 +1209,19 @@ To specify workflow options as well:
 cURL:
 
 ```
-$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
 ```
 
 HTTPie:
 
 ```
-http --print=HBhb --form POST http://localhost:8000/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
 ```
 
 Request (some parts truncated for brevity):
 
 ```
-POST /workflows/v1 HTTP/1.1
+POST /api/workflows/v1 HTTP/1.1
 Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
@@ -1262,18 +1262,18 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 --f3fd038395644de596c460257626edd7--
 ```
 
-## GET /workflows/:version/:id/status
+## GET /api/workflows/:version/:id/status
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ curl http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ http http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 Response:
@@ -1290,18 +1290,18 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflows/:version/:id/outputs
+## GET /api/workflows/:version/:id/outputs
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ curl http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ http http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 Response:
@@ -1323,18 +1323,18 @@ Server: spray-can/1.3.3
 ```
 
 
-## GET /workflows/:version/:id/outputs/:call
+## GET /api/workflows/:version/:id/outputs/:call
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+$ curl http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+$ http http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
 ```
 
 Response:
@@ -1352,7 +1352,7 @@ Server: spray-can/1.3.3
     }
 }
 ```
-## GET /workflows/:version/:id/logs/:call
+## GET /api/workflows/:version/:id/logs/:call
 
 This will return paths to the standard out and standard error files that were generated during the execution of a particular fully-qualified name for a call.
 
@@ -1361,13 +1361,13 @@ A call has one or more standard out and standard error logs, depending on if the
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
 ```
 
 Response:
@@ -1446,20 +1446,20 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflows/:version/:id/logs
+## GET /api/workflows/:version/:id/logs
 
-This returns a similar format as the `/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
+This returns a similar format as the `/api/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
+$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
+$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
 ```
 
 Response:
@@ -1495,7 +1495,7 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflows/:version/:id/metadata
+## GET /api/workflows/:version/:id/metadata
 
 This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
 (i.e. shards are accounted for by an array of maps, in the same order as the shards).
@@ -1507,13 +1507,13 @@ return code, stdout and stderr.  Date formats are ISO with milliseconds.
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
 ```
 
 Response:
@@ -1629,18 +1629,18 @@ Content-Length: 6192
 }
 ```
 
-## POST /workflows/:version/:id/abort
+## POST /api/workflows/:version/:id/abort
 
 cURL:
 
 ```
-$ curl -X POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
 ```
 
 HTTPie:
 
 ```
-$ http POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
 ```
 
 Response:

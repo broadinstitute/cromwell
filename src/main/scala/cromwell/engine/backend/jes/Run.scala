@@ -25,7 +25,7 @@ object Run  {
 
   def apply(pipeline: Pipeline): Run = {
     val tag = s"JES Run [UUID(${pipeline.workflow.shortId}):${pipeline.key.tag}]"
-    if (!(pipeline.pipelineId.isDefined ^ pipeline.runIdForResumption.isDefined)) {
+    if (pipeline.pipelineId.isDefined == pipeline.runIdForResumption.isDefined) {
       val message =
         s"""
           |$tag: Exactly one of JES pipeline ID or run ID for resumption must be specified to create a Run.

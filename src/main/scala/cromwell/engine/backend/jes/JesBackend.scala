@@ -490,7 +490,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       else {
         // Cromwell currently does not persist the types of executions.  Scatters are identified by this magic
         // "$scatter_" string.
-        val (scatters, nonScatters) = executions partition { _.callFqn.contains("$scatter_") }
+        val (scatters, nonScatters) = executions partition { _.callFqn.contains(Scatter.FQNIdentifier) }
         if (scatters.exists(_.status.toExecutionStatus == ExecutionStatus.Starting)) {
           val startingScatters = stringifyExecutions(scatters)
           Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + startingScatters))
@@ -509,7 +509,6 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           for {
             _ <- globalDataAccess.resetNonResumableJesExecutions(restartableWorkflow.id)
             _ <- globalDataAccess.setStatus(restartableWorkflow.id, runningCollectors map { _.toKey }, ExecutionStatus.Starting)
-            _ <- globalDataAccess.setStatus(restartableWorkflow.id, startingCalls map { _.toKey }, ExecutionStatus.Starting)
           } yield ()
         }
       }

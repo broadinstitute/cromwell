@@ -334,11 +334,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
 
     def wdlValueToGcsPath(value: WdlValue): WdlValue = {
-      def toGcsPath(wdlFile: WdlFile) = {
-        jesOutputs find {
-          _.name == wdlFile.valueString
-        } map { j => WdlFile(j.gcs) } getOrElse value
-      }
+      def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst { case o if o.name == wdlFile.valueString => WdlFile(o.gcs) } getOrElse value
 
       value match {
         case wdlArray: WdlArray => wdlArray map wdlValueToGcsPath

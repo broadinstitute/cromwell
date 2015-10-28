@@ -63,8 +63,8 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
   }
 
   def map(f: PartialFunction[((WdlValue, WdlValue)), (WdlValue, WdlValue)]): WdlMap = {
-    value.map{f} match {
-      case m:Map[WdlValue, WdlValue] if m.nonEmpty => WdlMap(WdlMapType(m.head._1.wdlType, m.head._2.wdlType), m)
+    value map f match {
+      case m: Map[WdlValue, WdlValue] if m.nonEmpty => WdlMap(WdlMapType(m.head._1.wdlType, m.head._2.wdlType), m)
       case _ => this
     }
   }

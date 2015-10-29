@@ -143,8 +143,11 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
    * -v maps the host workflow executions directory to /root/<workflow id> on the container.
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
-  private def buildDockerRunCommand(backendCall: BackendCall, image: String): String =
-    s"docker run --rm -v ${backendCall.workflowRootPath.toAbsolutePath}:${backendCall.dockerContainerExecutionDir} -i $image"
+  private def buildDockerRunCommand(backendCall: BackendCall, image: String): String = {
+    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.name, backendCall.key.index)
+    s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
+  }
+
 
   private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
     val tag = makeTag(backendCall)

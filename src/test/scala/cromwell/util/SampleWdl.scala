@@ -168,7 +168,7 @@ object SampleWdl {
         |workflow wf {
         |  call a
         |  call b {
-        |    input: message=a.message, integer=a.constant - 75
+        |    input: message = a.message, integer = a.constant - 75
         |  }
         |}
       """.stripMargin
@@ -196,7 +196,7 @@ object SampleWdl {
         |
         |workflow test1 {
         |  call summary {
-        |     input: bfile=bfile
+        |     input: bfile = bfile
         |  }
         |}
       """.stripMargin
@@ -242,10 +242,10 @@ object SampleWdl {
         |workflow three_step {
         |  call ps
         |  call cgrep {
-        |    input: in_file=ps.procs
+        |    input: in_file = ps.procs
         |  }
         |  call wc {
-        |    input: in_file=ps.procs
+        |    input: in_file = ps.procs
         |  }
         |}
         |
@@ -290,7 +290,7 @@ object SampleWdl {
         |task D {
         |  Array[Int] D_in
         |  command {
-        |    python -c "print(${sep='+' D_in})"
+        |    python -c "print(${sep = '+' D_in})"
         |  }
         |  output {
         |    Int D_out = read_int(stdout())
@@ -309,8 +309,8 @@ object SampleWdl {
         |workflow w {
         |  call A
         |  scatter (item in A.A_out) {
-        |    call B {input: B_in=item}
-        |    call C {input: C_in=B.B_out}
+        |    call B {input: B_in = item}
+        |    call C {input: C_in = B.B_out}
         |    call E
         |    scatter (itemB in B.B_out) {
         |     call E as G
@@ -322,7 +322,7 @@ object SampleWdl {
         |  scatter (item in A.A_out) {
         |    call E as F
         |  }
-        |  call D {input: D_in=B.B_out}
+        |  call D {input: D_in = B.B_out}
         |}
       """.stripMargin
     override lazy val rawInputs = Map("" -> "...")
@@ -350,7 +350,7 @@ object SampleWdl {
       |  call hello
       |  call hello as hello2
       |  call hello as hello_person {
-      |    input: person="world"
+      |    input: person = "world"
       |  }
       |}
     """.stripMargin.replaceAll("RUNTIME", runtime)
@@ -367,7 +367,7 @@ object SampleWdl {
         |task hello {
         |  Array[String] person
         |  command {
-        |    echo "hello ${sep="," person}"
+        |    echo "hello ${sep = "," person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -398,7 +398,7 @@ object SampleWdl {
         |task hello {
         |  Array[String]+ person
         |  command {
-        |    echo "hello ${sep="," person}"
+        |    echo "hello ${sep = "," person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -425,7 +425,7 @@ object SampleWdl {
         |task hello {
         |  String? person
         |  command {
-        |    echo "hello ${default="default value" person}"
+        |    echo "hello ${default = "default value" person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -497,10 +497,10 @@ object SampleWdl {
         |  call ps as ps2
         |  call ps as ps3
         |  call cgrep {
-        |    input: in_file=ps.procs
+        |    input: in_file = ps.procs
         |  }
         |  call wc {
-        |    input: in_file=ps.procs
+        |    input: in_file = ps.procs
         |  }
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
@@ -569,10 +569,10 @@ object SampleWdl {
         |workflow three_step {
         |  call ps
         |  call cgrep {
-        |    input: in_file=ps.procs
+        |    input: in_file = ps.procs
         |  }
         |  call wc {
-        |    input: in_file=ps.procs
+        |    input: in_file = ps.procs
         |  }
         |}
         |
@@ -681,10 +681,10 @@ object SampleWdl {
         |  String flags = "-" + flags_suffix
         |  String static_string = "foobarbaz"
         |  call cat {
-        |    input: flags=flags
+        |    input: flags = flags
         |  }
         |  call cgrep {
-        |    input: in_file=cat.procs
+        |    input: in_file = cat.procs
         |  }
         |}
       """.stripMargin
@@ -735,7 +735,7 @@ object SampleWdl {
         |  String? flags
         |  Array[File]+ files
         |  command {
-        |    cat ${default="-s" flags} ${sep=" " files}
+        |    cat ${default = "-s" flags} ${sep = " " files}
         |  }
         |  output {
         |    File concatenated = stdout()
@@ -756,7 +756,7 @@ object SampleWdl {
         |task count_lines {
         |  Array[File]+ files
         |  command {
-        |    cat ${sep=' ' files} | wc -l
+        |    cat ${sep = ' ' files} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -777,24 +777,24 @@ object SampleWdl {
         |  Array[File] files
         |  Array[String] strings = ["str1", "str2", "str3"]
         |  call serialize {
-        |    input: strs=strings
+        |    input: strs = strings
         |  }
         |  call concat_files as concat {
-        |    input: files=files
+        |    input: files = files
         |  }
         |  call count_lines {
-        |    input: files=[concat.concatenated]
+        |    input: files = [concat.concatenated]
         |  }
         |  call find
         |  call count_lines as count_lines_array {
-        |    input: files=find.results
+        |    input: files = find.results
         |  }
         |}
       """.stripMargin
 
     val tempDir = Files.createTempDirectory("ArrayIO")
-    val firstFile = createCannedFile(prefix="first", contents="foo\n", dir=Some(tempDir))
-    val secondFile = createCannedFile(prefix="second", contents="bar\nbaz\n", dir=Some(tempDir))
+    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Some(tempDir))
+    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Some(tempDir))
 
     override val rawInputs = Map(
       "wf.find.root" -> tempDir.toAbsolutePath.toString,
@@ -819,7 +819,7 @@ object SampleWdl {
         |task cat {
         |  Array[File]+ files
         |  command {
-        |    cat -s ${sep=' ' files}
+        |    cat -s ${sep = ' ' files}
         |  }
         |  output {
         |    Array[String] lines = read_lines(stdout())
@@ -828,7 +828,7 @@ object SampleWdl {
         |
         |workflow wf {
         |  Array[File] arr = ["f1", "f2", "f3"]
-        |  call cat {input: files=arr}
+        |  call cat {input: files = arr}
         |}
       """.stripMargin
 
@@ -862,7 +862,7 @@ object SampleWdl {
         |
         |workflow wf {
         |  Map[File, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
-        |  call write_map {input: file_to_name=map}
+        |  call write_map {input: file_to_name = map}
         |  call read_map
         |}
       """.stripMargin
@@ -894,6 +894,51 @@ object SampleWdl {
       """.stripMargin
 
     override val rawInputs = Map.empty[String, String]
+  }
+
+  object InputIsolationWdl extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task localize {
+        |    Array[File] array
+        |    command {
+        |        ls -1 "$(dirname ${array[0]})" | wc -l | tr -d '[[:space:]]'
+        |    }
+        |    output {
+        |        String ls = read_string(stdout())
+        |    }
+        |    RUNTIME
+        |}
+        |
+        |task echo_int {
+        |  Int int
+        |  command {echo ${int} > out }
+        |  output {File out = "out"}
+        |   RUNTIME
+        |}
+        |
+        |workflow wf {
+        |    Array[File] files
+        |    Array[Int] ints = [1,2]
+        |
+        |   scatter(i in ints) {
+        |    call echo_int {
+        |      input: int = i
+        |    }
+        |  }
+        |
+        |  call localize as fromDifferentDirectories { input: array = echo_int.out }
+        |  call localize as fromSameDirectory { input: array = files }
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    val tempDir = Files.createTempDirectory("InputFiles")
+    val file1 = createCannedFile(prefix = "file1", contents = "", dir = Some(tempDir))
+    val file2 = createCannedFile(prefix = "file1", contents = "", dir = Some(tempDir))
+
+    override val rawInputs = Map(
+      "wf.files" -> Seq(file1.getAbsolutePath, file2.getAbsolutePath)
+    )
   }
 
   object TripleSleep extends SampleWdl {
@@ -1017,7 +1062,7 @@ object SampleWdl {
       |task D {
       |  Array[Int] D_in
       |  command {
-      |    python -c "print(${sep='+' D_in})"
+      |    python -c "print(${sep = '+' D_in})"
       |  }
       |  output {
       |    Int D_out = read_int(stdout())
@@ -1040,11 +1085,11 @@ object SampleWdl {
         |workflow w {
         |  call A
         |  scatter (item in A.A_out) {
-        |    call B {input: B_in=item}
-        |    call C {input: C_in=B.B_out}
+        |    call B {input: B_in = item}
+        |    call C {input: C_in = B.B_out}
         |    call E
         |  }
-        |  call D {input: D_in=B.B_out}
+        |  call D {input: D_in = B.B_out}
         |}
       """.stripMargin
 
@@ -1058,14 +1103,14 @@ object SampleWdl {
         |workflow w {
         |  call A
         |  scatter (item in A.A_out) {
-        |    call B {input: B_in=item}
-        |    call C {input: C_in=B.B_out}
+        |    call B {input: B_in = item}
+        |    call C {input: C_in = B.B_out}
         |    call E
         |  }
         |  scatter (item in A.A_out) {
-        |    call B as F {input: B_in=item}
+        |    call B as F {input: B_in = item}
         |  }
-        |  call D {input: D_in=B.B_out}
+        |  call D {input: D_in = B.B_out}
         |}
       """.stripMargin
 
@@ -1082,10 +1127,10 @@ object SampleWdl {
         |
         |workflow scatter0 {
         |  Array[Int] ints = [1,2,3,4,5]
-        |  call echo_int as outside_scatter {input: int=8000}
+        |  call echo_int as outside_scatter {input: int = 8000}
         |  scatter(i in ints) {
         |    call echo_int as inside_scatter {
-        |      input: int=i
+        |      input: int = i
         |    }
         |  }
         |}
@@ -1127,7 +1172,7 @@ object SampleWdl {
         |task do_gather {
         |    Array[File] input_files
         |    command <<<
-        |        cat ${sep=' ' input_files} | awk '{s+=$1} END {print s}'
+        |        cat ${sep = ' ' input_files} | awk '{s+=$1} END {print s}'
         |    >>>
         |    output {
         |        Int sum = read_int(stdout())
@@ -1138,11 +1183,11 @@ object SampleWdl {
         |    call do_prepare
         |    scatter(f in do_prepare.split_files) {
         |        call do_scatter {
-        |            input: input_file=f
+        |            input: input_file = f
         |        }
         |    }
         |    call do_gather {
-        |        input: input_files=do_scatter.count_file
+        |        input: input_files = do_scatter.count_file
         |    }
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
@@ -1174,8 +1219,8 @@ object SampleWdl {
 
     val tempDir1 = Files.createTempDirectory("FileClobber1")
     val tempDir2 = Files.createTempDirectory("FileClobber2")
-    val firstFile = createFile(name="file.txt", contents="first file.txt", dir=tempDir1)
-    val secondFile = createFile(name="file.txt", contents="second file.txt", dir=tempDir2)
+    val firstFile = createFile(name = "file.txt", contents = "first file.txt", dir = tempDir1)
+    val secondFile = createFile(name = "file.txt", contents = "second file.txt", dir = tempDir2)
 
     override val rawInputs = Map(
       "two.x.in" -> firstFile.getAbsolutePath,
@@ -1206,7 +1251,7 @@ object SampleWdl {
         |
         |workflow w {
         |  call A
-        |  call B {input: B_in=A.A_out}
+        |  call B {input: B_in = A.A_out}
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
     override lazy val rawInputs = Map("" -> "...")
@@ -1232,8 +1277,8 @@ object SampleWdl {
         |workflow file_passing {
         |  File f
         |
-        |  call a {input: in=f}
-        |  call a as b {input: in=a.out}
+        |  call a {input: in = f}
+        |  call a as b {input: in = a.out}
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
@@ -1266,7 +1311,7 @@ object SampleWdl {
         |  Map[String, String] map
         |
         |  command {
-        |    echo ${sep=' ' array} > concat
+        |    echo ${sep = ' ' array} > concat
         |  }
         |  output {
         |    String x = read_string("concat")
@@ -1280,8 +1325,8 @@ object SampleWdl {
         |  Array[String] in_array = read_lines(array_file)
         |  Map[String, String] in_map = read_map(map_file)
         |  call a {input:
-        |    array=in_array,
-        |    map=in_map
+        |    array = in_array,
+        |    map = in_map
         |  }
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
@@ -1299,7 +1344,7 @@ object SampleWdl {
       """task subtask {
         |  Array[File] a
         |  command {
-        |    cat ${sep=" " a}
+        |    cat ${sep = " " a}
         |  }
         |  output {
         |    String concatenated = read_string(stdout())
@@ -1311,17 +1356,17 @@ object SampleWdl {
         |
         |  scatter(n in nested_file) {
         |    call subtask {
-        |      input: a=n
+        |      input: a = n
         |    }
         |  }
         |}
       """.stripMargin
 
     val tempDir = Files.createTempDirectory("ArrayOfArray")
-    val firstFile = createCannedFile(prefix="first", contents="foo\n", dir=Some(tempDir))
-    val secondFile = createCannedFile(prefix="second", contents="bar\nbaz\n", dir=Some(tempDir))
-    val thirdFile = createCannedFile(prefix="third", contents="third\n", dir=Some(tempDir))
-    val fourthFile = createCannedFile(prefix="fourth", contents="fourth\n", dir=Some(tempDir))
+    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Some(tempDir))
+    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Some(tempDir))
+    val thirdFile = createCannedFile(prefix = "third", contents = "third\n", dir = Some(tempDir))
+    val fourthFile = createCannedFile(prefix = "fourth", contents = "fourth\n", dir = Some(tempDir))
 
     override val rawInputs = Map(
       "wf.nested_file" ->

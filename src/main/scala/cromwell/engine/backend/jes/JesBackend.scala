@@ -114,7 +114,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   type BackendCall = JesBackendCall
 
-  override def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = inputs map { case (k, v) => (k, gcsPathToLocal(v)) }
+  override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs map { case (k,v) => (k, gcsPathToLocal(v)) }
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
@@ -219,7 +219,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
    * Creates a set of JES inputs for a backend call.
    */
   def generateJesInputs(backendCall: BackendCall): Iterable[JesInput] = {
-    val adjustedPaths = adjustInputPaths(backendCall.call, backendCall.locallyQualifiedInputs)
+    val adjustedPaths = adjustInputPaths(backendCall.key, backendCall.locallyQualifiedInputs, backendCall.workflowDescriptor)
     def mkInput(locallyQualifiedInputName: String, location: WdlFile) = JesInput(locallyQualifiedInputName, backendCall.lookupFunction(locallyQualifiedInputName).valueString, Paths.get(location.valueString))
     adjustedPaths collect {
       case (locallyQualifiedInputName: String, location: WdlFile) =>

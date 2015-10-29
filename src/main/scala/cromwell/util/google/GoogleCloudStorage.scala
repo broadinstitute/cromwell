@@ -4,15 +4,16 @@ import java.io._
 import java.math.BigInteger
 
 import com.google.api.client.auth.oauth2.Credential
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.{HttpTransport, InputStreamContent}
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.util.DateTime
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
 import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
 
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object GoogleCloudStorage {
@@ -33,6 +34,17 @@ case class GoogleCloudStorage(client: Storage) {
     val bucket: Bucket = getBucket.execute()
 
     new GcsBucketInfo(bucketName, bucket.getLocation, bucket.getTimeCreated, bucket.getOwner)
+  }
+
+  def listContents(gcsPath: String): Iterable[String] = listContents(GoogleCloudStoragePath(gcsPath))
+
+  def listContents(gcsPath: GoogleCloudStoragePath): Iterable[String] = {
+    val listRequest = client.objects().list(gcsPath.bucket)
+    listRequest.setPrefix(gcsPath.objectName)
+
+    for {
+      listedFile <- listRequest.execute().getItems.asScala
+    } yield s"gs://${listedFile.getBucket}/${listedFile.getName}"
   }
 
   // See comment in uploadObject re small files. Here, define small as 2MB or lower:

@@ -3,6 +3,7 @@ package cromwell.engine.backend.local
 import java.io.File
 import java.nio.file.{Path, Paths}
 
+import better.files._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.WdlArrayType._
 import cromwell.binding.types._
@@ -10,6 +11,7 @@ import cromwell.binding.values._
 import cromwell.util.FileUtil
 import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class LocalEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions {
@@ -132,6 +134,18 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
       tsvSerialized <- singleArgument.asInstanceOf[WdlArray].tsvSerialize
       file <- writeContent("array", tsvSerialized)
     } yield file
+  }
+
+  override protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      if singleArgument.wdlType == WdlFileType || singleArgument.wdlType == WdlStringType
+      files <- filesMatchingGlob(singleArgument.valueString)
+    } yield WdlArray(WdlArrayType(WdlFileType), files)
+  }
+
+  private def filesMatchingGlob(glob: String): Try[Seq[WdlValue]] = Try {
+    ("." / cwd.toString).glob(s"**/$glob") map { file => WdlFile(file.path.toAbsolutePath.toString) } toSeq
   }
 
   protected def writeContent(baseName: String, content: String) = {

@@ -30,11 +30,9 @@ object WdlExpression {
     def isArrayOrMapLookup: Boolean = ast.getName == "ArrayOrMapLookup"
     def params = ast.getAttribute("params").asInstanceOf[AstList].asScala.toVector
     def name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-
-    def isFunctionCallWithOneFileParameter: Boolean = (
-      ast.isFunctionCall
-        && ast.params.size == 1
-        && WdlFunctionsWithSingleFileParameter.contains(ast.functionName))
+    def isFunctionCallWithOneParameter = ast.isFunctionCall && ast.params.size == 1
+    def isFunctionCallWithOneFileParameter = isFunctionCallWithOneParameter && WdlFunctionsWithSingleFileParameter.contains(ast.functionName)
+    def isGlobFunctionCall = isFunctionCallWithOneParameter && "glob".equals(ast.functionName)
   }
 
   implicit class AstNodeForExpressions(val astNode: AstNode) extends AnyVal {

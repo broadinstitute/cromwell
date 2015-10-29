@@ -1,9 +1,9 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

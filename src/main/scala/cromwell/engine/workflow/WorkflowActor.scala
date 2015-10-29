@@ -89,6 +89,7 @@ object WorkflowActor {
         case Success(s) => // Nothing to do here but there needs to be a match for this case.
         case Failure(t) => actorRef ! AsyncFailure(t)
       }
+      
       actor.goto(WorkflowRunning)
     }
   }

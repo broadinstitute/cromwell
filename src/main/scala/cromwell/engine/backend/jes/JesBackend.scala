@@ -17,7 +17,7 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.workflow.{ExecutionStoreKey, CallKey, WorkflowOptions}
 import cromwell.engine._
 import cromwell.parser.BackendType
 import cromwell.util.StringDigestion._
@@ -479,15 +479,17 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         executions.toSeq.sortWith((lt, rt) => lt.callFqn < rt.callFqn || (lt.callFqn == rt.callFqn && lt.index < rt.index)).mkString(" ")
       }
 
+      def isRunningCollector(key: Execution): Boolean = {
+        key.index.toIndex.isEmpty && key.status.toExecutionStatus == ExecutionStatus.Running
+      }
+
       if (executionsByStatus.contains(ExecutionStatus.Failed)) {
         val failedExecutions = stringifyExecutions(executionsByStatus.get(ExecutionStatus.Failed).get)
         Future.failed(new Throwable(s"$tag Cannot restart, found executions in Failed status: " + failedExecutions))
-      }
-      else if (executionsByStatus.contains(ExecutionStatus.Aborted)) {
+      } else if (executionsByStatus.contains(ExecutionStatus.Aborted)) {
         val abortedExecutions = stringifyExecutions(executionsByStatus.get(ExecutionStatus.Aborted).get)
         Future.failed(new Throwable(s"$tag Cannot restart, found executions in Aborted status: " + abortedExecutions))
-      }
-      else {
+      } else {
         // Cromwell currently does not persist the types of executions.  Scatters are identified by this magic
         // "$scatter_" string.
         val (scatters, nonScatters) = executions partition { _.callFqn.contains(Scatter.FQNIdentifier) }
@@ -499,13 +501,9 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           // Scattered calls have multiple executions with the same FQN.  The collector is the execution with no index.
           // The first element of the partition will be scattered calls (both collectors *and* shards), the second
           // element is all unscattered calls.
-          val (collectorsAndShards, unscatteredCalls) = nonScatters.groupBy(_.callFqn) partition { case (_, xs) => xs.size > 1  }
-          val (collectors, shards) = collectorsAndShards.values.flatten partition { _.index.toIndex.isEmpty }
-          val calls = unscatteredCalls.values.flatten ++ shards
+          val collectorsAndShards = nonScatters.groupBy(_.callFqn) filter { case (_, xs) => xs.size > 1 }
+          val runningCollectors = collectorsAndShards.values.flatten filter isRunningCollector
 
-          val runningCollectors = collectors.filter(_.status.toExecutionStatus == ExecutionStatus.Running)
-          val startingCalls = calls.filter(_.status.toExecutionStatus == ExecutionStatus.Starting)
-          
           for {
             _ <- globalDataAccess.resetNonResumableJesExecutions(restartableWorkflow.id)
             _ <- globalDataAccess.setStatus(restartableWorkflow.id, runningCollectors map { _.toKey }, ExecutionStatus.Starting)

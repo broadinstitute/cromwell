@@ -2,12 +2,12 @@ package cromwell.binding
 
 import cromwell.binding.command.ParameterCommandPart
 import cromwell.binding.types.{WdlIntegerType, WdlArrayType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlInteger, WdlString, WdlValue}
+import cromwell.binding.values._
 import cromwell.parser.BackendType
 import cromwell.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.util.Failure
+import scala.util.{Try, Failure}
 
 class ParameterCommandPartSpec extends FlatSpec with Matchers {
   val wdl =
@@ -17,9 +17,10 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
       |  Array[String] c
       |  Int? d
       |  Array[Int] e
+      |  Boolean f
       |
       |  command <<<
-      |  ./binary ${a} ${"-p " + b} ${sep="," c} ${default=9 d} ${sep="\t" e}
+      |  ./binary ${a} ${"-p " + b} ${sep="," c} ${default=9 d} ${sep="\t" e} ${true="--true" false="--false" f}
       |  >>>
       |}
       |
@@ -32,12 +33,13 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
 
   val paramsByName = task.commandTemplate.collect {case p: ParameterCommandPart => p}.map {p => p}
   "Template variables" should "Stringify correctly" in {
-    paramsByName.size shouldEqual 5
+    paramsByName.size shouldEqual 6
     paramsByName(0).toString shouldEqual "${a}"
     paramsByName(1).toString shouldEqual "${\"-p \" + b}"
     paramsByName(2).toString shouldEqual "${sep=\",\" c}"
     paramsByName(3).toString shouldEqual "${default=\"9\" d}"
     paramsByName(4).toString shouldEqual "${sep=\"\\t\" e}"
+    paramsByName(5).toString shouldEqual "${true=\"--true\" false=\"--false\" f}"
   }
 
   "Command instantiation" should "succeed if given valid inputs" in {
@@ -46,8 +48,9 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
       "b" -> WdlString("b_val"),
       "c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2"))),
       "d" -> WdlInteger(1),
-      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2).map(WdlInteger(_)))
-    )).get shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2"
+      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2).map(WdlInteger(_))),
+      "f" -> WdlBoolean.False
+    )).get shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2 --false"
   }
 
   it should "succeed if omitting an optional input" in {
@@ -55,8 +58,9 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
       "a" -> WdlString("a_val"),
       "b" -> WdlString("b_val"),
       "c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2"))),
-      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2).map(WdlInteger(_)))
-    )).get shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2"
+      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2).map(WdlInteger(_))),
+      "f" -> WdlBoolean.True
+    )).get shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2 --true"
   }
 
   it should "succeed if providing an array with one element" in {
@@ -65,8 +69,9 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
       "b" -> WdlString("b_val"),
       "c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"))),
       "d" -> WdlInteger(1),
-      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq())
-    )).get shouldEqual "./binary a_val -p b_val c0 1"
+      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq()),
+      "f" -> WdlBoolean.True
+    )).get shouldEqual "./binary a_val -p b_val c0 1  --true"
   }
 
   it should "succeed if providing an array with zero elements" in {
@@ -75,8 +80,9 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
       "b" -> WdlString("b_val"),
       "c" -> WdlArray(WdlArrayType(WdlStringType), Seq()),
       "d" -> WdlInteger(1),
-      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq())
-    )).get shouldEqual "./binary a_val -p b_val  1"
+      "e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq()),
+      "f" -> WdlBoolean.True
+    )).get shouldEqual "./binary a_val -p b_val  1  --true"
   }
 
   it should "raise exception if a required input is missing" in {
@@ -96,6 +102,25 @@ class ParameterCommandPartSpec extends FlatSpec with Matchers {
     )) match {
       case Failure(f) => // expected
       case _ => fail("Expected an exception")
+    }
+  }
+
+  it should "raise exception if 'true' attribute is specified but 'false' is not" in {
+    Try(
+      WdlNamespace.load(
+        """task param_test {
+          |  Boolean f
+          |
+          |  command <<<
+          |  ./binary ${true="--true" f}
+          |  >>>
+          |}
+          |
+          |workflow wf {call param_test}
+        """.stripMargin, BackendType.LOCAL)
+    ) match {
+      case Failure(s: SyntaxError) => // expected
+      case _ => fail("Expecting a syntax error")
     }
   }
 }

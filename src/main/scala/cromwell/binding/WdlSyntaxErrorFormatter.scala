@@ -197,4 +197,11 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
        |${pointToSource(outputName)}
      """.stripMargin
   }
+
+  def trueAndFalseAttributesAreRequired(firstAttribute: Terminal) = {
+    s"""ERROR: both 'true' and 'false' attributes must be specified if either is specified:
+       |
+       |${pointToSource(firstAttribute)}
+     """.stripMargin
+  }
 }

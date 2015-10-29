@@ -68,15 +68,17 @@ package object engine {
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions).get
     val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
 
-    val workflowLogger = Option(System.getProperty("LOG_MODE")) match {
+    val props = sys.props
+    val workflowLogger = props.get("LOG_MODE") match {
       case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
-        Paths.get(Option(System.getProperty("LOG_ROOT")).getOrElse(".")),
-        s"workflow.$id.log"
+        Paths.get(props.getOrElse("LOG_ROOT", ".")),
+        s"workflow.$id.log",
+        Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
       )
       case _ => NOPLogger.NOP_LOGGER
     }
 
-    private def makeFileLogger(root: Path, name: String): Logger = {
+    private def makeFileLogger(root: Path, name: String, level: Level): Logger = {
       val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
       val encoder = new PatternLayoutEncoder()
       encoder.setPattern("%date %-5level - %msg%n")
@@ -94,7 +96,7 @@ package object engine {
       val fileLogger = ctx.getLogger(name)
       fileLogger.addAppender(appender)
       fileLogger.setAdditive(false)
-      fileLogger.setLevel(Level.toLevel(Option(System.getProperty("LOG_LEVEL")).getOrElse("debug")))
+      fileLogger.setLevel(level)
       fileLogger
     }
   }

@@ -169,13 +169,17 @@ inputs <WDL file>
   workflow.  Fill in the values in this JSON document and
   pass it in to the 'run' subcommand.
 
-run <WDL file> [<JSON inputs file> [<JSON workflow options]]
+run <WDL file> [<JSON inputs file> [<JSON workflow options>
+  [<OUTPUT workflow metadata>]]]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
   print out the outputs in JSON format.  The workflow
   options file specifies some runtime configuration for the
-  workflow (see README for details)
+  workflow (see README for details).  The workflow metadata
+  output is an optional file path to output the metadata.
+  Use a single dash ("-") to skip optional files. Ex:
+    run noinputs.wdl - - metadata.json
 
 parse <WDL file>
 
@@ -257,7 +261,7 @@ $ java -jar cromwell.jar run 3step.wdl inputs.json
 }
 ```
 
-The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.json` extension.  For example, this will assume that `3step.json` exists:
+The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.inputs` extension.  For example, this will assume that `3step.inputs` exists:
 
 ```
 $ java -jar cromwell.jar run 3step.wdl
@@ -269,7 +273,7 @@ If your workflow has no inputs, you can specify `-` as the value for the inputs 
 $ java -jar cromwell.jar run my_workflow.wdl -
 ```
 
-The final optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
+The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
 Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes) for more details.
 
@@ -284,6 +288,42 @@ Where `wf_options.json` would contain:
   "jes_gcs_root": "gs://my-bucket/workflows",
   "account_name": "my.google.account@gmail.com",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+The fourth, optional parameter to the 'run' subcommand is a path where the workflow metadata will be written.  By default, no workflow metadata will be written.
+
+```
+$ java -jar cromwell.jar run my_wf.wdl - - my_wf.metadata.json
+... play-by-play output ...
+$ cat my_wf.metadata.json
+{
+  "calls": {
+    "example.my_task": [{
+      "executionStatus": "Done",
+      "stdout": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stdout",
+      "outputs": {
+        "result": "my example output"
+      },
+      "inputs": {
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-29T03:16:51.732-03:00",
+      "stderr": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stderr",
+      "start": "2015-10-29T03:16:51.213-03:00"
+    }]
+  },
+  "outputs": {
+    "example.my_task.result": "my = /root/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task"
+  },
+  "id": "22b6f829-e2f9-4813-9d20-3328669c786b",
+  "inputs": {
+  },
+  "submission": "2015-10-29T03:16:51.125-03:00",
+  "status": "Succeeded",
+  "end": "2015-10-29T03:16:51.740-03:00",
+  "start": "2015-10-29T03:16:51.125-03:00"
 }
 ```
 

@@ -496,8 +496,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         if (scatters.exists(_.status.toExecutionStatus == ExecutionStatus.Starting)) {
           val startingScatters = stringifyExecutions(scatters)
           Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + startingScatters))
-        }
-        else {
+        } else {
           // Scattered calls have multiple executions with the same FQN.  The collector is the execution with no index.
           // The first element of the partition will be scattered calls (both collectors *and* shards), the second
           // element is all unscattered calls.

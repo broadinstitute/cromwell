@@ -1,9 +1,12 @@
 package cromwell.engine.backend.local
 
 import cromwell.binding.CallInputs
+import cromwell.engine.backend._
 import cromwell.engine.backend.{JobKey, BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+
+import scala.concurrent.Future
 
 case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,
@@ -23,6 +26,11 @@ case class LocalBackendCall(backend: LocalBackend,
   val script = callRootPath.resolve("script")
   val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr)
   callRootPath.toFile.mkdirs
-  def execute: ExecutionResult = backend.execute(this)
-  override def resume(jobKey: JobKey) = ???
+
+  // Block for the execution.  TODO don't block.
+  override def execute = Future.successful(CompletedExecutionHandle(backend.execute(this)))
+
+  override def resume(jobKey: JobKey) = Future.failed(new NotImplementedError)
+
+  override def poll(previous: ExecutionHandle) = Future.successful(previous)
 }

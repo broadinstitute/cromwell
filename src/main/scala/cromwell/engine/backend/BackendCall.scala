@@ -6,6 +6,7 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.CallKey
 
+import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -40,6 +41,27 @@ import scala.util.Try
  * 2) We need a place to write the results of `write_lines()`, and that location
  *    is backend-specific
  */
+
+/**
+ * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
+ * with the `poll` API to feed results of previous job status queries forward.
+ */
+trait ExecutionHandle {
+  def isDone: Boolean
+  def result: ExecutionResult
+}
+
+/** A handle that represents a completed execution. */
+final case class CompletedExecutionHandle(override val result: ExecutionResult) extends ExecutionHandle {
+  override val isDone = true
+}
+
+/** A handle representing a failed execution. */
+final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
+  override val isDone = true
+  override val result = FailedExecution(throwable, returnCode)
+}
+
 
 trait BackendCall {
 
@@ -90,11 +112,8 @@ trait BackendCall {
     call.instantiateCommandLine(backendInputs, engineFunctions)
   }
 
-  /**
-   * Block while executing this call.  Return a Success(Map[CallOutputs]) if the
-   * Call ran successfully.  Otherwise return a Failure.
-   */
-  def execute: ExecutionResult
+  /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
+  def execute: Future[ExecutionHandle]
 
   /**
    * The default implementation of this method is not expected to be called and simply throws a `NotImplementedError`.
@@ -102,5 +121,11 @@ trait BackendCall {
    * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
    * `BackendCall` should override this method to actually do the resumption work.
    */
-  def resume(jobKey: JobKey): ExecutionResult = ???
+  def resume(jobKey: JobKey): Future[ExecutionHandle] = ???
+
+  /**
+   * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution
+   * of this `BackendCall`.
+   */
+  def poll(previous: ExecutionHandle): Future[ExecutionHandle]
 }

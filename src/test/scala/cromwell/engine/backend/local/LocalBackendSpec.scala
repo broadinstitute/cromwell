@@ -5,12 +5,13 @@ import java.nio.file.Paths
 import cromwell.CromwellTestkitSpec
 import cromwell.binding.WdlSource
 import cromwell.binding.values.WdlValue
-import cromwell.engine.backend.{Backend, AbortedExecution, FailedExecution, SuccessfulExecution}
+import cromwell.engine.backend._
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.SampleWdl
 import org.specs2.mock.Mockito
 
+import scala.concurrent.ExecutionContext.Implicits.global
 class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") with Mockito {
 
   object StdoutWdl extends SampleWdl {
@@ -39,7 +40,7 @@ class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") with Mock
     val call = descriptor.namespace.workflow.calls.head
     val backend = new LocalBackend()
     val backendCall = backend.bindCall(descriptor, CallKey(call, None), Map.empty[String, WdlValue], AbortRegistrationFunction(_ => ()))
-    backendCall.execute match {
+    backendCall.execute map { _.result } map {
       case FailedExecution(e, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
       case SuccessfulExecution(_, _) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
       case AbortedExecution => fail("Not expecting this at all")

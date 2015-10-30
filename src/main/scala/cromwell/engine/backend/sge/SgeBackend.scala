@@ -35,7 +35,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): ExecutionResult =  {
+  def execute(backendCall: BackendCall): ExecutionResult =  {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>

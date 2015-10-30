@@ -2,19 +2,18 @@ package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.jes.JesBackend.{JesOutput, JesInput, JesParameter}
+import cromwell.engine.AbortFunction
+import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput, JesParameter}
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
 import cromwell.engine.workflow.CallKey
-import cromwell.util.TryUtil
 import cromwell.util.google.GoogleScopes
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Failure
 
 object Run  {
   val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
@@ -73,7 +72,13 @@ object Run  {
     def hasStarted = operation.getMetadata.asScala.get("startTime") isDefined
   }
 
-  sealed trait RunStatus
+  sealed trait RunStatus {
+    // Could be defined as false for Initializing and true otherwise, but this is more defensive.
+    def isRunningOrComplete = this match {
+      case Running | _: TerminalRunStatus => true
+      case _ => false
+    }
+  }
   trait TerminalRunStatus extends RunStatus
   case object Initializing extends RunStatus
   case object Running extends RunStatus
@@ -102,57 +107,27 @@ case class Run(runId: String, pipeline: Pipeline, tag: String) {
     }
   }
 
-  private final def waitForStatus(previousStatus: Option[RunStatus], breakout: RunStatus => Boolean): RunStatus = {
+  def checkStatus(backendCall: JesBackendCall, previousStatus: Option[RunStatus]): RunStatus = {
+    val currentStatus = status()
 
-    def checkStatus(previousStatus: Option[RunStatus]): RunStatus = {
-      val currentStatus = status()
+    if (!(previousStatus contains currentStatus)) {
+      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
+      // just use the state names.
+      val prevStateName = previousStatus map { _.toString } getOrElse "-"
+      Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
 
-      if (!(previousStatus contains currentStatus)) {
-        // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
-        // just use the state names.
-        val prevStateName = previousStatus map { _.toString } getOrElse "-"
-        Log.info(s"$tag: Status change from $prevStateName to $currentStatus")
+      // Update the database state:
+      val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
+      globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
 
-        // Update the database state:
-        val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
-        globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
+      // If this has transitioned to a running or complete state from a state this is not running or complete,
+      // register the abort function.
+      if (currentStatus.isRunningOrComplete && (previousStatus.isEmpty || !previousStatus.get.isRunningOrComplete)) {
+        backendCall.callAbortRegistrationFunction.register(AbortFunction(() => abort()))
       }
-
-      currentStatus
     }
-
-    val attemptedStatus = TryUtil.retryBlock(
-      fn = checkStatus,
-      isSuccess = breakout,
-      retryLimit = None,
-      pollingInterval = InitialPollingInterval,
-      pollingBackOffFactor = PollingBackoffFactor,
-      maxPollingInterval = MaximumPollingInterval,
-      priorValue = previousStatus
-    )
-
-    attemptedStatus match {
-      case util.Success(x) => x
-      case Failure(_) => Failed(-1, "Unexpectedly stopped checking status.") // Assuming TryUtil.retryBlock works, this should not happen
-    }
+    currentStatus
   }
-
-  final def waitUntilComplete(previousStatus: RunStatus): TerminalRunStatus = {
-    val terminalStatus = waitForStatus(Option(previousStatus), {
-      case x: TerminalRunStatus => true
-      case _ => false
-    })
-    terminalStatus match {
-      case x: TerminalRunStatus => x
-      case _ => Failed(-1, "Unexpectedly stopped checking status")
-    }
-  }
-
-  final def waitUntilRunningOrComplete: RunStatus = waitForStatus(None, {
-    case Running => true
-    case x: TerminalRunStatus => true
-    case _ => false
-  })
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()

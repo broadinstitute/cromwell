@@ -14,6 +14,7 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -122,6 +123,20 @@ object JesBackend {
 
 final case class JesJobKey(operationId: String) extends JobKey
 
+/**
+ * Representing a running JES execution, instances of this class are never Done and it is never okay to
+ * ask them for results.
+ */
+case class JesPendingExecutionHandle(backendCall: JesBackendCall,
+                                     jesOutputs: Seq[JesOutput],
+                                     run: Run,
+                                     previousStatus: Option[RunStatus]) extends ExecutionHandle {
+  override val isDone = false
+
+  override def result = FailedExecution(new IllegalStateException)
+}
+
+
 class JesBackend extends Backend with LazyLogging with ProductionJesAuthentication with ProductionJesConfiguration {
 
   type BackendCall = JesBackendCall
@@ -214,7 +229,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   override def engineFunctions: WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext()
 
-  private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String]): ExecutionResult = {
+  private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val tag = makeTag(backendCall)
     logger.info(s"$tag Call GCS path: ${backendCall.callGcsPath}")
 
@@ -223,13 +238,13 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     backendCall.instantiateCommand match {
       case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs, runIdForResumption)
-      case Failure(ex) => FailedExecution(ex)
+      case Failure(ex) => FailedExecutionHandle(ex)
     }
   }
 
-  override def execute(backendCall: BackendCall): ExecutionResult = executeOrResume(backendCall, runIdForResumption = None)
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(backendCall, runIdForResumption = None)
 
-  def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionResult = {
+  def resume(backendCall: BackendCall, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.operationId }
     executeOrResume(backendCall, runIdForResumption = runId)
   }
@@ -354,34 +369,30 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     gcsInputToGcsOutput(backendCall, originalLookup(toBeLookedUp))
   }
 
-  private def pollJesRun(run: Run, backendCall: BackendCall, jesOutputs: Seq[JesOutput]): ExecutionResult = authenticated { connection =>
-    // Wait until the job starts (or completes/fails) before registering the abort to avoid awkward cancel-during-initialization behavior.
-    val initializedStatus = run.waitUntilRunningOrComplete
-    backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
+  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionResult = authenticated { connection =>
 
     def wdlFileToGcsPath(value: WdlValue, coerceTo: WdlType) =
       if (coerceTo == WdlFileType && WdlFileType.isCoerceableFrom(value.wdlType))
-        jesOutputs find { _.name == value.valueString } map { j => WdlFile(j.gcs) } getOrElse value
+        handle.jesOutputs find { _.name == value.valueString } map { j => WdlFile(j.gcs) } getOrElse value
       else
         value
 
     try {
-      val status = run.waitUntilComplete(initializedStatus)
-
+      val backendCall = handle.backendCall
       val outputMappings = backendCall.call.task.outputs map { taskOutput =>
-        /**
-         * this will evaluate the task output expression and coerces it to the task output's type.
-         * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
-         * return a WdlFile that represents the GCS path and not the local path.  For example,
-         *
-         * output {
-         *   File x = "out" + ".txt"
-         * }
-         *
-         * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
-         * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
-         * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
-         */
+      /**
+       * this will evaluate the task output expression and coerces it to the task output's type.
+       * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
+       * return a WdlFile that represents the GCS path and not the local path.  For example,
+       *
+       * output {
+       *   File x = "out" + ".txt"
+       * }
+       *
+       * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
+       * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
+       * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
+       */
         val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) map { wdlValue =>
           wdlFileToGcsPath(wdlValue, taskOutput.wdlType)
         }
@@ -410,17 +421,17 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           FailedExecution(throwable, Option(errorCode))
 
       }
-    }
-    catch {
+    } catch {
       case e: Exception => FailedExecution(e)
     }
   }
+
 
   private def runWithJes(backendCall: BackendCall,
                          command: String,
                          jesInputs: Seq[JesInput],
                          jesOutputs: Seq[JesOutput],
-                         runIdForResumption: Option[String]): ExecutionResult = {
+                         runIdForResumption: Option[String]): ExecutionHandle = {
     val tag = makeTag(backendCall)
     val jesParameters = backendCall.standardParameters ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
     logger.info(s"$tag `$command`")
@@ -433,8 +444,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     jesJobSetup match {
       case Failure(ex) =>
         logger.error(s"$tag Failed to create a JES run", ex)
-        FailedExecution(ex)
-      case Success(run) => pollJesRun(run, backendCall, jesOutputs)
+        FailedExecutionHandle(ex)
+      case Success(run) => JesPendingExecutionHandle(backendCall, jesOutputs, run, previousStatus = None)
     }
   }
 

@@ -10,6 +10,7 @@ import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
+import cromwell.engine.backend.{ExecutionHandle, Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.backend.{JobKey, Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
 import cromwell.engine.workflow.CallKey
@@ -60,9 +61,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       throw new NotImplementedError
 
     override def engineFunctions: WdlStandardLibraryFunctions =
-      throw new NotImplementedError
-
-    override def execute(bc: BackendCall): ExecutionResult =
       throw new NotImplementedError
 
     override def backendType: BackendType =

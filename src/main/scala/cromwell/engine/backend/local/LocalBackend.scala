@@ -90,7 +90,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): ExecutionResult =  {
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
@@ -99,7 +99,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         runSubprocess(backendCall)
       case Failure(ex) => FailedExecution(ex)
     }
-  }
+  } map CompletedExecutionHandle
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.

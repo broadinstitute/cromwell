@@ -7,7 +7,7 @@ import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.Backend.RestartableWorkflow
@@ -324,6 +324,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       case x : WdlFile =>
         val delocalizationPath = s"${backendCall.callGcsPath}/${vmLocalizationPath.valueString}"
         WdlFile(delocalizationPath)
+      case a: WdlArray => WdlArray(a.wdlType, a.value map { f => gcsInputToGcsOutput(backendCall, f) })
+      case m: WdlMap => WdlMap(m.wdlType, m.value map { case (k, v) => gcsInputToGcsOutput(backendCall, k) -> gcsInputToGcsOutput(backendCall, v) })
       case other => other
     }
   }
@@ -338,11 +340,18 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     val initializedStatus = run.waitUntilRunningOrComplete
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => run.abort()))
 
-    def wdlFileToGcsPath(value: WdlValue, coerceTo: WdlType) =
-      if (coerceTo == WdlFileType && WdlFileType.isCoerceableFrom(value.wdlType))
-        jesOutputs find { _.name == value.valueString } map { j => WdlFile(j.gcs) } getOrElse value
-      else
-        value
+    def wdlValueToGcsPath(value: WdlValue): WdlValue = {
+      def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst { case o if o.name == wdlFile.valueString => WdlFile(o.gcs) } getOrElse value
+
+      value match {
+        case wdlArray: WdlArray => wdlArray map wdlValueToGcsPath
+        case wdlMap: WdlMap => wdlMap map {
+          case (k, v) => wdlValueToGcsPath(k) -> wdlValueToGcsPath(v)
+        }
+        case file: WdlFile => toGcsPath(file)
+        case other => other
+      }
+    }
 
     try {
       val status = run.waitUntilComplete(initializedStatus)
@@ -361,8 +370,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
          * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
          * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
          */
-        val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) map { wdlValue =>
-          wdlFileToGcsPath(wdlValue, taskOutput.wdlType)
+        val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) flatMap { wdlValue =>
+          taskOutput.wdlType.coerceRawValue(wdlValue) map wdlValueToGcsPath
         }
         taskOutput.name -> attemptedValue
       } toMap

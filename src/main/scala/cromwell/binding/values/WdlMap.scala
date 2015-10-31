@@ -55,10 +55,17 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
 
   def tsvSerialize: Try[String] = {
     (wdlType.keyType, wdlType.valueType) match {
-      case (k: WdlPrimitiveType, v: WdlPrimitiveType) =>
+      case (wdlTypeKey: WdlPrimitiveType, wdlTypeValue: WdlPrimitiveType) =>
         Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString("\n"))
       case _ =>
         Failure(new UnsupportedOperationException("Can only TSV serialize a Map[Primitive, Primitive]"))
+    }
+  }
+
+  def map(f: PartialFunction[((WdlValue, WdlValue)), (WdlValue, WdlValue)]): WdlMap = {
+    value map f match {
+      case m: Map[WdlValue, WdlValue] if m.nonEmpty => WdlMap(WdlMapType(m.head._1.wdlType, m.head._2.wdlType), m)
+      case _ => this
     }
   }
 }

@@ -25,6 +25,7 @@ import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
 object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
@@ -41,10 +42,14 @@ object WorkflowManagerActor {
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
+  final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
 
   def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
   lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
+  // How long to delay between restarting each workflow that needs to be restarted.  Attempting to
+  // restart 500 workflows at exactly the same time crushes the database connection pool.
+  lazy val RestartDelay = 200 milliseconds
   lazy val BackendType = BackendInstance.backendType
 }
 
@@ -88,6 +93,12 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
       workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
+    case RestartWorkflows(w :: ws) =>
+      restartWorkflow(w)
+      context.system.scheduler.scheduleOnce(RestartDelay) {
+        self ! RestartWorkflows(ws)
+      }
+    case RestartWorkflows(Nil) => // No more workflows need restarting.
   }
 
   /**
@@ -271,7 +282,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     val result = for {
       restartableWorkflows <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
       _ = logRestarts(restartableWorkflows)
-      _ = restartableWorkflows foreach restartWorkflow
+      _ = self ! RestartWorkflows(restartableWorkflows.toSeq)
     } yield ()
 
     result recover {

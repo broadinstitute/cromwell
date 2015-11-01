@@ -9,16 +9,16 @@ import cromwell.binding._
 import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlType}
 import cromwell.binding.values._
-import cromwell.engine.ExecutionIndex.{IndexEnhancedInt, ExecutionIndex}
+import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.{ExecutionStoreKey, CallKey, WorkflowOptions}
-import cromwell.engine._
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 import cromwell.util.StringDigestion._
 import cromwell.util.TryUtil
@@ -112,14 +112,11 @@ object JesBackend {
   final case class JesInput(name: String, gcs: String, local: Path, parameterType: String = "REFERENCE") extends JesParameter
   final case class JesOutput(name: String, gcs: String, local: Path, parameterType: String = "REFERENCE") extends JesParameter
 
-  implicit class EnhancedExecutionStatusString(val string: String) extends AnyVal {
-    def toExecutionStatus: ExecutionStatus = ExecutionStatus.withName(string)
-  }
-
   implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
     import cromwell.engine.ExecutionIndex._
     def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
+    def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
 }
 
@@ -479,24 +476,16 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         executions.toSeq.sortWith((lt, rt) => lt.callFqn < rt.callFqn || (lt.callFqn == rt.callFqn && lt.index < rt.index)).mkString(" ")
       }
 
-      def isRunningCollector(key: Execution): Boolean = {
-        key.index.toIndex.isEmpty && key.status.toExecutionStatus == ExecutionStatus.Running
-      }
+      def isRunningCollector(key: Execution) = key.index.toIndex.isEmpty && key.executionStatus == ExecutionStatus.Running
 
-      val executionsByStatus = executions.groupBy(_.status) map { case (k, v) => ExecutionStatus.withName(k) -> v }
+      val failedOrAbortedExecutions = executions filter { x => x.executionStatus == ExecutionStatus.Aborted || x.executionStatus == ExecutionStatus.Failed }
 
-      def failForStatus(status: ExecutionStatus): Future[Unit] = {
-        val executionInStatus = executionsByStatus.get(status).get
-        Future.failed(new Throwable(s"$tag Cannot restart, found executions in Failed status: " + stringifyExecutions(executionInStatus)))
-      }
-
-      if (executionsByStatus.contains(ExecutionStatus.Failed)) {
-        failForStatus(ExecutionStatus.Failed)
-      } else if (executionsByStatus.contains(ExecutionStatus.Aborted)) {
-        failForStatus(ExecutionStatus.Aborted)
+      if (failedOrAbortedExecutions.nonEmpty) {
+        Future.failed(new Throwable(s"$tag Cannot restart, found Failed and/or Aborted executions: " + stringifyExecutions(failedOrAbortedExecutions)))
       } else {
+        // Cromwell has execution types: scatter, collector, call.
         val (scatters, collectorsAndCalls) = executions partition { _.isScatter }
-        val startingScatters = scatters filter { _.status.toExecutionStatus == ExecutionStatus.Starting }
+        val startingScatters = scatters filter { _.executionStatus == ExecutionStatus.Starting }
         if (startingScatters.nonEmpty) {
           Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + stringifyExecutions(startingScatters)))
         } else {

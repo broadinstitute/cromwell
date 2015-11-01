@@ -14,7 +14,7 @@ import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.StringDigestion._
 import cromwell.util.google.GoogleCloudStoragePath
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object JesBackendCall {
   
@@ -65,25 +65,19 @@ class JesBackendCall(val backend: JesBackend,
    */
   def globOutputPath(glob: String) = s"$callGcsPath/glob-${glob.md5Sum}/"
 
-  /** TODO creating the JES run should be async but currently is not. */
-  override def execute = Future.successful(backend.execute(this))
+  override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
-  /** Note this is currently not async querying JES status, only in not blocking *between*
-    *  JES status queries. */
-  override def poll(previous: ExecutionHandle) = previous match {
-    case handle: JesPendingExecutionHandle =>
-      val status = handle.run.checkStatus(this, handle.previousStatus)
-      val nextHandle = status match {
-        case s: TerminalRunStatus => CompletedExecutionHandle(backend.executionResult(s, handle))
-        case s => handle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
-      }
-      Future.successful(nextHandle)
-    case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
+  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {
+    previous match {
+      case handle: JesPendingExecutionHandle =>
+        val status = handle.run.checkStatus(this, handle.previousStatus)
+        status match {
+          case s: TerminalRunStatus => CompletedExecutionHandle(backend.executionResult(s, handle))
+          case s => handle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+        }
+      case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
+    }
   }
 
-  /**
-   * TODO resuming a JES run should be async but currently is not, though this wouldn't be nearly as big a win as
-   * for the execute case since this probably doesn't do much of anything with JES.
-   */
-  override def resume(jobKey: JobKey) = Future.successful(backend.resume(this, jobKey))
+  override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = backend.resume(this, jobKey)
 }

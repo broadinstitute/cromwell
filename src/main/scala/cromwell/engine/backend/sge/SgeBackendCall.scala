@@ -7,7 +7,7 @@ import cromwell.engine.backend.{JobKey, BackendCall, ExecutionResult, LocalFileS
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 case class SgeBackendCall(backend: SgeBackend,
                           workflowDescriptor: WorkflowDescriptor,
@@ -23,10 +23,9 @@ case class SgeBackendCall(backend: SgeBackend,
   val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr)
   callRootPath.toFile.mkdirs
 
-  // Block for the execution.  TODO don't block.
-  override def execute = Future.successful(CompletedExecutionHandle(backend.execute(this)))
+  override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
-  override def resume(jobKey: JobKey) = Future.failed(new NotImplementedError)
+  override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = Future.failed(new NotImplementedError)
 
-  override def poll(previous: ExecutionHandle) = Future.successful(previous)
+  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 }

@@ -35,7 +35,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  def execute(backendCall: BackendCall): ExecutionResult =  {
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
@@ -60,7 +60,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         }
       case Failure(ex) => FailedExecution(ex)
     }
-  }
+  } map CompletedExecutionHandle
 
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted

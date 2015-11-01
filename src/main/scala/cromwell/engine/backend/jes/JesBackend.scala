@@ -229,7 +229,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   override def engineFunctions: WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext()
 
-  private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String]): ExecutionHandle = {
+  private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val tag = makeTag(backendCall)
     logger.info(s"$tag Call GCS path: ${backendCall.callGcsPath}")
 
@@ -242,9 +242,9 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
-  def execute(backendCall: BackendCall): ExecutionHandle = executeOrResume(backendCall, runIdForResumption = None)
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(backendCall, runIdForResumption = None)
 
-  def resume(backendCall: BackendCall, jobKey: JobKey): ExecutionHandle = {
+  def resume(backendCall: BackendCall, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.operationId }
     executeOrResume(backendCall, runIdForResumption = runId)
   }

@@ -6,7 +6,7 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.CallKey
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 /**
@@ -113,7 +113,7 @@ trait BackendCall {
   }
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
-  def execute: Future[ExecutionHandle]
+  def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
   /**
    * The default implementation of this method is not expected to be called and simply throws a `NotImplementedError`.
@@ -121,11 +121,11 @@ trait BackendCall {
    * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
    * `BackendCall` should override this method to actually do the resumption work.
    */
-  def resume(jobKey: JobKey): Future[ExecutionHandle] = ???
+  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
 
   /**
    * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution
    * of this `BackendCall`.
    */
-  def poll(previous: ExecutionHandle): Future[ExecutionHandle]
+  def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 }

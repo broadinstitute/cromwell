@@ -119,6 +119,7 @@ object JesBackend {
   implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
     import cromwell.engine.ExecutionIndex._
     def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+    def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
   }
 }
 
@@ -466,7 +467,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
    * </ul>
    *
    * Calls in Running *with* a job key should be left in Running.  The WorkflowActor is responsible for
-   * resuming the call actors for these calls.
+   * resuming the CallActors for these calls.
    */
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
 
@@ -474,7 +475,6 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     def handleExecutionStatuses(executions: Traversable[Execution]): Future[Unit] = {
 
-      val executionsByStatus = executions.groupBy(_.status) map { case (k, v) => ExecutionStatus.withName(k) -> v }
       def stringifyExecutions(executions: Traversable[Execution]): String = {
         executions.toSeq.sortWith((lt, rt) => lt.callFqn < rt.callFqn || (lt.callFqn == rt.callFqn && lt.index < rt.index)).mkString(" ")
       }
@@ -483,25 +483,27 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         key.index.toIndex.isEmpty && key.status.toExecutionStatus == ExecutionStatus.Running
       }
 
+      val executionsByStatus = executions.groupBy(_.status) map { case (k, v) => ExecutionStatus.withName(k) -> v }
+
+      def failForStatus(status: ExecutionStatus): Future[Unit] = {
+        val executionInStatus = executionsByStatus.get(status).get
+        Future.failed(new Throwable(s"$tag Cannot restart, found executions in Failed status: " + stringifyExecutions(executionInStatus)))
+      }
+
       if (executionsByStatus.contains(ExecutionStatus.Failed)) {
-        val failedExecutions = stringifyExecutions(executionsByStatus.get(ExecutionStatus.Failed).get)
-        Future.failed(new Throwable(s"$tag Cannot restart, found executions in Failed status: " + failedExecutions))
+        failForStatus(ExecutionStatus.Failed)
       } else if (executionsByStatus.contains(ExecutionStatus.Aborted)) {
-        val abortedExecutions = stringifyExecutions(executionsByStatus.get(ExecutionStatus.Aborted).get)
-        Future.failed(new Throwable(s"$tag Cannot restart, found executions in Aborted status: " + abortedExecutions))
+        failForStatus(ExecutionStatus.Aborted)
       } else {
-        // Cromwell currently does not persist the types of executions.  Scatters are identified by this magic
-        // "$scatter_" string.
-        val (scatters, nonScatters) = executions partition { _.callFqn.contains(Scatter.FQNIdentifier) }
-        if (scatters.exists(_.status.toExecutionStatus == ExecutionStatus.Starting)) {
-          val startingScatters = stringifyExecutions(scatters)
-          Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + startingScatters))
+        val (scatters, collectorsAndCalls) = executions partition { _.isScatter }
+        val startingScatters = scatters filter { _.status.toExecutionStatus == ExecutionStatus.Starting }
+        if (startingScatters.nonEmpty) {
+          Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + stringifyExecutions(startingScatters)))
         } else {
-          // Scattered calls have multiple executions with the same FQN.  The collector is the execution with no index.
-          // The first element of the partition will be scattered calls (both collectors *and* shards), the second
-          // element is all unscattered calls.
-          val collectorsAndShards = nonScatters.groupBy(_.callFqn) filter { case (_, xs) => xs.size > 1 }
-          val runningCollectors = collectorsAndShards.values.flatten filter isRunningCollector
+          // Scattered calls have more than one execution with the same FQN.  Find any collectors in these FQN
+          // groupings which are in Running state.
+          val runningCollectors = collectorsAndCalls.groupBy(_.callFqn) collect {
+            case (_, xs) if xs.size > 1 => xs filter isRunningCollector } flatten
 
           for {
             _ <- globalDataAccess.resetNonResumableJesExecutions(restartableWorkflow.id)
@@ -514,7 +516,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     for {
       // Find all executions for the specified workflow that are not NotStarted or Done.
       executions <- globalDataAccess.getExecutionsForRestart(restartableWorkflow.id)
-      // Examine statuses/types of executions.
+      // Examine statuses/types of executions, reset statuses as necessary.
       _ <- handleExecutionStatuses(executions)
     } yield ()
   }

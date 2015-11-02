@@ -25,7 +25,5 @@ case class SgeBackendCall(backend: SgeBackend,
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
-  override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = Future.failed(new NotImplementedError)
-
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 }

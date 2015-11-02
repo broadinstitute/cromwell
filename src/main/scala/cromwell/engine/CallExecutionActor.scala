@@ -73,10 +73,8 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
       mode.execute(backendCall) onComplete ifSuccess { self ! IssuePollRequest(_) }
     case IssuePollRequest(handle) =>
       backendCall.poll(handle) onComplete ifSuccess { self ! PollResponseReceived(_) }
-    case PollResponseReceived(handle) if handle.isDone =>
-      self ! Finish(handle)
-    case PollResponseReceived(handle) =>
-      scheduleNextPoll(handle)
+    case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
+    case PollResponseReceived(handle) => scheduleNextPoll(handle)
     case Finish(handle) =>
       context.parent ! CallActor.ExecutionFinished(backendCall.call, handle.result)
       context.stop(self)

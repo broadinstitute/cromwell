@@ -126,6 +126,7 @@ case class Run(runId: String, pipeline: Pipeline, tag: String) {
         backendCall.callAbortRegistrationFunction.register(AbortFunction(() => abort()))
       }
     }
+
     currentStatus
   }
 

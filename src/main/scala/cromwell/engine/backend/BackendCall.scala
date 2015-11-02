@@ -51,12 +51,10 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-/** A handle that represents a completed execution. */
 final case class CompletedExecutionHandle(override val result: ExecutionResult) extends ExecutionHandle {
   override val isDone = true
 }
 
-/** A handle representing a failed execution. */
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = FailedExecution(throwable, returnCode)
@@ -116,12 +114,14 @@ trait BackendCall {
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
   /**
-   * The default implementation of this method is not expected to be called and simply throws a `NotImplementedError`.
+   * The default implementation of this method is not expected to be called and simply throws an `NotImplementedError`.
    * If the corresponding backend does not override `Backend#findResumableExecutions` to return resumable executions,
    * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
    * `BackendCall` should override this method to actually do the resumption work.
    */
-  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
+  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    throw new NotImplementedError(s"resume() called on a non-resumable BackendCall: $this")
+  }
 
   /**
    * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution

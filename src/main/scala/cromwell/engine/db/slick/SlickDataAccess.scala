@@ -658,11 +658,13 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
       }
     }
+
     val action = for {
       executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
       nonResumableDatabaseKeys = collectNonResumableDatabaseKeys(executionsAndJobs)
       _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None))
     } yield ()
+
     runTransaction(action)
   }
 
@@ -674,10 +676,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex), JesJobKey(job.jesId.get))
       }
     }
+
     val action = for {
       executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
       resumableKeyPairs = collectResumableKeyPairs(executionsAndJobs)
     } yield resumableKeyPairs
+
     runTransaction(action) map { _.toMap }
   }
 }

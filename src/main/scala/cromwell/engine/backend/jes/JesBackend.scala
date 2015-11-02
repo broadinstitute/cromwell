@@ -485,12 +485,19 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       } else {
         // Cromwell has execution types: scatter, collector, call.
         val (scatters, collectorsAndCalls) = executions partition { _.isScatter }
+        // If a scatter is found in starting state, it's not clear without further database queries whether the call
+        // shards have been created or not.  This is an unlikely scenario and could be worked around with further
+        // queries or a bracketing transaction, but for now Cromwell just bails out on restarting the workflow.
         val startingScatters = scatters filter { _.executionStatus == ExecutionStatus.Starting }
         if (startingScatters.nonEmpty) {
           Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + stringifyExecutions(startingScatters)))
         } else {
           // Scattered calls have more than one execution with the same FQN.  Find any collectors in these FQN
           // groupings which are in Running state.
+          // This is a race condition similar to the "starting scatters" case above, but here the assumption is that
+          // it's more likely that collectors can safely be reset to starting.  This may prove not to be the case if
+          // entries have been written to the symbol table.
+          // Like the starting scatters case, further queries or a bracketing transaction would be a better long term solution.
           val runningCollectors = collectorsAndCalls.groupBy(_.callFqn) collect {
             case (_, xs) if xs.size > 1 => xs filter isRunningCollector } flatten
 

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import akka.actor.{FSM, LoggingFSM, Props}
 import akka.event.Logging
 import cromwell.binding._
 import cromwell.binding.expression.NoFunctions
@@ -10,7 +10,7 @@ import cromwell.engine.CallActor.CallActorMessage
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{JobKey, Backend}
+import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
@@ -38,7 +38,7 @@ object WorkflowActor {
 
   sealed trait StartMode {
     def runInitialization(actor: WorkflowActor): Future[Unit]
-    def start(actor: WorkflowActor, actorRef: ActorRef): actor.State
+    def start(actor: WorkflowActor): actor.State
   }
 
   implicit class EnhancedCallKey(val key: CallKey) extends AnyVal {
@@ -55,7 +55,7 @@ object WorkflowActor {
       }
     }
 
-    override def start(actor: WorkflowActor, actorRef: ActorRef) = actor.startRunnableCalls()
+    override def start(actor: WorkflowActor) = actor.startRunnableCalls()
   }
   
   case object Restart extends WorkflowActorMessage with StartMode {
@@ -67,7 +67,7 @@ object WorkflowActor {
       } yield ()
     }
 
-    override def start(actor: WorkflowActor, actorRef: ActorRef) = {
+    override def start(actor: WorkflowActor) = {
 
       def filterResumableCallKeys(resumableExecutionsAndJobIds: Map[ExecutionDatabaseKey, JobKey]): Traversable[CallKey] = {
         actor.executionStore.keys.collect {
@@ -85,9 +85,9 @@ object WorkflowActor {
       } yield state
 
       resumptionWork onComplete {
-        case Success(s) if s.stateName != WorkflowRunning => actorRef ! PerformTransition(s.stateName)
+        case Success(s) if s.stateName != WorkflowRunning => actor.self ! PerformTransition(s.stateName)
         case Success(s) => // Nothing to do here but there needs to be a match for this case.
-        case Failure(t) => actorRef ! AsyncFailure(t)
+        case Failure(t) => actor.self ! AsyncFailure(t)
       }
 
       actor.goto(WorkflowRunning)
@@ -202,7 +202,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor,
       stay()
     case Event(ExecutionStoreCreated(startMode), NoFailureMessage) =>
       log.info(s"$tag ExecutionStoreCreated($startMode) message received")
-      startMode.start(this, self)
+      startMode.start(this)
     case Event(PerformTransition(toState), NoFailureMessage) =>
       goto(toState)
     case Event(AsyncFailure(t), NoFailureMessage) =>

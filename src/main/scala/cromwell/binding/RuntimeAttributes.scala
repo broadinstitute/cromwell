@@ -49,7 +49,7 @@ object RuntimeAttributes {
 
   val LocalDiskName = "local-disk"
 
-  val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.LOCAL).toDisk
+  val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD).toDisk
   
   /** Fallback values if values for these keys are not specified in a task "runtime" stanza. */
   object Defaults {

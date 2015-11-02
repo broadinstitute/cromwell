@@ -64,7 +64,7 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
   def ifSuccess[T](successFunction: T => Unit): Try[T] => Unit = {
     case Success(s) => successFunction(s)
     case Failure(t) =>
-      log.error(t.getMessage, t)
+      log.error(t, t.getMessage)
       self ! Finish(FailedExecutionHandle(t))
   }
 

@@ -1,11 +1,11 @@
 package cromwell.engine.workflow
 
 import cromwell.binding._
+import cromwell.engine.ExecutionIndex._
+import cromwell.engine.SymbolStoreEntry
 import cromwell.engine.backend.{CallMetadata, StdoutStderr}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
-import cromwell.engine.ExecutionIndex._
-import cromwell.engine.SymbolStoreEntry
 import org.joda.time.DateTime
 
 import scala.language.postfixOps
@@ -182,6 +182,7 @@ object CallMetadataBuilder {
         end = metadata.execution.endDt map { new DateTime(_) },
         jobId = metadata.jobId,
         returnCode = metadata.execution.rc,
+        shardIndex = metadata.execution.index,
         stdout = metadata.streams map { _.stdout },
         stderr = metadata.streams map { _.stderr })
     }

@@ -610,4 +610,16 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+
+  "Cromwell timings API" should "return 200 with an HTML document for the timings route"in {
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/timing") ~>
+      timingRoute ~>
+      check {
+        assertResult(StatusCodes.OK) { status }
+        assertResult("<html>") {
+          responseAs[String].substring(0, 6)
+        }
+      }
+
+  }
 }

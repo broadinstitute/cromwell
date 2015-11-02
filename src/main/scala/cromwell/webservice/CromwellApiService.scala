@@ -1,12 +1,12 @@
 package cromwell.webservice
 
-import akka.actor.{Props, Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.engine.workflow.{ValidateActor, WorkflowOptions}
 import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
+import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._
-import lenthall.config.ScalaConfig._
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
@@ -40,7 +40,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute
+    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute
 
   def queryRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>
@@ -167,6 +167,14 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowMetadata(w))
         case Failure(_) =>
           complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
+      }
+    }
+
+  def timingRoute =
+    path("workflows" / Segment / Segment / "timing") { (version, workflowId) =>
+      Try(WorkflowId.fromString(workflowId)) match {
+        case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
+        case Failure(_) => complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
       }
     }
 }

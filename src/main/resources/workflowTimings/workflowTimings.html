@@ -1,0 +1,66 @@
+<html>
+<head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script type="text/javascript">
+        google.load("visualization", "1.1", {packages:["gantt"]});
+        google.setOnLoadCallback(drawChart);
+
+        function drawChart() {
+            $.getJSON("./metadata", function( data ) {
+                var graphData = new google.visualization.DataTable();
+                graphData.addColumn('string', 'Task ID');
+                graphData.addColumn('string', 'Task Name');
+                graphData.addColumn('string', 'Resource');
+                graphData.addColumn('date', 'Start');
+                graphData.addColumn('date', 'End');
+                graphData.addColumn('number', 'Duration');
+                graphData.addColumn('number', 'Percent Complete');
+                graphData.addColumn('string', 'Dependencies');
+
+                for (var key in data.calls) {
+                    if(data.calls.hasOwnProperty(key)) {
+                        for (var callIndex in data.calls[key])
+                        {
+                            var index = data.calls[key][callIndex]["shardIndex"]
+                            var callName = (index == -1 ? key : key + " (shard " + index + ")");
+                            var startDate = new Date(data.calls[key][callIndex]["start"]);
+                            var endDate = new Date(data.calls[key][callIndex]["end"]);
+                            // NB: See the column definitions above.
+                            graphData.addRow([callName, callName, null, startDate, endDate, null, 100, null]);
+                        }
+                    }
+                }
+
+                var options = {
+                    height: graphData.getNumberOfRows() * 20 + 60,
+                    gantt: {
+                        trackHeight: 20,
+                        barHeight: 15,
+                        arrow: {
+                            angle: 180,
+                            width: 1,
+                            color: 'green',
+                            radius: 1
+                        },
+                        labelMaxWidth: 250,
+                        labelStyle: {
+                            fontName: "Roboto2",
+                            fontSize: 10,
+                            color: '#757575'
+                        }
+                    }
+                };
+
+                var chart = new google.visualization.GanttChart(document.getElementById('chart_div'));
+
+                chart.draw(graphData, options);
+            });
+        }
+    </script>
+</head>
+<body>
+
+<div id="chart_div"></div>
+</body>
+</html>

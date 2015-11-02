@@ -2,19 +2,20 @@ package cromwell.engine.backend.jes
 
 import java.nio.file.Paths
 
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.binding.values.WdlFile
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
-import cromwell.engine.backend._
-import cromwell.engine.backend.{JobKey, BackendCall, ExecutionResult, StdoutStderr}
+import cromwell.engine.backend.{BackendCall, JobKey, StdoutStderr, _}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.StringDigestion._
 import cromwell.util.google.GoogleCloudStoragePath
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 object JesBackendCall {
   
@@ -37,7 +38,8 @@ class JesBackendCall(val backend: JesBackend,
                      val workflowDescriptor: WorkflowDescriptor,
                      val key: CallKey,
                      val locallyQualifiedInputs: CallInputs,
-                     val callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with ProductionJesAuthentication {
+                     val callAbortRegistrationFunction: AbortRegistrationFunction)
+  extends BackendCall with ProductionJesAuthentication with LazyLogging {
 
   import JesBackend._
   import JesBackendCall._
@@ -70,10 +72,15 @@ class JesBackendCall(val backend: JesBackend,
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {
     previous match {
       case handle: JesPendingExecutionHandle =>
-        val status = handle.run.checkStatus(this, handle.previousStatus)
+        val status = Try(handle.run.checkStatus(this, handle.previousStatus))
         status match {
-          case s: TerminalRunStatus => CompletedExecutionHandle(backend.executionResult(s, handle))
-          case s => handle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+          case Success(s: TerminalRunStatus) => CompletedExecutionHandle(backend.executionResult(s, handle))
+          case Success(s) => handle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+          case Failure(e: Exception) =>
+            // Log exceptions and return the original handle.
+            logger.error(e.getMessage, e)
+            handle
+          case Failure(throwable) => throw throwable
         }
       case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
     }

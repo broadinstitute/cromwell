@@ -35,7 +35,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): ExecutionResult =  {
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
@@ -60,7 +60,7 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
         }
       case Failure(ex) => FailedExecution(ex)
     }
-  }
+  } map CompletedExecutionHandle
 
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
@@ -77,11 +77,10 @@ class SgeBackend extends Backend with SharedFileSystem with LazyLogging {
     globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, CallKey(call.call, call.key.index), backendInfo)
   }
 
-  // TODO: Not much thought was given to this function
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
-                                 (implicit ec: ExecutionContext): Future[Any] = {
-    Future.successful(Unit)
-  }
+  /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like
+    * JES restart, which perhaps could be factored out into a common "remote executor" trait.
+    */
+  override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful(())
 
   /**
    * Returns the RC of this job when it finishes.  Sleeps and polls

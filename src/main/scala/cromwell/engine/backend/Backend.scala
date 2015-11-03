@@ -4,11 +4,12 @@ import com.typesafe.config.Config
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.engine.ExecutionIndex.ExecutionIndex
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
+import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 
@@ -33,10 +34,13 @@ object Backend {
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
 }
 
+trait JobKey
+
 /**
  * Trait to be implemented by concrete backends.
  */
 trait Backend {
+
   type BackendCall <: backend.BackendCall
 
   /**
@@ -61,12 +65,6 @@ trait Backend {
   def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
 
   /**
-   * Execute the Call (wrapped in a BackendCall), return the outputs if it is
-   * successful, otherwise, returns Failure with a reason why the execution failed
-   */
-  def execute(backendCall: BackendCall): ExecutionResult
-
-  /**
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
   def bindCall(workflowDescriptor: WorkflowDescriptor,
@@ -80,9 +78,9 @@ trait Backend {
   def engineFunctions: WdlStandardLibraryFunctions
 
   /**
-   * Do whatever is appropriate for this backend implementation to support restarting the specified workflows.
+   * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
    */
-  def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])(implicit ec: ExecutionContext): Future[Any]
+  def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
@@ -110,4 +108,8 @@ trait Backend {
     val clsString = if (cls.startsWith("anon")) "" else s"$cls "
     s"$clsString[UUID(${workflowDescriptor.shortId})]"
   }
+
+  /** Default implementation assumes backends do not support resume, returns an empty Map. */
+  def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
+
 }

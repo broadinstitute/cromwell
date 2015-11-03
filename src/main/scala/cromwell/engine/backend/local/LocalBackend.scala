@@ -6,8 +6,8 @@ import java.nio.file.{Files, Path, Paths}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -90,7 +90,7 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): ExecutionResult =  {
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val tag = makeTag(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
@@ -99,13 +99,12 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
         runSubprocess(backendCall)
       case Failure(ex) => FailedExecution(ex)
     }
-  }
+  } map CompletedExecutionHandle
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
-                                 (implicit ec: ExecutionContext): Future[Any] = {
+  override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
@@ -113,14 +112,10 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
       globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
     }
 
-    val seqOfFutures = restartableWorkflows map { workflow =>
-      for {
-        callsToStatuses <- globalDataAccess.getExecutionStatuses(workflow.id)
-        _ <- updateNonTerminalCalls(workflow.id, callsToStatuses)
-      } yield ()
-    }
-    // The caller doesn't care about the result value, only that it's a Future.
-    Future.sequence(seqOfFutures)
+    for {
+      callsToStatuses <- globalDataAccess.getExecutionStatuses(restartableWorkflow.id)
+      _ <- updateNonTerminalCalls(restartableWorkflow.id, callsToStatuses)
+    } yield ()
   }
 
   override def backendType = BackendType.LOCAL

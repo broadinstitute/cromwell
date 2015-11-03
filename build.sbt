@@ -3,13 +3,13 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.13"
+version := "0.14"
 
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
-val lenthallV = "0.13"
+val lenthallV = "0.14"
 
 val sprayV = "1.3.2"
 
@@ -46,12 +46,13 @@ libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick" % slickV,
   "com.typesafe.slick" %% "slick-hikaricp" % slickV,
   "org.hsqldb" % "hsqldb" % "2.3.2",
-  "com.google.gcloud" % "gcloud-java" % "latest.integration",
+  "com.google.gcloud" % "gcloud-java" % "0.0.9",
   "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
   "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
   "mysql" % "mysql-connector-java" % "5.1.36",
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
+  "com.github.pathikrit" %% "better-files" % "2.13.0",
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,
@@ -125,4 +126,3 @@ testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
 test in assembly := {}
 
 parallelExecution := false
-

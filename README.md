@@ -24,6 +24,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Hello World WDL](#hello-world-wdl)
   * [Modifying Task Outputs](#modifying-task-outputs)
   * [Referencing Files on Disk](#referencing-files-on-disk)
+  * [Using Globs to Specify Output](#using-globs-to-specify-output)
   * [Using String Interpolation](#using-string-interpolation)
   * [Aliasing Calls](#aliasing-calls)
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
@@ -40,20 +41,21 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [cpu](#cpu)
   * [defaultDisks](#defaultdisks)
   * [defaultZones](#defaultzones)
-  * [failOnStderr](#failonstderr)
   * [docker](#docker)
+  * [failOnStderr](#failonstderr)
   * [memory](#memory)
   * [preemptible](#preemptible)
+* [Logging](#logging)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
-  * [POST /workflows/:version](#post-workflowsversion)
-  * [GET /workflows/:version/:id/status](#get-workflowsversionidstatus)
-  * [GET /workflows/:version/:id/outputs](#get-workflowsversionidoutputs)
-  * [GET /workflows/:version/:id/outputs/:call](#get-workflowsversionidoutputscall)
-  * [GET /workflows/:version/:id/logs/:call](#get-workflowsversionidlogscall)
-  * [GET /workflows/:version/:id/logs](#get-workflowsversionidlogs)
-  * [GET /workflows/:version/:id/metadata](#get-workflowsversionidmetadata)
-  * [POST /workflows/:version/:id/abort](#post-workflowsversionidabort)
+  * [POST /api/workflows/:version](#post-apiworkflowsversion)
+  * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
+  * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
+  * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
+  * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
+  * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
+  * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
+  * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -442,6 +444,7 @@ task hello {
   }
   output {
     String response = read_string("out")
+    File responseFile = "out"
   }
 }
 
@@ -450,11 +453,33 @@ workflow test {
 }
 ```
 
-In this example, standard output was redirected to the file "out".  In WDL, `String` data types can be coerced into `File` data types.  Since the `read_string` function needs a file path to read from, it converts `"out"` to a file path and then performs the `read_string` operation.  The output could also be defined as follows:
+In this example, we specify two outputs.  Standard output was redirected to the file "out".
+In WDL, `String` data types can be coerced into `File` data types.  The `responseFile` will thus give us a reference to the file.  Since the `read_string` function needs a file path to read from, it converts `"out"` to a file path and then performs the `read_string` operation.
+
+## Using Globs to Specify Output
+
+We can use the glob() function to read multiple files at once:
 
 ```
-File response = "out"
+task globber {
+  command <<<
+    for i in `seq 1 5`
+    do
+      mkdir out-$i
+      echo "globbing is my number $i best hobby" > out-$i/$i.txt
+    done
+  >>>
+  output {
+    Array[File] outFiles = glob("out-*/*.txt")
+  }
+}
+
+workflow test {
+  call globber 
+}
 ```
+
+The `outFiles` output array will contain all files found by evaluating the specified glob. 
 
 ## Using String Interpolation
 
@@ -731,7 +756,7 @@ When cromwell runs a workflow through either of these two backends, it first cre
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
 
-Any input files to the workflow need to be localized into `<workflow_root>/workflow-inputs`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
+Any input files to a call need to be localized in the `<call_dir>`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
 
 * `hard-link` - This will create a hard link (not symbolic) link to the file
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
@@ -810,7 +835,7 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google.  JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
 
 ```hocon
 backend {
@@ -831,22 +856,13 @@ backend {
     // Polling for completion backs-off gradually for slower-running jobs.
     // This is the maximum polling interval (in seconds):
     maximumPollingInterval = 600
-
-    // Authentication mode: either 'service_account' or 'refresh_token'
-    // 'refresh_token' mode will require workflow options to provide a
-    // value for 'refresh_token' for every workflow request
-    authenticationMode = "service_account"
-
-    // Optional Dockerhub Credentials
-    // dockerAccount = ""
-    // dockerToken = ""
   }
 
   ...
 }
 ```
 
-It is also necessary to fill out the `google` stanza in the configuration file.  This stanza will set up the service account that Cromwell uses to write certain files to GCS.
+It is also necessary to fill out the `google` stanza in the configuration file. This stanza will set up the service / user account that Cromwell uses to write certain files to GCS as well as run jobs.
 
 ```hocon
 google {
@@ -867,11 +883,35 @@ google {
 }
 ```
 
-### Authentication Modes
+### Data Localization
 
-The JES backend has two authentication modes: `service_account`, and `refresh_token`.  These authentication modes determine how Cromwell will authenticate with JES
+Data localization can be performed on behalf of an other entity (typically a user). 
+This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `authScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
+To enable this feature, two pieces of configuration are needed:
 
-In `refresh_token` mode, a refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
+**1 - ClientID/Secret**
+
+An entry must be added in the `google` stanza, indicating a pair of client ID / client Secret that have been used to generate a refresh token for the entity that will be used during localization:
+
+```hocon
+google {
+  authScheme = "service"
+
+  serviceAuth {
+    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
+  }
+  
+  localizeWithRefreshToken = {
+    client_id = "myclientid.apps.googleusercontent.com"
+    client_secret = "clientsecretpassphrase"
+  }
+}
+```
+
+**2 - Refresh Token**
+
+A refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -881,14 +921,42 @@ Where `wf_options.json` would contain:
 
 ```
 {
-  "account_name": "my.google.account@gmail.com",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
 }
 ```
 
-The refresh token is passed to JES when the job is launched and localization of data and running of the job is done with that refresh token user's account.
+The refresh token is passed to JES along with the client ID and Secret pair, which allows JES to localize and delocalize data as the entity represented by the refresh token.
+Note that upon generation of the refresh token, the application must ask for GCS read/write permission using the appropriate scope.
+ 
+### Docker
 
-In `service_account` mode, the values in the `google {...}` stanza are used to launch jobs and provide localization.  If you are new to using the JES backend, it is easiest to start with in `service_account` mode.
+It is possible to reference private docker images in dockerhub to be run on JES.
+However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
+
+```
+docker {
+  dockerAccount = "mydockeraccount@mail.com"
+  dockerToken = "mydockertoken"
+}
+```
+
+It is now possible to reference an image only this account has access to:
+
+```
+task mytask {
+  command {
+    ...
+  }
+  runtime {
+    docker: "private_repo/image"
+    memory: "8 GB"
+    cpu: "1"
+  }
+  ...
+}
+```
+
+Note that if the docker image to be used is public there is no need to add this configuration.
 
 # Runtime Attributes
 
@@ -974,18 +1042,28 @@ Passed to JES: "Disks to attach."
 The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
 
 1. Disk name
-2. Disk size in GB
+2. Disk size in GB (not applicable for LOCAL)
 3. Disk type
+
+The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google. All disks are set to auto-delete after the job completes.
 
 ... more to come ...
 
 ```
 runtime {
-  defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+  defaultDisks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
 }
 ```
 
-Defaults to "local-disk 100 LOCAL_SSD".
+To change the size of the local disk, set the type of the disk named "local-disk" to a persistent type, and specify the size in GB.
+
+```
+runtime {
+  defaultDisks: "local-disk 11 SSD"
+}
+```
+
+Defaults to "local-disk LOCAL".
 
 ## defaultZones
 
@@ -1053,6 +1131,28 @@ runtime {
 
 Defaults to "false".
 
+# Logging
+
+Cromwell accepts three Java Properties for controlling logging:
+
+* `LOG_ROOT` - Specifies the directory where logs will be written (default `.`)
+* `LOG_MODE` - Accepts either `server`, `console`, or `server,console` (default `console`).  In `server` mode, logs will be written to `LOG_ROOT`
+* `LOG_LEVEL` - Level at which to log (default `info`)
+
+If the command `java -DLOG_MODE=server,console -DLOG_ROOT=log -jar cromwell.jar run my_workflow.wdl my_workflow.json` were run three times, we'd see this in the `log` directory:
+
+```
+log
+├── cromwell.2015-10-26.log
+├── workflow.319df202-a60f-47c8-b886-bd4821747c68.log
+├── workflow.36e07688-9e47-45bd-9930-aff58471541e.log
+└── workflow.7dad065d-9d7a-4450-91c8-1f7ece184851.log
+```
+
+There would also be logging to the standard out stream as well.
+
+The `cromwell.<date>.log` file contains an aggregate of every log message, while the `workflow.<uuid>.log` files contain only log messages that pertain to that particular workflow.
+
 # REST API
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
@@ -1063,7 +1163,7 @@ The following sub-sections define which HTTP Requests the web server can accept 
 
 All web server requests include an API version in the url. The current version is `v1`.
 
-## POST /workflows/:version
+## POST /api/workflows/:version
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
@@ -1074,19 +1174,19 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 cURL:
 
 ```
-$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
 ```
 
 Request:
 
 ```
-POST /workflows/v1 HTTP/1.1
+POST /api/workflows/v1 HTTP/1.1
 Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
@@ -1166,19 +1266,19 @@ To specify workflow options as well:
 cURL:
 
 ```
-$ curl -v "localhost:8000/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
 ```
 
 HTTPie:
 
 ```
-http --print=HBhb --form POST http://localhost:8000/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
 ```
 
 Request (some parts truncated for brevity):
 
 ```
-POST /workflows/v1 HTTP/1.1
+POST /api/workflows/v1 HTTP/1.1
 Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
@@ -1219,18 +1319,18 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 --f3fd038395644de596c460257626edd7--
 ```
 
-## GET /workflows/:version/:id/status
+## GET /api/workflows/:version/:id/status
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ curl http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+$ http http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
 ```
 
 Response:
@@ -1247,18 +1347,18 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflows/:version/:id/outputs
+## GET /api/workflows/:version/:id/outputs
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ curl http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
+$ http http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs
 ```
 
 Response:
@@ -1280,18 +1380,18 @@ Server: spray-can/1.3.3
 ```
 
 
-## GET /workflows/:version/:id/outputs/:call
+## GET /api/workflows/:version/:id/outputs/:call
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+$ curl http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
+$ http http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
 ```
 
 Response:
@@ -1309,7 +1409,7 @@ Server: spray-can/1.3.3
     }
 }
 ```
-## GET /workflows/:version/:id/logs/:call
+## GET /api/workflows/:version/:id/logs/:call
 
 This will return paths to the standard out and standard error files that were generated during the execution of a particular fully-qualified name for a call.
 
@@ -1318,13 +1418,13 @@ A call has one or more standard out and standard error logs, depending on if the
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
+$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
 ```
 
 Response:
@@ -1403,20 +1503,20 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflows/:version/:id/logs
+## GET /api/workflows/:version/:id/logs
 
-This returns a similar format as the `/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
+This returns a similar format as the `/api/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
 
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
+$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
+$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs
 ```
 
 Response:
@@ -1452,7 +1552,7 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /workflows/:version/:id/metadata
+## GET /api/workflows/:version/:id/metadata
 
 This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
 (i.e. shards are accounted for by an array of maps, in the same order as the shards).
@@ -1464,13 +1564,13 @@ return code, stdout and stderr.  Date formats are ISO with milliseconds.
 cURL:
 
 ```
-$ curl http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
 ```
 
 HTTPie:
 
 ```
-$ http http://localhost:8000/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
 ```
 
 Response:
@@ -1586,18 +1686,18 @@ Content-Length: 6192
 }
 ```
 
-## POST /workflows/:version/:id/abort
+## POST /api/workflows/:version/:id/abort
 
 cURL:
 
 ```
-$ curl -X POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
 ```
 
 HTTPie:
 
 ```
-$ http POST http://localhost:8000/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
+$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/abort
 ```
 
 Response:

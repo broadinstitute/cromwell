@@ -1,5 +1,9 @@
 package cromwell.util
 
+import java.util.UUID
+
+import cromwell.engine.{WorkflowId, WorkflowSourceFiles, WorkflowDescriptor}
+import cromwell.logging.WorkflowLogger
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
@@ -19,13 +23,25 @@ class TryUtilSpec extends FlatSpec with Matchers {
     func
   }
 
+  val descriptor = WorkflowDescriptor(
+    WorkflowId(UUID.randomUUID()),
+    WorkflowSourceFiles(
+      "workflow w {}",
+      "{}",
+      "{}"
+    )
+  )
+
+  val logger = WorkflowLogger("Test", descriptor)
+
   it should "Retry a function until it works" in {
     val value = TryUtil.retryBlock(
       fn = failNTimes(4),
-      retries = Some(5),
+      retryLimit = Some(5),
       pollingInterval = 50 milliseconds,
       pollingBackOffFactor = 1,
       maxPollingInterval = 10 seconds,
+      logger = logger,
       failMessage = Some(s"failed attempt (on purpose)")
     )
     value shouldEqual Success(9)
@@ -34,10 +50,11 @@ class TryUtilSpec extends FlatSpec with Matchers {
   it should "Fail if it hits the max retry count" in {
     val value = TryUtil.retryBlock(
       fn = failNTimes(4),
-      retries = Some(4),
+      retryLimit = Some(4),
       pollingInterval = 50 milliseconds,
       pollingBackOffFactor = 1,
       maxPollingInterval = 10 seconds,
+      logger = logger,
       failMessage = Some(s"failed attempt (on purpose)")
     )
     value.isFailure shouldEqual true

@@ -3,10 +3,10 @@ package cromwell
 import java.nio.file.Files
 
 import akka.testkit._
+import cromwell.binding.NamespaceWithWorkflow
 import cromwell.binding.expression.{NoFunctions, WdlFunctions}
 import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import cromwell.binding.values._
-import cromwell.binding.NamespaceWithWorkflow
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 

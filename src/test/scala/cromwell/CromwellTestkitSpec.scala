@@ -32,7 +32,7 @@ object CromwellTestkitSpec {
   val ConfigText =
     """
       |akka {
-      |  loggers = ["akka.event.slf4j.Slf4jLogger", "akka.testkit.TestEventListener"]
+      |  loggers = ["akka.testkit.TestEventListener"]
       |  loglevel = "INFO"
       |  actor {
       |    debug {

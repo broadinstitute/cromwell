@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.FSM.{SubscribeTransitionCallBack, Transition}
+import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.pipe
@@ -10,7 +10,6 @@ import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -26,6 +25,7 @@ import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
 object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
@@ -42,10 +42,14 @@ object WorkflowManagerActor {
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
+  final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
 
   def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
   lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
+  // How long to delay between restarting each workflow that needs to be restarted.  Attempting to
+  // restart 500 workflows at exactly the same time crushes the database connection pool.
+  lazy val RestartDelay = 200 milliseconds
   lazy val BackendType = BackendInstance.backendType
 }
 
@@ -86,10 +90,15 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
     case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
     case WorkflowMetadata(workflowId) => workflowMetadata(workflowId) pipeTo sender
-    case Transition(actor, oldState, newState: WorkflowState) => updateWorkflowState(actor, newState)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
       workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
+    case RestartWorkflows(w :: ws) =>
+      restartWorkflow(w)
+      context.system.scheduler.scheduleOnce(RestartDelay) {
+        self ! RestartWorkflows(ws)
+      }
+    case RestartWorkflows(Nil) => // No more workflows need restarting.
   }
 
   /**
@@ -239,7 +248,6 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     } yield {
       val isRestart = maybeWorkflowId.isDefined
       workflowActor ! (if (isRestart) Restart else Start)
-      workflowActor ! SubscribeTransitionCallBack(self)
       workflowId
     }
 
@@ -252,46 +260,30 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     futureId
   }
 
-  private def restartWorkflow(restartableWorkflow: RestartableWorkflow): Unit =
-    submitWorkflow(restartableWorkflow.source, Option(restartableWorkflow.id))
-
-  private def updateWorkflowState(workflow: WorkflowActorRef, state: WorkflowState): Future[Unit] = {
-    val id = idByWorkflow(workflow)
-    globalDataAccess.updateWorkflowState(id, state)
-  }
-
-  private def idByWorkflow(workflow: WorkflowActorRef): WorkflowId = {
-    workflowStore.toMap collectFirst { case (k, v) if v == workflow => k } get
+  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): Unit = {
+    log.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
+    submitWorkflow(restartableWorkflow.sourceFiles, Option(restartableWorkflow.id))
   }
 
   private def restartIncompleteWorkflows(): Unit = {
-    type QuantifierAndPlural = (String, String)
-    def pluralize(num: Int): QuantifierAndPlural = {
-      (if (num == 0) "no" else num.toString, if (num == 1) "" else "s")
-    }
+    def logRestarts(restartableWorkflows: Traversable[WorkflowDescriptor]): Unit = {
+      val num = restartableWorkflows.size
+      val displayNum = if (num == 0) "no" else num.toString
+      val plural = if (num == 1) "" else "s"
 
-    def buildRestartableWorkflows(workflowDescriptors: Traversable[WorkflowDescriptor]): Seq[RestartableWorkflow] = {
-      (for {
-        workflowDescriptor <- workflowDescriptors
-      } yield RestartableWorkflow(workflowDescriptor.id, workflowDescriptor.sourceFiles)).toSeq
+      log.info(s"$tag Found $displayNum workflow$plural to restart.")
+
+      if (num > 0) {
+        val ids = restartableWorkflows.map { _.id.toString }.toSeq.sorted
+        log.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
+      }
     }
 
     val result = for {
-      workflowDescriptors <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
-      restartableWorkflows = buildRestartableWorkflows(workflowDescriptors)
-      _ <- backend.handleCallRestarts(restartableWorkflows)
-    } yield {
-        val num = restartableWorkflows.length
-        val (displayNum, plural) = pluralize(num)
-        log.info(s"$tag Found $displayNum workflow$plural to restart.")
-
-        if (num > 0) {
-          val ids = restartableWorkflows.map { _.id.toString }.sorted
-          log.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
-        }
-
-        restartableWorkflows foreach restartWorkflow
-    }
+      restartableWorkflows <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      _ = logRestarts(restartableWorkflows)
+      _ = self ! RestartWorkflows(restartableWorkflows.toSeq)
+    } yield ()
 
     result recover {
       case e: Throwable => log.error(e, e.getMessage)

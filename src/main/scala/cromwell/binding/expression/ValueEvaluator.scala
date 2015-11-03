@@ -6,6 +6,7 @@ import cromwell.binding.types._
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.binding.{WdlExpressionException, WdlNamespace}
 import cromwell.parser.WdlParser.{Ast, AstNode, Terminal}
+import cromwell.util.TryUtil
 
 import scala.util.{Failure, Success, Try}
 
@@ -54,22 +55,17 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
         }
       case a: Ast if a.isArrayLiteral =>
-        val evaluatedElements = a.getAttribute("values").astListAsVector.map(evaluate)
-        evaluatedElements.partition {_.isSuccess} match {
-          case (_, failures) if failures.nonEmpty =>
-            val message = failures.collect {case f: Failure[_] => f.exception.getMessage}.mkString("\n")
-            Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
-          case (successes, _) =>
-            for (subtype <- WdlType.homogeneousTypeFromValues(successes.map(_.get)))
-              yield WdlArray(WdlArrayType(subtype), successes.map(_.get))
-        }
+        val evaluatedElements = a.getAttribute("values").astListAsVector map evaluate
+        for {
+          elements <- TryUtil.sequence(evaluatedElements)
+          subtype <- WdlType.homogeneousTypeFromValues(elements)
+        } yield WdlArray(WdlArrayType(subtype), elements)
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = evaluate(kv.asInstanceOf[Ast].getAttribute("key"))
           val value = evaluate(kv.asInstanceOf[Ast].getAttribute("value"))
           key -> value
         }
-
         val flattenedTries = evaluatedMap flatMap { case (k,v) => Seq(k,v) }
         flattenedTries partition {_.isSuccess} match {
           case (_, failures) if failures.nonEmpty =>

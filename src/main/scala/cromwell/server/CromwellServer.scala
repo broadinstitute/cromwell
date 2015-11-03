@@ -11,7 +11,7 @@ import scala.concurrent.duration._
 object CromwellServer extends DefaultWorkflowManagerSystem {
   val conf = ConfigFactory.load()
 
-  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, SwaggerService.from(conf)), "cromwell-service")
+  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, conf), "cromwell-service")
 
   implicit val timeout = Timeout(5.seconds)
 

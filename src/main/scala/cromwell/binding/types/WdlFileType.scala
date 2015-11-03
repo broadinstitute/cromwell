@@ -3,7 +3,7 @@ package cromwell.binding.types
 import cromwell.binding.values.{WdlFile, WdlString}
 import spray.json.JsString
 
-import scala.util.{Try, Success}
+import scala.util.{Success, Try}
 
 case object WdlFileType extends WdlPrimitiveType {
   val toWdlString: String = "File"
@@ -17,7 +17,6 @@ case object WdlFileType extends WdlPrimitiveType {
 
   override def add(rhs: WdlType): Try[WdlType] = rhs match {
     case WdlStringType => Success(WdlFileType)
-    case WdlFileType => Success(WdlFileType)
     case _ => invalid(s"$this + $rhs")
   }
 

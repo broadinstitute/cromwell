@@ -1,17 +1,22 @@
 package cromwell.engine.backend.jes
 
 import cromwell.binding.expression.WdlStandardLibraryFunctions
-import cromwell.binding.types.{WdlObjectType, WdlArrayType, WdlStringType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
 import cromwell.binding.values._
-import cromwell.util.google.{GoogleCloudStorage, GoogleCloudStoragePath}
+import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
+import cromwell.util.google.GoogleCloudStoragePath
 
-import scala.util.{Failure, Success, Try}
+import scala.language.postfixOps
+import scala.util.{Success, Try}
 
-class JesEngineFunctionsWithoutCallContext(storage: GoogleCloudStorage) extends WdlStandardLibraryFunctions {
+/**
+ * Implementation of WDL standard library functions for the JES backend.
+ */
+class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions with ProductionJesAuthentication {
 
-  protected def readFromPath(value: String): String = {
+  private def readFromPath(value: String): String = {
     // .get here because engine functions should throw exception if they fail.  Evaluator will catch it
-    storage.slurpFile(GoogleCloudStoragePath.parse(value).get)
+    authenticated { _.storage.slurpFile(GoogleCloudStoragePath.parse(value).get) }
   }
 
   /**
@@ -74,20 +79,19 @@ class JesEngineFunctionsWithoutCallContext(storage: GoogleCloudStorage) extends 
       string = fileContentsToString(singleArgument)
     } yield WdlString(string.trim)
   }
-
 }
 
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
-class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext(jesBackendCall.jesConnection.storage) {
+class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext {
 
-  override def readFromPath(value: String): String = {
-    val gcsPath = GoogleCloudStoragePath.parse(value) match {
-      case Success(path) => path
-      case Failure(ex) => GoogleCloudStoragePath(jesBackendCall.callDir + s"/$value")
-    }
-    jesBackendCall.jesConnection.storage.slurpFile(gcsPath)
+  override protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      files = authenticated { _.storage.listContents(jesBackendCall.globOutputPath(singleArgument.valueString)) }
+      wdlFiles = files map { WdlFile(_, isGlob = false) }
+    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
   }
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {

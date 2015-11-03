@@ -3,13 +3,13 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.13"
+version := "0.14"
 
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
-val lenthallV = "0.14-2ce072a-SNAPSHOT"
+val lenthallV = "0.14"
 
 val sprayV = "1.3.2"
 

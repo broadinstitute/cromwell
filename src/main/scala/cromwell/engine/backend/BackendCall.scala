@@ -55,6 +55,11 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
   override val isDone = true
 }
 
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int) extends ExecutionHandle {
+  override val isDone = true
+  override val result = SuccessfulExecution(outputs, returnCode)
+}
+
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = FailedExecution(throwable, returnCode)

@@ -1,6 +1,7 @@
 package cromwell.engine.backend.jes
 
 import java.math.BigInteger
+import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Parameter
@@ -378,7 +379,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
-  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionResult = authenticated { connection =>
+  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionHandle = authenticated { connection =>
     val log = workflowLoggerWithCall(handle.backendCall)
 
     try {
@@ -404,29 +405,37 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       } toMap
 
       lazy val stderrLength: BigInteger = connection.storage.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs))
-      lazy val returnCode = backendCall.downloadRcFile.map(_.trim.toInt)
+      lazy val returnCodeContents = backendCall.downloadRcFile
+      lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
 
       status match {
         case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
-          FailedExecution(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"))
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"))
+        case Run.Success if returnCodeContents.isFailure =>
+          val exception = returnCode.failed.get
+          log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
+          // Return handle to try again.
+          handle
         case Run.Success if returnCode.isFailure =>
-          FailedExecution(new Throwable(s"${log.tag} execution failed: could not download or parse return code file", returnCode.failed.get))
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get))
         case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
-          FailedExecution(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get))
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get))
         case Run.Success =>
-          handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get)
+          handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get, handle)
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
           } else {
             new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.name} failed: error code $errorCode. Message: $errorMessage")
           }
-          FailedExecution(throwable, Option(errorCode))
-
+          FailedExecutionHandle(throwable, Option(errorCode))
       }
     } catch {
-      case e: Exception => FailedExecution(e)
+      case e: Exception =>
+        log.warn("Caught exception trying to download result, retrying: " + e.getMessage, e)
+        // Return the original handle to try again.
+        handle
     }
   }
 
@@ -452,18 +461,22 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
-  private def handleSuccess(outputMappings: Map[String, Try[WdlValue]], workflowDescriptor: WorkflowDescriptor, returnCode: Int): ExecutionResult = {
+  private def handleSuccess(outputMappings: Map[String, Try[WdlValue]],
+                            workflowDescriptor: WorkflowDescriptor,
+                            returnCode: Int,
+                            executionHandle: ExecutionHandle): ExecutionHandle = {
+
     val taskOutputEvaluationFailures = outputMappings filter { _._2.isFailure }
-    val outputValues = if (taskOutputEvaluationFailures.isEmpty) {
-      Success(outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue })
+    if (taskOutputEvaluationFailures.isEmpty) {
+      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue }
+      SuccessfulExecutionHandle(outputs, returnCode)
+    } else if (taskOutputEvaluationFailures forall (_._2.failed.get.isInstanceOf[SocketTimeoutException])) {
+      // Assume this as a transient exception trying to do some expression evaluation that involves reading from GCS.
+      // Return the input handle to try again.
+      executionHandle
     } else {
       val message = taskOutputEvaluationFailures collect { case (name, Failure(e)) => s"$name: $e" } mkString "\n"
-      Failure(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
-    }
-
-    outputValues match {
-      case Success(outputs) => SuccessfulExecution(outputs, returnCode)
-      case Failure(e) => FailedExecution(e)
+      FailedExecutionHandle(new Throwable(s"Workflow ${workflowDescriptor.id}: $message"))
     }
   }
 

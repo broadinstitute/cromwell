@@ -74,13 +74,16 @@ class JesBackendCall(val backend: JesBackend,
       case handle: JesPendingExecutionHandle =>
         val status = Try(handle.run.checkStatus(this, handle.previousStatus))
         status match {
-          case Success(s: TerminalRunStatus) => CompletedExecutionHandle(backend.executionResult(s, handle))
+          case Success(s: TerminalRunStatus) => backend.executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
           case Failure(e: Exception) =>
-            // Log exceptions and return the original handle.
-            logger.error(e.getMessage, e)
+            // Log exceptions and return the original handle to try again.
+            logger.warn("Caught exception, retrying: " + e.getMessage, e)
             handle
-          case Failure(throwable) => throw throwable
+          case Failure(e: Error) => throw e // JVM-ending calamity.
+          case Failure(throwable) =>
+            // Someone has subclassed Throwable directly?  Beware the jackwagons, fail the execution/workflow.
+            FailedExecutionHandle(throwable)
         }
       case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
     }

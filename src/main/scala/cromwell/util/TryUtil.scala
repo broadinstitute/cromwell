@@ -2,10 +2,10 @@ package cromwell.util
 
 import java.io.{PrintWriter, StringWriter}
 
-import com.typesafe.scalalogging.LazyLogging
+import cromwell.logging.WorkflowLogger
 
 import scala.concurrent.duration.Duration
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 case class AggregatedException[A](exceptions: Seq[Failure[A]], prefixError: String = "") extends Exception {
   override def getMessage: String = {
@@ -13,7 +13,7 @@ case class AggregatedException[A](exceptions: Seq[Failure[A]], prefixError: Stri
   }
 }
 
-object TryUtil extends LazyLogging {
+object TryUtil {
   private def stringifyFailure[T](failure: Try[T]): String = {
     val stringWriter = new StringWriter()
     val writer = new PrintWriter(stringWriter)
@@ -50,14 +50,13 @@ object TryUtil extends LazyLogging {
                     pollingInterval: Duration,
                     pollingBackOffFactor: Double,
                     maxPollingInterval: Duration,
+                    logger: WorkflowLogger,
                     failMessage: Option[String] = None,
                     priorValue: Option[T] = None): Try[T] = {
 
     def logFailures(attempt: Try[T]): Unit = {
       attempt recover {
-        case t: Throwable =>
-          val retryString = retryLimit map { _.toString} getOrElse "(none)"
-          logger.warn(t.getMessage, t)
+        case t: Throwable => logger.warn(t.getMessage, t)
       }
     }
 
@@ -78,6 +77,7 @@ object TryUtil extends LazyLogging {
           Duration(Math.min((pollingInterval.toMillis * pollingBackOffFactor).toLong, maxPollingInterval.toMillis), "milliseconds"),
           pollingBackOffFactor,
           maxPollingInterval,
+          logger,
           failMessage,
           value.toOption
         )

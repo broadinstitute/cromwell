@@ -63,12 +63,5 @@ class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") with Mock
     "allow stderr if failOnStderr is not set" in {
       testFailOnStderr(stderrDescriptor("runtime {failOnStderr: false}"), expectSuccess = true)
     }
-
-    "make a log tag from a workflowDescriptor" in {
-      val wd = mock[WorkflowDescriptor]
-      wd.shortId returns "SHORTID"
-      val backend = new LocalBackend()
-      backend.makeTag(wd) shouldBe "LocalBackend [UUID(SHORTID)]"
-    }
   }
 }

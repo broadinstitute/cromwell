@@ -20,6 +20,8 @@ import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
 import cromwell.util.StringDigestion._
 import cromwell.util.TryUtil
@@ -92,12 +94,13 @@ object JesBackend {
     }
   }
 
-  protected def withRetry[T](f: Option[T] => T, failureMessage: String) = TryUtil.retryBlock(
+  protected def withRetry[T](f: Option[T] => T, logger: WorkflowLogger, failureMessage: String) = TryUtil.retryBlock(
     fn = f,
     retryLimit = Option(10),
     pollingInterval = 5 seconds,
     pollingBackOffFactor = 1,
     maxPollingInterval = 10 seconds,
+    logger = logger,
     failMessage = Option(failureMessage)
   )
 
@@ -146,12 +149,13 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
     val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+    val log = workflowLogger(workflow)
 
     generateAuthJson(jesConf.dockerCredentials, getGcsAuthInformation(workflow)) foreach { content =>
       def upload(prev: Option[Unit]) = connection.storage.uploadJson(path, content)
 
-      logger.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
-      withRetry(upload, s"${makeTag(workflow)} Exception occurred while uploading auth file to $path")
+      log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
+      withRetry(upload, log, s"Exception occurred while uploading auth file to $path")
     }
   }
 
@@ -198,19 +202,19 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
    */
   override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = authenticated { connection =>
     val gcsAuthFile = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+    val log = workflowLogger(workflow)
     def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = connection.storage.exists(gcsAuthFile)
     def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = connection.storage.deleteObject(gcsAuthFile)
-    val tag = s"Workflow ${workflow.shortId}:"
-    withRetry(gcsCheckAuthFileExists, s"$tag failed to query for auth file: $gcsAuthFile") match {
+    withRetry(gcsCheckAuthFileExists, log, s"Failed to query for auth file: $gcsAuthFile") match {
       case Success(exists) if exists =>
-        withRetry(gcsAttemptToDeleteObject, s"$tag failed to delete auth file: $gcsAuthFile") match {
+        withRetry(gcsAttemptToDeleteObject, log, s"Failed to delete auth file: $gcsAuthFile") match {
           case Success(_) => Future.successful(Unit)
           case Failure(ex) =>
-            logger.error(s"$tag Could not delete the auth file $gcsAuthFile", ex)
+            log.error(s"Could not delete the auth file $gcsAuthFile", ex)
             Future.failed(ex)
         }
       case Failure(ex) =>
-        logger.error(s"$tag Could not query for the existence of the auth file $gcsAuthFile", ex)
+        log.error(s"Could not query for the existence of the auth file $gcsAuthFile", ex)
         Future.failed(ex)
       case _ => Future.successful(Unit)
     }
@@ -230,8 +234,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   override def engineFunctions: WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext()
 
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
-    val tag = makeTag(backendCall)
-    logger.info(s"$tag Call GCS path: ${backendCall.callGcsPath}")
+    val log = workflowLoggerWithCall(backendCall)
+    log.info(s"Call GCS path: ${backendCall.callGcsPath}")
 
     val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq :+ backendCall.cmdInput
     val jesOutputs: Seq[JesOutput] = generateJesOutputs(backendCall)
@@ -253,11 +257,12 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
    * Creates a set of JES inputs for a backend call.
    */
   def generateJesInputs(backendCall: BackendCall): Iterable[JesInput] = {
+    val log = workflowLoggerWithCall(backendCall)
     val adjustedPaths = adjustInputPaths(backendCall.key, backendCall.locallyQualifiedInputs, backendCall.workflowDescriptor)
     def mkInput(locallyQualifiedInputName: String, location: WdlFile) = JesInput(locallyQualifiedInputName, backendCall.lookupFunction(locallyQualifiedInputName).valueString, Paths.get(location.valueString))
     adjustedPaths collect {
       case (locallyQualifiedInputName: String, location: WdlFile) =>
-        logger.info(s"${makeTag(backendCall)}: $locallyQualifiedInputName -> ${location.valueString}")
+        log.info(s"$locallyQualifiedInputName -> ${location.valueString}")
         Seq(mkInput(locallyQualifiedInputName, location))
       case (locallyQualifiedInputName: String, localPathWdlArray: WdlArray) =>
         backendCall.lookupFunction(locallyQualifiedInputName) match {
@@ -281,11 +286,12 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
+    val log = workflowLoggerWithCall(backendCall)
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
       taskOutput.expression.evaluateFiles(backendCall.lookupFunction, new NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) => wdlFiles map gcsPathToLocal
         case Failure(ex) =>
-          logger.warn(s"${makeTag(backendCall)} Could not evaluate $taskOutput: ${ex.getMessage}")
+          log.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}")
           Seq.empty[String]
       }
     }
@@ -320,7 +326,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticated { _.storage.uploadObject(backendCall.gcsExecPath, fileContent) }
 
-    withRetry(attemptToUploadObject, s"${makeTag(backendCall)} Exception occurred while uploading script to ${backendCall.gcsExecPath}")
+    val log = workflowLogger(backendCall.workflowDescriptor)
+    withRetry(attemptToUploadObject, log, s"${workflowLoggerWithCall(backendCall).tag} Exception occurred while uploading script to ${backendCall.gcsExecPath}")
   }
 
   private def createJesRun(backendCall: BackendCall, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] =
@@ -335,7 +342,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         runIdForResumption
       ).run
 
-      withRetry(attemptToCreateJesRun, s"${makeTag(backendCall)} Exception occurred while creating JES Run")
+      val log = workflowLogger(backendCall.workflowDescriptor)
+      withRetry(attemptToCreateJesRun, log, s"${workflowLoggerWithCall(backendCall).tag} Exception occurred while creating JES Run")
     }
 
   /**
@@ -370,6 +378,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionResult = authenticated { connection =>
+    val log = workflowLoggerWithCall(handle.backendCall)
 
     def wdlFileToGcsPath(value: WdlValue, coerceTo: WdlType) =
       if (coerceTo == WdlFileType && WdlFileType.isCoerceableFrom(value.wdlType))
@@ -405,11 +414,11 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
       status match {
         case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
-          FailedExecution(new Throwable(s"${makeTag(backendCall)} execution failed: stderr has length $stderrLength"))
+          FailedExecution(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"))
         case Run.Success if returnCode.isFailure =>
-          FailedExecution(new Throwable(s"${makeTag(backendCall)} execution failed: could not download or parse return code file", returnCode.failed.get))
+          FailedExecution(new Throwable(s"${log.tag} execution failed: could not download or parse return code file", returnCode.failed.get))
         case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
-          FailedExecution(new Throwable(s"${makeTag(backendCall)} execution failed: disallowed command return code: " + returnCode.get))
+          FailedExecution(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get))
         case Run.Success =>
           handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get)
         case Run.Failed(errorCode, errorMessage) =>
@@ -426,15 +435,14 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
-
   private def runWithJes(backendCall: BackendCall,
                          command: String,
                          jesInputs: Seq[JesInput],
                          jesOutputs: Seq[JesOutput],
                          runIdForResumption: Option[String]): ExecutionHandle = {
-    val tag = makeTag(backendCall)
+    val log = workflowLoggerWithCall(backendCall)
     val jesParameters = backendCall.standardParameters ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
-    logger.info(s"$tag `$command`")
+    log.info(s"`$command`")
 
     val jesJobSetup = for {
       _ <- uploadCommandScript(backendCall, command)
@@ -443,7 +451,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     jesJobSetup match {
       case Failure(ex) =>
-        logger.error(s"$tag Failed to create a JES run", ex)
+        log.error(s"Failed to create a JES run", ex)
         FailedExecutionHandle(ex)
       case Success(run) => JesPendingExecutionHandle(backendCall, jesOutputs, run, previousStatus = None)
     }

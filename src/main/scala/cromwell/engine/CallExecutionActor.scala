@@ -4,6 +4,7 @@ import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine.backend._
+import cromwell.logging.WorkflowLogger
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -35,7 +36,13 @@ object CallExecutionActor {
 class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellActor {
   import CallExecutionActor._
 
-  private val log = Logging(context.system, classOf[CallExecutionActor])
+  val akkaLogger = Logging(context.system, classOf[CallExecutionActor])
+  val logger = WorkflowLogger(
+    "CallExecutionActor",
+    backendCall.workflowDescriptor,
+    akkaLogger = Option(akkaLogger),
+    callTag = Option(backendCall.key.tag)
+  )
 
   implicit val ec = context.system.dispatcher
 
@@ -57,14 +64,12 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     .setMultiplier(1.1)
     .build()
 
-  val tag = s"CallExecutionActor [UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}]"
-
   /** Intended for use with `Future#onComplete`, if the `Future` completes successfully apply `successFunction`
     * to the result value.  If the `Future` is failed, log and message self to `Finish`. */
   def ifSuccess[T](successFunction: T => Unit): Try[T] => Unit = {
     case Success(s) => successFunction(s)
     case Failure(t) =>
-      log.error(t, t.getMessage)
+      logger.error(t.getMessage, t)
       self ! Finish(FailedExecutionHandle(t))
   }
 
@@ -78,6 +83,6 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     case Finish(handle) =>
       context.parent ! CallActor.ExecutionFinished(backendCall.call, handle.result)
       context.stop(self)
-    case badMessage => log.error(s"$tag: unexpected message $badMessage.")
+    case badMessage => logger.error(s"Unexpected message $badMessage.")
   }
 }

@@ -1,13 +1,20 @@
 package cromwell
 
+import java.nio.file.{Paths, Path}
 import java.util.UUID
 
+import ch.qos.logback.classic.{LoggerContext, Level}
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.FileAppender
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
+import org.slf4j.{LoggerFactory, Logger}
+import org.slf4j.helpers.NOPLogger
 import spray.json._
 
 import scala.language.implicitConversions
@@ -60,6 +67,36 @@ package object engine {
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions).get
     val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
+
+    val workflowLogger = Option(System.getProperty("LOG_MODE")) match {
+      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
+        Paths.get(Option(System.getProperty("LOG_ROOT")).getOrElse(".")),
+        s"workflow.$id.log"
+      )
+      case _ => NOPLogger.NOP_LOGGER
+    }
+
+    private def makeFileLogger(root: Path, name: String): Logger = {
+      val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
+      val encoder = new PatternLayoutEncoder()
+      encoder.setPattern("%date %-5level - %msg%n")
+      encoder.setContext(ctx)
+      encoder.start()
+
+      val path = root.resolve(name).toAbsolutePath.toString
+      val appender = new FileAppender[ILoggingEvent]()
+      appender.setFile(path)
+      appender.setEncoder(encoder)
+      appender.setName(name)
+      appender.setContext(ctx)
+      appender.start()
+
+      val fileLogger = ctx.getLogger(name)
+      fileLogger.addAppender(appender)
+      fileLogger.setAdditive(false)
+      fileLogger.setLevel(Level.toLevel(Option(System.getProperty("LOG_LEVEL")).getOrElse("debug")))
+      fileLogger
+    }
   }
 
   /**

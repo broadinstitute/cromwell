@@ -2,12 +2,18 @@ package cromwell.util
 
 import java.io.{PrintWriter, StringWriter}
 
-import com.typesafe.scalalogging.LazyLogging
+import cromwell.logging.WorkflowLogger
 
 import scala.concurrent.duration.Duration
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
-object TryUtil extends LazyLogging {
+case class AggregatedException[A](exceptions: Seq[Failure[A]], prefixError: String = "") extends Exception {
+  override def getMessage: String = {
+    prefixError + exceptions.map(_.exception.getMessage).mkString("\n")
+  }
+}
+
+object TryUtil {
   private def stringifyFailure[T](failure: Try[T]): String = {
     val stringWriter = new StringWriter()
     val writer = new PrintWriter(stringWriter)
@@ -35,22 +41,30 @@ object TryUtil extends LazyLogging {
    * or it will trigger another retry.  if isSuccess is omitted, the only way the fn can
    * fail is if it throws an exception.
    *
-   * Use `retries` value of None indicates to retry indefinitely.
+   * Use `retryLimit` value of None indicates to retry indefinitely.
    */
   @annotation.tailrec
   def retryBlock[T](fn: Option[T] => T,
                     isSuccess: T => Boolean = defaultSuccessFunction _,
-                    retries: Option[Int],
+                    retryLimit: Option[Int],
                     pollingInterval: Duration,
                     pollingBackOffFactor: Double,
                     maxPollingInterval: Duration,
+                    logger: WorkflowLogger,
                     failMessage: Option[String] = None,
                     priorValue: Option[T] = None): Try[T] = {
+
+    def logFailures(attempt: Try[T]): Unit = {
+      attempt recover {
+        case t: Throwable => logger.warn(t.getMessage, t)
+      }
+    }
+
     Try { fn(priorValue) } match {
       case Success(x) if isSuccess(x) => Success(x)
-      case value if (retries.isDefined && retries.get > 1) || retries.isEmpty =>
-
-        val retryCountMessage = if (retries.getOrElse(0) > 0) s" (${retries.getOrElse(0) - 1} more retries) " else ""
+      case value if (retryLimit.isDefined && retryLimit.get > 1) || retryLimit.isEmpty =>
+        logFailures(value)
+        val retryCountMessage = if (retryLimit.getOrElse(0) > 0) s" (${retryLimit.getOrElse(0) - 1} more retries) " else ""
         val retryMessage = s"Retrying in $pollingInterval$retryCountMessage..."
         failMessage foreach { m => logger.warn(s"$m.  $retryMessage") }
 
@@ -59,14 +73,35 @@ object TryUtil extends LazyLogging {
         retryBlock(
           fn,
           isSuccess,
-          retries.map(_ - 1),
+          retryLimit.map(_ - 1),
           Duration(Math.min((pollingInterval.toMillis * pollingBackOffFactor).toLong, maxPollingInterval.toMillis), "milliseconds"),
           pollingBackOffFactor,
           maxPollingInterval,
+          logger,
           failMessage,
           value.toOption
         )
-      case f => f
+      case f =>
+        logFailures(f)
+        f
     }
   }
+
+  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
+    tries collect { case f: Failure[_] => f } match {
+      case failures if failures.nonEmpty => Failure(new AggregatedException(failures.toSeq, prefixErrorMessage))
+      case _ => Success(unbox())
+    }
+  }
+
+  def sequence[T](tries: Seq[Try[T]], prefixErrorMessage: String = ""): Try[Seq[T]] = {
+    def unbox = tries map { _.get }
+    sequenceIterable(tries, unbox _, prefixErrorMessage)
+  }
+
+  def sequenceMap[T, U](tries: Map[T, Try[U]], prefixErrorMessage: String = ""): Try[Map[T, U]] = {
+    def unbox = tries mapValues { _.get }
+    sequenceIterable(tries.values, unbox _, prefixErrorMessage)
+  }
+
 }

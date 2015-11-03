@@ -4,10 +4,10 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 import akka.testkit._
+import cromwell.binding.NamespaceWithWorkflow
 import cromwell.binding.expression.NoFunctions
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlFile, WdlInteger, WdlString}
-import cromwell.binding.NamespaceWithWorkflow
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 

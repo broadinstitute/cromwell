@@ -2,9 +2,12 @@ package cromwell.engine.backend.sge
 
 import cromwell.binding.CallInputs
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{BackendCall, ExecutionResult, LocalFileSystemBackendCall}
+import cromwell.engine.backend._
+import cromwell.engine.backend.{JobKey, BackendCall, ExecutionResult, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 case class SgeBackendCall(backend: SgeBackend,
                           workflowDescriptor: WorkflowDescriptor,
@@ -19,5 +22,8 @@ case class SgeBackendCall(backend: SgeBackend,
   val returnCode = callRootPath.resolve("rc")
   val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr)
   callRootPath.toFile.mkdirs
-  def execute: ExecutionResult = backend.execute(this)
+
+  override def execute(implicit ec: ExecutionContext) = backend.execute(this)
+
+  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 }

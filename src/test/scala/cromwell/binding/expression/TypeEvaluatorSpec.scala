@@ -5,8 +5,8 @@ import cromwell.binding.values._
 import cromwell.binding.{NamespaceWithWorkflow, WdlExpression}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.{Failure, Success, Try}
 
@@ -27,7 +27,7 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
   def identifierEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => // Expected
-      case Success(value) => fail(s"Operation was supposed to fail, instead I got value: $value")
+      case Success(badValue) => fail(s"Operation was supposed to fail, instead I got value: $badValue")
     }
   }
 
@@ -107,7 +107,6 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
     (WdlStringType, ">", WdlStringType, WdlBooleanType),
     (WdlStringType, ">=", WdlStringType, WdlBooleanType),
     (WdlFileType, "+", WdlStringType, WdlFileType),
-    (WdlFileType, "+", WdlFileType, WdlFileType),
     (WdlFileType, "==", WdlStringType, WdlBooleanType),
     (WdlFileType, "==", WdlFileType, WdlBooleanType),
     (WdlFileType, "!=", WdlStringType, WdlBooleanType),
@@ -267,6 +266,7 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
     (WdlStringType, "&&", WdlStringType),
     (WdlStringType, "&&", WdlFileType),
     (WdlStringType, "&&", WdlBooleanType),
+    (WdlFileType, "+", WdlFileType),
     (WdlFileType, "+", WdlIntegerType),
     (WdlFileType, "+", WdlFloatType),
     (WdlFileType, "+", WdlBooleanType),
@@ -382,13 +382,13 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
   )
 
   forAll (validOperations) { (lhs, op, rhs, expectedType) =>
-    it should s"$lhs $op $rhs = $expectedType" in {
+    it should s"validate the output type for the expression: $lhs $op $rhs = $expectedType" in {
       operate(lhs, op, rhs) shouldEqual Success(expectedType)
     }
   }
 
   forAll (invalidOperations) { (lhs, op, rhs) =>
-    it should s"$lhs $op $rhs is invalid" in {
+    it should s"not allow the expression: $lhs $op $rhs" in {
       operate(lhs, op, rhs) should be(a[Failure[_]])
     }
   }

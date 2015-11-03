@@ -1,56 +1,39 @@
 package cromwell.webservice
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import akka.actor.{Props, Actor, ActorRef}
 import com.typesafe.config.Config
 import cromwell.engine.workflow.{ValidateActor, WorkflowOptions}
 import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
-import lenthall.spray.{SwaggerUiInfo, ConfigSwaggerUiHttpService}
+import lenthall.spray.SwaggerUiResourceHttpService
+import lenthall.spray.WrappedRoute._
+import lenthall.config.ScalaConfig._
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
 
-import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success, Try}
 
+trait SwaggerService extends SwaggerUiResourceHttpService {
+  override def swaggerServiceName = "cromwell"
 
-object SwaggerService {
-  /*
-    Because of the implicit arg requirement apply() doesn't work here, so falling back to the less
-    idiomatic (but not unheard of) from().
-   */
-  def from(conf: Config)(implicit actorRefFactory: ActorRefFactory): SwaggerService = {
-    new SwaggerService(conf.getConfig("swagger"))
-  }
+  override def swaggerUiVersion = "2.1.1"
 }
-
-class SwaggerService(override val swaggerUiConfig: Config)
-                    (implicit val actorRefFactory: ActorRefFactory)
-  extends ConfigSwaggerUiHttpService {
-}
-
 
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, swaggerService: SwaggerService): Props = {
-    Props(new CromwellApiServiceActor(workflowManagerActorRef, swaggerService))
+  def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
+    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config)
   }
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, swaggerService: SwaggerService) extends Actor with CromwellApiService {
+class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
+  extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = options { complete(StatusCodes.OK) } ~ docsRoute ~ swaggerService.swaggerUiRoutes ~ workflowRoutes
+  def possibleRoutes = workflowRoutes.wrapped("api", config.getBooleanOr("api.routeUnwrapped")) ~ swaggerUiResourceRoute
 
   def receive = runRoute(possibleRoutes)
-}
-
-object CromwellApiService {
-  /**
-   * Used as swagger annotation constant below, this comma separated value lists the endpoint versions.
-   * The last value is the latest version.
-   */
-  final val VersionAllowableValues = "v1"
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
@@ -58,10 +41,6 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
     callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute
-
-  def docsRoute = path("swagger" / "cromwell.yaml") {
-    getFromResource("swagger/cromwell.yaml")
-  }
 
   def queryRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>

@@ -47,7 +47,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     }
 
     "fail to construct with missing inputs" in {
-      intercept[UnsatisfiedInputsException]  {
+      intercept[UnsatisfiedInputsException] {
         buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = "{}")
       }
     }
@@ -61,9 +61,9 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     "fail when a call fails" in {
       startingCallsFilter("goodbye.goodbye") {
         waitForPattern("WorkflowActor .+ transitioning from Submitted to Running\\.") {
-          waitForPattern("persisting status of goodbye.goodbye to Starting.") {
-            waitForPattern("persisting status of goodbye.goodbye to Running.") {
-              waitForPattern("persisting status of goodbye.goodbye to Failed.") {
+          waitForPattern("persisting status of goodbye to Starting.") {
+            waitForPattern("persisting status of goodbye to Running.") {
+              waitForPattern("persisting status of goodbye to Failed.") {
                 val fsm = buildWorkflowFSMRef(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson)
                 fsm ! Start
               }
@@ -76,9 +76,9 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     "gracefully handle malformed WDL" in {
       within(TestExecutionTimeout) {
         val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
-        fsm ! Start
-        awaitCond(fsm.stateName == WorkflowSubmitted)
-        awaitCond(fsm.stateName == WorkflowFailed)
+        waitForPattern("transitioning from Submitted to Failed") {
+          fsm ! Start
+        }
       }
     }
   }

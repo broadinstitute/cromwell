@@ -14,6 +14,7 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
   }
 
   override def toWdlString: String = s"[${value.map(_.toWdlString).mkString(", ")}]"
+  override def toString = toWdlString
 
   def map[R <: WdlValue](f: WdlValue => R): WdlArray = {
     value.map{f} match {

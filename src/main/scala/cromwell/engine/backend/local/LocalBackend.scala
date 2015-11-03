@@ -3,11 +3,10 @@ package cromwell.engine.backend.local
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
-import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.Backend.RestartableWorkflow
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -78,7 +77,7 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
+class LocalBackend extends Backend with SharedFileSystem {
   type BackendCall = LocalBackendCall
 
   import LocalBackend._
@@ -90,22 +89,21 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def execute(backendCall: BackendCall): ExecutionResult =  {
-    val tag = makeTag(backendCall)
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+    val logger = workflowLoggerWithCall(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
-        logger.info(s"$tag `$instantiatedCommand`")
+        logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
         runSubprocess(backendCall)
       case Failure(ex) => FailedExecution(ex)
     }
-  }
+  } map CompletedExecutionHandle
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
-  override def handleCallRestarts(restartableWorkflows: Seq[RestartableWorkflow])
-                                 (implicit ec: ExecutionContext): Future[Any] = {
+  override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
     // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
@@ -113,14 +111,10 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
       globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
     }
 
-    val seqOfFutures = restartableWorkflows map { workflow =>
-      for {
-        callsToStatuses <- globalDataAccess.getExecutionStatuses(workflow.id)
-        _ <- updateNonTerminalCalls(workflow.id, callsToStatuses)
-      } yield ()
-    }
-    // The caller doesn't care about the result value, only that it's a Future.
-    Future.sequence(seqOfFutures)
+    for {
+      callsToStatuses <- globalDataAccess.getExecutionStatuses(restartableWorkflow.id)
+      _ <- updateNonTerminalCalls(restartableWorkflow.id, callsToStatuses)
+    } yield ()
   }
 
   override def backendType = BackendType.LOCAL
@@ -143,11 +137,14 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
    * -v maps the host workflow executions directory to /root/<workflow id> on the container.
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
-  private def buildDockerRunCommand(backendCall: BackendCall, image: String): String =
-    s"docker run --rm -v ${backendCall.workflowRootPath.toAbsolutePath}:${backendCall.dockerContainerExecutionDir} -i $image"
+  private def buildDockerRunCommand(backendCall: BackendCall, image: String): String = {
+    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.name, backendCall.key.index)
+    s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
+  }
+
 
   private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
-    val tag = makeTag(backendCall)
+    val logger = workflowLoggerWithCall(backendCall)
     val stdoutWriter = backendCall.stdout.untailed
     val stderrTailed = backendCall.stderr.tailed(100)
     val dockerRun = backendCall.call.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
@@ -157,15 +154,19 @@ class LocalBackend extends Backend with SharedFileSystem with LazyLogging {
     // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
     backendCall.callAbortRegistrationFunction.register(AbortFunction(() => process.destroy()))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
-    logger.info(s"$tag command: $backendCommandString")
+    logger.info(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
     Vector(stdoutWriter.writer, stderrTailed.writer) foreach { _.flushAndClose() }
 
     val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
     val returnCode = Try(
       if (processReturnCode == 0 || backendCall.call.docker.isEmpty) {
-        backendCall.returnCode.slurp.stripLineEnd.toInt
+        val rc = backendCall.returnCode.slurp.stripLineEnd.toInt
+        logger.info(s"Return code: $rc")
+        rc
       } else {
+        logger.error(s"Non-zero return code: $processReturnCode")
+        logger.error(s"Standard error was:\n\n${stderrTailed.tailString}\n")
         throw new Exception(s"Unexpected process exit code: $processReturnCode")
       }
     )

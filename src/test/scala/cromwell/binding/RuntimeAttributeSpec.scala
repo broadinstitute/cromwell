@@ -183,7 +183,7 @@ object RuntimeAttributeSpec {
       |    memory: "4G"
       |    cpu: "3"
       |    defaultZones: "US_Metro US_Backwater"
-      |    defaultDisks: "Disk1 3 SSD, Disk2 500 OldSpinnyKind"
+      |    defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
       |  }
       |}
       |
@@ -200,6 +200,23 @@ object RuntimeAttributeSpec {
       |  }
       |  runtime {
       |    docker: "ubuntu:latest"
+      |  }
+      |}
+      |
+      |workflow googly_workflow {
+      |  call googly_task
+      |}
+    """.stripMargin
+
+  val WorkflowWithLocalDiskGooglyConfig =
+    """
+      |task googly_task {
+      |  command {
+      |    echo "Hello JES!"
+      |  }
+      |  runtime {
+      |    docker: "ubuntu:latest"
+      |    defaultDisks: "local-disk 123 HDD"
       |  }
       |}
       |
@@ -237,6 +254,57 @@ object RuntimeAttributeSpec {
       |
       |workflow great_googly_moogly {
       |  call messed_up_memory
+      |}
+    """.stripMargin
+
+  val WorkflowWithMessedUpLocalDisk =
+    """
+      |task messed_up_disk {
+      |  command {
+      |      echo "YO"
+      |  }
+      |  runtime {
+      |    docker: "ubuntu:latest"
+      |    defaultDisks: "Disk1 123 LOCAL"
+      |  }
+      |}
+      |
+      |workflow great_googly_moogly {
+      |  call messed_up_disk
+      |}
+    """.stripMargin
+
+  val WorkflowWithMessedUpDiskSize =
+    """
+      |task messed_up_disk {
+      |  command {
+      |      echo "YO"
+      |  }
+      |  runtime {
+      |    docker: "ubuntu:latest"
+      |    defaultDisks: "Disk1 123.0 SSD"
+      |  }
+      |}
+      |
+      |workflow great_googly_moogly {
+      |  call messed_up_disk
+      |}
+    """.stripMargin
+
+  val WorkflowWithMessedUpDiskType =
+    """
+      |task messed_up_disk {
+      |  command {
+      |      echo "YO"
+      |  }
+      |  runtime {
+      |    docker: "ubuntu:latest"
+      |    defaultDisks: "Disk1 123 SDD"
+      |  }
+      |}
+      |
+      |workflow great_googly_moogly {
+      |  call messed_up_disk
       |}
     """.stripMargin
 }
@@ -330,11 +398,11 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
     val googlyCall = calls(callIndex)
     val attributes = googlyCall.task.runtimeAttributes
     attributes.cpu shouldBe 3
-    val firstDisk = new Disk().setName("Disk1").setSizeGb(3L).setType("SSD")
-    val secondDisk = new Disk().setName("Disk2").setSizeGb(500L).setType("OldSpinnyKind")
+    val firstDisk = new Disk().setName("Disk1").setSizeGb(3L).setType("PERSISTENT_SSD").setAutoDelete(true)
+    val secondDisk = new Disk().setName("Disk2").setSizeGb(500L).setType("PERSISTENT_HDD").setAutoDelete(true)
 
     val expectedDisks = Vector(firstDisk, secondDisk, RuntimeAttributes.LocalizationDisk)
-    attributes.defaultDisks foreach { d => expectedDisks should contain (d) }
+    attributes.defaultDisks should contain theSameElementsAs expectedDisks
 
     val expectedZones = Vector("US_Metro", "US_Backwater")
     attributes.defaultZones foreach { z => expectedZones should contain (z) }
@@ -353,6 +421,22 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
     attributes.cpu shouldBe RuntimeAttributes.Defaults.Cpu
     attributes.defaultDisks foreach { d => RuntimeAttributes.Defaults.Disk should contain (d) }
     attributes.defaultZones foreach { z => RuntimeAttributes.Defaults.Zones should contain (z) }
+    attributes.memoryGB shouldBe RuntimeAttributes.Defaults.Memory
+  }
+
+  "WDL file with local disk Googly config" should "parse up properly" in {
+    val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithLocalDiskGooglyConfig, BackendType.JES)
+    val calls = NamespaceWithoutGooglyConfig.workflow.calls
+    val callIndex = calls.indexWhere(call => call.name == "googly_task")
+    callIndex should be >= 0
+
+    val googlyCall = calls(callIndex)
+    val attributes = googlyCall.task.runtimeAttributes
+    attributes.cpu shouldBe RuntimeAttributes.Defaults.Cpu
+
+    val localHddDisk = new Disk().setName("local-disk").setSizeGb(123L).setType("PERSISTENT_HDD").setAutoDelete(true)
+    attributes.defaultDisks should contain theSameElementsAs Vector(localHddDisk)
+    attributes.defaultZones should contain theSameElementsAs RuntimeAttributes.Defaults.Zones
     attributes.memoryGB shouldBe RuntimeAttributes.Defaults.Memory
   }
 
@@ -392,5 +476,30 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
     }
 
     ex.getMessage should include ("is an invalid memory unit")
+  }
+
+  "WDL file with an invalid local disk" should "say so" in {
+    val ex = intercept[IllegalArgumentException] {
+      NamespaceWithWorkflow.load(WorkflowWithMessedUpLocalDisk, BackendType.JES)
+    }
+
+    ex.getMessage should include(
+      "'Disk1 123 LOCAL' should be in form 'NAME SIZE TYPE', with SIZE blank for LOCAL, otherwise SIZE in GB")
+  }
+
+  "WDL file with an invalid disk size" should "say so" in {
+    val ex = intercept[IllegalArgumentException] {
+      NamespaceWithWorkflow.load(WorkflowWithMessedUpDiskSize, BackendType.JES)
+    }
+
+    ex.getMessage should include("123.0 not convertible to a Long")
+  }
+
+  "WDL file with an invalid disk type" should "say so" in {
+    val ex = intercept[IllegalArgumentException] {
+      NamespaceWithWorkflow.load(WorkflowWithMessedUpDiskType, BackendType.JES)
+    }
+
+    ex.getMessage should include("Disk TYPE SDD should be one of LOCAL, SSD, HDD")
   }
 }

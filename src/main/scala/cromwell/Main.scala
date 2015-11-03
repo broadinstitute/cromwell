@@ -1,8 +1,9 @@
 package cromwell
 
 import java.io.File
-import java.nio.file.{Files, Paths}
+import java.nio.file.{FileAlreadyExistsException, Path, Files, Paths}
 
+import com.typesafe.config.ConfigFactory
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
@@ -20,15 +21,38 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
-  val Properties = System.getProperties
-  val LoggerProperty = "CROMWELL_LOGGER"
-  lazy val Log = LoggerFactory.getLogger("main")
+  private def initLogging() = {
+    val LogRootDefault = "."
+    val LogModeDefault = "CONSOLE"
+    val LogLevelDefault = "INFO"
 
-  Option(Properties.getProperty(LoggerProperty)) match {
-    case None if args.headOption.map {_.toUpperCase}.contains("SERVER") =>
-      Properties.setProperty(LoggerProperty, "SERVER")
-    case _ =>
+    val logRoot = Option(System.getProperty("LOG_ROOT")) match {
+      case None =>
+        System.setProperty("LOG_ROOT", LogRootDefault)
+        LogRootDefault
+      case Some(x) => x
+    }
+
+    if (Option(System.getProperty("LOG_MODE")).isEmpty)
+      System.setProperty("LOG_MODE", LogModeDefault)
+
+    if (Option(System.getProperty("LOG_LEVEL")).isEmpty)
+      System.setProperty("LOG_LEVEL", LogLevelDefault)
+
+    try {
+      Files.createDirectories(Paths.get(logRoot))
+    } catch {
+      case e: FileAlreadyExistsException =>
+      case e: Throwable =>
+        System.err.println(s"Could not create log directory: $logRoot")
+        e.printStackTrace()
+        System.exit(1)
+    }
   }
+
+  initLogging()
+
+  lazy val Log = LoggerFactory.getLogger("cromwell")
 
   getAction(args.headOption map { _.capitalize }) match {
     case Some(x) if x == Actions.Validate => validate(args.tail)

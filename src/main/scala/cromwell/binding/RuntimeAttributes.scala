@@ -47,7 +47,9 @@ object RuntimeAttributes {
     }
   }
 
-  val LocalizationDisk = LocalDisk("local-disk", 100L, "LOCAL_SSD").toDisk
+  val LocalDiskName = "local-disk"
+
+  val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD, Option(10)).toDisk
   
   /** Fallback values if values for these keys are not specified in a task "runtime" stanza. */
   object Defaults {
@@ -106,20 +108,33 @@ object RuntimeAttributes {
   private def validateLocalDisks(value: Option[String]): ValidationNel[String, Seq[Disk]] = {
     value match {
       case Some(v) =>
-        val nels = v.split(",\\s*").toList map { x => validateLocalDisk(x) }
-        // Use the LocalizationDisk as the start of the fold. Currently same as default, but perhaps not always
-        val defaultDiskNel = Vector(LocalizationDisk).successNel[String]
-        nels.foldLeft(defaultDiskNel)((acc, v) => (acc |@| v) { (a, v) => a :+ v })
+        val nels = v.split(",\\s*") map validateLocalDisk
+        val emptyDiskNel = Vector.empty[Disk].successNel[String]
+        val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) { (a, v) => a :+ v })
+        disksNel map {
+          case disks if disks.exists(_.getName == LocalDiskName) => disks
+          case disks => disks :+ LocalizationDisk
+        }
       case None => Defaults.Disk.successNel
     }
   }
 
   private def validateLocalDisk(disk: String): ValidationNel[String, Disk] = {
-    try {
-      val Array(name, sizeGb, diskType) = disk.split("\\s+")
-      validateLong(sizeGb) map { LocalDisk(name, _, diskType).toDisk }
-    } catch {
-      case _: MatchError => s"$disk should be in form NAME SIZE TYPE with SIZE in GB".failureNel
+    disk.split("\\s+") match {
+      case Array(name, DiskType.LOCAL.diskTypeName) =>
+        LocalDisk(name, DiskType.LOCAL).toDisk.successNel[String]
+      case Array(name, sizeGb, diskType) if diskType != DiskType.LOCAL.diskTypeName =>
+        (validateLong(sizeGb) |@| validateDiskType(diskType)) { (s, dt) => LocalDisk(name, dt, Option(s)).toDisk }
+      case _ => s"'$disk' should be in form 'NAME SIZE TYPE', with SIZE blank for LOCAL, otherwise SIZE in GB".failureNel
+    }
+  }
+
+  private def validateDiskType(diskTypeName: String): ValidationNel[String, DiskType] = {
+    DiskType.values().find(_.diskTypeName == diskTypeName) match {
+      case Some(diskType) => diskType.successNel[String]
+      case None =>
+        val diskTypeNames = DiskType.values.map(_.diskTypeName).mkString(", ")
+        s"Disk TYPE $diskTypeName should be one of $diskTypeNames".failureNel
     }
   }
 
@@ -188,7 +203,7 @@ object RuntimeAttributes {
     try {
       value.toBoolean.successNel
     } catch {
-      case _: IllegalArgumentException => s"$value not convertable to a Boolean".failureNel[Boolean]
+      case _: IllegalArgumentException => s"$value not convertible to a Boolean".failureNel[Boolean]
     }
   }
 
@@ -196,7 +211,7 @@ object RuntimeAttributes {
     try {
       value.toInt.successNel
     } catch {
-      case _: IllegalArgumentException => s"$value not convertable to an Int".failureNel[Int]
+      case _: IllegalArgumentException => s"$value not convertible to an Int".failureNel[Int]
     }
   }
 
@@ -204,7 +219,7 @@ object RuntimeAttributes {
     try {
       value.toLong.successNel
     } catch {
-      case _: IllegalArgumentException => s"$value not convertable to a Long".failureNel[Long]
+      case _: IllegalArgumentException => s"$value not convertible to a Long".failureNel[Long]
     }
   }
 
@@ -230,8 +245,13 @@ object RuntimeAttributes {
     astList.asScala.toVector map { a => processRuntimeAttribute(a.asInstanceOf[Ast]) } toMap
   }
 
-  private case class LocalDisk(name: String, sizeGb: Long, diskType: String) {
-    def toDisk: Disk = new Disk().setSizeGb(sizeGb).setType(diskType).setName(name)
+  private case class LocalDisk(name: String, diskType: DiskType, sizeGbOption: Option[Long] = None) {
+    def toDisk: Disk = {
+      val disk = new Disk().setName(name).setType(diskType.googleTypeName).setAutoDelete(true)
+      // Even though GCE ignores the value for local disks, JES requires we set the disk size anyway.
+      disk.setSizeGb(long2Long(sizeGbOption getOrElse 10L))
+      disk
+    }
   }
 
   implicit class EnhancedAst(val ast: Ast) extends AnyVal {

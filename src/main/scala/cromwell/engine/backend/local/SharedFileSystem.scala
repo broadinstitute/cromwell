@@ -2,16 +2,17 @@ package cromwell.engine.backend.local
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
-import java.security.MessageDigest
 
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
-import cromwell.binding.types.WdlFileType
+import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
+import cromwell.engine.workflow.CallKey
+import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
 import scala.collection.JavaConverters._
@@ -19,9 +20,12 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object SharedFileSystem {
+  type LocalizationStrategy = (Path, Path) => Try[Unit]
+
   val SharedFileSystemConf = ConfigFactory.load.getConfig("backend").getConfig("shared-filesystem")
   val CromwellExecutionRoot = SharedFileSystemConf.getString("root")
   val LocalizationStrategies = SharedFileSystemConf.getStringList("localization").asScala
+
   val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
     case "hard-link" => localizePathViaHardLink _
     case "soft-link" => localizePathViaSymbolicLink _
@@ -29,14 +33,20 @@ object SharedFileSystem {
     case unsupported => throw new UnsupportedOperationException(s"Localization strategy $unsupported is not recognized")
   })
 
+  // Note that any unrecognized configuration will be raised when Localizers (just above) gets resolved.
+  val DockerLocalizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies collect {
+    case "hard-link" => localizePathViaHardLink _
+    case "copy" => localizePathViaCopy _
+  })
+
   /**
    * Return a `Success` result if the file has already been localized, otherwise `Failure`.
    */
-  private def localizePathAlreadyLocalized(call: Option[Call], originalPath: Path, executionPath: Path): Try[Unit] = {
+  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
     if (Files.exists(executionPath)) Success(()) else Failure(new Throwable)
   }
 
-  private def localizePathViaCopy(call: Option[Call], originalPath: Path, executionPath: Path): Try[Unit] = {
+  private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
     if (Files.isDirectory(originalPath)) {
       Try(FileUtils.copyDirectory(originalPath.toFile, executionPath.toFile))
     } else {
@@ -44,7 +54,7 @@ object SharedFileSystem {
     }
   }
 
-  private def localizePathViaHardLink(call: Option[Call], originalPath: Path, executionPath: Path): Try[Unit] =
+  private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] =
     Try(Files.createLink(executionPath, originalPath))
 
   /**
@@ -55,11 +65,10 @@ object SharedFileSystem {
    * The symbolic link will only fail in the Docker case if a Call uses the file directly and not
    * indirectly through one of its input expressions
    */
-  private def localizePathViaSymbolicLink(call: Option[Call], originalPath: Path, executionPath: Path): Try[Unit] = {
-    call.flatMap(_.docker) match {
-      case Some(_) => Failure(new UnsupportedOperationException("Cannot localize with symbolic links with Docker"))
-      case _ => Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
-    }
+  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Try[Unit] = {
+    if (originalPath.toFile.isDirectory)
+      Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
+    else Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
   }
 }
 
@@ -101,102 +110,97 @@ trait SharedFileSystem {
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
     )
   }
-
   /**
-   * Creates host execution directory, inputs path, and outputs path.  Stages any input files into the workflow-inputs
-   * directory and localizes their paths relative to the container.
+   * Creates host execution directory.
    */
   def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[HostInputs] = {
     val hostExecutionDirectory = LocalBackend.hostExecutionPath(descriptor).toFile
     hostExecutionDirectory.mkdirs()
-    val hostExecutionAbsolutePath = hostExecutionDirectory.getAbsolutePath
-    Array("workflow-inputs", "workflow-outputs") foreach { Paths.get(hostExecutionAbsolutePath, _).toFile.mkdir() }
-    stageWorkflowInputs(descriptor)
+    Success(descriptor.actualInputs)
   }
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(call: Call, inputs: CallInputs): CallInputs = {
-    def containerPath(path: String): WdlFile = {
+  def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = {
+    val call = callKey.scope
+    val strategies = if (call.docker.isDefined) DockerLocalizers else Localizers
+
+    def toDockerPath(path: Path): Path = {
       // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
       // Container path should look like /root/f00ba4/call-ps/stdout.txt
-      val fullPath = Paths.get(path).toFile.getAbsolutePath
+      val fullPath = path.toFile.getAbsolutePath
       // Strip out everything before cromwell-executions.
       val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutionRoot) + CromwellExecutionRoot.length)
       // Strip out the workflow name (the first component under cromwell-executions).
       val pathWithWorkflowName = Paths.get(pathUnderCromwellExecutions)
-      WdlFile(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
+      Paths.get(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
     }
 
-    // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
-    def adjustPath(nameAndValue: (String, WdlValue)): (String, WdlValue) = {
-      val (name, value) = nameAndValue
-      val adjusted = value match {
-        case WdlFile(path) => containerPath(path)
-        case WdlArray(t, values) => new WdlArray(t, values map { adjustPath(name, _)._2 })
-        case WdlMap(t, values) => new WdlMap(t, values mapValues { adjustPath(name, _)._2 })
-        case x => x
-      }
-      name -> adjusted
+    /**
+     * Transform an original input path to a path in the call directory.
+     * The new path matches the original path, it only "moves" the root to be the call directory.
+     */
+    def toCallPath(path: Path): Path = {
+      val callDirectory = LocalBackend.hostCallPath(workflowDescriptor, call.name, callKey.index)
+      // Concatenate call directory with absolute input path
+      Paths.get(callDirectory.toAbsolutePath.toString, path.toAbsolutePath.toString)
     }
 
-    // If this call is using Docker, adjust input paths, otherwise return unaltered input paths.
-    if (call.docker.isDefined) inputs map adjustPath else inputs
+    // Optional function to adjust the path to "docker path" if the call runs in docker
+    val postProcessor: Option[Path => Path] = call.docker map { _ => toDockerPath _ }
+    val localizeFunction = localizeWdlValue(toCallPath, strategies.toStream, postProcessor) _
+    val localizedValues = inputs.toSeq map {
+      case (name, value) => localizeFunction(value) map { name -> _ }
+    }
+
+    TryUtil.sequence(localizedValues, "Failures during localization").get toMap
   }
 
   /**
-   * Given the specified workflow descriptor and inputs, stage any WdlFiles into the workflow-inputs subdirectory
-   * of the workflow execution directory.  Return a Map of the input values with any input WdlFiles adjusted to
-   * reflect host paths.
-   *
-   * Original input path: /could/be/anywhere/input.bam
-   * Host inputs path: $PWD/cromwell-executions/some-workflow-name/0f00-ba4/workflow-inputs/input.bam
+   * Try to localize a WdlValue if it is or contains a WdlFile.
+   * @param toDestPath function specifying how to generate the destination path from the source path
+   * @param strategies strategies to use for localization
+   * @param postProcessor optional function to be applied to the path after the file it points to has been localized (defaults to noop)
+   * @param wdlValue WdlValue to localize
+   * @return localized wdlValue
    */
-  private def stageWorkflowInputs(descriptor: WorkflowDescriptor): Try[HostInputs] = {
-    val hostInputsPath = Paths.get(LocalBackend.hostExecutionPath(descriptor).toFile.getAbsolutePath, "workflow-inputs")
-    val attemptedStagedInputs = descriptor.actualInputs map { case(name, value) =>
-      val call = descriptor.namespace.resolve(name.split("\\.").dropRight(1).mkString(".")) match {
-        case Some(c: Call) => Some(c)
-        case _ => None
+  def localizeWdlValue(toDestPath: (Path => Path), strategies: Stream[LocalizationStrategy], postProcessor: Option[Path => Path] = None)(wdlValue: WdlValue): Try[WdlValue] = {
+
+    def localize(source: Path, dest: Path) = strategies map { _(source, dest) } find { _.isSuccess } getOrElse {
+      Failure(new UnsupportedOperationException(s"Could not localize $source -> $dest"))
+    }
+
+    def adjustArray(t: WdlArrayType, inputArray: Seq[WdlValue]): Try[WdlArray] = {
+      val tryAdjust = inputArray map localizeWdlValue(toDestPath, strategies, postProcessor)
+
+      TryUtil.sequence(tryAdjust, s"Failed to localize files in input Array ${wdlValue.valueString}") map { adjusted =>
+        new WdlArray(t, adjusted)
       }
-      name -> stageWdlValue(call, value, hostInputsPath)
     }
-    attemptedStagedInputs.values collect { case f: Failure[_] => f } match {
-      case Nil =>
-        Success(attemptedStagedInputs map { case (k, v) => k -> v.get })
-      case failedInputs =>
-        val errors = failedInputs map { _.exception.getMessage } mkString "\n"
-        Failure(new UnsupportedOperationException(s"Failures during localization:\n\n$errors"))
+
+    def adjustMap(t: WdlMapType, inputMap: Map[WdlValue, WdlValue]): Try[WdlMap] = {
+      val tryAdjust = inputMap mapValues { localizeWdlValue(toDestPath, strategies, postProcessor) }
+
+      TryUtil.sequenceMap(tryAdjust, s"Failed to localize files in input Map ${wdlValue.valueString}") map { adjusted =>
+        new WdlMap(t, adjusted)
+      }
     }
-  }
 
-  private def stageInputArray(call: Option[Call], array: WdlArray, hostInputsPath: Path): Try[WdlArray] = {
-    val attemptedStagedArray = array.value.map(stageWdlValue(call, _, hostInputsPath))
-    attemptedStagedArray collect { case f: Failure[_] => f } match {
-      case s: Seq[Failure[_]] if s.nonEmpty =>
-        val errors = s map { _.exception.getMessage } mkString "\n"
-        Failure(new UnsupportedOperationException(s"Failures during localization of array $array:\n\n$errors"))
-      case _ => Success(WdlArray(array.wdlType, attemptedStagedArray.map(_.get)))
+    def adjustFile(path: Path) = {
+      val adjustedPath = toDestPath(path)
+      localize(path, adjustedPath) map { Unit =>
+        val finalPath = postProcessor map { _(adjustedPath) } getOrElse adjustedPath
+        WdlFile(finalPath.toAbsolutePath.toString)
+      }
     }
-  }
 
-  private def stageWdlValue(call: Option[Call], value: WdlValue, hostInputsPath: Path): Try[WdlValue] = value match {
-    case w: WdlFile => stageWdlFile(call, w, hostInputsPath)
-    case a: WdlArray => stageInputArray(call, a, hostInputsPath)
-    case x => Success(x)
-  }
-
-  private def stageWdlFile(call: Option[Call], wdlFile: WdlFile, hostInputsPath: Path): Try[WdlFile] = {
-    val originalPath = Paths.get(wdlFile.value)
-    val directoryIdentifier = MessageDigest.getInstance("MD5").digest(originalPath.toAbsolutePath.getParent.toString.getBytes) map {byte => f"$byte%02x"} mkString
-    val executionPath = hostInputsPath.resolve(s"${directoryIdentifier.substring(0,8)}-${originalPath.getFileName.toString}")
-
-    val attemptedLocalization = Stream(Localizers: _*) map { _(call, originalPath, executionPath) } find { _.isSuccess }
-    attemptedLocalization match {
-      case Some(_) => Success(WdlFile(executionPath.toString))
-      case None => Failure(throw new UnsupportedOperationException(s"Could not localize $wdlFile -> $executionPath"))
+    wdlValue match {
+      case wdlFile: WdlFile => adjustFile(Paths.get(wdlFile.value))
+      case WdlArray(t, values) => adjustArray(t, values)
+      case WdlMap(t, values) => adjustMap(t, values)
+      case x => Success(x)
     }
   }
 

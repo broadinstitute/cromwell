@@ -6,14 +6,30 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.workflow.CallKey
+import cromwell.logging.WorkflowLogger
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 
-object Pipeline extends LazyLogging {
-  def apply(command: String, workflow: WorkflowDescriptor, key: CallKey, jesParameters: Seq[JesParameter], projectId: String, jesConnection: JesInterface): Pipeline = {
+object Pipeline {
+
+  def apply(command: String,
+            workflow: WorkflowDescriptor,
+            key: CallKey,
+            jesParameters: Seq[JesParameter],
+            projectId: String,
+            jesConnection: JesInterface,
+            runIdForResumption: Option[String]): Pipeline = {
+
     val call = key.scope
-    val tag = s"JES Pipeline [UUID(${workflow.shortId}):${call.name}]"
-    logger.debug(s"$tag Command line is: $command")
+    val logger = WorkflowLogger(
+      "JES Pipeline",
+      workflow,
+      otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
+      callTag = Option(key.tag)
+    )
+
+    logger.debug(s"Command line is: $command")
     val runtimeInfo = JesRuntimeInfo(command, call)
 
     val gcsPath = workflow.callDir(key)
@@ -26,31 +42,35 @@ object Pipeline extends LazyLogging {
 
     cpr.setParameters(jesParameters.map(_.toGoogleParameter).toVector.asJava)
 
-    logger.info(s"$tag Pipeline parameters are:\n${cpr.getParameters.asScala.map(s=>s"  $s").mkString("\n")}")
-    val pipelineId = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
-    logger.info(s"$tag Pipeline ID is $pipelineId")
-    logger.info(s"$tag Project ID: $projectId")
-    new Pipeline(command, 
-                 pipelineId, 
-                 projectId, 
-                 gcsPath, 
+    def createPipeline = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
+
+    logger.info(s"Pipeline parameters are:\n${cpr.getParameters.asScala.map(s => s"  $s").mkString("\n")}")
+    val pipelineId = if (runIdForResumption.isDefined) None else Option(createPipeline)
+
+    logger.info(s"Pipeline ID is ${pipelineId.getOrElse("(none)")}")
+    logger.info(s"Project ID: $projectId")
+    new Pipeline(command,
+                 pipelineId,
+                 projectId,
+                 gcsPath,
                  workflow,
                  key,
-                 jesParameters, 
-                 runtimeInfo, 
-                 jesConnection.genomics)
+                 jesParameters,
+                 runtimeInfo,
+                 jesConnection.genomics,
+                 runIdForResumption)
   }
 }
 
-// Note that id is the JES id not the workflow id
-case class Pipeline(command: String,
-                    id: String,
-                    projectId: String,
-                    gcsPath: String,
-                    workflow: WorkflowDescriptor,
-                    key: CallKey,
-                    jesParameters: Seq[JesParameter],
-                    runtimeInfo: JesRuntimeInfo,
-                    genomicsService: Genomics) {
+case class Pipeline private(command: String,
+                            pipelineId: Option[String],
+                            projectId: String,
+                            gcsPath: String,
+                            workflow: WorkflowDescriptor,
+                            key: CallKey,
+                            jesParameters: Seq[JesParameter],
+                            runtimeInfo: JesRuntimeInfo,
+                            genomicsService: Genomics,
+                            runIdForResumption: Option[String]) {
   def run: Run = Run(this)
 }

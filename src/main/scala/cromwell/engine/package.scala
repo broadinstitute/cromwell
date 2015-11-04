@@ -150,11 +150,6 @@ package object engine {
     override val isTerminal = true
   }
 
-  case object WorkflowStopped extends WorkflowState {
-    override val toString = "Stopped"
-    override val isTerminal = true
-  }
-
   object SymbolStoreEntry {
     private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {
       val lastIndex = fullyQualifiedName.lastIndexOf(".")

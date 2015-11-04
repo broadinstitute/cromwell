@@ -55,10 +55,24 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
 
   def tsvSerialize: Try[String] = {
     (wdlType.keyType, wdlType.valueType) match {
-      case (k: WdlPrimitiveType, v: WdlPrimitiveType) =>
+      case (wdlTypeKey: WdlPrimitiveType, wdlTypeValue: WdlPrimitiveType) =>
         Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString("\n"))
       case _ =>
         Failure(new UnsupportedOperationException("Can only TSV serialize a Map[Primitive, Primitive]"))
     }
+  }
+
+  def map(f: PartialFunction[((WdlValue, WdlValue)), (WdlValue, WdlValue)]): WdlMap = {
+    value map f match {
+      case m: Map[WdlValue, WdlValue] if m.nonEmpty => WdlMap(WdlMapType(m.head._1.wdlType, m.head._2.wdlType), m)
+      case _ => this
+    }
+  }
+
+  override def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
+    val collected = value flatMap {
+      case (k, v) => Seq(k.collectAsSeq(filterFn), v.collectAsSeq(filterFn))
+    }
+    collected.flatten.toSeq
   }
 }

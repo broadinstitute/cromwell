@@ -1,6 +1,6 @@
 package cromwell.binding.values
 
-import cromwell.binding.types.{WdlObjectType, WdlArrayType, WdlPrimitiveType}
+import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType}
 
 import scala.util.{Failure, Success, Try}
 
@@ -29,5 +29,9 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
       case WdlObjectType => WdlObject.tsvSerializeArray(value map { _.asInstanceOf[WdlObject] })
       case _ => Failure(new UnsupportedOperationException("Can only TSV serialize an Array[Primitive]"))
     }
+  }
+
+  override def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
+    value flatMap { _.collectAsSeq(filterFn) }
   }
 }

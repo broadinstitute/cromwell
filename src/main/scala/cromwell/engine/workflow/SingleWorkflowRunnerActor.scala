@@ -1,23 +1,22 @@
 package cromwell.engine.workflow
 
-import akka.actor.FSM.Transition
-import akka.actor.{Actor, ActorRef, Props}
+import java.nio.file.Path
+
+import akka.actor.FSM.{CurrentState, Transition}
+import akka.actor.{Actor, ActorRef, Props, Status}
 import akka.event.Logging
-import akka.pattern.ask
+import better.files._
 import cromwell.binding
+import cromwell.binding.FullyQualifiedName
+import cromwell.binding.values.WdlValue
 import cromwell.engine._
-import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, SubscribeToWorkflow, WorkflowOutputs}
+import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.webservice.WorkflowMetadataResponse
 import spray.json._
 
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import scala.util.{Failure, Success}
-
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
-    Props(new SingleWorkflowRunnerActor(source, inputs, workflowManager))
+  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef): Props = {
+    Props(classOf[SingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager)
   }
 }
 
@@ -25,9 +24,25 @@ object SingleWorkflowRunnerActor {
  * Designed explicitly for the use case of the 'run' functionality in Main. This Actor will start a workflow,
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
+ *
+ * NOTE: This Actor listens to FSM transition messages to keep an eye on the WorkflowActor. However, when the FSM
+ * transitions to a "terminated" state, it is just starting to asynchronously begin more work in response to the same
+ * message. This work includes persisting the run state to the DB, before it sends a special message to itself to
+ * actually halt the Actor instance. (Side note, the halt only appears to be received in state WorkflowSucceeded, not
+ * WorkflowFailed?)
+ *
+ * Unfortunately, we sense this "terminated" state of WorkflowSucceeded/WorkflowFailure, and then send a message to the
+ * system to shut down, sometimes before the WorkflowActor has actually persisted its final state. During testing, it
+ * also shuts down the system before the WorkflowActor finishes using system internals. In one example, when the
+ * WorkflowActor tries to activate a special call to setTimer, the system is already gone, resulting in an internal
+ * NullPointerException.
+ *
+ * All this messaging and FSM state needs help. There are other tools available too, besides FSM state, for example one
+ * could also register a context.watch() on the WorkflowActor to make sure it's really done. A simpler alternative may
+ * be a "Now I'm **really** done" message from the WorkflowActor.
  */
 case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
-                                     inputs: binding.WorkflowRawInputs,
+                                     metadataOutputPath: Option[Path],
                                      workflowManager: ActorRef) extends Actor with CromwellActor {
   val log = Logging(context.system, classOf[SingleWorkflowRunnerActor])
   val tag = "SingleWorkflowRunnerActor"
@@ -36,32 +51,42 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
 
   override def preStart(): Unit = {
     log.info(s"$tag: launching workflow")
-    val eventualId = workflowManager.ask(SubmitWorkflow(source)).mapTo[WorkflowId]
-    eventualId onComplete {
-      case Success(x) => subscribeToWorkflow(x)
-      case Failure(e) =>
-        log.error(e, s"$tag: ${e.getMessage}")
-        terminate()
-    }
+    workflowManager ! SubmitWorkflow(source)
   }
 
   def receive = {
+    case workflowId: WorkflowId => subscribeToWorkflow(workflowId)
+    case outputs: Map[FullyQualifiedName@unchecked, WdlValue@unchecked] => outputOutputs(outputs)
+    case metadata: WorkflowMetadataResponse => outputMetadata(metadata) // pkg "webservice", but this is what WMA sends
+    case currentState: CurrentState[_] => log.debug(s"$tag: ignoring current state message: $currentState")
     case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
     case Transition(_, _, state: WorkflowState) => log.info(s"$tag: transitioning to $state")
+    case Status.Failure(t) => handleFailure(t) // .pipeTo() transforms util.Failure() to Status.Failure()
     case m => log.warning(s"$tag: received unexpected message: $m")
   }
 
+  /**
+   * Logs the workflow completion, then either a) if the workflow completed successfully: requests the outputs, and
+   * later the metadata, or b) if not did not complete successfully, immediately requests the metadata.
+   * @param state The workflow termination state.
+   */
   private def handleTermination(state: WorkflowState): Unit = {
     log.info(s"$tag: workflow finished with status '$state'.")
 
     // If this is a successful termination, retrieve & print out the outputs
     if (state == WorkflowSucceeded) {
-      val eventualOutputs = workflowManager.ask(WorkflowOutputs(id)).mapTo[binding.WorkflowOutputs]
-      val outputs = Await.result(eventualOutputs, 5 seconds)
-      import cromwell.binding.values.WdlValueJsonFormatter._
-      println(outputs.toJson.prettyPrint)
+      workflowManager ! WorkflowOutputs(id)
+    } else {
+      sendMetadataMessage()
     }
+  }
 
+  /**
+   * Logs the errors and shuts down.
+   * @param t The error.
+   */
+  private def handleFailure(t: Throwable): Unit = {
+    log.error(t, s"$tag: ${t.getMessage}")
     terminate()
   }
 
@@ -77,7 +102,47 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     workflowManager ! SubscribeToWorkflow(id)
   }
 
+  /**
+   * Outputs the outputs to stdout, and then requests the metadata.
+   */
+  private def outputOutputs(outputs: binding.WorkflowOutputs): Unit = {
+    import cromwell.binding.values.WdlValueJsonFormatter._
+    println(outputs.toJson.prettyPrint)
+    sendMetadataMessage()
+  }
+
+  /**
+   * Requests the metadata, if the path is specified, or shuts down.
+   */
+  private def sendMetadataMessage(): Unit = {
+    metadataOutputPath match {
+      case Some(file) => workflowManager ! WorkflowMetadata(id)
+      case None => terminate()
+    }
+  }
+
+  /**
+   * Outputs the metadata, then shuts down.
+   */
+  private def outputMetadata(metadata: WorkflowMetadataResponse): Unit = {
+    try {
+      import cromwell.webservice.WorkflowJsonSupport._
+      val path = metadataOutputPath.get
+      log.info(s"Writing metadata to $path")
+      path.createIfNotExists().write(metadata.toJson.prettyPrint)
+      terminate()
+    } catch {
+      case e: Exception =>
+        handleFailure(e)
+    }
+  }
+
+  /**
+   * Got to tell the manager its job is done.
+   */
   private def terminate(): Unit = {
-    context.system.shutdown()
+    // NOTE: As of right now, the WorkflowManagerActor is shutting down the system before the WorkflowActor may
+    // actually be finished / stopped though.
+    workflowManager ! Shutdown
   }
 }

@@ -1,15 +1,12 @@
 package cromwell.engine.backend.local
 
-import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import better.files._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.WdlArrayType._
 import cromwell.binding.types._
 import cromwell.binding.values._
-import cromwell.util.FileUtil
-import cromwell.util.FileUtil.{EnhancedFile, EnhancedPath}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -17,8 +14,8 @@ import scala.util.{Failure, Success, Try}
 class LocalEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions {
   protected def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => new File(f.value).slurp
-      case s: WdlString => Paths.get(s.value).slurp
+      case f: WdlFile => File(f.value).contentAsString
+      case s: WdlString => File(s.value).contentAsString
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
   }
@@ -78,8 +75,8 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
    */
   override def fileContentsToString(value: WdlValue): String = {
     value match {
-      case f: WdlFile => new File(f.value).slurp
-      case s: WdlString => cwd.resolve(s.value).slurp
+      case f: WdlFile => File(f.value).contentAsString
+      case s: WdlString => cwd.resolve(s.value).contentAsString
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
   }
@@ -88,7 +85,7 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stdout() takes zero parameters"))
     } else {
-      Success(WdlFile(stdout.toAbsolutePath.toString))
+      Success(WdlFile(stdout.fullPath))
     }
   }
 
@@ -96,7 +93,7 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
     if (params.nonEmpty) {
       Failure(new UnsupportedOperationException("stderr() takes zero parameters"))
     } else {
-      Success(WdlFile(stderr.toAbsolutePath.toString))
+      Success(WdlFile(stderr.fullPath))
     }
   }
 
@@ -145,18 +142,10 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
   }
 
   private def filesMatchingGlob(glob: String): Try[Seq[WdlValue]] = Try {
-    ("." / cwd.toString).glob(s"**/$glob") map { file => WdlFile(file.path.toAbsolutePath.toString) } toSeq
+    ("." / cwd.toString).glob(s"**/$glob") map { file => WdlFile(file.path.fullPath) } toSeq
   }
 
-  protected def writeContent(baseName: String, content: String) = {
-    val (path, writer) = FileUtil.tempFileAndWriter("array", cwd.toFile)
-    try {
-      writer.write(content)
-      Success(WdlFile(path.toAbsolutePath.toString))
-    } catch {
-      case t: Throwable => Failure(t)
-    } finally {
-      writer.close()
-    }
+  protected def writeContent(baseName: String, content: String): Try[WdlFile] = {
+    Try(WdlFile(Files.createTempFile(cwd, "array.", ".tmp").write(content).fullPath))
   }
 }

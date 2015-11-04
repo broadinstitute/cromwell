@@ -3,9 +3,9 @@ package cromwell.engine.backend.local
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
+import better.files._
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
@@ -124,12 +124,12 @@ class LocalBackend extends Backend with SharedFileSystem {
    * as some extra shell code for monitoring jobs
    */
   private def writeScript(backendCall: BackendCall, instantiatedCommand: String, containerRoot: Path) = {
-    val (_, scriptWriter) = backendCall.script.fileAndWriter
-    scriptWriter.writeWithNewline("#!/bin/sh")
-    scriptWriter.writeWithNewline(s"cd $containerRoot")
-    scriptWriter.writeWithNewline(instantiatedCommand)
-    scriptWriter.writeWithNewline("echo $? > rc")
-    scriptWriter.flushAndClose()
+    backendCall.script.write(
+      s"""#!/bin/sh
+         |cd $containerRoot
+         |$instantiatedCommand
+         |echo $$? > rc
+         |""".stripMargin)
   }
 
   /**
@@ -161,7 +161,7 @@ class LocalBackend extends Backend with SharedFileSystem {
     val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
     val returnCode = Try(
       if (processReturnCode == 0 || backendCall.call.docker.isEmpty) {
-        val rc = backendCall.returnCode.slurp.stripLineEnd.toInt
+        val rc = backendCall.returnCode.contentAsString.stripLineEnd.toInt
         logger.info(s"Return code: $rc")
         rc
       } else {

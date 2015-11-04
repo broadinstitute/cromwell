@@ -16,6 +16,8 @@ trait SampleWdl {
   def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
   val rawInputs: WorkflowRawInputs
 
+  def name = getClass.getSimpleName.stripSuffix("$")
+
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
       case n: Int => JsNumber(n)
@@ -27,12 +29,12 @@ trait SampleWdl {
       case i: WdlInteger => JsNumber(i.value)
       case f: WdlFloat => JsNumber(f.value)
     }
-    def read(value: JsValue) = ???
+    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
   implicit object RawInputsJsonFormat extends JsonFormat[WorkflowRawInputs] {
     def write(inputs: WorkflowRawInputs) = JsObject(inputs map { case (k, v) => k -> v.toJson })
-    def read(value: JsValue) = ???
+    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
   def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
@@ -128,6 +130,24 @@ object SampleWdl {
 
     val rawInputs = Map.empty[String, Any]
     val OutputKey = "goodbye.goodbye.out"
+  }
+
+  object EmptyWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String = "") = "workflow empty_workflow {}"
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object EmptyTask extends SampleWdl {
+    override def wdlSource(runtime: String = "") = "task empty_task { command { : } }"
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object EmptyInvalid extends SampleWdl {
+    override def wdlSource(runtime: String = "") = "{}"
+
+    val rawInputs = Map.empty[String, Any]
   }
 
   object Incr extends SampleWdl {

@@ -17,7 +17,7 @@ class GlobbingWorkflowSpec extends CromwellTestkitSpec("ScatterWorkflowSpec") {
     )
   )
 
-  val newline = System.getProperty("line.separator")
+  val newline = System.lineSeparator
   "A workflow with globbed outputs" should {
     "run properly" in doTheTest()
     "run properly in a Docker environment" taggedAs DockerTest in doTheTest("""runtime { docker: "ubuntu:latest" }""")

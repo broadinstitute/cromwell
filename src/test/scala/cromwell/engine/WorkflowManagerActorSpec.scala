@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.pattern.ask
 import akka.testkit.{EventFilter, TestActorRef, _}
+import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
 import cromwell.binding.command.CommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}

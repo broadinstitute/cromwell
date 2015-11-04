@@ -21,7 +21,11 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit object DateJsonFormat extends RootJsonFormat[DateTime] {
     private val parserISO = ISODateTimeFormat.dateTime()
     override def write(obj: DateTime) = JsString(parserISO.print(obj))
-    override def read(json: JsValue) : DateTime = ???
+
+    override def read(json: JsValue): DateTime = json match {
+      case JsString(str) => parserISO.parseDateTime(str)
+      case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a DateTime")
+    }
   }
   implicit val callMetadataProtocol = jsonFormat12(CallMetadata)
   implicit val workflowMetadataResponse = jsonFormat8(WorkflowMetadataResponse)

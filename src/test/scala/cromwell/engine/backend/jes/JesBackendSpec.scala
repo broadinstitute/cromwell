@@ -37,7 +37,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       override val localizeWithRefreshToken = true
     }
     override lazy val jesCromwellConnection = null
-    override def jesUserConnection(backendCall: JesBackendCall) = null
+    override def jesUserConnection(workflow: WorkflowDescriptor) = null
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {

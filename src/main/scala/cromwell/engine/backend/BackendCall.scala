@@ -1,10 +1,14 @@
 package cromwell.engine.backend
 
+import akka.event.LoggingAdapter
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
-import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.{ExecutionHash, WorkflowDescriptor}
 import cromwell.engine.workflow.CallKey
+import cromwell.logging.WorkflowLogger
+import cromwell.util.StringUtil._
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -55,16 +59,15 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
   override val isDone = true
 }
 
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, returnCode)
+  override val result = SuccessfulExecution(outputs, returnCode, hash, resultsClonedFrom)
 }
 
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = FailedExecution(throwable, returnCode)
 }
-
 
 trait BackendCall {
 
@@ -128,9 +131,61 @@ trait BackendCall {
     throw new NotImplementedError(s"resume() called on a non-resumable BackendCall: $this")
   }
 
+  def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
+
+  /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
+  private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {
+    val runtime = call.task.runtimeAttributes
+
+    val orderedInputs = locallyQualifiedInputs.toSeq.sortBy(_._1)
+    val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
+    val orderedRuntime = Seq(
+      ("docker", dockerHash getOrElse ""),
+      ("defaultZones", runtime.defaultZones.sorted.mkString(",")),
+      ("failOnStderr", runtime.failOnStderr.toString),
+      ("continueOnReturnCode", runtime.continueOnReturnCode match {
+        case ContinueOnReturnCodeFlag(bool) => bool.toString
+        case ContinueOnReturnCodeSet(codes) => codes.toList.sorted.mkString(",")
+      }),
+      ("cpu", runtime.cpu.toString),
+      ("preemptible", runtime.preemptible.toString),
+      ("defaultDisks", runtime.defaultDisks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
+      ("memoryGB", runtime.memoryGB.toString)
+    )
+
+    val overallHash = Seq(
+      backend.backendType.toString,
+      call.task.commandTemplateString,
+      orderedInputs map { case (k, v) => s"$k=${v.getHash(backend.fileHasher(workflowDescriptor)).value}" } mkString "\n",
+      orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
+      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.expression.toWdlString}" } mkString "\n"
+    ).mkString("\n---\n").md5Sum
+
+    ExecutionHash(overallHash, dockerHash)
+  }
+
+  /**
+    * Compute a hash that uniquely identifies this call
+    */
+  def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = {
+    // If a Docker image is defined in the task's runtime attributes, return a `Future[Option[String]]` of the Docker
+    // hash string, otherwise return a `Future.successful` of `None`.
+    val eventualDockerHash = call.task.runtimeAttributes.docker map {
+      backend.dockerHashClient.getDockerHash(_) map { dh => Option(dh.hashString) } } getOrElse Future.successful(None)
+
+    eventualDockerHash map hashGivenDockerHash
+  }
+
   /**
    * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution
    * of this `BackendCall`.
    */
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+
+  def workflowLoggerWithCall(source: String, akkaLogger: Option[LoggingAdapter] = None) = WorkflowLogger(
+    source,
+    workflowDescriptor,
+    akkaLogger = akkaLogger,
+    callTag = Option(key.tag)
+  )
 }

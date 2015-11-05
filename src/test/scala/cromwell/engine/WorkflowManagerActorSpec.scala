@@ -2,7 +2,6 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.pattern.ask
 import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
@@ -10,8 +9,8 @@ import cromwell.binding.command.CommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlInteger, WdlString}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
-import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -47,11 +46,11 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
       val workflowOutputs = messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(workflowId))
 
-      val actualWorkflowOutputs = workflowOutputs.map { case (k, WdlString(string)) => k -> string }
+      val actualWorkflowOutputs = workflowOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualWorkflowOutputs shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
 
       val callOutputs = messageAndWait[binding.CallOutputs](CallOutputs(workflowId, "hello.hello"))
-      val actualCallOutputs = callOutputs.map { case (k, WdlString(string)) => k -> string }
+      val actualCallOutputs = callOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
 
     }
@@ -69,18 +68,20 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         WorkflowId(UUID.randomUUID()) -> WorkflowRunning)
       val ids = workflows.keys.map(_.toString).toSeq.sorted
       val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
-      val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(WdlString("world"))))
+      val worldWdlString = WdlString("world")
 
       import ExecutionContext.Implicits.global
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val workflowInfo = new WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val descriptor = new WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val worldSymbolHash = worldWdlString.getHash(backendInstance.fileHasher(descriptor))
+          val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
           // FIXME? null AST
           val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
-            _ <- globalDataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend(system))
+            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
             _ <- globalDataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
           } yield ()
@@ -152,7 +153,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance),
           self, "Test WorkflowManagerActor call log lookup failure")
         val id = WorkflowId.randomId()
-        val noIndex = Try {
+        Try {
           messageAndWait[CallLogs](CallStdoutStderr(id, "foo.bar"))
         } match {
           case Success(_) => fail("Expected lookup to fail with unknown workflow")
@@ -183,7 +184,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
       val outputName = "whereami.whereami.pwd"
       val salutation = outputs.get(outputName).get
-      val actualOutput = salutation.asInstanceOf[WdlString].value.trim
+      val actualOutput = salutation.asInstanceOf[CallOutput].wdlValue.asInstanceOf[WdlString].value.trim
       actualOutput should endWith("/call-whereami")
     }
 

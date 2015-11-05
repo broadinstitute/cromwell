@@ -5,7 +5,6 @@ import com.typesafe.config.Config
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
@@ -14,10 +13,11 @@ import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
+import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
-import Backend.BackendyString
+
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
@@ -109,6 +109,11 @@ trait Backend {
    */
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
 
+  /**
+   * Provides a function that given a WdlFile, returns its hash.
+   */
+  def fileHasher(workflowDescriptor: WorkflowDescriptor): FileHasher
+
   def backendType: BackendType
 
   /**
@@ -117,21 +122,23 @@ trait Backend {
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  private def backendClass = backendType.toString.toLowerCase.capitalize + "Backend"
+  private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
 
   /** Default implementation assumes backends do not support resume, returns an empty Map. */
   def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
 
   def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
-    backendClass,
+    backendClassString,
     descriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
   def workflowLoggerWithCall(backendCall: BackendCall) = WorkflowLogger(
-    backendClass,
+    backendClassString,
     backendCall.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
     callTag = Option(backendCall.key.tag)
   )
+
+  lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
 }

@@ -44,6 +44,12 @@ trait WorkflowExecutionComponent {
   val workflowExecutionsAutoInc = workflowExecutions returning workflowExecutions.
     map(_.workflowExecutionId) into ((a, id) => a.copy(workflowExecutionId = Some(id)))
 
+  val workflowExecutionsByPrimaryKey = Compiled(
+    (id: Rep[Int]) => for {
+      workflowExecution <- workflowExecutions
+      if workflowExecution.workflowExecutionId === id
+    } yield workflowExecution)
+
   val workflowExecutionsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowExecution <- workflowExecutions

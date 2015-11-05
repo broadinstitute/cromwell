@@ -25,3 +25,5 @@ case class WorkflowMetadataResponse(id: String, status: String, submission: Date
                                     calls: Map[String, Seq[CallMetadata]])
 
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
+
+final case class CallCachingResponse(updateCount: Int)

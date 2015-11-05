@@ -654,7 +654,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     // These executions have no corresponding recorded operation ID and are therefore not resumable.
     def collectNonResumableDatabaseKeys(executionsAndJobs: Seq[(Execution, JesJob)]): Seq[ExecutionDatabaseKey] = {
       executionsAndJobs collect {
-        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesJobId.isEmpty =>
+        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesId.isEmpty =>
           ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
       }
     }
@@ -672,7 +672,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     // These executions have a corresponding recorded operation ID and should therefore be resumable.
     def collectResumableKeyPairs(executionsAndJobs: Traversable[(Execution, JesJob)]): Traversable[(ExecutionDatabaseKey, JesJobKey)] = {
       executionsAndJobs collect {
-        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesJobId.nonEmpty =>
+        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesId.nonEmpty =>
           (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex), JesJobKey(job.jesId.get))
       }
     }

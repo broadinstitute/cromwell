@@ -243,6 +243,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     backendCall.instantiateCommand match {
       case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs, runIdForResumption)
+      case Failure(ex: SocketTimeoutException) => throw ex // probably a GCS transient issue, throwing will cause it to be retried
       case Failure(ex) => FailedExecutionHandle(ex)
     }
   }
@@ -455,8 +456,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     jesJobSetup match {
       case Failure(ex) =>
-        log.error(s"Failed to create a JES run", ex)
-        FailedExecutionHandle(ex)
+        log.warn(s"Failed to create a JES run", ex)
+        throw ex  // Probably a transient issue, throwing retries it
       case Success(run) => JesPendingExecutionHandle(backendCall, jesOutputs, run, previousStatus = None)
     }
   }

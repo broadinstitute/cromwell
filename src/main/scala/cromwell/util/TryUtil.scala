@@ -5,11 +5,12 @@ import java.io.{PrintWriter, StringWriter}
 import cromwell.logging.WorkflowLogger
 
 import scala.concurrent.duration.Duration
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-case class AggregatedException[A](exceptions: Seq[Failure[A]], prefixError: String = "") extends Exception {
+case class AggregatedException(exceptions: Seq[Throwable], prefixError: String = "") extends Exception {
   override def getMessage: String = {
-    prefixError + exceptions.map(_.exception.getMessage).mkString("\n")
+    prefixError + exceptions.map(_.getMessage).mkString("\n")
   }
 }
 
@@ -89,7 +90,7 @@ object TryUtil {
 
   private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
     tries collect { case f: Failure[_] => f } match {
-      case failures if failures.nonEmpty => Failure(new AggregatedException(failures.toSeq, prefixErrorMessage))
+      case failures if failures.nonEmpty => Failure(new AggregatedException(failures map { _.exception } toSeq, prefixErrorMessage))
       case _ => Success(unbox())
     }
   }

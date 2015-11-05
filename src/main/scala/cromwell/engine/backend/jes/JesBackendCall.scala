@@ -8,17 +8,17 @@ import cromwell.binding.values.WdlFile
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
-import cromwell.engine.backend.{BackendCall, JobKey, CallLogs, _}
+import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
-import cromwell.util.StringDigestion._
-import cromwell.util.google.GoogleCloudStoragePath
+import cromwell.util.StringUtil._
+import cromwell.util.google.GcsPath
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object JesBackendCall {
-  
+
   def stdoutStderr(callGcsPath: String): CallLogs = {
     CallLogs(
       stdout = WdlFile(s"$callGcsPath/$StdoutFilename"),
@@ -56,8 +56,8 @@ class JesBackendCall(val backend: JesBackend,
   def jesCommandLine = s"/bin/bash ${cmdInput.local} > ${stdoutJesOutput.local} 2> ${stderrJesOutput.local}"
 
   val callGcsPath = backend.callGcsPath(workflowDescriptor, call.unqualifiedName, key.index)
-  val callDir = GoogleCloudStoragePath(callGcsPath)
-  val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/" + JesExecScript)
+  val callDir = GcsPath(callGcsPath)
+  val gcsExecPath = GcsPath(callGcsPath + "/" + JesExecScript)
   val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile
 
   val engineFunctions = new JesEngineFunctions(this)
@@ -70,7 +70,7 @@ class JesBackendCall(val backend: JesBackend,
 
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
 
-  def downloadRcFile = authenticateAsUser(this) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
+  def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
 
   /**
    * Determine the output directory for the files matching a particular glob.
@@ -95,9 +95,14 @@ class JesBackendCall(val backend: JesBackend,
             // Someone has subclassed Throwable directly?  Beware the jackwagons, fail the execution/workflow.
             FailedExecutionHandle(throwable)
         }
+      case f: FailedExecutionHandle => f
+      case s: SuccessfulExecutionHandle => s
       case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
     }
   }
 
   override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = backend.resume(this, jobKey)
+
+  override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
+    backend.useCachedCall(avoidedTo.asInstanceOf[JesBackendCall], this)
 }

@@ -24,4 +24,5 @@
     <include file="changesets/add_workflow_name.xml" relativeToChangelogFile="true" />
     <include file="changesets/top_level_output.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_execution_aux_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_result_caching.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

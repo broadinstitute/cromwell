@@ -1,7 +1,8 @@
 package cromwell.engine.workflow
 
-import akka.actor.{FSM, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
+import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.expression.NoFunctions
 import cromwell.binding.types.WdlArrayType
@@ -25,25 +26,36 @@ import scala.util.{Failure, Success, Try}
 
 object WorkflowActor {
   sealed trait WorkflowActorMessage
-  case object Complete extends WorkflowActorMessage
   case object GetFailureMessage extends WorkflowActorMessage
   case object AbortWorkflow extends WorkflowActorMessage
-  case class AbortComplete(call: OutputKey) extends WorkflowActorMessage
-  case class CallStarted(call: OutputKey) extends WorkflowActorMessage
-  case class CallCompleted(call: OutputKey, callOutputs: CallOutputs, returnCode: Int) extends WorkflowActorMessage
-  case class CallFailed(call: OutputKey, returnCode: Option[Int], failure: String) extends WorkflowActorMessage
+  sealed trait CallMessage extends WorkflowActorMessage {
+    def callKey: ExecutionStoreKey
+  }
+  case class CallStarted(callKey: OutputKey) extends CallMessage
+  sealed trait TerminalCallMessage extends CallMessage
+  case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, returnCode: Int) extends TerminalCallMessage
+  case class CallFailed(callKey: OutputKey, returnCode: Option[Int], failure: String) extends TerminalCallMessage
   case object Terminate extends WorkflowActorMessage
   final case class ExecutionStoreCreated(startMode: StartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
   final case class PerformTransition(toState: WorkflowState) extends WorkflowActorMessage
+  final case class PersistenceCompleted(callKey: ExecutionStoreKey) extends WorkflowActorMessage
 
   sealed trait StartMode {
     def runInitialization(actor: WorkflowActor): Future[Unit]
     def start(actor: WorkflowActor): actor.State
   }
 
-  implicit class EnhancedCallKey(val key: CallKey) extends AnyVal {
+  implicit class EnhancedExecutionStoreKey(val key: ExecutionStoreKey) extends AnyVal {
+
     def toDatabaseKey: ExecutionDatabaseKey = ExecutionDatabaseKey(key.scope.fullyQualifiedName, key.index)
+
+    def isPending(data: WorkflowData): Boolean = data.pendingExecutions.contains(key)
+
+    def isPersistedRunning(data: WorkflowData)(implicit executionStore: ExecutionStore): Boolean = {
+      executionStore.get(key).contains(ExecutionStatus.Running) && !isPending(data)
+    }
   }
 
   case object Start extends WorkflowActorMessage with StartMode {
@@ -86,12 +98,12 @@ object WorkflowActor {
       } yield state
 
       resumptionWork onComplete {
-        case Success(s) if s.stateName != WorkflowRunning => actor.self ! PerformTransition(s.stateName)
+        case Success(s) if s.stateName != WorkflowRunning => actor.scheduleTransition(s.stateName)
         case Success(s) => // Nothing to do here but there needs to be a match for this case.
         case Failure(t) => actor.self ! AsyncFailure(t)
       }
 
-      actor.goto(WorkflowRunning)
+      actor.scheduleTransition(WorkflowRunning)
     }
   }
 
@@ -99,9 +111,10 @@ object WorkflowActor {
     Props(WorkflowActor(descriptor, backend))
   }
 
-  sealed trait WorkflowFailure
-  case object NoFailureMessage extends WorkflowFailure
-  case class FailureMessage(msg: String) extends WorkflowFailure with WorkflowActorMessage
+  case class WorkflowData(pendingExecutions: Set[ExecutionStoreKey] = Set.empty, startMode: Option[StartMode] = None) {
+    def addPersisting(key: ExecutionStoreKey) = this.copy(pendingExecutions + key)
+    def removePersisting(key: ExecutionStoreKey) = this.copy(pendingExecutions - key)
+  }
 
   val AkkaTimeout = 5 seconds
 
@@ -120,18 +133,18 @@ object WorkflowActor {
 }
 
 case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
-  extends LoggingFSM[WorkflowState, WorkflowFailure] with CromwellActor {
-  
+  extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
+
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     globalDataAccess.createWorkflow(
       workflow, buildSymbolStoreEntries(workflow.namespace, inputs), workflow.namespace.workflow.children, backend)
   }
 
-  private var executionStore: ExecutionStore = _
+  implicit private var executionStore: ExecutionStore = _
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   val logger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
 
-  startWith(WorkflowSubmitted, NoFailureMessage)
+  startWith(WorkflowSubmitted, WorkflowData())
 
   /**
    * Try to generate output for a collector call, by collecting outputs for all of its shards.
@@ -151,16 +164,46 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case (k: CallKey, v) if k.scope == key.scope && isShard(k) => (k, v)
   }
 
+  /** Always returns stay(), but messages self to perform the requested transition once all persistence is complete. */
+  private def scheduleTransition(toState: WorkflowState): State = {
+    def handleTerminalWorkflow: Future[Unit] = {
+      for {
+        _ <- backend.cleanUpForWorkflow(workflow)
+        _ <- globalDataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
+        _ = self ! Terminate
+      } yield ()
+    }
+
+    if (stateName != toState) {
+      val transitionFuture = for {
+      // Write the new workflow state before logging the change, tests assume the change is in effect when
+      // the message is logged.
+        _ <- globalDataAccess.updateWorkflowState(workflow.id, toState)
+        _ = logger.info(s"Beginning transition from $stateName to $toState.")
+        _ <- if (toState.isTerminal) handleTerminalWorkflow else Future.successful(())
+      } yield ()
+
+      transitionFuture recover {
+        case e: Exception => logger.error(s"Failed to transition workflow status from $stateName to $toState", e)
+      }
+
+      // Only message self to perform the transition after the persistence of the new state is complete.
+      transitionFuture map { _ => PerformTransition(toState) } pipeTo self
+    }
+
+    stay()
+  }
+
   /**
    * Attempt to start all runnable calls and return the next FSM state.  If successful this will be
    * `WorkflowRunning`, otherwise `WorkflowFailed`.
    */
   private def startRunnableCalls(): State = {
     tryStartingRunnableCalls() match {
-      case Success(entries) => if (entries.nonEmpty) startRunnableCalls() else goto(WorkflowRunning)
+      case Success(entries) => if (entries.nonEmpty) startRunnableCalls() else scheduleTransition(WorkflowRunning)
       case Failure(e) =>
         logger.error(e.getMessage, e)
-        goto(WorkflowFailed)
+        scheduleTransition(WorkflowFailed)
     }
   }
 
@@ -196,127 +239,170 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   when(WorkflowSubmitted) {
-    case Event(startMode: StartMode, NoFailureMessage) =>
+    case Event(startMode: StartMode, _) =>
       logger.info(s"$startMode message received")
       initializeExecutionStore(startMode)
       stay()
-    case Event(ExecutionStoreCreated(startMode), NoFailureMessage) =>
+    case Event(ExecutionStoreCreated(startMode), data) =>
       logger.info(s"ExecutionStoreCreated($startMode) message received")
-      startMode.start(this)
-    case Event(PerformTransition(toState), NoFailureMessage) =>
-      goto(toState)
-    case Event(AsyncFailure(t), NoFailureMessage) =>
-      logger.error(t.getMessage, t)
-      goto(WorkflowFailed)
+      scheduleTransition(WorkflowRunning) using data.copy(startMode = Option(startMode))
+  }
+
+  def callCompletedWhileRunning(callKey: OutputKey, outputs: CallOutputs, returnCode: Int, message: TerminalCallMessage): State = {
+    val nextState = awaitCallComplete(callKey, outputs, returnCode) match {
+      case Success(_) =>
+        if (isWorkflowDone) scheduleTransition(WorkflowSucceeded) else startRunnableCalls()
+      case Failure(e) =>
+        logger.error(e.getMessage, e)
+        scheduleTransition(WorkflowFailed)
+    }
+    sender ! CallActor.Ack(message)
+    val updatedData = stateData.addPersisting(callKey)
+    nextState using updatedData
   }
 
   when(WorkflowRunning) {
-    case Event(CallStarted(callKey), NoFailureMessage) =>
-      Await.result(persistStatus(callKey, ExecutionStatus.Running), Duration.Inf)
-      stay()
-    case Event(CallCompleted(callKey, outputs, returnCode), NoFailureMessage) =>
-      awaitCallComplete(callKey, outputs, returnCode) match {
-        case Success(_) =>
-          if (isWorkflowDone) goto(WorkflowSucceeded) else startRunnableCalls()
-        case Failure(e) =>
-          logger.error(e.getMessage, e)
-          goto(WorkflowFailed)
-      }
-    case Event(CallFailed(callKey, returnCode, failure), NoFailureMessage) =>
-      Await.result(persistStatus(callKey, ExecutionStatus.Failed, returnCode), Duration.Inf)
-      goto(WorkflowFailed) using FailureMessage(failure)
-    case Event(Complete, NoFailureMessage) => goto(WorkflowSucceeded)
-    case Event(AbortComplete(callKey), NoFailureMessage) =>
+    case Event(CallStarted(callKey), data) =>
+      persistStatus(callKey, ExecutionStatus.Running)
+      val updatedData = data.addPersisting(callKey)
+      stay() using updatedData
+    case Event(message @ CallCompleted(callKey, outputs, returnCode), data) if callKey.isPersistedRunning(data) =>
+      callCompletedWhileRunning(callKey, outputs, returnCode, message)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !collectorKey.isPending(data) =>
+      // Collector keys are weird internal things and don't have to be in Running state.
+      callCompletedWhileRunning(collectorKey, outputs, returnCode, message)
+    case Event(message @ CallFailed(callKey, returnCode, failure), data) if callKey.isPersistedRunning(data) =>
+      persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, returnCode)
+      val updatedData = data.addPersisting(callKey)
+      scheduleTransition(WorkflowFailed) using updatedData
+    case Event(message @ CallAborted(callKey), data) if callKey.isPersistedRunning(data) =>
       // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
       // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
       // cancelled by some external system.
-      Await.result(persistStatus(callKey, ExecutionStatus.Aborted), Duration.Inf)
+      persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       logger.warn(s"Call ${callKey.scope.name} was aborted but the workflow should still be running.")
-      stay()
+      val updatedData = data.addPersisting(callKey)
+      stay() using updatedData
   }
 
-  when(WorkflowFailed) {
-    case Event(GetFailureMessage, msg: FailureMessage) =>
-      sender() ! msg
-      stay()
+  when(WorkflowSucceeded) { FSM.NullFunction }
+
+  when(WorkflowFailed) { FSM.NullFunction }
+
+  when(WorkflowAborted) { FSM.NullFunction }
+
+  onTransition {
+    case WorkflowSubmitted -> WorkflowRunning =>
+      stateData.startMode.get.start(this)
   }
 
-  when(WorkflowSucceeded) {
-    case Event(Terminate, _) =>
-      logger.debug(s"WorkflowActor is done, shutting down.")
-      context.stop(self)
-      stay()
+  private def callCompletedWhileAborting(callKey: OutputKey, outputs: CallOutputs, returnCode: Int): State = {
+    awaitCallComplete(callKey, outputs, returnCode)
+    val nextState = if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()
+    val updatedData = stateData.addPersisting(callKey)
+    nextState using updatedData
   }
 
   when(WorkflowAborting) {
-    case Event(AbortComplete(callKey), NoFailureMessage) =>
-      Await.result(persistStatus(callKey, ExecutionStatus.Aborted, None), Duration.Inf)
-      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallFailed(callKey, returnCode, failure), NoFailureMessage) =>
-      Await.result(persistStatus(callKey, ExecutionStatus.Failed, returnCode), Duration.Inf)
-      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case Event(CallCompleted(callKey, outputs, returnCode), NoFailureMessage) =>
-      awaitCallComplete(callKey, outputs, returnCode)
-      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
-    case m =>
+    case Event(message @ CallCompleted(callKey, outputs, returnCode), data) if callKey.isPersistedRunning(data) =>
+      callCompletedWhileAborting(callKey, outputs, returnCode)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !collectorKey.isPending(data) =>
+      // Collector keys don't have to be in Running state.
+      callCompletedWhileAborting(collectorKey, outputs, returnCode)
+    case Event(CallAborted(callKey), data) if callKey.isPersistedRunning(data) =>
+      persistStatus(callKey, ExecutionStatus.Aborted, None)
+      val updatedData = data.addPersisting(callKey)
+      (if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()) using updatedData
+    case Event(CallFailed(callKey, returnCode, failure), data) if callKey.isPersistedRunning(data) =>
+      persistStatus(callKey, ExecutionStatus.Failed, returnCode)
+      val updatedData = data.addPersisting(callKey)
+      (if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()) using updatedData
+    case Event(m, _) =>
       logger.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
-      if (isWorkflowAborted) goto(WorkflowAborted) using NoFailureMessage else stay()
+      if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()
   }
 
-  when(WorkflowAborted)(FSM.NullFunction)
+  /**
+   * It is legitimate to switch states if the current state is not terminal and the target state is not the same as
+   * the current state.
+   */
+  private def canSwitchTo(toState: WorkflowState): Boolean = {
+    !stateName.isTerminal && stateName != toState
+  }
+
+  private def resendDueToPendingExecutionWrites(message: WorkflowActorMessage): Unit = {
+    val ResendInterval = 100.milliseconds
+    val numPersists = stateData.pendingExecutions.size
+    logger.debug(s"Rescheduling message $message with $ResendInterval delay due to $numPersists pending persists")
+    context.system.scheduler.scheduleOnce(ResendInterval, self, message)
+  }
 
   whenUnhandled {
     case Event(AbortWorkflow, _) =>
       context.children foreach { _ ! CallActor.AbortCall }
-      goto(WorkflowAborting) using NoFailureMessage
+      scheduleTransition(WorkflowAborting)
+    case Event(callMessage: CallMessage, _) =>
+      logger.debug(s"Dropping message for ineligible key: ${callMessage.callKey.tag}")
+      // Running and Aborting have explicit handlers for Running and no pending writes, so either we are not in those
+      // states or the specified key is no longer Running and/or has pending writes.
+      stay()
+    case Event(PersistenceCompleted(callKey), data) =>
+      logger.debug(s"Got PersistenceCompleted(${callKey.tag})")
+      val updatedData = data.removePersisting(callKey)
+      stay using updatedData
+    case Event(PerformTransition(toState), data) if data.pendingExecutions.isEmpty && canSwitchTo(toState) =>
+      // stateName is the *current* state, from which there should not be transitions.
+      logger.info(s"transitioning from $stateName to $toState.")
+      goto(toState)
+    case Event(PerformTransition(toState), _) if !canSwitchTo(toState) =>
+      // Drop the message.  This is a race condition with a retried PerformTransition message when
+      // the FSM has transitioned to a terminal state between the original and retried messages.
+      logger.debug(s"Dropping PerformTransition request from $stateName to $toState.")
+      stay()
+    case Event(message: PerformTransition, _) =>
+      resendDueToPendingExecutionWrites(message)
+      stay()
+    case Event(AsyncFailure(t), data) if data.pendingExecutions.isEmpty =>
+      logger.error(t.getMessage, t)
+      scheduleTransition(WorkflowFailed)
+    case Event(message @ AsyncFailure(t), _) =>
+      // This is the unusual combination of debug + throwable logging since the expectation is that this will eventually
+      // be logged in the case above as an error, but if for some weird reason this actor never ends up in that
+      // state we don't want to be completely blind to the cause of the AsyncFailure.
+      logger.debug(t.getMessage, t)
+      resendDueToPendingExecutionWrites(message)
+      stay()
+    case Event(Terminate, data) if data.pendingExecutions.isEmpty && stateName.isTerminal =>
+      logger.debug(s"WorkflowActor is done, shutting down.")
+      context.stop(self)
+      stay()
+    case Event(Terminate, _) =>
+      // Don't actually terminate as there are pending writes and/or this is not yet transitioned to a terminal state.
+      // Resend the message after a delay.
+      resendDueToPendingExecutionWrites(Terminate)
+      stay()
     case Event(e, _) =>
       logger.debug(s"received unhandled event $e while in state $stateName")
       stay()
   }
 
-  /*
-    FSM will call *all* onTransition handlers which are defined for a particular state transition.
-    This handler will update workflow state for all transitions.
-  */
-  onTransition {
-    case fromState -> toState =>
-      def handleTerminalWorkflow: Future[Unit] = {
-        for {
-          _ <- backend.cleanUpForWorkflow(workflow)
-          _ <- globalDataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
-          //  Send a message to self to trigger an actor shutdown. Run on a short timer to help enable some
-          //  unit test instrumentation
-          _ = setTimer(s"WorkflowActor ${workflow.shortId}: termination message", Terminate, AkkaTimeout, repeat = false)
-        } yield ()
-      }
-
-      val transitionFuture = for {
-        // Write the new workflow state before logging the change, tests assume the change is in effect when
-        // the message is logged.
-        _ <- globalDataAccess.updateWorkflowState(workflow.id, toState)
-        _ = logger.info(s"transitioning from $fromState to $toState.")
-        _ <- if (toState.isTerminal) handleTerminalWorkflow else Future.successful({})
-      } yield ()
-
-      transitionFuture recover {
-        case e: Exception => logger.error(s"Failed to transition workflow status from $fromState to $toState for", e)
-      }
-  }
-
-  private def persistStatus(key: ExecutionStoreKey, executionStatus: ExecutionStatus,
+  private def persistStatus(storeKey: ExecutionStoreKey, executionStatus: ExecutionStatus,
                               returnCode: Option[Int] = None): Future[Unit] = {
 
-    logger.info(s"persisting status of ${key.tag} to $executionStatus.")
-
-    val databaseKey = ExecutionDatabaseKey(key.scope.fullyQualifiedName, key.index)
+    logger.info(s"persisting status of ${storeKey.tag} to $executionStatus.")
+    // Synchronous update of in-memory store, this will be set when this method returns to the caller.
+    executionStore += storeKey -> executionStatus
 
     for {
-      // Write the status to the database before updating the store, the store is what is examined to
-      // determine workflow doneness and if that persisted workflow representation is not consistent,
-      // tests may see unexpected values.
-      _ <- globalDataAccess.setStatus(workflow.id, Seq(databaseKey), CallStatus(executionStatus, returnCode))
-      _ = executionStore += key -> executionStatus
+      _ <- globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode))
+      _  = self ! PersistenceCompleted(storeKey)
     } yield ()
+  }
+
+  private def persistStatusThenAck(storeKey: ExecutionStoreKey, executionStatus: ExecutionStatus, recipient: ActorRef,
+                                   message: TerminalCallMessage, returnCode: Option[Int] = None): Unit = {
+
+    persistStatus(storeKey, executionStatus, returnCode) map { _ => CallActor.Ack(message) } pipeTo recipient
   }
 
   private def awaitCallComplete(key: OutputKey, outputs: CallOutputs, returnCode: Int): Try[Unit] = {

@@ -39,6 +39,15 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     new String(downloadObject(path), "UTF-8")
   }
 
+  /**
+    * Gets a CRC code from a GCS object. This is a CRC32c checksum which can serve as a hash. It is resistant to
+    * composite uploads. See https://cloud.google.com/storage/docs/hashes-etags#_CRC32C for more.
+    */
+  def getCrc32c(googleCloudStoragePath: GoogleCloudStoragePath): String = {
+    val obj = client.objects().get(googleCloudStoragePath.bucket, googleCloudStoragePath.objectName).execute()
+    obj.getCrc32c
+  }
+
   def exists(path: String): Boolean = {
     val getObject = client.objects.get(path.bucket, path.objectName)
     val polling = 500 milliseconds

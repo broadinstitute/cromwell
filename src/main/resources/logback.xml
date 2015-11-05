@@ -1,7 +1,7 @@
 <configuration>
-  <if condition='property("LOG_MODE").toUpperCase().contains("SERVER")'>
+  <if condition='property("LOG_MODE").toUpperCase().contains("FILE")'>
     <then>
-      <appender name="SERVER_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <appender name="FILE_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <!-- Support multiple-JVM writing to the same log file -->
         <prudent>true</prudent>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -14,7 +14,7 @@
       </appender>
     </then>
     <else>
-      <appender name="SERVER_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
+      <appender name="FILE_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
     </else>
   </if>
 
@@ -32,7 +32,7 @@
   </if>
 
   <root level="${LOG_LEVEL}">
-    <appender-ref ref="SERVER_APPENDER" />
+    <appender-ref ref="FILE_APPENDER" />
     <appender-ref ref="CONSOLE_APPENDER" />
   </root>
   <logger name="com.zaxxer.hikari" level="ERROR"/>

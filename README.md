@@ -1176,10 +1176,10 @@ Defaults to "false".
 Cromwell accepts three Java Properties for controlling logging:
 
 * `LOG_ROOT` - Specifies the directory where logs will be written (default `.`)
-* `LOG_MODE` - Accepts either `server`, `console`, or `server,console` (default `console`).  In `server` mode, logs will be written to `LOG_ROOT`
+* `LOG_MODE` - Accepts either `file`, `console`, or `file,console` (default `console`).  In `file` mode, logs will be written to `LOG_ROOT`
 * `LOG_LEVEL` - Level at which to log (default `info`)
 
-If the command `java -DLOG_MODE=server,console -DLOG_ROOT=log -jar cromwell.jar run my_workflow.wdl my_workflow.json` were run three times, we'd see this in the `log` directory:
+If the command `java -DLOG_MODE=file,console -DLOG_ROOT=log -jar cromwell.jar run my_workflow.wdl my_workflow.json` were run three times, we'd see this in the `log` directory:
 
 ```
 log

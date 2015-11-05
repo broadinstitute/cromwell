@@ -13,6 +13,8 @@ import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
 import cromwell.binding.IOInterface
+import cromwell.logging.WorkflowLogger
+import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
 
 import scala.collection.JavaConverters._
@@ -33,10 +35,19 @@ object GoogleCloudStorage {
  */
 case class GoogleCloudStorage(client: Storage) extends IOInterface {
 
-  import GoogleCloudStoragePath._
+  import GcsPath._
 
   def readFile(path: String): String = {
     new String(downloadObject(path), "UTF-8")
+  }
+
+  /**
+    * Gets a CRC code from a GCS object. This is a CRC32c checksum which can serve as a hash. It is resistant to
+    * composite uploads. See https://cloud.google.com/storage/docs/hashes-etags#_CRC32C for more.
+    */
+  def getCrc32c(googleCloudStoragePath: GcsPath): String = {
+    val obj = client.objects().get(googleCloudStoragePath.bucket, googleCloudStoragePath.objectName).execute()
+    obj.getCrc32c
   }
 
   def exists(path: String): Boolean = {
@@ -75,6 +86,41 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     path
   }
 
+  /**
+    * Copy file from one GCS path to another
+    *
+    * @param from - source GCS path (must exist and point to a file)
+    * @param to - destination GCS path
+    * @return a Try[StorageObject] which is a result of the call to Storage.Objects.copy()
+    */
+  def copy(from: GcsPath, to: GcsPath): Try[StorageObject] = Try {
+    val storageObject = client.objects.get(from.bucket, from.objectName).execute
+    client.objects.copy(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+  }
+
+  /**
+    * Copy files with prefix `from` to files with prefix `to`
+    *
+    * For example, calling copyPrefix("gs://bucket/a/", "gs://other/prefix/"):
+    *
+    * 1) listContents(from) = Seq("gs://bucket/a/b.txt", "gs://bucket/a/b/c.txt")
+    * 2) The following copies will take place:
+    *     a) gs://bucket/a/b.txt -> gs://other/prefix/a/b.txt
+    *     b) gs://bucket/a/b/c.txt -> gs://other/prefix/a/b/c.txt
+    *
+    * @param from - GCS URL prefix to copy files from
+    * @param to - GCS URL prefix to copy files to
+    */
+  def copy(from: String, to: String): Unit = {
+    Try(listContents(from)) flatMap { paths =>
+      TryUtil.sequence(paths map {path =>
+        val source = GcsPath(path)
+        val dest = GcsPath(path.replaceAll(s"^$from", to))
+        copy(source, dest)
+      } toSeq)
+    }
+  }
+
   //TODO: improve to honor pattern ?
   def glob(path: String, pattern: String): Seq[String] = listContents(path).toSeq
 
@@ -89,21 +135,21 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
   // See comment in uploadObject re small files. Here, define small as 2MB or lower:
   private val smallFileSizeLimit: Long = 2000000
 
-  private def uploadFile(gcsPath: GoogleCloudStoragePath, fileContent: String, contentType: String) = {
+  private def uploadFile(gcsPath: GcsPath, fileContent: String, contentType: String) = {
     val fileBytes = fileContent.getBytes
     val bais = new ByteArrayInputStream(fileBytes)
     uploadObject(gcsPath, bais, fileBytes.length, contentType)
   }
 
-  def uploadObject(gcsPath: GoogleCloudStoragePath, fileContent: String): Unit = {
+  def uploadObject(gcsPath: GcsPath, fileContent: String): Unit = {
     uploadFile(gcsPath, fileContent, "application/octet-stream")
   }
 
-  def uploadJson(gcsPath: GoogleCloudStoragePath, fileContent: String): Unit = {
+  def uploadJson(gcsPath: GcsPath, fileContent: String): Unit = {
     uploadFile(gcsPath, fileContent, "application/json")
   }
 
-  def uploadObject(gcsPath: GoogleCloudStoragePath, inputStream: InputStream, byteCount: Long, contentType: String): Unit = {
+  def uploadObject(gcsPath: GcsPath, inputStream: InputStream, byteCount: Long, contentType: String): Unit = {
     val mediaContent: InputStreamContent = new InputStreamContent(contentType, inputStream)
     mediaContent.setLength(byteCount)
 
@@ -119,11 +165,11 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     insertObject.execute()
   }
 
-  def deleteObject(gcsPath: GoogleCloudStoragePath): Unit = {
+  def deleteObject(gcsPath: GcsPath): Unit = {
     client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
   }
 
-  def downloadObject(gcsPath: GoogleCloudStoragePath): Array[Byte] = {
+  def downloadObject(gcsPath: GcsPath): Array[Byte] = {
     val outputStream: ByteArrayOutputStream = new ByteArrayOutputStream()
     val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
     getObject.getMediaHttpDownloader.setDirectDownloadEnabled(true)
@@ -132,7 +178,7 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     outputStream.toByteArray
   }
 
-  def objectSize(gcsPath: GoogleCloudStoragePath): BigInteger = {
+  def objectSize(gcsPath: GcsPath): BigInteger = {
     val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
     val storageObject: StorageObject = getObject.execute()
     storageObject.getSize

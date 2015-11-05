@@ -9,8 +9,7 @@ import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
-import cromwell.binding.types.WdlType
-import cromwell.binding.values.{WdlString, WdlArray, WdlFile, WdlValue}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs
@@ -26,7 +25,6 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 
 object CromwellTestkitSpec {
@@ -51,7 +49,7 @@ object CromwellTestkitSpec {
       |}
     """.stripMargin
 
-  val timeoutDuration = 10 seconds
+  val timeoutDuration = 30 seconds
 
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
@@ -117,7 +115,7 @@ object CromwellTestkitSpec {
 abstract class CromwellTestkitSpec(name: String) extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$") {
@@ -213,27 +211,29 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                              eventFilter: EventFilter,
                              expectedOutputs: Map[FullyQualifiedName, WdlValue],
                              runtime: String = "",
+                             workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
                              terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.asWorkflowSources(runtime))
+    val wfSources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(wfSources)
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, terminalState)
         val outputs: WorkflowOutputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
 
-        val actualOutputNames = outputs map { _._1} mkString(", ")
-        val expectedOuputNames = expectedOutputs map { _._1} mkString(" ")
+        val actualOutputNames = outputs.keys mkString ", "
+        val expectedOutputNames = expectedOutputs.keys mkString " "
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
           val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputNames'"))
-          if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+          if (expectedValue != AnyValueIsFine) validateOutput(actualValue.wdlValue, expectedValue)
         }
         if (!allowOtherOutputs) {
           outputs foreach { case (actualFqn, actualValue) =>
-            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOuputNames'"))
-            if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
+            if (expectedValue != AnyValueIsFine) validateOutput(actualValue.wdlValue, expectedValue)
           }
         }
       }

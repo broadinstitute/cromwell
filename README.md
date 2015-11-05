@@ -286,7 +286,7 @@ Where `wf_options.json` would contain:
 ```
 {
   "jes_gcs_root": "gs://my-bucket/workflows",
-  "account_name": "my.google.account@gmail.com",
+  "google_project": "my_google_project",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
 }
 ```
@@ -922,6 +922,24 @@ google {
   }
 }
 ```
+
+### Workflow Options
+
+When running with Google JES, the following workflow options are supported:
+
+```
+{
+  "jes_gcs_root": "gs://my-bucket/workflows",
+  "google_project": "my_google_project",
+  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+**jes_gcs_root** specifies where outputs of the workflow will be written.
+
+**google_project** specifies which google project to execute this workflow under
+
+**refresh_token** is only used if `localizeWithRefreshToken` is specified in the configuration file.  See the Data Localization section below for more details
 
 ### Data Localization
 

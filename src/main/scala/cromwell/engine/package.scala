@@ -13,6 +13,7 @@ import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
+import lenthall.config.ScalaConfig._
 import org.slf4j.{LoggerFactory, Logger}
 import org.slf4j.helpers.NOPLogger
 import spray.json._
@@ -45,13 +46,16 @@ package object engine {
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
+    private val conf = ConfigFactory.load
+
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
       case Success(other) => throw new Throwable(s"Expecting workflow options to be a JSON object, got $other")
       case Failure(ex) => throw ex
     }
 
-    val backend = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+    val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
+    val avoidJobs = conf.getConfig("job-avoidance").getBooleanOr("enabled", default = false)
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

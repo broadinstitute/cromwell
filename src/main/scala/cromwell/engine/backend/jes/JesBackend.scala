@@ -171,6 +171,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
+  def getCrc32c(googleCloudStoragePath: GoogleCloudStoragePath): String = authenticated { _.storage.getCrc32c(googleCloudStoragePath) }
+
   /**
    * Get a GcsLocalizing from workflow options if client secrets and refresh token are available.
    */
@@ -286,7 +288,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   /**
-   * Takes two arrays of WDL Files and generates any necessary JES inputs from them.
+   * Takes two arrays of remote and local WDL File paths and generates the necessary JESInput's.
    */
   private def jesInputsFromWdlFiles(jesNamePrefix: String, remotePathArray: Seq[WdlFile], localPathArray: Seq[WdlFile]): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {

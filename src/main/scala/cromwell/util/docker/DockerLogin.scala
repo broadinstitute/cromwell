@@ -3,6 +3,7 @@ package cromwell.util.docker
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
+import com.google.api.client.auth.oauth2.Credential
 import com.typesafe.config.Config
 import cromwell.util.google.GoogleCredentialFactory
 import lenthall.config.ScalaConfig._
@@ -29,10 +30,10 @@ class DockerHubLoginProvider(dockerTokenOption: Option[String]) extends DockerLo
   }
 }
 
-class GcrLoginProvider(config: Config) extends DockerLoginProvider {
-  private lazy val credentialFactory = GoogleCredentialFactory.fromAuthScheme(config)
+class GcrLoginProvider(credential: Credential) extends DockerLoginProvider {
+  import GoogleCredentialFactory.EnhancedCredentials
 
-  override def dockerLogin = credentialFactory.freshCredential.toOption map { credential =>
+  override def dockerLogin = credential.freshCredential.toOption map { credential =>
     DockerLogin("_token", credential.getAccessToken)
   }
 }

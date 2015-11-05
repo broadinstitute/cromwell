@@ -9,15 +9,14 @@ import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
+import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.CallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor, _}
 import cromwell.util.StringUtil._
-import cromwell.util.google.GcsPath
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import cromwell.engine._
 
 object JesBackendCall {
 
@@ -62,7 +61,9 @@ class JesBackendCall(val backend: JesBackend,
   val gcsExecPath = GcsPath(callGcsPath + "/" + JesExecScript)
   val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile
 
-  val engineFunctions = new JesEngineFunctions(this)
+  private val callContext = new CallContext(callGcsPath, stdoutJesOutput.gcs, stderrJesOutput.gcs)
+
+  val engineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
   lazy val stderrJesOutput = jesOutput(callGcsPath, StderrFilename)
   lazy val stdoutJesOutput = jesOutput(callGcsPath, StdoutFilename)

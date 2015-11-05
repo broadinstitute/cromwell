@@ -3,7 +3,7 @@ package cromwell.engine.backend
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.binding._
-import cromwell.binding.expression.WdlStandardLibraryFunctions
+import cromwell.binding.values.WdlFile
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
@@ -56,7 +56,6 @@ trait JobKey
  */
 trait Backend {
   type BackendCall <: backend.BackendCall
-  type IOInterface <: cromwell.binding.IOInterface
 
   def actorSystem: ActorSystem
 
@@ -89,15 +88,9 @@ trait Backend {
                locallyQualifiedInputs: CallInputs,
                abortRegistrationFunction: AbortRegistrationFunction): BackendCall
 
-  /**
-   * Engine functions that don't need a Call context (e.g. read_lines(), read_float(), etc)
-   */
-  def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions
+  def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext
 
-  /**
-    * Interface to be used primarily by engine functions requiring IO capabilities.
-    */
-  def ioInterface(workflowOptions: WorkflowOptions): IOInterface
+  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions
 
   /**
    * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
@@ -108,11 +101,6 @@ trait Backend {
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
-
-  /**
-   * Provides a function that given a WdlFile, returns its hash.
-   */
-  def fileHasher(workflowDescriptor: WorkflowDescriptor): FileHasher
 
   def backendType: BackendType
 

@@ -14,7 +14,6 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
-import org.joda.time.DateTime
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps

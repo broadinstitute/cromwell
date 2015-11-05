@@ -15,13 +15,7 @@ object ConfigUtil {
 
   val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
 
-  class ConfigValidationException(context: String, validationException: ConfigException.ValidationFailed)
-    extends ConfigException.ValidationFailed(validationException.problems()) {
-    override def getMessage: String = {
-      val problems = validationException.problems().map(_.problem()).mkString(", ")
-      s"$context configuration validation failed : $problems"
-    }
-  }
+  class ConfigValidationException(context: String, message: String) extends Exception(s"Invalid $context configuration: $message")
 
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
 

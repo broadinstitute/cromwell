@@ -1,30 +1,45 @@
 package cromwell.util
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.util.ConfigUtil._
+
+import scala.util.Try
 
 /**
  * Encapsulate docker credential information.
  */
- case class DockerCredentials(account: String, token: String)
+case class DockerCredentials(account: String, token: String)
 
-/**
- * Trait for DockerConfiguration
- */
-trait DockerConfiguration {
-  val dockerKeys = Set("dockerAccount", "dockerToken")
+case class DockerHubConfiguration(namespace: String, v1Registry: String, v2Registry: String)
 
-  def dockerConf: Option[DockerCredentials]
-}
+case class DockerConfiguration(dockerCredentials: Option[DockerCredentials], dockerHubConf: DockerHubConfiguration)
 
 /**
  * Singleton encapsulating a DockerConf instance.
  */
-object ProductionDockerConfiguration extends DockerConfiguration {
-  override lazy val dockerConf: Option[DockerCredentials] = for {
-    dockerConf <- ConfigFactory.load.getConfigOption("docker")
-    _ = dockerConf.warnNotRecognized(dockerKeys, "docker")
-    account <- dockerConf.validateString("dockerAccount").toOption
-    token <- dockerConf.validateString("dockerToken").toOption
-  } yield new DockerCredentials(account, token)
+object DockerConfiguration {
+  import lenthall.config.ScalaConfig._
+
+  private val dockerKeys = Set("dockerAccount", "dockerToken")
+
+  lazy val dockerConf = build(ConfigFactory.load)
+
+  def build(conf: Config) = {
+    val dockerConf: Option[DockerCredentials] = for {
+      dockerConf <- conf.getConfigOption("docker")
+      _ = dockerConf.warnNotRecognized(dockerKeys, "docker")
+      account <- dockerConf.validateString("dockerAccount").toOption
+      token <- dockerConf.validateString("dockerToken").toOption
+    } yield new DockerCredentials(account, token)
+
+    val dockerHubConf = {
+      new DockerHubConfiguration(
+        namespace = conf.getStringOr("docker.hub.namespace", "docker.io"),
+        v1Registry = conf.getStringOr("docker.hub.v1Registry", "index.docker.io"),
+        v2Registry = conf.getStringOr("docker.hub.v2Registry", "registry-1.docker.io")
+      )
+    }
+    new DockerConfiguration(dockerConf, dockerHubConf)
+  }
+
 }

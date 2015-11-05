@@ -8,9 +8,15 @@ import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding._
+import cromwell.binding.values.WdlFile
 import cromwell.engine.backend.Backend
+import cromwell.engine.backend.jes.JesBackend
+import cromwell.engine.io.IoManager
+import cromwell.engine.io.gcs.GoogleCloudStorage
+import cromwell.engine.io.shared.SharedFileSystemIoInterface
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.server.CromwellServer
+import cromwell.util.TryUtil
 import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
@@ -28,14 +34,18 @@ case class WorkflowDescriptor(id: WorkflowId,
                               declarations: WorkflowCoercedInputs,
                               backend: Backend,
                               configCallCaching: Boolean,
-                              lookupDockerHash: Boolean) {
+                              lookupDockerHash: Boolean,
+                              gcsInterface: Try[GoogleCloudStorage],
+                              ioManager: IoInterface,
+                              wfContext: WorkflowContext,
+                              engineFunctions: WorkflowEngineFunctions) {
   import WorkflowDescriptor._
 
   val shortId = id.toString.split("-")(0)
-  val ioInterface = backend.ioInterface(workflowOptions)
   val name = namespace.workflow.unqualifiedName
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   val props = sys.props
+  lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
 
   private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
   private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
@@ -105,10 +115,21 @@ object WorkflowDescriptor {
     val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
     (namespace |@| rawInputs |@| options) { (_, _, _) } match {
       case scalaz.Success((n, r, o)) =>
+        val gcsInterface = GoogleCloudStorage.userAuthenticated(o) orElse GoogleCloudStorage.cromwellAuthenticated
+        val ioManager = backend match {
+          case _: JesBackend => gcsInterface getOrElse { // JesBackend only supports gcsInterface
+            throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.")
+          }
+          case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
+        }
+        val wfContext = backend.workflowContext(o, id, n.workflow.fullyQualifiedName)
+        val engineFunctions = backend.engineFunctions(ioManager, wfContext)
+
         val validatedDescriptor = for {
           c <- validateCoercedInputs(id, r, n).disjunction
-          d <- validateDeclarations(id, n, o, c, backend).disjunction
-        } yield WorkflowDescriptor(id, sourceFiles, o, r, n, c, d, backend, configCallCaching(conf), lookupDockerHash(conf))
+          d <- validateDeclarations(id, n, o, c, engineFunctions).disjunction
+        } yield WorkflowDescriptor(id, sourceFiles, o, r, n, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
+          gcsInterface, ioManager, wfContext, engineFunctions)
         validatedDescriptor.validation
       case scalaz.Failure(f) => f.list.mkString("\n").failureNel
     }
@@ -161,9 +182,8 @@ object WorkflowDescriptor {
                                    namespace: NamespaceWithWorkflow,
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
-                                   backend: Backend): ErrorOr[WorkflowCoercedInputs] = {
-    val ioInterface = backend.ioInterface(options)
-    namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions(ioInterface)) match {
+                                   engineFunctions: WorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {
+    namespace.staticDeclarationsRecursive(coercedInputs, engineFunctions) match {
       case Success(d) => d.successNel
       case Failure(e) => s"Workflow $id has invalid declarations: ${e.getMessage}".failureNel
     }

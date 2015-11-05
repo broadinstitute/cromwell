@@ -1,4 +1,4 @@
-package cromwell.util
+package cromwell.engine.io.gcs
 
 import com.google.api.client.util.DateTime
 import com.google.api.services.storage.model.Bucket.Owner

@@ -916,6 +916,14 @@ These options can be overridden with command line options to Java.  For instance
 java -Dbackend.shared-filesystem.localization.0=copy -Dbackend.shared-filesystem.localization.1=hard-link cromwell.jar ...
 ```
 
+## Cross-Filesystems Support
+
+Cromwell differentiates between Backends (eg. Local, JES, SGE) and Filesystems (eg. Shared Filesystem, Google Cloud Storage).
+This allows some Backends to communicate with different Filesystems at runtime.
+For instance, it is possible to reference files located in GCS to be used as inputs for a workflow submitted to a Local instance of Cromwell.
+The files will be localized (ie downloaded) to the local cromwell Filesystem before the workflow / call executes.
+**NOTE**: Because the files will be downloaded locally, be aware that referencing large GCS files on a local cromwell instance can result in a significant delay in the workflow execution and consume bandwidth.
+
 ## Local Backend
 
 The local backend will simply launch a subprocess and wait for it to exit.
@@ -990,8 +998,6 @@ backend {
   backend = "jes"
 
   jes {
-    applicationName = "cromwell"
-
     // Google project
     project = "broad-dsde-dev"
 
@@ -1014,16 +1020,18 @@ It is also necessary to fill out the `google` stanza in the configuration file. 
 
 ```hocon
 google {
-  authScheme = "service"
+  applicationName = "cromwell"
+  
+  cromwellAuthenticationScheme = "service_account"
 
-  // If authScheme is "user"
+  // If cromwellAuthenticationScheme is "user_account"
   userAuth {
     // user = ""
     // secretsFile = ""
     // dataStoreDir = ""
   }
 
-  // If authScheme is "service"
+  // If cromwellAuthenticationScheme is "service_account"
   serviceAuth {
     pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
@@ -1035,7 +1043,7 @@ google {
 
 Data localization can be performed on behalf of an other entity (typically a user).
 
-This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `authScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
+This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `cromwellAuthenticationScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
 To enable this feature, two pieces of configuration are needed:
 
 **1 - ClientID/Secret**
@@ -1044,14 +1052,16 @@ An entry must be added in the `google` stanza, indicating a pair of client ID / 
 
 ```hocon
 google {
-  authScheme = "service"
+  cromwellAuthenticationScheme = "service_account"
 
   serviceAuth {
     pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
-
-  localizeWithRefreshToken = {
+  
+  userAuthenticationScheme = "refresh"
+  
+  refreshTokenAuth = {
     client_id = "myclientid.apps.googleusercontent.com"
     client_secret = "clientsecretpassphrase"
   }

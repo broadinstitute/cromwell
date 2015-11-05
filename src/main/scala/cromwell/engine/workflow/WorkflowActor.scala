@@ -214,7 +214,7 @@ object WorkflowActor {
 case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
-  lazy implicit val hasher = backend.fileHasher(workflow)
+  lazy implicit val hasher = workflow.fileHasher
 
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow.namespace, inputs)

@@ -1,4 +1,4 @@
-package cromwell.util.google
+package cromwell.engine.io.gcs
 
 import org.scalatest.{FlatSpec, Matchers}
 

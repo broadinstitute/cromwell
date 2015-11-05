@@ -1,13 +1,22 @@
 package cromwell.binding.expression
 
-import cromwell.binding.WdlExpressionException
 import cromwell.binding.types._
 import cromwell.binding.values._
+import cromwell.binding.{IoInterface, TsvSerializable, WdlExpressionException}
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
-  private def fail(name: String) = Failure(new UnsupportedOperationException(s"$name() not implemented yet"))
+  def interface: IoInterface
+
+  private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
+
+  protected def fileContentsToString(path: String): String = interface.readFile(path)
+
+  private def writeContent(baseName: String, content: String): Try[WdlFile] = {
+    Try(WdlFile(interface.writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
+  }
 
   /**
     * Asserts that the parameter list contains a single parameter which will be interpreted
@@ -91,16 +100,49 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
    */
   protected def read_boolean(params: Seq[Try[WdlValue]]): Try[WdlBoolean] =
     read_string(params) map { s => WdlBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
-  protected def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_lines")
+
+  private def writeToTsv(params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      downcast <- Try(wdlClass.cast(singleArgument))
+      tsvSerialized <- downcast.tsvSerialize
+      file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
+    } yield file
+  }
+
+  protected def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
+
+  protected def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlMap])
+
+  protected def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlObject])
+
+  protected def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
+
+  protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    for {
+      singleArgument <- extractSingleArgument(params)
+      globVal = singleArgument.valueString
+      files = interface.glob(globPath(globVal), globVal)
+      wdlFiles = files map { WdlFile(_, isGlob = false) }
+    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
+  }
+
   protected def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_tsv")
-  protected def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_map")
-  protected def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_object")
-  protected def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_objects")
   protected def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_json")
-  protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = fail("glob")
 }
 
-class NoFunctions extends WdlStandardLibraryFunctions
+class NoFunctions extends WdlStandardLibraryFunctions with IoInterface {
+  override def readFile(path: String): String = throw new NotImplementedError()
+  override def writeFile(path: String, content: String): Unit = throw new NotImplementedError()
+  override def listContents(path: String): Iterable[String] = throw new NotImplementedError()
+  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError()
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError()
+  override def exists(path: String): Boolean = throw new NotImplementedError()
+  override def interface: IoInterface = throw new NotImplementedError()
+  override def isValidPath(path: String): Boolean = throw new NotImplementedError()
+  override def copy(from: String, to: String): Unit = throw new NotImplementedError()
+  override def hash(path: String): String = throw new NotImplementedError()
+}
 
 class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   protected def stdout(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)

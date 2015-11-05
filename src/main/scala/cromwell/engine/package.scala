@@ -70,7 +70,7 @@ package object engine {
 
     val props = sys.props
     val workflowLogger = props.get("LOG_MODE") match {
-      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
+      case Some(x) if x.toUpperCase.contains("FILE") => makeFileLogger(
         Paths.get(props.getOrElse("LOG_ROOT", ".")),
         s"workflow.$id.log",
         Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))

@@ -24,7 +24,7 @@ class TerminalLayout extends LayoutBase[ILoggingEvent] {
       .replaceAll("UUID\\((.*?)\\)", TerminalUtil.highlight(2, "$1"))
       .replaceAll("`([^`]*?)`", TerminalUtil.highlight(5, "$1"))
 
-    s"[$timestamp] [$level] $highlightedMessage\n${event.toStackTrace}"
+    s"[$timestamp] ${java.lang.Thread.currentThread.getName} [$level] $highlightedMessage\n${event.toStackTrace}"
   }
 }
 

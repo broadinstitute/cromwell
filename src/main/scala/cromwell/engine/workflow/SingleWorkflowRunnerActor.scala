@@ -24,22 +24,6 @@ object SingleWorkflowRunnerActor {
  * Designed explicitly for the use case of the 'run' functionality in Main. This Actor will start a workflow,
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
- *
- * NOTE: This Actor listens to FSM transition messages to keep an eye on the WorkflowActor. However, when the FSM
- * transitions to a "terminated" state, it is just starting to asynchronously begin more work in response to the same
- * message. This work includes persisting the run state to the DB, before it sends a special message to itself to
- * actually halt the Actor instance. (Side note, the halt only appears to be received in state WorkflowSucceeded, not
- * WorkflowFailed?)
- *
- * Unfortunately, we sense this "terminated" state of WorkflowSucceeded/WorkflowFailure, and then send a message to the
- * system to shut down, sometimes before the WorkflowActor has actually persisted its final state. During testing, it
- * also shuts down the system before the WorkflowActor finishes using system internals. In one example, when the
- * WorkflowActor tries to activate a special call to setTimer, the system is already gone, resulting in an internal
- * NullPointerException.
- *
- * All this messaging and FSM state needs help. There are other tools available too, besides FSM state, for example one
- * could also register a context.watch() on the WorkflowActor to make sure it's really done. A simpler alternative may
- * be a "Now I'm **really** done" message from the WorkflowActor.
  */
 case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                      metadataOutputPath: Option[Path],
@@ -141,8 +125,6 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
    * Got to tell the manager its job is done.
    */
   private def terminate(): Unit = {
-    // NOTE: As of right now, the WorkflowManagerActor is shutting down the system before the WorkflowActor may
-    // actually be finished / stopped though.
     workflowManager ! Shutdown
   }
 }

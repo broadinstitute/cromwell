@@ -6,10 +6,10 @@ import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine.backend._
 import cromwell.logging.WorkflowLogger
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object CallExecutionActor {
   sealed trait CallExecutionActorMessage

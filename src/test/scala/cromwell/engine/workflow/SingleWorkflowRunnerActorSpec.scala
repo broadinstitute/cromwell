@@ -139,17 +139,9 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataOnFailureSpe
         system.awaitTermination()
       }
 
-      /*
-       NOTE: Not 100% sure why at the moment, but Failed workflows don't seem to be (always?) returning as failed.
-       Possibly due to the timing of FSM transition message passing? Or maybe the asynchronous messages haven't finished
-       passing for storing the status? Either way, for now, seems to work on the command line.
-
-       See NOTE (and side note) at the top of SingleWorkflowRunnerActor regarding halt/shutdown.
-      */
-
       val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
       metadata.id shouldNot be(empty)
-      metadata.status should (be("Running") or be("Failed"))
+      metadata.status should be("Failed")
       metadata.submission.getMillis should be >= testStart
       metadata.start shouldNot be(empty)
       metadata.start.get.getMillis should be >= metadata.submission.getMillis

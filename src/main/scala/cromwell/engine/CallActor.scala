@@ -1,17 +1,21 @@
 package cromwell.engine
 
 import akka.actor.FSM.NullFunction
-import akka.actor.{LoggingFSM, Props}
+import akka.actor.{Actor, LoggingFSM, Props}
 import akka.event.Logging
+import com.google.api.client.util.ExponentialBackOff
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
-import cromwell.engine.CallActor.CallActorState
+import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.logging.WorkflowLogger
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.language.postfixOps
+
 
 object CallActor {
 
@@ -33,19 +37,38 @@ object CallActor {
   case object CallAborting extends CallActorState
   case object CallDone extends CallActorState
 
+  /** The `WorkflowActor` will drop `TerminalCallMessage`s that it is unable to immediately process.  This message
+    * represents the acknowledgment from the `WorkflowActor` that the `callMessage` was processed and the status
+    * change has been successfully committed to the database. */
+  final case class Ack(callMessage: WorkflowActor.TerminalCallMessage) extends CallActorMessage
+
+  /** Message to self to retry sending the `callMessage` to the `WorkflowActor` in the absence of an `Ack`. */
+  final case class Retry(callMessage: WorkflowActor.CallMessage) extends CallActorMessage
+
+  /** FSM data class with an optional abort function and exponential backoff. */
+  case class CallActorData(abortFunction: Option[AbortFunction] = None, backoff: Option[ExponentialBackOff] = None) {
+    def retryOnce(actor: Actor, callMessage: WorkflowActor.CallMessage)(implicit ec: ExecutionContext): Unit = {
+      actor.context.system.scheduler.scheduleOnce(backoff.get.nextBackOffMillis().millis) {
+        actor.self ! Retry(callMessage)
+      }
+    }
+  }
+
   def props(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
 class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor)
-  extends LoggingFSM[CallActorState, Option[AbortFunction]] with CromwellActor {
+  extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
 
   import CallActor._
 
   type CallOutputs = Map[String, WdlValue]
 
-  startWith(CallNotStarted, None)
+  startWith(CallNotStarted, CallActorData())
+
+  implicit val ec = context.system.dispatcher
 
   val call = key.scope
   val akkaLogger = Logging(context.system, classOf[CallActor])
@@ -68,7 +91,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   when(CallNotStarted) {
     case Event(startMode: StartMode, _) =>
-      sender() ! WorkflowActor.CallStarted(key)
+      // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
+      // handle those immediately.
+      context.parent ! WorkflowActor.CallStarted(key)
       val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
       val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
       context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! startMode.executionMessage
@@ -77,16 +102,20 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   }
 
   when(CallRunningAbortUnavailable) {
-    case Event(RegisterCallAbortFunction(abortFunction), _) => goto(CallRunningAbortAvailable) using Option(abortFunction)
+    case Event(RegisterCallAbortFunction(newAbortFunction), data) =>
+      val updatedData = data.copy(abortFunction = Option(newAbortFunction))
+      goto(CallRunningAbortAvailable) using updatedData
     case Event(AbortCall, _) => goto(CallRunningAbortRequested)
   }
 
   when(CallRunningAbortAvailable) {
-    case Event(AbortCall, abortFunction) => tryAbort(abortFunction)
+    case Event(AbortCall, data) => tryAbort(data)
   }
 
   when(CallRunningAbortRequested) {
-    case Event(RegisterCallAbortFunction(abortFunction), _) => tryAbort(Option(abortFunction))
+    case Event(RegisterCallAbortFunction(abortFunction), data) =>
+      val updatedData = data.copy(abortFunction = Option(abortFunction))
+      tryAbort(updatedData)
   }
 
   // When in CallAborting, the only message being listened for is the CallComplete message (which is already
@@ -101,34 +130,57 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   whenUnhandled {
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
+    case Event(Retry(message), data) =>
+      logger.debug(s"CallActor retrying ${message.callKey.tag}")
+      // Continue retrying this message until it is Acked.
+      context.parent ! message
+      data.retryOnce(this, message)
+      stay using data
+    case Event(Ack(message: WorkflowActor.TerminalCallMessage), data) =>
+      logger.debug(s"CallActor received ack for ${message.callKey.tag}")
+      goto(CallDone) using data.copy(backoff = None)
     case Event(e, _) =>
       logger.warn(s"received unhandled event $e while in state $stateName")
       stay()
   }
 
-  private def tryAbort(abortFunction: Option[AbortFunction]): CallActor.this.State = {
-    abortFunction match {
+  private def tryAbort(data: CallActorData): CallActor.this.State = {
+    data.abortFunction match {
       case Some(af) =>
         logger.info("Abort function called.")
         af.function()
-        goto(CallAborting) using abortFunction
+        goto(CallAborting) using data
       case None =>
         logger.warn("Call abort failed because the provided abort function was null.")
-        goto(CallRunningAbortRequested) using abortFunction
+        goto(CallRunningAbortRequested) using data
     }
   }
 
-  private def handleFinished(call: Call, executionResult: ExecutionResult): CallActor.this.State = {
-    executionResult match {
-      case SuccessfulExecution(outputs, returnCode) => context.parent ! WorkflowActor.CallCompleted(key, outputs, returnCode)
-      case AbortedExecution => context.parent ! WorkflowActor.AbortComplete(key)
+  private def handleFinished(call: Call, executionResult: ExecutionResult): State = {
+
+    def createBackoff: Option[ExponentialBackOff] = Option(
+      new ExponentialBackOff.Builder()
+        .setInitialIntervalMillis(100)
+        .setMaxIntervalMillis(3000)
+        .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
+        .setMultiplier(1.1)
+        .build()
+    )
+
+    val message = executionResult match {
+      case SuccessfulExecution(outputs, returnCode) => WorkflowActor.CallCompleted(key, outputs, returnCode)
+      case AbortedExecution => WorkflowActor.CallAborted(key)
       case FailedExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)
-        log.error(e, e.getMessage)
-        context.parent ! WorkflowActor.CallFailed(key, returnCode, e.getMessage)
+        WorkflowActor.CallFailed(key, returnCode, e.getMessage)
     }
 
-    goto(CallDone)
+    context.parent ! message
+    // The WorkflowActor will drop TerminalCallMessages that it is unable to immediately process.
+    // Retry sending this message to the WorkflowActor until it is Acked.
+    val updatedData = stateData.copy(backoff = createBackoff)
+    updatedData.retryOnce(this, message)
+    stay using updatedData
   }
 
   private def registerAbortFunction(abortFunction: AbortFunction): Unit = {

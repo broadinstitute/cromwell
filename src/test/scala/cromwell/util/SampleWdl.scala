@@ -11,12 +11,24 @@ import spray.json._
 
 import scala.language.postfixOps
 
-trait SampleWdl {
+trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
   def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
   val rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")
+
+  def createFileArray(base: Path): Unit = {
+    createFile("f1", base, "line1\nline2\n")
+    createFile("f2", base, "line3\nline4\n")
+    createFile("f3", base, "line5\n")
+  }
+
+  def cleanupFileArray(base: Path) = {
+    deleteFile(base.resolve("f1"))
+    deleteFile(base.resolve("f2"))
+    deleteFile(base.resolve("f3"))
+  }
 
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
@@ -28,6 +40,7 @@ trait SampleWdl {
       case s: WdlString => JsString(s.value)
       case i: WdlInteger => JsNumber(i.value)
       case f: WdlFloat => JsNumber(f.value)
+      case f: WdlFile => JsString(f.value)
     }
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
@@ -38,28 +51,6 @@ trait SampleWdl {
   }
 
   def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
-
-  private def write(file: File, contents: String) = {
-    val writer = new FileWriter(file)
-    writer.write(contents)
-    writer.flush()
-    writer.close()
-    file
-  }
-
-  def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
-    val suffix = ".out"
-    val file = dir match {
-      case Some(path) => Files.createTempFile(path, prefix, suffix)
-      case None => Files.createTempFile(prefix, suffix)
-    }
-    write(file.toFile, contents)
-  }
-
-  def createFile(name: String, dir: Path, contents: String) = {
-    dir.toFile.mkdirs()
-    write(dir.resolve(name).toFile, contents)
-  }
 
   def deleteFile(path: Path) = Files.delete(path)
 }
@@ -854,15 +845,8 @@ object SampleWdl {
   }
 
   case class ArrayLiteral(catRootDir: Path) extends SampleWdl {
-    createFile("f1", catRootDir, "line1\nline2\n")
-    createFile("f2", catRootDir, "line3\nline4\n")
-    createFile("f3", catRootDir, "line5\n")
-
-    def cleanup() = {
-      deleteFile(catRootDir.resolve("f1"))
-      deleteFile(catRootDir.resolve("f2"))
-      deleteFile(catRootDir.resolve("f3"))
-    }
+    createFileArray(catRootDir)
+    def cleanup() = cleanupFileArray(catRootDir)
 
     override def wdlSource(runtime: String = "") =
       """
@@ -885,7 +869,10 @@ object SampleWdl {
     override val rawInputs = Map.empty[String, String]
   }
 
-  case object MapLiteral extends SampleWdl {
+  case class MapLiteral(catRootDir: Path) extends SampleWdl {
+    createFileArray(catRootDir)
+    def cleanup() = cleanupFileArray(catRootDir)
+
     override def wdlSource(runtime: String = "") =
       """
         |task write_map {
@@ -1538,5 +1525,43 @@ object SampleWdl {
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override val rawInputs = Map.empty[String, String]
+  }
+
+  object CallCachingHashingWdl extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task t {
+        |  Int a
+        |  Float b
+        |  String c
+        |  File d
+        |
+        |  command {
+        |    echo "${a}" > a
+        |    echo "${b}" > b
+        |    echo "${c}" > c
+        |    cat ${d} > d
+        |  }
+        |  output {
+        |    Int w = read_int("a") + 2
+        |    Float x = read_float("b")
+        |    String y = read_string("c")
+        |    File z = "d"
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow w {
+        |  call t
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    val tempDir = Files.createTempDirectory("CallCachingHashingWdl")
+    val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Some(tempDir))
+    override val rawInputs = Map(
+      "w.t.a" -> WdlInteger(1),
+      "w.t.b" -> WdlFloat(1.1),
+      "w.t.c" -> WdlString("foobar"),
+      "w.t.d" -> WdlFile(cannedFile.getAbsolutePath)
+    )
   }
 }

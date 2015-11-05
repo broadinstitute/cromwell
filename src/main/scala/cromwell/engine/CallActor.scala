@@ -9,13 +9,14 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
+import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.logging.WorkflowLogger
 import cromwell.instrumentation.Instrumentation.Monitor
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import scala.util.{Try, Success, Failure}
 
 object CallActor {
 
@@ -25,6 +26,9 @@ object CallActor {
   }
   case object Start extends StartMode { override val executionMessage = CallExecutionActor.Execute }
   final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
+  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode {
+    override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall, backendCall)
+  }
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
   final case class ExecutionFinished(call: Call, executionResult: ExecutionResult) extends CallActorMessage
@@ -187,7 +191,8 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     )
 
     val message = executionResult match {
-      case SuccessfulExecution(outputs, returnCode) => WorkflowActor.CallCompleted(key, outputs, returnCode)
+      case SuccessfulExecution(outputs, returnCode, hash) =>
+        WorkflowActor.CallCompleted(key, outputs, returnCode, if (workflowDescriptor.writeToCache) Some(hash) else None)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case FailedExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)
@@ -206,7 +211,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     CallCounter.decrement()
     context.stop(self)
   }
-  
+
   private def registerAbortFunction(abortFunction: AbortFunction): Unit = {
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }

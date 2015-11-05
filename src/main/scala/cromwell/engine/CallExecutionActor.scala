@@ -30,6 +30,10 @@ object CallExecutionActor {
     override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.resume(jobKey)
   }
 
+  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends ExecutionMode {
+    override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.useCachedCall(cachedBackendCall)
+  }
+
   def props(backendCall: BackendCall): Props = Props(new CallExecutionActor(backendCall))
 }
 

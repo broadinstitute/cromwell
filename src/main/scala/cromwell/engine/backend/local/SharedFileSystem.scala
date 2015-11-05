@@ -3,19 +3,21 @@ package cromwell.engine.backend.local
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
+import better.files.{File => ScalaFile}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
-import cromwell.engine.ExecutionIndex._
+import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.{LocalFileSystemBackendCall, CallLogs}
-import cromwell.engine.workflow.{WorkflowOptions, CallKey}
+import cromwell.engine.backend.{ExecutionHandle, BackendCall, CallLogs, LocalFileSystemBackendCall}
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
 import scala.collection.JavaConverters._
+import scala.concurrent.{Future, ExecutionContext}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -70,6 +72,8 @@ object SharedFileSystem {
       Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
     else Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
   }
+
+  val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
 }
 
 class SharedFileSystemIOInterface extends IOInterface {
@@ -92,6 +96,8 @@ class SharedFileSystemIOInterface extends IOInterface {
   override def glob(path: String, pattern: String): Seq[String] = {
     Paths.get(path).glob(pattern) map { _.path.fullPath } toSeq
   }
+
+  override def copy(from: String, to: String): Unit = Paths.get(from).copyTo(Paths.get(to))
 }
 
 trait SharedFileSystem {
@@ -101,10 +107,12 @@ trait SharedFileSystem {
   type IOInterface = SharedFileSystemIOInterface
 
   def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext(interface)
+  def fileHasher(workflow: WorkflowDescriptor) = sharedFsFileHasher
 
   def ioInterface(workflowOptions: WorkflowOptions): IOInterface = new SharedFileSystemIOInterface
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
+    implicit val hasher = fileHasher(backendCall.workflowDescriptor)
     // Evaluate output expressions, performing conversions from String -> File where required.
     val outputMappings = backendCall.call.task.outputs map { taskOutput =>
       val tryConvertedValue =
@@ -119,7 +127,7 @@ trait SharedFileSystem {
     val taskOutputFailures = outputMappings filter { _._2.isFailure }
 
     if (taskOutputFailures.isEmpty) {
-      val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue }
+      val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash) }
       Success(unwrappedMap.toMap)
     } else {
       val message = taskOutputFailures collect { case (name, Failure(e)) => s"$name: $e" }

@@ -7,18 +7,20 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
-import cromwell.engine.backend.{CromwellBackend, Backend}
+import cromwell.engine.backend.CromwellBackend
 import cromwell.engine.workflow.WorkflowOptions
+import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
+import scalaz.ValidationNel
 
 /**
  * ==Cromwell Execution Engine==
@@ -29,6 +31,9 @@ import scala.util.{Failure, Success, Try}
  * Internally, this package is built on top of [[cromwell.binding]].
  */
 package object engine {
+
+  private val DefaultCallCachingValue = false
+
   case class WorkflowId(id: UUID) {
     override def toString = id.toString
     def shortString = id.toString.split("-")(0)
@@ -39,12 +44,27 @@ package object engine {
     def randomId() = WorkflowId(UUID.randomUUID())
   }
 
+  object WorkflowDescriptor {
+    private def disabledMessage(readWrite: String, consequence: String) =
+      s"""$readWrite is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
+         |As a result the calls in this workflow $consequence
+       """.stripMargin
+
+    val writeDisabled = disabledMessage("Write to Cache", "WILL NOT be cached")
+    val readDisabled = disabledMessage("Read from Cache", "WILL ALL be executed")
+  }
+
   /**
    * Constructs a representation of a particular workflow invocation.  As with other
    * case classes and apply() methods, this will throw an exception if it cannot be
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
+    import WorkflowDescriptor._
+
+    // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
+    lazy private [engine] val conf = ConfigFactory.load
+
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
       case Success(other) => throw new Throwable(s"Expecting workflow options to be a JSON object, got $other")
@@ -52,6 +72,31 @@ package object engine {
     }
 
     val backend = CromwellBackend.backend()
+    val props = sys.props
+    val workflowLogger = props.get("LOG_MODE") match {
+      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
+        Paths.get(props.getOrElse("LOG_ROOT", ".")),
+        s"workflow.$id.log",
+        Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
+      )
+      case _ => NOPLogger.NOP_LOGGER
+    }
+
+    // Call Caching
+    // TODO: Add to lenthall
+    def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
+    private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
+    private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
+    private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
+
+    if (!configCallCaching) {
+      if (optionCacheWriting) logWriteDisabled()
+      if (optionCacheReading) logReadDisabled()
+    }
+
+    lazy val writeToCache = configCallCaching && optionCacheWriting
+    lazy val readFromCache = configCallCaching && optionCacheReading
+
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.unqualifiedName
     val shortId = id.toString.split("-")(0)
@@ -69,16 +114,6 @@ package object engine {
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions(IOInterface)).get
     val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
-
-    val props = sys.props
-    val workflowLogger = props.get("LOG_MODE") match {
-      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
-        Paths.get(props.getOrElse("LOG_ROOT", ".")),
-        s"workflow.$id.log",
-        Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
-      )
-      case _ => NOPLogger.NOP_LOGGER
-    }
 
     private def makeFileLogger(root: Path, name: String, level: Level): Logger = {
       val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
@@ -101,6 +136,9 @@ package object engine {
       fileLogger.setLevel(level)
       fileLogger
     }
+
+    private def logWriteDisabled() = workflowLogger.warn(writeDisabled)
+    private def logReadDisabled() = workflowLogger.warn(readDisabled)
   }
 
   /**
@@ -158,18 +196,18 @@ package object engine {
       (fullyQualifiedName.substring(0, lastIndex), fullyQualifiedName.substring(lastIndex + 1))
     }
 
-    def apply(fullyQualifiedName: FullyQualifiedName, wdlValue: WdlValue, input: Boolean): SymbolStoreEntry = {
+    def apply(fullyQualifiedName: FullyQualifiedName, wdlValue: WdlValue, symbolHash: SymbolHash, input: Boolean): SymbolStoreEntry = {
       val (scope, name) = splitFqn(fullyQualifiedName)
       val key = SymbolStoreKey(scope, name, index = None, input)
-      SymbolStoreEntry(key, wdlValue.wdlType, Some(wdlValue))
+      SymbolStoreEntry(key, wdlValue.wdlType, Option(wdlValue), Option(symbolHash))
     }
 
     def toWorkflowOutputs(t: Traversable[SymbolStoreEntry]): WorkflowOutputs = t.map { e =>
-      s"${e.key.scope}.${e.key.name}" -> e.wdlValue.get
+      s"${e.key.scope}.${e.key.name}" -> CallOutput(e.wdlValue.get, e.symbolHash.get)
     }.toMap
 
     def toCallOutputs(traversable: Traversable[SymbolStoreEntry]): CallOutputs = traversable.map { entry =>
-      entry.key.name -> entry.wdlValue.get
+      entry.key.name -> CallOutput(entry.wdlValue.get, entry.symbolHash.get)
     }.toMap
   }
 
@@ -177,7 +215,7 @@ package object engine {
     def fqn: FullyQualifiedName = s"$scope.$name"
   }
 
-  case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
+  case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue], symbolHash: Option[SymbolHash]) {
     def isInput: Boolean = key.input
     def isOutput: Boolean = !isInput
     def scope: String = key.scope
@@ -225,4 +263,6 @@ package object engine {
       }
     }
   }
+
+  type ErrorOr[+A] = ValidationNel[String, A]
 }

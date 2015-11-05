@@ -9,8 +9,7 @@ import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
-import cromwell.binding.types.WdlType
-import cromwell.binding.values.{WdlString, WdlArray, WdlFile, WdlValue}
+import cromwell.binding.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs
@@ -26,7 +25,6 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 
 object CromwellTestkitSpec {
@@ -223,17 +221,17 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
         verifyWorkflowState(wma, workflowId, terminalState)
         val outputs: WorkflowOutputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
 
-        val actualOutputNames = outputs map { _._1} mkString(", ")
-        val expectedOuputNames = expectedOutputs map { _._1} mkString(" ")
+        val actualOutputNames = outputs.keys mkString ", "
+        val expectedOutputNames = expectedOutputs.keys mkString " "
 
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
           val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputNames'"))
-          if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+          if (expectedValue != AnyValueIsFine) validateOutput(actualValue.wdlValue, expectedValue)
         }
         if (!allowOtherOutputs) {
           outputs foreach { case (actualFqn, actualValue) =>
-            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOuputNames'"))
-            if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
+            if (expectedValue != AnyValueIsFine) validateOutput(actualValue.wdlValue, expectedValue)
           }
         }
       }

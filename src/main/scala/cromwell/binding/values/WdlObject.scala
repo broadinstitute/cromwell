@@ -1,7 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.types._
-import cromwell.binding.{SymbolHash, Call, FileHasher}
+import cromwell.binding.{Call, FileHasher, SymbolHash}
 import cromwell.util.FileUtil
 import cromwell.util.StringUtil._
 

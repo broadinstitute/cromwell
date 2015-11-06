@@ -3,6 +3,7 @@ package cromwell.engine.backend.local
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
+import better.files.{File => ScalaFile}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
@@ -12,6 +13,10 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.{LocalFileSystemBackendCall, CallLogs}
 import cromwell.engine.workflow.{WorkflowOptions, CallKey}
+import cromwell.engine.ExecutionIndex.ExecutionIndex
+import cromwell.engine._
+import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
+import cromwell.engine.workflow.CallKey
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
@@ -70,6 +75,8 @@ object SharedFileSystem {
       Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
     else Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
   }
+
+  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => ScalaFile(wdlFile.value).md5 }
 }
 
 class SharedFileSystemIOInterface extends IOInterface {

@@ -11,7 +11,7 @@ import spray.json._
 
 import scala.language.postfixOps
 
-trait SampleWdl {
+trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
   def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
   val rawInputs: WorkflowRawInputs
@@ -38,28 +38,6 @@ trait SampleWdl {
   }
 
   def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
-
-  private def write(file: File, contents: String) = {
-    val writer = new FileWriter(file)
-    writer.write(contents)
-    writer.flush()
-    writer.close()
-    file
-  }
-
-  def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
-    val suffix = ".out"
-    val file = dir match {
-      case Some(path) => Files.createTempFile(path, prefix, suffix)
-      case None => Files.createTempFile(prefix, suffix)
-    }
-    write(file.toFile, contents)
-  }
-
-  def createFile(name: String, dir: Path, contents: String) = {
-    dir.toFile.mkdirs()
-    write(dir.resolve(name).toFile, contents)
-  }
 
   def deleteFile(path: Path) = Files.delete(path)
 }

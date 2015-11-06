@@ -15,6 +15,10 @@ case class Execution(workflowExecutionId: Int,
                      rc: Option[Int] = None,
                      startDt: Option[Timestamp] = None,
                      endDt: Option[Timestamp] = None,
+                     allowsResultReuse: Boolean = true,
+                     dockerImageHash: Option[String] = None,
+                     resultsClonedFrom: Option[Int] = None,
+                     executionHash: Option[String] = None,
                      executionId: Option[Int] = None)
 
 trait ExecutionComponent {
@@ -31,8 +35,12 @@ trait ExecutionComponent {
     def rc = column[Option[Int]]("RC")
     def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
+    def allowsResultReuse = column[Boolean]("ALLOWS_RESULT_REUSE")
+    def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
+    def resultsClonedFrom = column[Option[Int]]("RESULTS_CLONED_FROM")
+    def executionHash = column[Option[String]]("EXECUTION_HASH")
 
-    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, executionId.?) <>
+    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, allowsResultReuse, dockerImageHash, resultsClonedFrom, executionHash, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(
@@ -97,6 +105,12 @@ trait ExecutionComponent {
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
       if !(execution.status === ExecutionStatus.NotStarted.toString || execution.status === ExecutionStatus.Done.toString)
+    } yield execution)
+
+  val executionsWithReusableResultsByExecutionHash = Compiled(
+    (executionHash: Rep[String]) => for {
+      execution <- executions
+      if execution.executionHash === executionHash && execution.allowsResultReuse
     } yield execution)
 
   val executionStatusesAndReturnCodesByExecutionId = Compiled(

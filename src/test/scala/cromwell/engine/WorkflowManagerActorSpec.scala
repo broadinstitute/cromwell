@@ -29,6 +29,8 @@ import scala.util.{Failure, Success, Try}
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
 
+  implicit val hasher = CromwellSpec.BackendInstance.fileHasher
+
   "A WorkflowManagerActor" should {
 
     val TestExecutionTimeout = 5.seconds.dilated
@@ -46,11 +48,11 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
 
       val workflowOutputs = messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(workflowId))
 
-      val actualWorkflowOutputs = workflowOutputs.map { case (k, WdlString(string)) => k -> string }
+      val actualWorkflowOutputs = workflowOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualWorkflowOutputs shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
 
       val callOutputs = messageAndWait[binding.CallOutputs](CallOutputs(workflowId, "hello.hello"))
-      val actualCallOutputs = callOutputs.map { case (k, WdlString(string)) => k -> string }
+      val actualCallOutputs = callOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
 
     }
@@ -68,7 +70,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         WorkflowId(UUID.randomUUID()) -> WorkflowRunning)
       val ids = workflows.keys.map(_.toString).toSeq.sorted
       val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
-      val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(WdlString("world"))))
+      val worldWdlString = WdlString("world")
+      val worldSymbolHash = worldWdlString.getHash
+      val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
 
       import ExecutionContext.Implicits.global
       val setupFuture = Future.sequence(
@@ -182,7 +186,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
         EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
       val outputName = "whereami.whereami.pwd"
       val salutation = outputs.get(outputName).get
-      val actualOutput = salutation.asInstanceOf[WdlString].value.trim
+      val actualOutput = salutation.asInstanceOf[CallOutput].wdlValue.asInstanceOf[WdlString].value.trim
       actualOutput should endWith("/call-whereami")
     }
 

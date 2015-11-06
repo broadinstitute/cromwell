@@ -214,19 +214,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
         val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, terminalState)
         val outputs: WorkflowOutputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
-
-        val actualOutputNames = outputs map { _._1} mkString(", ")
-        val expectedOuputNames = expectedOutputs map { _._1} mkString(" ")
-
-        expectedOutputs foreach { case (outputFqn, expectedValue) =>
-          val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputNames'"))
-          if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
-        }
-        if (!allowOtherOutputs) {
-          outputs foreach { case (actualFqn, actualValue) =>
-            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOuputNames'"))
-            if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
-          }
+          validateOutput(actualValue.wdlValue, expectedValue)
         }
       }
     }

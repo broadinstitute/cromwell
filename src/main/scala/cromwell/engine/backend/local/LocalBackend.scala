@@ -100,6 +100,20 @@ class LocalBackend extends Backend with SharedFileSystem {
     }
   } map CompletedExecutionHandle
 
+  def useCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+    val source = cachedBackendCall.callRootPath.toAbsolutePath.toString
+    val dest = backendCall.callRootPath.toAbsolutePath.toString
+    val outputs = for {
+      _ <- Try(ioInterface(backendCall.workflowDescriptor.workflowOptions).copy(source, dest))
+      outputs <- postProcess(backendCall)
+    } yield outputs
+
+    outputs match {
+      case Success(o) => CompletedExecutionHandle(SuccessfulExecution(o, cachedBackendCall.returnCode.contentAsString.stripLineEnd.toInt, cachedBackendCall.hash))
+      case Failure(ex) => FailedExecutionHandle(ex)
+    }
+  }
+
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */
@@ -108,7 +122,7 @@ class LocalBackend extends Backend with SharedFileSystem {
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
+      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None, None))
     }
 
     for {
@@ -177,7 +191,7 @@ class LocalBackend extends Backend with SharedFileSystem {
 
       def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => SuccessfulExecution(outputs, rc)
+          case Success(outputs) => SuccessfulExecution(outputs, rc, backendCall.hash)
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             FailedExecution(new Throwable("Failed post processing of outputs" + message, e))

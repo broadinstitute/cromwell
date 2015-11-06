@@ -308,7 +308,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         workflowExecutionResult.workflowExecutionId.get).result
 
       executionStatuses = executionKeyAndStatusResults map {
-        case (fqn, indexInt, status, rc) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc)) }
+        case (fqn, indexInt, status, rc, executionHash) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc, executionHash)) }
 
     } yield executionStatuses.toMap
 
@@ -323,8 +323,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionKeyAndStatusResults <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
-      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc) =>
-        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc)) }
+      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc, hash) =>
+        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc, hash)) }
     } yield executionStatuses.toMap
 
     runTransaction(action)
@@ -337,8 +337,21 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionStatuses <- dataAccess.executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
-      maybeStatus = executionStatuses.headOption map { case (status, rc) => CallStatus(status.toExecutionStatus, rc) }
+      maybeStatus = executionStatuses.headOption map { case (status, rc, hash) => CallStatus(status.toExecutionStatus, rc, hash) }
     } yield maybeStatus
+    runTransaction(action)
+  }
+
+  override def getWorkflow(workflowExecutionId: Int): Future[WorkflowDescriptor] = {
+    val action = for {
+      workflowExecutionResult <- dataAccess.workflowExecutionsByPrimaryKey(workflowExecutionId).result.head
+      workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
+      workflowDescriptor = WorkflowDescriptor(
+        WorkflowId(UUID.fromString(workflowExecutionResult.workflowExecutionUuid)),
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+      )
+    } yield workflowDescriptor
+
     runTransaction(action)
   }
 
@@ -539,16 +552,20 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
                               callStatus: CallStatus): DBIO[Unit] = {
     // Describes a function from an input `Executions` to a projection of fields to be updated.
-    type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]])
+    type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]], Rep[Option[String]])
     // If the call status is Starting, target the start date for update, otherwise target the end date.  The end date
     // is only set to a non-None value if the status is terminal.
-    val projectionFn: ProjectionFunction = if (callStatus.isStarting) e => (e.status, e.startDt, e.rc) else e => (e.status, e.endDt, e.rc)
+    val projectionFn: ProjectionFunction = if (callStatus.isStarting)
+      e => (e.status, e.startDt, e.rc, e.executionHash)
+    else
+      e => (e.status, e.endDt, e.rc, e.executionHash)
+
     val maybeDate = if (callStatus.isStarting || callStatus.isTerminal) Option(new Date().toTimestamp) else None
 
     for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
-      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode))
+      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode, callStatus.hash))
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
     } yield ()
@@ -666,7 +683,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val action = for {
       executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
       nonResumableDatabaseKeys = collectNonResumableDatabaseKeys(executionsAndJobs)
-      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None))
+      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None, None))
     } yield ()
 
     runTransaction(action)

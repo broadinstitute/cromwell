@@ -64,7 +64,7 @@ class SgeBackend extends Backend with SharedFileSystem {
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
       case FailedExecution(_, _) => ExecutionStatus.Failed
-      case SuccessfulExecution(_, _) => ExecutionStatus.Done
+      case SuccessfulExecution(_, _, _) => ExecutionStatus.Done
     }).toString
 
   private def recordDatabaseFailure(logger: WorkflowLogger, status: String, rc: Int): PartialFunction[Throwable, Unit] = {
@@ -181,7 +181,7 @@ class SgeBackend extends Backend with SharedFileSystem {
         FailedExecution(new Exception(message), Option(0))
       case (r, _) =>
         postProcess(backendCall) match {
-          case Success(callOutputs) => SuccessfulExecution(callOutputs, r)
+          case Success(callOutputs) => SuccessfulExecution(callOutputs, r, backendCall.hash)
           case Failure(e) => FailedExecution(e)
         }
     }

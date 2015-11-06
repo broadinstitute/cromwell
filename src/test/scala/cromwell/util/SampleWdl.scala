@@ -40,6 +40,7 @@ trait SampleWdl extends TestFileUtil {
       case s: WdlString => JsString(s.value)
       case i: WdlInteger => JsNumber(i.value)
       case f: WdlFloat => JsNumber(f.value)
+      case f: WdlFile => JsString(f.value)
     }
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
@@ -1473,5 +1474,43 @@ object SampleWdl {
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override val rawInputs = Map.empty[String, String]
+  }
+
+  object CallCachingHashingWdl extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task t {
+        |  Int a
+        |  Float b
+        |  String c
+        |  File d
+        |
+        |  command {
+        |    echo "${a}" > a
+        |    echo "${b}" > b
+        |    echo "${c}" > c
+        |    cat ${d} > d
+        |  }
+        |  output {
+        |    Int w = read_int("a") + 2
+        |    Float x = read_float("b")
+        |    String y = read_string("c")
+        |    File z = "d"
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow w {
+        |  call t
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    val tempDir = Files.createTempDirectory("CallCachingHashingWdl")
+    val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Some(tempDir))
+    override val rawInputs = Map(
+      "w.t.a" -> WdlInteger(1),
+      "w.t.b" -> WdlFloat(1.1),
+      "w.t.c" -> WdlString("foobar"),
+      "w.t.d" -> WdlFile(cannedFile.getAbsolutePath)
+    )
   }
 }

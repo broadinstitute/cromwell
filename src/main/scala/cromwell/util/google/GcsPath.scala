@@ -3,27 +3,32 @@ package cromwell.util.google
 import scala.util.{Failure, Success, Try}
 import scala.language.implicitConversions
 
-case class GoogleCloudStoragePath(bucket: String, objectName: String) {
+/** Represents a Google Cloud Storage path, like gs://bucket/path/to/object.txt
+  *
+  * @param bucket - should adhere to https://cloud.google.com/storage/docs/bucket-naming?hl=en#requirements
+  * @param objectName
+  */
+case class GcsPath(bucket: String, objectName: String) {
   override def toString = {
     "gs://" + bucket + "/" + objectName
   }
 }
 
-object GoogleCloudStoragePath {
+object GcsPath {
 
-  implicit def toGcsPath(str: String): GoogleCloudStoragePath = GoogleCloudStoragePath(str)
+  implicit def toGcsPath(str: String): GcsPath = GcsPath(str)
 
-  def apply(value: String): GoogleCloudStoragePath = {
+  def apply(value: String): GcsPath = {
     parse(value) match {
       case Success(gcsPath) => gcsPath
       case Failure(e) => throw e
     }
   }
 
-  def parse(value: String): Try[GoogleCloudStoragePath] = {
-    val gsUriRegex = """gs://([^/]*)/(.*)""".r
+  def parse(value: String): Try[GcsPath] = {
+    val gsUriRegex = """gs://([^/]*)(.*)""".r
     value match {
-      case gsUriRegex(bucket, objectName) => Success(GoogleCloudStoragePath(bucket, objectName))
+      case gsUriRegex(bucket, objectName) => Success(GcsPath(bucket, objectName.stripPrefix("/")))
       case _ => Failure(new IllegalArgumentException(s"Not a valid Google Cloud Storage URI: $value"))
     }
   }

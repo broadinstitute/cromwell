@@ -13,4 +13,5 @@ trait IOInterface {
   def exists(path: String): Boolean
   def listContents(path: String): Iterable[String]
   def glob(path: String, pattern: String): Seq[String]
+  def copy(from: String, to: String): Unit
 }

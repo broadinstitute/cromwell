@@ -1,6 +1,6 @@
 package cromwell
 
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 
 import akka.testkit._
 import cromwell.binding.NamespaceWithWorkflow
@@ -15,7 +15,7 @@ import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
   val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
-  val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral.wdlSource(""), BackendType.LOCAL)
+  val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get("")).wdlSource(""), BackendType.LOCAL)
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
     WdlFile("f2") -> WdlString("bob"),
@@ -25,7 +25,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
   "A task which contains a parameter " should {
     "accept an array for the value" in {
       runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.MapLiteral,
+        sampleWdl = SampleWdl.MapLiteral(Paths.get("")),
         EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
         expectedOutputs = Map(
           "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
@@ -71,7 +71,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
       val outputs =
       runWdlAndAssertOutputs(
-        SampleWdl.MapLiteral,
+        SampleWdl.MapLiteral(Paths.get("")),
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
         expectedOutputs = Map(
           "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(

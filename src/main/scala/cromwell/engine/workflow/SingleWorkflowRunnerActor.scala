@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef, Props, Status}
 import akka.event.Logging
 import better.files._
 import cromwell.binding
-import cromwell.binding.FullyQualifiedName
+import cromwell.binding.{CallOutput, FullyQualifiedName}
 import cromwell.binding.values.WdlValue
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowManagerActor._
@@ -40,7 +40,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
 
   def receive = {
     case workflowId: WorkflowId => subscribeToWorkflow(workflowId)
-    case outputs: Map[FullyQualifiedName@unchecked, WdlValue@unchecked] => outputOutputs(outputs)
+    case outputs: Map[FullyQualifiedName@unchecked, CallOutput@unchecked] => outputOutputs(outputs)
     case metadata: WorkflowMetadataResponse => outputMetadata(metadata) // pkg "webservice", but this is what WMA sends
     case currentState: CurrentState[_] => log.debug(s"$tag: ignoring current state message: $currentState")
     case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
@@ -91,7 +91,10 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
    */
   private def outputOutputs(outputs: binding.WorkflowOutputs): Unit = {
     import cromwell.binding.values.WdlValueJsonFormatter._
-    println(outputs.toJson.prettyPrint)
+    val outputValues = outputs map {
+      case (k, CallOutput(wdlValue, hash)) => (k, wdlValue)
+    }
+    println(outputValues.toJson.prettyPrint)
     sendMetadataMessage()
   }
 

@@ -18,6 +18,18 @@ trait SampleWdl extends TestFileUtil {
 
   def name = getClass.getSimpleName.stripSuffix("$")
 
+  def createFileArray(base: Path): Unit = {
+    createFile("f1", base, "line1\nline2\n")
+    createFile("f2", base, "line3\nline4\n")
+    createFile("f3", base, "line5\n")
+  }
+
+  def cleanupFileArray(base: Path) = {
+    deleteFile(base.resolve("f1"))
+    deleteFile(base.resolve("f2"))
+    deleteFile(base.resolve("f3"))
+  }
+
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
       case n: Int => JsNumber(n)
@@ -806,15 +818,8 @@ object SampleWdl {
   }
 
   case class ArrayLiteral(catRootDir: Path) extends SampleWdl {
-    createFile("f1", catRootDir, "line1\nline2\n")
-    createFile("f2", catRootDir, "line3\nline4\n")
-    createFile("f3", catRootDir, "line5\n")
-
-    def cleanup() = {
-      deleteFile(catRootDir.resolve("f1"))
-      deleteFile(catRootDir.resolve("f2"))
-      deleteFile(catRootDir.resolve("f3"))
-    }
+    createFileArray(catRootDir)
+    def cleanup() = cleanupFileArray(catRootDir)
 
     override def wdlSource(runtime: String = "") =
       """
@@ -837,7 +842,10 @@ object SampleWdl {
     override val rawInputs = Map.empty[String, String]
   }
 
-  case object MapLiteral extends SampleWdl {
+  case class MapLiteral(catRootDir: Path) extends SampleWdl {
+    createFileArray(catRootDir)
+    def cleanup() = cleanupFileArray(catRootDir)
+
     override def wdlSource(runtime: String = "") =
       """
         |task write_map {

@@ -1,7 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.types._
-import cromwell.binding.{Call, FileHasher}
+import cromwell.binding.{SymbolHash, Call, FileHasher}
 import cromwell.util.FileUtil
 import cromwell.util.StringUtil._
 
@@ -86,7 +86,7 @@ case class WdlObject(value: Map[String, WdlValue]) extends WdlValue with WdlObje
   override def getHash(implicit hasher: FileHasher) = {
     val hashedMap = value mapValues { _.getHash }
     val concatenatedMap = TreeMap(hashedMap.toArray: _*).foldLeft("") { (acc, kv) => acc + kv._1 + kv._2 }
-    (getClass.getCanonicalName+concatenatedMap).md5Sum
+    SymbolHash((getClass.getCanonicalName + concatenatedMap).md5Sum)
   }
 }
 

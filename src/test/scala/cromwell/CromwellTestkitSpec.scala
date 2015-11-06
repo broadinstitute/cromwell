@@ -207,7 +207,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
         expectedOutputs foreach { case (outputFqn, expectedValue) =>
           val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
 
-          validateOutput(actualValue, expectedValue)
+          validateOutput(actualValue.wdlValue, expectedValue)
         }
       }
     }

@@ -76,7 +76,7 @@ object SharedFileSystem {
     else Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
   }
 
-  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => ScalaFile(wdlFile.value).md5 }
+  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
 }
 
 class SharedFileSystemIOInterface extends IOInterface {
@@ -108,6 +108,8 @@ trait SharedFileSystem {
   type IOInterface = SharedFileSystemIOInterface
 
   def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext(interface)
+  def fileHasher = sharedFSFileHasher
+  implicit val hasher = fileHasher
 
   def ioInterface(workflowOptions: WorkflowOptions): IOInterface = new SharedFileSystemIOInterface
 
@@ -126,7 +128,7 @@ trait SharedFileSystem {
     val taskOutputFailures = outputMappings filter { _._2.isFailure }
 
     if (taskOutputFailures.isEmpty) {
-      val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue }
+      val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash) }
       Success(unwrappedMap.toMap)
     } else {
       val message = taskOutputFailures collect { case (name, Failure(e)) => s"$name: $e" }

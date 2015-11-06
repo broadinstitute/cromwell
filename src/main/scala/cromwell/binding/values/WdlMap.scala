@@ -1,8 +1,12 @@
 package cromwell.binding.values
 
 import cromwell.binding.types.{WdlAnyType, WdlMapType, WdlPrimitiveType, WdlType}
+import cromwell.binding.{FileHasher, Hash}
+import cromwell.util.StringUtil._
 import cromwell.util.{FileUtil, TryUtil}
 
+import scala.collection.immutable.TreeMap
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WdlMap {
@@ -74,5 +78,13 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
       case (k, v) => Seq(k.collectAsSeq(filterFn), v.collectAsSeq(filterFn))
     }
     collected.flatten.toSeq
+  }
+
+  override def getHash(implicit hasher: FileHasher): Hash = {
+    val hashedMap = value map {
+      case (k, v) => k.getHash -> v.getHash
+    }
+    val concatenatedMap = TreeMap(hashedMap.toArray: _*).foldLeft("") { (acc, kv) => acc + kv._1 + kv._2 }
+    (getClass.getCanonicalName+concatenatedMap).md5Sum
   }
 }

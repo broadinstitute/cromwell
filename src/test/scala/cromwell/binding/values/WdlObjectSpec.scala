@@ -1,9 +1,12 @@
 package cromwell.binding.values
 
-import cromwell.binding.types.{WdlObjectType, WdlArrayType}
+import cromwell.binding.types.{WdlArrayType, WdlObjectType}
+import cromwell.engine.backend.local.SharedFileSystem
+import cromwell.util.HashUtil
+import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers, TryValues}
 
-class WdlObjectSpec  extends FlatSpec with Matchers with TryValues {
+class WdlObjectSpec extends FlatSpec with Matchers with TryValues with HashUtil {
 
   val correctTSV = "one\ttwo\tthree\tfour\none\tfour\tnine\tsixteen"
   val emptyTSV = ""
@@ -75,7 +78,47 @@ class WdlObjectSpec  extends FlatSpec with Matchers with TryValues {
     val serialized = array.tsvSerialize
     serialized should be a 'success
     serialized.success.value shouldEqual arrayTSV
+  }
 
+  it should "produce correct Hash" in {
+    implicit val fileHasher = SharedFileSystem.sharedFSFileHasher
+
+    // Note that we don't need to test with every single possible WdlType as an attribute, because each type is responsible for producing a valid hash.
+
+    val refObject = WdlObject(Map("key0" -> file1, "key1" -> string1))
+
+    val emptyWdlObject: WdlObject = WdlObject(Map.empty)
+
+    // Object with same hashes
+    val sameHashTable = Table(
+      ("obj1", "obj2"),
+
+      // Just in case...
+      (refObject, refObject),
+      // Empty objects
+      (emptyWdlObject, emptyWdlObject),
+      // Same inner values but different WdlValues
+      (refObject, WdlObject(Map("key0" -> sameAsfile1, "key1" -> sameAsString1))),
+      // Shuffled ordering
+      (refObject, WdlObject(Map("key1" -> sameAsString1, "key0" -> sameAsfile1)))
+    )
+
+    val differentHashTable = Table(
+      ("obj1", "obj2"),
+
+      (refObject, emptyWdlObject),
+      // Missing an entry
+      (refObject, WdlObject(Map("key0" -> file1))),
+      // One more entry
+      (refObject, WdlObject(Map("key0" -> file1, "key1" -> string1, "key2" -> string1))),
+      // With a different key
+      (refObject, WdlObject(Map("differentKey0" -> file1, "key1" -> string1))),
+      // With a different value
+      (refObject, WdlObject(Map("key0" -> anotherFile, "key1" -> string1)))
+    )
+
+    forAll(sameHashTable) { (obj1, obj2) => obj1.getHash should be(obj2.getHash) }
+    forAll(differentHashTable) { (obj1, obj2) => obj1.getHash shouldNot be(obj2.getHash) }
   }
 
 }

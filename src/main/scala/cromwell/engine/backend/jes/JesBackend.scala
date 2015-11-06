@@ -22,7 +22,7 @@ import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
-import cromwell.util.StringDigestion._
+import cromwell.util.StringUtil._
 import cromwell.util.TryUtil
 import cromwell.util.google.{GoogleCloudStorage, GoogleCloudStoragePath, GoogleCredentialFactory}
 
@@ -288,7 +288,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   /**
-   * Takes two arrays of remote and local WDL File paths and generates the necessary JESInput's.
+   * Takes two arrays of remote and local WDL File paths and generates the necessary JESInputs.
    */
   private def jesInputsFromWdlFiles(jesNamePrefix: String, remotePathArray: Seq[WdlFile], localPathArray: Seq[WdlFile]): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {

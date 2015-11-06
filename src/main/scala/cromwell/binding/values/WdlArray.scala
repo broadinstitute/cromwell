@@ -1,7 +1,10 @@
 package cromwell.binding.values
 
-import cromwell.binding.types.{WdlStringType, WdlArrayType, WdlObjectType, WdlPrimitiveType}
+import cromwell.binding.{Hash, FileHasher}
+import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType}
+import cromwell.util.StringUtil._
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WdlArray {
@@ -41,5 +44,11 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
 
   override def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
     value flatMap { _.collectAsSeq(filterFn) }
+  }
+
+  override def getHash(implicit hasher: FileHasher): Hash = {
+    val hashedArray = value map { _.getHash }
+    val accumulatedHash = hashedArray.foldLeft("") { (acc, v) => acc + v }
+    (getClass.getCanonicalName+accumulatedHash).md5Sum
   }
 }

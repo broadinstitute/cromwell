@@ -362,7 +362,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
         def optionallyUpdateExecutionStatus() =
           if (updateStatus)
-            dataAccess.setStatus(workflowId, Seq(callKey), CallStatus(ExecutionStatus.Running, None))
+            dataAccess.setStatus(workflowId, Seq(callKey), CallStatus(ExecutionStatus.Running, None, None))
           else
             Future.successful(())
 
@@ -379,7 +379,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             status.returnCode should be(None)
           }
           _ <- dataAccess.insertCalls(workflowId, Seq(CallKey(call, Option(0))), localBackend)
-          _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(0)))
+          _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(0), None))
           _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
             result.size should be(2)
             //Previous call status should not have changed

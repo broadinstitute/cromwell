@@ -11,12 +11,13 @@ import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.{CallLogs, LocalFileSystemBackendCall}
+import cromwell.engine.backend.{ExecutionHandle, BackendCall, CallLogs, LocalFileSystemBackendCall}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
 import scala.collection.JavaConverters._
+import scala.concurrent.{Future, ExecutionContext}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -95,6 +96,8 @@ class SharedFileSystemIOInterface extends IOInterface {
   override def glob(path: String, pattern: String): Seq[String] = {
     Paths.get(path).glob(pattern) map { _.path.fullPath } toSeq
   }
+
+  override def copy(from: String, to: String): Unit = Paths.get(from).copyTo(Paths.get(to))
 }
 
 trait SharedFileSystem {

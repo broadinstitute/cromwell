@@ -6,7 +6,7 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 
 package object db {
 
-  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int]) {
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[String]) {
     def isTerminal: Boolean = executionStatus.isTerminal
     def isStarting: Boolean = executionStatus == ExecutionStatus.Starting
   }

@@ -2,6 +2,8 @@ package cromwell.binding.values
 
 import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlType
+import cromwell.engine.{FileHasher, Hash}
+import cromwell.util.StringDigestion._
 
 import scala.util.{Failure, Try}
 
@@ -44,4 +46,9 @@ trait WdlValue {
   def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
     if (filterFn.isDefinedAt(this)) Seq(filterFn(this)) else Nil
   }
+
+  /**
+   * @return MD5 Hash.
+   */
+  def getHash(implicit hasher: FileHasher): Hash = valueString.md5Sum
 }

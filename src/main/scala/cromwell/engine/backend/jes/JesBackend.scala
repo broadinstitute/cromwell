@@ -147,6 +147,10 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues gcsPathToLocal
 
+  def fileHasher: FileHasher = { wdlFile: WdlFile =>
+    ""
+  }
+
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
     val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
     val log = workflowLogger(workflow)

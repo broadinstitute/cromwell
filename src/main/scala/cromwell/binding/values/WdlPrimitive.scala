@@ -1,3 +1,11 @@
 package cromwell.binding.values
 
-trait WdlPrimitive extends WdlValue
+import cromwell.engine._
+
+trait WdlPrimitive extends WdlValue {
+
+  /**
+   * No need to hash primitives.
+   */
+  override def getHash(implicit hasher: FileHasher) = valueString
+}

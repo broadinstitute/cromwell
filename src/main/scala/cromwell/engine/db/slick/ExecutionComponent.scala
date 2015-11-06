@@ -15,6 +15,10 @@ case class Execution(workflowExecutionId: Int,
                      rc: Option[Int] = None,
                      startDt: Option[Timestamp] = None,
                      endDt: Option[Timestamp] = None,
+                     allowsAvoidance: Boolean = true,
+                     dockerImageHash: Option[String] = None,
+                     AvoidedTo: Option[Int] = None,
+                     ExecutionHash: Option[String] = None,
                      executionId: Option[Int] = None)
 
 trait ExecutionComponent {
@@ -31,8 +35,12 @@ trait ExecutionComponent {
     def rc = column[Option[Int]]("RC")
     def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
+    def allowsAvoidance = column[Boolean]("ALLOWS_AVOIDANCE")
+    def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
+    def avoidedTo = column[Option[Int]]("AVOIDED_TO")
+    def executionHash = column[Option[String]]("EXECUTION_HASH")
 
-    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, executionId.?) <>
+    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, allowsAvoidance, dockerImageHash, avoidedTo, executionHash, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(

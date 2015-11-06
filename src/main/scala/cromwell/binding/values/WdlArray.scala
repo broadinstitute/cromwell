@@ -1,6 +1,6 @@
 package cromwell.binding.values
 
-import cromwell.binding.{Hash, FileHasher}
+import cromwell.binding.{SymbolHash, FileHasher}
 import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType}
 import cromwell.util.StringUtil._
 
@@ -38,9 +38,9 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
     value flatMap { _.collectAsSeq(filterFn) }
   }
 
-  override def getHash(implicit hasher: FileHasher): Hash = {
+  override def getHash(implicit hasher: FileHasher): SymbolHash = {
     val hashedArray = value map { _.getHash }
     val accumulatedHash = hashedArray.foldLeft("") { (acc, v) => acc + v }
-    (getClass.getCanonicalName+accumulatedHash).md5Sum
+    SymbolHash((getClass.getCanonicalName+accumulatedHash).md5Sum)
   }
 }

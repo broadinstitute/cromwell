@@ -1,7 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.types.{WdlFileType, WdlType}
-import cromwell.binding.{FileHasher, Hash}
+import cromwell.binding.{FileHasher, SymbolHash}
 
 import scala.util.{Success, Try}
 
@@ -36,7 +36,7 @@ sealed trait WdlFile extends WdlPrimitive {
   }
   override def valueString = value.toString
 
-  override def getHash(implicit hasher: FileHasher): Hash = hasher(this)
+  override def getHash(implicit hasher: FileHasher): SymbolHash = hasher(this)
 }
 
 case class WdlSingleFile(value: String) extends WdlFile {

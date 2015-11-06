@@ -20,17 +20,26 @@ package object binding {
   type WorkflowOptionsJson = String
   type WorkflowRawInputs = Map[FullyQualifiedName, Any]
   type WorkflowCoercedInputs = Map[FullyQualifiedName, WdlValue]
-  type WorkflowOutputs = Map[FullyQualifiedName, WdlValue]
+  type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]
   type FullyQualifiedName = String
   type LocallyQualifiedName = String
   type CallInputs = Map[String, WdlValue]
-  type CallOutputs = Map[LocallyQualifiedName, WdlValue]
+  case class CallOutput(wdlValue: WdlValue, hash: SymbolHash)
+  type CallOutputs = Map[LocallyQualifiedName, CallOutput]
   type HostInputs = Map[String, WdlValue]
   type ImportResolver = String => WdlSource
-  type Hash = String
-  type FileHasher = WdlFile => Hash
+  case class SymbolHash(value: String) extends Ordered[SymbolHash] {
+    def compare(that: SymbolHash) = this.value compare that.value
+  }
+  type FileHasher = WdlFile => SymbolHash
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)
+  }
+
+  implicit class EnhancedCallOutputMap[A](val m: Map[A, CallOutput]) extends AnyVal {
+    def mapToValues: Map[A, WdlValue] = m map {
+      case (k, CallOutput(wdlValue, hash)) => (k, wdlValue)
+    }
   }
 }

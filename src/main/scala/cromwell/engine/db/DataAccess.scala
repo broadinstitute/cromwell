@@ -3,7 +3,7 @@ package cromwell.engine.db
 import cromwell.binding._
 import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{JobKey, Backend}
+import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
@@ -56,7 +56,7 @@ trait DataAccess {
   def getInputs(id: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue]): Future[Unit]
+  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: CallOutputs): Future[Unit]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
     setStatus(workflowId, keys, CallStatus(executionStatus, None))
@@ -79,6 +79,8 @@ trait DataAccess {
   def getExecutions(id: WorkflowId): Future[Traversable[Execution]]
 
   def getExecutionsForRestart(id: WorkflowId): Future[Traversable[Execution]]
+
+  def getExecutionsWithResuableResultsByHash(hash: String): Future[Traversable[Execution]]
 
   /** Fetch the workflow having the specified `WorkflowId`. */
   def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]

@@ -74,8 +74,8 @@ object CallMetadataBuilder {
         // FQN only, then give them copies of the inputs with matching indexes.
         (executionKey, assembledMetadata) <- executionMap
         if executionKey.fqn == inputKey.fqn
-        indexedInputs = inputs map { case SymbolStoreEntry(key, wdlType, maybeWdlValue) =>
-          new SymbolStoreEntry(key.copy(index = executionKey.index), wdlType, maybeWdlValue)
+        indexedInputs = inputs map { case SymbolStoreEntry(key, wdlType, maybeWdlValue, maybeSymbolHash) =>
+          new SymbolStoreEntry(key.copy(index = executionKey.index), wdlType, maybeWdlValue, maybeSymbolHash)
         }
       } yield executionKey -> assembledMetadata.copy(inputs = indexedInputs)
     }

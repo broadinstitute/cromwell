@@ -226,7 +226,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         symbol.key.index.fromIndex,
         if (symbol.isInput) IoInput else IoOutput,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob))
+        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob),
+        symbol.symbolHash map { _.value })
     }
   }
 
@@ -469,7 +470,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
       ),
       wdlType,
-      symbolResult.wdlValue map {v => dbEntryToWdlValue(v.toRawString, wdlType)}
+      symbolResult.wdlValue map { v => dbEntryToWdlValue(v.toRawString, wdlType) },
+      symbolResult.symbolHash map SymbolHash
     )
   }
 
@@ -518,12 +520,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     futureResults map toSymbolStoreEntries
   }
 
-  /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
+  /** Should fail if a value is already set. The keys in the Map are locally qualified names. */
   override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
-        case (symbolLocallyQualifiedName, wdlValue) =>
+        case (symbolLocallyQualifiedName, CallOutput(wdlValue, hash)) =>
           new Symbol(
             workflowExecution.workflowExecutionId.get,
             key.scope.fullyQualifiedName,
@@ -531,7 +533,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
             key.index.fromIndex,
             IoOutput,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValueToDbValue(wdlValue).toClob))
+            Option(wdlValueToDbValue(wdlValue).toClob),
+            Option(hash.value))
       }
     } yield ()
 
@@ -569,6 +572,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def getExecutionsForRestart(id: WorkflowId): Future[Traversable[Execution]] = {
     val action = dataAccess.executionsForRestartByWorkflowExecutionUuid(id.toString).result
+
+    runTransaction(action)
+  }
+
+  override def getExecutionsWithResuableResultsByHash(hash: String): Future[Traversable[Execution]] = {
+    val action = dataAccess.executionsWithReusableResultsByExecutionHash(hash).result
 
     runTransaction(action)
   }

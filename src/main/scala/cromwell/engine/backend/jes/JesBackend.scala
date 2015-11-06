@@ -145,9 +145,11 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   type BackendCall = JesBackendCall
 
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
-  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues gcsPathToLocal
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
+    case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash) }
 
-  def fileHasher: FileHasher = { wdlFile: WdlFile => getCrc32c(GoogleCloudStoragePath(wdlFile.value)) }
+  def fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(getCrc32c(GoogleCloudStoragePath(wdlFile.value))) }
+  lazy implicit val hasher = fileHasher
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
     val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
@@ -471,7 +473,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     val taskOutputEvaluationFailures = outputMappings filter { _._2.isFailure }
     if (taskOutputEvaluationFailures.isEmpty) {
-      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue }
+      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash) }
       SuccessfulExecutionHandle(outputs, returnCode)
     } else if (taskOutputEvaluationFailures forall (_._2.failed.get.isInstanceOf[SocketTimeoutException])) {
       // Assume this as a transient exception trying to do some expression evaluation that involves reading from GCS.

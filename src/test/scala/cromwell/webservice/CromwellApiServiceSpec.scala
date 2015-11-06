@@ -4,8 +4,9 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import akka.pattern.pipe
+import cromwell.CromwellSpec
 import cromwell.binding._
-import cromwell.binding.values.{WdlFile, WdlInteger}
+import cromwell.binding.values.{WdlValue, WdlFile, WdlInteger}
 import cromwell.engine._
 import cromwell.engine.backend.StdoutStderr
 import cromwell.engine.workflow.WorkflowManagerActor._
@@ -40,6 +41,14 @@ object MockWorkflowManagerActor {
 
 class MockWorkflowManagerActor extends Actor  {
 
+  implicit lazy val hasher: WdlValue => SymbolHash = { x => SymbolHash("NOT REALLY IMPORTANT IN THESE TESTs!!") }
+
+  val int8 = WdlInteger(8)
+  val int8hash = int8.getHash
+
+  val file = WdlFile("/tmp/ps.stdout.tmp")
+  val fileHash = file.getHash
+
   def receive = {
     case SubmitWorkflow(sources) =>
       sender ! MockWorkflowManagerActor.submittedWorkflowId
@@ -68,9 +77,9 @@ class MockWorkflowManagerActor extends Actor  {
       val futureOutputs = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
           Future.successful(Map(
-            "three_step.cgrep.count" -> WdlInteger(8),
-            "three_step.ps.procs" -> WdlFile("/tmp/ps.stdout.tmp"),
-            "three_step.wc.count" -> WdlInteger(8)))
+            "three_step.cgrep.count" -> CallOutput(int8, int8hash),
+            "three_step.ps.procs" -> CallOutput(file, fileHash),
+            "three_step.wc.count" -> CallOutput(int8, int8hash)))
         case w => Future.failed(new WorkflowNotFoundException(s"Workflow '$w' not found"))
       }
       futureOutputs pipeTo sender
@@ -81,9 +90,9 @@ class MockWorkflowManagerActor extends Actor  {
           id match {
             case MockWorkflowManagerActor.submittedWorkflowId =>
               callFqn match {
-                case "three_step.cgrep" => Map("count" -> WdlInteger(8))
-                case "three_step.ps" => Map("procs" -> WdlFile("/tmp/ps.stdout.tmp"))
-                case "three_step.wc" => Map("count" -> WdlInteger(8))
+                case "three_step.cgrep" => Map("count" -> CallOutput(int8, int8hash))
+                case "three_step.ps" => Map("procs" -> CallOutput(file, fileHash))
+                case "three_step.wc" => Map("count" -> CallOutput(int8, int8hash))
                 case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
               }
             case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
@@ -213,16 +222,15 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/status") ~>
       queryRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-
         assertResult(
           s"""{
-             |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
-             |  "status": "Running"
-             |}""".stripMargin) {
+              |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
+              |  "status": "Running"
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }
@@ -261,17 +269,16 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/abort") ~>
       abortRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-
         assertResult(
           s"""{
-             |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
-             |  "status": "Aborted"
-             |}"""
+              |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
+              |  "status": "Aborted"
+              |}"""
             .stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }
@@ -280,15 +287,15 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
-        assertResult(StatusCodes.Created) {
-          status
-        }
         assertResult(
           s"""{
-             |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
-             |  "status": "Submitted"
-             |}""".stripMargin) {
+              |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.Created) {
+          status
         }
       }
   }
@@ -297,11 +304,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
         assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
           responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
         }
       }
   }
@@ -310,11 +317,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString(), "workflowOptions" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
         assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
           responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
         }
       }
   }
@@ -326,14 +333,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     ) ~>
       validateRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
         assertResult(
           s"""{
-             |  "valid": true
-             |}""".stripMargin) {
+              |  "valid": true
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }
@@ -345,15 +352,15 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     ) ~>
       validateRoute ~>
       check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
         assertResult(
           s"""{
-             |  "valid": false,
-             |  "error": "The following errors occurred while processing your inputs:\\n\\nRequired workflow input 'hello.hello.addressee' not specified."
-             |}""".stripMargin) {
+              |  "valid": false,
+              |  "error": "The following errors occurred while processing your inputs:\\n\\nRequired workflow input 'hello.hello.addressee' not specified."
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
         }
       }
   }
@@ -365,15 +372,15 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     ) ~>
       validateRoute ~>
       check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
         assertResult(
           s"""{
-             |  "valid": false,
-             |  "error": "ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "
-             |}""".stripMargin) {
+              |  "valid": false,
+              |  "error": "ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
         }
       }
   }
@@ -385,15 +392,15 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     ) ~>
       validateRoute ~>
       check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
         assertResult(
           s"""{
-             |  "valid": false,
-             |  "error": "Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"
-             |}""".stripMargin) {
+              |  "valid": false,
+              |  "error": "Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
         }
       }
   }
@@ -402,20 +409,20 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
       workflowOutputsRoute ~>
       check {
+        assertResult(
+          s"""{
+              |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
+              |  "outputs": {
+              |    "three_step.cgrep.count": 8,
+              |    "three_step.ps.procs": "/tmp/ps.stdout.tmp",
+              |    "three_step.wc.count": 8
+              |  }
+              |}""".stripMargin) {
+          responseAs[String]
+        }
         assertResult(StatusCodes.OK) {
           status
         }
-        assertResult(
-          s"""{
-             |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
-             |  "outputs": {
-             |    "three_step.cgrep.count": 8,
-             |    "three_step.ps.procs": "/tmp/ps.stdout.tmp",
-             |    "three_step.wc.count": 8
-             |  }
-             |}""".stripMargin) {
-            responseAs[String]
-          }
       }
   }
 
@@ -433,18 +440,18 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/$submittedWorkflowId/outputs/three_step.wc") ~>
     callOutputsRoute ~>
     check {
-      assertResult(StatusCodes.OK) {
-        status
-      }
       assertResult(
         s"""{
-           |  "id": "$submittedWorkflowId",
-           |  "callFqn": "three_step.wc",
-           |  "outputs": {
-           |    "count": 8
-           |  }
-           |}""".stripMargin) {
+            |  "id": "$submittedWorkflowId",
+            |  "callFqn": "three_step.wc",
+            |  "outputs": {
+            |    "count": 8
+            |  }
+            |}""".stripMargin) {
         responseAs[String]
+      }
+      assertResult(StatusCodes.OK) {
+        status
       }
     }
   }
@@ -492,20 +499,20 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/$submittedWorkflowId/logs/three_step.wc") ~>
       callStdoutStderrRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
         assertResult(
           s"""{
-             |  "id": "$submittedWorkflowId",
-             |  "logs": {
-             |    "three_step.wc": [{
-             |      "stdout": "/path/to/wc-stdout",
-             |      "stderr": "/path/to/wc-stderr"
-             |    }]
-             |  }
-             |}""".stripMargin) {
+              |  "id": "$submittedWorkflowId",
+              |  "logs": {
+              |    "three_step.wc": [{
+              |      "stdout": "/path/to/wc-stdout",
+              |      "stderr": "/path/to/wc-stderr"
+              |    }]
+              |  }
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }
@@ -514,23 +521,23 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/$submittedWorkflowId/logs/scatterwf.inside-scatter") ~>
       callStdoutStderrRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
         assertResult(
           s"""{
-             |  "id": "$submittedWorkflowId",
-             |  "logs": {
-             |    "scatterwf.inside-scatter": [{
-             |      "stdout": "/path/to/inside-scatter/shard0-stdout",
-             |      "stderr": "/path/to/inside-scatter/shard0-stderr"
-             |    }, {
-             |      "stdout": "/path/to/inside-scatter/shard1-stdout",
-             |      "stderr": "/path/to/inside-scatter/shard1-stderr"
-             |    }]
-             |  }
-             |}""".stripMargin) {
+              |  "id": "$submittedWorkflowId",
+              |  "logs": {
+              |    "scatterwf.inside-scatter": [{
+              |      "stdout": "/path/to/inside-scatter/shard0-stdout",
+              |      "stderr": "/path/to/inside-scatter/shard0-stderr"
+              |    }, {
+              |      "stdout": "/path/to/inside-scatter/shard1-stdout",
+              |      "stderr": "/path/to/inside-scatter/shard1-stderr"
+              |    }]
+              |  }
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }
@@ -569,20 +576,20 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/$submittedWorkflowId/logs") ~>
       workflowStdoutStderrRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
         assertResult(
           s"""{
-             |  "id": "$submittedWorkflowId",
-             |  "logs": {
-             |    "three_step.ps": [{
-             |      "stdout": "/path/to/ps-stdout",
-             |      "stderr": "/path/to/ps-stderr"
-             |    }]
-             |  }
-             |}""".stripMargin) {
+              |  "id": "$submittedWorkflowId",
+              |  "logs": {
+              |    "three_step.ps": [{
+              |      "stdout": "/path/to/ps-stdout",
+              |      "stderr": "/path/to/ps-stderr"
+              |    }]
+              |  }
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }
@@ -590,23 +597,23 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/logs") ~>
       workflowStdoutStderrRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
         assertResult(
           s"""{
-             |  "id": "${MockWorkflowManagerActor.submittedScatterWorkflowId}",
-             |  "logs": {
-             |    "scatterwf.inside-scatter": [{
-             |      "stdout": "/path/to/inside-scatter/shard0-stdout",
-             |      "stderr": "/path/to/inside-scatter/shard0-stderr"
-             |    }, {
-             |      "stdout": "/path/to/inside-scatter/shard1-stdout",
-             |      "stderr": "/path/to/inside-scatter/shard1-stderr"
-             |    }]
-             |  }
-             |}""".stripMargin) {
+              |  "id": "${MockWorkflowManagerActor.submittedScatterWorkflowId}",
+              |  "logs": {
+              |    "scatterwf.inside-scatter": [{
+              |      "stdout": "/path/to/inside-scatter/shard0-stdout",
+              |      "stderr": "/path/to/inside-scatter/shard0-stderr"
+              |    }, {
+              |      "stdout": "/path/to/inside-scatter/shard1-stdout",
+              |      "stderr": "/path/to/inside-scatter/shard1-stderr"
+              |    }]
+              |  }
+              |}""".stripMargin) {
           responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
         }
       }
   }

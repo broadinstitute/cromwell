@@ -72,7 +72,7 @@ object SharedFileSystem {
     else Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
   }
 
-  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => ScalaFile(wdlFile.value).md5 }
+  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
 }
 
 trait SharedFileSystem {
@@ -80,6 +80,7 @@ trait SharedFileSystem {
   import SharedFileSystem._
 
   def fileHasher = sharedFSFileHasher
+  implicit val hasher = fileHasher
 
   val engineFunctions: WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext
 
@@ -98,7 +99,7 @@ trait SharedFileSystem {
     val taskOutputFailures = outputMappings filter { _._2.isFailure }
 
     if (taskOutputFailures.isEmpty) {
-      val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue }
+      val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash) }
       Success(unwrappedMap.toMap)
     } else {
       val message = taskOutputFailures collect { case (name, Failure(e)) => s"$name: $e" }

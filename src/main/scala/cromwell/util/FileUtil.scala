@@ -1,9 +1,10 @@
 package cromwell.util
 
-import java.io.{File, Writer}
+import java.io.{File, FileInputStream, Writer}
 import java.nio.file.Path
 
 import better.files._
+import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.immutable.Queue
 import scala.util.{Failure, Success, Try}
@@ -34,6 +35,13 @@ object FileUtil {
     def slurp: String = {
       // TODO: deprecate slurp, and java.io.File in general?
       file.toPath.contentAsString
+    }
+
+    def md5Sum: String = {
+      val fis = new FileInputStream(file)
+      try {
+        DigestUtils.md5Hex(fis)
+      } finally fis.close()
     }
   }
 

@@ -1,14 +1,20 @@
 package cromwell.util
 
-import java.security.MessageDigest
-import javax.xml.bind.annotation.adapters.HexBinaryAdapter
+import java.io.{File, FileInputStream}
 
-import cromwell.engine.Hash
+import org.apache.commons.codec.digest.DigestUtils
 
 object StringDigestion {
-  private val hexBinaryAdapter = new HexBinaryAdapter()
-
   implicit class StringDigester(val string: String) extends AnyVal {
-    def md5Sum: String = hexBinaryAdapter.marshal(MessageDigest.getInstance("MD5").digest(string.getBytes))
+    def md5Sum: String = DigestUtils.md5Hex(string)
+  }
+
+  implicit class FileDigester(val file: File) extends AnyVal {
+    def md5Sum: String = {
+      val fis = new FileInputStream(file)
+      try {
+        DigestUtils.md5Hex(fis)
+      } finally fis.close()
+    }
   }
 }

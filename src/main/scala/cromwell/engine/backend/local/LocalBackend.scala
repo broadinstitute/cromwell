@@ -1,10 +1,12 @@
 package cromwell.engine.backend.local
 
+import java.io
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
 import better.files._
 import cromwell.binding._
+import cromwell.binding.values.WdlFile
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend._

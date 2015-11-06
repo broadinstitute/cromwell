@@ -39,6 +39,8 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
   }
 
   override def getHash(implicit hasher: FileHasher) = {
-    (value map { _.getHash(hasher) } sum).md5Sum
+    val hashedArray = value map { _.getHash }
+    val accumulatedHash = hashedArray.foldLeft("") { (acc, v) => acc + v }
+    (getClass.getCanonicalName+accumulatedHash).md5Sum
   }
 }

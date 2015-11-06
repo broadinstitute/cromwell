@@ -46,8 +46,6 @@ trait Backend {
 
   type BackendCall <: backend.BackendCall
 
-  implicit val hasher = fileHasher
-
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.

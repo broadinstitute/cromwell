@@ -7,5 +7,5 @@ trait WdlPrimitive extends WdlValue {
   /**
    * No need to hash primitives.
    */
-  override def getHash(implicit hasher: FileHasher) = valueString
+  override def getHash(implicit hasher: FileHasher) = getClass.getCanonicalName+valueString
 }

@@ -4,7 +4,7 @@ import cromwell.binding.types.{WdlAnyType, WdlMapType, WdlPrimitiveType, WdlType
 import cromwell.engine.{FileHasher, Hash}
 import cromwell.util.{FileUtil, TryUtil}
 import scala.language.postfixOps
-
+import cromwell.util.StringUtil._
 import scala.collection.immutable.TreeMap
 import scala.util.{Failure, Success, Try}
 
@@ -82,8 +82,9 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
   override def getHash(implicit hasher: FileHasher): Hash = {
     // Literally..
     val hashedMap = value map {
-      case (k, v) => k.getHash(hasher) -> v.getHash(hasher)
+      case (k, v) => k.getHash -> v.getHash
     }
-    TreeMap(hashedMap.toArray:_*).foldLeft(""){ (acc, kv) => acc + kv._1 + kv._2 }
+    val concatenatedMap = TreeMap(hashedMap.toArray: _*).foldLeft("") { (acc, kv) => acc + kv._1 + kv._2 }
+    (getClass.getCanonicalName+concatenatedMap).md5Sum
   }
 }

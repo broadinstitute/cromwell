@@ -405,7 +405,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         case Some(localJobResult: LocalJob) =>
           new LocalCallBackendInfo(localJobResult.pid)
         case Some(jesJobResult: JesJob) =>
-          new JesCallBackendInfo(jesJobResult.jesId map JesId,
+          new JesCallBackendInfo(jesJobResult.jesRunId map JesId,
             jesJobResult.jesStatus map JesStatus)
         case Some(sgeJobResult: SgeJob) =>
           new SgeCallBackendInfo(sgeJobResult.sgeJobNumber)
@@ -654,7 +654,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     // These executions have no corresponding recorded operation ID and are therefore not resumable.
     def collectNonResumableDatabaseKeys(executionsAndJobs: Seq[(Execution, JesJob)]): Seq[ExecutionDatabaseKey] = {
       executionsAndJobs collect {
-        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesId.isEmpty =>
+        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesRunId.isEmpty =>
           ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
       }
     }
@@ -672,8 +672,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     // These executions have a corresponding recorded operation ID and should therefore be resumable.
     def collectResumableKeyPairs(executionsAndJobs: Traversable[(Execution, JesJob)]): Traversable[(ExecutionDatabaseKey, JesJobKey)] = {
       executionsAndJobs collect {
-        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesId.nonEmpty =>
-          (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex), JesJobKey(job.jesId.get))
+        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesRunId.nonEmpty =>
+          (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex), JesJobKey(job.jesRunId.get))
       }
     }
 

@@ -41,6 +41,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   object UnknownBackend extends Backend {
     type BackendCall = LocalBackendCall
 
+    override def fileHasher: FileHasher = throw new NotImplementedError
+
     override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor) =
       throw new NotImplementedError
 

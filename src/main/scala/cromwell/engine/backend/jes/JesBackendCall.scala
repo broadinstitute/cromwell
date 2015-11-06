@@ -11,8 +11,8 @@ import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, JobKey, CallLogs, _}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
-import cromwell.util.StringDigestion._
 import cromwell.util.google.GoogleCloudStoragePath
+import cromwell.util.StringUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}

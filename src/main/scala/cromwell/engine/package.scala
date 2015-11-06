@@ -10,9 +10,10 @@ import ch.qos.logback.core.FileAppender
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
+import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
@@ -29,6 +30,7 @@ import scala.util.{Failure, Success, Try}
  * Internally, this package is built on top of [[cromwell.binding]].
  */
 package object engine {
+
   case class WorkflowId(id: UUID) {
     override def toString = id.toString
     def shortString = id.toString.split("-")(0)

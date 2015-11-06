@@ -290,7 +290,7 @@ class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => Workfl
 
   private[this] def initLogging(): Int = {
     val systemProperties = sys.props
-    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File("").fullPath)
+    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
     systemProperties.getOrElseUpdate("LOG_MODE", "CONSOLE")
     systemProperties.getOrElseUpdate("LOG_LEVEL", "INFO")
 

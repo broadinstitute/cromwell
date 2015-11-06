@@ -214,7 +214,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       start = Option(startDate),
       end = endDate,
       inputs = workflowInputs,
-      outputs = Option(workflowOutputs),
+      outputs = Option(workflowOutputs) map { _.mapToValues },
       calls = callMetadata)
   }
 

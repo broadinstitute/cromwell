@@ -6,6 +6,8 @@ import akka.actor.FSM.Transition
 import akka.actor._
 import better.files._
 import cromwell.binding.FullyQualifiedName
+import cromwell.binding
+import cromwell.binding.{CallOutput, FullyQualifiedName}
 import cromwell.binding.values.WdlValue
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._

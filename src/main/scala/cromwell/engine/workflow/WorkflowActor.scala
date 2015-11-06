@@ -205,6 +205,8 @@ object WorkflowActor {
 case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
+  lazy implicit val hasher = backend.fileHasher
+
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow.namespace, inputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
@@ -232,7 +234,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
-      taskOutput.name -> new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+      val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+      taskOutput.name -> CallOutput(arrayOfValues, arrayOfValues.getHash)
     } toMap
   }
 
@@ -863,12 +866,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def buildSymbolStoreEntries(namespace: NamespaceWithWorkflow, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
-    val inputSymbols = inputs map { case (name, value) => SymbolStoreEntry(name, value, input = true) }
+    val inputSymbols = inputs map { case (name, value) => SymbolStoreEntry(name, value, value.getHash, input = true) }
 
     val callSymbols = for {
       call <- namespace.workflow.calls
       (k, v) <- call.inputMappings
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
+    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, v.getHash, input = true)
 
     inputSymbols.toSet ++ callSymbols.toSet
   }

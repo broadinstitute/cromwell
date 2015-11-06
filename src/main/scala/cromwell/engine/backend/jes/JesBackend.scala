@@ -157,7 +157,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   type IOInterface = JesBackend.IOInterface
 
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
-  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues gcsPathToLocal
+  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
+    case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash) }
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
     val log = workflowLogger(workflow)
@@ -507,7 +508,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     val taskOutputEvaluationFailures = outputMappings filter { _._2.isFailure }
     if (taskOutputEvaluationFailures.isEmpty) {
-      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> wdlValue }
+      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash) }
       SuccessfulExecutionHandle(outputs, returnCode)
     } else if (taskOutputEvaluationFailures forall (_._2.failed.get.isInstanceOf[SocketTimeoutException])) {
       // Assume this as a transient exception trying to do some expression evaluation that involves reading from GCS.

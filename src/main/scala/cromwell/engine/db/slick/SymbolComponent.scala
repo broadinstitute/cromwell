@@ -15,6 +15,7 @@ case class Symbol
   reportableResult: Boolean,
   wdlType: String,
   wdlValue: Option[Clob],
+  symbolHash: Option[String],
   symbolId: Option[Int] = None
   )
 
@@ -42,7 +43,9 @@ trait SymbolComponent {
 
     def wdlValue = column[Option[Clob]]("WDL_VALUE")
 
-    override def * = (workflowExecutionId, scope, name, index, io, reportableResult, wdlType, wdlValue, symbolId.?) <>
+    def symbolHash = column[Option[String]]("HASH")
+
+    override def * = (workflowExecutionId, scope, name, index, io, reportableResult, wdlType, wdlValue, symbolHash, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)
 
     def workflowExecution = foreignKey(

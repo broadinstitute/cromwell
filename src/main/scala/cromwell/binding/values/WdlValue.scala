@@ -3,7 +3,7 @@ package cromwell.binding.values
 import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlType
 import cromwell.engine.{FileHasher, Hash}
-import cromwell.util.StringDigestion._
+import cromwell.util.StringUtil._
 
 import scala.util.{Failure, Try}
 

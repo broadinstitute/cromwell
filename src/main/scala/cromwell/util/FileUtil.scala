@@ -30,7 +30,7 @@ object FileUtil {
     }
   }
 
-  implicit class EnhancedFile(val file: File) extends AnyVal {
+  implicit class EnhancedFile(val file: File) extends AnyVal with Hashable {
     /** Read an entire file into a string, closing the underlying stream. */
     def slurp: String = {
       // TODO: deprecate slurp, and java.io.File in general?

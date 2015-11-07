@@ -2,7 +2,7 @@ package cromwell.binding.values
 
 import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType}
 import cromwell.engine._
-import cromwell.util.StringDigestion._
+import cromwell.util.StringUtil._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}

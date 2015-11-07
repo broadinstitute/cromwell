@@ -42,7 +42,7 @@ class WdlMapSpec extends FlatSpec with Matchers with HashUtil {
       // With a different key
       (refMap, WdlMap(WdlMapType(WdlStringType, WdlFileType), Map(WdlString("whoAmI") -> file1, anotherString -> anotherFile))),
       // With a different value
-      (refMap, WdlMap(WdlMapType(WdlStringType, WdlFileType), Map(string1 -> WdlFile("whatIsThisPlace"), anotherString -> anotherFile)))
+      (refMap, WdlMap(WdlMapType(WdlStringType, WdlFileType), Map(string1 -> anotherFile, anotherString -> anotherFile)))
     )
 
     forAll(sameHashTable) { (obj1, obj2) => obj1.getHash should be(obj2.getHash) }

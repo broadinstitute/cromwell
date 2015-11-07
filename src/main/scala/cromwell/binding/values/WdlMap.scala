@@ -80,7 +80,6 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
   }
 
   override def getHash(implicit hasher: FileHasher): Hash = {
-    // Literally..
     val hashedMap = value map {
       case (k, v) => k.getHash -> v.getHash
     }

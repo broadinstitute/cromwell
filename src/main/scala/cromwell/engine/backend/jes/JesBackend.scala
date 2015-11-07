@@ -22,7 +22,7 @@ import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
-import cromwell.util.StringDigestion._
+import cromwell.util.StringUtil._
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
 

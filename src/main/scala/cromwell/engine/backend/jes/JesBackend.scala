@@ -20,7 +20,7 @@ import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
 import cromwell.util.StringDigestion._
@@ -40,15 +40,22 @@ object JesBackend {
    */
   val LocalWorkingDiskValue = s"disk://${RuntimeAttributes.LocalDiskName}"
   val ExecParamName = "exec"
+  val MonitoringParamName = "monitoring"
   val WorkingDiskParamName = "working_disk"
   val ExtraConfigParamName = "__extra_config_gcs_path"
   val JesCromwellRoot = "/cromwell_root"
   val JesExecScript = "exec.sh"
+  val JesMonitoringScript = "monitoring.sh"
+  val JesMonitoringLogFile = "monitoring.log"
 
   // Workflow options keys
   val RefreshTokenOptionKey = "refresh_token"
   val GcsRootOptionKey = "jes_gcs_root"
-  val OptionKeys = Set(RefreshTokenOptionKey, GcsRootOptionKey)
+  val MonitoringScriptOptionKey = "monitoring_script"
+  val OptionKeys = Set(RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey)
+
+  lazy val monitoringScriptLocalPath = localFilePathFromRelativePath(JesMonitoringScript)
+  lazy val monitoringLogFileLocalPath = localFilePathFromRelativePath(JesMonitoringLogFile)
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesInput(ExtraConfigParamName, gcsPath, Paths.get(""), "LITERAL")
 
@@ -237,12 +244,14 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(backendCall)
     log.info(s"Call GCS path: ${backendCall.callGcsPath}")
+    val monitoringScript: Option[JesInput] = monitoringIO(backendCall)
+    val monitoringOutput = monitoringScript map { _ => JesOutput(MonitoringParamName, backendCall.defaultMonitoringOutputPath, monitoringLogFileLocalPath) }
 
-    val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq :+ backendCall.cmdInput
-    val jesOutputs: Seq[JesOutput] = generateJesOutputs(backendCall)
+    val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq ++ monitoringScript :+ backendCall.cmdInput
+    val jesOutputs: Seq[JesOutput] = generateJesOutputs(backendCall) ++ monitoringOutput
 
     backendCall.instantiateCommand match {
-      case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs, runIdForResumption)
+      case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs, runIdForResumption, monitoringScript.isDefined)
       case Failure(ex: SocketTimeoutException) => throw ex // probably a GCS transient issue, throwing will cause it to be retried
       case Failure(ex) => FailedExecutionHandle(ex)
     }
@@ -296,6 +305,12 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
+  def monitoringIO(backendCall: BackendCall): Option[JesInput] = {
+    backendCall.workflowDescriptor.workflowOptions.get(MonitoringScriptOptionKey) map { path =>
+      JesInput(MonitoringParamName, GoogleCloudStoragePath(path).toString, monitoringScriptLocalPath)
+    } toOption
+  }
+
   /**
    * If the desired reference name is too long, we don't want to break JES or risk collisions by arbitrary truncation. So,
    * just use a hash. We only do this when needed to give better traceability in the normal case.
@@ -304,11 +319,18 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
-  private def uploadCommandScript(backendCall: BackendCall, command: String): Try[Unit] = authenticated { implicit connection =>
+  private def uploadCommandScript(backendCall: BackendCall, command: String, withMonitoring: Boolean): Try[Unit] = authenticated { implicit connection =>
+    val monitoring = if (withMonitoring) {
+      s"""|touch $JesMonitoringLogFile
+          |chmod u+x $JesMonitoringScript
+          |./$JesMonitoringScript > $JesMonitoringLogFile &""".stripMargin
+    } else ""
+
     val fileContent =
       s"""
          |#!/bin/bash
-         |cd $JesCromwellRoot && \\
+         |cd $JesCromwellRoot
+         |$monitoring
          |$command
          |echo $$? > ${JesBackendCall.RcFilename}
        """.stripMargin.trim
@@ -444,13 +466,14 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
                          command: String,
                          jesInputs: Seq[JesInput],
                          jesOutputs: Seq[JesOutput],
-                         runIdForResumption: Option[String]): ExecutionHandle = {
+                         runIdForResumption: Option[String],
+                         withMonitoring: Boolean): ExecutionHandle = {
     val log = workflowLoggerWithCall(backendCall)
     val jesParameters = backendCall.standardParameters ++ gcsAuthParameter(backendCall.workflowDescriptor) ++ jesInputs ++ jesOutputs
     log.info(s"`$command`")
 
     val jesJobSetup = for {
-      _ <- uploadCommandScript(backendCall, command)
+      _ <- uploadCommandScript(backendCall, command, withMonitoring)
       run <- createJesRun(backendCall, jesParameters, runIdForResumption)
     } yield run
 

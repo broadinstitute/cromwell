@@ -1,6 +1,6 @@
 package cromwell.binding.values
 
-import cromwell.binding.types.{WdlFileType, WdlArrayType}
+import cromwell.binding.types.{WdlStringType, WdlMapType, WdlFileType, WdlArrayType}
 import cromwell.engine.backend.local.SharedFileSystem
 import cromwell.util.HashUtil
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -39,7 +39,9 @@ class WdlArraySpec extends FlatSpec with Matchers with HashUtil {
       // One more entry
       (refArray, WdlArray(WdlArrayType(WdlFileType), Seq(file1, file1, anotherFile))),
       // With a different order
-      (refArray, WdlArray(WdlArrayType(WdlFileType), Seq(anotherFile, file1)))
+      (refArray, WdlArray(WdlArrayType(WdlFileType), Seq(anotherFile, file1))),
+      // A WdlMap with same values
+      (refArray, WdlMap(WdlMapType(WdlFileType, WdlFileType), Map(file1 -> anotherFile)))
     )
 
     forAll(sameHashTable) { (arr1, arr2) => arr1.getHash should be(arr2.getHash) }

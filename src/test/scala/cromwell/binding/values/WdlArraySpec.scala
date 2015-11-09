@@ -40,7 +40,10 @@ class WdlArraySpec extends FlatSpec with Matchers with HashUtil {
       // With a different order
       (refArray, WdlArray(WdlArrayType(WdlFileType), Seq(anotherFile, file1))),
       // A WdlMap with same values
-      (refArray, WdlMap(WdlMapType(WdlFileType, WdlFileType), Map(file1 -> anotherFile)))
+      (refArray, WdlMap(WdlMapType(WdlFileType, WdlFileType), Map(file1 -> anotherFile))),
+      // Chris collision test
+      (WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("cromwell.binding.values.WdlStringcromwell.binding.values.WdlStringcromwell.binding.values.WdlString"))),
+      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("cromwell.binding.values.WdlString"), WdlString("cromwell.binding.values.WdlString"))))
     )
 
     forAll(sameHashTable) { (arr1, arr2) => arr1.getHash should be(arr2.getHash) }

@@ -145,9 +145,7 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataOnFailureSpe
       metadata.submission.getMillis should be >= testStart
       metadata.start shouldNot be(empty)
       metadata.start.get.getMillis should be >= metadata.submission.getMillis
-      if (metadata.end.isDefined) {
-        metadata.end.get.getMillis should be >= metadata.start.get.getMillis
-      }
+      metadata.end.get.getMillis should be >= metadata.start.get.getMillis
       metadata.inputs.fields should have size 0
       metadata.outputs shouldNot be(empty)
       metadata.outputs.get should have size 0
@@ -166,9 +164,7 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataOnFailureSpe
       call.start.get.getMillis should be >= metadata.start.get.getMillis
       call.end shouldNot be(empty)
       call.end.get.getMillis should be >= call.start.get.getMillis
-      if (metadata.end.isDefined) {
-        call.end.get.getMillis should be <= metadata.end.get.getMillis
-      }
+      call.end.get.getMillis should be <= metadata.end.get.getMillis
       call.jobId should be(empty)
       call.returnCode shouldNot be(empty)
       call.returnCode.get shouldNot be(0)

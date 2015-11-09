@@ -308,7 +308,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       callCompletedWhileAborting(callKey, outputs, returnCode)
     case Event(CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !collectorKey.isPending(data) =>
       // Collector keys don't have to be in Running state.
-      val updatedData = data.addPersisting(collectorKey)
       callCompletedWhileAborting(collectorKey, outputs, returnCode)
     case Event(CallAborted(callKey), data) if callKey.isPersistedRunning(data) =>
       persistStatus(callKey, ExecutionStatus.Aborted, None)
@@ -321,6 +320,21 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(m, _) =>
       logger.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
       if (isWorkflowAborted) transition(WorkflowAborted) else stay()
+  }
+
+  /**
+   * It is legitimate to switch states if the current state is not terminal and the target state is not the same as
+   * the current state.
+   */
+  private def canSwitchTo(toState: WorkflowState): Boolean = {
+    !stateName.isTerminal && stateName != toState
+  }
+
+  private def resendDueToPendingExecutionWrites(message: WorkflowActorMessage): Unit = {
+    val ResendInterval = 100.milliseconds
+    val numPersists = stateData.pendingExecutions.size
+    logger.debug(s"Rescheduling message $message with $ResendInterval delay due to $numPersists pending persists")
+    context.system.scheduler.scheduleOnce(ResendInterval, self, message)
   }
 
   whenUnhandled {
@@ -336,24 +350,27 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       logger.debug(s"Got PersistenceCompleted(${callKey.tag})")
       val updatedData = data.removePersisting(callKey)
       stay using updatedData
-    case Event(PerformTransition(toState), data) if data.pendingExecutions.isEmpty && !stateName.isTerminal =>
+    case Event(PerformTransition(toState), data) if data.pendingExecutions.isEmpty && canSwitchTo(toState) =>
       // stateName is the *current* state, from which there should not be transitions.
       logger.info(s"transitioning from $stateName to $toState.")
       goto(toState)
-    case Event(PerformTransition(toState), _) if stateName.isTerminal =>
+    case Event(PerformTransition(toState), _) if !canSwitchTo(toState) =>
       // Drop the message.  This is a race condition with a retried PerformTransition message when
       // the FSM has transitioned to a terminal state between the original and retried messages.
+      logger.debug(s"Dropping PerformTransition request from $stateName to $toState.")
       stay()
-    case Event(message @ PerformTransition(toState), _) =>
-      logger.debug(s"Rescheduling transition request to $toState due to pending persists")
-      context.system.scheduler.scheduleOnce(100 milliseconds, self, message)
+    case Event(message: PerformTransition, _) =>
+      resendDueToPendingExecutionWrites(message)
       stay()
     case Event(AsyncFailure(t), data) if data.pendingExecutions.isEmpty =>
       logger.error(t.getMessage, t)
       transition(WorkflowFailed)
     case Event(message @ AsyncFailure(t), _) =>
-      logger.warn("Rescheduling AsyncFailure due to pending execution writes")
-      context.system.scheduler.scheduleOnce(100 milliseconds, self, message)
+      // This is the unusual combination of debug + throwable logging since the expectation is that this will eventually
+      // be logged in the case above as an error, but if for some weird reason this actor never ends up in that
+      // state we don't want to be completely blind to the cause of the AsyncFailure.
+      logger.debug(t.getMessage, t)
+      resendDueToPendingExecutionWrites(message)
       stay()
     case Event(Terminate, data) if data.pendingExecutions.isEmpty && stateName.isTerminal =>
       logger.debug(s"WorkflowActor is done, shutting down.")
@@ -362,8 +379,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(Terminate, _) =>
       // Don't actually terminate as there are pending writes and/or this is not yet transitioned to a terminal state.
       // Resend the message after a delay.
-      logger.debug(s"Resending Terminate message: pending executions size ${stateData.pendingExecutions.size}, state = $stateName")
-      context.system.scheduler.scheduleOnce(100 milliseconds, self, Terminate)
+      resendDueToPendingExecutionWrites(Terminate)
       stay()
     case Event(e, _) =>
       logger.debug(s"received unhandled event $e while in state $stateName")

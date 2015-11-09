@@ -291,6 +291,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   when(WorkflowAborted) { FSM.NullFunction }
 
+  onTransition {
+    case WorkflowSubmitted -> WorkflowRunning =>
+      stateData.startMode.get.start(this)
+  }
+
   private def callCompletedWhileAborting(callKey: OutputKey, outputs: CallOutputs, returnCode: Int): State = {
     awaitCallComplete(callKey, outputs, returnCode)
     val nextState = if (isWorkflowAborted) transition(WorkflowAborted) else stay()
@@ -298,15 +303,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     nextState using updatedData
   }
 
-  onTransition {
-    case WorkflowSubmitted -> WorkflowRunning =>
-      stateData.startMode.get.start(this)
-  }
-
   when(WorkflowAborting) {
-    case Event(CallCompleted(callKey, outputs, returnCode), data) if callKey.isPersistedRunning(data) =>
+    case Event(message @ CallCompleted(callKey, outputs, returnCode), data) if callKey.isPersistedRunning(data) =>
       callCompletedWhileAborting(callKey, outputs, returnCode)
-    case Event(CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !collectorKey.isPending(data) =>
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !collectorKey.isPending(data) =>
       // Collector keys don't have to be in Running state.
       callCompletedWhileAborting(collectorKey, outputs, returnCode)
     case Event(CallAborted(callKey), data) if callKey.isPersistedRunning(data) =>
@@ -400,7 +400,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def persistStatusThenAck(storeKey: ExecutionStoreKey, executionStatus: ExecutionStatus, recipient: ActorRef,
-                                  message: TerminalCallMessage, returnCode: Option[Int] = None): Unit = {
+                                   message: TerminalCallMessage, returnCode: Option[Int] = None): Unit = {
 
     persistStatus(storeKey, executionStatus, returnCode) map { _ => CallActor.Ack(message) } pipeTo recipient
   }

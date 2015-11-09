@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import akka.actor.FSM.NullFunction
-import akka.actor.{Actor, LoggingFSM, Props}
+import akka.actor.{Cancellable, Actor, LoggingFSM, Props}
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.binding._
@@ -46,12 +46,24 @@ object CallActor {
   final case class Retry(callMessage: WorkflowActor.CallMessage) extends CallActorMessage
 
   /** FSM data class with an optional abort function and exponential backoff. */
-  case class CallActorData(abortFunction: Option[AbortFunction] = None, backoff: Option[ExponentialBackOff] = None) {
-    def retryOnce(actor: Actor, callMessage: WorkflowActor.CallMessage)(implicit ec: ExecutionContext): Unit = {
-      actor.context.system.scheduler.scheduleOnce(backoff.get.nextBackOffMillis().millis) {
+  case class CallActorData(abortFunction: Option[AbortFunction] = None,
+                           backoff: Option[ExponentialBackOff] = None,
+                           timer: Option[Cancellable] = None) {
+
+    /**
+     * Schedule a single retry of sending the specified message to the specified actor.  Return a copy of this
+     * `CallActorData` holding a reference to the timer to allow for its cancellation in the event an `Ack` is
+     * received prior to its expiration.
+     */
+    def copyWithRetry(actor: Actor, callMessage: WorkflowActor.CallMessage)(implicit ec: ExecutionContext): CallActorData = {
+      val timer = actor.context.system.scheduler.scheduleOnce(backoff.get.nextBackOffMillis().millis) {
         actor.self ! Retry(callMessage)
       }
+      this.copy(timer = Option(timer))
     }
+
+    /** Attempt to cancel the last timer if there is one registered. */
+    def cancelTimer() = timer foreach { _.cancel() }
   }
 
   def props(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
@@ -134,11 +146,13 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
       logger.debug(s"CallActor retrying ${message.callKey.tag}")
       // Continue retrying this message until it is Acked.
       context.parent ! message
-      data.retryOnce(this, message)
-      stay using data
+      val updatedData = data.copyWithRetry(this, message)
+      stay() using updatedData
     case Event(Ack(message: WorkflowActor.TerminalCallMessage), data) =>
       logger.debug(s"CallActor received ack for ${message.callKey.tag}")
-      goto(CallDone) using data.copy(backoff = None)
+      data.cancelTimer()
+      val updatedData = data.copy(backoff = None, timer = None)
+      goto(CallDone) using updatedData
     case Event(e, _) =>
       logger.warn(s"received unhandled event $e while in state $stateName")
       stay()
@@ -178,8 +192,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     context.parent ! message
     // The WorkflowActor will drop TerminalCallMessages that it is unable to immediately process.
     // Retry sending this message to the WorkflowActor until it is Acked.
-    val updatedData = stateData.copy(backoff = createBackoff)
-    updatedData.retryOnce(this, message)
+    val updatedData = stateData.copy(backoff = createBackoff).copyWithRetry(this, message)
     stay using updatedData
   }
 

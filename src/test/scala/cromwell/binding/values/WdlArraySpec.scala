@@ -14,7 +14,6 @@ class WdlArraySpec extends FlatSpec with Matchers with HashUtil {
 
     // Note that we don't need to test with every single possible WdlType as WdlArrayType, because each type is responsible for producing a valid hash.
 
-
     val refArray = WdlArray(WdlArrayType(WdlFileType), Seq(file1, anotherFile))
     val emptyArray = WdlArray(WdlArrayType(WdlFileType), Seq.empty)
 

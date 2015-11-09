@@ -1,9 +1,9 @@
 package cromwell.engine.backend.local
 
-import java.io
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
+import better.files.{File => ScalaFile}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
@@ -13,7 +13,6 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
 import cromwell.engine.workflow.CallKey
-import cromwell.util.FileUtil._
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
@@ -73,7 +72,7 @@ object SharedFileSystem {
     else Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
   }
 
-  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => new io.File(wdlFile.value).md5Sum }
+  val sharedFSFileHasher: FileHasher = { wdlFile: WdlFile => ScalaFile(wdlFile.value).md5 }
 }
 
 trait SharedFileSystem {

@@ -1,11 +1,11 @@
 package cromwell
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.{Path, Paths}
 import java.util.UUID
 
-import ch.qos.logback.classic.{LoggerContext, Level}
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
@@ -14,8 +14,8 @@ import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
 import lenthall.config.ScalaConfig._
-import org.slf4j.{LoggerFactory, Logger}
 import org.slf4j.helpers.NOPLogger
+import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
 
 import scala.language.implicitConversions

@@ -47,8 +47,5 @@ trait WdlValue {
     if (filterFn.isDefinedAt(this)) Seq(filterFn(this)) else Nil
   }
 
-  /**
-   * @return MD5 Hash.
-   */
   def getHash(implicit hasher: FileHasher): Hash = valueString.md5Sum
 }

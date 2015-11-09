@@ -3,7 +3,7 @@ package cromwell.engine.db.slick
 case class JesJob
 (
   executionId: Int,
-  jesId: Option[String],
+  jesRunId: Option[String],
   jesStatus: Option[String],
   jesJobId: Option[Int] = None
   )
@@ -16,7 +16,7 @@ trait JesJobComponent {
   class JesJobs(tag: Tag) extends Table[JesJob](tag, "JES_JOB") {
     def jesJobId = column[Int]("JES_JOB_ID", O.PrimaryKey, O.AutoInc)
     def executionId = column[Int]("EXECUTION_ID")
-    def jesId = column[Option[String]]("JES_ID")
+    def jesId = column[Option[String]]("JES_RUN_ID")
     def jesStatus = column[Option[String]]("JES_STATUS")
 
     override def * = (executionId, jesId, jesStatus, jesJobId.?) <>

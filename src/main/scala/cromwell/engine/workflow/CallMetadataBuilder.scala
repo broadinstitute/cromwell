@@ -37,7 +37,7 @@ object CallMetadataBuilder {
     def extract(job: Any): BackendValues = {
       job match {
         case ji: LocalJob => BackendValues("Local")
-        case ji: JesJob => BackendValues("JES", jobId = ji.jesId, status = ji.jesStatus)
+        case ji: JesJob => BackendValues("JES", jobId = ji.jesRunId, status = ji.jesStatus)
         case ji: SgeJob => BackendValues("SGE", jobId = ji.sgeJobNumber map { _.toString })
       }
     }

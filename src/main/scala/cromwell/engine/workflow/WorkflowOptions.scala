@@ -72,6 +72,7 @@ object WorkflowOptions {
     val encrypted = jsObject.fields map {
       case (k, v: JsString) if EncryptedFields.contains(k) => k -> encryptField(v)
       case (k, v: JsString) => k -> Success(v)
+      case (k, v: JsBoolean) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v) => k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
     }
@@ -99,7 +100,14 @@ case class WorkflowOptions(jsObject: JsObject) {
   def get(key: String): Try[String] = jsObject.fields.get(key) match {
     case Some(jsStr: JsString) => Success(jsStr.value)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
-    case x => Failure(new Throwable(s"Unsupported JsValue as value: $x"))
+    case Some(jsVal: JsValue) => Failure(new Throwable(s"Unsupported value as JsValue: ${jsVal.toString()}"))
+    case None => Failure(new Throwable(s"Field not found: $key"))
+  }
+
+  def getBoolean(key: String): Try[Boolean] = jsObject.fields.get(key) match {
+    case Some(jsBool: JsBoolean) => Success(jsBool.value)
+    case Some(jsVal: JsValue) => Failure(new Throwable(s"Unsupported JsValue as JsBoolean: ${jsVal.toString()}"))
+    case None => Failure(new Throwable(s"Field not found: $key"))
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {

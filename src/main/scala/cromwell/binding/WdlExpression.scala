@@ -70,7 +70,8 @@ object WdlExpression {
     "read_boolean",
     "read_lines",
     "read_map",
-    "read_object"
+    "read_object",
+    "read_tsv"
   )
 
   def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions[WdlValue]): Try[WdlValue] =

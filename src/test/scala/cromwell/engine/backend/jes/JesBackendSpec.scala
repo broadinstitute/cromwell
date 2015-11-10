@@ -7,7 +7,7 @@ import cromwell.binding.CallInputs
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlFile, WdlMap, WdlString}
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend.{JesOutput, JesInput}
+import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
@@ -180,5 +180,17 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
     result should contain(WdlMap(WdlMapType(WdlFileType, WdlFileType),
       Map(WdlFile("gs://path/to/file4") -> WdlFile("gs://path/to/file5")))
     )
+  }
+
+  it should "create a JesInput for the monitoring script, if specified" in {
+    val backendCall = mock[JesBackendCall]
+    val wd = mock[WorkflowDescriptor]
+    backendCall.workflowDescriptor returns wd
+
+    wd.workflowOptions returns WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get
+    jesBackend.monitoringIO(backendCall) shouldBe Some(JesInput("monitoring", "gs://path/to/script", Paths.get("/cromwell_root/monitoring.sh"),"REFERENCE"))
+
+    wd.workflowOptions returns WorkflowOptions.fromJsonString("""{}""").get
+    jesBackend.monitoringIO(backendCall) shouldBe None
   }
 }

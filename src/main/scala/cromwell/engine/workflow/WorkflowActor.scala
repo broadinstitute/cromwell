@@ -98,12 +98,12 @@ object WorkflowActor {
       } yield state
 
       resumptionWork onComplete {
-        case Success(s) if s.stateName != WorkflowRunning => actor.transition(s.stateName)
+        case Success(s) if s.stateName != WorkflowRunning => actor.scheduleTransition(s.stateName)
         case Success(s) => // Nothing to do here but there needs to be a match for this case.
         case Failure(t) => actor.self ! AsyncFailure(t)
       }
 
-      actor.transition(WorkflowRunning)
+      actor.scheduleTransition(WorkflowRunning)
     }
   }
 
@@ -165,7 +165,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   /** Always returns stay(), but messages self to perform the requested transition once all persistence is complete. */
-  private def transition(toState: WorkflowState): State = {
+  private def scheduleTransition(toState: WorkflowState): State = {
     def handleTerminalWorkflow: Future[Unit] = {
       for {
         _ <- backend.cleanUpForWorkflow(workflow)
@@ -200,10 +200,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
    */
   private def startRunnableCalls(): State = {
     tryStartingRunnableCalls() match {
-      case Success(entries) => if (entries.nonEmpty) startRunnableCalls() else transition(WorkflowRunning)
+      case Success(entries) => if (entries.nonEmpty) startRunnableCalls() else scheduleTransition(WorkflowRunning)
       case Failure(e) =>
         logger.error(e.getMessage, e)
-        transition(WorkflowFailed)
+        scheduleTransition(WorkflowFailed)
     }
   }
 
@@ -245,16 +245,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       stay()
     case Event(ExecutionStoreCreated(startMode), data) =>
       logger.info(s"ExecutionStoreCreated($startMode) message received")
-      transition(WorkflowRunning) using data.copy(startMode = Option(startMode))
+      scheduleTransition(WorkflowRunning) using data.copy(startMode = Option(startMode))
   }
 
   def callCompletedWhileRunning(callKey: OutputKey, outputs: CallOutputs, returnCode: Int, message: TerminalCallMessage): State = {
     val nextState = awaitCallComplete(callKey, outputs, returnCode) match {
       case Success(_) =>
-        if (isWorkflowDone) transition(WorkflowSucceeded) else startRunnableCalls()
+        if (isWorkflowDone) scheduleTransition(WorkflowSucceeded) else startRunnableCalls()
       case Failure(e) =>
         logger.error(e.getMessage, e)
-        transition(WorkflowFailed)
+        scheduleTransition(WorkflowFailed)
     }
     sender ! CallActor.Ack(message)
     val updatedData = stateData.addPersisting(callKey)
@@ -274,7 +274,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message @ CallFailed(callKey, returnCode, failure), data) if callKey.isPersistedRunning(data) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, returnCode)
       val updatedData = data.addPersisting(callKey)
-      transition(WorkflowFailed) using updatedData
+      scheduleTransition(WorkflowFailed) using updatedData
     case Event(message @ CallAborted(callKey), data) if callKey.isPersistedRunning(data) =>
       // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
       // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
@@ -298,7 +298,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   private def callCompletedWhileAborting(callKey: OutputKey, outputs: CallOutputs, returnCode: Int): State = {
     awaitCallComplete(callKey, outputs, returnCode)
-    val nextState = if (isWorkflowAborted) transition(WorkflowAborted) else stay()
+    val nextState = if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()
     val updatedData = stateData.addPersisting(callKey)
     nextState using updatedData
   }
@@ -312,14 +312,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(CallAborted(callKey), data) if callKey.isPersistedRunning(data) =>
       persistStatus(callKey, ExecutionStatus.Aborted, None)
       val updatedData = data.addPersisting(callKey)
-      (if (isWorkflowAborted) transition(WorkflowAborted) else stay()) using updatedData
+      (if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()) using updatedData
     case Event(CallFailed(callKey, returnCode, failure), data) if callKey.isPersistedRunning(data) =>
       persistStatus(callKey, ExecutionStatus.Failed, returnCode)
       val updatedData = data.addPersisting(callKey)
-      (if (isWorkflowAborted) transition(WorkflowAborted) else stay()) using updatedData
+      (if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()) using updatedData
     case Event(m, _) =>
       logger.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
-      if (isWorkflowAborted) transition(WorkflowAborted) else stay()
+      if (isWorkflowAborted) scheduleTransition(WorkflowAborted) else stay()
   }
 
   /**
@@ -340,7 +340,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   whenUnhandled {
     case Event(AbortWorkflow, _) =>
       context.children foreach { _ ! CallActor.AbortCall }
-      transition(WorkflowAborting)
+      scheduleTransition(WorkflowAborting)
     case Event(callMessage: CallMessage, _) =>
       logger.debug(s"Dropping message for ineligible key: ${callMessage.callKey.tag}")
       // Running and Aborting have explicit handlers for Running and no pending writes, so either we are not in those
@@ -364,7 +364,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       stay()
     case Event(AsyncFailure(t), data) if data.pendingExecutions.isEmpty =>
       logger.error(t.getMessage, t)
-      transition(WorkflowFailed)
+      scheduleTransition(WorkflowFailed)
     case Event(message @ AsyncFailure(t), _) =>
       // This is the unusual combination of debug + throwable logging since the expectation is that this will eventually
       // be logged in the case above as an error, but if for some weird reason this actor never ends up in that

@@ -27,57 +27,12 @@ class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions w
    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
    *                                       to be wrapped in a `Try`.
    */
-  private def fileContentsToString(value: WdlValue): String = {
+  override def fileContentsToString(value: WdlValue): String = {
     value match {
       case f: WdlFile => readFromPath(f.value)
       case f: WdlString => readFromPath(f.value)
       case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
     }
-  }
-
-  /**
-   * Read all lines from the file referenced by the first parameter
-   */
-  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
-    } yield WdlArray(WdlArrayType(WdlStringType), lines)
-  }
-
-  override protected def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      contents <- Success(fileContentsToString(singleArgument))
-      wdlMap <- WdlMap.fromTsv(contents)
-    } yield wdlMap
-  }
-
-  private def extractObjectOrArray(params: Seq[Try[WdlValue]]) = for {
-    singleArgument <- extractSingleArgument(params)
-    contents <- Success(fileContentsToString(singleArgument))
-    wdlObjects <- WdlObject.fromTsv(contents)
-  } yield wdlObjects
-
-  override protected def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = {
-    extractObjectOrArray(params) map {
-      case array if array.length == 1 => array.head
-      case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
-    }
-  }
-
-  override def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    extractObjectOrArray(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
-  }
-
-  /**
-   * Try to read a string from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      string = fileContentsToString(singleArgument)
-    } yield WdlString(string.trim)
   }
 }
 

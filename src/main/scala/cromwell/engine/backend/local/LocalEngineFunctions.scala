@@ -12,54 +12,12 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class LocalEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions {
-  protected def fileContentsToString(value: WdlValue): String = {
+  override def fileContentsToString(value: WdlValue): String = {
     value match {
       case f: WdlFile => File(f.value).contentAsString
       case s: WdlString => File(s.value).contentAsString
       case e => throw new UnsupportedOperationException("Unsupported argument " + e)
     }
-  }
-
-  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
-    } yield WdlArray(WdlArrayType(WdlStringType), lines)
-  }
-
-  override protected def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      contents <- Success(fileContentsToString(singleArgument))
-      wdlMap <- WdlMap.fromTsv(contents)
-    } yield wdlMap
-  }
-
-  private def extractObjectArray(params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] = for {
-    singleArgument <- extractSingleArgument(params)
-    contents <- Success(fileContentsToString(singleArgument))
-    wdlObjects <- WdlObject.fromTsv(contents)
-  } yield wdlObjects
-
-  override protected def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = {
-    extractObjectArray(params) map {
-      case array if array.length == 1 => array.head
-      case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
-    }
-  }
-
-  override def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    extractObjectArray(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
-  }
-
-  /**
-   * Try to read a string from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      string = fileContentsToString(singleArgument)
-    } yield WdlString(string.stripSuffix("\n"))
   }
 }
 

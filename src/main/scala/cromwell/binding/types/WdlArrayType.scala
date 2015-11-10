@@ -28,7 +28,8 @@ case class WdlArrayType(memberType: WdlType) extends WdlType {
         case Success(values) => WdlArray(WdlArrayType(memberType), values)
         case Failure(ex) => throw ex
       }
-
+    case wdlArray: WdlArray if memberType.isCoerceableFrom(wdlArray.wdlType.memberType) =>
+      wdlArray.map(v => memberType.coerceRawValue(v).get) // .get because isCoerceableFrom should make it safe
   }
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {

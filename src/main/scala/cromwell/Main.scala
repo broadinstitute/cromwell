@@ -139,7 +139,7 @@ class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => Workfl
     // Return the path for the arg index, or the default, but remove "-" paths.
     for {
       path <- args.lift(index) orElse defaultPath filterNot (_ == "-")
-    } yield Paths.get(args.head).resolveSibling(path)
+    } yield Paths.get(path)
   }
 
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {

@@ -16,6 +16,7 @@ import cromwell.engine.workflow.WorkflowOptions
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
+import lenthall.config.ScalaConfig._
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
@@ -48,17 +49,24 @@ package object engine {
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
+    // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
+    // Not private because overridden in tests
+    lazy val conf = ConfigFactory.load
+
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
       case Success(other) => throw new Throwable(s"Expecting workflow options to be a JSON object, got $other")
       case Failure(ex) => throw ex
     }
 
+    // Call Caching
     // TODO: Add to lenthall
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
+    private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
+    lazy val writeToCache = configCallCaching && (workflowOptions.getBoolean("write-to-cache") getOrElse configCallCaching)
+    lazy val readFromCache = configCallCaching && (workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching)
 
     val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
-    val cacheCalls = getConfigOption("call-caching") map { _.getBooleanOr("enabled", default = DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

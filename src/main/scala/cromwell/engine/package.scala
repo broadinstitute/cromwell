@@ -7,7 +7,7 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
@@ -30,7 +30,7 @@ import scala.util.{Failure, Success, Try}
  */
 package object engine {
 
-  private val DefaultCallCachingValue = false
+  private val DEFAULT_CALL_CACHING_VALUE = false
 
   case class WorkflowId(id: UUID) {
     override def toString = id.toString
@@ -54,7 +54,11 @@ package object engine {
       case Failure(ex) => throw ex
     }
 
-    val backend = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+    // TODO: Add to lenthall
+    def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
+
+    val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
+    val cacheCalls = getConfigOption("call-caching") map { _.getBooleanOr("enabled", default = false) } getOrElse DEFAULT_CALL_CACHING_VALUE
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.unqualifiedName
     val shortId = id.toString.split("-")(0)

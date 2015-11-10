@@ -7,10 +7,10 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding._
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.{WdlFile, WdlValue}
+import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
 import lenthall.config.ScalaConfig._
@@ -30,6 +30,8 @@ import scala.util.{Failure, Success, Try}
  * Internally, this package is built on top of [[cromwell.binding]].
  */
 package object engine {
+
+  private val DEFAULT_CALL_CACHING_VALUE = false
 
   case class WorkflowId(id: UUID) {
     override def toString = id.toString

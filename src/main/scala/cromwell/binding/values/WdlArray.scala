@@ -1,8 +1,16 @@
 package cromwell.binding.values
 
-import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType}
+import cromwell.binding.types.{WdlStringType, WdlArrayType, WdlObjectType, WdlPrimitiveType}
 
 import scala.util.{Failure, Success, Try}
+
+object WdlArray {
+  def fromTsv(tsv: String): WdlArray = {
+    WdlArray(WdlArrayType(WdlArrayType(WdlStringType)), tsv.replaceAll("[\r\n]+$", "").split("[\n\r]").toSeq map { line =>
+      WdlArray(WdlArrayType(WdlStringType), line.split("\t").toSeq.map(WdlString))
+    })
+  }
+}
 
 case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue {
   val typesUsedInValue = Set(value map {_.wdlType}: _*)

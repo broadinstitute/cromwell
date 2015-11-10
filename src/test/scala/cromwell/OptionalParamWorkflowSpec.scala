@@ -12,7 +12,7 @@ import scala.language.postfixOps
 class OptionalParamWorkflowSpec extends CromwellTestkitSpec("OptionalParamWorkflowSpec") {
   val outputs = Map(
     "optional.hello.greeting" -> WdlString("hello john"),
-    "optional.hello2.greeting" -> WdlString("hello "),
+    "optional.hello2.greeting" -> WdlString("hello"),
     "optional.hello_person.greeting" -> WdlString("hello world")
   )
 

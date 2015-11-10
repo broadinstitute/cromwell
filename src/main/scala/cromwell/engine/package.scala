@@ -1,20 +1,21 @@
 package cromwell
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.{Path, Paths}
 import java.util.UUID
 
-import ch.qos.logback.classic.{LoggerContext, Level}
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
 import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlFile, WdlValue}
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
-import org.slf4j.{LoggerFactory, Logger}
+import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
+import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
 
 import scala.language.implicitConversions
@@ -29,6 +30,10 @@ import scala.util.{Failure, Success, Try}
  * Internally, this package is built on top of [[cromwell.binding]].
  */
 package object engine {
+
+  type Hash = String
+  type FileHasher = WdlFile => Hash
+
   case class WorkflowId(id: UUID) {
     override def toString = id.toString
     def shortString = id.toString.split("-")(0)
@@ -45,13 +50,16 @@ package object engine {
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
+    private val conf = ConfigFactory.load
+
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
       case Success(other) => throw new Throwable(s"Expecting workflow options to be a JSON object, got $other")
       case Failure(ex) => throw ex
     }
 
-    val backend = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
+    val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
+    val avoidJobs = conf.getConfig("job-avoidance").getBooleanOr("enabled", default = false)
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

@@ -36,6 +36,15 @@ case class GoogleCloudStorage(client: Storage) {
     new GcsBucketInfo(bucketName, bucket.getLocation, bucket.getTimeCreated, bucket.getOwner)
   }
 
+  /**
+    * Gets a CRC code from a GCS object. This is a CRC32c checksum which can serve as a hash. It is resistant to
+    * composite uploads. See https://cloud.google.com/storage/docs/hashes-etags#_CRC32C for more.
+    */
+  def getCrc32c(googleCloudStoragePath: GoogleCloudStoragePath): String = {
+    val obj = client.objects().get(googleCloudStoragePath.bucket, googleCloudStoragePath.objectName).execute()
+    obj.getCrc32c
+  }
+
   def listContents(gcsPath: String): Iterable[String] = listContents(GoogleCloudStoragePath(gcsPath))
 
   def listContents(gcsPath: GoogleCloudStoragePath): Iterable[String] = {

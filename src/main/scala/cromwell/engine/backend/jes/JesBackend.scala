@@ -11,7 +11,6 @@ import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
@@ -20,10 +19,10 @@ import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
-import cromwell.util.StringDigestion._
+import cromwell.util.StringUtil._
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCloudStoragePath
 
@@ -148,6 +147,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues gcsPathToLocal
 
+  def fileHasher: FileHasher = { wdlFile: WdlFile => getCrc32c(GoogleCloudStoragePath(wdlFile.value)) }
+
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
     val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
     val log = workflowLogger(workflow)
@@ -159,6 +160,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       withRetry(upload, log, s"Exception occurred while uploading auth file to $path")
     }
   }
+
+  def getCrc32c(googleCloudStoragePath: GoogleCloudStoragePath): String = authenticated { _.storage.getCrc32c(googleCloudStoragePath) }
 
   /**
    * Get a GcsLocalizing from workflow options if client secrets and refresh token are available.
@@ -266,7 +269,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   /**
-   * Takes two arrays of WDL Files and generates any necessary JES inputs from them.
+   * Takes two arrays of remote and local WDL File paths and generates the necessary JESInputs.
    */
   private def jesInputsFromWdlFiles(jesNamePrefix: String, remotePathArray: Seq[WdlFile], localPathArray: Seq[WdlFile]): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {

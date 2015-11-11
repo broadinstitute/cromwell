@@ -36,8 +36,6 @@ trait DataAccess {
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit]
 
-  def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]]
-
   def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   // TODO needed to support compatibility with current code, this seems like an inefficient way of getting
@@ -73,7 +71,8 @@ trait DataAccess {
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
 
-  /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
+  /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor.
+    * TODO this is only called from a test. */
   def shutdown(): Future[Unit]
 
   def getExecutions(id: WorkflowId): Future[Traversable[Execution]]

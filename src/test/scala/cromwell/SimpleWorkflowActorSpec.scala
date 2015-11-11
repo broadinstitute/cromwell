@@ -28,7 +28,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
   val TestExecutionTimeout = 5.seconds.dilated
 
   "A WorkflowActor" should {
-    "start, run, succeed and die" ignore {
+    "start, run, succeed and die" in {
       startingCallsFilter("hello.hello") {
         val fsm = buildWorkflowFSMRef(SampleWdl.HelloWorld, SampleWdl.HelloWorld.wdlJson)
         val probe = TestProbe()
@@ -56,7 +56,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
       }
     }
 
-    "fail when a call fails" ignore {
+    "fail when a call fails" in {
       startingCallsFilter("goodbye.goodbye") {
         waitForPattern("WorkflowActor .+ transitioning from Submitted to Running\\.") {
           waitForPattern("persisting status of goodbye to Starting.") {
@@ -71,10 +71,10 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
       }
     }
 
-    "gracefully handle malformed WDL" ignore {
+    "gracefully handle malformed WDL" in {
       within(TestExecutionTimeout) {
         val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
-        waitForPattern("transitioning from Submitted to Failed") {
+        waitForPattern("transitioning from Running to Failed") {
           fsm ! Start
         }
       }

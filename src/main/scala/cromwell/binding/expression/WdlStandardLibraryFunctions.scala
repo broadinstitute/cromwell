@@ -17,7 +17,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   private def readContentsFromSingleFileParameter(params: Seq[Try[WdlValue]]): Try[String] = {
     for {
       singleArgument <- extractSingleArgument(params)
-      string = fileContentsToString(singleArgument)
+      string = fileContentsToString(singleArgument.valueString)
     } yield string
   }
 

@@ -29,7 +29,7 @@ trait WdlFunctions[T] {
     * @throws NotImplementedError if the backend did not implement
     *         this method
     */
-  def fileContentsToString(value: WdlValue): String = throw new NotImplementedError("fileContentsToString() is unimplemented")
+  def fileContentsToString(path: String): String = throw new NotImplementedError("fileContentsToString() is unimplemented")
 
   /* Returns one of the standard library functions (defined above) by name */
   def getFunction(name: String): WdlFunction = {

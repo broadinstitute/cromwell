@@ -5,6 +5,10 @@ import com.typesafe.config.Config
 object ScalaConfig {
 
   implicit class EnhancedScalaConfig(val config: Config) extends AnyVal {
+    def getConfigOption(key: String): Option[Config] = {
+      if (config.hasPath(key)) Option(config.getConfig(key)) else None
+    }
+
     def getStringOption(key: String): Option[String] = {
       if (config.hasPath(key)) Option(config.getString(key)) else None
     }

@@ -31,7 +31,7 @@ import scala.util.{Failure, Success, Try}
  */
 package object engine {
 
-  private val DEFAULT_CALL_CACHING_VALUE = false
+  private val DefaultCallCachingValue = false
 
   case class WorkflowId(id: UUID) {
     override def toString = id.toString

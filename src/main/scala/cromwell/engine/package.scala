@@ -49,7 +49,9 @@ package object engine {
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
-    private val conf = ConfigFactory.load
+    // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
+    // Not private because overridden in tests
+    lazy val conf = ConfigFactory.load
 
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception

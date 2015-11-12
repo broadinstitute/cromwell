@@ -31,7 +31,7 @@ import scala.util.{Failure, Success, Try}
  */
 package object engine {
 
-  private val DEFAULT_CALL_CACHING_VALUE = false
+  private val DefaultCallCachingValue = false
 
   case class WorkflowId(id: UUID) {
     override def toString = id.toString
@@ -61,7 +61,7 @@ package object engine {
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
 
     val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
-    val cacheCalls = getConfigOption("call-caching") map { _.getBooleanOr("enabled", default = false) } getOrElse DEFAULT_CALL_CACHING_VALUE
+    val cacheCalls = getConfigOption("call-caching") map { _.getBooleanOr("enabled", default = DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

@@ -57,11 +57,13 @@ package object engine {
       case Failure(ex) => throw ex
     }
 
+    // Call Caching
     // TODO: Add to lenthall
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
+    private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
+    val cacheCalls = workflowOptions.getBoolean("use-cache") getOrElse configCallCaching
 
     val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
-    val cacheCalls = getConfigOption("call-caching") map { _.getBooleanOr("enabled", default = DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

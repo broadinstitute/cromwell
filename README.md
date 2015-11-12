@@ -1193,6 +1193,27 @@ There would also be logging to the standard out stream as well.
 
 The `cromwell.<date>.log` file contains an aggregate of every log message, while the `workflow.<uuid>.log` files contain only log messages that pertain to that particular workflow.
 
+# Call Caching
+
+Call Caching allows Cromwell to re-use the outputs of a call if the exact same call is about to be run again. 
+**Call Caching is disabled by default.**
+
+To enable Call Caching, add the following to your Cromwell configuration:
+
+```
+call-caching {
+  enabled = true
+}
+```
+
+If Call Caching is enabled in Cromwell but you want to disable the use of the cache when submitting a particular workflow, use workflow options:
+
+```
+{
+  use-cache: false
+}
+```
+
 # REST API
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.

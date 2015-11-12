@@ -4,7 +4,6 @@ import com.typesafe.config.Config
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
@@ -88,6 +87,11 @@ trait Backend {
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr
+
+  /**
+   * Provides a function that given a WdlFile, returns its hash.
+   */
+  def fileHasher: FileHasher
 
   def backendType: BackendType
 

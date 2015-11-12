@@ -1,6 +1,6 @@
 package cromwell
 
-import cromwell.binding.values.WdlValue
+import cromwell.binding.values.{WdlFile, WdlValue}
 
 import scala.language.implicitConversions
 
@@ -27,6 +27,8 @@ package object binding {
   type CallOutputs = Map[LocallyQualifiedName, WdlValue]
   type HostInputs = Map[String, WdlValue]
   type ImportResolver = String => WdlSource
+  type Hash = String
+  type FileHasher = WdlFile => Hash
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)

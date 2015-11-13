@@ -11,7 +11,7 @@ import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.logging.WorkflowLogger
-
+import cromwell.instrumentation.Instrumentation.Monitor
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -66,6 +66,8 @@ object CallActor {
     def cancelTimer() = timer foreach { _.cancel() }
   }
 
+  val CallCounter = Monitor.minMaxCounter("calls-running")
+
   def props(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
 }
@@ -79,6 +81,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   type CallOutputs = Map[String, WdlValue]
 
   startWith(CallNotStarted, CallActorData())
+  CallCounter.increment()
 
   implicit val ec = context.system.dispatcher
 
@@ -93,9 +96,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   // Called on every state transition.
   onTransition {
-    case _ -> CallDone =>
-      logger.debug(s"done, shutting down.")
-      context.stop(self)
+    case _ -> CallDone => shutDown()
     case fromState -> toState =>
       // Only log this at debug - these states are never seen or used outside of the CallActor itself.
       logger.debug(s"transitioning from $fromState to $toState.")
@@ -196,6 +197,12 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     stay using updatedData
   }
 
+  private def shutDown(): Unit = {
+    logger.debug(s"done, shutting down.")
+    CallCounter.decrement()
+    context.stop(self)
+  }
+  
   private def registerAbortFunction(abortFunction: AbortFunction): Unit = {
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }

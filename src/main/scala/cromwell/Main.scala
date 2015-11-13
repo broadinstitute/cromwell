@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory
 import spray.json._
 
 import scala.util.{Failure, Success, Try}
+import cromwell.instrumentation.Instrumentation.Monitor
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -42,6 +43,7 @@ class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => Workfl
   private[cromwell] val initLoggingReturnCode = initLogging()
 
   lazy val Log = LoggerFactory.getLogger("cromwell")
+  Monitor.start()
 
   def this() = this(enableSysExit = true, managerSystem = () => new WorkflowManagerSystem {})
 

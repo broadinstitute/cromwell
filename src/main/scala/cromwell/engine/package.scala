@@ -49,7 +49,9 @@ package object engine {
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
-    private val conf = ConfigFactory.load
+    // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
+    // Not private because overridden in tests
+    lazy val conf = ConfigFactory.load
 
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
@@ -57,11 +59,14 @@ package object engine {
       case Failure(ex) => throw ex
     }
 
+    // Call Caching
     // TODO: Add to lenthall
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
+    private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
+    lazy val writeToCache = configCallCaching && (workflowOptions.getBoolean("write-to-cache") getOrElse configCallCaching)
+    lazy val readFromCache = configCallCaching && (workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching)
 
     val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
-    val cacheCalls = getConfigOption("call-caching") map { _.getBooleanOr("enabled", default = DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
     val name = namespace.workflow.name
     val shortId = id.toString.split("-")(0)

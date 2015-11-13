@@ -4,7 +4,7 @@ import cromwell.binding.AstTools.EnhancedAstNode
 import cromwell.binding.WdlExpression._
 import cromwell.binding.types._
 import cromwell.binding.values.{WdlValue, _}
-import cromwell.binding.{WdlExpressionException, WdlNamespace}
+import cromwell.binding.{WdlExpression, WdlExpressionException, WdlNamespace}
 import cromwell.parser.WdlParser.{Ast, AstNode, Terminal}
 import cromwell.util.TryUtil
 
@@ -13,11 +13,17 @@ import scala.util.{Failure, Success, Try}
 case class ValueEvaluator(override val lookup: String => WdlValue, override val functions: WdlFunctions[WdlValue]) extends Evaluator {
   override type T = WdlValue
 
-  private def replaceInterpolationTag(string: String, tag: String, lookup: ScopedLookupFunction) =
-    string.replace(tag, lookup(tag.substring(2, tag.length - 1)).valueString)
+  private def replaceInterpolationTag(string: Try[WdlString], tag: String): Try[WdlString] = {
+    val expr = WdlExpression.fromString(tag.substring(2, tag.length - 1))
+    (expr.evaluate(lookup, functions), string) match {
+      case (Success(value), Success(str)) => Success(WdlString(str.value.replace(tag, value.valueString)))
+      case (Failure(ex), _) => Failure(ex)
+      case (_, Failure(ex)) => Failure(ex)
+    }
+  }
 
-  private def interpolate(str: String, lookup: ScopedLookupFunction): String =
-    "\\$\\{([a-zA-Z]([a-zA-Z0-9_])*)\\}".r.findAllIn(str).foldLeft(str) {replaceInterpolationTag(_, _, lookup)}
+  private def interpolate(str: String): Try[WdlString] =
+    "\\$\\{\\s*([^\\}]*)\\s*\\}".r.findAllIn(str).foldLeft(Try(WdlString(str)))(replaceInterpolationTag)
 
   override def evaluate(ast: AstNode): Try[WdlValue] = {
     ast match {
@@ -25,8 +31,7 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
       case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
       case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
-      case t: Terminal if t.getTerminalStr == "string" =>
-        Try(WdlString(interpolate(t.getSourceString, lookup)))
+      case t: Terminal if t.getTerminalStr == "string" => interpolate(t.getSourceString)
       case a: Ast if a.isBinaryOperator =>
         val lhs = evaluate(a.getAttribute("lhs"))
         val rhs = evaluate(a.getAttribute("rhs"))

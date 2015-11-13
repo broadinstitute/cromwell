@@ -12,13 +12,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class LocalEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions {
-  override def fileContentsToString(value: WdlValue): String = {
-    value match {
-      case f: WdlFile => File(f.value).contentAsString
-      case s: WdlString => File(s.value).contentAsString
-      case e => throw new UnsupportedOperationException("Unsupported argument " + e)
-    }
-  }
+  override def fileContentsToString(path: String): String = Paths.get(path).contentAsString
 }
 
 class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalEngineFunctionsWithoutCallContext {
@@ -31,13 +25,7 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
    *                                       to be wrapped in a `Try`.
    */
-  override def fileContentsToString(value: WdlValue): String = {
-    value match {
-      case f: WdlFile => File(f.value).contentAsString
-      case s: WdlString => cwd.resolve(s.value).contentAsString
-      case e => throw new UnsupportedOperationException("Unsupported argument " + e)
-    }
-  }
+  override def fileContentsToString(path: String): String = cwd.resolve(path).contentAsString
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
     if (params.nonEmpty) {

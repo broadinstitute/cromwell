@@ -9,30 +9,36 @@ import cromwell.util.google.GoogleCloudStoragePath
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
+object JesEngineFunctions {
+  implicit class UriString(val str: String) extends AnyVal {
+    def isGcsUrl: Boolean = str.startsWith("gs://")
+    def isUriWithProtocol: Boolean = "^[a-zA-Z]+://".r.findFirstIn(str).nonEmpty
+  }
+}
+
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
 class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions with ProductionJesAuthentication {
 
-  private def readFromPath(value: String): String = {
+  import JesEngineFunctions._
+
+  protected def readFromGcsUri(value: String): String = {
     // .get here because engine functions should throw exception if they fail.  Evaluator will catch it
     authenticated { _.storage.slurpFile(GoogleCloudStoragePath.parse(value).get) }
   }
 
   /**
-   * Read the entire contents of a file from the specified `WdlValue`, where the file can be
-   * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
-   * directly as a `WdlFile`.
-   *
-   * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
-   *                                       to be wrapped in a `Try`.
-   */
-  override def fileContentsToString(value: WdlValue): String = {
-    value match {
-      case f: WdlFile => readFromPath(f.value)
-      case f: WdlString => readFromPath(f.value)
-      case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
-    }
+    * Read the entire contents of a file from the specified `WdlValue`.  the `WdlValue` must be
+    * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url
+    *
+    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
+    *                                       to be wrapped in a `Try`.
+    */
+  override def fileContentsToString(path: String): String = path match {
+    case s if s.isGcsUrl => readFromGcsUri(s)
+    case s if s.isUriWithProtocol => throw new UnsupportedOperationException(s"URI Scheme not supported: $s")
+    case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected GCS URI)")
   }
 }
 
@@ -40,6 +46,23 @@ class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions w
  * Implementation of WDL standard library functions for the JES backend.
  */
 class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext {
+
+  import JesEngineFunctions._
+
+  /**
+    * Read the entire contents of a file from the specified `WdlValue`.  the `WdlValue` must be
+    * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url OR
+    * a relative path in the call output directory in which the call's GCS path will be prepended
+    *
+    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
+    *                                       to be wrapped in a `Try`.
+    */
+  override def fileContentsToString(path: String): String = path match {
+    case s if s.isGcsUrl => readFromGcsUri(s)
+    case s if s.isUriWithProtocol => throw new UnsupportedOperationException(s"URI Scheme not supported: $s")
+    case s => readFromGcsUri(s"${jesBackendCall.callGcsPath}/$s")
+  }
+
 
   override protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {

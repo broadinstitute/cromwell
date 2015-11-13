@@ -49,6 +49,7 @@ class JesBackendCall(val backend: JesBackend,
   val callGcsPath = backend.callGcsPath(workflowDescriptor, call.name, key.index)
   val callDir = GoogleCloudStoragePath(callGcsPath)
   val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/" + JesExecScript)
+  val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile
 
   val engineFunctions = new JesEngineFunctions(this)
 

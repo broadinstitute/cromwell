@@ -1016,6 +1016,18 @@ task mytask {
 
 Note that if the docker image to be used is public there is no need to add this configuration.
 
+### Monitoring
+
+In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
+
+```
+{
+  "monitoring_script": "gs://cromwell/monitoring/script.sh"
+}
+```
+
+The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.
+
 # Runtime Attributes
 
 Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.

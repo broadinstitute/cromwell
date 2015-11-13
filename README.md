@@ -1206,13 +1206,27 @@ call-caching {
 }
 ```
 
-If Call Caching is enabled in Cromwell but you want to disable the use of the cache when submitting a particular workflow, use workflow options:
+Workflow options can be used to tune cromwell's caching behaviour for a particular workflow:
 
 ```
 {
-  use-cache: false
+  "write-to-cache": false
 }
 ```
+
+If `write-to-cache` is set to false, the calls performed by this workflow will not be cached, therefore their output won't be used by subsequent identical calls.
+  
+```
+{
+  "read-from-cache": false
+}
+```
+
+If `read-from-cache` is set to false, cromwell will not try to use the cache when executing this workflow, therefore even if the same call has been run before, it will be run again. 
+
+**Note 1:** Those options defaults to `true` when not set.
+**Note 2:** Both of the options are only honored if Call Caching is enabled in Cromwell's configuration. **If Call Caching is turned off, those workflow options are ignored.**
+For instance with Call Caching **disabled**, setting `"read-from-cache": true` will **NOT** enable the cache for this workflow.
 
 # REST API
 

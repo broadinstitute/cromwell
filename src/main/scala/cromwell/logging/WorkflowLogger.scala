@@ -2,6 +2,7 @@ package cromwell.logging
 
 import akka.event.LoggingAdapter
 import cromwell.engine.WorkflowDescriptor
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.slf4j.Logger
 
 /**
@@ -38,6 +39,10 @@ case class WorkflowLogger(caller: String,
 
   private def format(msg: String): String = s"$tag: $msg"
 
+  private def format(msg: String, throwable: Throwable): String = {
+    format(msg) + ":\n" + ExceptionUtils.getStackTrace(throwable)
+  }
+
   def warn(msg: String): Unit = {
     workflowFileLogger.warn(format(msg))
     akkaLogger.foreach(_.warning(format(msg)))
@@ -46,7 +51,7 @@ case class WorkflowLogger(caller: String,
 
   def warn(msg: String, t: Throwable): Unit = {
     workflowFileLogger.warn(format(msg), t)
-    akkaLogger.foreach(_.warning(format(msg), t))
+    akkaLogger.foreach(_.warning(format(msg, t)))
     otherLoggers.foreach(_.warn(format(msg), t))
   }
 
@@ -58,7 +63,7 @@ case class WorkflowLogger(caller: String,
 
   def error(msg: String, t: Throwable): Unit = {
     workflowFileLogger.error(format(msg), t)
-    akkaLogger.foreach(_.error(format(msg), t))
+    akkaLogger.foreach(_.error(t, format(msg)))
     otherLoggers.foreach(_.error(format(msg), t))
   }
 
@@ -70,7 +75,7 @@ case class WorkflowLogger(caller: String,
 
   def debug(msg: String, t: Throwable): Unit = {
     workflowFileLogger.debug(format(msg), t)
-    akkaLogger.foreach(_.debug(format(msg), t))
+    akkaLogger.foreach(_.debug(format(msg, t)))
     otherLoggers.foreach(_.debug(format(msg), t))
   }
 
@@ -92,7 +97,7 @@ case class WorkflowLogger(caller: String,
 
   def info(msg: String, t: Throwable): Unit = {
     workflowFileLogger.info(format(msg), t)
-    akkaLogger.foreach(_.info(format(msg), t))
+    akkaLogger.foreach(_.info(format(msg, t)))
     otherLoggers.foreach(_.info(format(msg), t))
   }
 }

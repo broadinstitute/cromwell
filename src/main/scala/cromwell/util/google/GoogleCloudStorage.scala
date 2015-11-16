@@ -2,6 +2,7 @@ package cromwell.util.google
 
 import java.io._
 import java.math.BigInteger
+import java.util.UUID
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -11,9 +12,12 @@ import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
+import cromwell.binding.IOInterface
 import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object GoogleCloudStorage {
@@ -27,24 +31,59 @@ object GoogleCloudStorage {
 /**
  * Provides a connector which can provide access to Google Cloud Storage
  */
-case class GoogleCloudStorage(client: Storage) {
+case class GoogleCloudStorage(client: Storage) extends IOInterface {
+
+  import GoogleCloudStoragePath._
+
+  def readFile(path: String): String = {
+    new String(downloadObject(path), "UTF-8")
+  }
+
+  def exists(path: String): Boolean = {
+    val getObject = client.objects.get(path.bucket, path.objectName)
+    val polling = 500 milliseconds
+
+    def tryExists(retries: Int): Boolean = Try(getObject.execute) match {
+      case Success(_) => true
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 && retries > 0 =>
+        /* Could not use TryUtil here because it requires a WorkflowLogger, which we can't get form here
+         * TODO From a more general perspective we may need to add a logging capability to the IOInterface
+         */
+        Thread.sleep(polling.toMillis)
+        tryExists(retries - 1)
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 => false
+      case Failure(ex) => throw ex
+    }
+
+    tryExists(3)
+  }
+
+  def listContents(path: String): Iterable[String] = {
+    val listRequest = client.objects().list(path.bucket)
+    listRequest.setPrefix(path.objectName)
+
+    for {
+      listedFile <- listRequest.execute().getItems.asScala
+    } yield s"gs://${listedFile.getBucket}/${listedFile.getName}"
+  }
+
+  def writeFile(path: String, content: String): Unit = uploadObject(path, content)
+
+  def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
+    val fullPath = s"$path/$prefix${UUID.randomUUID()}$suffix"
+    writeFile(fullPath, content)
+    path
+  }
+
+  //TODO: improve to honor pattern ?
+  def glob(path: String, pattern: String): Seq[String] = listContents(path).toSeq
+
   def listBucket(bucketName: String): GcsBucketInfo = {
     val getBucket = client.buckets().get(bucketName)
     getBucket.setProjection("full")
     val bucket: Bucket = getBucket.execute()
 
     new GcsBucketInfo(bucketName, bucket.getLocation, bucket.getTimeCreated, bucket.getOwner)
-  }
-
-  def listContents(gcsPath: String): Iterable[String] = listContents(GoogleCloudStoragePath(gcsPath))
-
-  def listContents(gcsPath: GoogleCloudStoragePath): Iterable[String] = {
-    val listRequest = client.objects().list(gcsPath.bucket)
-    listRequest.setPrefix(gcsPath.objectName)
-
-    for {
-      listedFile <- listRequest.execute().getItems.asScala
-    } yield s"gs://${listedFile.getBucket}/${listedFile.getName}"
   }
 
   // See comment in uploadObject re small files. Here, define small as 2MB or lower:
@@ -91,19 +130,6 @@ case class GoogleCloudStorage(client: Storage) {
     getObject.executeMediaAndDownloadTo(outputStream)
 
     outputStream.toByteArray
-  }
-
-  def slurpFile(file: GoogleCloudStoragePath): String = {
-    new String(downloadObject(file), "UTF-8")
-  }
-
-  def exists(gcsPath: GoogleCloudStoragePath): Boolean = {
-    val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
-    Try(getObject.execute) match {
-      case Success(_) => true
-      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 => false
-      case Failure(ex) => throw ex
-    }
   }
 
   def objectSize(gcsPath: GoogleCloudStoragePath): BigInteger = {

@@ -1,7 +1,5 @@
 package cromwell.binding.expression
 
-import cromwell.binding.values.WdlValue
-
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
@@ -18,11 +16,9 @@ trait WdlFunctions[T] {
   }
 
   /**
-    * Given a WDL value that represents a file, return the contents
-    * of that file.  Not all WdlValues can be interpreted as files
-    * In which case this method should throw an exception
-    *
-    * @param value - WDL Value that represents a file
+    * Given a path to a file, return the contents
+    * of that file.
+    * @param path - path to the file
     * @return - Contents of the file
     * @throws UnsupportedOperationException if the WDL value can
     *         not be interpreted as a file

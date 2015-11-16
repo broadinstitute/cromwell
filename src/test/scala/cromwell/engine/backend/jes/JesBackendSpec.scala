@@ -7,7 +7,7 @@ import cromwell.binding.CallInputs
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlFile, WdlMap, WdlString}
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
+import cromwell.engine.backend.jes.JesBackend.{JesWorkflowDescriptor, JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
@@ -32,7 +32,8 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       googleSecrets = Some(SimpleClientSecrets("myclientId", "myclientSecret"))) {
       override val localizeWithRefreshToken = true
     }
-    override lazy val jesConnection = null
+    override lazy val jesCromwellConnection = null
+    override def jesUserConnection(backendCall: JesBackendCall) = null
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {

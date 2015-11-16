@@ -13,7 +13,7 @@ import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{ExecutionHandle, Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.backend.{JobKey, Backend, ExecutionResult, StdoutStderr}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import org.scalactic.StringNormalizations._
@@ -60,11 +60,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                           abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
       throw new NotImplementedError
 
-    override def engineFunctions: WdlStandardLibraryFunctions =
+    override def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions =
       throw new NotImplementedError
 
     override def backendType: BackendType =
       throw new NotImplementedError
+
+    override def ioInterface(workflowOptions: WorkflowOptions): IOInterface = throw new NotImplementedError
   }
 
   // Tests against main database used for command line

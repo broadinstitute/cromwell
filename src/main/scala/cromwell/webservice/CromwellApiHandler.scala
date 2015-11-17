@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
-import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor

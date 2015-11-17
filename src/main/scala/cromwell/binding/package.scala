@@ -30,5 +30,9 @@ package object binding {
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)
+    def scopeAndVariableName: (String, String) = {
+      val array = fqn.split("\\.(?=[^\\.]+$)")
+      (array(0), array(1))
+    }
   }
 }

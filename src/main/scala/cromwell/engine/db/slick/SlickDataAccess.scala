@@ -473,15 +473,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     )
   }
 
-  override def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]] = {
-    val Array(scope, varName) = fqn.split("\\.(?=[^\\.]+$)") // e.g. "a.b.c.d" => Seq("a.b.c", "d")
-    val action = dataAccess.symbolsByScopeAndName(workflowId.toString, scope, varName).result
-
-    val futureResults = runTransaction(action)
-
-    futureResults map toSymbolStoreEntries
-  }
-
   override def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.allSymbols(workflowId.toString).result
 

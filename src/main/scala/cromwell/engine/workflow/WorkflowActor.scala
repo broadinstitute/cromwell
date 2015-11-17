@@ -17,7 +17,7 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
-
+import cromwell.instrumentation.Instrumentation.Monitor
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -130,6 +130,8 @@ object WorkflowActor {
   def isDone(entry: ExecutionStoreEntry): Boolean = entry._2 == ExecutionStatus.Done
   def isShard(key: CallKey): Boolean = key.index.isDefined
 
+  val WorkflowCounter = Monitor.minMaxCounter("workflows-running")
+  val WorkflowDurationTimer = Monitor.histogram("workflow-duration")
   private val MarkdownMaxColumnChars = 100
 }
 
@@ -148,7 +150,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   val logger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
 
   startWith(WorkflowSubmitted, WorkflowData())
-
+  WorkflowCounter.increment()
+  val startTime = System.nanoTime()
   /**
    * Try to generate output for a collector call, by collecting outputs for all of its shards.
    * It's fail-fast on shard output retrieval
@@ -402,8 +405,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       resendDueToPendingExecutionWrites(message)
       stay()
     case Event(Terminate, data) if data.pendingExecutions.isEmpty && stateName.isTerminal =>
-      logger.debug(s"WorkflowActor is done, shutting down.")
-      context.stop(self)
+      shutDown()
       stay()
     case Event(Terminate, _) =>
       // Don't actually terminate as there are pending writes and/or this is not yet transitioned to a terminal state.
@@ -444,8 +446,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       logger.info(s"no inputs for call '${callKey.tag}'")
     }
 
+    val callActorName = s"CallActor-${workflow.id}-${callKey.tag}"
     val callActorProps = CallActor.props(callKey, locallyQualifiedInputs, backend, workflow)
-    val callActor = context.actorOf(callActorProps)
+    val callActor = context.actorOf(callActorProps, callActorName)
     callActor ! callActorMessage
     logger.info(s"created call actor for ${callKey.tag}.")
   }
@@ -870,5 +873,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       case rows if rows.isEmpty => None
       case rows => Option(TerminalUtil.mdTable(rows.toSeq, header))
     }
+  }
+
+
+  private def shutDown(): Unit = {
+    logger.debug(s"WorkflowActor is done, shutting down.")
+    WorkflowCounter.decrement()
+    WorkflowDurationTimer.record(System.nanoTime() - startTime)
+    context.stop(self)
   }
 }

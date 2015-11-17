@@ -4,3 +4,4 @@ target
 .artifactory
 cromwell-executions
 cromwell-test-executions
+native

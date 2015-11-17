@@ -92,8 +92,8 @@ object PerRequest {
     def unapply[T](requestComplete: RequestCompleteWithHeaders[T]) = Some((requestComplete.response, requestComplete.headers, requestComplete.marshaller))
   }
 
-  case class WithProps(r: RequestContext, props: Props, message: AnyRef, timeout: Duration) extends PerRequest {
-    lazy val target = context.actorOf(props)
+  case class WithProps(r: RequestContext, props: Props, message: AnyRef, timeout: Duration, name: String) extends PerRequest {
+    lazy val target = context.actorOf(props, name)
   }
 }
 
@@ -103,6 +103,18 @@ object PerRequest {
 trait PerRequestCreator {
   implicit def actorRefFactory: ActorRefFactory
 
-  def perRequest(r: RequestContext, props: Props, message: AnyRef, timeout: Duration = 1 minutes) =
-    actorRefFactory.actorOf(Props(new WithProps(r, props, message, timeout)))
+  def perRequest(r: RequestContext,
+                 props: Props, message: AnyRef,
+                 timeout: Duration = 1 minutes,
+                 name: String = PerRequestCreator.endpointActorName) = {
+    actorRefFactory.actorOf(Props(new WithProps(r, props, message, timeout, name)), name)
+  }
+}
+
+object PerRequestCreator {
+  /*
+    This is yucky. For lack of a better idea on how to name the individual endpoint actors I've shamelessly stolen
+    what Agora is doing. I believe the Monsanto library will clean this up but we're not using it yet
+   */
+  def endpointActorName = "Endpoint-" + java.lang.Thread.currentThread.getStackTrace()(1).getMethodName + System.nanoTime()
 }

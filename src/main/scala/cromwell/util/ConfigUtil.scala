@@ -34,11 +34,8 @@ object ConfigUtil {
       }
     }
 
-    def getStringOption(key: String): Option[String] = getOption(key, config.getString)
-
+    def getBooleanOption(key: String): Option[Boolean] = getOption(key, config.getBoolean)
     def getConfigOption(key: String): Option[Config] = getOption(key, config.getConfig)
-
-    def getObjectOption(key: String): Option[Object] = getOption(key, config.getObject)
 
     /**
      * For keys that are in the configuration but not in the reference keySet, log a warning.

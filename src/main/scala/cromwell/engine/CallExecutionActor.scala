@@ -2,6 +2,7 @@ package cromwell.engine
 
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine.backend._
 import cromwell.logging.WorkflowLogger
@@ -70,10 +71,14 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
   def withRetry(work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit): Unit = {
     work onComplete {
       case Success(s) => onSuccess(s)
+      case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 403 =>
+        logger.error(e.getMessage, e)
+        self ! Finish(FailedExecutionHandle(e))
       case Failure(e: Exception) =>
         logger.error(e.getMessage, e)
         scheduleWork(onFailure)
       case Failure(throwable) =>
+        // This is a catch-all for a JVM-ending kind of exception, which is why we throw the exception
         logger.error(throwable.getMessage, throwable)
         throw throwable
     }

@@ -34,7 +34,8 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
 
-  def possibleRoutes = workflowRoutes.wrapped("api", config.getBooleanOr("api.routeUnwrapped")) ~ swaggerUiResourceRoute
+  private val swaggerRoutes = traceName("swaggerResource") { swaggerResourceRoute } ~ traceName("swaggerUi") { swaggerUiRoute }
+  val possibleRoutes = workflowRoutes.wrapped("api", config.getBooleanOr("api.routeUnwrapped")) ~ swaggerRoutes
 
   def receive = runRoute(possibleRoutes)
 }

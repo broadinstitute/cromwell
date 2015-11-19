@@ -1,0 +1,54 @@
+{{with $environment := env "ENVIRONMENT"}}{{$keyname := printf "secret/dsde/%s/cromwell/cromwell.conf" $environment}}{{with vault $keyname}}
+
+include "application.conf"
+
+backend {
+  backend = "JES"
+
+  jes {
+    applicationName = "cromwell"
+    project = "{{.Data.jes_project}}"
+    baseExecutionBucket = "{{.Data.jes_base_execution_bucket}}"
+    endpointUrl = "{{.Data.jes_endpoint_url}}"
+    dockerhubCredentialsPath = "{{.Data.jes_dockerhub_credentials_path}}"
+    authenticationMode = "{{.Data.jes_authentication_mode}}"
+    maximumPollingInterval = 600
+  }
+}
+
+google {
+  authScheme = "{{.Data.google_auth_scheme}}"
+
+  serviceAuth {
+    p12File = "{{.Data.service_auth_p12_file}}"
+    serviceAccountId = "{{.Data.service_auth_service_acccount_id}}"
+  }
+}
+
+database {
+  config = {{.Data.database_config}}
+
+  main {
+    google-dev {
+      db.url = "{{.Data.db_url}}"
+      db.user = "{{.Data.db_user}}"
+      db.password = "{{.Data.db_password}}"
+      db.driver = "{{.Data.db_driver}}"
+      db.connectionTimeout = "{{.Data.db_connection_timeout}}"
+      driver = ""{{.Data.db_driver}}""
+    }
+  }
+}
+
+instrumentation {
+  use-kamon = {{.Data.instrumentation_use_kamon}}
+}
+
+kamon {
+   statsd {
+       hostname = "{{.Data.kamon_statsd_hostname}}"
+         simple-metric-key-generator {
+            hostname-override = "{{.Data.kamon_statsd_hostname_override}}"
+         }
+       }
+}

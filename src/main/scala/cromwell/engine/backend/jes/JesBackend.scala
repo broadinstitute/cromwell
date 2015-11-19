@@ -329,6 +329,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     val fileContent =
       s"""
          |#!/bin/bash
+         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$JesCromwellRoot/tmp
+         |export TMPDIR=$JesCromwellRoot/tmp
          |cd $JesCromwellRoot
          |$monitoring
          |$command

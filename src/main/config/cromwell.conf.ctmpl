@@ -21,21 +21,21 @@ google {
 
   serviceAuth {
     p12File = "{{.Data.service_auth_p12_file}}"
-    serviceAccountId = "{{.Data.service_auth_service_acccount_id}}"
+    serviceAccountId = "{{.Data.service_auth_service_account_id}}"
   }
 }
 
 database {
-  config = {{.Data.database_config}}
+  config = main.default
 
   main {
-    google-dev {
+    default {
       db.url = "{{.Data.db_url}}"
       db.user = "{{.Data.db_user}}"
       db.password = "{{.Data.db_password}}"
       db.driver = "{{.Data.db_driver}}"
       db.connectionTimeout = "{{.Data.db_connection_timeout}}"
-      driver = ""{{.Data.db_driver}}""
+      driver = "{{.Data.db_driver}}"
     }
   }
 }
@@ -52,3 +52,6 @@ kamon {
          }
        }
 }
+
+{{end}}
+{{end}}

@@ -20,7 +20,7 @@ case class SgeBackendCall(backend: SgeBackend,
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script.sh")
   val returnCode = callRootPath.resolve("rc")
-  val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr)
+  val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr, workflowDescriptor.IOInterface)
   callRootPath.toFile.mkdirs
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)

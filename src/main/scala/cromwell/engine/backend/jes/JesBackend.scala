@@ -11,7 +11,6 @@ import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import cromwell.binding.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
@@ -25,7 +24,7 @@ import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
 import cromwell.util.StringDigestion._
 import cromwell.util.TryUtil
-import cromwell.util.google.GoogleCloudStoragePath
+import cromwell.util.google.{GoogleCloudStorage, GoogleCloudStoragePath, GoogleCredentialFactory}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -52,7 +51,9 @@ object JesBackend {
   val RefreshTokenOptionKey = "refresh_token"
   val GcsRootOptionKey = "jes_gcs_root"
   val MonitoringScriptOptionKey = "monitoring_script"
-  val OptionKeys = Set(RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey)
+  val GoogleProjectOptionKey = "google_project"
+  val AuthFilePathOptionKey = "auth_bucket"
+  val OptionKeys = Set(RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey, AuthFilePathOptionKey)
 
   lazy val monitoringScriptLocalPath = localFilePathFromRelativePath(JesMonitoringScript)
   lazy val monitoringLogFileLocalPath = localFilePathFromRelativePath(JesMonitoringLogFile)
@@ -130,6 +131,8 @@ object JesBackend {
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
+
+  type IOInterface = GoogleCloudStorage
 }
 
 final case class JesJobKey(operationId: String) extends JobKey
@@ -151,15 +154,16 @@ case class JesPendingExecutionHandle(backendCall: JesBackendCall,
 class JesBackend extends Backend with LazyLogging with ProductionJesAuthentication with ProductionJesConfiguration {
 
   type BackendCall = JesBackendCall
+  type IOInterface = JesBackend.IOInterface
 
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues gcsPathToLocal
 
-  private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticated { connection =>
-    val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+  private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
     val log = workflowLogger(workflow)
 
     generateAuthJson(jesConf.dockerCredentials, getGcsAuthInformation(workflow)) foreach { content =>
+      val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
       def upload(prev: Option[Unit]) = connection.storage.uploadJson(path, content)
 
       log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
@@ -208,24 +212,31 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
    * First queries for the existence of the auth file, then deletes it if it exists.
    * If either of these operations fails, then a Future.failure is returned
    */
-  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = authenticated { connection =>
-    val gcsAuthFile = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
-    val log = workflowLogger(workflow)
-    def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = connection.storage.exists(gcsAuthFile)
-    def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = connection.storage.deleteObject(gcsAuthFile)
-    withRetry(gcsCheckAuthFileExists, log, s"Failed to query for auth file: $gcsAuthFile") match {
-      case Success(exists) if exists =>
-        withRetry(gcsAttemptToDeleteObject, log, s"Failed to delete auth file: $gcsAuthFile") match {
-          case Success(_) => Future.successful(Unit)
-          case Failure(ex) =>
-            log.error(s"Could not delete the auth file $gcsAuthFile", ex)
-            Future.failed(ex)
-        }
-      case Failure(ex) =>
-        log.error(s"Could not query for the existence of the auth file $gcsAuthFile", ex)
-        Future.failed(ex)
-      case _ => Future.successful(Unit)
+  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
+    Future(gcsAuthFilePath(workflow)) map { path =>
+      deleteAuthFile(path, workflowLogger(workflow))
+      ()
+    } recover {
+      case e: UnsatisfiedInputsException =>  // No need to fail here, it just means that we didn't have an auth file in the first place so no need to delete it.
     }
+  }
+
+  private def deleteAuthFile(authFilePath: String, log: WorkflowLogger): Future[Unit] = authenticateAsCromwell { connection =>
+      def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = connection.storage.exists(authFilePath)
+      def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = connection.storage.deleteObject(authFilePath)
+      withRetry(gcsCheckAuthFileExists, log, s"Failed to query for auth file: $authFilePath") match {
+        case Success(exists) if exists =>
+          withRetry(gcsAttemptToDeleteObject, log, s"Failed to delete auth file: $authFilePath") match {
+            case Success(_) => Future.successful(Unit)
+            case Failure(ex) =>
+              log.error(s"Could not delete the auth file $authFilePath", ex)
+              Future.failed(ex)
+          }
+        case Failure(ex) =>
+          log.error(s"Could not query for the existence of the auth file $authFilePath", ex)
+          Future.failed(ex)
+        case _ => Future.successful(Unit)
+      }
   }
 
   override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
@@ -239,7 +250,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     new JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def engineFunctions: WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext()
+  override def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext(interface)
 
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(backendCall)
@@ -319,7 +330,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
-  private def uploadCommandScript(backendCall: BackendCall, command: String, withMonitoring: Boolean): Try[Unit] = authenticated { implicit connection =>
+  private def uploadCommandScript(backendCall: BackendCall, command: String, withMonitoring: Boolean): Try[Unit] = {
     val monitoring = if (withMonitoring) {
       s"""|touch $JesMonitoringLogFile
           |chmod u+x $JesMonitoringScript
@@ -337,14 +348,14 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
          |echo $$? > ${JesBackendCall.RcFilename}
        """.stripMargin.trim
 
-    def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticated { _.storage.uploadObject(backendCall.gcsExecPath, fileContent) }
+    def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticateAsUser(backendCall) { _.uploadObject(backendCall.gcsExecPath, fileContent) }
 
     val log = workflowLogger(backendCall.workflowDescriptor)
     withRetry(attemptToUploadObject, log, s"${workflowLoggerWithCall(backendCall).tag} Exception occurred while uploading script to ${backendCall.gcsExecPath}")
   }
 
   private def createJesRun(backendCall: BackendCall, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] =
-    authenticated { connection =>
+    authenticateAsCromwell { connection =>
       def attemptToCreateJesRun(priorAttempt: Option[Run]): Run = Pipeline(
         backendCall.jesCommandLine,
         backendCall.workflowDescriptor,
@@ -404,7 +415,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
-  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionHandle = authenticated { connection =>
+  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionHandle = {
     val log = workflowLoggerWithCall(handle.backendCall)
 
     try {
@@ -429,7 +440,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         taskOutput.name -> attemptedValue
       } toMap
 
-      lazy val stderrLength: BigInteger = connection.storage.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs))
+      lazy val stderrLength: BigInteger = authenticateAsUser(backendCall) { _.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs)) }
       lazy val returnCodeContents = backendCall.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
@@ -573,8 +584,11 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   override def backendType = BackendType.JES
 
   def gcsAuthFilePath(descriptor: WorkflowDescriptor): String = {
-    val wfPath = workflowGcsPath(descriptor)
-    s"$wfPath/auth.json"
+    // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
+    val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse {
+      throw new UnsatisfiedInputsException(s"$AuthFilePathOptionKey has not been found in workflow options.")
+    }
+    s"$bucket/${descriptor.id}_auth.json"
   }
 
   def callGcsPath(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): String = {
@@ -589,17 +603,29 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   def googleProject(descriptor: WorkflowDescriptor): String = {
-    descriptor.workflowOptions.getOrElse("google_project", jesConf.project)
+    descriptor.workflowOptions.getOrElse(GoogleProjectOptionKey, jesConf.project)
   }
 
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if (jesConf.localizeWithRefreshToken || jesConf.isDockerAuthenticated)
+    if ((jesConf.localizeWithRefreshToken || jesConf.isDockerAuthenticated) && descriptor.workflowOptions.get(AuthFilePathOptionKey).isSuccess)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor)))
     else None
   }
 
   override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = {
     globalDataAccess.findResumableJesExecutions(id)
+  }
+
+  /**
+    * Will try to instantiate a user authenticated IOInterface if possible.
+    * If not, will default back to the Cromwell authenticated IOInterface.
+    */
+  override def ioInterface(workflowOptions: WorkflowOptions): GoogleCloudStorage = {
+    val userCredentials = for {
+      secrets <- jesConf.googleSecrets
+      token <- workflowOptions.get(RefreshTokenOptionKey).toOption
+    } yield GoogleCredentialFactory.forRefreshToken(secrets, token)
+    userCredentials map { GcsFactory(jesConf.applicationName, _) } getOrElse jesCromwellConnection.storage
   }
 }

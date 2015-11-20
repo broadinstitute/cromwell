@@ -7,8 +7,10 @@ import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets, GoogleCredential}
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
+import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
@@ -19,11 +21,15 @@ object GoogleCredentialFactory {
   private lazy val GoogleConf = ConfigFactory.load.getConfig("google")
   private lazy val GoogleAuthScheme = GoogleConf.getString("authScheme").toLowerCase
   private lazy val log = LoggerFactory.getLogger("GoogleCredentialFactory")
+  lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
 
-  lazy val from: (JsonFactory, HttpTransport) => Credential = GoogleAuthScheme match {
+  lazy val fromAuthScheme: Credential = GoogleAuthScheme match {
     case "user" => forUser(GoogleConf.getConfig("userAuth"))
     case "service" => forServiceAccount(GoogleConf.getConfig("serviceAuth"))
   }
+
+  lazy val forRefreshToken: (ClientSecrets, String) => Credential = forClientSecrets
 
   private def filePathToSecrets(secrets: String, jsonFactory: JsonFactory) = {
     val secretsPath = Paths.get(secrets)
@@ -35,7 +41,7 @@ object GoogleCredentialFactory {
     GoogleClientSecrets.load(jsonFactory, secretStream)
   }
 
-  private def forUser(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+  private def forUser(config: Config): Credential = {
     val user = config.getString("user")
     val clientSecrets = filePathToSecrets(config.getString("secretsFile"), jsonFactory)
     val dataStore = Paths.get(config.getString("dataStoreDir"))
@@ -47,7 +53,7 @@ object GoogleCredentialFactory {
     new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user)
   }
 
-  private def forServiceAccount(config: Config)(jsonFactory: JsonFactory, httpTransport: HttpTransport): Credential = {
+  private def forServiceAccount(config: Config): Credential = {
     new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setServiceAccountId(config.getString("serviceAccountId"))
@@ -55,5 +61,13 @@ object GoogleCredentialFactory {
       .setServiceAccountPrivateKeyFromP12File(new File(config.getString("p12File")))
     //  .setServiceAccountUser(GoogleUser) FIXME: Dig into how impersonation works and if we even care
       .build()
+  }
+
+  private def forClientSecrets(secrets: ClientSecrets, token: String): Credential = {
+    new GoogleCredential.Builder().setTransport(httpTransport)
+      .setJsonFactory(jsonFactory)
+      .setClientSecrets(secrets.clientId, secrets.clientSecret)
+      .build()
+      .setRefreshToken(token)
   }
 }

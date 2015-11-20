@@ -58,10 +58,10 @@ class JesBackendCall(val backend: JesBackend,
   lazy val rcJesOutput = jesOutput(callGcsPath, RcFilename)
   lazy val cmdInput = JesInput(ExecParamName, gcsExecPath.toString, localFilePathFromRelativePath(JesExecScript))
   lazy val diskInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, Paths.get(JesCromwellRoot))
-  
+
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
 
-  def downloadRcFile = authenticated { connection => GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(connection.storage.slurpFile) }
+  def downloadRcFile = authenticateAsUser(this) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
 
   /**
    * Determine the output directory for the files matching a particular glob.

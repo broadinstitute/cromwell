@@ -1,9 +1,9 @@
 package cromwell.engine.backend.jes
 
+import cromwell.binding.IOInterface
 import cromwell.binding.expression.WdlStandardLibraryFunctions
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType}
 import cromwell.binding.values._
-import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.util.google.GoogleCloudStoragePath
 
 import scala.language.postfixOps
@@ -19,18 +19,19 @@ object JesEngineFunctions {
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
-class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions with ProductionJesAuthentication {
+class JesEngineFunctionsWithoutCallContext(val interface: IOInterface) extends WdlStandardLibraryFunctions {
 
   import JesEngineFunctions._
 
   protected def readFromGcsUri(value: String): String = {
     // .get here because engine functions should throw exception if they fail.  Evaluator will catch it
-    authenticated { _.storage.slurpFile(GoogleCloudStoragePath.parse(value).get) }
+    interface.readFile(value)
   }
 
   /**
     * Read the entire contents of a file from the specified `WdlValue`.  the `WdlValue` must be
-    * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url
+    * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url OR
+    * a relative path in the call output directory in which the call's GCS path will be prepended
     *
     * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
     *                                       to be wrapped in a `Try`.
@@ -45,11 +46,11 @@ class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions w
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
-class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext {
+class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext(jesBackendCall.workflowDescriptor.IOInterface) {
 
   import JesEngineFunctions._
 
-  /**
+   /**
     * Read the entire contents of a file from the specified `WdlValue`.  the `WdlValue` must be
     * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url OR
     * a relative path in the call output directory in which the call's GCS path will be prepended
@@ -67,7 +68,7 @@ class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFuncti
   override protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
       singleArgument <- extractSingleArgument(params)
-      files = authenticated { _.storage.listContents(jesBackendCall.globOutputPath(singleArgument.valueString)) }
+      files = interface.listContents(jesBackendCall.globOutputPath(singleArgument.valueString))
       wdlFiles = files map { WdlFile(_, isGlob = false) }
     } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
   }

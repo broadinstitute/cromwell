@@ -44,6 +44,7 @@ trait JobKey
 trait Backend {
 
   type BackendCall <: backend.BackendCall
+  type IOInterface <: cromwell.binding.IOInterface
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
@@ -77,7 +78,12 @@ trait Backend {
   /**
    * Engine functions that don't need a Call context (e.g. read_lines(), read_float(), etc)
    */
-  def engineFunctions: WdlStandardLibraryFunctions
+  def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions
+
+  /**
+    * Interface to be used primarily by engine functions requiring IO capabilities.
+    */
+  def ioInterface(workflowOptions: WorkflowOptions): IOInterface
 
   /**
    * Do any work that needs to be done <b>before</b> attempting to restart a workflow.

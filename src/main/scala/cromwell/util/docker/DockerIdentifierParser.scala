@@ -21,6 +21,8 @@ object DockerIdentifierParser {
 
   /**
     * Tries the defined parsers in order.
+    * If all else fails assumes the string is just a Docker Hub library, with the "latest" tag.
+    *
     * @param identifier The identifier string.
     * @param parsers Remaining parsers to try.
     * @return The DockerIdentifier.
@@ -31,7 +33,7 @@ object DockerIdentifierParser {
       case Some(parser) =>
         val tryMatch = parser.matchIdentifier
         if (tryMatch.isDefinedAt(identifier)) tryMatch.apply(identifier) else parse(identifier, parsers.tail)
-      case None => throw new Error("Docker Hub Library Parser should have matched.")
+      case None => DockerHubLibraryParser.defaultIdentifier(identifier)
     }
   }
 }
@@ -68,7 +70,10 @@ object DockerHubParser extends DockerIdentifierParser {
   * Parses Docker Hub image strings for a library, such as "ubuntu".
   */
 object DockerHubLibraryParser extends DockerIdentifierParser {
-  private val hubLibraryLatest = """.*""".r
+
+  /** When all else fails, just look for the image at that name on DockerHub. */
+  def defaultIdentifier(image: String) = DockerTagIdentifier(s"library/$image", "latest", DockerRegistry.DockerHub)
+
   private val hubLibraryWithTag = """(.*):([^:]+)""".r
   private val hubLibraryWithDigest = """(.*)@([^@]+)""".r
 
@@ -77,8 +82,6 @@ object DockerHubLibraryParser extends DockerIdentifierParser {
       DockerDigestIdentifier(s"library/$image", digest, DockerRegistry.DockerHub)
     case hubLibraryWithTag(image, tag) =>
       DockerTagIdentifier(s"library/$image", tag, DockerRegistry.DockerHub)
-    case hubLibraryLatest(image) =>
-      DockerTagIdentifier(s"library/$image", "latest", DockerRegistry.DockerHub)
   }
 }
 
@@ -94,10 +97,10 @@ object GcrDockerParser extends DockerIdentifierParser {
 
   override def matchIdentifier = {
     case gcrWithDigest(host, project, image, digest) =>
-      DockerDigestIdentifier(s"$project/$image", digest, DockerRegistry(host))
+      DockerDigestIdentifier(s"$project/$image", digest, DockerRegistry(host, DockerLogin.GcrLoginOption))
     case gcrWithTag(host, project, image, tag) =>
-      DockerTagIdentifier(s"$project/$image", tag, DockerRegistry(host))
+      DockerTagIdentifier(s"$project/$image", tag, DockerRegistry(host, DockerLogin.GcrLoginOption))
     case gcrLatest(host, project, image) =>
-      DockerTagIdentifier(s"$project/$image", "latest", DockerRegistry(host))
+      DockerTagIdentifier(s"$project/$image", "latest", DockerRegistry(host, DockerLogin.GcrLoginOption))
   }
 }

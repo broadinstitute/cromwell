@@ -29,9 +29,9 @@ class SprayDockerRegistryApiClient()(implicit system: ActorSystem) extends Docke
     }
   }
 
-  override def getV1Token(taggedIdentifier: DockerTagIdentifier, optionalCredentials: Option[DockerLogin]) = {
+  override def getV1Token(taggedIdentifier: DockerTagIdentifier) = {
     val pipeline: HttpRequest => Future[HttpResponse] = {
-      addDockerLogin(optionalCredentials) ~>
+      addDockerLogin(taggedIdentifier.registry.login) ~>
         addHeader("X-Docker-Token", "true") ~>
         logSendReceive
     }
@@ -73,10 +73,9 @@ class SprayDockerRegistryApiClient()(implicit system: ActorSystem) extends Docke
   }
 
   override def getV2TokenResponse(taggedIdentifier: DockerTagIdentifier,
-                                  tokenRequest: DockerV2TokenRequest,
-                                  login: Option[DockerLogin]) = {
+                                  tokenRequest: DockerV2TokenRequest) = {
     val pipeline: HttpRequest => Future[DockerV2TokenResponse] =
-      addDockerLogin(login) ~>
+      addDockerLogin(taggedIdentifier.registry.login) ~>
         logSendReceive ~>
         unmarshal[DockerV2TokenResponse]
 

@@ -35,13 +35,13 @@ case class DockerDigestIdentifier(name: String, digest: String,
 case class DockerTagIdentifier(name: String, tag: String = "latest",
                                registry: DockerRegistry = DockerRegistry.DockerHub
                               ) extends DockerIdentifier {
-  private lazy val repositoryUri = s"https://${registry.v1Endpoint}/v1/repositories/$name"
+  private lazy val repositoryUri = s"https://${registry.v1Hostname}/v1/repositories/$name"
 
   lazy val imagesUri = s"$repositoryUri/images"
 
   lazy val tagsUri = s"$repositoryUri/tags/$tag"
 
-  lazy val manifestUri = s"https://${registry.v2Endpoint}/v2/$name/manifests/$tag"
+  lazy val manifestUri = s"https://${registry.v2Hostname}/v2/$name/manifests/$tag"
 
   def tokenRequestQueryMap(tokenRequest: DockerV2TokenRequest) = {
     val service = tokenRequest.service

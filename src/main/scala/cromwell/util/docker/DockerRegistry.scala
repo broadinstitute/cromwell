@@ -7,19 +7,21 @@ import lenthall.config.ScalaConfig._
   * A set of endpoints belonging to a registry.
   */
 object DockerRegistry {
-  def apply(endpoint: String): DockerRegistry = DockerRegistry(endpoint, endpoint)
+  def apply(host: String, login: Option[DockerLogin]): DockerRegistry = DockerRegistry(host, host, host, login)
 
   private val config = ConfigFactory.load()
 
   val DockerHub = DockerRegistry(
+    config.getStringOr("docker.hub.namespace", "docker.io"),
     config.getStringOr("docker.hub.v1Registry", "registry.hub.docker.com"),
-    config.getStringOr("docker.hub.v2Registry", "registry-1.docker.io"))
+    config.getStringOr("docker.hub.v2Registry", "registry-1.docker.io"),
+    None)
  }
 
 /**
   * A set of endpoints belonging to a registry.
   *
-  * @param v1Endpoint The host for contacting the V1 API.
-  * @param v2Endpoint The host for contact the V2 API.
+  * @param v1Hostname The host for contacting the V1 API.
+  * @param v2Hostname The host for contacting the V2 API.
   */
-case class DockerRegistry(v1Endpoint: String, v2Endpoint: String)
+case class DockerRegistry(namespace: String, v1Hostname: String, v2Hostname: String, login: Option[DockerLogin])

@@ -14,4 +14,5 @@ case class CallMetadata(inputs: Map[String, WdlValue],
                         returnCode: Option[Int],
                         shardIndex: Int,
                         stdout: Option[WdlFile],
-                        stderr: Option[WdlFile])
+                        stderr: Option[WdlFile],
+                        backendLogs: Option[Map[String, WdlFile]])

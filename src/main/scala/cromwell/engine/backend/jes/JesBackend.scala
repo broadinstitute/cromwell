@@ -239,7 +239,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
       }
   }
 
-  override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
+  override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs = {
     JesBackendCall.stdoutStderr(callGcsPath(descriptor, callName, index))
   }
 

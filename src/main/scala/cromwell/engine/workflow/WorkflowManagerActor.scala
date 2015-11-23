@@ -10,7 +10,7 @@ import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallMetadata, CallLogs}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
@@ -173,8 +173,8 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       } yield callStandardOutput
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[CallLogs]]] = {
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[CallLogs]]] = {
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {

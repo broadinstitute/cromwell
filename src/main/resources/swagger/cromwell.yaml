@@ -390,7 +390,12 @@ paths:
                     },
                     "returnCode": 0,
                     "backend": "Local",
-                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/stderr"
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/stderr",
+                    "backendLogs": {
+                      "log": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/jes.log",
+                      "stdout": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/jes-stdout.log",
+                      "stderr": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_prepare/jes-stderr.log"
+                    }
                   }],
                   "sc_test.do_scatter": [{
                     "executionStatus": "Done",
@@ -403,7 +408,12 @@ paths:
                     },
                     "returnCode": 0,
                     "backend": "Local",
-                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/stderr"
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/stderr",
+                    "backendLogs": {
+                      "log": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-sc_test/shard-0/jes.log",
+                      "stdout": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/jes-stdout.log",
+                      "stderr": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-0/jes-stderr.log"
+                    }
                   }, {
                     "executionStatus": "Done",
                     "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stdout",
@@ -415,7 +425,12 @@ paths:
                     },
                     "returnCode": 0,
                     "backend": "Local",
-                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stderr"
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/stderr",
+                    "backendLogs": {
+                      "log": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-sc_test/shard-1/jes.log",
+                      "stdout": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-1/jes-stdout.log",
+                      "stderr": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/jes-stderr.log"
+                    }
                   }, {
                     "executionStatus": "Done",
                     "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stdout",
@@ -427,7 +442,12 @@ paths:
                     },
                     "returnCode": 0,
                     "backend": "Local",
-                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stderr"
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/stderr",
+                    "backendLogs": {
+                      "log": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-sc_test/shard-2/jes.log",
+                      "stdout": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/jes-stdout.log",
+                      "stderr": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-2/jes-stderr.log"
+                    }
                   }, {
                     "executionStatus": "Done",
                     "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stdout",
@@ -439,7 +459,12 @@ paths:
                     },
                     "returnCode": 0,
                     "backend": "Local",
-                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stderr"
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/stderr",
+                    "backendLogs": {
+                      "log": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-sc_test/shard-3/jes.log",
+                      "stdout": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/jes-stdout.log",
+                      "stderr": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_scatter/shard-3/jes-stderr.log"
+                    }
                   }],
                   "sc_test.do_gather": [{
                     "executionStatus": "Done",
@@ -452,7 +477,12 @@ paths:
                     },
                     "returnCode": 0,
                     "backend": "Local",
-                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/stderr"
+                    "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/stderr",
+                    "backendLogs": {
+                      "log": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/jes.log",
+                      "stdout": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/jes-stdout.log",
+                      "stderr": "gs://cromwell-dev/cromwell-executions/sc_test/6efd83b7-39df-47d7-bb2d-96ebb9f093a2/call-do_gather/jes-stderr.log"
+                    }
                   }]
                 },
                 "outputs": {
@@ -604,6 +634,9 @@ definitions:
       stderr:
         type: string
         description: Path to the standard error file for this call
+      backendLogs:
+        type: object
+        description: Paths to backend specific logs for this call
   WorkflowQueryResponse:
     description: Response to a workflow query
     required:

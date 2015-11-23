@@ -7,7 +7,7 @@ import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
 import cromwell.engine._
-import cromwell.engine.backend.{WorkflowQueryResult, StdoutStderr}
+import cromwell.engine.backend.{WorkflowQueryResult, CallLogs}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
@@ -98,12 +98,12 @@ class MockWorkflowManagerActor extends Actor  {
         id match {
           case MockWorkflowManagerActor.submittedWorkflowId =>
             callFqn match {
-              case "three_step.cgrep" => Seq(StdoutStderr(WdlFile("/path/to/cgrep-stdout"), WdlFile("/path/to/cgrep-stderr")))
-              case "three_step.ps" => Seq(StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr")))
-              case "three_step.wc" => Seq(StdoutStderr(WdlFile("/path/to/wc-stdout"), WdlFile("/path/to/wc-stderr")))
+              case "three_step.cgrep" => Seq(CallLogs(WdlFile("/path/to/cgrep-stdout"), WdlFile("/path/to/cgrep-stderr")))
+              case "three_step.ps" => Seq(CallLogs(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr")))
+              case "three_step.wc" => Seq(CallLogs(WdlFile("/path/to/wc-stdout"), WdlFile("/path/to/wc-stderr")))
               case "scatterwf.inside-scatter" =>
-                Seq(StdoutStderr(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
-                    StdoutStderr(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr")))
+                Seq(CallLogs(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
+                    CallLogs(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr")))
               case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
             }
           case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
@@ -116,11 +116,11 @@ class MockWorkflowManagerActor extends Actor  {
       Future {
         id match {
           case MockWorkflowManagerActor.submittedWorkflowId =>
-            Map("three_step.ps" -> Seq(StdoutStderr(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr"))))
+            Map("three_step.ps" -> Seq(CallLogs(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr"))))
           case MockWorkflowManagerActor.submittedScatterWorkflowId =>
             Map("scatterwf.inside-scatter" ->
-              Seq(StdoutStderr(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
-                  StdoutStderr(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr"))))
+              Seq(CallLogs(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
+                  CallLogs(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr"))))
           case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
         }
       }

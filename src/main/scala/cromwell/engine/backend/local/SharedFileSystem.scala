@@ -10,7 +10,7 @@ import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
+import cromwell.engine.backend.{LocalFileSystemBackendCall, CallLogs}
 import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
@@ -129,9 +129,9 @@ trait SharedFileSystem {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs = {
     val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.name, descriptor.id, callName, index)
-    StdoutStderr(
+    CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
     )

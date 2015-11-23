@@ -93,7 +93,7 @@ trait Backend {
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
 
   def backendType: BackendType
 

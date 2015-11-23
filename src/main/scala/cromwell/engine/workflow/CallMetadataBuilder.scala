@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.SymbolStoreEntry
-import cromwell.engine.backend.{CallMetadata, StdoutStderr}
+import cromwell.engine.backend.{CallMetadata, CallLogs}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import org.joda.time.DateTime
@@ -22,7 +22,7 @@ object CallMetadataBuilder {
                                            execution: Execution,
                                            inputs: Traversable[SymbolStoreEntry] = Seq.empty,
                                            outputs: Option[Traversable[SymbolStoreEntry]] = None,
-                                           streams: Option[StdoutStderr] = None,
+                                           streams: Option[CallLogs] = None,
                                            backend: Option[String] = None,
                                            jobId: Option[String] = None,
                                            backendStatus: Option[String] = None)
@@ -110,7 +110,7 @@ object CallMetadataBuilder {
   /**
    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
    */
-  private def buildStreamsTransformer(standardStreamsMap: Map[FullyQualifiedName, Seq[StdoutStderr]]): ExecutionMapTransformer =
+  private def buildStreamsTransformer(standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]]): ExecutionMapTransformer =
     executionMap => {
       val databaseKeysWithNoneIndexes = executionMap.keys groupBy { _.fqn } filter {
         case (fqn, edks) => edks.size == 1 && edks.head.index.isEmpty
@@ -143,7 +143,7 @@ object CallMetadataBuilder {
    *  for the specified parameters.
    */
   def build(executions: Traversable[Execution],
-            standardStreamsMap: Map[FullyQualifiedName, Seq[StdoutStderr]],
+            standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]],
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
             jobMap: Map[ExecutionDatabaseKey, Any]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
@@ -184,7 +184,8 @@ object CallMetadataBuilder {
         returnCode = metadata.execution.rc,
         shardIndex = metadata.execution.index,
         stdout = metadata.streams map { _.stdout },
-        stderr = metadata.streams map { _.stderr })
+        stderr = metadata.streams map { _.stderr },
+        backendLogs = metadata.streams flatMap { _.backendLogs })
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index.

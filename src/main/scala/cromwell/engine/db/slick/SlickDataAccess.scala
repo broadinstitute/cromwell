@@ -13,13 +13,16 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{WorkflowQueryResult, Backend}
 import cromwell.engine.backend.jes.{JesBackend, JesJobKey}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import cromwell.webservice.CromwellApiHandler.WorkflowQuery
+import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
+import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.Duration
@@ -191,6 +194,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowExecutionInsert <- dataAccess.workflowExecutionsAutoInc +=
         new WorkflowExecution(
           workflowDescriptor.id.toString,
+          workflowDescriptor.name,
           WorkflowSubmitted.toString,
           new Date().toTimestamp)
 
@@ -674,5 +678,19 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     } yield resumableKeyPairs
 
     runTransaction(action) map { _.toMap }
+  }
+
+  override def queryWorkflows(queryParameters: WorkflowQueryParameters): Future[WorkflowQueryResponse] = {
+    val action = dataAccess.queryWorkflowExecutions(queryParameters).result
+    runTransaction(action) map { workflows =>
+      WorkflowQueryResponse(workflows map { workflow =>
+        WorkflowQueryResult(
+          id = workflow.workflowExecutionUuid,
+          name = workflow.name,
+          status = workflow.status,
+          start = new DateTime(workflow.startDt),
+          end = workflow.endDt map { new DateTime(_) })
+      })
+    }
   }
 }

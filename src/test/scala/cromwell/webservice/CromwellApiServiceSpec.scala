@@ -7,14 +7,15 @@ import akka.pattern.pipe
 import cromwell.binding._
 import cromwell.binding.values.{WdlFile, WdlInteger}
 import cromwell.engine._
-import cromwell.engine.backend.StdoutStderr
+import cromwell.engine.backend.{WorkflowQueryResult, StdoutStderr}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
+import org.joda.time.DateTime
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.yaml.snakeyaml.Yaml
-import spray.http._
+import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import spray.testkit.ScalatestRouteTest
@@ -124,6 +125,27 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureOutputs pipeTo sender
+
+    case WorkflowQuery(rawParameters) =>
+      val futureResult = Future {
+        val head = rawParameters.head
+        head match {
+          case ("BadKey", _) =>
+            // The exception text is rendered as the body, so there must be exception text or Spray will 500 (!)
+            throw new IllegalArgumentException("aw snap")
+          case ("status", _) =>
+            WorkflowQueryResponse(
+              Seq(
+                WorkflowQueryResult(
+                  id = UUID.randomUUID().toString,
+                  name = "w",
+                  status = "Succeeded",
+                  start = new DateTime("2015-11-01T12:12:11"),
+                  end = Option(new DateTime("2015-11-01T12:12:12")))
+              ))
+        }
+      }
+      futureResult pipeTo sender
   }
 }
 
@@ -191,7 +213,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}") ~>
-      sealRoute(queryRoute) ~>
+      sealRoute(statusRoute) ~>
       check {
         assertResult(StatusCodes.NotFound) {
           status
@@ -201,7 +223,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return 400 for get of a malformed workflow id" in {
     Get(s"/workflows/$version/foobar/status") ~>
-      queryRoute ~>
+      statusRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {
           status
@@ -211,7 +233,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return 200 for get of a known workflow id" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/status") ~>
-      queryRoute ~>
+      statusRoute ~>
       check {
         assertResult(StatusCodes.OK) {
           status
@@ -620,6 +642,28 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           responseAs[String].substring(0, 6)
         }
       }
+  }
 
+  "Cromwell query API" should "return 400 for a bad query" in {
+    Get(s"/workflows/$version/query?BadKey=foo") ~>
+    queryRoute ~>
+    check {
+      assertResult(StatusCodes.BadRequest) {
+        status
+      }
+    }
+  }
+
+  "Cromwell query API" should "return good results for a good query" in {
+    Get(s"/workflows/$version/query?status=Succeeded") ~>
+      queryRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
   }
 }

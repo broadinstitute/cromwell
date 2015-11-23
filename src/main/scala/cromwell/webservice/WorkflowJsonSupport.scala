@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import cromwell.binding.values.WdlFileJsonFormatter._
 import cromwell.binding.values.WdlValueJsonFormatter._
-import cromwell.engine.backend.{CallMetadata, StdoutStderr}
+import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, StdoutStderr}
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
@@ -29,5 +29,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   }
   implicit val callMetadataProtocol = jsonFormat12(CallMetadata)
   implicit val workflowMetadataResponse = jsonFormat8(WorkflowMetadataResponse)
+  implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
+  implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
 }
 

@@ -7,6 +7,8 @@ import cromwell.engine.backend.{JobKey, Backend}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
+import cromwell.webservice.CromwellApiHandler.WorkflowQuery
+import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
 
 import scala.concurrent.Future
 
@@ -95,4 +97,6 @@ trait DataAccess {
   def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit]
 
   def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JobKey]]
+
+  def queryWorkflows(queryParameters: WorkflowQueryParameters): Future[WorkflowQueryResponse]
 }

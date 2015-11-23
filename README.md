@@ -49,6 +49,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
+  * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
@@ -1414,6 +1415,67 @@ Server: spray-can/1.3.3
 {
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
     "status": "Succeeded"
+}
+```
+
+## GET /api/workflows/:version/query
+
+This endpoint allows for querying workflows based on the following criteria:
+<ul>
+  <li>`name`</li>
+  <li>`status`</li>
+  <li>`start` (start datetime)</li>
+  <li>`end` (end datetime)</li>
+</ul>
+  
+Names and statuses can be given multiple times to include workflows with any of the specified names or statuses.
+Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
+be in [ISO8601 datetime](http://www.w3.org/TR/NOTE-datetime) format and `start` cannot be after `end`.
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 133
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+  "results": [
+    {
+      "name": "w",
+      "id": "fdfa8482-e870-4528-b639-73514b0469b2",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:52.000-05:00",
+      "start": "2015-11-01T07:38:57.000-05:00"
+    },
+    {
+      "name": "hello",
+      "id": "e69895b1-42ed-40e1-b42d-888532c49a0f",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:30.000-05:00",
+      "start": "2015-11-01T07:38:58.000-05:00"
+    },
+    {
+      "name": "crasher",
+      "id": "ed44cce4-d21b-4c42-b76d-9d145e4d3607",
+      "status": "Failed",
+      "end": "2015-11-01T07:45:44.000-05:00",
+      "start": "2015-11-01T07:38:59.000-05:00"
+    }
+  ]
 }
 ```
 

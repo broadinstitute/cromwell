@@ -21,4 +21,5 @@
     <include file="changesets/optional_sge_ids.xml" relativeToChangelogFile="true" />
     <include file="changesets/add_start_end_time_in_execution.xml" relativeToChangelogFile="true" />
     <include file="changesets/rename_jes_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_workflow_name.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

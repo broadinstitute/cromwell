@@ -28,15 +28,14 @@ object CromwellApiHandler {
 
   sealed trait WorkflowManagerMessage
 
-  case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
-
-  case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
-  case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
-  case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
-  case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
-  case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
-  case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
-
+  final case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
+  final case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerMessage
+  final case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
+  final case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
+  final case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
+  final case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
+  final case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
+  final case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
@@ -58,6 +57,20 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Some(workflowState) =>
           context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, workflowState.toString))
       }
+
+    case WorkflowQuery(parameters) =>
+      val futureQuery = ask(workflowManager, WorkflowManagerActor.WorkflowQuery(parameters)).mapTo[WorkflowQueryResponse]
+      futureQuery onComplete {
+        case Success(response) => context.parent ! RequestComplete(StatusCodes.OK, response)
+        case Failure(ex) =>
+          ex match {
+            case _: IllegalArgumentException =>
+              context.parent ! RequestComplete(StatusCodes.BadRequest, ex.getMessage)
+            case _ =>
+              context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+          }
+      }
+
     case WorkflowAbort(id) =>
       val futureStatus = queryWorkflowManager(WorkflowManagerActor.WorkflowStatus(id))
       futureStatus onSuccess {

@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.engine.workflow.{ValidateActor, WorkflowOptions}
 import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
+import cromwell.webservice.CromwellApiHandler.WorkflowQuery
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._
@@ -41,12 +42,14 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
+  import CromwellApiServiceActor._
+  
   val workflowManager: ActorRef
 
-  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute
+  val workflowRoutes = statusRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
+    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute ~ queryRoute
 
-  def queryRoute =
+  def statusRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>
       traceName("status") {
         get {
@@ -55,6 +58,18 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
               requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(workflowId))
             case Failure(ex) =>
               complete(StatusCodes.BadRequest)
+          }
+        }
+      }
+    }
+
+  def queryRoute =
+    path("workflows" / Segment / "query") { version =>
+      parameterSeq { parameters =>
+        traceName("query") {
+          get {
+            requestContext =>
+              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowQuery(parameters))
           }
         }
       }

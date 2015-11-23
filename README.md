@@ -91,29 +91,33 @@ Tests are run via `sbt test`.  Note that the tests do require Docker to be runni
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
 
-Note that this may not be completely up to date or even useful at this time.
-
 # Scala API Usage
 
 The main entry point into the parser is the `WdlNamespace` object.  A WDL file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
 ```scala
 import java.io.File
-import cromwell.binding.WdlNamespace
+import cromwell.parser.BackendType
+import cromwell.binding.NamespaceWithWorkflow
 
 object main {
   def main(args: Array[String]) {
-    val ns = WdlNamespace.load(new File(args(0)))
-    val ns2 = WdlNamespace.load("workflow wf {}")
-    ns.workflows foreach {wf =>
-      println(s"Workflow: ${wf.name}")
-      wf.calls foreach {call =>
-        println(s"Call: ${call.name}")
-      }
+    val ns = NamespaceWithWorkflow.load("""
+    |task a {
+    |  command { ps }
+    |}
+    |workflow wf {
+    | call a
+    |}""".stripMargin, BackendType.LOCAL)
+
+    println(s"Workflow: ${ns.workflow.name}")
+    ns.workflow.calls foreach {call =>
+      println(s"Call: ${call.name}")
     }
+
     ns.tasks foreach {task =>
       println(s"Task: ${task.name}")
-      println(s"Command: ${task.command}")
+      println(s"Command: ${task.commandTemplate}")
     }
   }
 }
@@ -123,8 +127,8 @@ To access only the parser, use the `AstTools` library, as follows:
 
 ```scala
 import java.io.File
-import cromwell.parser.AstTools
-import cromwell.parser.AstTools.EnhancedAstNode
+import cromwell.binding.AstTools
+import cromwell.binding.AstTools.EnhancedAstNode
 
 object main {
   def main(args: Array[String]) {

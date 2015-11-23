@@ -2,11 +2,29 @@ package cromwell.util.docker
 
 import scala.annotation.tailrec
 
+/**
+  * Parses a String into a DockerIdentifier.
+  */
 object DockerIdentifierParser {
+  /**
+    * Parses a String into a DockerIdentifier.
+    *
+    * Currently only images from Docker Hub and gcr.io are supported.
+    *
+    * @param identifier The identifier string.
+    * @return The DockerIdentifier.
+    */
   def parse(identifier: String): DockerIdentifier = parse(identifier, parsers)
 
+  /** The list of supported parsers. */
   private val parsers = Seq(GcrDockerParser, DockerHubParser, DockerHubLibraryParser)
 
+  /**
+    * Tries the defined parsers in order.
+    * @param identifier The identifier string.
+    * @param parsers Remaining parsers to try.
+    * @return The DockerIdentifier.
+    */
   @tailrec
   private def parse(identifier: String, parsers: Seq[DockerIdentifierParser]): DockerIdentifier = {
     parsers.headOption match {
@@ -18,10 +36,19 @@ object DockerIdentifierParser {
   }
 }
 
+/**
+  * Parses a String into a DockerIdentifier.
+  */
 sealed trait DockerIdentifierParser {
+  /**
+    * @return A function that can possibly parse a String into a DockerIdentifier.
+    */
   def matchIdentifier: PartialFunction[String, DockerIdentifier]
 }
 
+/**
+  * Parses Docker Hub image strings that include a team/user.
+  */
 object DockerHubParser extends DockerIdentifierParser {
   private val hubLatest = """([^/]+)/(.*)""".r
   private val hubWithTag = """([^/]+)/(.*):([^:]+)""".r
@@ -37,6 +64,9 @@ object DockerHubParser extends DockerIdentifierParser {
   }
 }
 
+/**
+  * Parses Docker Hub image strings for a library, such as "ubuntu".
+  */
 object DockerHubLibraryParser extends DockerIdentifierParser {
   private val hubLibraryLatest = """.*""".r
   private val hubLibraryWithTag = """(.*):([^:]+)""".r
@@ -52,6 +82,11 @@ object DockerHubLibraryParser extends DockerIdentifierParser {
   }
 }
 
+/**
+  * Parses an image hosted on *.gcr.io.
+  *
+  * TODO: Shouldn't we be able to handle any host name?
+  */
 object GcrDockerParser extends DockerIdentifierParser {
   private val gcrLatest = """(.*\.?gcr.io)/(.*)/(.*)""".r
   private val gcrWithTag = """(.*\.?gcr.io)/(.*)/(.*):([^:]+)""".r

@@ -1,15 +1,37 @@
 package cromwell.util.docker
 
+/**
+  * A user specification of a docker identifier.
+  */
 sealed trait DockerIdentifier {
+  /**
+    * The name of the docker image, including the user/project.
+    * Ex:
+    * - library/ubuntu
+    * - broadinstitute/scala-base-image
+    * - broad-dsde-dev/cromwell
+    * - broad-dsde-dev/ubuntu
+    */
   def name: String
 
+  /** The registry where this image is located. */
   def registry: DockerRegistry
 }
 
+/**
+  * A user specified image with a digest identifier. NOTE: The digest includes the image type.
+  * Ex: broadinstitute/scala-baseimage@sha256:265feb82d1a9fc8593bb1f2605a63cb0e30ad9ac8d1e74d8ed9113bb129c1885
+  */
 case class DockerDigestIdentifier(name: String, digest: String,
                                   registry: DockerRegistry = DockerRegistry.DockerHub
                                  ) extends DockerIdentifier
 
+/**
+  * A user specified image with a tag, defaulting to "latest". The tags may be adjusted to different image versions.
+  * Ex:
+  * - library/ubuntu:latest
+  * - broad-dsde-dev/cromwell:dev
+  */
 case class DockerTagIdentifier(name: String, tag: String = "latest",
                                registry: DockerRegistry = DockerRegistry.DockerHub
                               ) extends DockerIdentifier {

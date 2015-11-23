@@ -35,7 +35,7 @@ database {
       db.password = "{{.Data.db_password}}"
       db.driver = "{{.Data.db_driver}}"
       db.connectionTimeout = "{{.Data.db_connection_timeout}}"
-      driver = "{{.Data.db_driver}}"
+      driver = "{{.Data.driver}}"
     }
   }
 }

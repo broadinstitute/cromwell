@@ -7,7 +7,7 @@ import cromwell.binding.CallInputs
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlFile, WdlMap, WdlString}
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
+import cromwell.engine.backend.jes.JesBackend.{JesWorkflowDescriptor, JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
@@ -32,7 +32,8 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       googleSecrets = Some(SimpleClientSecrets("myclientId", "myclientSecret"))) {
       override val localizeWithRefreshToken = true
     }
-    override lazy val jesConnection = null
+    override lazy val jesCromwellConnection = null
+    override def jesUserConnection(backendCall: JesBackendCall) = null
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
@@ -192,5 +193,17 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
 
     wd.workflowOptions returns WorkflowOptions.fromJsonString("""{}""").get
     jesBackend.monitoringIO(backendCall) shouldBe None
+  }
+
+  "JesBackendCall" should "return Jes log paths" in {
+    val stdoutstderr = JesBackendCall.stdoutStderr("gs://path/to/call")
+    stdoutstderr.backendLogs shouldBe defined
+    val logsMap = stdoutstderr.backendLogs.get
+    logsMap should contain key "log"
+    logsMap("log") shouldBe WdlFile("gs://path/to/call/jes.log")
+    logsMap should contain key "stdout"
+    logsMap("stdout") shouldBe WdlFile("gs://path/to/call/jes-stdout.log")
+    logsMap should contain key "stderr"
+    logsMap("stderr") shouldBe WdlFile("gs://path/to/call/jes-stderr.log")
   }
 }

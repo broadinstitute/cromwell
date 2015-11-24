@@ -1,11 +1,11 @@
 package cromwell
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.{Path, Paths}
 import java.util.UUID
 
-import ch.qos.logback.classic.{LoggerContext, Level}
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
@@ -13,8 +13,8 @@ import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.Backend
 import cromwell.engine.workflow.WorkflowOptions
-import org.slf4j.{LoggerFactory, Logger}
 import org.slf4j.helpers.NOPLogger
+import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
 
 import scala.language.implicitConversions
@@ -63,9 +63,11 @@ package object engine {
       case _ => throw new Throwable(s"Workflow ${id.toString} contains bad inputs JSON: ${sourceFiles.inputsJson}")
     }
 
+    val IOInterface = backend.ioInterface(workflowOptions)
+
     // Currently we are throwing an exception if construction of the workflow descriptor fails, hence .get on the Trys
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
-    val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions).get
+    val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions(IOInterface)).get
     val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
 
     val props = sys.props

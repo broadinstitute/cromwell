@@ -1,8 +1,9 @@
 package cromwell.engine.backend.local
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Path
 
 import better.files._
+import cromwell.binding.IOInterface
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.WdlArrayType._
 import cromwell.binding.types._
@@ -11,11 +12,11 @@ import cromwell.binding.values._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-class LocalEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions {
-  override def fileContentsToString(path: String): String = Paths.get(path).contentAsString
+class LocalEngineFunctionsWithoutCallContext(interface: IOInterface) extends WdlStandardLibraryFunctions {
+  override def fileContentsToString(path: String): String = interface.readFile(path)
 }
 
-class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalEngineFunctionsWithoutCallContext {
+class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path, interface: IOInterface) extends LocalEngineFunctionsWithoutCallContext(interface) {
 
   /**
    * Read the entire contents of a file from the specified `WdlValue`, where the file can be
@@ -25,7 +26,7 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
    *                                       to be wrapped in a `Try`.
    */
-  override def fileContentsToString(path: String): String = cwd.resolve(path).contentAsString
+  override def fileContentsToString(path: String): String = interface.readFile(cwd.resolve(path).toString)
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
     if (params.nonEmpty) {
@@ -88,10 +89,10 @@ class LocalEngineFunctions(cwd: Path, stdout: Path, stderr: Path) extends LocalE
   }
 
   private def filesMatchingGlob(glob: String): Try[Seq[WdlValue]] = Try {
-    ("." / cwd.toString).glob(s"**/$glob") map { file => WdlFile(file.path.fullPath) } toSeq
+    interface.glob(("." / cwd.toString).fullPath, s"**/$glob") map { WdlFile(_) }
   }
 
   protected def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    Try(WdlFile(Files.createTempFile(cwd, "array.", ".tmp").write(content).fullPath))
+    Try(WdlFile(interface.writeTempFile(cwd.toString, s"$baseName.", ".tmp", content)))
   }
 }

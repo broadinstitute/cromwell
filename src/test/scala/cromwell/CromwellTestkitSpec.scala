@@ -12,7 +12,7 @@ import cromwell.binding._
 import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
-import cromwell.engine.backend.StdoutStderr
+import cromwell.engine.backend.CallLogs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.util.SampleWdl
@@ -229,7 +229,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[Seq[StdoutStderr]], timeoutDuration)
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[Seq[CallLogs]], timeoutDuration)
         stdout foreach { souts =>
           souts shouldEqual (standardStreams map { s => File(s.stdout.value).contentAsString })
         }
@@ -251,7 +251,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, terminalState)
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.WorkflowStdoutStderr(workflowId)).mapTo[Map[FullyQualifiedName, Seq[StdoutStderr]]], timeoutDuration)
+        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.WorkflowStdoutStderr(workflowId)).mapTo[Map[FullyQualifiedName, Seq[CallLogs]]], timeoutDuration)
 
         stdout foreach {
           case(fqn, out) if standardStreams.contains(fqn) =>

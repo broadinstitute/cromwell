@@ -10,12 +10,12 @@ import cromwell.binding.values.{WdlArray, WdlString}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.backend.{ExecutionHandle, Backend, ExecutionResult, StdoutStderr}
-import cromwell.engine.backend.{JobKey, Backend, ExecutionResult, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
+import cromwell.webservice.{WorkflowQueryKey, WorkflowQueryParameters}
 import org.scalactic.StringNormalizations._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -34,7 +34,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
   lazy val localBackend = new LocalBackend
 
-	val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
+  val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
+
+  val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
   object UnknownBackend extends Backend {
     type BackendCall = LocalBackendCall
@@ -45,7 +47,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs =
       throw new NotImplementedError
 
-    override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr =
+    override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs =
       throw new NotImplementedError
 
     override def initializeForWorkflow(workflow: WorkflowDescriptor) =
@@ -60,11 +62,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                           abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
       throw new NotImplementedError
 
-    override def engineFunctions: WdlStandardLibraryFunctions =
+    override def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions =
       throw new NotImplementedError
 
     override def backendType: BackendType =
       throw new NotImplementedError
+
+    override def ioInterface(workflowOptions: WorkflowOptions): IOInterface = throw new NotImplementedError
   }
 
   // Tests against main database used for command line
@@ -141,6 +145,61 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           workflowResult.id should be(workflowId)
           workflowResult.sourceFiles.wdlSource should be("workflow test {}")
           workflowResult.sourceFiles.inputsJson should be("{}")
+        }
+      } yield ()).futureValue
+    }
+
+    it should "create and query a workflow" in {
+      assume(canConnect || testRequired)
+      val workflowInfo = new WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources)
+      val workflow2Info = new WorkflowDescriptor(WorkflowId(UUID.randomUUID()), test2Sources)
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        // Update to a terminal state
+        _ <- dataAccess.updateWorkflowState(workflowInfo.id, WorkflowSucceeded)
+        // Put a bit of space between the two workflows
+        _ = Thread.sleep(50)
+        _ <- dataAccess.createWorkflow(workflow2Info, Nil, Nil, localBackend)
+        // Query with no filters
+        (test, test2) <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq.empty)) map { response =>
+          val test = response.results find { r => r.name == "test" && r.end.isDefined } getOrElse fail
+          val test2 = response.results find { _.name == "test2" } getOrElse fail
+          (test, test2)
+        }
+        // Filter by name
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test"))) map { response =>
+          val resultsByName = response.results groupBy { _.name }
+          resultsByName.keys.toSet should equal(Set("test"))
+        }
+        // Filter by multiple names
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test", WorkflowQueryKey.Name.name -> "test2"))) map { response =>
+          val resultsByName = response.results groupBy { _.name }
+          resultsByName.keys.toSet should equal(Set("test", "test2"))
+        }
+        // Filter by status
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted"))) map { response =>
+          val resultsByStatus = response.results groupBy(_.status)
+          resultsByStatus.keys.toSet should equal(Set("Submitted"))
+        }
+        // Filter by multiple statuses
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted", WorkflowQueryKey.Status.name -> "Succeeded"))) map { response =>
+          val resultsByStatus = response.results groupBy(_.status)
+          resultsByStatus.keys.toSet should equal(Set("Submitted", "Succeeded"))
+        }
+        // Filter by start date
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.StartDate.name -> test2.start.toString))) map { response =>
+          response.results partition { _.start.compareTo(test2.start) >= 0 } match {
+            case (y, n) if y.nonEmpty && n.isEmpty => // good
+            case (y, n) => fail(s"Found ${y.size} later workflows and ${n.size} earlier")
+          }
+        }
+        // Filter by end date
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.EndDate.name -> test.end.get.toString))) map { response =>
+          response.results partition { r => r.end.isDefined && r.end.get.compareTo(test.end.get) <= 0 } match {
+            case (y, n) if y.nonEmpty && n.isEmpty => // good
+            case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
+          }
         }
       } yield ()).futureValue
     }

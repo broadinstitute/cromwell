@@ -10,8 +10,8 @@ import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.backend.{LocalFileSystemBackendCall, CallLogs}
+import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
@@ -72,11 +72,37 @@ object SharedFileSystem {
   }
 }
 
+class SharedFileSystemIOInterface extends IOInterface {
+  import better.files._
+
+  override def readFile(path: String): String = Paths.get(path).contentAsString
+
+  override def writeFile(path: String, content: String): Unit = Paths.get(path).write(content)
+
+  override def listContents(path: String): Iterable[String] = Paths.get(path).list map { _.path.toAbsolutePath.toString } toIterable
+
+  override def exists(path: String): Boolean = Paths.get(path).exists
+
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
+    val file = Files.createTempFile(Paths.get(path), prefix, suffix)
+    file.write(content)
+    file.fullPath
+  }
+
+  override def glob(path: String, pattern: String): Seq[String] = {
+    Paths.get(path).glob(pattern) map { _.path.fullPath } toSeq
+  }
+}
+
 trait SharedFileSystem {
 
   import SharedFileSystem._
 
-  val engineFunctions: WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext
+  type IOInterface = SharedFileSystemIOInterface
+
+  def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext(interface)
+
+  def ioInterface(workflowOptions: WorkflowOptions): IOInterface = new SharedFileSystemIOInterface
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
     // Evaluate output expressions, performing conversions from String -> File where required.
@@ -103,9 +129,9 @@ trait SharedFileSystem {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr = {
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs = {
     val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.name, descriptor.id, callName, index)
-    StdoutStderr(
+    CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
     )

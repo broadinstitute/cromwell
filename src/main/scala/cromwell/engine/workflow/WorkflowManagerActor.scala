@@ -10,13 +10,13 @@ import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallMetadata, CallLogs}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
-import cromwell.webservice.WorkflowMetadataResponse
+import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse, WorkflowMetadataResponse}
 import org.joda.time.DateTime
 import spray.json._
 
@@ -34,6 +34,7 @@ object WorkflowManagerActor {
   sealed trait WorkflowManagerActorMessage
   case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
+  case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
@@ -77,6 +78,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     case SubmitWorkflow(source) =>
       submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => globalDataAccess.getWorkflowState(id) pipeTo sender
+    case WorkflowQuery(rawParameters) => query(rawParameters) pipeTo sender
     case WorkflowAbort(id) =>
       workflowStore.toMap.get(id) match {
         case Some(x) =>
@@ -171,8 +173,8 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       } yield callStandardOutput
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[CallLogs]]] = {
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[CallLogs]]] = {
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
@@ -288,5 +290,13 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     result recover {
       case e: Throwable => log.error(e, e.getMessage)
     }
+  }
+
+  private def query(rawParameters: Seq[(String, String)]): Future[WorkflowQueryResponse] = {
+    for {
+      // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
+      parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))
+      response <- globalDataAccess.queryWorkflows(parameters)
+    } yield response
   }
 }

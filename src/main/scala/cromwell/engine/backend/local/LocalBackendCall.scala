@@ -24,7 +24,7 @@ case class LocalBackendCall(backend: LocalBackend,
   val stdout = callRootPath.resolve("stdout")
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script")
-  val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr)
+  val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr, workflowDescriptor.IOInterface)
   callRootPath.toFile.mkdirs
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)

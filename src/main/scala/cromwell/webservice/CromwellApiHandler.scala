@@ -5,7 +5,7 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
 import cromwell.parser.WdlParser.SyntaxError
@@ -28,15 +28,14 @@ object CromwellApiHandler {
 
   sealed trait WorkflowManagerMessage
 
-  case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
-
-  case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
-  case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
-  case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
-  case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
-  case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
-  case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
-
+  final case class WorkflowSubmit(source: WorkflowSourceFiles) extends WorkflowManagerMessage
+  final case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerMessage
+  final case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
+  final case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
+  final case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerMessage
+  final case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
+  final case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
+  final case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
@@ -58,6 +57,20 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Some(workflowState) =>
           context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, workflowState.toString))
       }
+
+    case WorkflowQuery(parameters) =>
+      val futureQuery = ask(workflowManager, WorkflowManagerActor.WorkflowQuery(parameters)).mapTo[WorkflowQueryResponse]
+      futureQuery onComplete {
+        case Success(response) => context.parent ! RequestComplete(StatusCodes.OK, response)
+        case Failure(ex) =>
+          ex match {
+            case _: IllegalArgumentException =>
+              context.parent ! RequestComplete(StatusCodes.BadRequest, ex.getMessage)
+            case _ =>
+              context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+          }
+      }
+
     case WorkflowAbort(id) =>
       val futureStatus = queryWorkflowManager(WorkflowManagerActor.WorkflowStatus(id))
       futureStatus onSuccess {
@@ -107,7 +120,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
     case CallStdoutStderr(id, callFqn) =>
-      val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.CallStdoutStderr(id, callFqn)).mapTo[Seq[StdoutStderr]]
+      val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.CallStdoutStderr(id, callFqn)).mapTo[Seq[CallLogs]]
       eventualCallLogs onComplete {
         case Success(logs) => context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, Map(callFqn -> logs)))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
@@ -116,7 +129,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
     case WorkflowStdoutStderr(id) =>
-      val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.WorkflowStdoutStderr(id)).mapTo[Map[String, Seq[StdoutStderr]]]
+      val eventualCallLogs = ask(workflowManager, WorkflowManagerActor.WorkflowStdoutStderr(id)).mapTo[Map[String, Seq[CallLogs]]]
       eventualCallLogs onComplete {
         case Success(logs) =>
           context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, logs))

@@ -8,7 +8,7 @@ import cromwell.binding.values.WdlFile
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
-import cromwell.engine.backend.{BackendCall, JobKey, StdoutStderr, _}
+import cromwell.engine.backend.{BackendCall, JobKey, CallLogs, _}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.StringDigestion._
@@ -19,16 +19,25 @@ import scala.util.{Failure, Success, Try}
 
 object JesBackendCall {
   
-  def stdoutStderr(callGcsPath: String): StdoutStderr = {
-    StdoutStderr(
+  def stdoutStderr(callGcsPath: String): CallLogs = {
+    CallLogs(
       stdout = WdlFile(s"$callGcsPath/$StdoutFilename"),
-      stderr = WdlFile(s"$callGcsPath/$StderrFilename")
+      stderr = WdlFile(s"$callGcsPath/$StderrFilename"),
+      Option(Map("log" -> WdlFile(s"$callGcsPath/$JesLog"),
+        "stdout" -> WdlFile(s"$callGcsPath/$JesStdout"),
+        "stderr" -> WdlFile(s"$callGcsPath/$JesStderr")
+      ))
     )
   }
 
   val StdoutFilename = "job.stdout.txt"
   val StderrFilename = "job.stderr.txt"
   val RcFilename = "job.rc.txt"
+
+  val JesLogBasename = "jes"
+  private val JesLog = s"$JesLogBasename.log"
+  private val JesStdout = s"$JesLogBasename-stdout.log"
+  private val JesStderr = s"$JesLogBasename-stderr.log"
 
   private def jesOutput(callGcsPath: String, filename: String): JesOutput =
     JesOutput(filename, s"$callGcsPath/$filename", localFilePathFromRelativePath(filename))
@@ -58,10 +67,10 @@ class JesBackendCall(val backend: JesBackend,
   lazy val rcJesOutput = jesOutput(callGcsPath, RcFilename)
   lazy val cmdInput = JesInput(ExecParamName, gcsExecPath.toString, localFilePathFromRelativePath(JesExecScript))
   lazy val diskInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, Paths.get(JesCromwellRoot))
-  
+
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
 
-  def downloadRcFile = authenticated { connection => GoogleCloudStoragePath.parse(callGcsPath + "/" + RcFilename).map(connection.storage.slurpFile) }
+  def downloadRcFile = authenticateAsUser(this) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
 
   /**
    * Determine the output directory for the files matching a particular glob.

@@ -10,7 +10,7 @@ import cromwell.binding.command.CommandPart
 import cromwell.binding.types.{WdlArrayType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlInteger, WdlString}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
-import cromwell.engine.backend.StdoutStderr
+import cromwell.engine.backend.CallLogs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -152,7 +152,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           self, "Test WorkflowManagerActor call log lookup failure")
         val id = WorkflowId.randomId()
         val noIndex = Try {
-          messageAndWait[StdoutStderr](CallStdoutStderr(id, "foo.bar"))
+          messageAndWait[CallLogs](CallStdoutStderr(id, "foo.bar"))
         } match {
           case Success(_) => fail("Expected lookup to fail with unknown workflow")
           case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"
@@ -168,7 +168,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           self, "Test WorkflowManagerActor log lookup failure")
         val id = WorkflowId.randomId()
         Try {
-          messageAndWait[Map[LocallyQualifiedName, StdoutStderr]](WorkflowStdoutStderr(id))
+          messageAndWait[Map[LocallyQualifiedName, CallLogs]](WorkflowStdoutStderr(id))
         } match {
           case Success(_) => fail("Expected lookup to fail with unknown workflow")
           case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"

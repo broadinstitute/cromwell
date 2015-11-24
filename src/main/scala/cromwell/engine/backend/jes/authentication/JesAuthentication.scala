@@ -1,18 +1,32 @@
 package cromwell.engine.backend.jes.authentication
 
-import cromwell.engine.backend.jes.{JesInterface, ProductionJesConfiguration}
+import cromwell.engine.backend.jes._
+import cromwell.util.google.{GoogleCloudStorage, GoogleCredentialFactory}
 import spray.json.JsObject
 
 /**
  * Trait for JesConnection
  */
 trait JesConnection {
-  def jesConnection: JesInterface
+  def jesCromwellConnection: JesInterface
+
+  /**
+    * This method should try its best to provide a GCS connection setup with the user's credentials.
+    * In the case where it's not able to provide such a method, a default one can be provided instead.
+    */
+  def jesUserConnection(backendCall: JesBackendCall): JesBackend.IOInterface
 }
 
 object ProductionJesConnection {
   import ProductionJesConfiguration._
-  lazy val jesConnection = JesInterface(jesConf.applicationName, jesConf.endpointUrl)
+
+  // Only one instance of jesCromwellConnection is needed. It uses whichever authScheme has been set in the configuration.
+  lazy val jesCromwellConnection: JesInterface = {
+    val cromwellCredentials = GoogleCredentialFactory.fromAuthScheme
+    val gcsInterface = GcsFactory(jesConf.applicationName, cromwellCredentials)
+    val genomicsInterface = GenomicsFactory(jesConf.applicationName, jesConf.endpointUrl, cromwellCredentials)
+    JesInterface(gcsInterface, genomicsInterface)
+  }
 }
 
 /**
@@ -20,7 +34,12 @@ object ProductionJesConnection {
  */
 trait JesAuthentication { self: JesConnection =>
 
-  def authenticated[A](f: JesInterface => A) = f(jesConnection)
+  def authenticateAsCromwell[A](f: JesInterface => A) = f(jesCromwellConnection)
+
+  /**
+   * Important note: Will default back to cromwell authentication if the configuration for user authentication has not been set or if the refreshToken has been supplied.
+   */
+  def authenticateAsUser[A](backendCall: JesBackendCall)(f: GoogleCloudStorage => A) = f(jesUserConnection(backendCall))
 
   /**
    * Generates a json containing auth information based on the parameters provided.
@@ -37,5 +56,12 @@ trait JesAuthentication { self: JesConnection =>
 }
 
 trait ProductionJesAuthentication extends JesAuthentication with JesConnection {
-  override lazy val jesConnection = ProductionJesConnection.jesConnection
+  override lazy val jesCromwellConnection = ProductionJesConnection.jesCromwellConnection
+
+  /*
+   * As long as everything runs on the same backend, this downcast is safe because the workflow backend and the call backend are the same.
+   * We can then re-use for all Backend Call the IOInterface from the WorkflowDescriptor.
+   * If per-call backend is implemented this assumption might not hold anymore which may require changes here.
+   */
+  override def jesUserConnection(backendCall: JesBackendCall) = backendCall.workflowDescriptor.IOInterface.asInstanceOf[JesBackend.IOInterface]
 }

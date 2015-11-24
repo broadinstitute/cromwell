@@ -49,6 +49,7 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
+  * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
@@ -91,29 +92,33 @@ Tests are run via `sbt test`.  Note that the tests do require Docker to be runni
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
 
-Note that this may not be completely up to date or even useful at this time.
-
 # Scala API Usage
 
 The main entry point into the parser is the `WdlNamespace` object.  A WDL file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
 ```scala
 import java.io.File
-import cromwell.binding.WdlNamespace
+import cromwell.parser.BackendType
+import cromwell.binding.NamespaceWithWorkflow
 
 object main {
   def main(args: Array[String]) {
-    val ns = WdlNamespace.load(new File(args(0)))
-    val ns2 = WdlNamespace.load("workflow wf {}")
-    ns.workflows foreach {wf =>
-      println(s"Workflow: ${wf.name}")
-      wf.calls foreach {call =>
-        println(s"Call: ${call.name}")
-      }
+    val ns = NamespaceWithWorkflow.load("""
+    |task a {
+    |  command { ps }
+    |}
+    |workflow wf {
+    | call a
+    |}""".stripMargin, BackendType.LOCAL)
+
+    println(s"Workflow: ${ns.workflow.name}")
+    ns.workflow.calls foreach {call =>
+      println(s"Call: ${call.name}")
     }
+
     ns.tasks foreach {task =>
       println(s"Task: ${task.name}")
-      println(s"Command: ${task.command}")
+      println(s"Command: ${task.commandTemplate}")
     }
   }
 }
@@ -123,8 +128,8 @@ To access only the parser, use the `AstTools` library, as follows:
 
 ```scala
 import java.io.File
-import cromwell.parser.AstTools
-import cromwell.parser.AstTools.EnhancedAstNode
+import cromwell.binding.AstTools
+import cromwell.binding.AstTools.EnhancedAstNode
 
 object main {
   def main(args: Array[String]) {
@@ -1414,6 +1419,67 @@ Server: spray-can/1.3.3
 {
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
     "status": "Succeeded"
+}
+```
+
+## GET /api/workflows/:version/query
+
+This endpoint allows for querying workflows based on the following criteria:
+<ul>
+  <li>`name`</li>
+  <li>`status`</li>
+  <li>`start` (start datetime)</li>
+  <li>`end` (end datetime)</li>
+</ul>
+  
+Names and statuses can be given multiple times to include workflows with any of the specified names or statuses.
+Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
+be in [ISO8601 datetime](http://www.w3.org/TR/NOTE-datetime) format and `start` cannot be after `end`.
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 133
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+  "results": [
+    {
+      "name": "w",
+      "id": "fdfa8482-e870-4528-b639-73514b0469b2",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:52.000-05:00",
+      "start": "2015-11-01T07:38:57.000-05:00"
+    },
+    {
+      "name": "hello",
+      "id": "e69895b1-42ed-40e1-b42d-888532c49a0f",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:30.000-05:00",
+      "start": "2015-11-01T07:38:58.000-05:00"
+    },
+    {
+      "name": "crasher",
+      "id": "ed44cce4-d21b-4c42-b76d-9d145e4d3607",
+      "status": "Failed",
+      "end": "2015-11-01T07:45:44.000-05:00",
+      "start": "2015-11-01T07:38:59.000-05:00"
+    }
+  ]
 }
 ```
 

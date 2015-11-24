@@ -10,8 +10,6 @@ backend {
     project = "{{.Data.jes_project}}"
     baseExecutionBucket = "{{.Data.jes_base_execution_bucket}}"
     endpointUrl = "https://genomics.googleapis.com/"
-    dockerhubCredentialsPath = "{{.Data.jes_dockerhub_credentials_path}}"
-    authenticationMode = "service_account"
     maximumPollingInterval = 600
   }
 }

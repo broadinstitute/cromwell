@@ -35,7 +35,7 @@ object JesBackendCall {
   val RcFilename = "job.rc.txt"
 
   val JesLogBasename = "jes"
-  private val JesLog = s"$JesLogBasename.log"
+  private [jes] val JesLog = s"$JesLogBasename.log"
   private val JesStdout = s"$JesLogBasename-stdout.log"
   private val JesStderr = s"$JesLogBasename-stderr.log"
 

@@ -9,7 +9,7 @@ backend {
     applicationName = "cromwell"
     project = "{{.Data.jes_project}}"
     baseExecutionBucket = "{{.Data.jes_base_execution_bucket}}"
-    endpointUrl = "{{.Data.jes_endpoint_url}}"
+    endpointUrl = "https://genomics.googleapis.com/"
     dockerhubCredentialsPath = "{{.Data.jes_dockerhub_credentials_path}}"
     authenticationMode = "{{.Data.jes_authentication_mode}}"
     maximumPollingInterval = 600
@@ -17,7 +17,7 @@ backend {
 }
 
 google {
-  authScheme = "{{.Data.google_auth_scheme}}"
+  authScheme = "service"
 
   serviceAuth {
     p12File = "{{.Data.service_auth_p12_file}}"

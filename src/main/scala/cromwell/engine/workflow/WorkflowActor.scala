@@ -205,7 +205,7 @@ object WorkflowActor {
 case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
-  lazy implicit val hasher = backend.fileHasher
+  lazy implicit val hasher = backend.fileHasher(workflow)
 
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow.namespace, inputs)
@@ -375,7 +375,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: CallOutputs): Unit = {
     val newEntriesMap = outputs map { case (lqn, value) =>
       val storeKey = SymbolStoreKey(executionKey.scope.fullyQualifiedName, lqn, executionKey.index, input = false)
-      new SymbolStoreEntry(storeKey, value.wdlType, Option(value))
+      new SymbolStoreEntry(storeKey, value.wdlValue.wdlType, Option(value.wdlValue), Option(value.hash))
     } groupBy { entry => SymbolCacheKey(entry.scope, entry.isInput) }
 
     newEntriesMap foreach { case (key, entries) =>

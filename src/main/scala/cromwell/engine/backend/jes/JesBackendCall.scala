@@ -70,7 +70,7 @@ class JesBackendCall(val backend: JesBackend,
 
   def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
 
-  def downloadRcFile = authenticateAsUser(this) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
+  def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
 
   /**
    * Determine the output directory for the files matching a particular glob.

@@ -1,7 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.{SymbolHash, FileHasher}
-import cromwell.binding.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType}
+import cromwell.binding.types.{WdlStringType, WdlArrayType, WdlObjectType, WdlPrimitiveType}
 import cromwell.util.StringUtil._
 
 import scala.language.postfixOps

@@ -160,6 +160,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash) }
 
+  def fileHasher(workflow: WorkflowDescriptor): FileHasher = { wdlFile: WdlFile => SymbolHash(getCrc32c(workflow, GoogleCloudStoragePath(wdlFile.value))) }
+
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
     val log = workflowLogger(workflow)
 
@@ -172,7 +174,9 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
     }
   }
 
-  def getCrc32c(googleCloudStoragePath: GoogleCloudStoragePath): String = authenticated { _.storage.getCrc32c(googleCloudStoragePath) }
+  def getCrc32c(workflow: WorkflowDescriptor, googleCloudStoragePath: GoogleCloudStoragePath): String = authenticateAsUser(workflow) {
+    _.getCrc32c(googleCloudStoragePath)
+  }
 
   /**
    * Get a GcsLocalizing from workflow options if client secrets and refresh token are available.
@@ -351,7 +355,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
          |echo $$? > ${JesBackendCall.RcFilename}
        """.stripMargin.trim
 
-    def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticateAsUser(backendCall) { _.uploadObject(backendCall.gcsExecPath, fileContent) }
+    def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticateAsUser(backendCall.workflowDescriptor) { _.uploadObject(backendCall.gcsExecPath, fileContent) }
 
     val log = workflowLogger(backendCall.workflowDescriptor)
     withRetry(attemptToUploadObject, log, s"${workflowLoggerWithCall(backendCall).tag} Exception occurred while uploading script to ${backendCall.gcsExecPath}")
@@ -443,7 +447,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         taskOutput.name -> attemptedValue
       } toMap
 
-      lazy val stderrLength: BigInteger = authenticateAsUser(backendCall) { _.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs)) }
+      lazy val stderrLength: BigInteger = authenticateAsUser(backendCall.workflowDescriptor) { _.objectSize(GoogleCloudStoragePath(backendCall.stderrJesOutput.gcs)) }
       lazy val returnCodeContents = backendCall.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
@@ -508,7 +512,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
     val taskOutputEvaluationFailures = outputMappings filter { _._2.isFailure }
     if (taskOutputEvaluationFailures.isEmpty) {
-      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash) }
+      val outputs = outputMappings collect { case (name, Success(wdlValue)) => name -> CallOutput(wdlValue, wdlValue.getHash(fileHasher(workflowDescriptor))) }
       SuccessfulExecutionHandle(outputs, returnCode)
     } else if (taskOutputEvaluationFailures forall (_._2.failed.get.isInstanceOf[SocketTimeoutException])) {
       // Assume this as a transient exception trying to do some expression evaluation that involves reading from GCS.

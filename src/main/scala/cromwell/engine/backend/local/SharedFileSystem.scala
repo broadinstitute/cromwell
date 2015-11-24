@@ -9,14 +9,10 @@ import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
-import cromwell.engine.ExecutionIndex._
-import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.{LocalFileSystemBackendCall, CallLogs}
-import cromwell.engine.workflow.{WorkflowOptions, CallKey}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine._
-import cromwell.engine.backend.{LocalFileSystemBackendCall, StdoutStderr}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.{CallLogs, LocalFileSystemBackendCall}
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 
@@ -108,12 +104,12 @@ trait SharedFileSystem {
   type IOInterface = SharedFileSystemIOInterface
 
   def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext(interface)
-  def fileHasher = sharedFSFileHasher
-  implicit val hasher = fileHasher
+  def fileHasher(workflow: WorkflowDescriptor) = sharedFSFileHasher
 
   def ioInterface(workflowOptions: WorkflowOptions): IOInterface = new SharedFileSystemIOInterface
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
+    implicit val hasher = fileHasher(backendCall.workflowDescriptor)
     // Evaluate output expressions, performing conversions from String -> File where required.
     val outputMappings = backendCall.call.task.outputs map { taskOutput =>
       val tryConvertedValue =

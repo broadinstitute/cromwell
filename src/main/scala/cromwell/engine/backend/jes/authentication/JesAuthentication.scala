@@ -1,5 +1,7 @@
 package cromwell.engine.backend.jes.authentication
 
+import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.jes.JesBackend.JesWorkflowDescriptor
 import cromwell.engine.backend.jes._
 import cromwell.util.google.{GoogleCloudStorage, GoogleCredentialFactory}
 import spray.json.JsObject
@@ -14,7 +16,7 @@ trait JesConnection {
     * This method should try its best to provide a GCS connection setup with the user's credentials.
     * In the case where it's not able to provide such a method, a default one can be provided instead.
     */
-  def jesUserConnection(backendCall: JesBackendCall): JesBackend.IOInterface
+  def jesUserConnection(workflow: WorkflowDescriptor): JesBackend.IOInterface
 }
 
 object ProductionJesConnection {
@@ -39,7 +41,7 @@ trait JesAuthentication { self: JesConnection =>
   /**
    * Important note: Will default back to cromwell authentication if the configuration for user authentication has not been set or if the refreshToken has been supplied.
    */
-  def authenticateAsUser[A](backendCall: JesBackendCall)(f: GoogleCloudStorage => A) = f(jesUserConnection(backendCall))
+  def authenticateAsUser[A](workflow: WorkflowDescriptor)(f: GoogleCloudStorage => A) = f(jesUserConnection(workflow))
 
   /**
    * Generates a json containing auth information based on the parameters provided.
@@ -63,5 +65,5 @@ trait ProductionJesAuthentication extends JesAuthentication with JesConnection {
    * We can then re-use for all Backend Call the IOInterface from the WorkflowDescriptor.
    * If per-call backend is implemented this assumption might not hold anymore which may require changes here.
    */
-  override def jesUserConnection(backendCall: JesBackendCall) = backendCall.workflowDescriptor.IOInterface.asInstanceOf[JesBackend.IOInterface]
+  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.IOInterface.asInstanceOf[JesBackend.IOInterface]
 }

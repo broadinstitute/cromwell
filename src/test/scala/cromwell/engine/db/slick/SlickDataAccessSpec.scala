@@ -33,16 +33,17 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
   lazy val localBackend = new LocalBackend
-  implicit val hasher = localBackend.fileHasher
 
   val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
+
+  implicit val hasher = localBackend.fileHasher(WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources))
 
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
   object UnknownBackend extends Backend {
     type BackendCall = LocalBackendCall
 
-    override def fileHasher: FileHasher = throw new NotImplementedError
+    override def fileHasher(workflow: WorkflowDescriptor): FileHasher = throw new NotImplementedError
 
     override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor) =
       throw new NotImplementedError
@@ -109,7 +110,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     val testWdlStringHash = testWdlString.getHash
     val testWdlStringShard = WdlString("testStringValueShard")
     val testWdlStringShardHash = testWdlStringShard.getHash
-
 
     it should "(if hsqldb) have transaction isolation mvcc" in {
       assume(canConnect || testRequired)
@@ -466,14 +466,14 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val callFqn = "call.fully.qualified.scope"
       val symbolFqn = "symbol.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
-      val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
+      val workflowDescriptor = new WorkflowDescriptor(workflowId, testSources)
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray), Option(wdlArray.getHash))
       val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Nil, localBackend)
+        _ <- dataAccess.createWorkflow(workflowDescriptor, Seq(entry), Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.getInputs(workflowId, call) map { resultSymbols =>
           resultSymbols.size should be(1)

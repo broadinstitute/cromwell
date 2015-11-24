@@ -97,7 +97,7 @@ trait Backend {
   /**
    * Provides a function that given a WdlFile, returns its hash.
    */
-  def fileHasher: FileHasher
+  def fileHasher(workflowDescriptor: WorkflowDescriptor): FileHasher
 
   def backendType: BackendType
 

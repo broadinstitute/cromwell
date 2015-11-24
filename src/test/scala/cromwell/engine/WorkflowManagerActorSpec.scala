@@ -29,8 +29,6 @@ import scala.util.{Failure, Success, Try}
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
 
-  implicit val hasher = CromwellSpec.BackendInstance.fileHasher
-
   "A WorkflowManagerActor" should {
 
     val TestExecutionTimeout = 5.seconds.dilated
@@ -71,19 +69,19 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       val ids = workflows.keys.map(_.toString).toSeq.sorted
       val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
       val worldWdlString = WdlString("world")
-      val worldSymbolHash = worldWdlString.getHash
-      val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
 
       import ExecutionContext.Implicits.global
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val workflowInfo = new WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val descriptor = new WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val worldSymbolHash = worldWdlString.getHash(CromwellSpec.BackendInstance.fileHasher(descriptor))
+          val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
           // FIXME? null AST
           val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
-            _ <- globalDataAccess.createWorkflow(workflowInfo, symbols.values, Seq(call), new LocalBackend())
+            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend())
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
             _ <- globalDataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
           } yield ()

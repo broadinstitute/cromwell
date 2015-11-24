@@ -84,6 +84,27 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
+  val executionsByWorkflowExecutionIdAndCallFqnAndIndex = Compiled(
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+      if execution.callFqn === callFqn
+      if execution.index === index
+    } yield execution)
+
+  val executionsByWorkflowExecutionIdAndCallFqn = Compiled(
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+      if execution.callFqn === callFqn
+    } yield execution)
+
+  val executionsByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+    } yield execution)
+
   val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
       execution <- executions

@@ -23,15 +23,16 @@ object WorkflowQueryKey {
 
   case object Name extends SeqStringWorkflowQueryKey {
     override val name = "Name"
-    private val WorkflowNamePattern = "([a-zA-Z][a-zA-Z0-9_]+)".r
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ValidationNel[String, Seq[String]] = {
+      import cromwell.binding.Patterns.WorkflowName
+
       val values = valuesFromMap(grouped).toList
       val nels = values map {
-        case WorkflowNamePattern(n) => n.successNel
+        case WorkflowName(n) => n.successNel
         case v => v.failureNel
       }
-      sequenceListOfValidationNels("Name values do not match allowed workflow naming pattern [a-zA-Z][a-zA-Z0-9_]+", nels)
+      sequenceListOfValidationNels(s"Name values do not match allowed workflow naming pattern", nels)
     }
   }
 

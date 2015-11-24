@@ -4,11 +4,10 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import akka.pattern.pipe
-import cromwell.CromwellSpec
 import cromwell.binding._
-import cromwell.binding.values.{WdlValue, WdlFile, WdlInteger}
+import cromwell.binding.values.{WdlFile, WdlInteger, WdlValue}
 import cromwell.engine._
-import cromwell.engine.backend.{WorkflowQueryResult, CallLogs}
+import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
@@ -155,6 +154,25 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureResult pipeTo sender
+
+    case CallCaching(id, parameters, callFqn) =>
+      val parametersByKey = parameters.groupBy(_.key.toLowerCase.capitalize) mapValues { _ map { _.value } } mapValues { _.toSet }
+      val futureResponse =
+        Future {
+          if (id == unknownId)
+            throw new IllegalArgumentException("Unknown workflow")
+          if (!parametersByKey.contains("Allow"))
+            // Currently this is not strictly true as the "allow" validation only fails if "allow"s are non-boolean
+            // or both true and false.  But really it would be better if "allow" was only specified once.
+            throw new IllegalArgumentException("must specify 'allow' exactly once")
+          if (parametersByKey.keys.size > 1)
+            throw new IllegalArgumentException("Unrecognized parameters: " + (parametersByKey.keys.toSet - "allow").mkString(", "))
+          if (callFqn.contains("bogus"))
+            throw new IllegalArgumentException("Invalid call")
+          // If we run the gauntlet of exception throwing checks, return a made up update count.
+          1
+        }
+      futureResponse pipeTo sender
   }
 }
 
@@ -653,15 +671,15 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   "Cromwell query API" should "return 400 for a bad query" in {
     Get(s"/workflows/$version/query?BadKey=foo") ~>
-    queryRoute ~>
-    check {
-      assertResult(StatusCodes.BadRequest) {
-        status
+      queryRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
       }
-    }
   }
 
-  "Cromwell query API" should "return good results for a good query" in {
+  it should "return good results for a good query" in {
     Get(s"/workflows/$version/query?status=Succeeded") ~>
       queryRoute ~>
       check {
@@ -670,6 +688,99 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
         assertResult(true) {
           body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
+  }
+
+  "Cromwell single call caching API" should "work with good input" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>
+    callCachingRoute ~>
+    check {
+      assertResult(StatusCodes.OK) { status }
+    }
+  }
+
+  it should "reject missing 'allow'" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call") ~>
+    callCachingRoute ~>
+    check {
+      assertResult(StatusCodes.BadRequest) { status }
+      assertResult(true) {
+        responseAs[String].contains("must specify 'allow' exactly once")
+      }
+    }
+  }
+
+  it should "reject bogus calls" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/bogus?allow=true") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) { status }
+        assertResult(true) {
+          responseAs[String].contains("Invalid call")
+        }
+      }
+  }
+
+  it should "reject invalid parameter keys" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=true&bogusKey=foo") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) { status }
+        assertResult(true) {
+          responseAs[String].contains("Unrecognized parameters: ")
+        }
+      }
+  }
+
+  it should "reject bogus workflows" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/call-caching/w.good_call?allow=true") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) { status }
+        assertResult(true) {
+          responseAs[String].contains("Unknown workflow")
+        }
+      }
+  }
+
+  "Cromwell all call caching API" should "work with good input" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching?allow=false") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.OK) { status }
+      }
+  }
+
+  it should "reject missing 'allow'" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) { status }
+        assertResult(true) {
+          responseAs[String].contains("must specify 'allow' exactly once")
+        }
+      }
+  }
+
+  it should "reject invalid parameter keys" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching?allow=true&bogusKey=foo") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) { status }
+        assertResult(true) {
+          responseAs[String].contains("Unrecognized parameters: ")
+        }
+      }
+  }
+
+  it should "reject bogus workflows" in {
+    Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/call-caching?allow=true") ~>
+      callCachingRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) { status }
+        assertResult(true) {
+          responseAs[String].contains("Unknown workflow")
         }
       }
   }

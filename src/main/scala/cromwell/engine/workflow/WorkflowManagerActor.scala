@@ -10,22 +10,22 @@ import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, CallMetadata, CallLogs}
+import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
-import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse, WorkflowMetadataResponse}
+import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
 
 object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
@@ -43,6 +43,7 @@ object WorkflowManagerActor {
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
+  final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
 
   def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
@@ -99,6 +100,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
         self ! RestartWorkflows(ws)
       }
     case RestartWorkflows(Nil) => // No more workflows need restarting.
+    case CallCaching(id, parameters, callName) => callCaching(id, parameters, callName) pipeTo sender
   }
 
   /**
@@ -291,9 +293,16 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def query(rawParameters: Seq[(String, String)]): Future[WorkflowQueryResponse] = {
     for {
-      // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
+    // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
       parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))
       response <- globalDataAccess.queryWorkflows(parameters)
     } yield response
+  }
+
+  private def callCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]): Future[Int] = {
+    for {
+      cachingParameters <- CallCachingParameters.from(id, callName, parameters)
+      updateCount <- globalDataAccess.updateCallCaching(cachingParameters)
+    } yield updateCount
   }
 }

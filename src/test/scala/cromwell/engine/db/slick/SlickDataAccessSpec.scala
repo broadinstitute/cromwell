@@ -11,11 +11,13 @@ import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{Backend, CallLogs}
+import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.workflow.{CallKey, ScatterKey, WorkflowOptions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
-import cromwell.webservice.{WorkflowQueryKey, WorkflowQueryParameters}
+import cromwell.webservice
+import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
 import org.scalactic.StringNormalizations._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -23,6 +25,12 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.{ExecutionContext, Future}
+
+
+object SlickDataAccessSpec {
+  val AllowFalse = Seq(webservice.QueryParameter("allow", "false"))
+  val AllowTrue = Seq(webservice.QueryParameter("allow", "true"))
+}
 
 class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
@@ -213,6 +221,130 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
         }
       } yield ()).futureValue
     }
+
+    def assertCallCachingFailure(id: WorkflowId, callName: Option[String], messages: String*): Future[Unit] = {
+      // The `from` Future is expected to fail, so if the forcomp actually runs the test should fail.
+      val parameters = for {
+        s <- CallCachingParameters.from(id, None, AllowFalse, dataAccess)
+      } yield throw new RuntimeException(s"Unexpected success: $s")
+
+      // `recover` the failed Future looking for an expected `IllegalArgumentException`.  Assert all the expected
+      // messages are present in the exception text and the correct number of expected failures are seen.
+      // If the `parameters` Future is failed but the exception isn't an `IllegalArgumentException` then this recover
+      // won't match and the Future will remain failed and fail the test.
+      parameters recover {
+        case e: IllegalArgumentException =>
+          messages foreach { m => if (!e.getMessage.contains(m)) throw new RuntimeException(s"Missing message: $m.  Exception text: ${e.getMessage}") }
+          if (e.getMessage.count(_ == '\n') != messages.size - 1) throw new RuntimeException(s"Unexpected messages seen: ${e.getMessage}")
+      }
+    }
+
+    it should "support call caching configuration for specified calls in a regular workflow" in {
+      assume(canConnect || testRequired)
+      val workflowInfo = new WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.ThreeStep.asWorkflowSources())
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls, localBackend)
+        // Unknown workflow
+        _ <- assertCallCachingFailure(WorkflowId(UUID.randomUUID()), callName = Option("three_step.ps"), "Workflow not found")
+        _ <- dataAccess.setStatus(workflowInfo.id, Seq(ExecutionDatabaseKey("three_step.ps", None)), ExecutionStatus.Done)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions should have size 3
+        _ = executions foreach { _.allowsResultReuse shouldBe true }
+        params <- CallCachingParameters.from(workflowInfo.id, Option("three_step.ps"), AllowFalse, dataAccess)
+        _ = params.workflowId shouldBe workflowInfo.id
+        _ = params.callKey shouldEqual Option(ExecutionDatabaseKey("three_step.ps", None))
+        _ <- dataAccess.updateCallCaching(params)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        (allowing, disallowing) = executions partition { _.allowsResultReuse }
+        _ = allowing should have size 2
+        _ = disallowing should have size 1
+        _ = disallowing.seq.head.callFqn should be("three_step.ps")
+      } yield ()).futureValue
+    }
+
+    it should "support call caching configuration for specified calls in a scattered workflow" in {
+      assume(canConnect || testRequired)
+      val workflowInfo = new WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.SimpleScatterWdl.asWorkflowSources())
+
+      (for {
+        // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
+        // scatter explodes below so filter that out.
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.name == "inside_scatter"), localBackend)
+        scatter = workflowInfo.namespace.workflow.scatters.head
+        scatterKey = ScatterKey(scatter, None)
+        newEntries = scatterKey.populate(5)
+        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys, localBackend)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions foreach { _.allowsResultReuse shouldBe true }
+
+        // Calls outside the scatter should work the same as an unscattered workflow.
+        outsideParams <- CallCachingParameters.from(workflowInfo.id, Option("scatter0.outside_scatter"), AllowFalse, dataAccess)
+        _ <- dataAccess.updateCallCaching(outsideParams)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        (allowing, disallowing) = executions partition { _.allowsResultReuse }
+        _ = allowing should have size (executions.size - 1)
+        _ = disallowing should have size 1
+        _ = disallowing.seq.head.callFqn should be ("scatter0.outside_scatter")
+
+        // Support unindexed scattered call targets to update all shards.
+        _ = executions filter { _.callFqn == "scatter0.inside_scatter" } foreach { _.allowsResultReuse shouldBe true }
+        unindexedCallParams <- CallCachingParameters.from(workflowInfo.id, Option("scatter0.inside_scatter"), AllowFalse, dataAccess)
+        _ <- dataAccess.updateCallCaching(unindexedCallParams)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions filter { _.callFqn == "scatter0.inside_scatter" } foreach { _.allowsResultReuse shouldBe false }
+
+        // Support indexed shards as well.
+        insideParams <- CallCachingParameters.from(workflowInfo.id, Option("scatter0.inside_scatter.3"), AllowTrue, dataAccess)
+        _ <- dataAccess.updateCallCaching(insideParams)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        inside = executions filter { e => e.callFqn == "scatter0.inside_scatter" }
+        (allowing, disallowing) = inside partition { _.allowsResultReuse }
+        _ = allowing should have size 1
+        _ = disallowing should have size (inside.size - 1)
+      } yield ()).futureValue
+    }
+
+    it should "support call caching configuration for all calls in a regular workflow" in {
+      assume(canConnect || testRequired)
+
+      val workflowInfo = new WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.ThreeStep.asWorkflowSources())
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls, localBackend)
+        // Unknown workflow
+        _ <- assertCallCachingFailure(WorkflowId(UUID.randomUUID()), callName = None, "Workflow not found")
+        params <- CallCachingParameters.from(workflowInfo.id, None, AllowFalse, dataAccess)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions should have size 3
+        _ = executions foreach { _.allowsResultReuse shouldBe true }
+        _ <- dataAccess.updateCallCaching(params)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions foreach { _.allowsResultReuse shouldBe false }
+      } yield ()).futureValue
+    }
+
+    it should "support call caching configuration for all calls in a scattered workflow" in {
+      assume(canConnect || testRequired)
+
+      val workflowInfo = new WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.SimpleScatterWdl.asWorkflowSources())
+      (for {
+        // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
+        // scatter explodes below so filter that out.
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.name == "inside_scatter"), localBackend)
+        scatter = workflowInfo.namespace.workflow.scatters.head
+        scatterKey = ScatterKey(scatter, None)
+        newEntries = scatterKey.populate(5)
+        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys, localBackend)
+
+        scatterParams <- CallCachingParameters.from(workflowInfo.id, None, AllowFalse, dataAccess)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions foreach { _.allowsResultReuse shouldBe true }
+        _ <- dataAccess.updateCallCaching(scatterParams)
+        executions <- dataAccess.getExecutions(workflowInfo.id)
+        _ = executions foreach { _.allowsResultReuse shouldBe false }
+      } yield ()).futureValue
+    }
+
 
     it should "query a single execution status" in {
       assume(canConnect || testRequired)

@@ -33,15 +33,15 @@ database {
       db.url = "{{.Data.db_url}}"
       db.user = "{{.Data.db_user}}"
       db.password = "{{.Data.db_password}}"
-      db.driver = "{{.Data.db_driver}}"
-      db.connectionTimeout = "{{.Data.db_connection_timeout}}"
-      driver = "{{.Data.db_driver}}"
+      db.driver = "com.mysql.jdbc.Driver"
+      db.connectionTimeout = 5000
+      driver = "slick.driver.MySQLDriver$"
     }
   }
 }
 
 instrumentation {
-  use-kamon = {{.Data.instrumentation_use_kamon}}
+  use-kamon = true
 }
 
 kamon {

@@ -36,6 +36,7 @@ object CromwellApiHandler {
   final case class CallOutputs(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
   final case class CallStdoutStderr(id: WorkflowId, callFqn: String) extends WorkflowManagerMessage
   final case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerMessage
+  final case class CallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends WorkflowManagerMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerMessage
 }
 
@@ -142,6 +143,14 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       eventualMetadataResponse onComplete {
         case Success(metadata) => context.parent ! RequestComplete(StatusCodes.OK, metadata)
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
+        case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+      }
+
+    case CallCaching(id, parameters, callName) =>
+      val eventualUpdateCount = ask(workflowManager, WorkflowManagerActor.CallCaching(id, parameters, callName)).mapTo[Int]
+      eventualUpdateCount onComplete {
+        case Success(updateCount) => context.parent ! RequestComplete(StatusCodes.OK, CallCachingResponse(updateCount))
+        case Failure(ex: IllegalArgumentException) => context.parent ! RequestComplete(StatusCodes.BadRequest, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
   }

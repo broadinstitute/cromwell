@@ -13,14 +13,13 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
-import cromwell.engine.backend.{WorkflowQueryResult, Backend}
 import cromwell.engine.backend.jes.{JesBackend, JesJobKey}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
+import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
-import cromwell.webservice.CromwellApiHandler.WorkflowQuery
-import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
+import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
@@ -718,5 +717,24 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           end = workflow.endDt map { new DateTime(_) })
       })
     }
+  }
+
+  override def updateCallCaching(parameters: CallCachingParameters): Future[Int] = {
+    // Figure out which of the three possible queries to use based on whether a call has been specified and
+    // if so whether an index has been specified.
+    val executionQuery: (Int) => Query[dataAccess.Executions, Execution, Seq] = {
+      (parameters.callKey, parameters.callKey flatMap { _.index }) match {
+        case (Some(key), Some(idx)) => dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndex(_: Int, key.fqn, idx).extract
+        case (Some(key), None) => dataAccess.executionsByWorkflowExecutionIdAndCallFqn(_: Int, key.fqn).extract
+        case _ => dataAccess.executionsByWorkflowExecutionId(_: Int).extract
+      }
+    }
+
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(parameters.workflowId.id.toString).result.head
+      count <- executionQuery(workflowExecution.workflowExecutionId.get).map(_.allowsResultReuse).update(parameters.allow)
+    } yield count
+
+    runTransaction(action)
   }
 }

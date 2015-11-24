@@ -294,15 +294,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   }
 
   /**
-<<<<<<< HEAD
-<<<<<<< HEAD
    * Takes two arrays of remote and local WDL File paths and generates the necessary JESInputs.
-=======
-   * Takes two arrays of remote and local WDL File paths and generates the necessary JESInput's.
->>>>>>> Added a CRC hash get function for helping Job Avoision
-=======
-   * Takes two arrays of remote and local WDL File paths and generates the necessary JESInputs.
->>>>>>> WdlValue Hash
    */
   private def jesInputsFromWdlFiles(jesNamePrefix: String, remotePathArray: Seq[WdlFile], localPathArray: Seq[WdlFile]): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {

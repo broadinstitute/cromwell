@@ -18,7 +18,7 @@ google {
   authScheme = "service"
 
   serviceAuth {
-    p12File = "{{.Data.service_auth_p12_file}}"
+    pemFile = "{{.Data.service_auth_pem_file}}"
     serviceAccountId = "{{.Data.service_auth_service_account_id}}"
   }
   

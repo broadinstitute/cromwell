@@ -3,11 +3,13 @@ package cromwell.engine.workflow
 import java.nio.file.Path
 
 import akka.actor._
-import akka.testkit._
+import akka.pattern.ask
+import akka.testkit.TestKit
 import better.files._
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{GoodbyeWorld, ThreeStep}
@@ -16,7 +18,10 @@ import cromwell.webservice.WorkflowMetadataResponse
 import org.scalatest.prop.TableDrivenPropertyChecks
 import spray.json._
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.language.postfixOps
+import scala.util._
 
 /**
  * A series of tests of the SingleWorkflowRunnerActor. Currently uses live versions of the SingleWorkflowRunnerActor and
@@ -28,13 +33,6 @@ import scala.language.postfixOps
  */
 object SingleWorkflowRunnerActorSpec {
 
-  class SilentReceivingActor extends Actor {
-    override def receive = {
-      case WorkflowManagerActor.Shutdown => context.system.shutdown()
-      case _ => /* consume everything else and don't reply */
-    }
-  }
-
   def tempFile() = File.newTemp("metadata.", ".json").path
 
   def tempDir() = File.newTempDir("metadata.dir.").path
@@ -44,14 +42,17 @@ abstract class SingleWorkflowRunnerActorSpec(name: String) extends CromwellTestk
   def workflowManagerActor(): ActorRef = {
     system.actorOf(Props(classOf[WorkflowManagerActor], new LocalBackend))
   }
-
-  def silentActor(): ActorRef = {
-    system.actorOf(Props(classOf[SilentReceivingActor]))
+  
+  def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
+                          outputFile: => Option[Path] = None): ActorRef = {
+    system.actorOf(SingleWorkflowRunnerActor.props(sampleWdl.asWorkflowSources(), outputFile, managerActor))
   }
 
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
-                          outputFile: => Option[Path] = None): ActorRef = {
-    system.actorOf(SingleWorkflowRunnerActor.props(sampleWdl.asWorkflowSources(), outputFile, managerActor))
+                          outputFile: => Option[Path] = None): Unit = {
+    val actorRef = createRunnerActor(sampleWdl, managerActor, outputFile)
+    val futureResult = actorRef ? RunWorkflow
+    Await.ready(futureResult, Duration.Inf)
   }
 }
 
@@ -61,9 +62,9 @@ class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec(
       within(timeoutDuration) {
         waitForInfo("workflow finished with status 'Succeeded'.") {
           singleWorkflowActor()
-          system.awaitTermination()
         }
       }
+      TestKit.shutdownActorSystem(system, timeoutDuration)
     }
   }
 }
@@ -79,8 +80,8 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataSpec") with 
       val testStart = System.currentTimeMillis
       within(timeoutDuration) {
         singleWorkflowActor(outputFile = Option(metadataFile))
-        system.awaitTermination()
       }
+      TestKit.shutdownActorSystem(system, timeoutDuration)
 
       val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
       metadata.id shouldNot be(empty)
@@ -136,8 +137,8 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataOnFailureSpe
       val testStart = System.currentTimeMillis
       within(timeoutDuration) {
         singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
-        system.awaitTermination()
       }
+      TestKit.shutdownActorSystem(system, timeoutDuration)
 
       val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
       metadata.id shouldNot be(empty)
@@ -183,11 +184,17 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithBadMetadataSpec") {
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow requesting a bad metadata path" in {
       within(timeoutDuration) {
-        waitForErrorWithException(s"SingleWorkflowRunnerActor: $metadataDir: Is a directory") {
-          singleWorkflowActor(outputFile = Option(metadataDir))
-          system.awaitTermination()
+        val runner = createRunnerActor(outputFile = Option(metadataDir))
+        waitForErrorWithException(s"$metadataDir: Is a directory") {
+          val futureResult = runner ? RunWorkflow
+          Await.ready(futureResult, Duration.Inf)
+          futureResult.value.get match {
+            case Success(_) =>
+            case Failure(e) => fail(e)
+          }
         }
       }
+      TestKit.shutdownActorSystem(system, timeoutDuration)
     }
   }
 }
@@ -197,12 +204,18 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorFailureSpec") {
   "A SingleWorkflowRunnerActor" should {
     "successfully terminate the system on an exception" in {
       within(timeoutDuration) {
-        val actor = singleWorkflowActor(managerActor = silentActor())
+        val runner = createRunnerActor()
+        val futureResult = runner ? RunWorkflow
         val ex = new RuntimeException("expected error")
         ex.setStackTrace(ex.getStackTrace.take(1)) // Leave just a small hint, not a full trace.
-        actor ! Status.Failure(ex)
-        system.awaitTermination()
+        runner ! Status.Failure(ex)
+        Await.ready(futureResult, Duration.Inf)
+        futureResult.value.get match {
+          case Success(_) => fail("Unexpected success")
+          case Failure(e) => e.getMessage should include("expected error")
+        }
       }
+      TestKit.shutdownActorSystem(system, timeoutDuration)
     }
   }
 }
@@ -212,9 +225,10 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorUnexpectedSpec") {
   "A SingleWorkflowRunnerActor" should {
     "successfully warn about unexpected output" in {
       within(timeoutDuration) {
+        val runner = createRunnerActor()
         waitForWarning("SingleWorkflowRunnerActor: received unexpected message: expected unexpected") {
-          val actor = singleWorkflowActor(managerActor = silentActor())
-          actor ! "expected unexpected"
+          val futureResult = runner ? RunWorkflow
+          runner ! "expected unexpected"
         }
         assert(!system.isTerminated)
       }

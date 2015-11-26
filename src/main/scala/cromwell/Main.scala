@@ -3,18 +3,24 @@ package cromwell
 import java.io.{File => JFile}
 import java.nio.file.{Files, Path, Paths}
 
+import akka.pattern.ask
+import akka.util.Timeout
 import better.files._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor, WorkflowOptions}
+import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import spray.json._
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import cromwell.instrumentation.Instrumentation.Monitor
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -36,19 +42,20 @@ object Main extends App {
    * Also now passing args to runAction instead of the constructor, as even sbt seemed to have issues with the args
    * array becoming null in "new Main(args)" when used with: sbt 'run run ...'
    */
-  new Main().runAction(args)
+  val AskTimeout = Timeout(5 seconds)
+  new Main().runAction(args)(AskTimeout)
 }
 
-class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => WorkflowManagerSystem) {
+class Main private[cromwell](enableTermination: Boolean, managerSystem: () => WorkflowManagerSystem) {
   private[cromwell] val initLoggingReturnCode = initLogging()
 
   lazy val Log = LoggerFactory.getLogger("cromwell")
   Monitor.start()
 
-  def this() = this(enableSysExit = true, managerSystem = () => new WorkflowManagerSystem {})
+  def this() = this(enableTermination = true, managerSystem = () => new WorkflowManagerSystem {})
 
   // CromwellServer still doesn't clean up... so => Any
-  def runAction(args: Seq[String]): Any = {
+  def runAction(args: Seq[String])(implicit timeout: Timeout): Any = {
     getAction(args.headOption) match {
       case Some(x) if x == Actions.Validate => validate(args.tail)
       case Some(x) if x == Actions.Highlight => highlight(args.tail)
@@ -96,7 +103,7 @@ class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => Workfl
   val OptionsLabel = "Workflow Options"
   val MetadataLabel = "Workflow Metadata Output"
 
-  def run(args: Seq[String]): Int = {
+  def run(args: Seq[String])(implicit timeout: Timeout): Int = {
     continueIf(args.nonEmpty && args.length <= 4) {
       val wdlPath = Paths.get(args.head)
       val inputsPath = argPath(args, 1, Option(".inputs"), checkDefaultExists = false)
@@ -142,17 +149,16 @@ class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => Workfl
     } yield Paths.get(args.head).resolveSibling(path)
   }
 
-  private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
+  private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path])(implicit timeout: Timeout): Int = {
     val workflowManagerSystem = managerSystem()
-    val singleWorkflowRunner = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
+    val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)
-    workflowManagerSystem.actorSystem.actorOf(singleWorkflowRunner, "SingleWorkflowRunnerActor")
-    workflowManagerSystem.actorSystem.awaitTermination() // And now we just wait for the magic to happen
-    /*
-     * NOTE: When the actor system is shutdown, no communication of success or failure is messaged or recorded
-     * hence the exit code will always be zero.
-     */
-    exit(0)
+    val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
+
+    val futureResult = runner ? RunWorkflow
+    Await.ready(futureResult, Duration.Inf)
+    if (enableTermination) workflowManagerSystem.actorSystem.shutdown()
+    exit (if (futureResult.value.get.isSuccess) 0 else 1)
   }
 
   /* Utilities for the mini-DSL used in tryWorkflowSourceFiles. */
@@ -328,7 +334,7 @@ class Main private[cromwell](enableSysExit: Boolean, managerSystem: () => Workfl
   private[this] def loadWdl(args: Seq[String])(f: WdlNamespace => Int): Int = loadWdl(args.head)(f)
 
   private[this] def exit(returnCode: Int): Int = {
-    if (enableSysExit) {
+    if (enableTermination) {
       // $COVERAGE-OFF$Exit not allowed during tests
       sys.exit(returnCode)
       // $COVERAGE-ON$

@@ -18,6 +18,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
 
 import scala.concurrent.Await
@@ -107,6 +108,8 @@ object CromwellTestkitSpec {
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
+
+  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$") {

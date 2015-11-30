@@ -922,7 +922,7 @@ google {
 
   // If authScheme is "service"
   serviceAuth {
-    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
 }
@@ -961,7 +961,7 @@ google {
   authScheme = "service"
 
   serviceAuth {
-    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
   

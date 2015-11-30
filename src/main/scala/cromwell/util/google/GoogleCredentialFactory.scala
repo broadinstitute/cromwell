@@ -8,7 +8,6 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets, GoogleCredential}
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
@@ -58,8 +57,7 @@ object GoogleCredentialFactory {
       .setJsonFactory(jsonFactory)
       .setServiceAccountId(config.getString("serviceAccountId"))
       .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
-      .setServiceAccountPrivateKeyFromP12File(new File(config.getString("p12File")))
-    //  .setServiceAccountUser(GoogleUser) FIXME: Dig into how impersonation works and if we even care
+      .setServiceAccountPrivateKeyFromPemFile(new File(config.getString("pemFile")))
       .build()
   }
 

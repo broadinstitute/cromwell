@@ -130,7 +130,7 @@ trait SharedFileSystem {
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs = {
-    val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.name, descriptor.id, callName, index)
+    val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.unqualifiedName, descriptor.id, callName, index)
     CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
@@ -169,7 +169,7 @@ trait SharedFileSystem {
      * The new path matches the original path, it only "moves" the root to be the call directory.
      */
     def toCallPath(path: Path): Path = {
-      val callDirectory = LocalBackend.hostCallPath(workflowDescriptor, call.name, callKey.index)
+      val callDirectory = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, callKey.index)
       // Concatenate call directory with absolute input path
       Paths.get(callDirectory.toAbsolutePath.toString, path.toAbsolutePath.toString)
     }

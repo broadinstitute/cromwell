@@ -53,7 +53,7 @@ package object engine {
 
     val backend = Backend.from(workflowOptions.getOrElse("default_backend", ConfigFactory.load.getConfig("backend").getString("backend")))
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
-    val name = namespace.workflow.name
+    val name = namespace.workflow.unqualifiedName
     val shortId = id.toString.split("-")(0)
 
     backend.assertWorkflowOptions(workflowOptions)
@@ -173,7 +173,9 @@ package object engine {
     }.toMap
   }
 
-  case class SymbolStoreKey(scope: String, name: String, index: Option[Int], input: Boolean)
+  case class SymbolStoreKey(scope: String, name: String, index: Option[Int], input: Boolean) {
+    def fqn: FullyQualifiedName = s"$scope.$name"
+  }
 
   case class SymbolStoreEntry(key: SymbolStoreKey, wdlType: WdlType, wdlValue: Option[WdlValue]) {
     def isInput: Boolean = key.input

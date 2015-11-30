@@ -11,10 +11,10 @@ class ScopeSpec extends FlatSpec with Matchers {
   val namespace = NamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource(), BackendType.LOCAL)
   val calls: Seq[Call] = namespace.workflow.calls
   val scatters: Seq[Scatter] = namespace.workflow.scatters
-  val scatter0: Scatter = scatters.find(_.name == "$scatter_0").get
-  val scatter1: Scatter = scatters.find(_.name == "$scatter_1").get
-  val scatter2: Scatter = scatters.find(_.name == "$scatter_2").get
-  val scatter3: Scatter = scatters.find(_.name == "$scatter_3").get
+  val scatter0: Scatter = scatters.find(_.unqualifiedName == "$scatter_0").get
+  val scatter1: Scatter = scatters.find(_.unqualifiedName == "$scatter_1").get
+  val scatter2: Scatter = scatters.find(_.unqualifiedName == "$scatter_2").get
+  val scatter3: Scatter = scatters.find(_.unqualifiedName == "$scatter_3").get
   val callA: Call = calls.find(_.fullyQualifiedName == "w.A").get
   val callB: Call = calls.find(_.fullyQualifiedName == "w.B").get
   val callC: Call = calls.find(_.fullyQualifiedName == "w.C").get

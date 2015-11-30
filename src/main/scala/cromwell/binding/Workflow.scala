@@ -93,7 +93,8 @@ object Workflow {
     }
     val workflowOutputsDecls = ast.findAsts(AstNodeName.WorkflowOutput) map { wfOutput =>
       val wildcard = Option(wfOutput.getAttribute("wildcard")).map(_.sourceString).getOrElse("").nonEmpty
-      WorkflowOutputDeclaration(wfOutput.getAttribute("fqn").sourceString, wildcard)
+      val outputFqn = name + "." + wfOutput.getAttribute("fqn").sourceString
+      WorkflowOutputDeclaration(outputFqn, wildcard)
     }
 
     callNames groupBy { _.sourceString } foreach {
@@ -111,12 +112,11 @@ object Workflow {
  * only supports a set of `call` declarations and a name for
  * the workflow
  *
- * @param name The name of the workflow
+ * @param unqualifiedName The name of the workflow
  */
-case class Workflow(name: String,
+case class Workflow(unqualifiedName: String,
                     declarations: Seq[Declaration],
                     workflowOutputDecls: Seq[WorkflowOutputDeclaration]) extends Executable with Scope {
-  // FIXME: In a world where we know this is a top level scope, these would go away
   override val prerequisiteScopes = Set.empty[Scope]
   override val prerequisiteCallNames = Set.empty[String]
   override val parent: Option[Scope] = None
@@ -139,8 +139,36 @@ case class Workflow(name: String,
    * @return a Map[FullyQualifiedName, WdlType] representing the union
    *         of all outputs from all `call`s within this workflow
    */
-  def outputs: Map[FullyQualifiedName, WdlType] = {
-    val outputs = for (call <- calls; output <- call.task.outputs) yield (s"${call.fullyQualifiedName}.${output.name}", output.wdlType)
-    outputs.toMap
+  lazy val outputs: Seq[ReportableSymbol] = {
+
+    case class PotentialReportableSymbol(name: String, wdlType: WdlType, matchWorkflowOutputWildcards: Boolean)
+
+    // Build a list of ALL potentially reportable symbols, and whether they're allowed to match
+    // wildcards in the workflow's output {...} spec.
+    val outputs: Seq[PotentialReportableSymbol] = for {
+      call: Call <- calls
+      output <- call.task.outputs
+    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${output.name}", output.wdlType, matchWorkflowOutputWildcards = true)
+
+    val inputs: Seq[PotentialReportableSymbol] = for {
+      call: Call <- calls
+      input <- call.task.inputs
+    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${input.name}", input.wdlType, matchWorkflowOutputWildcards = false)
+
+    val filtered = if (workflowOutputDecls isEmpty) {
+      outputs
+    } else {
+      (outputs ++ inputs) filter {
+        case PotentialReportableSymbol(fqn, wdlType, wildcardsAllowed) =>
+          workflowOutputDecls.isEmpty || workflowOutputDecls.exists(_.outputMatchesDeclaration(fqn, wildcardsAllowed))
+      }
+    }
+
+    val x = filtered map { case PotentialReportableSymbol(fqn, value, wildcardAllowed) => ReportableSymbol(fqn, value) }
+    x
   }
+
+  override def rootWorkflow: Workflow = this
 }
+
+case class ReportableSymbol(fullyQualifiedName: FullyQualifiedName, wdlType: WdlType)

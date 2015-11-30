@@ -19,7 +19,6 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
-import cromwell.webservice.CromwellApiHandler.WorkflowQuery
 import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
@@ -205,7 +204,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         workflowDescriptor.sourceFiles.workflowOptionsJson.toClob
       )
 
-      symbolInsert <- dataAccess.symbolsAutoInc ++= toSymbols(workflowExecutionInsert, workflowInputs)
+      symbolInsert <- dataAccess.symbolsAutoInc ++= toInputSymbols(workflowExecutionInsert, workflowDescriptor.namespace.workflow, workflowInputs)
 
       // NOTE: Don't use DBIO.seq for **transforming** sequences
       // - DBIO.seq(mySeq: _*) runs *any* items in sequence, but converts Seq[ DBIOAction[_] ] to DBIOAction[ Unit ]
@@ -220,17 +219,21 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   // Converts the SymbolStoreEntry to Symbols. Does not create the action to do the insert.
-  private def toSymbols(workflowExecution: WorkflowExecution,
+  private def toInputSymbols(workflowExecution: WorkflowExecution,
+                        rootWorkflowScope: Workflow,
                         symbolStoreEntries: Traversable[SymbolStoreEntry]): Seq[Symbol] = {
     symbolStoreEntries.toSeq map { symbol =>
+      val reportableResult = rootWorkflowScope.outputs exists { _.fullyQualifiedName == symbol.key.fqn }
       new Symbol(
         workflowExecution.workflowExecutionId.get,
         symbol.key.scope,
         symbol.key.name,
         symbol.key.index.fromIndex,
-        if (symbol.isInput) IoInput else IoOutput,
+        if (symbol.key.input) IoInput else IoOutput,
+        reportableResult,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob))
+        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob)
+      )
     }
   }
 
@@ -479,10 +482,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.allSymbols(workflowId.toString).result
-
-    val futureResults = runTransaction(action)
-
-    futureResults map toSymbolStoreEntries
+    runTransaction(action) map toSymbolStoreEntries
   }
 
   /** Get all inputs for the scope of this key. */
@@ -498,35 +498,40 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Returns all NON SHARDS outputs for this workflowId */
-  override def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
-    getSymbols(workflowId, IoOutput, None, None)
+  override def getWorkflowOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+    val action = dataAccess.symbolsForWorkflowOutput(workflowId.toString).result
+    runTransaction(action) map toSymbolStoreEntries
   }
 
-  private def getSymbols(workflowId: WorkflowId, ioValue: IoValue,
-                         callFqnOption: Option[FullyQualifiedName] = None, callIndexOption: Option[Int] = None): Future[Traversable[SymbolStoreEntry]] = {
+  private def getSymbols(workflowId: WorkflowId,
+                         ioValue: IoValue,
+                         callFqnOption: Option[FullyQualifiedName] = None,
+                         callIndexOption: Option[Int] = None): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
       workflowId.toString, ioValue, callFqnOption, callIndexOption
     ).result
 
-    val futureResults = runTransaction(action)
-
-    futureResults map toSymbolStoreEntries
+    runTransaction(action) map toSymbolStoreEntries
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs): Future[Unit] = {
+  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, reportableResults: Seq[ReportableSymbol]): Future[Unit] = {
+    val reportableResultNames = reportableResults map { _.fullyQualifiedName }
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
         case (symbolLocallyQualifiedName, wdlValue) =>
+          val reportableSymbol = key.index.fromIndex == -1 && reportableResultNames.contains(key.scope.fullyQualifiedName + "." + symbolLocallyQualifiedName)
           new Symbol(
             workflowExecution.workflowExecutionId.get,
             key.scope.fullyQualifiedName,
             symbolLocallyQualifiedName,
             key.index.fromIndex,
             IoOutput,
+            reportableSymbol,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValueToDbValue(wdlValue).toClob))
+            Option(wdlValueToDbValue(wdlValue).toClob)
+          )
       }
     } yield ()
 
@@ -583,17 +588,13 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   override def getAllInputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
 
-    val futureResults = runTransaction(action)
-
-    futureResults map toSymbolStoreEntries
+    runTransaction(action) map toSymbolStoreEntries
   }
 
   override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
 
-    val futureResults = runTransaction(action)
-
-    futureResults map toSymbolStoreEntries
+    runTransaction(action) map toSymbolStoreEntries
   }
 
   override def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]] = {
@@ -601,8 +602,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionAndJob <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
-    val futureResults = runTransaction(action)
-    futureResults map { results =>
+    runTransaction(action) map { results =>
       results map { case (execution, job) =>
           ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
       } toMap
@@ -614,8 +614,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionAndJob <- dataAccess.localJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
-    val futureResults = runTransaction(action)
-    futureResults map { results =>
+    runTransaction(action) map { results =>
       results map { case (execution, job) =>
         ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
       } toMap
@@ -627,8 +626,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionAndJob <- dataAccess.sgeJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
-    val futureResults = runTransaction(action)
-    futureResults map { results =>
+    runTransaction(action) map { results =>
       results map { case (execution, job) =>
         ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
       } toMap

@@ -357,7 +357,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
-      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs)
+      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
       _ = persistStatusThenAck(callKey, ExecutionStatus.Done, currentSender, message, Option(callOutputs), Option(returnCode))
     } yield()
 
@@ -375,6 +375,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: CallOutputs): Unit = {
     val newEntriesMap = outputs map { case (lqn, value) =>
       val storeKey = SymbolStoreKey(executionKey.scope.fullyQualifiedName, lqn, executionKey.index, input = false)
+      val symbolFqn = s"${storeKey.scope}.${storeKey.name}"
       new SymbolStoreEntry(storeKey, value.wdlType, Option(value))
     } groupBy { entry => SymbolCacheKey(entry.scope, entry.isInput) }
 
@@ -415,7 +416,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
       // cancelled by some external system.
       persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
-      logger.warn(s"Call ${callKey.scope.name} was aborted but the workflow should still be running.")
+      logger.warn(s"Call ${callKey.scope.unqualifiedName} was aborted but the workflow should still be running.")
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
       stay() using updatedData
     case Event(message: CallStartMessage, data) if !data.isPending(message.callKey) =>
@@ -680,7 +681,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def lookupCall(key: ExecutionStoreKey, workflow: Workflow)(name: String): Try[WdlCallOutputsObject] = {
-    workflow.calls find { _.name == name } match {
+    workflow.calls find { _.unqualifiedName == name } match {
       case Some(matchedCall) =>
         /**
          * After matching the Call, this determines if the `key` depends on a single shard
@@ -695,7 +696,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
           case _ => None
         }
         fetchCallOutputEntries(findCallKey(matchedCall, index) getOrElse {
-          throw new WdlExpressionException(s"Could not find a callKey for name '${matchedCall.name}'")
+          throw new WdlExpressionException(s"Could not find a callKey for name '${matchedCall.unqualifiedName}'")
         })
       case None => Failure(new WdlExpressionException(s"Could not find a call with name '$name'"))
     }
@@ -816,11 +817,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlCallOutputsObject] = {
     val callOutputsAsMap = callOutputEntries(outputKey).map(entry => entry.key.name -> entry.wdlValue).toMap
     callOutputsAsMap find { case (k, v) => v.isEmpty } match {
-      case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${outputKey.scope.name} because some of its inputs are not defined (i.e. ${noneValue._1}"))
+      case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${outputKey.scope.unqualifiedName} because some of its inputs are not defined (i.e. ${noneValue._1}"))
       // TODO: .asInstanceOf[Call]?
       case None => Success(WdlCallOutputsObject(outputKey.scope.asInstanceOf[Call], callOutputsAsMap.map {
         case (k, v) => k -> v.getOrElse {
-          throw new WdlExpressionException(s"Could not retrieve output $k value for call ${outputKey.scope.name}")
+          throw new WdlExpressionException(s"Could not retrieve output $k value for call ${outputKey.scope.unqualifiedName}")
         }
       }))
     }
@@ -896,13 +897,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   private def processRunnableScatter(scatterKey: ScatterKey): Try[ExecutionStartResult] = {
 
-    val tryRootWorkflow = Try {
-      scatterKey.scope.rootScope match {
-        case w: Workflow => w
-        case _ => throw new WdlExpressionException(s"Expected scatter '$scatterKey' to have a workflow root scope.")
-      }
-    }
-
     def buildExecutionStartResult(collection: WdlValue): ExecutionStartResult = {
       collection match {
         case a: WdlArray =>
@@ -928,8 +922,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       }
     }
 
+    val rootWorkflow = scatterKey.scope.rootWorkflow
     for {
-      rootWorkflow <- tryRootWorkflow
       collection <- scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), new NoFunctions)
     } yield buildExecutionStartResult(collection)
   }

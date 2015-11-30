@@ -55,7 +55,7 @@ class JesBackendCall(val backend: JesBackend,
 
   def jesCommandLine = s"/bin/bash ${cmdInput.local} > ${stdoutJesOutput.local} 2> ${stderrJesOutput.local}"
 
-  val callGcsPath = backend.callGcsPath(workflowDescriptor, call.name, key.index)
+  val callGcsPath = backend.callGcsPath(workflowDescriptor, call.unqualifiedName, key.index)
   val callDir = GoogleCloudStoragePath(callGcsPath)
   val gcsExecPath = GoogleCloudStoragePath(callGcsPath + "/" + JesExecScript)
   val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile

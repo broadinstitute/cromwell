@@ -320,11 +320,11 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
   "WDL file with failOnStderr runtime" should "identify failOnStderr for (and only for) appropriate tasks" in {
     val namespaceWithFailOnStderr = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.LOCAL)
-    val echoWithFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithFailOnStderr")
+    val echoWithFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.unqualifiedName == "echoWithFailOnStderr")
     assert(echoWithFailOnStderrIndex >= 0)
     assert(namespaceWithFailOnStderr.workflow.calls(echoWithFailOnStderrIndex).failOnStderr)
 
-    val echoWithoutFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.name == "echoWithoutFailOnStderr")
+    val echoWithoutFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.unqualifiedName == "echoWithoutFailOnStderr")
     assert(echoWithoutFailOnStderrIndex >= 0)
     assert(!namespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
   }
@@ -334,7 +334,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithSingleContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithSingleContinueOnReturnCode"
+        call.unqualifiedName == "echoWithSingleContinueOnReturnCode"
       }
     echoWithSingleContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithSingleContinueOnReturnCodeIndex)
@@ -342,7 +342,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithExpressionContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithExpressionContinueOnReturnCode"
+        call.unqualifiedName == "echoWithExpressionContinueOnReturnCode"
       }
     echoWithExpressionContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithExpressionContinueOnReturnCodeIndex)
@@ -350,7 +350,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithListContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithListContinueOnReturnCode"
+        call.unqualifiedName == "echoWithListContinueOnReturnCode"
       }
     echoWithListContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithListContinueOnReturnCodeIndex)
@@ -358,7 +358,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithTrueContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithTrueContinueOnReturnCode"
+        call.unqualifiedName == "echoWithTrueContinueOnReturnCode"
       }
     echoWithTrueContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithTrueContinueOnReturnCodeIndex)
@@ -366,7 +366,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithFalseContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithFalseContinueOnReturnCode"
+        call.unqualifiedName == "echoWithFalseContinueOnReturnCode"
       }
     echoWithFalseContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithFalseContinueOnReturnCodeIndex)
@@ -374,7 +374,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithTrueStringContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithTrueStringContinueOnReturnCode"
+        call.unqualifiedName == "echoWithTrueStringContinueOnReturnCode"
       }
     echoWithTrueStringContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithTrueStringContinueOnReturnCodeIndex)
@@ -382,7 +382,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
     val echoWithFalseStringContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
-        call.name == "echoWithFalseStringContinueOnReturnCode"
+        call.unqualifiedName == "echoWithFalseStringContinueOnReturnCode"
       }
     echoWithFalseStringContinueOnReturnCodeIndex should be >= 0
     namespaceWithContinueOnReturnCode.workflow.calls(echoWithFalseStringContinueOnReturnCodeIndex)
@@ -392,7 +392,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   "WDL file with Googly config" should "parse up properly" in {
     val namespaceWithGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig, BackendType.JES)
     val calls = namespaceWithGooglyConfig.workflow.calls
-    val callIndex = calls.indexWhere(call => call.name == "googly_task")
+    val callIndex = calls.indexWhere(call => call.unqualifiedName == "googly_task")
     callIndex should be >= 0
 
     val googlyCall = calls(callIndex)
@@ -413,7 +413,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   "WDL file with no Googly config" should "also parse up properly to defaults" in {
     val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithoutGooglyConfig, BackendType.LOCAL)
     val calls = NamespaceWithoutGooglyConfig.workflow.calls
-    val callIndex = calls.indexWhere(call => call.name == "googly_task")
+    val callIndex = calls.indexWhere(call => call.unqualifiedName == "googly_task")
     callIndex should be >= 0
 
     val googlyCall = calls(callIndex)
@@ -427,7 +427,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   "WDL file with local disk Googly config" should "parse up properly" in {
     val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithLocalDiskGooglyConfig, BackendType.JES)
     val calls = NamespaceWithoutGooglyConfig.workflow.calls
-    val callIndex = calls.indexWhere(call => call.name == "googly_task")
+    val callIndex = calls.indexWhere(call => call.unqualifiedName == "googly_task")
     callIndex should be >= 0
 
     val googlyCall = calls(callIndex)

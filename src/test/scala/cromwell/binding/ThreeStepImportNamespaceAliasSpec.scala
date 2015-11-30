@@ -74,7 +74,7 @@ class ThreeStepImportNamespaceAliasSpec extends FlatSpec with Matchers {
     namespace.namespaces flatMap {_.tasks} map {_.name} shouldEqual Seq("ps", "cgrep", "wc")
   }
   it should "Have 3 calls in the workflow, 2 of them aliased" in {
-    namespace.workflow.calls map {_.name} shouldEqual Seq("a1", "a2", "ns3.wc")
+    namespace.workflow.calls map {_.unqualifiedName} shouldEqual Seq("a1", "a2", "ns3.wc")
   }
   it should "Throw an exception if the import resolver fails to resolve an import" in {
     def badResolver(s: String): String = {

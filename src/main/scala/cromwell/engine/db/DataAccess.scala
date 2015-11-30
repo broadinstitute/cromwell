@@ -7,9 +7,7 @@ import cromwell.engine.backend.{JobKey, Backend}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
-import cromwell.webservice.CromwellApiHandler.WorkflowQuery
 import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
-
 import scala.concurrent.Future
 
 object DataAccess {
@@ -43,7 +41,7 @@ trait DataAccess {
   // TODO needed to support compatibility with current code, this seems like an inefficient way of getting
   // TODO workflow outputs.
   /** Returns all outputs for this workflowId */
-  def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
+  def getWorkflowOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
@@ -56,7 +54,7 @@ trait DataAccess {
   def getInputs(id: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue]): Future[Unit]
+  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue], workflowOutputFqns: Seq[ReportableSymbol]): Future[Unit]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
     setStatus(workflowId, keys, CallStatus(executionStatus, None))

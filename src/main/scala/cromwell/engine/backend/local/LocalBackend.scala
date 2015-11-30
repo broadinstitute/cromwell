@@ -138,7 +138,7 @@ class LocalBackend extends Backend with SharedFileSystem {
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
   private def buildDockerRunCommand(backendCall: BackendCall, image: String): String = {
-    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.name, backendCall.key.index)
+    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.unqualifiedName, backendCall.key.index)
     s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
   }
 

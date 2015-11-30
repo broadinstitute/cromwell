@@ -54,17 +54,17 @@ class NestedScatterSpec extends FlatSpec with Matchers {
   }
 
   it should "Instantiate Scatters with correct item attributes" in {
-    namespace.workflow.scatters.find(_.name == "$scatter_0").get.item shouldEqual "item"
-    namespace.workflow.scatters.find(_.name == "$scatter_1").get.item shouldEqual "itemB"
-    namespace.workflow.scatters.find(_.name == "$scatter_2").get.item shouldEqual "itemB"
-    namespace.workflow.scatters.find(_.name == "$scatter_3").get.item shouldEqual "item"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_0").get.item shouldEqual "item"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_1").get.item shouldEqual "itemB"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_2").get.item shouldEqual "itemB"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_3").get.item shouldEqual "item"
   }
 
   it should "Instantiate Scatters with correct collection attributes" in {
-    namespace.workflow.scatters.find(_.name == "$scatter_0").get.collection.toWdlString shouldEqual "A.A_out"
-    namespace.workflow.scatters.find(_.name == "$scatter_1").get.collection.toWdlString shouldEqual "B.B_out"
-    namespace.workflow.scatters.find(_.name == "$scatter_2").get.collection.toWdlString shouldEqual "B.B_out"
-    namespace.workflow.scatters.find(_.name == "$scatter_3").get.collection.toWdlString shouldEqual "A.A_out"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_0").get.collection.toWdlString shouldEqual "A.A_out"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_1").get.collection.toWdlString shouldEqual "B.B_out"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_2").get.collection.toWdlString shouldEqual "B.B_out"
+    namespace.workflow.scatters.find(_.unqualifiedName == "$scatter_3").get.collection.toWdlString shouldEqual "A.A_out"
   }
 
 }

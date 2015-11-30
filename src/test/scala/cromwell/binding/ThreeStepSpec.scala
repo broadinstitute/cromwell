@@ -10,7 +10,7 @@ class ThreeStepSpec extends FlatSpec with Matchers {
   val namespace = NamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource(), BackendType.LOCAL)
 
   "Binding Workflow" should "Have correct name for workflow" in {
-    namespace.workflow.name shouldEqual "three_step"
+    namespace.workflow.unqualifiedName shouldEqual "three_step"
   }
   it should "Have correct FQN" in {
     namespace.workflow.fullyQualifiedName shouldEqual "three_step"

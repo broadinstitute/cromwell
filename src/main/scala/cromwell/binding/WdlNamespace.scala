@@ -358,7 +358,7 @@ object NamespaceWithWorkflow {
       name. This is ok for now because we do not support nested workflows and all call names must be unique within
       a workflow, however if we support nested workflows this will no longer work properly.
      */
-    val call = workflow.calls find { _.name == memberAccess.lhs }
+    val call = workflow.calls find { _.unqualifiedName == memberAccess.lhs }
 
     call match {
       case Some(c) if c.task.outputs.exists(_.name == memberAccess.rhs) => ()

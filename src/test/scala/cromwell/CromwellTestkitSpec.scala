@@ -9,7 +9,8 @@ import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.binding._
-import cromwell.binding.values.{WdlArray, WdlFile, WdlValue}
+import cromwell.binding.types.WdlType
+import cromwell.binding.values.{WdlString, WdlArray, WdlFile, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs
@@ -23,6 +24,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.reflect.ClassTag
+import scala.util.{Failure, Success}
 import scala.util.matching.Regex
 
 object CromwellTestkitSpec {
@@ -95,6 +97,12 @@ object CromwellTestkitSpec {
       block
     }
   }
+
+  /**
+    * Special case for validating outputs. Used when the test wants to check that an output exists, but doesn't care what
+    * the actual value was.
+    */
+  lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 }
 
 abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
@@ -196,6 +204,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                              eventFilter: EventFilter,
                              expectedOutputs: Map[FullyQualifiedName, WdlValue],
                              runtime: String = "",
+                             allowOtherOutputs: Boolean = true,
                              terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.asWorkflowSources(runtime))
@@ -203,11 +212,20 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
         verifyWorkflowState(wma, workflowId, terminalState)
-        val outputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
-        expectedOutputs foreach { case (outputFqn, expectedValue) =>
-          val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
+        val outputs: WorkflowOutputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
 
-          validateOutput(actualValue, expectedValue)
+        val actualOutputNames = outputs map { _._1} mkString(", ")
+        val expectedOuputNames = expectedOutputs map { _._1} mkString(" ")
+
+        expectedOutputs foreach { case (outputFqn, expectedValue) =>
+          val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputNames'"))
+          if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+        }
+        if (!allowOtherOutputs) {
+          outputs foreach { case (actualFqn, actualValue) =>
+            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOuputNames'"))
+            if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+          }
         }
       }
     }

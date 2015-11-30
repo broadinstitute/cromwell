@@ -15,7 +15,7 @@ case class SgeBackendCall(backend: SgeBackend,
                           locallyQualifiedInputs: CallInputs,
                           callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with LocalFileSystemBackendCall {
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
-  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.name, key.index)
+  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
   val stdout = callRootPath.resolve("stdout")
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script.sh")

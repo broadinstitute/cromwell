@@ -11,7 +11,7 @@ sealed trait ExecutionStoreKey {
   def index: Option[Int]
   def tag: String = {
     val shard = index.map(x => s":$x").getOrElse("")
-    s"${scope.name}$shard"
+    s"${scope.unqualifiedName}$shard"
   }
 }
 

@@ -18,8 +18,8 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
 
   def identifierLookup(String: String): WdlType = {
     String match {
-      case "cgrep" => WdlCallOutputsObjectType(namespace.workflow.calls.find(_.name == "cgrep").get)
-      case "ps" => WdlCallOutputsObjectType(namespace.workflow.calls.find(_.name == "ps").get)
+      case "cgrep" => WdlCallOutputsObjectType(namespace.workflow.calls.find(_.unqualifiedName == "cgrep").get)
+      case "ps" => WdlCallOutputsObjectType(namespace.workflow.calls.find(_.unqualifiedName == "ps").get)
     }
   }
 

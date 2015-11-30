@@ -51,7 +51,7 @@ package object engine {
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
     // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
     // Not private because overridden in tests
-    lazy val conf = ConfigFactory.load
+    lazy private [engine] val conf = ConfigFactory.load
 
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
       case Success(options: JsObject) => WorkflowOptions.fromJsonObject(options).get // .get here to purposefully throw the exception
@@ -59,12 +59,36 @@ package object engine {
       case Failure(ex) => throw ex
     }
 
+    val props = sys.props
+    val workflowLogger = props.get("LOG_MODE") match {
+      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
+        Paths.get(props.getOrElse("LOG_ROOT", ".")),
+        s"workflow.$id.log",
+        Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
+      )
+      case _ => NOPLogger.NOP_LOGGER
+    }
+
     // Call Caching
     // TODO: Add to lenthall
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
     private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
-    lazy val writeToCache = configCallCaching && (workflowOptions.getBoolean("write-to-cache") getOrElse configCallCaching)
-    lazy val readFromCache = configCallCaching && (workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching)
+    private lazy val optionCacheWriting = workflowOptions.getBoolean("write-to-cache") getOrElse configCallCaching
+    private lazy val optionCacheReading = workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching
+
+    if(!configCallCaching && optionCacheWriting) {
+      workflowLogger.warn(
+        """Write to cache is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
+          |As a result the call executions from this workflow will NOT be cached.""".stripMargin)
+    }
+    if(!configCallCaching && optionCacheReading) {
+      workflowLogger.warn(
+        """Read from cache is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
+          |As a result every call in this workflow WILL be executed.""".stripMargin)
+    }
+
+    lazy val writeToCache = configCallCaching && optionCacheWriting
+    lazy val readFromCache = configCallCaching && optionCacheReading
 
     val backend = Backend.from(workflowOptions.getOrElse("default_backend", conf.getConfig("backend").getString("backend")))
     val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource, backend.backendType)
@@ -84,16 +108,6 @@ package object engine {
     val coercedInputs = namespace.coerceRawInputs(rawInputs).get
     val declarations = namespace.staticDeclarationsRecursive(coercedInputs, backend.engineFunctions(IOInterface)).get
     val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
-
-    val props = sys.props
-    val workflowLogger = props.get("LOG_MODE") match {
-      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
-        Paths.get(props.getOrElse("LOG_ROOT", ".")),
-        s"workflow.$id.log",
-        Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
-      )
-      case _ => NOPLogger.NOP_LOGGER
-    }
 
     private def makeFileLogger(root: Path, name: String, level: Level): Logger = {
       val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]

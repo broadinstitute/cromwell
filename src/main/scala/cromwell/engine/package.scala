@@ -50,7 +50,6 @@ package object engine {
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
     // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
-    // Not private because overridden in tests
     lazy private [engine] val conf = ConfigFactory.load
 
     val workflowOptions = Try(sourceFiles.workflowOptionsJson.parseJson) match {
@@ -76,14 +75,14 @@ package object engine {
     private lazy val optionCacheWriting = workflowOptions.getBoolean("write-to-cache") getOrElse configCallCaching
     private lazy val optionCacheReading = workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching
 
-    if(!configCallCaching && optionCacheWriting) {
-      workflowLogger.warn(
-        """Write to cache is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
-          |As a result the call executions from this workflow will NOT be cached.""".stripMargin)
-    }
-    if(!configCallCaching && optionCacheReading) {
-      workflowLogger.warn(
-        """Read from cache is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
+    if (!configCallCaching) {
+      def disabledMessage(str: String) = s"$str is enabled in the workflow options but Call Caching is disabled in this Cromwell instance."
+
+      if (optionCacheWriting) workflowLogger.warn(
+        s"""${disabledMessage("Write to cache")}
+          |As a result the calls in this workflow will NOT be cached.""".stripMargin)
+      if (optionCacheReading) workflowLogger.warn(
+        s"""${disabledMessage("Read from cache")}
           |As a result every call in this workflow WILL be executed.""".stripMargin)
     }
 

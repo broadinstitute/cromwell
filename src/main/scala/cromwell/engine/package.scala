@@ -43,12 +43,24 @@ package object engine {
     def randomId() = WorkflowId(UUID.randomUUID())
   }
 
+  object WorkflowDescriptor {
+    private def disabledMessage(readWrite: String, consequence: String) =
+      s"""$readWrite is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
+         |As a result the calls in this workflow $consequence
+       """.stripMargin
+
+    val writeDisabled = disabledMessage("Write to Cache", "WILL NOT be cached")
+    val readDisabled = disabledMessage("Read from Cache", "WILL ALL be executed")
+  }
+
   /**
    * Constructs a representation of a particular workflow invocation.  As with other
    * case classes and apply() methods, this will throw an exception if it cannot be
    * created
    */
   case class WorkflowDescriptor(id: WorkflowId, sourceFiles: WorkflowSourceFiles) {
+    import WorkflowDescriptor._
+
     // TODO: Extract this from here (there is no need to reload the configuration for each workflow)
     lazy private [engine] val conf = ConfigFactory.load
 
@@ -76,14 +88,8 @@ package object engine {
     private lazy val optionCacheReading = workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching
 
     if (!configCallCaching) {
-      def disabledMessage(str: String) = s"$str is enabled in the workflow options but Call Caching is disabled in this Cromwell instance."
-
-      if (optionCacheWriting) workflowLogger.warn(
-        s"""${disabledMessage("Write to cache")}
-          |As a result the calls in this workflow will NOT be cached.""".stripMargin)
-      if (optionCacheReading) workflowLogger.warn(
-        s"""${disabledMessage("Read from cache")}
-          |As a result every call in this workflow WILL be executed.""".stripMargin)
+      if (optionCacheWriting) workflowLogger.warn(writeDisabled)
+      if (optionCacheReading) workflowLogger.warn(readDisabled)
     }
 
     lazy val writeToCache = configCallCaching && optionCacheWriting

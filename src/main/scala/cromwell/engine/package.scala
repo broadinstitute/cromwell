@@ -88,8 +88,8 @@ package object engine {
     private lazy val optionCacheReading = workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching
 
     if (!configCallCaching) {
-      if (optionCacheWriting) workflowLogger.warn(writeDisabled)
-      if (optionCacheReading) workflowLogger.warn(readDisabled)
+      if (optionCacheWriting) logWriteDisabled()
+      if (optionCacheReading) logReadDisabled()
     }
 
     lazy val writeToCache = configCallCaching && optionCacheWriting
@@ -135,6 +135,9 @@ package object engine {
       fileLogger.setLevel(level)
       fileLogger
     }
+
+    private def logWriteDisabled() = workflowLogger.warn(writeDisabled)
+    private def logReadDisabled() = workflowLogger.warn(readDisabled)
   }
 
   /**

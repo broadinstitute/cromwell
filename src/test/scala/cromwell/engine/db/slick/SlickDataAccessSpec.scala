@@ -107,6 +107,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       import dataAccess.dataAccess.driver.api._
 
       val getProduct = SimpleDBIO[String](_.connection.getMetaData.getDatabaseProductName)
+      //noinspection SqlDialectInspection
       val getHsqldbTx = sql"""SELECT PROPERTY_VALUE
                               FROM INFORMATION_SCHEMA.SYSTEM_PROPERTIES
                               WHERE PROPERTY_NAME = 'hsqldb.tx'""".as[String].head
@@ -392,7 +393,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     it should "insert a call in execution table" in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
-      val symbolFqn = "symbol.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
       val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
@@ -525,7 +525,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       assume(canConnect || testRequired)
       val callFqn1 = "call.fully.qualified.scope$s1"
       val callFqn2 = "call.fully.qualified.scope$s2"
-      val symbolLqn = "symbol"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
       val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)

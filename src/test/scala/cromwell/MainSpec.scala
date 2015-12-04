@@ -6,6 +6,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.local.LocalBackend
@@ -17,6 +19,9 @@ import org.apache.commons.io.output.TeeOutputStream
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.time.Span
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 
 class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLimitedTests {
 
@@ -161,12 +166,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
   it should "run if the inputs path is \"-\"" in {
     testWdl(GoodbyeWorld) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
-      /*
-       * NOTE: Failed runs still exit with status 0, for now. Also due to system killing, mentioned in the NOTE in
-       * SingleWorkflowRunnerActor, sometimes setTimer blows up and we never get "transitioning from Running to Failed."
-       */
-      traceInfoRun(wdl, "-", "-", "-")("SingleWorkflowRunnerActor: workflow finished with status 'Failed'.") should
-        be(0)
+      traceErrorWithExceptionRun(wdl, "-", "-", "-")("transitioned to state Failed") should be(1)
     }
   }
 
@@ -175,34 +175,8 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val options = wdlAndInputs.options
-      /*
-       * Something is breaking full error event handling. Not really sure what/where at the moment. Wild speculation:
-       * see the side note in SingleWorkflowRunnerActor regarding different halting on success vs. failed.
-       *
-       * There's this pseudo block on a failure:
-       *
-       *   workflowManagerActor.receive(workflowActor.failure) { _ pipeTo singleWorkflowRunnerActor }
-       *
-       * However, during testing, the failure does fully relay 100% of the time to the SingleWorkflowRunnerActor.
-       *
-       * When this happens, one will NOT see
-       *
-       *   [error] SingleWorkflowRunnerActor: bad_backend is not a recognized backend
-       *
-       * in the test output. It usually appears right after a
-       *
-       *   [akka://cromwell-system/user/WorkflowManagerActor] WorkflowManagerActor Found no workflows to restart.
-       *
-       * For now, defaulting to making sure at least the WorkflowManagerActor pics up the error, as it doesn't really
-       * matter. The known effects are:
-       * - Instead of _both_ the WorkflowManagerActor and the SingleWorkflowRunnerActor logging the exception, we only
-       *   get the stack trace once in the output.
-       * - Failed runs still exit with status 0, so return codes are lost to this issue, currently.
-       * - Other message / receive / routing may not be occurring in SingleWorkflowRunnerActor. But we currently just
-       *   terminate on a failure in the SingleWorkflowRunnerActor anyway. Something else is just doing it before us?
-       */
       traceErrorWithExceptionRun(wdl, inputs, options)(
-        "WorkflowManagerActor: Workflow failed submission: bad_backend is not a recognized backend") should be(0)
+        "WorkflowManagerActor: Workflow failed submission: bad_backend is not a recognized backend") should be(1)
     }
   }
 
@@ -328,6 +302,8 @@ object MainSpec {
 
   import CromwellTestkitSpec._
 
+  implicit val AskTimeout = Timeout(5 seconds)
+
   /** The return code, plus any captured text from Console.stdout and Console.stderr while executing a block. */
   case class TraceResult(returnCode: Int, out: String, err: String)
 
@@ -417,7 +393,7 @@ object MainSpec {
     val workflowManagerSystem = new TestWorkflowManagerSystem
     waitForInfo(pattern)(
       printBlock("run", args) {
-        new Main(enableSysExit = false, () => workflowManagerSystem).run(args)
+        new Main(enableTermination = false, () => workflowManagerSystem).run(args)
       }
     )(workflowManagerSystem.actorSystem)
   }
@@ -432,11 +408,16 @@ object MainSpec {
    */
   def traceErrorWithExceptionRun(args: String*)(pattern: String): Int = {
     val workflowManagerSystem = new TestWorkflowManagerSystem
-    waitForErrorWithException(pattern)(
+    val result = waitForErrorWithException(pattern)(
       printBlock("run", args) {
-        new Main(enableSysExit = false, () => workflowManagerSystem).run(args)
+        // Explicitly disable shutting down the actor system from within Main, there's a race condition to deliver
+        // log messages to the TestKit filter before the system is torn down.  Wait until we see the message we
+        // want, then shutdown the system ourselves.
+        new Main(enableTermination = false, () => workflowManagerSystem).run(args)
       }
     )(workflowManagerSystem.actorSystem)
+    TestKit.shutdownActorSystem(workflowManagerSystem.actorSystem, timeoutDuration)
+    result
   }
 
   /**
@@ -450,7 +431,7 @@ object MainSpec {
     val workflowManagerSystem = new TestWorkflowManagerSystem
     waitForInfo(pattern)(
       printBlock("runAction", args) {
-        new Main(enableSysExit = false, () => workflowManagerSystem).runAction(args) match {
+        new Main(enableTermination = false, () => workflowManagerSystem).runAction(args) match {
           case status: Int => status
         }
       }
@@ -470,7 +451,7 @@ object MainSpec {
     val status = {
       Console.withOut(outStream.teed) {
         Console.withErr(errStream.teed) {
-          block(new Main(enableSysExit = false, () => new TestWorkflowManagerSystem))
+          block(new Main(enableTermination = false, () => new TestWorkflowManagerSystem))
         }
       }
     }

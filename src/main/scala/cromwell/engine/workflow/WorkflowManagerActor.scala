@@ -136,7 +136,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
-      outputs <- globalDataAccess.getOutputs(id)
+      outputs <- globalDataAccess.getWorkflowOutputs(id)
     } yield {
       SymbolStoreEntry.toWorkflowOutputs(outputs)
     }
@@ -154,7 +154,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
     descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => Success(c.name)
+      case Some(c: Call) => Success(c.unqualifiedName)
       case _ => Failure(new UnsupportedOperationException("Expected a fully qualified name to have at least two parts"))
     }
   }

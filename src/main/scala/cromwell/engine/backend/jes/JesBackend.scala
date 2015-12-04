@@ -62,7 +62,7 @@ object JesBackend {
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends JesBackend {
-    def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.name, key.index)
+    def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.unqualifiedName, key.index)
   }
 
   /**
@@ -463,7 +463,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
           } else {
-            new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.name} failed: error code $errorCode. Message: $errorMessage")
+            new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: $errorMessage")
           }
           FailedExecutionHandle(throwable, Option(errorCode))
       }
@@ -599,7 +599,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   def workflowGcsPath(descriptor: WorkflowDescriptor): String = {
     val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, jesConf.executionBucket)
-    s"$bucket/${descriptor.namespace.workflow.name}/${descriptor.id}"
+    s"$bucket/${descriptor.namespace.workflow.unqualifiedName}/${descriptor.id}"
   }
 
   def googleProject(descriptor: WorkflowDescriptor): String = {

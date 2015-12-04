@@ -21,7 +21,7 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers {
   val backendCall = LocalBackendCall(
     backend,
     descriptor,
-    CallKey(descriptor.namespace.workflow.calls.find(_.name == "x").head, None),
+    CallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
     Map.empty[String, WdlValue],
     AbortRegistrationFunction(_ => ())
   )

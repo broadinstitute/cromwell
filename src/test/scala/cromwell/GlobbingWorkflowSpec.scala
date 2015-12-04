@@ -7,7 +7,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class GlobbingWorkflowSpec extends CromwellTestkitSpec("ScatterWorkflowSpec") {
+class GlobbingWorkflowSpec extends CromwellTestkitSpec("GlobbingWorkflowSpec") {
   def doTheTest(runtime: String = "") = runWdlAndAssertOutputs(
     sampleWdl = SampleWdl.GlobtasticWorkflow,
     eventFilter = EventFilter.info(pattern = s"starting calls: w.B", occurrences = 1),

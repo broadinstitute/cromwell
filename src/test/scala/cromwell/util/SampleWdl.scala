@@ -225,9 +225,12 @@ object SampleWdl {
     override val rawInputs: WorkflowRawInputs = Map("test1.bfile" -> "data/example1")
   }
 
-  object ThreeStep extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
-      """
+  trait ThreeStepTemplate extends SampleWdl {
+    override def wdlSource(runtime: String = "") = sourceString()
+    private val outputSectionPlaceholder = "OUTPUTSECTIONPLACEHOLDER"
+    def sourceString(outputsSection: String = "") = {
+      val withPlaceholders =
+        """
         |task ps {
         |  command {
         |    ps
@@ -267,12 +270,40 @@ object SampleWdl {
         |  call wc {
         |    input: in_file = ps.procs
         |  }
+        |  """ + outputSectionPlaceholder + """
         |}
         |
-      """.stripMargin
+        """
+      withPlaceholders.stripMargin.replace(outputSectionPlaceholder, outputsSection)
+    }
 
-    val PatternKey = "three_step.cgrep.pattern"
-    override val rawInputs = Map(PatternKey -> "...")
+    val PatternKey ="three_step.cgrep.pattern"
+    override lazy val rawInputs = Map(PatternKey -> "...")
+  }
+
+  object ThreeStep extends ThreeStepTemplate
+
+  object ThreeStepWithOutputsSection extends ThreeStepTemplate {
+    override def wdlSource(runtime: String = "") = sourceString(outputsSection =
+      """
+        |output {
+        | cgrep.count
+        | wc.count
+        |}
+      """.stripMargin)
+  }
+
+  object ThreeStepWithInputsInTheOutputsSection extends ThreeStepTemplate {
+    override def wdlSource(runtime: String = "") = sourceString(outputsSection =
+      """
+        |output {
+        | cgrep.pattern
+        |}
+      """.stripMargin)
+  }
+
+  object ThreeStepLargeJson extends ThreeStepTemplate {
+    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
   object NestedScatterWdl extends SampleWdl {
@@ -346,11 +377,6 @@ object SampleWdl {
         |}
       """.stripMargin
     override lazy val rawInputs = Map("" -> "...")
-  }
-
-  object ThreeStepLargeJson extends SampleWdl {
-    override def wdlSource(runtime: String = "") = ThreeStep.wdlSource(runtime)
-    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
   object OptionalParamWorkflow extends SampleWdl {
@@ -1156,6 +1182,31 @@ object SampleWdl {
         |    call echo_int as inside_scatter {
         |      input: int = i
         |    }
+        |  }
+        |}
+      """.stripMargin
+
+    override lazy val rawInputs = Map.empty[String, String]
+  }
+
+  object SimpleScatterWdlWithOutputs extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task echo_int {
+        |  Int int
+        |  command {echo ${int}}
+        |  output {Int out = read_int(stdout())}
+        |}
+        |
+        |workflow scatter0 {
+        |  Array[Int] ints = [1,2,3,4,5]
+        |  call echo_int as outside_scatter {input: int = 8000}
+        |  scatter(i in ints) {
+        |    call echo_int as inside_scatter {
+        |      input: int = i
+        |    }
+        |  }
+        |  output {
+        |    inside_scatter.*
         |  }
         |}
       """.stripMargin

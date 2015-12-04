@@ -132,7 +132,7 @@ class SgeBackend extends Backend with SharedFileSystem {
    */
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
     val logger = workflowLoggerWithCall(backendCall)
-    val sgeJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.name}"
+    val sgeJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
     val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")

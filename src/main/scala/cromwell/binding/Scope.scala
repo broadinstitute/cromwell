@@ -48,19 +48,17 @@ object Scope {
       case Some(x: Scope) =>
         fullyQualifiedNameBuilder(
           x.parent,
-          (if (fullDisplay || x.appearsInFqn || leaf) s".${x.name}" else "") + fqn,
+          (if (fullDisplay || x.appearsInFqn || leaf) s".${x.unqualifiedName}" else "") + fqn,
           fullDisplay,
           leaf = false)
       case None => fqn.tail //Strip away the first "." of the name
     }
   }
-
 }
 
 trait Scope {
-  def name: LocallyQualifiedName
+  def unqualifiedName: LocallyQualifiedName
   def appearsInFqn: Boolean = true
-
   val parent: Option[Scope]
   private var _children: Seq[Scope] = Seq.empty
   def children: Seq[Scope] = _children
@@ -99,12 +97,7 @@ trait Scope {
   lazy val calls: Seq[Call] = collectAllCalls
   lazy val scatters: Seq[Scatter] = collectAllScatters
 
-  /**
-   * Recurses up the scope tree until it hits one w/o a parent.
-   *
-   * FIXME: In a world where Scope wasn't monolithic this would traverse until it hit a RootScope or whatever
-   */
-  final def rootScope: Scope = this.parent map { _.rootScope } getOrElse this
+  def rootWorkflow: Workflow
 
   // FIXME: In a world where Scope wasn't monolithic, these would be moved out of here
   def prerequisiteScopes: Set[Scope]
@@ -116,8 +109,8 @@ trait Scope {
    *  Dropping any unfound Calls to the floor but we're already validating that all calls are sane at ingest.
    *  It's icky because it relies on that validation not changing, but ...
    */
-  lazy val prerequisiteCalls: Set[Scope] = prerequisiteCallNames flatMap rootScope.callByName
-  def callByName(callName: LocallyQualifiedName): Option[Call] = calls find { _.name == callName }
+  lazy val prerequisiteCalls: Set[Scope] = prerequisiteCallNames flatMap rootWorkflow.callByName
+  def callByName(callName: LocallyQualifiedName): Option[Call] = calls find { _.unqualifiedName == callName }
 
   def ancestry: Seq[Scope] = parent match {
     case Some(p) => Seq(p) ++ p.ancestry

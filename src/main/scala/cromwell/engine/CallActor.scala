@@ -108,7 +108,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
       // handle those immediately.
       context.parent ! WorkflowActor.CallStarted(key)
       val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
-      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.name}"
+      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
       context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)

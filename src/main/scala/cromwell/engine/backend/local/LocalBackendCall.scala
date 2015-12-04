@@ -14,10 +14,10 @@ case class LocalBackendCall(backend: LocalBackend,
                             locallyQualifiedInputs: CallInputs,
                             callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with LocalFileSystemBackendCall {
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
-  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.name, key.index)
+  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
   val dockerContainerExecutionDir = LocalBackend.containerExecutionPath(workflowDescriptor)
   val containerCallRoot = call.docker match {
-    case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.name, key.index)
+    case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.unqualifiedName, key.index)
     case None => callRootPath
   }
   val returnCode = callRootPath.resolve("rc")

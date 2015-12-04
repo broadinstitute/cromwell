@@ -12,6 +12,7 @@ case class Symbol
   name: String,
   index: Int, // https://bugs.mysql.com/bug.php?id=8173
   io: String,
+  reportableResult: Boolean,
   wdlType: String,
   wdlValue: Option[Clob],
   symbolId: Option[Int] = None
@@ -35,11 +36,13 @@ trait SymbolComponent {
 
     def io = column[String]("IO")
 
+    def reportableResult = column[Boolean]("REPORTABLE_RESULT")
+
     def wdlType = column[String]("WDL_TYPE")
 
     def wdlValue = column[Option[Clob]]("WDL_VALUE")
 
-    override def * = (workflowExecutionId, scope, name, index, io, wdlType, wdlValue, symbolId.?) <>
+    override def * = (workflowExecutionId, scope, name, index, io, reportableResult, wdlType, wdlValue, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)
 
     def workflowExecution = foreignKey(
@@ -90,6 +93,14 @@ trait SymbolComponent {
     (workflowExecutionUuid: Rep[String], io: Rep[String], scope: Rep[String], index: Rep[Int]) => for {
       symbol <- symbols
       if symbol.io === io && symbol.scope === scope && symbol.index === index
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield symbol)
+
+  val symbolsForWorkflowOutput = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      symbol <- symbols
+      if symbol.reportableResult === true
       workflowExecution <- symbol.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)

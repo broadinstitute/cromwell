@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.pipe
+import akka.pattern.{pipe, ask}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
@@ -243,15 +243,14 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
                              maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
     val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
+    val isRestart = maybeWorkflowId.isDefined
+
     val futureId = for {
       descriptor <- Future.fromTry(Try(new WorkflowDescriptor(workflowId, source)))
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
-    } yield {
-      val isRestart = maybeWorkflowId.isDefined
-      workflowActor ! (if (isRestart) Restart else Start)
-      workflowId
-    }
+      _ <- workflowActor ? (if (isRestart) Restart else Start)
+    } yield workflowId
 
     futureId onFailure {
       case e =>

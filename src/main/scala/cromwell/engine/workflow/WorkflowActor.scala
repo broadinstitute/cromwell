@@ -305,7 +305,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
   }
 
-  private def initializeExecutionStore(startMode: StartMode): Unit = {
+  private def initializeExecutionStore(startMode: StartMode): Future[Unit] = {
     val initializationCode = startMode.runInitialization(this)
     val futureCaches = for {
       _ <- initializationCode
@@ -320,6 +320,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       case Failure(t) =>
         self ! AsyncFailure(t)
     }
+
+    // "Lose" the actual value on purpose, the caller doesn't care/need to know about it
+    futureCaches map { _ => () }
   }
 
   private def initializeWorkflow: Try[HostInputs] = backend.initializeForWorkflow(workflow)
@@ -340,7 +343,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   when(WorkflowSubmitted) {
     case Event(startMode: StartMode, _) =>
       logger.info(s"$startMode message received")
-      initializeExecutionStore(startMode)
+      initializeExecutionStore(startMode) pipeTo sender()
       stay()
     case Event(CachesCreated(startMode), data) =>
       logger.info(s"ExecutionStoreCreated($startMode) message received")

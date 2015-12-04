@@ -58,7 +58,7 @@ trait ExecutionComponent {
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash))
 
   val executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
@@ -66,14 +66,14 @@ trait ExecutionComponent {
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
       if execution.index === index
-    } yield (execution.status, execution.rc))
+    } yield (execution.status, execution.rc, execution.executionHash))
 
   val executionStatusByWorkflowExecutionIdAndCallFqn = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash))
 
   val executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int]) => for {
@@ -132,7 +132,7 @@ trait ExecutionComponent {
     /*
      * FIXME: This is bad, there is probably a better way
      * We want entries that have the right workflowID AND a (fqn, index) pair which is in scopeKeys
-     * Use workaround because slick does not supporting tuples with inSet ATM: https://github.com/slick/slick/pull/995 
+     * Use workaround because slick does not supporting tuples with inSet ATM: https://github.com/slick/slick/pull/995
      */
     workflowFilteredQuery filter { exec =>
       scopeID.map({

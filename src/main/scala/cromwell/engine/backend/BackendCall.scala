@@ -5,6 +5,7 @@ import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.CallKey
+import cromwell.util.StringUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -55,9 +56,9 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
   override val isDone = true
 }
 
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int, hash: String) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, returnCode)
+  override val result = SuccessfulExecution(outputs, returnCode, hash)
 }
 
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
@@ -126,6 +127,38 @@ trait BackendCall {
    */
   def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     throw new NotImplementedError(s"resume() called on a non-resumable BackendCall: $this")
+  }
+
+  def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
+
+  /**
+   * Compute a hash that uniquely identifies this call
+   */
+  def hash: String = {
+    val orderedInputs = locallyQualifiedInputs.toSeq.sortBy(_._1)
+    val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
+    val runtime = call.task.runtimeAttributes
+    val orderedRuntime = Seq(
+      ("docker", runtime.docker.getOrElse("")),
+      ("defaultZones", runtime.defaultZones.sorted.mkString(",")),
+      ("failOnStderr", runtime.failOnStderr.toString),
+      ("continueOnReturnCode", runtime.continueOnReturnCode match {
+        case ContinueOnReturnCodeFlag(bool) => bool.toString
+        case ContinueOnReturnCodeSet(codes) => codes.toList.sorted.mkString(",")
+      }),
+      ("cpu", runtime.cpu.toString),
+      ("preemptable", runtime.preemptible.toString),
+      ("defaultDisks", runtime.defaultDisks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
+      ("memoryGB", runtime.memoryGB.toString)
+    )
+
+    Seq(
+      backend.backendType.toString,
+      call.task.commandTemplateString,
+      orderedInputs.map({ case (k, v) => s"$k=${v.getHash(backend.fileHasher(workflowDescriptor)).value}" }).mkString("\n"),
+      orderedRuntime.map({ case (k, v) => s"$k=$v" }).mkString("\n"),
+      orderedOutputs.map(o => s"${o.wdlType.toWdlString} ${o.name} = ${o.expression.toWdlString}").mkString("\n")
+    ).mkString("\n---\n").md5Sum
   }
 
   /**

@@ -1,13 +1,11 @@
 package cromwell.engine.db
 
 import cromwell.binding._
-import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
-import cromwell.webservice.CromwellApiHandler.WorkflowQuery
 import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
 
 import scala.concurrent.Future
@@ -29,6 +27,8 @@ trait DataAccess {
   def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]]
 
   def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor]
+
+  def getWorkflow(workflowExecutionId: Int): Future[WorkflowDescriptor]
 
   def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]]
 
@@ -59,7 +59,7 @@ trait DataAccess {
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: CallOutputs): Future[Unit]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
-    setStatus(workflowId, keys, CallStatus(executionStatus, None))
+    setStatus(workflowId, keys, CallStatus(executionStatus, None, None))
   }
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus): Future[Unit]

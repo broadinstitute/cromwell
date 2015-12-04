@@ -21,8 +21,6 @@ proxy:
   {{.Data.proxy_volumes}}
   environment:
     CALLBACK_URI: {{.Data.env_callback_uri}}
-    CLIENTID: None
-    CLIENTSECRET: None
     LOG_LEVEL: {{.Data.env_log_level}}
     PROXY_URL: http://app:8000/
     PROXY_URL2: http://app:8000/api

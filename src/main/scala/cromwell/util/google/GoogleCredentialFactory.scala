@@ -15,6 +15,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 object GoogleCredentialFactory {
   private lazy val GoogleConf = ConfigFactory.load.getConfig("google")
@@ -40,6 +41,13 @@ object GoogleCredentialFactory {
     GoogleClientSecrets.load(jsonFactory, secretStream)
   }
 
+  private def validateCredentials(credential: Credential) = {
+    Try(credential.refreshToken()) match {
+      case Failure(ex) => throw new Throwable(s"Google credentials are invalid: ${ex.getMessage}")
+      case Success(_) => credential
+    }
+  }
+
   private def forUser(config: Config): Credential = {
     val user = config.getString("user")
     val clientSecrets = filePathToSecrets(config.getString("secretsFile"), jsonFactory)
@@ -49,23 +57,23 @@ object GoogleCredentialFactory {
       jsonFactory,
       clientSecrets,
       GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
-    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user)
+    validateCredentials(new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user))
   }
 
   private def forServiceAccount(config: Config): Credential = {
-    new GoogleCredential.Builder().setTransport(httpTransport)
+    validateCredentials(new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setServiceAccountId(config.getString("serviceAccountId"))
       .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
       .setServiceAccountPrivateKeyFromPemFile(new File(config.getString("pemFile")))
-      .build()
+      .build())
   }
 
   private def forClientSecrets(secrets: ClientSecrets, token: String): Credential = {
-    new GoogleCredential.Builder().setTransport(httpTransport)
+    validateCredentials(new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setClientSecrets(secrets.clientId, secrets.clientSecret)
       .build()
-      .setRefreshToken(token)
+      .setRefreshToken(token))
   }
 }

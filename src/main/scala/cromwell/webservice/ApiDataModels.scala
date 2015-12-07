@@ -20,8 +20,14 @@ case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQua
 
 case class CallStdoutStderrResponse(id: String, logs: Map[String, Seq[CallLogs]])
 
-case class WorkflowMetadataResponse(id: String, status: String, submission: DateTime, start: Option[DateTime],
-                                    end: Option[DateTime], inputs: JsObject, outputs: Option[Map[String, WdlValue]],
+case class WorkflowMetadataResponse(id: String,
+                                    workflowName: String,
+                                    status: String,
+                                    submission: DateTime,
+                                    start: Option[DateTime],
+                                    end: Option[DateTime],
+                                    inputs: JsObject,
+                                    outputs: Option[Map[String, WdlValue]],
                                     calls: Map[String, Seq[CallMetadata]])
 
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])

@@ -19,12 +19,14 @@ import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.webservice
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
+import cromwell.webservice.{WorkflowQueryKey, WorkflowQueryParameters}
+import org.joda.time.DateTime
 import org.scalactic.StringNormalizations._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
-
+import org.scalatest.PartialFunctionValues._
 import scala.concurrent.{ExecutionContext, Future}
 
 
@@ -44,7 +46,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
   lazy val localBackend = LocalBackend(workflowManagerSystem.actorSystem)
-  
+
   val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
 
   implicit val hasher = localBackend.fileHasher(WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources))
@@ -929,9 +931,77 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield()).futureValue
     }
 
+    it should "set and get execution events" in {
+      assume(canConnect || testRequired)
+
+      // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
+      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
+      val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
+      val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
+      val shardedCall = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
+      val shardIndex = Some(0)
+      val backendInfo = new LocalCallBackendInfo(Option(123))
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
+        _ <- dataAccess.insertCalls(workflowId, Seq(CallKey(shardedCall, shardIndex)), localBackend)
+
+        now = DateTime.now
+        mainEventSeq = Seq(
+          ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
+          ExecutionEventEntry("cheerio", now.minusHours(5), now))
+        shardEventSeq = Seq(
+          ExecutionEventEntry("konnichiwa", now.minusHours(7), now.minusHours(5)),
+          ExecutionEventEntry("o-genki desuka", now.minusHours(5), now.minusHours(2)),
+          ExecutionEventEntry("sayounara", now.minusHours(2), now))
+
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, mainEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, shardEventSeq)
+
+        _ <- dataAccess.getAllExecutionEvents(workflowId) map { retrievedEvents =>
+          val mainExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, None)
+          retrievedEvents valueAt mainExecutionDatabaseKey should have size 2
+          mainEventSeq foreach { event =>
+            retrievedEvents valueAt mainExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
+          }
+
+          val shardExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex)
+          retrievedEvents valueAt shardExecutionDatabaseKey should have size 3
+          shardEventSeq foreach { event =>
+            retrievedEvents valueAt shardExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
+          }
+        }
+      } yield ()).futureValue
+    }
+
+    it should "reject a set of execution events without a valid execution to link to" in {
+      assume(canConnect || testRequired)
+
+      // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
+      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowInfo = new WorkflowDescriptor(workflowId, testSources)
+      val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
+      val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
+      val backendInfo = new LocalCallBackendInfo(Option(123))
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
+        _ <- dataAccess.setExecutionEvents(WorkflowId(UUID.randomUUID()), call.fullyQualifiedName, None, Seq(
+          ExecutionEventEntry("hello", DateTime.now.minusHours(7), DateTime.now.minusHours(5)),
+          ExecutionEventEntry("cheerio", DateTime.now.minusHours(5), DateTime.now)))
+      } yield ()).failed.futureValue should be(a[NoSuchElementException])
+    }
+
     it should "shutdown the database" in {
       assume(canConnect || testRequired)
       dataAccess.shutdown().futureValue
     }
+  }
+
+  private def executionEventsCloseEnough(a: ExecutionEventEntry, b: ExecutionEventEntry): Boolean = {
+    a.description == b.description &&
+      a.startTime.getMillis - a.startTime.getMillisOfSecond == b.startTime.getMillis - b.startTime.getMillisOfSecond &&
+      a.endTime.getMillis - a.endTime.getMillisOfSecond == b.endTime.getMillis - b.endTime.getMillisOfSecond
   }
 }

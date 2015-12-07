@@ -25,4 +25,5 @@
     <include file="changesets/top_level_output.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_execution_aux_not_null.xml" relativeToChangelogFile="true" />
     <include file="changesets/call_result_caching.xml" relativeToChangelogFile="true" />
+    <include file="changesets/events_table.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

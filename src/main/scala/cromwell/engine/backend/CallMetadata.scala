@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.binding.values.{WdlFile, WdlValue}
+import cromwell.engine.ExecutionEventEntry
 import org.joda.time.DateTime
 
 case class CallMetadata(inputs: Map[String, WdlValue],
@@ -15,4 +16,5 @@ case class CallMetadata(inputs: Map[String, WdlValue],
                         shardIndex: Int,
                         stdout: Option[WdlFile],
                         stderr: Option[WdlFile],
-                        backendLogs: Option[Map[String, WdlFile]])
+                        backendLogs: Option[Map[String, WdlFile]],
+                        executionEvents: Seq[ExecutionEventEntry])

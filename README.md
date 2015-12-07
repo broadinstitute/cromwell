@@ -321,6 +321,11 @@ $ cat my_wf.metadata.json
       "end": "2015-10-29T03:16:51.732-03:00",
       "stderr": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stderr",
       "start": "2015-10-29T03:16:51.213-03:00"
+      "executionEvents": [{
+        "description": "running docker",
+        "startTime": "2015-10-29T03:16:51.213-03:00",
+        "endTime": "2015-10-29T03:16:51.732-03:00"
+      }]
     }]
   },
   "outputs": {

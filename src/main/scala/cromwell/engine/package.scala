@@ -14,6 +14,7 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.{CromwellBackend, ExecutionHandle, ExecutionResult}
 import cromwell.engine.workflow.WorkflowOptions
 import lenthall.config.ScalaConfig._
+import org.joda.time.DateTime
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
@@ -258,6 +259,8 @@ package object engine {
     def isOutput: Boolean = !isInput
     def scope: String = key.scope
   }
+
+  case class ExecutionEventEntry(description: String, startTime: DateTime, endTime: DateTime)
 
   object ExecutionStatus extends Enumeration {
     type ExecutionStatus = Value

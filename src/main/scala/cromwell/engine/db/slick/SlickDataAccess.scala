@@ -555,6 +555,45 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
+  override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit] = {
+    val action = for {
+      execution <- shardIndex match {
+        case Some(idx) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(workflowId.toString, callFqn, idx).result.head
+        case None => dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(workflowId.toString, callFqn).result.head
+      }
+      _ <- dataAccess.executionEventsAutoInc ++= events map { executionEventEntry =>
+        new ExecutionEvent(
+          execution.executionId.get,
+          executionEventEntry.description,
+          new Timestamp(executionEventEntry.startTime.getMillis),
+          new Timestamp(executionEventEntry.endTime.getMillis))
+      }
+    } yield ()
+
+    runTransaction(action)
+  }
+
+  override def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]] = {
+    // The database query gives us a Seq[(CallFqn, ExecutionEvent)]. We want a Map[CallFqn -> ExecutionEventEntry].
+    // So let's do some functional programming!
+    val action = dataAccess.executionEventsByWorkflowExecutionUuid(workflowId.toString).result
+    runTransaction(action) map toExecutionEvents
+  }
+
+  private def toExecutionEvents(events: Traversable[((String, Int), ExecutionEvent)]): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
+      // First: Group all the entries together by name
+      val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex) }
+      // Second: Transform the values. The value no longer needs the String since that's now part of the Map, and
+      // convert the executionEvent into a friendlier ExecutionEventEntry:
+      grouped mapValues { _ map { case (_ , event: ExecutionEvent) =>
+        ExecutionEventEntry(
+          event.description,
+          new DateTime(event.startTime.getTime),
+          new DateTime(event.endTime.getTime))
+      } }
+  }
+
+
   private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
                               callStatus: CallStatus): DBIO[Unit] = {
     // Describes a function from an input `Executions` to a projection of fields to be updated.

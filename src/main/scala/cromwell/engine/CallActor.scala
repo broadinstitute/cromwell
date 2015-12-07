@@ -190,8 +190,8 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     )
 
     val message = executionResult match {
-      case SuccessfulExecution(outputs, returnCode, hash, resultsClonedFrom) =>
-        WorkflowActor.CallCompleted(key, outputs, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+      case SuccessfulExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
+        WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case FailedExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)

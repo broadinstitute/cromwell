@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import cromwell.binding.values.WdlFileJsonFormatter._
 import cromwell.binding.values.WdlValueJsonFormatter._
+import cromwell.engine.ExecutionEventEntry
 import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, CallLogs}
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -27,8 +28,9 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
       case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a DateTime")
     }
   }
-  implicit val callMetadataProtocol = jsonFormat13(CallMetadata)
-  implicit val workflowMetadataResponse = jsonFormat8(WorkflowMetadataResponse)
+  implicit val executionEventProtocol = jsonFormat3(ExecutionEventEntry)
+  implicit val callMetadataProtocol = jsonFormat14(CallMetadata)
+  implicit val workflowMetadataResponse = jsonFormat9(WorkflowMetadataResponse)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
   implicit val callCachingResponse = jsonFormat1(CallCachingResponse)

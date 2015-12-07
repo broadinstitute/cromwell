@@ -124,7 +124,7 @@ trait SharedFileSystem {
 
     outputs match {
       case Success(o) =>
-        cachedBackendCall.hash map { h => CompletedExecutionHandle(SuccessfulExecution(o, cachedBackendCall.returnCode.contentAsString.stripLineEnd.toInt, h, Option(cachedBackendCall))) }
+        cachedBackendCall.hash map { h => CompletedExecutionHandle(SuccessfulExecution(o, Seq.empty[ExecutionEventEntry], cachedBackendCall.returnCode.contentAsString.stripLineEnd.toInt, h, Option(cachedBackendCall))) }
       case Failure(ex) => FailedExecutionHandle(ex).future
     }
   } flatten

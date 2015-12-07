@@ -14,6 +14,7 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.CallKey
 import cromwell.parser.BackendType
 import cromwell.util.FileUtil._
+import org.joda.time.DateTime
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -178,7 +179,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
       def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => backendCall.hash map { h => SuccessfulExecution(outputs, rc, h) }
+          case Success(outputs) => backendCall.hash map { h => SuccessfulExecution(outputs, Seq.empty, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             FailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future

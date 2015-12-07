@@ -163,7 +163,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
   def fileHasher(workflow: WorkflowDescriptor): FileHasher = { wdlFile: WdlFile => SymbolHash(getCrc32c(workflow, GcsPath(wdlFile.value))) }
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
-    val path = GoogleCloudStoragePath(gcsAuthFilePath(workflow))
+    val path = GcsPath(gcsAuthFilePath(workflow))
     val log = workflowLogger(workflow)
 
     generateAuthJson(jesConf.dockerCredentials, getGcsAuthInformation(workflow)) foreach { content =>

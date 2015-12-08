@@ -270,7 +270,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
         // scatter explodes below so filter that out.
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.name == "inside_scatter"), localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.unqualifiedName == "inside_scatter"), localBackend)
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
         newEntries = scatterKey.populate(5)
@@ -330,7 +330,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
         // scatter explodes below so filter that out.
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.name == "inside_scatter"), localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.unqualifiedName == "inside_scatter"), localBackend)
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
         newEntries = scatterKey.populate(5)
@@ -649,9 +649,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, testWdlStringHash)))
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, testWdlStringShardHash)))
-        _ <- dataAccess.getOutputs(workflowId) map { results =>
+        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, testWdlStringHash)), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, testWdlStringShardHash)), Seq.empty)
+        _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.size should be(1) //getOutputs on a workflowId does NOT return shards outputs
 
           val output = results.head
@@ -788,7 +788,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> new WdlString("testStringValue")), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, testWdlStringHash)), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
@@ -819,6 +819,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(), Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
+        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, testWdlStringHash)), Seq.empty)
+        // Second attempt should fail
         _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, testWdlStringHash)), Seq.empty)
       } yield ()).failed.futureValue should be(a[SQLException])
     }

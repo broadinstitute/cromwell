@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
+    <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+
+    <changeSet author="tjeandet" id="workflow_execution_aux_not_null">
+        <addNotNullConstraint
+                tableName="WORKFLOW_EXECUTION_AUX" columnName="WORKFLOW_EXECUTION_ID"
+                columnDataType="INT"/>
+        <addNotNullConstraint
+                tableName="WORKFLOW_EXECUTION_AUX" columnName="WDL_SOURCE"
+                columnDataType="${clob.type}"/>
+        <addNotNullConstraint
+                tableName="WORKFLOW_EXECUTION_AUX" columnName="JSON_INPUTS"
+                columnDataType="${clob.type}" defaultNullValue="{}"/>
+        <addNotNullConstraint
+                tableName="WORKFLOW_EXECUTION_AUX" columnName="WORKFLOW_OPTIONS"
+                columnDataType="${clob.type}" defaultNullValue="{}"/>
+    </changeSet>
+</databaseChangeLog>

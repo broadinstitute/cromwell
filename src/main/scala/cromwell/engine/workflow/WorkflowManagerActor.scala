@@ -39,7 +39,6 @@ object WorkflowManagerActor {
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerActorMessage
-  case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -86,7 +85,6 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
           sender ! Some(WorkflowAborting)
         case None => sender ! None
       }
-    case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender

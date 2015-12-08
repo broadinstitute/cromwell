@@ -3,8 +3,7 @@ package cromwell
 import java.io.{File => JFile}
 import java.nio.file.{Files, Path, Paths}
 
-import akka.pattern.ask
-import akka.util.Timeout
+import akka.actor.{Actor, ActorRef, Props, Status}
 import better.files._
 import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import cromwell.binding.{AstTools, _}
@@ -17,8 +16,8 @@ import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import spray.json._
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -42,9 +41,19 @@ object Main extends App {
    * Also now passing args to runAction instead of the constructor, as even sbt seemed to have issues with the args
    * array becoming null in "new Main(args)" when used with: sbt 'run run ...'
    */
-  val AskTimeout = Timeout(5 seconds)
-  new Main().runAction(args)(AskTimeout)
+  new Main().runAction(args)
 }
+
+/** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
+private class PromiseWorkflowActor(promise: Promise[Any], runner: ActorRef) extends Actor {
+  runner ! RunWorkflow
+
+  override def receive = {
+    case Status.Failure(f) => promise.tryFailure(f)
+    case success => promise.trySuccess(success)
+  }
+}
+
 
 class Main private[cromwell](enableTermination: Boolean, managerSystem: () => WorkflowManagerSystem) {
   private[cromwell] val initLoggingReturnCode = initLogging()
@@ -55,7 +64,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   def this() = this(enableTermination = true, managerSystem = () => new WorkflowManagerSystem {})
 
   // CromwellServer still doesn't clean up... so => Any
-  def runAction(args: Seq[String])(implicit timeout: Timeout): Any = {
+  def runAction(args: Seq[String]): Any = {
     getAction(args.headOption) match {
       case Some(x) if x == Actions.Validate => validate(args.tail)
       case Some(x) if x == Actions.Highlight => highlight(args.tail)
@@ -103,7 +112,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   val OptionsLabel = "Workflow Options"
   val MetadataLabel = "Workflow Metadata Output"
 
-  def run(args: Seq[String])(implicit timeout: Timeout): Int = {
+  def run(args: Seq[String]): Int = {
     continueIf(args.nonEmpty && args.length <= 4) {
       val wdlPath = Paths.get(args.head)
       val inputsPath = argPath(args, 1, Option(".inputs"), checkDefaultExists = false)
@@ -149,14 +158,17 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
     } yield Paths.get(args.head).resolveSibling(path)
   }
 
-  private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path])(implicit timeout: Timeout): Int = {
+  private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
     val workflowManagerSystem = managerSystem()
     val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
-    val futureResult = runner ? RunWorkflow
+    val promise = Promise[Any]()
+    workflowManagerSystem.actorSystem.actorOf(Props(classOf[PromiseWorkflowActor], promise, runner))
+    val futureResult = promise.future
     Await.ready(futureResult, Duration.Inf)
+
     if (enableTermination) workflowManagerSystem.actorSystem.shutdown()
     exit (if (futureResult.value.get.isSuccess) 0 else 1)
   }

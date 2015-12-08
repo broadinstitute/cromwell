@@ -13,7 +13,7 @@ class BackendCallSpec extends FlatSpec with Matchers{
   val backend = new LocalBackend()
   val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()
   val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
-  val call = descriptor.namespace.workflow.calls.find(_.name == "t").get
+  val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
   val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, AbortRegistrationFunction(_ => ()))
 
   "BackendCall hash function" should "not change very often" in {

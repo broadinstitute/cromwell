@@ -979,7 +979,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
             callInputs,
             AbortRegistrationFunction(registerAbortFunction)
           )
-          logger.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.call.name} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.name}")
+          logger.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.call.unqualifiedName} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.unqualifiedName}")
           self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
         case _ =>
           logger.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")

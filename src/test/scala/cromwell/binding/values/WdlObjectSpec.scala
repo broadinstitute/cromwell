@@ -81,7 +81,7 @@ class WdlObjectSpec extends FlatSpec with Matchers with TryValues with HashUtil 
   }
 
   it should "produce correct Hash" in {
-    implicit val fileHasher = SharedFileSystem.sharedFSFileHasher
+    implicit val fileHasher = SharedFileSystem.sharedFsFileHasher
 
     // Note that we don't need to test with every single possible WdlType as an attribute, because each type is responsible for producing a valid hash.
 

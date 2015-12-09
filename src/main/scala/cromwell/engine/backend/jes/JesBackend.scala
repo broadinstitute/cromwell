@@ -158,7 +158,8 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
-    case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash) }
+    case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
+  }
 
   def fileHasher(workflow: WorkflowDescriptor): FileHasher = { wdlFile: WdlFile => SymbolHash(getCrc32c(workflow, GcsPath(wdlFile.value))) }
 
@@ -446,7 +447,6 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   def postProcess(backendCall: BackendCall): Try[CallOutputs] = {
     val outputMappings = backendCall.call.task.outputs.map({ taskOutput =>
-
       /**
         * This will evaluate the task output expression and coerces it to the task output's type.
         * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
@@ -462,9 +462,12 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
         * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
         * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
         */
-      val attemptedValue = taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions) flatMap { wdlValue =>
-        taskOutput.wdlType.coerceRawValue(wdlValue) map wdlValueToGcsPath(generateJesOutputs(backendCall))
-      }
+      val attemptedValue = for {
+        wdlValue <- taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions)
+        coercedValue <- taskOutput.wdlType.coerceRawValue(wdlValue)
+        value = wdlValueToGcsPath(generateJesOutputs(backendCall))(coercedValue)
+      } yield value
+
       taskOutput.name -> attemptedValue
     }).toMap
 

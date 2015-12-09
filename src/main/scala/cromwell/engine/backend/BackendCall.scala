@@ -155,9 +155,9 @@ trait BackendCall {
     Seq(
       backend.backendType.toString,
       call.task.commandTemplateString,
-      orderedInputs.map({ case (k, v) => s"$k=${v.getHash(backend.fileHasher(workflowDescriptor)).value}" }).mkString("\n"),
-      orderedRuntime.map({ case (k, v) => s"$k=$v" }).mkString("\n"),
-      orderedOutputs.map(o => s"${o.wdlType.toWdlString} ${o.name} = ${o.expression.toWdlString}").mkString("\n")
+      orderedInputs map { case (k, v) => s"$k=${v.getHash(backend.fileHasher(workflowDescriptor)).value}" } mkString "\n",
+      orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
+      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.expression.toWdlString}" } mkString "\n"
     ).mkString("\n---\n").md5Sum
   }
 

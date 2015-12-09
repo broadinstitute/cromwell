@@ -81,9 +81,7 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
   }
 
   override def getHash(implicit hasher: FileHasher): SymbolHash = {
-    val hashedMap = value map {
-      case (k, v) => k.getHash -> v.getHash
-    }
+    val hashedMap = value map { case (k, v) => k.getHash -> v.getHash }
     val concatenatedMap = TreeMap(hashedMap.toArray: _*).foldLeft("") { (acc, kv) => acc + kv._1 + kv._2 }
     SymbolHash((getClass.getCanonicalName + concatenatedMap).md5Sum)
   }

@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Holds a reference to a google Credential, optionally refreshing the access token before returning the Credential.
+  * Holds a reference to a Google Credential, optionally refreshing the access token before returning the Credential.
   */
 trait GoogleCredentialFactory {
   lazy val rawCredential = initCredential()
@@ -28,7 +28,7 @@ trait GoogleCredentialFactory {
     * For example, the credential returned is mutable, and may be modified by another thread.
     *
     * Most Google clients have the ability to refresh tokens automatically, as they use the standard Google
-    * HttpTransport that automatically triggers credential refreshing via Credential.handleResponse. Since cromwell
+    * HttpTransport that automatically triggers credential refreshing via Credential.handleResponse. Since Cromwell
     * contacts https://gcr.io directly via HTTP requests using spray-client, we need to keep the token fresh ourselves.
     *
     * @see Credential#handleResponse(HttpRequest, HttpResponse, boolean)

@@ -9,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class WdlPrimitiveSpec extends FlatSpec with Matchers with HashUtil {
 
   it should "produce correct Hash" in {
-    implicit val fileHasher = SharedFileSystem.sharedFSFileHasher
+    implicit val fileHasher = SharedFileSystem.sharedFsFileHasher
 
     // Object with same hashes
     val sameHashTable = Table(

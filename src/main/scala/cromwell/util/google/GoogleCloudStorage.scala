@@ -91,7 +91,7 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     *
     * @param from - source GCS path (must exist and point to a file)
     * @param to - destination GCS path
-    * @return a StorageObject which is a result of the call to Storage.Objects.copy()
+    * @return a Try[StorageObject] which is a result of the call to Storage.Objects.copy()
     */
   def copy(from: GcsPath, to: GcsPath): Try[StorageObject] = Try {
     val storageObject = client.objects.get(from.bucket, from.objectName).execute
@@ -110,18 +110,14 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     *
     * @param from - GCS URL prefix to copy files from
     * @param to - GCS URL prefix to copy files to
-    * @return - An Iterable of all of the copy attempts.  If all elements are `Success`, then
-    *         the copy operation was successful
     */
   def copy(from: String, to: String): Unit = {
-    // The .get and throw below are because IoInterface functions communicate failure through exceptions
-    Try(listContents(from)) match {
-      case Failure(ex) => throw ex
-      case Success(paths) => TryUtil.sequence(paths map {path =>
+    Try(listContents(from)) flatMap { paths =>
+      TryUtil.sequence(paths map {path =>
         val source = GcsPath(path)
         val dest = GcsPath(path.replaceAll(s"^$from", to))
         copy(source, dest)
-      } toSeq).get
+      } toSeq)
     }
   }
 

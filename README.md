@@ -30,12 +30,15 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
   * [Using Files as Inputs](#using-files-as-inputs)
   * [Scatter/Gather](#scattergather)
+* [Configuring Cromwell](#configuring-cromwell)
 * [Backends](#backends)
   * [Local Filesystem Assumptions / Layout](#local-filesystem-assumptions--layout)
   * [Local Backend](#local-backend)
   * [Sun GridEngine](#sun-gridengine)
   * [Google JES](#google-jes)
-    * [Authentication Modes](#authentication-modes)
+    * [Data Localization](#data-localization)
+    * [Docker](#docker)
+    * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
@@ -46,27 +49,24 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [memory](#memory)
   * [preemptible](#preemptible)
 * [Logging](#logging)
+* [Workflow Options](#workflow-options)
+* [Call Caching](#call-caching)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
-  * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
+  * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
   * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
   * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
-  * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcallcaching)
-  * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcallcachingcall)
+  * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
+  * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
-  * [Architecture](#architecture)
-    * [cromwell.parser](#cromwellparser)
-    * [cromwell.binding](#cromwellbinding)
-    * [cromwell.backend](#cromwellbackend)
-    * [cromwell.engine](#cromwellengine)
 
 <!---toc end-->
 
@@ -779,6 +779,40 @@ This example calls the `analysis` task once for each element in the array that t
 }
 ```
 
+# Configuring Cromwell
+
+Cromwell's default configuration file is located at `src/main/resources/application.conf`.
+
+The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation) which means the configuration file can specify configuration as JSON-like stanzas like:
+
+```hocon
+webservice {
+  port = 8000
+  interface = 0.0.0.0
+  instance.name = "reference"
+}
+```
+
+Or, alternatively, as dot-separated values:
+
+```hocon
+webservice.port = 8000
+webservice.interface = 0.0.0.0
+webservice.instance.name = "reference"
+```
+
+This allows any value to be overridden on the command line:
+
+```
+java -Dwebserver.port=8080 cromwell.jar ...
+```
+
+It is recommended that one copies `src/main/resources/application.conf`, modify it, then link to it via:
+
+```
+java -Dconfig.file=/path/to/application.conf cromwell.jar ...
+```
+
 # Backends
 
 A backend represents a way to run the user's command specified in the `task` section.  Currently three backends are supported:
@@ -882,7 +916,7 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some [configuration](#configuring-cromwell) that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
 
 ```hocon
 backend {
@@ -930,27 +964,10 @@ google {
 }
 ```
 
-### Workflow Options
-
-When running with Google JES, the following workflow options are supported:
-
-```
-{
-  "jes_gcs_root": "gs://my-bucket/workflows",
-  "google_project": "my_google_project",
-  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
-}
-```
-
-**jes_gcs_root** specifies where outputs of the workflow will be written.
-
-**google_project** specifies which google project to execute this workflow under
-
-**refresh_token** is only used if `localizeWithRefreshToken` is specified in the configuration file.  See the Data Localization section below for more details
-
 ### Data Localization
 
-Data localization can be performed on behalf of an other entity (typically a user). 
+Data localization can be performed on behalf of an other entity (typically a user).
+
 This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `authScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
 To enable this feature, two pieces of configuration are needed:
 
@@ -966,7 +983,7 @@ google {
     pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
-  
+
   localizeWithRefreshToken = {
     client_id = "myclientid.apps.googleusercontent.com"
     client_secret = "clientsecretpassphrase"
@@ -976,23 +993,11 @@ google {
 
 **2 - Refresh Token**
 
-A refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
-
-```
-$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
-```
-
-Where `wf_options.json` would contain:
-
-```
-{
-  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
-}
-```
+A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
 
 The refresh token is passed to JES along with the client ID and Secret pair, which allows JES to localize and delocalize data as the entity represented by the refresh token.
 Note that upon generation of the refresh token, the application must ask for GCS read/write permission using the appropriate scope.
- 
+
 ### Docker
 
 It is possible to reference private docker images in dockerhub to be run on JES.
@@ -1230,12 +1235,44 @@ There would also be logging to the standard out stream as well.
 
 The `cromwell.<date>.log` file contains an aggregate of every log message, while the `workflow.<uuid>.log` files contain only log messages that pertain to that particular workflow.
 
+# Workflow Options
+
+When running a workflow from the [command line](#run) or [REST API](#post-apiworkflowsversion), one may specify a JSON file that toggles various options for running the workflow.  From the command line, the workflow options is passed in as the third positional parameter to the 'run' subcommand.  From the REST API, it's an optional part in the multi-part POST request.  See the respective sections for more details.
+
+Example workflow options file:
+
+```json
+{
+  "default_backend": "jes",
+  "jes_gcs_root": "gs://my-bucket/workflows",
+  "google_project": "my_google_project",
+  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+Valid keys and their meanings:
+
+* **default_backend** - Backend to use to run this workflow.  Accepts values `jes`, `local`, or `sge`.
+* **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
+* **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+* **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).
+* **google_project** - (JES backend only) Specifies which google project to execute this workflow.
+* **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
+* **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
+* **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+
 # Call Caching
 
-Call Caching allows Cromwell to re-use the outputs of a call if the exact same call is about to be run again. 
-**Call Caching is disabled by default.**
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will **copy the results** of the previous job instead of re-running it.
 
-To enable Call Caching, add the following to your Cromwell configuration:
+**Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read-from-cache` is enabled (see below):
+
+* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming `read-from-cache` is enabled (see below)
+* If there was a cache hit, outputs are **copied** from the cached job to the new job's output directory
+
+> **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.
+
+To enable Call Caching, add the following to your Cromwell [configuration](#configuring-cromwell):
 
 ```
 call-caching {
@@ -1243,26 +1280,14 @@ call-caching {
 }
 ```
 
-Workflow options can be used to tune cromwell's caching behaviour for a particular workflow:
+When `call-caching.enabled=true`, Cromwell will add completed calls to the cache as well as do a cache lookup before running any call.
 
-```
-{
-  "write-to-cache": false
-}
-```
+Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
 
-If `write-to-cache` is set to false, the calls performed by this workflow will not be cached, therefore their output won't be used by subsequent identical calls.
-  
-```
-{
-  "read-from-cache": false
-}
-```
+* If call caching is enabled, but one wishes to run a workflow but not add any of the calls into the call cache when they finish, the `write_to_cache` option can be set to `false`.  This value defaults to `true`.
+* If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`
 
-If `read-from-cache` is set to false, cromwell will not try to use the cache when executing this workflow, therefore even if the same call has been run before, it will be run again. 
-
-**Note 1:** Those options defaults to `true` when not set.
-**Note 2:** If call caching is disabled, these configured values will be ignored and the options will be treated as though they were 'false'.
+> **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
 
 # REST API
 
@@ -1990,27 +2015,3 @@ $ git add scaladoc
 $ git commit -m "API Docs"
 $ git push origin gh-pages
 ```
-
-## Architecture
-
-![Cromwell Architecture](http://i.imgur.com/kPPTe0l.png)
-
-The architecture is split into four layers, from bottom to top:
-
-### cromwell.parser
-
-Contains only the WDL parser to convert WDL source code to an abstract syntax tree.  Clients should never need to interact with WDL at this level, though nothing specifically precludes that.
-
-### cromwell.binding
-
-Contains code that takes an abstract syntax tree and returns native Scala object representations of those ASTs.  This layer will also have functions for evaluating expressions when support for that is added.
-
-### cromwell.backend
-
-Contains implementations of an interface to launch jobs.  `cromwell.engine` will use this to execute and monitor jobs.
-
-### cromwell.engine
-
-![Engine Actors](http://i.imgur.com/sF9vMt2.png)
-
-Contains the Akka code and actor system to execute a workflow.  This layer should operate entirely on objects returned from the `cromwell.binding` layer.

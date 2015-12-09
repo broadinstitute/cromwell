@@ -31,7 +31,7 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
       readOption <- options
     } yield (config, writeOption, readOption)).toSet
 
-    // readCache is ON when config is ON and read-from-cache is None or true
+    // readCache is ON when config is ON and read_from_cache is None or true
     val readCacheOnCombinations = (for {
       config <- configs if config == configWithCallCachingOn
       writeOption <- options
@@ -39,8 +39,8 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
     } yield (config, writeOption, readOption)).toSet
 
     def makeOptions(writeOpt: Option[Boolean], readOpt: Option[Boolean]) = {
-      val writeValue = writeOpt map { v => s""""write-to-cache": $v""" }
-      val readValue = readOpt map { v => s""""read-from-cache": $v""" }
+      val writeValue = writeOpt map { v => s""""write_to_cache": $v""" }
+      val readValue = readOpt map { v => s""""read_from_cache": $v""" }
       val workflowOptions = Seq(writeValue, readValue).flatten.mkString(",\n")
 
       s"{$workflowOptions}"

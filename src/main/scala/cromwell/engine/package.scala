@@ -84,8 +84,8 @@ package object engine {
     // TODO: Add to lenthall
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
     private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
-    private lazy val optionCacheWriting = workflowOptions.getBoolean("write-to-cache") getOrElse configCallCaching
-    private lazy val optionCacheReading = workflowOptions.getBoolean("read-from-cache") getOrElse configCallCaching
+    private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
+    private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
 
     if (!configCallCaching) {
       if (optionCacheWriting) logWriteDisabled()

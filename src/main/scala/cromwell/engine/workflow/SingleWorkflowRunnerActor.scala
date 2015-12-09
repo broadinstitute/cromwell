@@ -137,9 +137,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     */
   private def outputOutputs(outputs: binding.WorkflowOutputs): Unit = {
     import cromwell.binding.values.WdlValueJsonFormatter._
-    val outputValues = outputs map {
-      case (k, CallOutput(wdlValue, hash)) => (k, wdlValue)
-    }
+    val outputValues = outputs mapValues { case CallOutput(wdlValue, _) => wdlValue }
     println(outputValues.toJson.prettyPrint)
   }
 

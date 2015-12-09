@@ -10,7 +10,7 @@ import org.scalatest.{Matchers, FlatSpec}
 class WdlArraySpec extends FlatSpec with Matchers with HashUtil {
 
   it should "produce correct Hash" in {
-    implicit val fileHasher = SharedFileSystem.sharedFSFileHasher
+    implicit val fileHasher = SharedFileSystem.sharedFsFileHasher
 
     // Note that we don't need to test with every single possible WdlType as WdlArrayType, because each type is responsible for producing a valid hash.
 

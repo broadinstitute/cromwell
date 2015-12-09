@@ -203,27 +203,6 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
     (wma, workflowId)
   }
 
-  def runWdlAndAssertOutputs2(sampleWdl: SampleWdl,
-                             eventFilter: EventFilter,
-                             expectedOutputs: Map[FullyQualifiedName, WdlValue],
-                             runtime: String = "",
-                             allowOtherOutputs: Boolean = true,
-                             terminalState: WorkflowState = WorkflowSucceeded): Unit = {
-    val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.asWorkflowSources(runtime))
-    eventFilter.intercept {
-      within(timeoutDuration) {
-        val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
-        verifyWorkflowState(wma, workflowId, terminalState)
-        val outputs: WorkflowOutputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
-        expectedOutputs foreach { case (outputFqn, expectedValue) =>
-          val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Output $outputFqn not found"))
-          validateOutput(actualValue.wdlValue, expectedValue)
-        }
-      }
-    }
-  }
-
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
                              eventFilter: EventFilter,
                              expectedOutputs: Map[FullyQualifiedName, WdlValue],

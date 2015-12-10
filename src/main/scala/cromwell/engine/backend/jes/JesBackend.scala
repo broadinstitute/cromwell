@@ -292,7 +292,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
           FailedExecutionHandle(ex)
         case Success(_) => postProcess(backendCall) match {
           case Success(outputs) => SuccessfulExecutionHandle(outputs, backendCall.downloadRcFile.get.stripLineEnd.toInt, backendCall.hash)
-          case Failure(ex: AggregatedException[_]) if ex.exceptions.map(_.exception).exists(_.isInstanceOf[SocketTimeoutException]) =>
+          case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
             // TODO: What can we return here to retry this operation?
             // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
             val error = "Socket timeout occurred in evaluating one or more of the output expressions"
@@ -544,7 +544,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
                             executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
       case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, hash)
-      case Failure(ex: AggregatedException[_]) if ex.exceptions.map(_.exception).isInstanceOf[SocketTimeoutException] =>
+      case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
       case Failure(ex) => FailedExecutionHandle(ex)

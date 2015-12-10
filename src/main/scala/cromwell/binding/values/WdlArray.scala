@@ -29,7 +29,7 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
 
   def map[R <: WdlValue](f: WdlValue => R): WdlArray = {
     value.map{f} match {
-      case s:Seq[R] if s.nonEmpty => WdlArray(WdlArrayType(s.head.wdlType), s)
+      case s: Seq[R] if s.nonEmpty => WdlArray(WdlArrayType(s.head.wdlType), s)
       case _ => this
     }
   }
@@ -49,6 +49,6 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
   override def getHash(implicit hasher: FileHasher): SymbolHash = {
     val hashedArray = value map { _.getHash }
     val accumulatedHash = hashedArray mkString ""
-    SymbolHash((getClass.getCanonicalName+accumulatedHash).md5Sum)
+    SymbolHash((getClass.getCanonicalName + accumulatedHash).md5Sum)
   }
 }

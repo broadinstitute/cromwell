@@ -85,7 +85,8 @@ case class WdlObject(value: Map[String, WdlValue]) extends WdlValue with WdlObje
 
   override def getHash(implicit hasher: FileHasher) = {
     val hashedMap = value mapValues { _.getHash }
-    val concatenatedMap = TreeMap(hashedMap.toArray: _*).foldLeft("") { (acc, kv) => acc + kv._1 + kv._2 }
+    // productIterator returns an Iterator over the elements of a Tuple2 Map entry.
+    val concatenatedMap = TreeMap(hashedMap.toArray: _*) flatMap { _.productIterator } mkString ""
     SymbolHash((getClass.getCanonicalName + concatenatedMap).md5Sum)
   }
 }

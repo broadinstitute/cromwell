@@ -66,6 +66,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
+  * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
 
 <!---toc end-->

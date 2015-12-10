@@ -20,6 +20,7 @@ import lenthall.config.ScalaConfig._
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
+import scalaz.ValidationNel
 
 /**
  * ==Cromwell Execution Engine==
@@ -262,4 +263,6 @@ package object engine {
       }
     }
   }
+
+  type ErrorOr[+A] = ValidationNel[String, A]
 }

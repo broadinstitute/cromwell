@@ -1,24 +1,24 @@
 package cromwell.webservice
 
-import cromwell.engine.WorkflowId
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
+import cromwell.engine.{ErrorOr, WorkflowId}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scalaz.Scalaz._
-import scalaz.{Failure, Success, ValidationNel}
+import scalaz.{Failure, Success}
 
 case class CallCachingParameters private(workflowId: WorkflowId, callKey: Option[ExecutionDatabaseKey], allow: Boolean)
 
 object CallCachingParameters {
 
-  private [webservice] def validateRecognizedKeys(queryParameters: QueryParameters): ValidationNel[String, Unit] = {
+  private [webservice] def validateRecognizedKeys(queryParameters: QueryParameters): ErrorOr[Unit] = {
     val badKeys = queryParameters collect { case q if q.key.toLowerCase != "allow" => q.key }
     if (badKeys.nonEmpty) ("Found unrecognized keys: " + badKeys.mkString(", ")).failureNel else ().successNel
   }
 
-  private [webservice] def validateAllow(queryParameters: QueryParameters): ValidationNel[String, Boolean] = {
+  private [webservice] def validateAllow(queryParameters: QueryParameters): ErrorOr[Boolean] = {
     val allows = queryParameters.collect({ case q if q.key.toLowerCase == "allow" => q.value }).toSet
     val (booleans, nonBooleans) = allows map { a => (a, Try(a.toBoolean)) } partition { _._2.isSuccess }
 
@@ -36,14 +36,14 @@ object CallCachingParameters {
     }
   }
 
-  private def validateWorkflowExists(workflowId: WorkflowId, dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[ValidationNel[String, Unit]] = {
+  private def validateWorkflowExists(workflowId: WorkflowId, dataAccess: DataAccess)(implicit ec: ExecutionContext): Future[ErrorOr[Unit]] = {
     dataAccess.getWorkflowState(workflowId) map {
       case Some(_) => ().successNel
       case None => s"Workflow not found: ${workflowId.id.toString}".failureNel
     }
   }
 
-  private [webservice] def validateCallName(callName: Option[String]): ValidationNel[String, Option[ExecutionDatabaseKey]] = {
+  private [webservice] def validateCallName(callName: Option[String]): ErrorOr[Option[ExecutionDatabaseKey]] = {
     import cromwell.binding.Patterns.CallFullyQualifiedName
     callName map {
       case CallFullyQualifiedName(fqn, index) => Option(ExecutionDatabaseKey(fqn, Option(index) map { _.toInt })).successNel
@@ -55,7 +55,7 @@ object CallCachingParameters {
    * Assert that a call with the specified key exists in the workflow.
    */
   private def validateCall(workflowId: WorkflowId, key: ExecutionDatabaseKey, dataAccess: DataAccess)
-                          (implicit ec: ExecutionContext): Future[ValidationNel[String, Unit]] = {
+                          (implicit ec: ExecutionContext): Future[ErrorOr[Unit]] = {
 
     dataAccess.getExecutionStatus(workflowId, key) map {
       case Some(s) => ().successNel
@@ -66,16 +66,16 @@ object CallCachingParameters {
   }
 
   private def validateWorkflowAndCall(workflowId: WorkflowId, callName: Option[String], dataAccess: DataAccess)
-                                     (implicit ec: ExecutionContext): Future[ValidationNel[String, Option[ExecutionDatabaseKey]]] = {
+                                     (implicit ec: ExecutionContext): Future[ErrorOr[Option[ExecutionDatabaseKey]]] = {
     /**
      * Perform a call validation conditioned on the workflow and call name validations having already succeeded.
      * There's no possibility that the particulars of the call are even in the database if the workflow ID doesn't
      * exist or the call name is malformed.
      */
-    def validateCallConditionally(workflowValidation: ValidationNel[String, Unit],
-                                  callNameValidation: ValidationNel[String, Option[ExecutionDatabaseKey]],
+    def validateCallConditionally(workflowValidation: ErrorOr[Unit],
+                                  callNameValidation: ErrorOr[Option[ExecutionDatabaseKey]],
                                   dataAccess: DataAccess)
-                                 (implicit ec: ExecutionContext): Future[ValidationNel[String, Unit]] = {
+                                 (implicit ec: ExecutionContext): Future[ErrorOr[Unit]] = {
 
       (workflowValidation, callNameValidation) match {
         case (Success(_), Success(call)) =>

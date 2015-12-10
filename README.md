@@ -2003,6 +2003,13 @@ hermes generate src/main/resources/grammar.hgr \
 
 The grammar for the WDL lexer/parser is defined in `src/main/resources/grammar.hgr`.  Any changes to that grammar should result in a regeneration of the parser and then run the unit tests.  Changing the AST could be disruptive if keys are renamed or objects restructured too much.  It's best to find these issues as soon as possible.
 
+## Generating table of contents on Markdown files
+
+```
+$ pip install mdtoc
+$ mdtoc --check-links README.md
+```
+
 ## Generating and Hosting ScalaDoc
 
 Essentially run `sbt doc` then commit the generated code into the `gh-pages` branch on this repository

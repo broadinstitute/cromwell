@@ -5,7 +5,9 @@ import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.CallKey
+import cromwell.logging.WorkflowLogger
 import cromwell.util.StringUtil._
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -166,4 +168,11 @@ trait BackendCall {
    * of this `BackendCall`.
    */
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+
+  def workflowLoggerWithCall = WorkflowLogger(
+    backend.backendClassString,
+    workflowDescriptor,
+    otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
+    callTag = Option(key.tag)
+  )
 }

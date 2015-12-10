@@ -107,19 +107,19 @@ trait Backend {
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  private def backendClass = backendType.toString.toLowerCase.capitalize + "Backend"
+  private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
 
   /** Default implementation assumes backends do not support resume, returns an empty Map. */
   def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
 
   def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
-    backendClass,
+    backendClassString,
     descriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
   def workflowLoggerWithCall(backendCall: BackendCall) = WorkflowLogger(
-    backendClass,
+    backendClassString,
     backendCall.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
     callTag = Option(backendCall.key.tag)

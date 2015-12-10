@@ -36,7 +36,7 @@ object WorkflowActor {
   case class CallStarted(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
-  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, returnCode: Int, hash: String) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, returnCode: Int, hash: Option[String]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
   case class CallFailed(callKey: OutputKey, returnCode: Option[Int], failure: String) extends TerminalCallMessage
   case object Terminate extends WorkflowActorMessage
@@ -368,14 +368,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
                                   returnCode: Int,
                                   message: TerminalCallMessage,
                                   data: WorkflowData,
-                                  hash: String): State = {
+                                  hash: Option[String]): State = {
     logger.debug(s"handleCallCompleted for ${callKey.tag}")
     // Don't close over sender().
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
       _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
-      _ = persistStatusThenAck(callKey, ExecutionStatus.Done, currentSender, message, Option(callOutputs), Option(returnCode), Option(hash))
+      _ = persistStatusThenAck(callKey, ExecutionStatus.Done, currentSender, message, Option(callOutputs), Option(returnCode), hash)
     } yield()
 
     completionWork onFailure {
@@ -960,7 +960,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         self ! CallFailed(collector, None, e.getMessage)
       case Success(outputs) =>
         logger.info(s"Collection complete for Scattered Call ${collector.tag}.")
-        self ! CallCompleted(collector, outputs, 0, "")
+        self ! CallCompleted(collector, outputs, 0, None)
     }
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))
@@ -969,6 +969,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def sendStartMessage(callKey: CallKey, callInputs: Map[String, WdlValue]) = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
     val backendCall = backend.bindCall(workflow, callKey, callInputs, AbortRegistrationFunction(registerAbortFunction))
+    val log = backendCall.workflowLoggerWithCall
 
     def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
       descriptor.namespace.resolve(cachedExecution.callFqn) match {
@@ -979,10 +980,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
             callInputs,
             AbortRegistrationFunction(registerAbortFunction)
           )
-          logger.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.call.unqualifiedName} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.unqualifiedName}")
+          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.call.unqualifiedName} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.unqualifiedName}")
           self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
         case _ =>
-          logger.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
+          log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
           self ! InitialStartCall(callKey, CallActor.Start)
       }
     }
@@ -991,22 +992,28 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     def loadCachedCallOrInitiateCall(cachedDescriptor: Try[WorkflowDescriptor], cachedExecution: Execution) = cachedDescriptor match {
         case Success(descriptor) => loadCachedBackendCallAndMessage(descriptor, cachedExecution)
         case Failure(ex) =>
-          logger.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
+          log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
           self ! InitialStartCall(callKey, CallActor.Start)
     }
 
-    val hash = backendCall.hash
-    globalDataAccess.getExecutionsWithResuableResultsByHash(hash) onComplete {
-      case Success(executions) if executions.nonEmpty =>
-        val cachedExecution = executions.head
-        globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
-          loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
-        }
-      case Success(_) =>
-        self ! InitialStartCall(callKey, CallActor.Start)
-      case Failure(ex) =>
-        logger.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
-        self ! InitialStartCall(callKey, CallActor.Start)
+    if (backendCall.workflowDescriptor.readFromCache) {
+      val hash = backendCall.hash
+      globalDataAccess.getExecutionsWithResuableResultsByHash(hash) onComplete {
+        case Success(executions) if executions.nonEmpty =>
+          val cachedExecution = executions.head
+          globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
+            loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
+          }
+        case Success(_) =>
+          log.info(s"Call Caching: cache miss")
+          self ! InitialStartCall(callKey, CallActor.Start)
+        case Failure(ex) =>
+          log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
+          self ! InitialStartCall(callKey, CallActor.Start)
+      }
+    } else {
+      log.info(s"Call caching is turned off, starting call")
+      self ! InitialStartCall(callKey, CallActor.Start)
     }
   }
 

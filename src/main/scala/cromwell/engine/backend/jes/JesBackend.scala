@@ -53,7 +53,12 @@ object JesBackend {
   val MonitoringScriptOptionKey = "monitoring_script"
   val GoogleProjectOptionKey = "google_project"
   val AuthFilePathOptionKey = "auth_bucket"
-  val OptionKeys = Set(RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey, AuthFilePathOptionKey)
+  val WriteToCacheOptionKey = "write_to_cache"
+  val ReadFromCacheOptionKey = "read_from_cache"
+  val OptionKeys = Set(
+    RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
+    AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
+  )
 
   lazy val monitoringScriptLocalPath = localFilePathFromRelativePath(JesMonitoringScript)
   lazy val monitoringLogFileLocalPath = localFilePathFromRelativePath(JesMonitoringLogFile)

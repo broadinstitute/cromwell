@@ -805,7 +805,7 @@ webservice.instance.name = "reference"
 This allows any value to be overridden on the command line:
 
 ```
-java -Dwebserver.port=8080 cromwell.jar ...
+java -Dwebservice.port=8080 cromwell.jar ...
 ```
 
 It is recommended that one copies `src/main/resources/application.conf`, modify it, then link to it via:

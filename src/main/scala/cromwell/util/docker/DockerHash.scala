@@ -2,6 +2,7 @@ package cromwell.util.docker
 
 import javax.xml.bind.DatatypeConverter
 
+import cromwell.engine.ErrorOr
 import cromwell.util.StringUtil._
 import cromwell.util.TryUtil
 
@@ -83,14 +84,14 @@ object DockerHash {
   }
 
   /** Validates the hash string. */
-  private def validateHashString(hashString: String): ValidationNel[String, String] = {
+  private def validateHashString(hashString: String): ErrorOr[String] = {
     val validation = validateHashStringHex(hashString) +++ validateHashStringLength(hashString)
     // Turn the concatenated results back into just the hashString.
     validation map { _ => hashString }
   }
 
   /** Return the hash if it's valid hex, or the exception message. */
-  private def validateHashStringHex(hashString: String): ValidationNel[String, String] = {
+  private def validateHashStringHex(hashString: String): ErrorOr[String] = {
     // We only want to know that we _could_ parse the hash.
     Validation
       .fromTryCatchNonFatal(DatatypeConverter.parseHexBinary(hashString))
@@ -100,7 +101,7 @@ object DockerHash {
   }
 
   /** Return the hash if it has a valid length, or an error message. */
-  private def validateHashStringLength(hashString: String): ValidationNel[String, String] = {
+  private def validateHashStringLength(hashString: String): ErrorOr[String] = {
     val length = hashString.length
     if (length == 8 || length == 32 || length == 64) {
       hashString.successNel

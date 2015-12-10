@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import cromwell.engine.WorkflowState
+import cromwell.engine.{ErrorOr, WorkflowState}
 import org.joda.time.DateTime
 
 import scala.language.{postfixOps, reflectiveCalls}
@@ -24,7 +24,7 @@ object WorkflowQueryKey {
   case object Name extends SeqStringWorkflowQueryKey {
     override val name = "Name"
 
-    override def validate(grouped: Map[String, Seq[(String, String)]]): ValidationNel[String, Seq[String]] = {
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
       import cromwell.binding.Patterns.WorkflowName
 
       val values = valuesFromMap(grouped).toList
@@ -39,7 +39,7 @@ object WorkflowQueryKey {
   case object Status extends SeqStringWorkflowQueryKey {
     override val name = "Status"
 
-    override def validate(grouped: Map[String, Seq[(String, String)]]): ValidationNel[String, Seq[String]] = {
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
         if (Try(WorkflowState.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel else v.failureNel
@@ -50,7 +50,7 @@ object WorkflowQueryKey {
 }
 
 sealed trait WorkflowQueryKey[T] {
-  def validate(grouped: Map[String, Seq[(String, String)]]): ValidationNel[String, T]
+  def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[T]
   def name: String
   def valuesFromMap(grouped: Map[String, Seq[(String, String)]]): Seq[String] = {
     grouped.getOrElse(name, Seq.empty) map { _._2 }
@@ -58,7 +58,7 @@ sealed trait WorkflowQueryKey[T] {
 }
 
 sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[DateTime]] {
-  override def validate(grouped: Map[String, Seq[(String, String)]]): ValidationNel[String, Option[DateTime]] = {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[DateTime]] = {
     valuesFromMap(grouped) match {
       case vs if vs.size > 1 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".failureNel
@@ -75,14 +75,14 @@ sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[DateTime]]
 
 sealed trait SeqStringWorkflowQueryKey extends WorkflowQueryKey[Seq[String]] {
 
-  /** `sequence` the `List[ValidationNel[String, String]]` to a single `ValidationNel[String, List[String]]` */
+  /** `sequence` the `List[ErrorOr[String]]` to a single `ErrorOr[List[String]]` */
   protected def sequenceListOfValidationNels(prefix: String,
-                                             validationNelList: List[ValidationNel[String, String]]): ValidationNel[String, List[String]] = {
+                                             errorOrList: List[ErrorOr[String]]): ErrorOr[List[String]] = {
 
-    val validationNel = validationNelList.sequence[({type λ[a] = ValidationNel[String, a]})#λ, String]
+    val errorOr = errorOrList.sequence[ErrorOr, String]
     // With a leftMap, prepend an error message to the concatenated error values if there are error values.
     // This turns the ValidationNel into a Validation, force it back to a ValidationNel with toValidationNel.
-    validationNel.leftMap(prefix + ": " + _.list.mkString(", ")).toValidationNel
+    errorOr.leftMap(prefix + ": " + _.list.mkString(", ")).toValidationNel
   }
 }
 

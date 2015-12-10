@@ -45,11 +45,11 @@ class DockerHashableSpec extends FlatSpec with Matchers {
   it should "not create hashes for invalid hashables" in {
     val hashables = Table(
       ("hashable", "exceptionType", "exceptionMessage"),
-      (DockerRegistryImageId("bad_hash"), an[AggregatedException[_]],
+      (DockerRegistryImageId("bad_hash"), an[AggregatedException],
         "hashString 'bad_hash' is not valid: contains illegal character for hexBinary: bad_hash"),
       (DockerHubImageId(Seq.empty), an[IllegalArgumentException], "docker hashes is empty"),
       (DockerManifest(Seq.empty), an[IllegalArgumentException], "docker hashes is empty"),
-      (DockerDigestHashable("sha256:bad_hash"), an[AggregatedException[_]],
+      (DockerDigestHashable("sha256:bad_hash"), an[AggregatedException],
         "hashString 'bad_hash' is not valid: contains illegal character for hexBinary: bad_hash")
     )
 

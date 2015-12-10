@@ -2,6 +2,7 @@ package cromwell.logging
 
 import java.util.UUID
 
+import cromwell.CromwellTestkitSpec
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.workflow.CallKey
@@ -17,7 +18,7 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers {
       "{}"
     )
   )
-  val backend = new LocalBackend()
+  val backend = LocalBackend(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
   val backendCall = LocalBackendCall(
     backend,
     descriptor,

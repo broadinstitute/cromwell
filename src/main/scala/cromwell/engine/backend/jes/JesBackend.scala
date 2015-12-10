@@ -4,6 +4,7 @@ import java.math.BigInteger
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 
+import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding._
@@ -61,7 +62,8 @@ object JesBackend {
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesInput(ExtraConfigParamName, gcsPath, Paths.get(""), "LITERAL")
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
-  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor) extends JesBackend {
+  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
+    extends JesBackend(CromwellBackend.backend().actorSystem) {
     def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.unqualifiedName, key.index)
   }
 
@@ -151,10 +153,15 @@ case class JesPendingExecutionHandle(backendCall: JesBackendCall,
 }
 
 
-class JesBackend extends Backend with LazyLogging with ProductionJesAuthentication with ProductionJesConfiguration {
-
+case class JesBackend(actorSystem: ActorSystem)
+  extends Backend
+  with LazyLogging
+  with ProductionJesAuthentication
+  with ProductionJesConfiguration {
   type BackendCall = JesBackendCall
   type IOInterface = JesBackend.IOInterface
+
+  // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
   override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues gcsPathToLocal

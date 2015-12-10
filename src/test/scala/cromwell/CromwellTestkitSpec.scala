@@ -16,6 +16,7 @@ import cromwell.engine._
 import cromwell.engine.backend.CallLogs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.server.WorkflowManagerSystem
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -51,6 +52,13 @@ object CromwellTestkitSpec {
     """.stripMargin
 
   val timeoutDuration = 10 seconds
+
+  class TestWorkflowManagerSystem extends WorkflowManagerSystem {
+    override protected def systemName: String = "test-system"
+    override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
+    override val backendType = "local"
+    backend // Force initialization
+  }
 
   /**
    * Wait for exactly one occurrence of the specified info pattern in the specified block.  The block is in its own
@@ -106,7 +114,7 @@ object CromwellTestkitSpec {
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 }
 
-abstract class CromwellTestkitSpec(name: String) extends TestKit(ActorSystem(name, ConfigFactory.parseString(ConfigText)))
+abstract class CromwellTestkitSpec(name: String) extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
@@ -166,7 +174,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {
-    TestActorRef(new WorkflowManagerActor(new LocalBackend))
+    TestActorRef(new WorkflowManagerActor(new LocalBackend(system)))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

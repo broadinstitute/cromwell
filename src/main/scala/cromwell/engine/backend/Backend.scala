@@ -1,5 +1,6 @@
 package cromwell.engine.backend
 
+import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
@@ -14,26 +15,38 @@ import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
 import org.slf4j.LoggerFactory
-
+import Backend.BackendyString
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Backend {
-  lazy val LocalBackend = new LocalBackend
-  lazy val JesBackend = new JesBackend { jesConf } //forces configuration resolution to fail now if something is missing
-  lazy val SgeBackend = new SgeBackend
-
   class StdoutStderrException(message: String) extends RuntimeException(message)
 
-  def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
-  def from(name: String) = name.toLowerCase match {
-    case "local" => LocalBackend
-    case "jes" => JesBackend
-    case "sge" => SgeBackend
+  def from(backendConf: Config, actorSystem: ActorSystem): Backend = Backend.from(backendConf.getString("backend"), actorSystem)
+
+  def from(backendType: BackendType, actorSystem: ActorSystem): Backend = backendType match {
+    case BackendType.LOCAL => LocalBackend(actorSystem)
+    case BackendType.JES => JesBackend(actorSystem)
+    case BackendType.SGE => SgeBackend(actorSystem)
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
 
+  def from(name: String, actorSystem: ActorSystem): Backend = {
+    val backendType = name.toBackendType
+    Backend.from(backendType, actorSystem)
+  }
+
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
+
+  implicit class BackendyString(val backendType: String) extends AnyVal {
+    def toBackendType: BackendType = {
+      try {
+        BackendType.valueOf(backendType.toUpperCase)
+      } catch {
+        case e: Exception => throw new IllegalArgumentException(s"$backendType is not a recognized backend")
+      }
+    }
+  }
 }
 
 trait JobKey
@@ -42,9 +55,10 @@ trait JobKey
  * Trait to be implemented by concrete backends.
  */
 trait Backend {
-
   type BackendCall <: backend.BackendCall
   type IOInterface <: cromwell.binding.IOInterface
+
+  def actorSystem: ActorSystem
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have

@@ -178,9 +178,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
     }
 
     "run workflows in the correct directory" in {
-      val (wma, workflowId) = runWdl(sampleWdl = SampleWdl.CurrentDirectory,
+      val outputs = runWdl(sampleWdl = SampleWdl.CurrentDirectory,
         EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
-      val outputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[binding.WorkflowOutputs].futureValue
       val outputName = "whereami.whereami.pwd"
       val salutation = outputs.get(outputName).get
       val actualOutput = salutation.asInstanceOf[WdlString].value.trim

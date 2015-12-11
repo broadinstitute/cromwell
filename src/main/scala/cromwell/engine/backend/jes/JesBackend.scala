@@ -585,9 +585,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   def gcsAuthFilePath(descriptor: WorkflowDescriptor): String = {
     // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
-    val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse {
-      throw new UnsatisfiedInputsException(s"$AuthFilePathOptionKey has not been found in workflow options.")
-    }
+    val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse workflowGcsPath(descriptor)
     s"$bucket/${descriptor.id}_auth.json"
   }
 
@@ -608,7 +606,7 @@ class JesBackend extends Backend with LazyLogging with ProductionJesAuthenticati
 
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if ((jesConf.localizeWithRefreshToken || jesConf.isDockerAuthenticated) && descriptor.workflowOptions.get(AuthFilePathOptionKey).isSuccess)
+    if (jesConf.localizeWithRefreshToken || jesConf.isDockerAuthenticated)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor)))
     else None
   }

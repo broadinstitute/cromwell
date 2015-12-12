@@ -187,7 +187,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   def runWdl(sampleWdl: SampleWdl,
              eventFilter: EventFilter,
              runtime: String = "",
-             terminalState: WorkflowState = WorkflowSucceeded): (TestActorRef[WorkflowManagerActor], WorkflowId) = {
+             terminalState: WorkflowState = WorkflowSucceeded): WorkflowOutputs = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
@@ -199,8 +199,6 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
         wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
       }
     }
-
-    (wma, workflowId)
   }
 
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,

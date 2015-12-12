@@ -8,14 +8,21 @@ import cromwell.util.SampleWdl
 import scala.language.postfixOps
 
 class GlobbingWorkflowSpec extends CromwellTestkitSpec("GlobbingWorkflowSpec") {
-  def doTheTest(runtime: String = "") = runWdlAndAssertOutputs(
-    sampleWdl = SampleWdl.GlobtasticWorkflow,
-    eventFilter = EventFilter.info(pattern = s"starting calls: w.B", occurrences = 1),
-    runtime = runtime,
-    expectedOutputs = Map(
-      "w.B.B_out" -> WdlString(s"a${newline}b${newline}c")
+  def doTheTest(runtime: String = "") = {
+    val outputs = runWdl(
+      sampleWdl = SampleWdl.GlobtasticWorkflow,
+      eventFilter = EventFilter.info(pattern = s"starting calls: w.B", occurrences = 1),
+      runtime = runtime
     )
-  )
+
+    // The order in which files glob is apparently not guaranteed, so accept any permutation.
+    val permutations = for {
+      permutation <- Seq('a', 'b', 'c').permutations
+    } yield WdlString(permutation.mkString("\n"))
+
+    val actual = outputs.get("w.B.B_out").get
+    permutations collectFirst { case s: WdlString if s == actual => s } should not be empty
+  }
 
   val newline = System.lineSeparator
   "A workflow with globbed outputs" should {

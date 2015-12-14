@@ -211,10 +211,12 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                              eventFilter: EventFilter,
                              expectedOutputs: Map[FullyQualifiedName, WdlValue],
                              runtime: String = "",
+                             workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
                              terminalState: WorkflowState = WorkflowSucceeded): Unit = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(sampleWdl.asWorkflowSources(runtime))
+    val wfSources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
+    val submitMessage = WorkflowManagerActor.SubmitWorkflow(wfSources)
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)

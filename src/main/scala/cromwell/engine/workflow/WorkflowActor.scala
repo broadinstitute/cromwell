@@ -969,7 +969,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def sendStartMessage(callKey: CallKey, callInputs: Map[String, WdlValue]) = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
     val backendCall = backend.bindCall(workflow, callKey, callInputs, AbortRegistrationFunction(registerAbortFunction))
-    val log = backendCall.workflowLoggerWithCall
+    val log = backendCall.workflowLoggerWithCall(Option(akkaLogger))
 
     def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
       descriptor.namespace.resolve(cachedExecution.callFqn) match {

@@ -13,7 +13,8 @@ import scala.language.postfixOps
 
 trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
-  def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
+  def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}") =
+    WorkflowSourceFiles(wdlSource(runtime), wdlJson, workflowOptions)
   val rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")
@@ -1348,6 +1349,50 @@ object SampleWdl {
 
     override val rawInputs: WorkflowRawInputs = Map(
       "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath
+    )
+  }
+
+  /**
+    * @param salt - an arbitrary value that will be added as
+    *               a BASH comment on the command, this is so
+    *               tests can have control over call caching
+    *               for this workflow.  i.e. so one test can't
+    *               call cache to another test if the seeds are
+    *               different
+    */
+  case class CallCachingWorkflow(salt: String) extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task a {
+        |  File in
+        |  String out_name = "out"
+        |  String salt
+        |
+        |  command {
+        |    # ${salt}
+        |    cat ${in} > ${out_name}
+        |  }
+        |  RUNTIME
+        |  output {
+        |    File out = "out"
+        |    File out_interpolation = "${out_name}"
+        |    String contents = read_string("${out_name}")
+        |  }
+        |}
+        |
+        |workflow file_passing {
+        |  File f
+        |
+        |  call a {input: in = f}
+        |  call a as b {input: in = a.out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    private val fileContents = s"foo bar baz"
+
+    override val rawInputs: WorkflowRawInputs = Map(
+      "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath,
+      "file_passing.a.salt" -> salt,
+      "file_passing.b.salt" -> salt
     )
   }
 

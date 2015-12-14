@@ -311,7 +311,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         workflowExecutionResult.workflowExecutionId.get).result
 
       executionStatuses = executionKeyAndStatusResults map {
-        case (fqn, indexInt, status, rc, executionHash) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc, executionHash)) }
+        case (fqn, indexInt, status, rc, executionHash, dockerHash) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc, executionHash map { ExecutionHash(_, dockerHash )}, None)) }
 
     } yield executionStatuses.toMap
 
@@ -326,8 +326,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionKeyAndStatusResults <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
-      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc, hash) =>
-        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc, hash)) }
+      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc, hash, dockerHash) =>
+        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc,
+          hash map { ExecutionHash(_, dockerHash) }, None)) }
     } yield executionStatuses.toMap
 
     runTransaction(action)
@@ -340,7 +341,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionStatuses <- dataAccess.executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
 
-      maybeStatus = executionStatuses.headOption map { case (status, rc, hash) => CallStatus(status.toExecutionStatus, rc, hash) }
+      maybeStatus = executionStatuses.headOption map { case (status, rc, hash, dockerHash) => CallStatus(status.toExecutionStatus, rc, hash map { ExecutionHash(_, dockerHash )}, None) }
     } yield maybeStatus
     runTransaction(action)
   }
@@ -557,20 +558,35 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
                               callStatus: CallStatus): DBIO[Unit] = {
     // Describes a function from an input `Executions` to a projection of fields to be updated.
-    type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]], Rep[Option[String]])
+    type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (
+      Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]], Rep[Option[String]], Rep[Option[String]], Rep[Option[Int]])
     // If the call status is Starting, target the start date for update, otherwise target the end date.  The end date
     // is only set to a non-None value if the status is terminal.
     val projectionFn: ProjectionFunction = if (callStatus.isStarting)
-      e => (e.status, e.startDt, e.rc, e.executionHash)
+      e => (e.status, e.startDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom)
     else
-      e => (e.status, e.endDt, e.rc, e.executionHash)
+      e => (e.status, e.endDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom)
 
     val maybeDate = if (callStatus.isStarting || callStatus.isTerminal) Option(new Date().toTimestamp) else None
+
+    // If this call represents a call caching hit, find the execution ID for the call from which results were cloned and
+    // wrap that in an `Option`.
+    // If this wasn't a call caching hit just return `DBIO.successful(None)`, `None` lifted into `DBIO`.
+    val findResultsClonedFromId = callStatus.resultsClonedFrom map { backendCall =>
+      for {
+        workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(backendCall.workflowDescriptor.id.toString).result.head
+        execution <- dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndex(
+          workflowExecutionResult.workflowExecutionId.get, backendCall.key.scope.fullyQualifiedName, backendCall.key.index.fromIndex).result.head
+      } yield Option(execution.executionId.get)
+    } getOrElse DBIO.successful(None)
 
     for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
-      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode, callStatus.hash))
+      clonedFromId <- findResultsClonedFromId
+      overallHash = callStatus.hash map { _.overallHash }
+      dockerHash = callStatus.hash flatMap { _.dockerHash }
+      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode, overallHash, dockerHash, clonedFromId))
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
     } yield ()
@@ -681,7 +697,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val action = for {
       executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
       nonResumableDatabaseKeys = collectNonResumableDatabaseKeys(executionsAndJobs)
-      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None, None))
+      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None, None, None))
     } yield ()
 
     runTransaction(action)

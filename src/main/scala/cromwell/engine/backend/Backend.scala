@@ -13,10 +13,11 @@ import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
+import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
-import Backend.BackendyString
+
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
@@ -138,4 +139,6 @@ trait Backend {
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
     callTag = Option(backendCall.key.tag)
   )
+
+  lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
 }

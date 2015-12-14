@@ -49,7 +49,7 @@ object CromwellTestkitSpec {
       |}
     """.stripMargin
 
-  val timeoutDuration = 10 seconds
+  val timeoutDuration = 30 seconds
 
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
@@ -115,7 +115,7 @@ object CromwellTestkitSpec {
 abstract class CromwellTestkitSpec(name: String) extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$") {

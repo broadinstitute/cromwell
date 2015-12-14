@@ -15,7 +15,9 @@ import cromwell.util.StringUtil._
 import cromwell.util.google.GcsPath
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import cromwell.engine._
 
 object JesBackendCall {
 
@@ -85,21 +87,21 @@ class JesBackendCall(val backend: JesBackend,
         val status = Try(handle.run.checkStatus(this, handle.previousStatus))
         status match {
           case Success(s: TerminalRunStatus) => backend.executionResult(s, handle)
-          case Success(s) => handle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+          case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: Exception) =>
             // Log exceptions and return the original handle to try again.
             logger.warn("Caught exception, retrying: " + e.getMessage, e)
-            handle
-          case Failure(e: Error) => throw e // JVM-ending calamity.
+            handle.future
+          case Failure(e: Error) => Future.failed(e) // JVM-ending calamity.
           case Failure(throwable) =>
-            // Someone has subclassed Throwable directly?  Beware the jackwagons, fail the execution/workflow.
-            FailedExecutionHandle(throwable)
+            // Someone has subclassed Throwable directly?
+            FailedExecutionHandle(throwable).future
         }
-      case f: FailedExecutionHandle => f
-      case s: SuccessfulExecutionHandle => s
-      case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
+      case f: FailedExecutionHandle => f.future
+      case s: SuccessfulExecutionHandle => s.future
+      case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
     }
-  }
+  } flatten
 
   override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = backend.resume(this, jobKey)
 

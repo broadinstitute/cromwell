@@ -20,7 +20,7 @@ class GlobbingWorkflowSpec extends CromwellTestkitSpec("GlobbingWorkflowSpec") {
       permutation <- Seq('a', 'b', 'c').permutations
     } yield WdlString(permutation.mkString("\n"))
 
-    val actual = outputs.get("w.B.B_out").get
+    val actual = outputs.get("w.B.B_out").get.wdlValue
     permutations collectFirst { case s: WdlString if s == actual => s } should not be empty
   }
 

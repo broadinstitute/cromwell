@@ -1,5 +1,6 @@
 package cromwell.engine.backend
 
+import akka.event.LoggingAdapter
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
@@ -169,9 +170,10 @@ trait BackendCall {
    */
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
-  def workflowLoggerWithCall = WorkflowLogger(
+  def workflowLoggerWithCall(akkaLogger: Option[LoggingAdapter] = None) = WorkflowLogger(
     backend.backendClassString,
     workflowDescriptor,
+    akkaLogger = akkaLogger,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
     callTag = Option(key.tag)
   )

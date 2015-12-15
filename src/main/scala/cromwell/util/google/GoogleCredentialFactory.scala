@@ -10,6 +10,7 @@ import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromp
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
+import com.google.api.services.genomics.GenomicsScopes
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.collection.JavaConverters._
@@ -55,6 +56,7 @@ object GoogleCredentialFactory {
     config.getString("google.authScheme").toLowerCase match {
       case "user" => new UserCredentialFactory(config)
       case "service" => new ServiceAccountCredentialFactory(config)
+      case "application-default" => new ApplicationDefaultCredentialFactory()
     }
   }
 
@@ -146,5 +148,17 @@ class RefreshTokenCredentialFactory(clientId: String, clientSecret: String,
       .setClientSecrets(clientId, clientSecret)
       .build()
       .setRefreshToken(refreshToken)
+  }
+}
+
+/**
+  * Creates a credential using the default service account credentials. This is useful if you are running on a GCE VM
+  * and if you don't need user level access.
+  *
+  * See https://developers.google.com/identity/protocols/application-default-credentials for more info.
+  */
+class ApplicationDefaultCredentialFactory() extends GoogleCredentialFactory {
+  protected def initCredential(): Credential = {
+    GoogleCredential.getApplicationDefault().createScoped(GenomicsScopes.all())
   }
 }

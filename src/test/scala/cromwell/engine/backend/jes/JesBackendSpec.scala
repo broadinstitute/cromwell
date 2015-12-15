@@ -3,6 +3,7 @@ package cromwell.engine.backend.jes
 import java.net.URL
 import java.nio.file.Paths
 
+import cromwell.CromwellTestkitSpec
 import cromwell.binding.CallInputs
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import cromwell.binding.values.{WdlArray, WdlFile, WdlMap, WdlString}
@@ -17,9 +18,12 @@ import org.specs2.mock.Mockito
 
 import scala.util.Success
 
-class JesBackendSpec extends FlatSpec with Matchers with Mockito {
+object JesBackendSpec {
+  val ActorSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem
+}
 
-  val jesBackend = new JesBackend() {
+class JesBackendSpec extends FlatSpec with Matchers with Mockito {
+  val jesBackend = new JesBackend(JesBackendSpec.ActorSystem) {
     private val anyString = ""
     private val anyURL: URL = null
     override lazy val jesConf = new JesAttributes(
@@ -52,7 +56,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend().adjustInputPaths(ignoredCall, inputs, mock[WorkflowDescriptor])
+    val mappedInputs: CallInputs  = new JesBackend(JesBackendSpec.ActorSystem).adjustInputPaths(ignoredCall, inputs, mock[WorkflowDescriptor])
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))

@@ -22,7 +22,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
   TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
+    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend(system)))
   }
 
   val TestExecutionTimeout = 5.seconds.dilated

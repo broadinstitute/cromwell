@@ -2,6 +2,7 @@ package cromwell.engine.backend.sge
 
 import java.nio.file.Files
 
+import akka.actor.ActorSystem
 import better.files._
 import cromwell.binding.CallInputs
 import cromwell.engine.backend._
@@ -20,7 +21,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
-class SgeBackend extends Backend with SharedFileSystem {
+case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = SgeBackendCall
 
   import LocalBackend.WriteWithNewline

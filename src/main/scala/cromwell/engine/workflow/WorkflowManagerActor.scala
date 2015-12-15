@@ -46,11 +46,9 @@ object WorkflowManagerActor {
 
   def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
-  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
   // How long to delay between restarting each workflow that needs to be restarted.  Attempting to
   // restart 500 workflows at exactly the same time crushes the database connection pool.
   lazy val RestartDelay = 200 milliseconds
-  lazy val BackendType = BackendInstance.backendType
 }
 
 /**
@@ -244,7 +242,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     val isRestart = maybeWorkflowId.isDefined
 
     val futureId = for {
-      descriptor <- Future.fromTry(Try(new WorkflowDescriptor(workflowId, source)))
+      descriptor <- Future.fromTry(Try(WorkflowDescriptor(workflowId, source)))
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
       _ <- workflowActor ? (if (isRestart) Restart else Start)

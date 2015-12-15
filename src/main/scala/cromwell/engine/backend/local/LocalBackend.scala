@@ -3,6 +3,7 @@ package cromwell.engine.backend.local
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
+import akka.actor.ActorSystem
 import better.files._
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
@@ -77,7 +78,7 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with SharedFileSystem {
+case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = LocalBackendCall
 
   import LocalBackend._

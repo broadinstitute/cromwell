@@ -11,11 +11,12 @@ import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
+import cromwell.parser.BackendType
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import spray.json._
-
+import cromwell.engine.backend.Backend.BackendyString
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
@@ -78,13 +79,13 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
 
   def validate(args: Seq[String]): Int = {
     continueIf(args.length == 1) {
-      loadWdl(args) { _ => exit(0) }
+      loadWdl(args.head) { _ => exit(0) }
     }
   }
 
   def highlight(args: Seq[String]): Int = {
     continueIf(args.length == 2 && Seq("html", "console").contains(args(1))) {
-      loadWdl(args) { namespace =>
+      loadWdl(args.head) { namespace =>
         val formatter = new SyntaxFormatter(if (args(1) == "html") HtmlSyntaxHighlighter else AnsiSyntaxHighlighter)
         println(formatter.format(namespace))
         exit(0)
@@ -94,7 +95,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
 
   def inputs(args: Seq[String]): Int = {
     continueIf(args.length == 1) {
-      loadWdl(args) { namespace =>
+      loadWdl(args.head) { namespace =>
         import cromwell.binding.types.WdlTypeJsonFormatter._
         namespace match {
           case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
@@ -119,7 +120,6 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
       val optionsPath = argPath(args, 2, Option(".options"), checkDefaultExists = true)
       val metadataPath = argPath(args, 3, None)
 
-      Log.info(s"Default backend: ${WorkflowManagerActor.BackendType}")
       Log.info(s"RUN sub-command")
       Log.info(s"  $WdlLabel: $wdlPath")
       inputsPath.foreach(path => Log.info(s"  $InputsLabel: $path"))
@@ -261,18 +261,6 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |java -jar cromwell.jar <action> <parameters>
         |
         |Actions:
-        |
-        |validate <WDL file>
-        |
-        |  Performs full validation of the WDL file including syntax
-        |  and semantic checking
-        |
-        |inputs <WDL file>
-        |
-        |  Print a JSON skeleton file of the inputs needed for this
-        |  workflow.  Fill in the values in this JSON document and
-        |  pass it in to the 'run' subcommand.
-        |
         |run <WDL file> [<JSON inputs file> [<JSON workflow options>
         |  [<OUTPUT workflow metadata>]]]
         |
@@ -285,6 +273,11 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |  Use a single dash ("-") to skip optional files. Ex:
         |    run noinputs.wdl - - metadata.json
         |
+        |server
+        |
+        |  Starts a web server on port 8000.  See the web server
+        |  documentation for more details about the API endpoints.
+        |
         |parse <WDL file>
         |
         |  Compares a WDL file against the grammar and prints out an
@@ -293,6 +286,17 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |  via this sub-command and the 'validate' subcommand should
         |  be used for full validation
         |
+        |validate <WDL file>
+        |
+        |  Performs full validation of the WDL file including syntax
+        |  and semantic checking
+        |
+        |inputs <WDL file>
+        |
+        |  Print a JSON skeleton file of the inputs needed for this
+        |  workflow.  Fill in the values in this JSON document and
+        |  pass it in to the 'run' subcommand.
+        |
         |highlight <WDL file> <html|console>
         |
         |  Reformats and colorizes/tags a WDL file. The second
@@ -300,10 +304,6 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |  file with <span> tags around elements.  "console" mode
         |  will output colorized text to the terminal
         |
-        |server
-        |
-        |  Starts a web server on port 8000.  See the web server
-        |  documentation for more details about the API endpoints.
       """.stripMargin)
     exit(-1)
   }
@@ -334,16 +334,15 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   } yield a
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Int): Int = {
-    Try(WdlNamespace.load(new JFile(path), WorkflowManagerActor.BackendType)) match {
+    val backendType = BackendType.LOCAL
+
+    Try(WdlNamespace.load(new JFile(path), backendType)) match {
       case Success(namespace) => f(namespace)
       case Failure(t) =>
         println(t.getMessage)
         exit(1)
     }
   }
-
-  // shortcut
-  private[this] def loadWdl(args: Seq[String])(f: WdlNamespace => Int): Int = loadWdl(args.head)(f)
 
   private[this] def exit(returnCode: Int): Int = {
     if (enableTermination) {

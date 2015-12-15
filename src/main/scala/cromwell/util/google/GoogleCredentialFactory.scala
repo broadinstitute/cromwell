@@ -11,6 +11,7 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
+import com.google.api.services.genomics.GenomicsScopes
 import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
 
@@ -27,6 +28,7 @@ object GoogleCredentialFactory {
   lazy val fromAuthScheme: Credential = GoogleAuthScheme match {
     case "user" => forUser(GoogleConf.getConfig("userAuth"))
     case "service" => forServiceAccount(GoogleConf.getConfig("serviceAuth"))
+    case "application-default" => forApplicationDefaultCredentials()
   }
 
   lazy val forRefreshToken: (ClientSecrets, String) => Credential = forClientSecrets
@@ -75,5 +77,9 @@ object GoogleCredentialFactory {
       .setClientSecrets(secrets.clientId, secrets.clientSecret)
       .build()
       .setRefreshToken(token))
+  }
+
+  private def forApplicationDefaultCredentials(): Credential = {
+    validateCredentials(GoogleCredential.getApplicationDefault().createScoped(GenomicsScopes.all()))
   }
 }

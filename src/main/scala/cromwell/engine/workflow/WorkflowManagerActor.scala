@@ -73,8 +73,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   }
 
   def receive = LoggingReceive {
-    case SubmitWorkflow(source) =>
-      submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
+    case SubmitWorkflow(source) => submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => globalDataAccess.getWorkflowState(id) pipeTo sender
     case WorkflowQuery(rawParameters) => query(rawParameters) pipeTo sender
     case WorkflowAbort(id) =>
@@ -239,8 +238,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     } yield workflowMetadata
   }
 
-  private def submitWorkflow(source: WorkflowSourceFiles,
-                             maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
+  private def submitWorkflow(source: WorkflowSourceFiles, maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
     val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val isRestart = maybeWorkflowId.isDefined

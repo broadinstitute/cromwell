@@ -42,8 +42,9 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
+
   import CromwellApiServiceActor._
-  
+
   val workflowManager: ActorRef
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
@@ -92,35 +93,9 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       traceName("submit") {
         post {
           formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
-            val tryInputsMap = Try(workflowInputs.getOrElse("{}").parseJson)
-            val tryOptionsMap = Try(workflowOptions.getOrElse("{}").parseJson)
-            (tryInputsMap, tryOptionsMap) match {
-              case (Success(JsObject(_)), Success(options: JsObject)) =>
-                if (!options.fields.values.forall(_.isInstanceOf[JsString])) {
-                  complete(StatusCodes.BadRequest, "Workflow options must be a string -> string map")
-                }
-                else {
-                  WorkflowOptions.fromJsonObject(options) match {
-                    case Success(wfOptions) =>
-                      requestContext => perRequest(
-                        requestContext,
-                        CromwellApiHandler.props(workflowManager),
-                        CromwellApiHandler.WorkflowSubmit(
-                          WorkflowSourceFiles(
-                            wdlSource, workflowInputs.getOrElse("{}"), wfOptions.asPrettyJson
-                          )
-                        )
-                      )
-                    case Failure(ex) => complete(StatusCodes.PreconditionFailed, s"Could not encrypt workflow options: ${ex.getMessage}")
-                  }
-                }
-              case (Success(_), _) | (_, Success(_)) =>
-                complete(StatusCodes.BadRequest, "Expecting JSON object for workflowInputs and workflowOptions fields")
-              case (Failure(ex), _) =>
-                complete(StatusCodes.BadRequest, "workflowInput JSON was malformed")
-              case (_, Failure(ex)) =>
-                complete(StatusCodes.BadRequest, "workflowOptions JSON was malformed")
-            }
+            requestContext =>
+              val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
+              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowSubmit(workflowSourceFiles))
           }
         }
       }
@@ -173,8 +148,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           case Success(w) =>
             // This currently does not attempt to parse the call name for conformation to any pattern.
             requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallStdoutStderr(w, callFqn))
-          case Failure(_) =>
-            complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
+          case Failure(_) => complete(StatusCodes.BadRequest, s"Invalid workflow ID: '$workflowId'.")
         }
       }
     }

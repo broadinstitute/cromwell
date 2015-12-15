@@ -20,7 +20,7 @@ import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, _}
+import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
 import cromwell.util.StringUtil._

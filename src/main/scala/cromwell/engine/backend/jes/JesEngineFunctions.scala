@@ -46,7 +46,7 @@ class JesEngineFunctionsWithoutCallContext(val interface: IOInterface) extends W
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
-class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext(jesBackendCall.workflowDescriptor.IOInterface) {
+class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext(jesBackendCall.workflowDescriptor.ioInterface) {
 
   import JesEngineFunctions._
 

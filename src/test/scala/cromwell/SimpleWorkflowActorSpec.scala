@@ -45,13 +45,13 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     }
 
     "fail to construct with missing inputs" in {
-      intercept[UnsatisfiedInputsException] {
+      intercept[IllegalArgumentException] {
         buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = "{}")
       }
     }
 
     "fail to construct with inputs of the wrong type" in {
-      intercept[UnsatisfiedInputsException] {
+      intercept[IllegalArgumentException] {
         buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = s""" { "$Addressee" : 3} """)
       }
     }

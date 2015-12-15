@@ -1,7 +1,6 @@
 package cromwell.engine.backend.jes.authentication
 
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend.JesWorkflowDescriptor
 import cromwell.engine.backend.jes._
 import cromwell.util.google.{GoogleCloudStorage, GoogleCredentialFactory}
 import spray.json.JsObject
@@ -65,5 +64,5 @@ trait ProductionJesAuthentication extends JesAuthentication with JesConnection {
    * We can then re-use for all Backend Call the IOInterface from the WorkflowDescriptor.
    * If per-call backend is implemented this assumption might not hold anymore which may require changes here.
    */
-  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.IOInterface.asInstanceOf[JesBackend.IOInterface]
+  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.ioInterface.asInstanceOf[JesBackend.IOInterface]
 }

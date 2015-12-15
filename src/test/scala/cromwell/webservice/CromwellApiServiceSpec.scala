@@ -22,6 +22,7 @@ import spray.testkit.ScalatestRouteTest
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage
@@ -51,7 +52,15 @@ class MockWorkflowManagerActor extends Actor  {
 
   def receive = {
     case SubmitWorkflow(sources) =>
-      sender ! MockWorkflowManagerActor.submittedWorkflowId
+      val id = MockWorkflowManagerActor.submittedWorkflowId
+      /*
+        id will always succeed, but WorkflowDescriptor might not. If all of this works we
+        want to pass Future[WorkflowId] but otherwise we want to pass the error. Try the
+        WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
+        from WorkflowDescriptor's validation
+       */
+      val response = Future.fromTry(Try(WorkflowDescriptor(id, sources)) map { _ => id })
+      response pipeTo sender
 
     case WorkflowStatus(id) =>
       val msg = id match {
@@ -63,7 +72,6 @@ class MockWorkflowManagerActor extends Actor  {
           None
       }
       sender ! msg
-
     case WorkflowAbort(id) =>
       val msg = id match {
         case MockWorkflowManagerActor.runningWorkflowId =>
@@ -72,7 +80,6 @@ class MockWorkflowManagerActor extends Actor  {
           None
       }
       sender ! msg
-
     case WorkflowOutputs(id) =>
       val futureOutputs = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
@@ -83,7 +90,6 @@ class MockWorkflowManagerActor extends Actor  {
         case w => Future.failed(new WorkflowNotFoundException(s"Workflow '$w' not found"))
       }
       futureOutputs pipeTo sender
-
     case CallOutputs(id, callFqn) =>
       val futureOutputs =
         Future {
@@ -99,7 +105,6 @@ class MockWorkflowManagerActor extends Actor  {
           }
         }
       futureOutputs pipeTo sender
-
     case CallStdoutStderr(id, callFqn) =>
       val futureOutputs =
       Future {
@@ -118,7 +123,6 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureOutputs pipeTo sender
-
     case WorkflowStdoutStderr(id) =>
       val futureOutputs =
       Future {
@@ -133,7 +137,6 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureOutputs pipeTo sender
-
     case WorkflowQuery(rawParameters) =>
       val futureResult = Future {
         val head = rawParameters.head
@@ -154,7 +157,6 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureResult pipeTo sender
-
     case CallCaching(id, parameters, callFqn) =>
       val parametersByKey = parameters.groupBy(_.key.toLowerCase.capitalize) mapValues { _ map { _.value } } mapValues { _.toSet }
       val futureResponse =
@@ -234,8 +236,8 @@ object CromwellApiServiceSpec {
 }
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
-  def actorRefFactory = system
-  val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
+  override def actorRefFactory = system
+  override val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
@@ -344,11 +346,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
-        assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
-          responseAs[String]
-        }
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(true) {
+          responseAs[String].contains("contains bad inputs JSON")
         }
       }
   }
@@ -357,11 +359,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString(), "workflowOptions" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
-        assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
-          responseAs[String]
-        }
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(true) {
+          responseAs[String].contains("contains bad options JSON")
         }
       }
   }

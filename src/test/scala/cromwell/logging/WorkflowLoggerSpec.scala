@@ -10,6 +10,8 @@ import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowI
 import org.scalatest.{FlatSpec, Matchers}
 
 class WorkflowLoggerSpec extends FlatSpec with Matchers {
+  val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
+
   val descriptor = WorkflowDescriptor(
     WorkflowId(UUID.fromString("fc6cfad9-65e9-4eb7-853f-7e08c1c8cf8e")),
     WorkflowSourceFiles(
@@ -18,7 +20,7 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers {
       "{}"
     )
   )
-  val backend = LocalBackend(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
+  val backend = LocalBackend(testWorkflowManagerSystem.actorSystem)
   val backendCall = LocalBackendCall(
     backend,
     descriptor,

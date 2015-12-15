@@ -122,6 +122,10 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   }
 
   when(CallRunningAbortAvailable) {
+    case Event(RegisterCallAbortFunction(newAbortFunction), data) =>
+      logger.warn("An existing abort function was overwritten with a new one. This might indicate unexpected state transitions in the backend.")
+      val updatedData = data.copy(abortFunction = Option(newAbortFunction))
+      goto(CallRunningAbortAvailable) using updatedData
     case Event(AbortCall, data) => tryAbort(data)
   }
 
@@ -137,7 +141,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   when(CallDone) {
     case Event(e, _) =>
-      logger.warn(s"received unexpected event $e while in state $stateName")
+      logger.error(s"received unexpected event $e while in state $stateName")
       stay()
   }
 
@@ -155,7 +159,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
       val updatedData = data.copy(backoff = None, timer = None)
       goto(CallDone) using updatedData
     case Event(e, _) =>
-      logger.warn(s"received unhandled event $e while in state $stateName")
+      logger.error(s"received unhandled event $e while in state $stateName")
       stay()
   }
 

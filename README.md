@@ -403,6 +403,8 @@ Create a WDL simple file and save it as `hello.wdl`, for example:
 
 ```
 task hello {
+  String name
+
   command {
     echo 'hello ${name}!'
   }
@@ -593,6 +595,9 @@ A `call` can have an optional section to define inputs.  As seen below, the key/
 
 ```
 task hello {
+  String name
+  String salutation
+
   command {
     echo '${salutation} ${name}!'
   }
@@ -682,8 +687,10 @@ So far every example has used the default type of `String` for every input.  Pas
 
 ```
 task grep {
+  File file
+
   command {
-    grep -c '^...$' ${File file}
+    grep -c '^...$' ${file}
   }
   output {
     Int count = read_int(stdout())

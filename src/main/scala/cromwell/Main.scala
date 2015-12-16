@@ -9,14 +9,14 @@ import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter,
 import cromwell.binding.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor, WorkflowOptions}
+import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.parser.BackendType
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import spray.json._
-import cromwell.engine.backend.Backend.BackendyString
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
@@ -311,7 +311,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   private[this] def initLogging(): Int = {
     val systemProperties = sys.props
     val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
-    systemProperties.getOrElseUpdate("LOG_MODE", "CONSOLE")
+    systemProperties.getOrElseUpdate("LOG_MODE", "PRETTY")
     systemProperties.getOrElseUpdate("LOG_LEVEL", "INFO")
 
     try {

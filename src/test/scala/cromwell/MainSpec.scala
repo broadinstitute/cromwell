@@ -238,7 +238,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val result = traceMain(_.initLoggingReturnCode)
       val restoredProps = sys.props
       restoredProps("LOG_ROOT") should be(File(".").fullPath)
-      restoredProps("LOG_MODE") should be("CONSOLE")
+      restoredProps("LOG_MODE") should be("PRETTY")
       restoredProps("LOG_LEVEL") should be("INFO")
       result.out should be(empty)
       result.err should be(empty)

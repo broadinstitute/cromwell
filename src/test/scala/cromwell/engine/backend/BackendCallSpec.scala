@@ -20,7 +20,7 @@ class BackendCallSpec extends CromwellTestkitSpec("BackendCallSpec") {
   "BackendCall hash function" should {
     "not change very often" in {
       val actual = backendCall.hash
-      val expected = "8b6116bf5dad7be48066bb979b65b932"
+      val expected = "20e7ec16a9d743a927791d530cba1807"
       assert(actual == expected,  s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
   }

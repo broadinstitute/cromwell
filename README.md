@@ -403,6 +403,7 @@ Create a WDL simple file and save it as `hello.wdl`, for example:
 
 ```
 task hello {
+  String name
   command {
     echo 'hello ${name}!'
   }

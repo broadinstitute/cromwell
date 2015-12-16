@@ -25,4 +25,7 @@ case class SgeBackendCall(backend: SgeBackend,
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
+
+  override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
+    backend.useCachedCall(avoidedTo.asInstanceOf[SgeBackendCall], this)
 }

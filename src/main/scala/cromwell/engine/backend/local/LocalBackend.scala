@@ -101,21 +101,6 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
   }).flatten map CompletedExecutionHandle
 
-  def useCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
-    val source = cachedBackendCall.callRootPath.toAbsolutePath.toString
-    val dest = backendCall.callRootPath.toAbsolutePath.toString
-    val outputs = for {
-      _ <- Try(ioInterface(backendCall.workflowDescriptor.workflowOptions).copy(source, dest))
-      outputs <- postProcess(backendCall)
-    } yield outputs
-
-    outputs match {
-      case Success(o) =>
-        cachedBackendCall.hash map { h => CompletedExecutionHandle(SuccessfulExecution(o, cachedBackendCall.returnCode.contentAsString.stripLineEnd.toInt, h, Option(cachedBackendCall))) }
-      case Failure(ex) => FailedExecutionHandle(ex).future
-    }
-  } flatten
-
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
    */

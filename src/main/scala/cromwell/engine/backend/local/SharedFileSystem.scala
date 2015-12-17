@@ -3,15 +3,17 @@ package cromwell.engine.backend.local
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
+import better.files._
 import better.files.{File => ScalaFile}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding._
+import cromwell.engine._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.{ExecutionHandle, BackendCall, CallLogs, LocalFileSystemBackendCall}
+import cromwell.engine.backend._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
@@ -109,7 +111,23 @@ trait SharedFileSystem {
   def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new LocalEngineFunctionsWithoutCallContext(interface)
   def fileHasher(workflow: WorkflowDescriptor) = sharedFsFileHasher
 
-  def ioInterface(workflowOptions: WorkflowOptions): IOInterface = new SharedFileSystemIOInterface
+  val sharedIoInterface = new IOInterface
+  def ioInterface(workflowOptions: WorkflowOptions): IOInterface = sharedIoInterface
+
+  def useCachedCall(cachedBackendCall: LocalFileSystemBackendCall, backendCall: LocalFileSystemBackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+    val source = cachedBackendCall.callRootPath.toAbsolutePath.toString
+    val dest = backendCall.callRootPath.toAbsolutePath.toString
+    val outputs = for {
+      _ <- Try(ioInterface(backendCall.workflowDescriptor.workflowOptions).copy(source, dest))
+      outputs <- postProcess(backendCall)
+    } yield outputs
+
+    outputs match {
+      case Success(o) =>
+        cachedBackendCall.hash map { h => CompletedExecutionHandle(SuccessfulExecution(o, cachedBackendCall.returnCode.contentAsString.stripLineEnd.toInt, h, Option(cachedBackendCall))) }
+      case Failure(ex) => FailedExecutionHandle(ex).future
+    }
+  } flatten
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
     implicit val hasher = fileHasher(backendCall.workflowDescriptor)

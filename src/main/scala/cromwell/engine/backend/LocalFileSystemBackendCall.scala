@@ -8,4 +8,5 @@ import java.nio.file.Path
 trait LocalFileSystemBackendCall extends BackendCall {
   val callRootPath: Path
   val workflowRootPath: Path
+  val returnCode: Path
 }

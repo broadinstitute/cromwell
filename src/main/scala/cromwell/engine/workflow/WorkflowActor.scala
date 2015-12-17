@@ -972,7 +972,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def sendStartMessage(callKey: CallKey, callInputs: Map[String, WdlValue]) = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
     val backendCall = backend.bindCall(workflow, callKey, callInputs, AbortRegistrationFunction(registerAbortFunction))
-    val log = backendCall.workflowLoggerWithCall(Option(akkaLogger))
+    val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
 
     def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
       descriptor.namespace.resolve(cachedExecution.callFqn) match {
@@ -983,7 +983,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
             callInputs,
             AbortRegistrationFunction(registerAbortFunction)
           )
-          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.call.unqualifiedName} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.call.unqualifiedName}")
+          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
           self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
         case _ =>
           log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")

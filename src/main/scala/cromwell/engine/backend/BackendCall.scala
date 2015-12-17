@@ -150,7 +150,7 @@ trait BackendCall {
         case ContinueOnReturnCodeSet(codes) => codes.toList.sorted.mkString(",")
       }),
       ("cpu", runtime.cpu.toString),
-      ("preemptable", runtime.preemptible.toString),
+      ("preemptible", runtime.preemptible.toString),
       ("defaultDisks", runtime.defaultDisks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
       ("memoryGB", runtime.memoryGB.toString)
     )

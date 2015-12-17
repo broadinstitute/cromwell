@@ -27,6 +27,8 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
+  setupServerLogging(args)
+
   /*
    * scala.App's DelayedInit is tricky, as the docs say. During tests we definitely don't want to use sys.exit on an
    * error, and while testing "run ..." we want to change to a test workflow manager system. Unfortunately...
@@ -43,6 +45,22 @@ object Main extends App {
    * array becoming null in "new Main(args)" when used with: sbt 'run run ...'
    */
   new Main().runAction(args)
+
+  /**
+    * If a cromwell server is going to be run, makes adjustments to the default logback configuration.
+    * Overwrites LOG_MODE system property used in our logback.xml, _before_ the logback classes load.
+    * Restored from similar functionality in
+    *   https://github.com/broadinstitute/cromwell/commit/2e3f45b#diff-facc2160a82442932c41026c9a1e4b2bL28
+    * TODO: Logback is configurable programmatically. We don't have to overwrite system properties like this.
+    *
+    * @param args The command line arguments.
+    */
+  private def setupServerLogging(args: Array[String]): Unit = {
+    args.headOption.map(_.capitalize) match {
+      case Some("Server") => sys.props.getOrElseUpdate("LOG_MODE", "STANDARD")
+      case _ =>
+    }
+  }
 }
 
 /** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */

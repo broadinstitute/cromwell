@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import akka.actor.FSM.NullFunction
-import akka.actor.{Cancellable, Actor, LoggingFSM, Props}
+import akka.actor.{Actor, Cancellable, LoggingFSM, Props}
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.binding._
@@ -9,14 +9,13 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
-import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
-import cromwell.logging.WorkflowLogger
 import cromwell.instrumentation.Instrumentation.Monitor
+import cromwell.logging.WorkflowLogger
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Try, Success, Failure}
 
 object CallActor {
 
@@ -191,8 +190,8 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     )
 
     val message = executionResult match {
-      case SuccessfulExecution(outputs, returnCode, hash) =>
-        WorkflowActor.CallCompleted(key, outputs, returnCode, if (workflowDescriptor.writeToCache) Some(hash) else None)
+      case SuccessfulExecution(outputs, returnCode, hash, resultsClonedFrom) =>
+        WorkflowActor.CallCompleted(key, outputs, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case FailedExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)

@@ -11,13 +11,14 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding._
 import cromwell.binding.types.WdlType
 import cromwell.binding.values.WdlValue
-import cromwell.engine.backend.CromwellBackend
+import cromwell.engine.backend.{CromwellBackend, ExecutionHandle, ExecutionResult}
 import cromwell.engine.workflow.WorkflowOptions
 import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 import scalaz.ValidationNel
@@ -265,4 +266,18 @@ package object engine {
   }
 
   type ErrorOr[+A] = ValidationNel[String, A]
+
+  implicit class EnhancedFutureFuture[A](val ffa: Future[Future[A]])(implicit ec: ExecutionContext) {
+    def flatten: Future[A] = ffa flatMap { fa => fa }
+  }
+
+  implicit class EnhancedExecutionHandle(val handle: ExecutionHandle) extends AnyVal {
+    def future = Future.successful(handle)
+  }
+
+  implicit class EnhancedExecutionResult(val result: ExecutionResult) extends AnyVal {
+    def future = Future.successful(result)
+  }
+
+  final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
 }

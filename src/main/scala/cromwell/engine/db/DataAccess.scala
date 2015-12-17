@@ -59,7 +59,7 @@ trait DataAccess {
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, workflowOutputFqns: Seq[ReportableSymbol]): Future[Unit]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
-    setStatus(workflowId, keys, CallStatus(executionStatus, None, None))
+    setStatus(workflowId, keys, CallStatus(executionStatus, None, None, None))
   }
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus): Future[Unit]

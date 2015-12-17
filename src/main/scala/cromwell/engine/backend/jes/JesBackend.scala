@@ -301,20 +301,21 @@ case class JesBackend(actorSystem: ActorSystem)
       Try(interface.copy(cachedCall.callGcsPath, backendCall.callGcsPath)) match {
         case Failure(ex) =>
           log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to ${backendCall.callGcsPath}", ex)
-          FailedExecutionHandle(ex)
+          FailedExecutionHandle(ex).future
         case Success(_) => postProcess(backendCall) match {
-          case Success(outputs) => SuccessfulExecutionHandle(outputs, backendCall.downloadRcFile.get.stripLineEnd.toInt, backendCall.hash)
+          case Success(outputs) => backendCall.hash map { h =>
+            SuccessfulExecutionHandle(outputs, backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
           case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
             // TODO: What can we return here to retry this operation?
             // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
             val error = "Socket timeout occurred in evaluating one or more of the output expressions"
             log.error(error, ex)
-            FailedExecutionHandle(new Throwable(error, ex))
-          case Failure(ex) => FailedExecutionHandle(ex)
+            FailedExecutionHandle(new Throwable(error, ex)).future
+          case Failure(ex) => FailedExecutionHandle(ex).future
         }
       }
     }
-  }
+  } flatten
 
   /**
    * Creates a set of JES inputs for a backend call.
@@ -485,7 +486,7 @@ case class JesBackend(actorSystem: ActorSystem)
     TryUtil.sequenceMap(outputMappings).map(_.mapValues(v => CallOutput(v, v.getHash(fileHasher(backendCall.workflowDescriptor)))))
   }
 
-  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle): ExecutionHandle = {
+  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(handle.backendCall)
 
     try {
@@ -498,33 +499,33 @@ case class JesBackend(actorSystem: ActorSystem)
 
       status match {
         case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"))
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength")).future
         case Run.Success if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
           // Return handle to try again.
-          handle
+          handle.future
         case Run.Success if returnCode.isFailure =>
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get))
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
         case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get))
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get)).future
         case Run.Success =>
-          handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get, backendCall.hash, handle)
+          backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
           } else {
             new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: $errorMessage")
           }
-          FailedExecutionHandle(throwable, Option(errorCode))
+          FailedExecutionHandle(throwable, Option(errorCode)).future
       }
     } catch {
       case e: Exception =>
         log.warn("Caught exception trying to download result, retrying: " + e.getMessage, e)
         // Return the original handle to try again.
-        handle
+        handle.future
     }
-  }
+  } flatten
 
   private def runWithJes(backendCall: BackendCall,
                          command: String,
@@ -552,7 +553,7 @@ case class JesBackend(actorSystem: ActorSystem)
   private def handleSuccess(outputMappings: Try[CallOutputs],
                             workflowDescriptor: WorkflowDescriptor,
                             returnCode: Int,
-                            hash: String,
+                            hash: ExecutionHash,
                             executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
       case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, hash)

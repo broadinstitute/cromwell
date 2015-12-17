@@ -145,17 +145,28 @@ lazy val DockerTest = config("docker") extend Test
 
 lazy val NoDockerTest = config("nodocker") extend Test
 
+lazy val CromwellIntegrationTest = config("integration") extend Test
+
+lazy val CromwellNoIntegrationTest = config("nointegration") extend Test
+
 // NOTE: The following block may cause problems with IntelliJ IDEA
 // by creating multiple test configurations.
 // May need to comment out when importing the project.
 lazy val root = (project in file("."))
   .configs(DockerTest).configs(NoDockerTest)
+  .configs(CromwellIntegrationTest).configs(CromwellNoIntegrationTest)
   .settings(inConfig(DockerTest)(Defaults.testTasks): _*)
   .settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
+  .settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
+  .settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
 
 testOptions in DockerTest += Tests.Argument("-n", "DockerTest")
 
 testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
+
+testOptions in CromwellIntegrationTest += Tests.Argument("-n", "CromwellIntegrationTest")
+
+testOptions in CromwellNoIntegrationTest += Tests.Argument("-l", "CromwellIntegrationTest")
 
 test in assembly := {}
 

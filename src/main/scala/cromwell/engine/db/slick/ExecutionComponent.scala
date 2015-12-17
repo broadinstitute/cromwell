@@ -18,7 +18,7 @@ case class Execution(workflowExecutionId: Int,
                      allowsResultReuse: Boolean = true,
                      dockerImageHash: Option[String] = None,
                      resultsClonedFrom: Option[Int] = None,
-                     executionHash: Option[String] = None,
+                     overallHash: Option[String] = None,
                      executionId: Option[Int] = None)
 
 trait ExecutionComponent {
@@ -58,7 +58,7 @@ trait ExecutionComponent {
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
@@ -66,14 +66,14 @@ trait ExecutionComponent {
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
       if execution.index === index
-    } yield (execution.status, execution.rc, execution.executionHash))
+    } yield (execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionStatusByWorkflowExecutionIdAndCallFqn = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int]) => for {

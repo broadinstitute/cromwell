@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.CromwellSpec.DockerTest
+import cromwell.CromwellSpec.{IntegrationTest, DockerTest}
 import cromwell.engine.WorkflowFailed
 import cromwell.util.SampleWdl
 
@@ -18,7 +18,7 @@ class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec("BadTaskOutputWorkfl
       )
     }
 
-    "fail properly in a unknown Docker environment" taggedAs DockerTest in {
+    "fail properly in a unknown Docker environment" taggedAs (DockerTest, IntegrationTest) in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.HelloWorld,
         eventFilter = EventFilter.info(pattern = s"persisting status of hello to Failed", occurrences = 1),

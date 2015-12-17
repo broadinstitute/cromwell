@@ -3,10 +3,11 @@ package cromwell.engine
 import cromwell.binding.FullyQualifiedName
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine.backend.BackendCall
 
 package object db {
 
-  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[String]) {
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) {
     def isTerminal: Boolean = executionStatus.isTerminal
     def isStarting: Boolean = executionStatus == ExecutionStatus.Starting
   }

@@ -1014,6 +1014,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
             log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
             self ! InitialStartCall(callKey, CallActor.Start)
         }
+      } recover { case e =>
+        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
+        scheduleTransition(WorkflowFailed)
       }
     }
     else {

@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.sql.SQLException
+
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
@@ -441,9 +443,15 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message: CallStartMessage, data) if !data.isPending(message.callKey) =>
       val updatedData = message.handleStatusPersist(this, data)
       val callKey = message.callKey
-
       fetchLocallyQualifiedInputs(callKey) match {
-        case Success(callInputs) => startActor(callKey, callInputs, message.startMode)
+        case Success(callInputs) =>
+          val updateDbCallInputs = globalDataAccess.updateCallInputs(workflow.id, callKey, callInputs)
+          updateDbCallInputs onComplete {
+            case Success(i) =>
+              logger.debug(s"$i call input expression(s) updated in database.")
+              startActor(callKey, callInputs, message.startMode)
+            case Failure(e) => self ! AsyncFailure(new SQLException(s"Failed to update symbol inputs for ${callKey.scope.fullyQualifiedName}.${callKey.tag}.${callKey.index}", e))
+          }
         case Failure(t) =>
           logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
           scheduleTransition(WorkflowFailed)

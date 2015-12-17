@@ -1609,4 +1609,34 @@ object SampleWdl {
       "w.t.d" -> WdlFile(cannedFile.getAbsolutePath)
     )
   }
+
+  object ExpressionsInInputs extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task echo {
+        |  String inString
+        |  command {
+        |    echo ${inString}
+        |  }
+        |
+        |  output {
+        |    String outString = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  String a1
+        |  String a2
+        |  call echo {
+        |   input: inString = a1 + " " + a2
+        |  }
+        |  call echo as echo2 {
+        |    input: inString = a1 + " " + echo.outString + " " + a2
+        |  }
+        |}
+      """.stripMargin
+    override val rawInputs = Map(
+      "wf.a1" -> WdlString("hello"),
+      "wf.a2" -> WdlString("world")
+    )
+  }
 }

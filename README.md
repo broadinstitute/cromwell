@@ -31,6 +31,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Using Files as Inputs](#using-files-as-inputs)
   * [Scatter/Gather](#scattergather)
 * [Configuring Cromwell](#configuring-cromwell)
+  * [Database](#database)
 * [Backends](#backends)
   * [Local Filesystem Assumptions / Layout](#local-filesystem-assumptions--layout)
   * [Local Backend](#local-backend)
@@ -398,7 +399,7 @@ Start a server on port 8000, the API for the server is described in the [REST AP
 
 # Getting Started with WDL
 
-If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `cromwell.jar`.
+If you don't already have a reference to the Cromwell JAR file, one can be [downloaded](https://github.com/broadinstitute/cromwell/releases) or [built manually](#building)
 
 ## Hello World WDL
 
@@ -819,6 +820,54 @@ It is recommended that one copies `src/main/resources/application.conf`, modify 
 
 ```
 java -Dconfig.file=/path/to/application.conf cromwell.jar ...
+```
+
+## Database
+
+Cromwell uses a database to keep track data about workflow executions as well as outputs of workflows.
+
+By default, Cromwell uses an in-memory database which will only live for the duration of the JVM.  This provides a quick way to run workflows locally without having to set up MySQL, though it also makes workflow executions transient.
+
+To configure Cromwell to instead point to a MySQL database, First create the empty database.  In the example below, the database name is `cromwell`.
+
+Then, edit the configuration file `database` stanza, as follows:
+
+```
+database {
+  config = main.mysql
+
+  main {
+    hsqldb {
+      db.url = "jdbc:hsqldb:mem:${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+      db.driver = "org.hsqldb.jdbcDriver"
+      driver = "slick.driver.HsqldbDriver$"
+      slick.createSchema = true
+    }
+    mysql {
+      db.url = "jdbc:mysql://localhost:3306/cromwell"
+      db.user = "root"
+      db.password = ""
+      db.driver = "com.mysql.jdbc.Driver"
+      driver = "slick.driver.MySQLDriver$"
+    }
+  }
+
+  test {
+    ...
+  }
+}
+```
+
+To initially populate the tables, use the [Java MySQL Connector](https://dev.mysql.com/downloads/connector/j/) JAR file with [Liquibase](http://www.liquibase.org/) (installable via `brew install liquibase`):
+
+```
+liquibase --driver=com.mysql.jdbc.Driver \
+          --classpath=${HOME}/.ivy2/cache/mysql/mysql-connector-java/jars/mysql-connector-java-5.1.35.jar \
+          --changeLogFile=src/main/migrations/changelog.xml \
+          --url="jdbc:mysql://localhost/cromwell" \
+          --username="root" \
+          --password="" \
+          migrate
 ```
 
 # Backends
@@ -1272,6 +1321,8 @@ Valid keys and their meanings:
 # Call Caching
 
 Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will **copy the results** of the previous job instead of re-running it.
+
+Cromwell's call cache is maintained in its database.  For best mileage with call caching, configure Cromwell to [point to a MySQL database](#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
 
 **Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read-from-cache` is enabled (see below):
 

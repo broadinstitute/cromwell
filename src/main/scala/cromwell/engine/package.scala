@@ -34,6 +34,7 @@ import scalaz.ValidationNel
 package object engine {
 
   private val DefaultCallCachingValue = false
+  private val DefaultLookupDockerHash = false
 
   case class WorkflowId(id: UUID) {
     override def toString = id.toString
@@ -86,9 +87,19 @@ package object engine {
     // Call Caching
     // TODO: Add to lenthall
     def getConfigOption(key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
-    private lazy val configCallCaching = getConfigOption("call-caching") map { _.getBooleanOr("enabled", DefaultCallCachingValue) } getOrElse DefaultCallCachingValue
+
+    private lazy val configCallCaching = (for {
+      config <- getConfigOption("call-caching")
+      enabled <- config.getBooleanOption("enabled")
+    } yield enabled) getOrElse DefaultCallCachingValue
+
     private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
     private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
+
+    lazy val lookupDockerHash = (for {
+      config <- getConfigOption("call-caching")
+      lookupHash <- config.getBooleanOption("lookup-docker-hash")
+    } yield lookupHash) getOrElse DefaultLookupDockerHash
 
     if (!configCallCaching) {
       if (optionCacheWriting) logWriteDisabled()

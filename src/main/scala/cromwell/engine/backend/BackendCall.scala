@@ -170,10 +170,13 @@ trait BackendCall {
   def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = {
     // If a Docker image is defined in the task's runtime attributes, return a `Future[Option[String]]` of the Docker
     // hash string, otherwise return a `Future.successful` of `None`.
-    val eventualDockerHash = call.task.runtimeAttributes.docker map {
-      backend.dockerHashClient.getDockerHash(_) map { dh => Option(dh.hashString) } } getOrElse Future.successful(None)
+    def hashDockerImage(dockerImage: String): Future[Option[String]] =
+      if (workflowDescriptor.lookupDockerHash)
+        backend.dockerHashClient.getDockerHash(dockerImage) map { dh => Option(dh.hashString) }
+      else
+        Future.successful(Option(dockerImage))
 
-    eventualDockerHash map hashGivenDockerHash
+    call.task.runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
   }
 
   /**

@@ -1,10 +1,17 @@
+sudo: required
+dist: trusty
 language: scala
 scala:
-  - 2.11.6
+  - 2.11.7
 jdk:
   - oraclejdk8
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq mysql-server-5.6 mysql-client-5.6 mysql-client-core-5.6
+  - docker pull ubuntu:latest
 before_script:
-  - mysql -e "create database IF NOT EXISTS cromwell_test;"
-
-script: sbt -Dbackend.shared-filesystem.localization.0=copy clean coverage nodocker:test assembly
+  - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
+  - mysql -u root -e "CREATE USER 'travis'@'localhost' IDENTIFIED BY '';"
+  - mysql -u root -e "GRANT ALL PRIVILEGES ON cromwell_test . * TO 'travis'@'localhost';"
+script: sbt -Dbackend.shared-filesystem.localization.0=copy clean coverage nointegration:test assembly
 after_success: sbt coveralls

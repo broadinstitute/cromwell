@@ -329,7 +329,7 @@ grammar {
     $call_input = :input :colon list($mapping, :comma) -> Inputs(map=$2)
     $mapping = :identifier :equal $e -> IOMapping(key=$0, value=$2)
     $alias = :as :identifier -> $1
-    $wf_outputs = :output :lbrace list($wf_output, :comma) :rbrace -> WorkflowOutputs(outputs=$2)
+    $wf_outputs = :output :lbrace list($wf_output) :rbrace -> WorkflowOutputs(outputs=$2)
     $wf_output = :fqn optional($wf_output_wildcard) -> WorkflowOutput(fqn=$0, wildcard=$1)
     $wf_output_wildcard = :dot :asterisk -> $1
 

@@ -36,25 +36,25 @@ class PrerequisiteScopesSpec extends FlatSpec with Matchers {
   it should "have B depend on the scatter" in {
     val scopes = scopesByName("B")
     scopes.size shouldEqual 1
-    scopes.head.name shouldBe "$scatter_0"
+    scopes.head.unqualifiedName shouldBe "$scatter_0"
   }
 
   it should "have C depend on the scatter and B" in {
     val scopes = scopesByName("C")
     scopes.size shouldEqual 2
-    scopes find { _.name == "$scatter_0" } shouldBe defined
-    scopes find { _.name == "B"} shouldBe defined
+    scopes find { _.unqualifiedName == "$scatter_0" } shouldBe defined
+    scopes find { _.unqualifiedName == "B"} shouldBe defined
   }
 
   it should "have D depend on B" in {
     val scopes = scopesByName("D")
     scopes.size shouldEqual 1
-    scopes.head.name shouldBe "B"
+    scopes.head.unqualifiedName shouldBe "B"
   }
 
   it should "have E depend on the scatter" in {
     val scopes = scopesByName("E")
     scopes.size shouldEqual 1
-    scopes.head.name shouldBe "$scatter_0"
+    scopes.head.unqualifiedName shouldBe "$scatter_0"
   }
 }

@@ -1,0 +1,1 @@
+{{with $environment := env "ENVIRONMENT"}}{{$keyname := printf "secret/dsde/%s/cromwell/server.crt" $environment}}{{with vault $keyname}}{{.Data.value}}{{end}}{{end}}

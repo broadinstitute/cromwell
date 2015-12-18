@@ -1,23 +1,48 @@
 package cromwell.engine.workflow
 
+import java.nio.file.Path
+
 import akka.actor.FSM.Transition
-import akka.actor.{Actor, ActorRef, Props}
-import akka.event.Logging
-import akka.pattern.ask
+import akka.actor._
+import better.files._
+import cromwell.binding.FullyQualifiedName
 import cromwell.binding
+import cromwell.binding.{CallOutput, FullyQualifiedName}
+import cromwell.binding.values.WdlValue
 import cromwell.engine._
-import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflow, SubscribeToWorkflow, WorkflowOutputs}
+import cromwell.engine.workflow.SingleWorkflowRunnerActor._
+import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.webservice.WorkflowMetadataResponse
 import spray.json._
 
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util._
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles, inputs: binding.WorkflowRawInputs, workflowManager: ActorRef): Props = {
-    Props(new SingleWorkflowRunnerActor(source, inputs, workflowManager))
+  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef): Props = {
+    Props(classOf[SingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager)
+  }
+
+  sealed trait RunnerMessage
+  // The message to actually run the workflow is made explicit so the non-actor Main can `ask` this actor to do the
+  // running and collect a result.
+  case object RunWorkflow extends RunnerMessage
+  private case object IssueReply extends RunnerMessage
+
+  sealed trait RunnerState
+  case object NotStarted extends RunnerState
+  case object RunningWorkflow extends RunnerState
+  case object RequestingOutputs extends RunnerState
+  case object RequestingMetadata extends RunnerState
+  case object Done extends RunnerState
+
+  final case class RunnerData(replyTo: Option[ActorRef] = None,
+                              id: Option[WorkflowId] = None,
+                              terminalState: Option[WorkflowState] = None,
+                              failures: Seq[Throwable] = Seq.empty) {
+
+    def addFailure(message: String): RunnerData = addFailure(new Throwable(message))
+
+    def addFailure(e: Throwable): RunnerData = this.copy(failures = e +: failures)
   }
 }
 
@@ -27,57 +52,102 @@ object SingleWorkflowRunnerActor {
  * are sub-optimal for future use cases where one might want a single workflow being run.
  */
 case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
-                                     inputs: binding.WorkflowRawInputs,
-                                     workflowManager: ActorRef) extends Actor with CromwellActor {
-  val log = Logging(context.system, classOf[SingleWorkflowRunnerActor])
+                                     metadataOutputPath: Option[Path],
+                                     workflowManager: ActorRef) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
+
   val tag = "SingleWorkflowRunnerActor"
-  // Note that id isn't used until *after* the submitWorkflow Future is complete
-  private var id: WorkflowId = _
 
-  override def preStart(): Unit = {
-    log.info(s"$tag: launching workflow")
-    val eventualId = workflowManager.ask(SubmitWorkflow(source)).mapTo[WorkflowId]
-    eventualId onComplete {
-      case Success(x) => subscribeToWorkflow(x)
-      case Failure(e) =>
-        log.error(e, s"$tag: ${e.getMessage}")
-        terminate()
-    }
+  startWith(NotStarted, RunnerData())
+
+  private def requestMetadata: State = {
+    workflowManager ! WorkflowMetadata(stateData.id.get)
+    goto (RequestingMetadata)
   }
 
-  def receive = {
-    case Transition(_, _, state: WorkflowState) if state.isTerminal => handleTermination(state)
-    case Transition(_, _, state: WorkflowState) => log.info(s"$tag: transitioning to $state")
-    case m => log.warning(s"$tag: received unexpected message: $m")
+  private def issueReply: State = {
+    self ! IssueReply
+    goto (Done)
   }
 
-  private def handleTermination(state: WorkflowState): Unit = {
-    log.info(s"$tag: workflow finished with status '$state'.")
+  when (NotStarted) {
+    case Event(RunWorkflow, data) =>
+      log.info(s"$tag: launching workflow")
+      workflowManager ! SubmitWorkflow(source)
+      goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
+  }
 
-    // If this is a successful termination, retrieve & print out the outputs
-    if (state == WorkflowSucceeded) {
-      val eventualOutputs = workflowManager.ask(WorkflowOutputs(id)).mapTo[binding.WorkflowOutputs]
-      val outputs = Await.result(eventualOutputs, 5 seconds)
-      import cromwell.binding.values.WdlValueJsonFormatter._
-      println(outputs.toJson.prettyPrint)
-    }
+  when (RunningWorkflow) {
+    case Event(id: WorkflowId, data) =>
+      log.info(s"$tag: workflow ID UUID($id)")
+      workflowManager ! SubscribeToWorkflow(id)
+      stay using data.copy(id = Option(id))
+    case Event(Transition(_, _, WorkflowSucceeded), data) =>
+      workflowManager ! WorkflowOutputs(data.id.get)
+      goto(RequestingOutputs) using data.copy(terminalState = Option(WorkflowSucceeded))
+    case Event(Transition(_, _, state: WorkflowState), data) if state.isTerminal =>
+      // A terminal state that is not `WorkflowSucceeded` is a failure.
+      val updatedData = data.copy(terminalState = Option(state)).addFailure(s"Workflow ${data.id.get} transitioned to state $state")
+      // If there's an output path specified then request metadata, otherwise issue a reply to the original sender.
+      val nextState = if (metadataOutputPath.isDefined) requestMetadata else issueReply
+      nextState using updatedData
+    case Event(Transition(_, _, state), _) =>
+      log.info(s"$tag: transitioning to $state")
+      stay()
+  }
 
-    terminate()
+  when (RequestingOutputs) {
+    // Can't use the WorkflowOutputs type alias here since the @unchecked needs to be added to suppress
+    // compile time warnings.
+    case Event(outputs: Map[FullyQualifiedName@unchecked, CallOutput@unchecked], data) =>
+      // Outputs go to stdout
+      outputOutputs(outputs)
+      if (metadataOutputPath.isDefined) requestMetadata else issueReply
+  }
+  
+  when (RequestingMetadata) {
+    case Event(response: WorkflowMetadataResponse, data) =>
+      val updatedData = outputMetadata(response) match {
+        case Success(_) => data
+        case Failure(e) => data.addFailure(e)
+      }
+      issueReply using updatedData
+  }
+
+  when (Done) {
+    case Event(IssueReply, data) =>
+      data.terminalState foreach { state => log.info(s"$tag workflow finished with status '$state'.") }
+      data.failures foreach { e => log.error(e, e.getMessage) }
+
+      val message = data.terminalState collect { case WorkflowSucceeded => () } getOrElse Status.Failure(data.failures.head)
+      data.replyTo foreach  { _ ! message }
+      stay()
+  }
+
+  whenUnhandled {
+    case Event(Status.Failure(e), data) =>
+      log.error(e, s"$tag received Failure message: " + e.getMessage)
+      issueReply using data.addFailure(e)
+    case Event(m, _) =>
+      log.warning(s"$tag: received unexpected message: $m")
+      stay()
   }
 
   /**
-   * Does a few things by side effect:
-   *     - Sets 'id' to the submitted workflow id
-   *     - Logs the workflow id
-   *     - Subscribes to the new workflow's transition events
-   */
-  private def subscribeToWorkflow(workflowId: WorkflowId): Unit = {
-    id = workflowId
-    log.info(s"SingleWorkflowRunnerActor: workflow ID UUID($id)")
-    workflowManager ! SubscribeToWorkflow(id)
+    * Outputs the outputs to stdout, and then requests the metadata.
+    */
+  private def outputOutputs(outputs: binding.WorkflowOutputs): Unit = {
+    import cromwell.binding.values.WdlValueJsonFormatter._
+    val outputValues = outputs mapValues { case CallOutput(wdlValue, _) => wdlValue }
+    println(outputValues.toJson.prettyPrint)
   }
 
-  private def terminate(): Unit = {
-    context.system.shutdown()
+  private def outputMetadata(metadata: WorkflowMetadataResponse): Try[Unit] = {
+    Try {
+      // This import is required despite what IntelliJ thinks.
+      import cromwell.webservice.WorkflowJsonSupport._
+      val path = metadataOutputPath.get
+      log.info(s"$tag writing metadata to $path")
+      path.createIfNotExists().write(metadata.toJson.prettyPrint)
+    }
   }
 }

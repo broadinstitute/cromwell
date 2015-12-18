@@ -20,4 +20,9 @@
     <include file="changesets/jes_id_update.xml" relativeToChangelogFile="true" />
     <include file="changesets/optional_sge_ids.xml" relativeToChangelogFile="true" />
     <include file="changesets/add_start_end_time_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rename_jes_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_workflow_name.xml" relativeToChangelogFile="true" />
+    <include file="changesets/top_level_output.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_execution_aux_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_result_caching.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

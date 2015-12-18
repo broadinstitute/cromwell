@@ -38,11 +38,11 @@ class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") with Mock
 
   def testFailOnStderr(descriptor: WorkflowDescriptor, expectSuccess: Boolean): Unit = {
     val call = descriptor.namespace.workflow.calls.head
-    val backend = new LocalBackend()
+    val backend = new LocalBackend(system)
     val backendCall = backend.bindCall(descriptor, CallKey(call, None), Map.empty[String, WdlValue], AbortRegistrationFunction(_ => ()))
     backendCall.execute map { _.result } map {
       case FailedExecution(e, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
-      case SuccessfulExecution(_, _) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
+      case se: SuccessfulExecution => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
       case AbortedExecution => fail("Not expecting this at all")
     }
   }

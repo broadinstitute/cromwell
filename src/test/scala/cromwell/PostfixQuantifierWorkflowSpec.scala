@@ -26,7 +26,7 @@ class PostfixQuantifierWorkflowSpec extends CromwellTestkitSpec("PostfixQuantifi
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ZeroOrMorePostfixQuantifierWorkflowWithZeroElementArrayInput,
         EventFilter.info(pattern = s"starting calls: postfix.hello", occurrences = 1),
-        expectedOutputs = Map("postfix.hello.greeting" -> WdlString("hello "))
+        expectedOutputs = Map("postfix.hello.greeting" -> WdlString("hello"))
       )
     }
   }

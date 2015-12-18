@@ -7,7 +7,7 @@ import cromwell.binding.values.{WdlArray, WdlFile, WdlString}
 import cromwell.util.SampleWdl
 
 
-class InputLocalizationWorkflowSpec extends CromwellTestkitSpec("InputLocalisationWorkflowSpec") {
+class InputLocalizationWorkflowSpec extends CromwellTestkitSpec("InputLocalizationWorkflowSpec") {
   "a workflow running on a SharedFileSystem" should {
 
     val expectedOutputs = Map(

@@ -78,11 +78,11 @@ case class Call(alias: Option[String],
                 prerequisiteCallNames: Set[LocallyQualifiedName],
                 inputMappings: Map[String, WdlExpression],
                 parent: Option[Scope]) extends Scope {
-  val name: String = alias getOrElse taskFqn
+  val unqualifiedName: String = alias getOrElse taskFqn
 
   override lazy val prerequisiteScopes: Set[Scope] = {
     val parent = this.parent.get // FIXME: In a world where Call knows it has a parent this wouldn't be icky
-    val parentPrereq = if (parent == this.rootScope) Nil else Set(parent)
+    val parentPrereq = if (parent == this.rootWorkflow) Nil else Set(parent)
     prerequisiteCalls ++ parentPrereq
   }
 
@@ -95,7 +95,7 @@ case class Call(alias: Option[String],
     i <- task.inputs if !inputMappings.contains(i.name)
   } yield WorkflowInput(s"$fullyQualifiedName.${i.name}", i.wdlType, i.postfixQuantifier)
 
-  override def toString: String = s"[Call name=$name, task=$task]"
+  override def toString: String = s"[Call name=$unqualifiedName, task=$task]"
 
   /**
    * Instantiate the abstract command line corresponding to this call using the specified inputs.
@@ -118,4 +118,6 @@ case class Call(alias: Option[String],
    * or one of the supplied result code is generated.
    */
   def continueOnReturnCode: ContinueOnReturnCode = task.runtimeAttributes.continueOnReturnCode
+
+  override def rootWorkflow: Workflow = parent map { _.rootWorkflow } getOrElse { throw new IllegalStateException("Call not in workflow") }
 }

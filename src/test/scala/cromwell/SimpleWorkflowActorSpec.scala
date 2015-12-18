@@ -2,17 +2,15 @@ package cromwell
 
 import java.util.UUID
 
-import akka.actor
-import akka.actor.ActorInitializationException
 import akka.testkit._
 import cromwell.binding._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
+import org.scalatest.Ignore
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -21,10 +19,10 @@ import scala.language.postfixOps
 class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSpec") {
 
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: String):
-  TestFSMRef[WorkflowState, WorkflowFailure, WorkflowActor] = {
+  TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend))
+    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend(system)))
   }
 
   val TestExecutionTimeout = 5.seconds.dilated
@@ -76,7 +74,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     "gracefully handle malformed WDL" in {
       within(TestExecutionTimeout) {
         val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
-        waitForPattern("transitioning from Submitted to Failed") {
+        waitForPattern("transitioning from Running to Failed") {
           fsm ! Start
         }
       }

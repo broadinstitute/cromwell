@@ -1,106 +1,85 @@
 package cromwell.engine.backend.jes
 
+import cromwell.binding.IOInterface
 import cromwell.binding.expression.WdlStandardLibraryFunctions
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
+import cromwell.binding.types.{WdlArrayType, WdlFileType}
 import cromwell.binding.values._
-import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
-import cromwell.util.google.GoogleCloudStoragePath
+import cromwell.util.google.GcsPath
 
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-/**
- * Implementation of WDL standard library functions for the JES backend.
- */
-class JesEngineFunctionsWithoutCallContext extends WdlStandardLibraryFunctions with ProductionJesAuthentication {
-
-  private def readFromPath(value: String): String = {
-    // .get here because engine functions should throw exception if they fail.  Evaluator will catch it
-    authenticated { _.storage.slurpFile(GoogleCloudStoragePath.parse(value).get) }
-  }
-
-  /**
-   * Read the entire contents of a file from the specified `WdlValue`, where the file can be
-   * specified either as a path via a `WdlString` (with magical handling of "stdout"), or
-   * directly as a `WdlFile`.
-   *
-   * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
-   *                                       to be wrapped in a `Try`.
-   */
-  private def fileContentsToString(value: WdlValue): String = {
-    value match {
-      case f: WdlFile => readFromPath(f.value)
-      case f: WdlString => readFromPath(f.value)
-      case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected JES URI)")
-    }
-  }
-
-  /**
-   * Read all lines from the file referenced by the first parameter
-   */
-  override protected def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      lines = fileContentsToString(singleArgument).split("\n").map{WdlString}
-    } yield WdlArray(WdlArrayType(WdlStringType), lines)
-  }
-
-  override protected def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      contents <- Success(fileContentsToString(singleArgument))
-      wdlMap <- WdlMap.fromTsv(contents)
-    } yield wdlMap
-  }
-
-  private def extractObjectOrArray(params: Seq[Try[WdlValue]]) = for {
-    singleArgument <- extractSingleArgument(params)
-    contents <- Success(fileContentsToString(singleArgument))
-    wdlObjects <- WdlObject.fromTsv(contents)
-  } yield wdlObjects
-
-  override protected def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = {
-    extractObjectOrArray(params) map {
-      case array if array.length == 1 => array.head
-      case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
-    }
-  }
-
-  override def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
-    extractObjectOrArray(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
-  }
-
-  /**
-   * Try to read a string from the file referenced by the specified `WdlValue`.
-   */
-  override protected def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      string = fileContentsToString(singleArgument)
-    } yield WdlString(string.trim)
+object JesEngineFunctions {
+  implicit class UriString(val str: String) extends AnyVal {
+    def isGcsUrl: Boolean = str.startsWith("gs://")
+    def isUriWithProtocol: Boolean = "^[a-zA-Z]+://".r.findFirstIn(str).nonEmpty
   }
 }
 
 /**
  * Implementation of WDL standard library functions for the JES backend.
  */
-class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext {
+class JesEngineFunctionsWithoutCallContext(val interface: IOInterface) extends WdlStandardLibraryFunctions {
+
+  import JesEngineFunctions._
+
+  protected def readFromGcsUri(value: String): String = {
+    // .get here because engine functions should throw exception if they fail.  Evaluator will catch it
+    interface.readFile(value)
+  }
+
+  /**
+    * Read the entire contents of a file from the specified `WdlValue`.  the `WdlValue` must be
+    * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url OR
+    * a relative path in the call output directory in which the call's GCS path will be prepended
+    *
+    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
+    *                                       to be wrapped in a `Try`.
+    */
+  override def fileContentsToString(path: String): String = path match {
+    case s if s.isGcsUrl => readFromGcsUri(s)
+    case s if s.isUriWithProtocol => throw new UnsupportedOperationException(s"URI Scheme not supported: $s")
+    case e => throw new UnsupportedOperationException("Unsupported argument " + e + " (expected GCS URI)")
+  }
+}
+
+/**
+ * Implementation of WDL standard library functions for the JES backend.
+ */
+class JesEngineFunctions(jesBackendCall: JesBackendCall) extends JesEngineFunctionsWithoutCallContext(jesBackendCall.workflowDescriptor.IOInterface) {
+
+  import JesEngineFunctions._
+
+   /**
+    * Read the entire contents of a file from the specified `WdlValue`.  the `WdlValue` must be
+    * either a `WdlString` or `WdlFile` (i.e. `WdlStringLike`) and must be a full gs:// url OR
+    * a relative path in the call output directory in which the call's GCS path will be prepended
+    *
+    * @throws UnsupportedOperationException for an unrecognized file reference, as this is intended
+    *                                       to be wrapped in a `Try`.
+    */
+  override def fileContentsToString(path: String): String = path match {
+    case s if s.isGcsUrl => readFromGcsUri(s)
+    case s if s.isUriWithProtocol => throw new UnsupportedOperationException(s"URI Scheme not supported: $s")
+    case s => readFromGcsUri(s"${jesBackendCall.callGcsPath}/$s")
+  }
+
 
   override protected def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
       singleArgument <- extractSingleArgument(params)
-      files = authenticated { _.storage.listContents(jesBackendCall.globOutputPath(singleArgument.valueString)) }
+      files = interface.listContents(jesBackendCall.globOutputPath(singleArgument.valueString))
       wdlFiles = files map { WdlFile(_, isGlob = false) }
     } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
   }
 
   override protected def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(jesBackendCall.stdoutJesOutput.gcs)
+    val newPath = GcsPath(jesBackendCall.stdoutJesOutput.gcs)
     Success(WdlFile(newPath.toString))
   }
 
   override protected def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
-    val newPath = GoogleCloudStoragePath(jesBackendCall.stderrJesOutput.gcs)
+    val newPath = GcsPath(jesBackendCall.stderrJesOutput.gcs)
     Success(WdlFile(newPath.toString))
   }
 }

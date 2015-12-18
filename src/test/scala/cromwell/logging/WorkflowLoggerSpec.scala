@@ -2,6 +2,7 @@ package cromwell.logging
 
 import java.util.UUID
 
+import cromwell.CromwellTestkitSpec
 import cromwell.binding.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.workflow.CallKey
@@ -9,6 +10,8 @@ import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowI
 import org.scalatest.{FlatSpec, Matchers}
 
 class WorkflowLoggerSpec extends FlatSpec with Matchers {
+  val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
+
   val descriptor = WorkflowDescriptor(
     WorkflowId(UUID.fromString("fc6cfad9-65e9-4eb7-853f-7e08c1c8cf8e")),
     WorkflowSourceFiles(
@@ -17,11 +20,11 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers {
       "{}"
     )
   )
-  val backend = new LocalBackend()
+  val backend = LocalBackend(testWorkflowManagerSystem.actorSystem)
   val backendCall = LocalBackendCall(
     backend,
     descriptor,
-    CallKey(descriptor.namespace.workflow.calls.find(_.name == "x").head, None),
+    CallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
     Map.empty[String, WdlValue],
     AbortRegistrationFunction(_ => ())
   )

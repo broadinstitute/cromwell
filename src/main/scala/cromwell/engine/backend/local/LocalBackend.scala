@@ -3,9 +3,10 @@ package cromwell.engine.backend.local
 import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
+import akka.actor.ActorSystem
+import better.files._
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
@@ -77,7 +78,7 @@ object LocalBackend {
 /**
  * Handles both local Docker runs as well as local direct command line executions.
  */
-class LocalBackend extends Backend with SharedFileSystem {
+case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = LocalBackendCall
 
   import LocalBackend._
@@ -89,16 +90,16 @@ class LocalBackend extends Backend with SharedFileSystem {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = workflowLoggerWithCall(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
         runSubprocess(backendCall)
-      case Failure(ex) => FailedExecution(ex)
+      case Failure(ex) => FailedExecution(ex).future
     }
-  } map CompletedExecutionHandle
+  }).flatten map CompletedExecutionHandle
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
@@ -108,7 +109,7 @@ class LocalBackend extends Backend with SharedFileSystem {
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
+      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None, None, None))
     }
 
     for {
@@ -124,12 +125,12 @@ class LocalBackend extends Backend with SharedFileSystem {
    * as some extra shell code for monitoring jobs
    */
   private def writeScript(backendCall: BackendCall, instantiatedCommand: String, containerRoot: Path) = {
-    val (_, scriptWriter) = backendCall.script.fileAndWriter
-    scriptWriter.writeWithNewline("#!/bin/sh")
-    scriptWriter.writeWithNewline(s"cd $containerRoot")
-    scriptWriter.writeWithNewline(instantiatedCommand)
-    scriptWriter.writeWithNewline("echo $? > rc")
-    scriptWriter.flushAndClose()
+    backendCall.script.write(
+      s"""#!/bin/sh
+         |cd $containerRoot
+         |$instantiatedCommand
+         |echo $$? > rc
+         |""".stripMargin)
   }
 
   /**
@@ -138,12 +139,12 @@ class LocalBackend extends Backend with SharedFileSystem {
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
   private def buildDockerRunCommand(backendCall: BackendCall, image: String): String = {
-    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.name, backendCall.key.index)
+    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.unqualifiedName, backendCall.key.index)
     s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
   }
 
 
-  private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
+  private def runSubprocess(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
     val logger = workflowLoggerWithCall(backendCall)
     val stdoutWriter = backendCall.stdout.untailed
     val stderrTailed = backendCall.stderr.tailed(100)
@@ -161,7 +162,7 @@ class LocalBackend extends Backend with SharedFileSystem {
     val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
     val returnCode = Try(
       if (processReturnCode == 0 || backendCall.call.docker.isEmpty) {
-        val rc = backendCall.returnCode.slurp.stripLineEnd.toInt
+        val rc = backendCall.returnCode.contentAsString.stripLineEnd.toInt
         logger.info(s"Return code: $rc")
         rc
       } else {
@@ -172,15 +173,15 @@ class LocalBackend extends Backend with SharedFileSystem {
     )
     if (backendCall.call.failOnStderr && stderrFileLength > 0) {
       FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
-        s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
+        s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
 
       def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => SuccessfulExecution(outputs, rc)
+          case Success(outputs) => backendCall.hash map { h => SuccessfulExecution(outputs, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
-            FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
+            FailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future
         }
       }
 
@@ -194,10 +195,10 @@ class LocalBackend extends Backend with SharedFileSystem {
 
       val continueOnReturnCode = backendCall.call.continueOnReturnCode
       returnCode match {
-        case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
+        case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode))
-        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e))
+        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
+        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e)).future
       }
     }
   }

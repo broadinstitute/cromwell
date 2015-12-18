@@ -1,16 +1,17 @@
 package cromwell.util
 
-import java.io.{BufferedWriter, File, FileWriter, Writer}
+import java.io.{File, FileInputStream, Writer}
 import java.nio.file.Path
+
+import better.files._
+import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.immutable.Queue
 import scala.util.{Failure, Success, Try}
 
 object FileUtil {
-  /** Build a temp file with the specified base name and an associated writer,
-    * return the tuple of both. */
-  def tempFileAndWriter(baseName: String, directory: File = null): (Path, Writer) = {
-    File.createTempFile(baseName, ".tmp", directory).toPath.fileAndWriter
+  def swapExt(filePath: String, oldExt: String, newExt: String): String = {
+    filePath.stripSuffix(oldExt) + newExt
   }
 
   def parseTsv(tsv: String): Try[Array[Array[String]]] = {
@@ -29,20 +30,24 @@ object FileUtil {
     }
   }
 
-  implicit class EnhancedFile(val file: File) extends AnyVal {
+  implicit class EnhancedFile(val file: File) extends AnyVal with Hashable {
     /** Read an entire file into a string, closing the underlying stream. */
     def slurp: String = {
-      val source = io.Source.fromFile(file)
-      try source.mkString finally source.close()
+      // TODO: deprecate slurp, and java.io.File in general?
+      file.toPath.contentAsString
+    }
+
+    def md5Sum: String = {
+      val fis = new FileInputStream(file)
+      try {
+        DigestUtils.md5Hex(fis)
+      } finally fis.close()
     }
   }
 
   implicit class EnhancedPath(val path: Path) extends AnyVal {
-    def slurp = path.toFile.slurp
-
-    def fileAndWriter: (Path, Writer) = {
-      val writer = new BufferedWriter(new FileWriter(path.toFile))
-      (path, writer)
+    def swapExt(oldExt: String, newExt: String): Path = {
+      path.getFileSystem.getPath(FileUtil.swapExt(path.toString, oldExt, newExt))
     }
 
     def untailed = new UntailedWriter(path)
@@ -56,7 +61,7 @@ object FileUtil {
  */
 trait PathWriter {
   val path: Path
-  lazy val writer: Writer = new BufferedWriter(new FileWriter(path.toFile))
+  lazy val writer: Writer = path.newBufferedWriter
 
   /**
    * Passed to `ProcessLogger` to add a new line.

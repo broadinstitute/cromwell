@@ -1,14 +1,15 @@
 package cromwell.util
 
-import java.net.{MalformedURLException, URL}
+import java.net.URL
 
-import com.typesafe.config.{ConfigValue, Config, ConfigException, ConfigFactory}
-import org.slf4j.{LoggerFactory, Logger}
-import scala.reflect.{ClassTag, classTag}
+import com.typesafe.config.{Config, ConfigException, ConfigValue}
+import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConversions._
+import scala.reflect.{ClassTag, classTag}
 import scala.util.Try
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 object ConfigUtil {
 
@@ -34,11 +35,8 @@ object ConfigUtil {
       }
     }
 
-    def getStringOption(key: String): Option[String] = getOption(key, config.getString)
-
+    def getBooleanOption(key: String): Option[Boolean] = getOption(key, config.getBoolean)
     def getConfigOption(key: String): Option[Config] = getOption(key, config.getConfig)
-
-    def getObjectOption(key: String): Option[Object] = getOption(key, config.getObject)
 
     /**
      * For keys that are in the configuration but not in the reference keySet, log a warning.
@@ -60,14 +58,14 @@ object ConfigUtil {
     def validateString(key: String): ValidationNel[String, String] = try {
       config.getString(key).successNel
     } catch {
-      case e: ConfigException.Missing => "Could not find key: $key".failureNel
+      case e: ConfigException.Missing => s"Could not find key: $key".failureNel
     }
 
     def validateConfig(key: String): ValidationNel[String, Config] = try {
       config.getConfig(key).successNel
     } catch {
       case e: ConfigException.Missing => "Could not find key: $key".failureNel
-      case e: ConfigException.WrongType => "key $key cannot be parsed to a Config".failureNel
+      case e: ConfigException.WrongType => s"key $key cannot be parsed to a Config".failureNel
     }
 
   }

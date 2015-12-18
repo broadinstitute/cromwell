@@ -12,8 +12,10 @@ case class Symbol
   name: String,
   index: Int, // https://bugs.mysql.com/bug.php?id=8173
   io: String,
+  reportableResult: Boolean,
   wdlType: String,
   wdlValue: Option[Clob],
+  symbolHash: Option[String],
   symbolId: Option[Int] = None
   )
 
@@ -35,11 +37,15 @@ trait SymbolComponent {
 
     def io = column[String]("IO")
 
+    def reportableResult = column[Boolean]("REPORTABLE_RESULT")
+
     def wdlType = column[String]("WDL_TYPE")
 
     def wdlValue = column[Option[Clob]]("WDL_VALUE")
 
-    override def * = (workflowExecutionId, scope, name, index, io, wdlType, wdlValue, symbolId.?) <>
+    def symbolHash = column[Option[String]]("HASH")
+
+    override def * = (workflowExecutionId, scope, name, index, io, reportableResult, wdlType, wdlValue, symbolHash, symbolId.?) <>
       (Symbol.tupled, Symbol.unapply)
 
     def workflowExecution = foreignKey(
@@ -63,19 +69,9 @@ trait SymbolComponent {
     }
   }
 
-  def symbolsByScopeAndName(workflowExecutionUuid: String, scope: String, name: String) = symbolsByUuidAndScopeAndName(workflowExecutionUuid, scope, name)
-
   val allSymbols = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       symbol <- symbols
-      workflowExecution <- symbol.workflowExecution
-      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-    } yield symbol)
-
-  val symbolsByUuidAndScopeAndName = Compiled(
-    (workflowExecutionUuid: Rep[String], scope: Rep[String], name: Rep[String]) => for {
-      symbol <- symbols
-      if symbol.scope === scope && symbol.name === name
       workflowExecution <- symbol.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)
@@ -100,6 +96,14 @@ trait SymbolComponent {
     (workflowExecutionUuid: Rep[String], io: Rep[String], scope: Rep[String], index: Rep[Int]) => for {
       symbol <- symbols
       if symbol.io === io && symbol.scope === scope && symbol.index === index
+      workflowExecution <- symbol.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield symbol)
+
+  val symbolsForWorkflowOutput = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      symbol <- symbols
+      if symbol.reportableResult === true
       workflowExecution <- symbol.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)

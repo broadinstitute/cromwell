@@ -22,8 +22,10 @@ object Scatter {
  * @param parent Parent of this scatter
  */
 case class Scatter(index: Int, item: String, collection: WdlExpression, parent: Option[Scope]) extends Scope {
-  val name = s"${Scatter.FQNIdentifier}_$index"
+  val unqualifiedName = s"${Scatter.FQNIdentifier}_$index"
   override def appearsInFqn = false
   override val prerequisiteCallNames = collection.prerequisiteCallNames
   override lazy val prerequisiteScopes = prerequisiteCalls
+
+  override def rootWorkflow: Workflow = parent map { _.rootWorkflow } getOrElse { throw new IllegalStateException("Call not in workflow") }
 }

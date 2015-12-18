@@ -1,10 +1,10 @@
 package cromwell.engine.backend
 
+import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
@@ -13,27 +13,40 @@ import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
+import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 object Backend {
-  lazy val LocalBackend = new LocalBackend
-  lazy val JesBackend = new JesBackend { jesConf } //forces configuration resolution to fail now if something is missing
-  lazy val SgeBackend = new SgeBackend
-
   class StdoutStderrException(message: String) extends RuntimeException(message)
 
-  def from(backendConf: Config): Backend = from(backendConf.getString("backend"))
-  def from(name: String) = name.toLowerCase match {
-    case "local" => LocalBackend
-    case "jes" => JesBackend
-    case "sge" => SgeBackend
+  def from(backendConf: Config, actorSystem: ActorSystem): Backend = Backend.from(backendConf.getString("backend"), actorSystem)
+
+  def from(backendType: BackendType, actorSystem: ActorSystem): Backend = backendType match {
+    case BackendType.LOCAL => LocalBackend(actorSystem)
+    case BackendType.JES => JesBackend(actorSystem)
+    case BackendType.SGE => SgeBackend(actorSystem)
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
 
+  def from(name: String, actorSystem: ActorSystem): Backend = {
+    val backendType = name.toBackendType
+    Backend.from(backendType, actorSystem)
+  }
+
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
+
+  implicit class BackendyString(val backendType: String) extends AnyVal {
+    def toBackendType: BackendType = {
+      try {
+        BackendType.valueOf(backendType.toUpperCase)
+      } catch {
+        case e: Exception => throw new IllegalArgumentException(s"$backendType is not a recognized backend")
+      }
+    }
+  }
 }
 
 trait JobKey
@@ -42,8 +55,10 @@ trait JobKey
  * Trait to be implemented by concrete backends.
  */
 trait Backend {
-
   type BackendCall <: backend.BackendCall
+  type IOInterface <: cromwell.binding.IOInterface
+
+  def actorSystem: ActorSystem
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
@@ -77,7 +92,12 @@ trait Backend {
   /**
    * Engine functions that don't need a Call context (e.g. read_lines(), read_float(), etc)
    */
-  def engineFunctions: WdlStandardLibraryFunctions
+  def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions
+
+  /**
+    * Interface to be used primarily by engine functions requiring IO capabilities.
+    */
+  def ioInterface(workflowOptions: WorkflowOptions): IOInterface
 
   /**
    * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
@@ -87,7 +107,12 @@ trait Backend {
   /**
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): StdoutStderr
+  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
+
+  /**
+   * Provides a function that given a WdlFile, returns its hash.
+   */
+  def fileHasher(workflowDescriptor: WorkflowDescriptor): FileHasher
 
   def backendType: BackendType
 
@@ -97,21 +122,23 @@ trait Backend {
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  private def backendClass = backendType.toString.toLowerCase.capitalize + "Backend"
+  private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
 
   /** Default implementation assumes backends do not support resume, returns an empty Map. */
   def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
 
   def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
-    backendClass,
+    backendClassString,
     descriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
   def workflowLoggerWithCall(backendCall: BackendCall) = WorkflowLogger(
-    backendClass,
+    backendClassString,
     backendCall.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
     callTag = Option(backendCall.key.tag)
   )
+
+  lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
 }

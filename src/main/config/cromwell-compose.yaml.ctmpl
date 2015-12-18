@@ -1,0 +1,31 @@
+{{with $environment := env "ENVIRONMENT"}}
+{{$keyname := printf "secret/dsde/%s/cromwell/cromwell-compose.yaml" $environment}}
+{{with vault $keyname}}
+
+app:
+  image: {{.Data.cromwell_image}}
+  {{.Data.cromwell_dns}}
+  log_driver: "{{.Data.env_log_driver}}"
+  environment:
+    JAVA_OPTS: {{.Data.env_java_opts}}
+  {{.Data.cromwell_volumes}}
+proxy:
+  image: broadinstitute/openidc-proxy:latest
+  hostname: {{.Data.proxy_hostname}}
+  log_driver: "{{.Data.proxy_log_driver}}"
+  links:
+    - app:app
+  ports:
+    - "80:80"
+    - "443:443"
+  {{.Data.proxy_volumes}}
+  environment:
+    CALLBACK_URI: {{.Data.env_callback_uri}}
+    LOG_LEVEL: {{.Data.env_log_level}}
+    PROXY_URL: http://app:8000/
+    PROXY_URL2: http://app:8000/api
+    SERVER_ADMIN: devops@broadinstitute.org
+    SERVER_NAME: {{.Data.env_server_name}}
+
+{{end}}
+{{end}}

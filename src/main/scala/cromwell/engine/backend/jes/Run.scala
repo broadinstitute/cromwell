@@ -50,7 +50,7 @@ object Run  {
       logger.info(s"Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
       val logging = new Logging()
-      logging.setGcsPath(pipeline.gcsPath)
+      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.JesLog}")
       rpr.setLogging(logging)
 
       // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time

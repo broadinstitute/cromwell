@@ -44,7 +44,7 @@ object JesAttributes {
     "localizeWithRefreshToken.client_id",
     "localizeWithRefreshToken.client_secret",
     "serviceAuth.serviceAccountId",
-    "serviceAuth.p12File"
+    "serviceAuth.pemFile"
   )
 
   private val context = "Jes"

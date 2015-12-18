@@ -15,6 +15,18 @@ trait WdlFunctions[T] {
     else params.head
   }
 
+  /**
+    * Given a path to a file, return the contents
+    * of that file.
+    * @param path - path to the file
+    * @return - Contents of the file
+    * @throws UnsupportedOperationException if the WDL value can
+    *         not be interpreted as a file
+    * @throws NotImplementedError if the backend did not implement
+    *         this method
+    */
+  def fileContentsToString(path: String): String = throw new NotImplementedError("fileContentsToString() is unimplemented")
+
   /* Returns one of the standard library functions (defined above) by name */
   def getFunction(name: String): WdlFunction = {
     val method = getClass.getMethod(name, classOf[Seq[Try[T]]])

@@ -2,14 +2,15 @@ package cromwell.engine
 
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine.backend._
 import cromwell.logging.WorkflowLogger
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object CallExecutionActor {
   sealed trait CallExecutionActorMessage
@@ -27,6 +28,10 @@ object CallExecutionActor {
 
   final case class Resume(jobKey: JobKey) extends ExecutionMode {
     override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.resume(jobKey)
+  }
+
+  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends ExecutionMode {
+    override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.useCachedCall(cachedBackendCall)
   }
 
   def props(backendCall: BackendCall): Props = Props(new CallExecutionActor(backendCall))
@@ -47,13 +52,12 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
   implicit val ec = context.system.dispatcher
 
   /**
-   * Schedule an `IssuePollRequest` message parameterized by `handle` to be delivered to this actor according to
-   * the schedule of the `backoff`.
+   * Schedule work according to the schedule of the `backoff`.
    */
-  private def scheduleNextPoll(handle: ExecutionHandle): Unit = {
+  private def scheduleWork(work: => Unit): Unit = {
     val interval = backoff.nextBackOffMillis().millis
     context.system.scheduler.scheduleOnce(interval) {
-      self ! IssuePollRequest(handle)
+      work
     }
   }
 
@@ -64,22 +68,39 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     .setMultiplier(1.1)
     .build()
 
-  /** Intended for use with `Future#onComplete`, if the `Future` completes successfully apply `successFunction`
-    * to the result value.  If the `Future` is failed, log and message self to `Finish`. */
-  def ifSuccess[T](successFunction: T => Unit): Try[T] => Unit = {
-    case Success(s) => successFunction(s)
-    case Failure(t) =>
-      logger.error(t.getMessage, t)
-      self ! Finish(FailedExecutionHandle(t))
+  /**
+   * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule
+   * the execution of the `onFailure` work using an exponential backoff.
+   */
+  def withRetry(work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit): Unit = {
+    work onComplete {
+      case Success(s) => onSuccess(s)
+      case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 403 =>
+        logger.error(e.getMessage, e)
+        self ! Finish(FailedExecutionHandle(e))
+      case Failure(e: Exception) =>
+        logger.error(e.getMessage, e)
+        scheduleWork(onFailure)
+      case Failure(throwable) =>
+        // This is a catch-all for a JVM-ending kind of exception, which is why we throw the exception
+        logger.error(throwable.getMessage, throwable)
+        throw throwable
+    }
   }
 
   override def receive = LoggingReceive {
     case mode: ExecutionMode =>
-      mode.execute(backendCall) onComplete ifSuccess { self ! IssuePollRequest(_) }
+      withRetry(mode.execute(backendCall),
+        onSuccess = self ! IssuePollRequest(_),
+        onFailure = self ! mode
+      )
     case IssuePollRequest(handle) =>
-      backendCall.poll(handle) onComplete ifSuccess { self ! PollResponseReceived(_) }
+      withRetry(backendCall.poll(handle),
+        onSuccess = self ! PollResponseReceived(_),
+        onFailure = self ! IssuePollRequest(handle)
+      )
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
-    case PollResponseReceived(handle) => scheduleNextPoll(handle)
+    case PollResponseReceived(handle) => scheduleWork(self ! IssuePollRequest(handle))
     case Finish(handle) =>
       context.parent ! CallActor.ExecutionFinished(backendCall.call, handle.result)
       context.stop(self)

@@ -11,10 +11,25 @@ import spray.json._
 
 import scala.language.postfixOps
 
-trait SampleWdl {
+trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
-  def asWorkflowSources(runtime: String = "") = WorkflowSourceFiles(wdlSource(runtime), wdlJson, "{}")
+  def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}") =
+    WorkflowSourceFiles(wdlSource(runtime), wdlJson, workflowOptions)
   val rawInputs: WorkflowRawInputs
+
+  def name = getClass.getSimpleName.stripSuffix("$")
+
+  def createFileArray(base: Path): Unit = {
+    createFile("f1", base, "line1\nline2\n")
+    createFile("f2", base, "line3\nline4\n")
+    createFile("f3", base, "line5\n")
+  }
+
+  def cleanupFileArray(base: Path) = {
+    deleteFile(base.resolve("f1"))
+    deleteFile(base.resolve("f2"))
+    deleteFile(base.resolve("f3"))
+  }
 
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
@@ -26,38 +41,17 @@ trait SampleWdl {
       case s: WdlString => JsString(s.value)
       case i: WdlInteger => JsNumber(i.value)
       case f: WdlFloat => JsNumber(f.value)
+      case f: WdlFile => JsString(f.value)
     }
-    def read(value: JsValue) = ???
+    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
   implicit object RawInputsJsonFormat extends JsonFormat[WorkflowRawInputs] {
     def write(inputs: WorkflowRawInputs) = JsObject(inputs map { case (k, v) => k -> v.toJson })
-    def read(value: JsValue) = ???
+    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
   def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
-
-  private def write(file: File, contents: String) = {
-    val writer = new FileWriter(file)
-    writer.write(contents)
-    writer.flush()
-    writer.close()
-    file
-  }
-
-  def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
-    val suffix = ".out"
-    val file = dir match {
-      case Some(path) => Files.createTempFile(path, prefix, suffix)
-      case None => Files.createTempFile(prefix, suffix)
-    }
-    write(file.toFile, contents)
-  }
-
-  def createFile(name: String, dir: Path, contents: String) = {
-    dir.toFile.mkdirs()
-    write(dir.resolve(name).toFile, contents)
-  }
 
   def deleteFile(path: Path) = Files.delete(path)
 }
@@ -128,6 +122,24 @@ object SampleWdl {
 
     val rawInputs = Map.empty[String, Any]
     val OutputKey = "goodbye.goodbye.out"
+  }
+
+  object EmptyWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String = "") = "workflow empty_workflow {}"
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object EmptyTask extends SampleWdl {
+    override def wdlSource(runtime: String = "") = "task empty_task { command { : } }"
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object EmptyInvalid extends SampleWdl {
+    override def wdlSource(runtime: String = "") = "{}"
+
+    val rawInputs = Map.empty[String, Any]
   }
 
   object Incr extends SampleWdl {
@@ -205,9 +217,12 @@ object SampleWdl {
     override val rawInputs: WorkflowRawInputs = Map("test1.bfile" -> "data/example1")
   }
 
-  object ThreeStep extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
-      """
+  trait ThreeStepTemplate extends SampleWdl {
+    override def wdlSource(runtime: String = "") = sourceString()
+    private val outputSectionPlaceholder = "OUTPUTSECTIONPLACEHOLDER"
+    def sourceString(outputsSection: String = "") = {
+      val withPlaceholders =
+        """
         |task ps {
         |  command {
         |    ps
@@ -247,12 +262,40 @@ object SampleWdl {
         |  call wc {
         |    input: in_file = ps.procs
         |  }
+        |  """ + outputSectionPlaceholder + """
         |}
         |
-      """.stripMargin
+        """
+      withPlaceholders.stripMargin.replace(outputSectionPlaceholder, outputsSection)
+    }
 
-    val PatternKey = "three_step.cgrep.pattern"
-    override val rawInputs = Map(PatternKey -> "...")
+    val PatternKey ="three_step.cgrep.pattern"
+    override lazy val rawInputs = Map(PatternKey -> "...")
+  }
+
+  object ThreeStep extends ThreeStepTemplate
+
+  object ThreeStepWithOutputsSection extends ThreeStepTemplate {
+    override def wdlSource(runtime: String = "") = sourceString(outputsSection =
+      """
+        |output {
+        | cgrep.count
+        | wc.count
+        |}
+      """.stripMargin)
+  }
+
+  object ThreeStepWithInputsInTheOutputsSection extends ThreeStepTemplate {
+    override def wdlSource(runtime: String = "") = sourceString(outputsSection =
+      """
+        |output {
+        | cgrep.pattern
+        |}
+      """.stripMargin)
+  }
+
+  object ThreeStepLargeJson extends ThreeStepTemplate {
+    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
   object NestedScatterWdl extends SampleWdl {
@@ -326,11 +369,6 @@ object SampleWdl {
         |}
       """.stripMargin
     override lazy val rawInputs = Map("" -> "...")
-  }
-
-  object ThreeStepLargeJson extends SampleWdl {
-    override def wdlSource(runtime: String = "") = ThreeStep.wdlSource(runtime)
-    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
   object OptionalParamWorkflow extends SampleWdl {
@@ -709,11 +747,15 @@ object SampleWdl {
         |task echo {
         |  String greeting
         |  String out
+        |  Int one = 1
+        |
         |  command {
         |    echo "${greeting}" > ${out}.txt
+        |    echo "${ one + 1 }" > ${one+1}.txt
         |  }
         |  output {
-        |    File outfile = "${out}.txt"
+        |    File outfile = "${ out }.txt"
+        |    Int two = read_int("${ one + 1 }.txt")
         |  }
         |}
         |
@@ -804,15 +846,8 @@ object SampleWdl {
   }
 
   case class ArrayLiteral(catRootDir: Path) extends SampleWdl {
-    createFile("f1", catRootDir, "line1\nline2\n")
-    createFile("f2", catRootDir, "line3\nline4\n")
-    createFile("f3", catRootDir, "line5\n")
-
-    def cleanup() = {
-      deleteFile(catRootDir.resolve("f1"))
-      deleteFile(catRootDir.resolve("f2"))
-      deleteFile(catRootDir.resolve("f3"))
-    }
+    createFileArray(catRootDir)
+    def cleanup() = cleanupFileArray(catRootDir)
 
     override def wdlSource(runtime: String = "") =
       """
@@ -835,7 +870,10 @@ object SampleWdl {
     override val rawInputs = Map.empty[String, String]
   }
 
-  case object MapLiteral extends SampleWdl {
+  case class MapLiteral(catRootDir: Path) extends SampleWdl {
+    createFileArray(catRootDir)
+    def cleanup() = cleanupFileArray(catRootDir)
+
     override def wdlSource(runtime: String = "") =
       """
         |task write_map {
@@ -1139,6 +1177,31 @@ object SampleWdl {
     override lazy val rawInputs = Map.empty[String, String]
   }
 
+  object SimpleScatterWdlWithOutputs extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task echo_int {
+        |  Int int
+        |  command {echo ${int}}
+        |  output {Int out = read_int(stdout())}
+        |}
+        |
+        |workflow scatter0 {
+        |  Array[Int] ints = [1,2,3,4,5]
+        |  call echo_int as outside_scatter {input: int = 8000}
+        |  scatter(i in ints) {
+        |    call echo_int as inside_scatter {
+        |      input: int = i
+        |    }
+        |  }
+        |  output {
+        |    inside_scatter.*
+        |  }
+        |}
+      """.stripMargin
+
+    override lazy val rawInputs = Map.empty[String, String]
+  }
+
   object PrepareScatterGatherWdl extends SampleWdl {
     override def wdlSource(runtime: String = "") = {
       """
@@ -1289,6 +1352,50 @@ object SampleWdl {
     )
   }
 
+  /**
+    * @param salt - an arbitrary value that will be added as
+    *               a BASH comment on the command, this is so
+    *               tests can have control over call caching
+    *               for this workflow.  i.e. so one test can't
+    *               call cache to another test if the seeds are
+    *               different
+    */
+  case class CallCachingWorkflow(salt: String) extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task a {
+        |  File in
+        |  String out_name = "out"
+        |  String salt
+        |
+        |  command {
+        |    # ${salt}
+        |    cat ${in} > ${out_name}
+        |  }
+        |  RUNTIME
+        |  output {
+        |    File out = "out"
+        |    File out_interpolation = "${out_name}"
+        |    String contents = read_string("${out_name}")
+        |  }
+        |}
+        |
+        |workflow file_passing {
+        |  File f
+        |
+        |  call a {input: in = f}
+        |  call a as b {input: in = a.out}
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    private val fileContents = s"foo bar baz"
+
+    override val rawInputs: WorkflowRawInputs = Map(
+      "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath,
+      "file_passing.a.salt" -> salt,
+      "file_passing.b.salt" -> salt
+    )
+  }
+
   object WdlFunctionsAtWorkflowLevel extends SampleWdl {
     val CannedArray =
       """one
@@ -1412,5 +1519,94 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
     override lazy val rawInputs = Map("" -> "...")
+  }
+
+  object ReadTsvWdl extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task output_table {
+        |  command {
+        |    echo -e "col0\tcol1\tcol2"
+        |    echo -e "a\tb\tc"
+        |    echo -e "x\ty\tz"
+        |  }
+        |  output {
+        |     Array[Array[String]] table = read_tsv(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task output_file_table {
+        |  command {
+        |    echo "first" > first
+        |    echo "second" > second
+        |    echo "third" > third
+        |    echo "fourth" > fourth
+        |    echo -e "first\tsecond"
+        |    echo -e "third\tfourth"
+        |  }
+        |  output {
+        |     Array[Array[File]] table = read_tsv(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task output_matrix {
+        |  command {
+        |    echo -e "0\t1\t2"
+        |    echo -e "3\t4\t5"
+        |    echo -e "6\t7\t8"
+        |  }
+        |  output {
+        |     Array[Array[Int]] matrix = read_tsv(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow test {
+        |  call output_table
+        |  call output_file_table
+        |  call output_matrix
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    override val rawInputs = Map.empty[String, String]
+  }
+
+  object CallCachingHashingWdl extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """task t {
+        |  Int a
+        |  Float b
+        |  String c
+        |  File d
+        |
+        |  command {
+        |    echo "${a}" > a
+        |    echo "${b}" > b
+        |    echo "${c}" > c
+        |    cat ${d} > d
+        |  }
+        |  output {
+        |    Int w = read_int("a") + 2
+        |    Float x = read_float("b")
+        |    String y = read_string("c")
+        |    File z = "d"
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow w {
+        |  call t
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    val tempDir = Files.createTempDirectory("CallCachingHashingWdl")
+    val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Some(tempDir))
+    override val rawInputs = Map(
+      "w.t.a" -> WdlInteger(1),
+      "w.t.b" -> WdlFloat(1.1),
+      "w.t.c" -> WdlString("foobar"),
+      "w.t.d" -> WdlFile(cannedFile.getAbsolutePath)
+    )
   }
 }

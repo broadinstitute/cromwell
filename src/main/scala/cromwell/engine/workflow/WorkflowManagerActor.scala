@@ -3,29 +3,29 @@ package cromwell.engine.workflow
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.pipe
+import akka.pattern.{pipe, ask}
 import com.typesafe.config.ConfigFactory
 import cromwell.binding
 import cromwell.binding._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, CallMetadata, StdoutStderr}
+import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.util.WriteOnceStore
-import cromwell.webservice.WorkflowMetadataResponse
+import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
 
 object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
@@ -34,23 +34,22 @@ object WorkflowManagerActor {
   sealed trait WorkflowManagerActorMessage
   case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
+  case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerActorMessage
-  case object Shutdown extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
+  final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
 
   def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
-  lazy val BackendInstance = Backend.from(ConfigFactory.load.getConfig("backend"))
   // How long to delay between restarting each workflow that needs to be restarted.  Attempting to
   // restart 500 workflows at exactly the same time crushes the database connection pool.
   lazy val RestartDelay = 200 milliseconds
-  lazy val BackendType = BackendInstance.backendType
 }
 
 /**
@@ -77,6 +76,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     case SubmitWorkflow(source) =>
       submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => globalDataAccess.getWorkflowState(id) pipeTo sender
+    case WorkflowQuery(rawParameters) => query(rawParameters) pipeTo sender
     case WorkflowAbort(id) =>
       workflowStore.toMap.get(id) match {
         case Some(x) =>
@@ -84,7 +84,6 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
           sender ! Some(WorkflowAborting)
         case None => sender ! None
       }
-    case Shutdown => context.system.shutdown()
     case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
     case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
     case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
@@ -99,6 +98,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
         self ! RestartWorkflows(ws)
       }
     case RestartWorkflows(Nil) => // No more workflows need restarting.
+    case CallCaching(id, parameters, callName) => callCaching(id, parameters, callName) pipeTo sender
   }
 
   /**
@@ -134,7 +134,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
-      outputs <- globalDataAccess.getOutputs(id)
+      outputs <- globalDataAccess.getWorkflowOutputs(id)
     } yield {
       SymbolStoreEntry.toWorkflowOutputs(outputs)
     }
@@ -152,7 +152,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
     descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => Success(c.name)
+      case Some(c: Call) => Success(c.unqualifiedName)
       case _ => Failure(new UnsupportedOperationException("Expected a fully qualified name to have at least two parts"))
     }
   }
@@ -171,8 +171,8 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       } yield callStandardOutput
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[StdoutStderr]]] = {
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[CallLogs]]] = {
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[CallLogs]]] = {
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
@@ -212,7 +212,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       start = Option(startDate),
       end = endDate,
       inputs = workflowInputs,
-      outputs = Option(workflowOutputs),
+      outputs = Option(workflowOutputs) map { _.mapToValues },
       calls = callMetadata)
   }
 
@@ -241,15 +241,14 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
                              maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
     val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
+    val isRestart = maybeWorkflowId.isDefined
+
     val futureId = for {
-      descriptor <- Future.fromTry(Try(new WorkflowDescriptor(workflowId, source)))
+      descriptor <- Future.fromTry(Try(WorkflowDescriptor(workflowId, source)))
       workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
-    } yield {
-      val isRestart = maybeWorkflowId.isDefined
-      workflowActor ! (if (isRestart) Restart else Start)
-      workflowId
-    }
+      _ <- workflowActor ? (if (isRestart) Restart else Start)
+    } yield workflowId
 
     futureId onFailure {
       case e =>
@@ -288,5 +287,20 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     result recover {
       case e: Throwable => log.error(e, e.getMessage)
     }
+  }
+
+  private def query(rawParameters: Seq[(String, String)]): Future[WorkflowQueryResponse] = {
+    for {
+    // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
+      parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))
+      response <- globalDataAccess.queryWorkflows(parameters)
+    } yield response
+  }
+
+  private def callCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]): Future[Int] = {
+    for {
+      cachingParameters <- CallCachingParameters.from(id, callName, parameters)
+      updateCount <- globalDataAccess.updateCallCaching(cachingParameters)
+    } yield updateCount
   }
 }

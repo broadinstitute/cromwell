@@ -1,7 +1,8 @@
 package cromwell.binding.values
 
-import cromwell.binding.WdlExpressionException
 import cromwell.binding.types.WdlType
+import cromwell.binding.{FileHasher, SymbolHash, WdlExpressionException}
+import cromwell.util.StringUtil._
 
 import scala.util.{Failure, Try}
 
@@ -40,4 +41,10 @@ trait WdlValue {
    * for types like WdlString where extra syntax is added on
    */
   def valueString: String = toWdlString
+
+  def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
+    if (filterFn.isDefinedAt(this)) Seq(filterFn(this)) else Nil
+  }
+
+  def getHash(implicit hasher: FileHasher): SymbolHash = SymbolHash((getClass.getCanonicalName + valueString).md5Sum)
 }

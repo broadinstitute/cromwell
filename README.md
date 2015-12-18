@@ -4,7 +4,7 @@
 Cromwell
 ========
 
-Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md) as the workflow and task language.
+A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management_system) geared towards [scientific workflows](https://en.wikipedia.org/wiki/Scientific_workflow_system). Cromwell is open sourced under the BSD 3-Clause license.
 
 <!---toc start-->
 
@@ -30,12 +30,16 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [Specifying Inputs and Using Declarations](#specifying-inputs-and-using-declarations)
   * [Using Files as Inputs](#using-files-as-inputs)
   * [Scatter/Gather](#scattergather)
+* [Configuring Cromwell](#configuring-cromwell)
+  * [Database](#database)
 * [Backends](#backends)
   * [Local Filesystem Assumptions / Layout](#local-filesystem-assumptions--layout)
   * [Local Backend](#local-backend)
   * [Sun GridEngine](#sun-gridengine)
   * [Google JES](#google-jes)
-    * [Authentication Modes](#authentication-modes)
+    * [Data Localization](#data-localization)
+    * [Docker](#docker)
+    * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
@@ -46,24 +50,25 @@ Workflow engine using [WDL](https://github.com/broadinstitute/wdl/blob/wdl2/SPEC
   * [memory](#memory)
   * [preemptible](#preemptible)
 * [Logging](#logging)
+* [Workflow Options](#workflow-options)
+* [Call Caching](#call-caching)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
+  * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
   * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
   * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
+  * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
+  * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
 * [Developer](#developer)
   * [Generate WDL Parser](#generate-wdl-parser)
+  * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
-  * [Architecture](#architecture)
-    * [cromwell.parser](#cromwellparser)
-    * [cromwell.binding](#cromwellbinding)
-    * [cromwell.backend](#cromwellbackend)
-    * [cromwell.engine](#cromwellengine)
 
 <!---toc end-->
 
@@ -91,29 +96,33 @@ Tests are run via `sbt test`.  Note that the tests do require Docker to be runni
 
 API Documentation can be found [here](http://broadinstitute.github.io/cromwell/scaladoc).
 
-Note that this may not be completely up to date or even useful at this time.
-
 # Scala API Usage
 
 The main entry point into the parser is the `WdlNamespace` object.  A WDL file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
 ```scala
 import java.io.File
-import cromwell.binding.WdlNamespace
+import cromwell.parser.BackendType
+import cromwell.binding.NamespaceWithWorkflow
 
 object main {
   def main(args: Array[String]) {
-    val ns = WdlNamespace.load(new File(args(0)))
-    val ns2 = WdlNamespace.load("workflow wf {}")
-    ns.workflows foreach {wf =>
-      println(s"Workflow: ${wf.name}")
-      wf.calls foreach {call =>
-        println(s"Call: ${call.name}")
-      }
+    val ns = NamespaceWithWorkflow.load("""
+    |task a {
+    |  command { ps }
+    |}
+    |workflow wf {
+    | call a
+    |}""".stripMargin, BackendType.LOCAL)
+
+    println(s"Workflow: ${ns.workflow.name}")
+    ns.workflow.calls foreach {call =>
+      println(s"Call: ${call.name}")
     }
+
     ns.tasks foreach {task =>
       println(s"Task: ${task.name}")
-      println(s"Command: ${task.command}")
+      println(s"Command: ${task.commandTemplate}")
     }
   }
 }
@@ -123,8 +132,8 @@ To access only the parser, use the `AstTools` library, as follows:
 
 ```scala
 import java.io.File
-import cromwell.parser.AstTools
-import cromwell.parser.AstTools.EnhancedAstNode
+import cromwell.binding.AstTools
+import cromwell.binding.AstTools.EnhancedAstNode
 
 object main {
   def main(args: Array[String]) {
@@ -169,13 +178,17 @@ inputs <WDL file>
   workflow.  Fill in the values in this JSON document and
   pass it in to the 'run' subcommand.
 
-run <WDL file> [<JSON inputs file> [<JSON workflow options]]
+run <WDL file> [<JSON inputs file> [<JSON workflow options>
+  [<OUTPUT workflow metadata>]]]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
   print out the outputs in JSON format.  The workflow
   options file specifies some runtime configuration for the
-  workflow (see README for details)
+  workflow (see README for details).  The workflow metadata
+  output is an optional file path to output the metadata.
+  Use a single dash ("-") to skip optional files. Ex:
+    run noinputs.wdl - - metadata.json
 
 parse <WDL file>
 
@@ -257,7 +270,7 @@ $ java -jar cromwell.jar run 3step.wdl inputs.json
 }
 ```
 
-The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.json` extension.  For example, this will assume that `3step.json` exists:
+The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.inputs` extension.  For example, this will assume that `3step.inputs` exists:
 
 ```
 $ java -jar cromwell.jar run 3step.wdl
@@ -269,7 +282,7 @@ If your workflow has no inputs, you can specify `-` as the value for the inputs 
 $ java -jar cromwell.jar run my_workflow.wdl -
 ```
 
-The final optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options.json`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
+The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
 Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes) for more details.
 
@@ -282,8 +295,44 @@ Where `wf_options.json` would contain:
 ```
 {
   "jes_gcs_root": "gs://my-bucket/workflows",
-  "account_name": "my.google.account@gmail.com",
+  "google_project": "my_google_project",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+The fourth, optional parameter to the 'run' subcommand is a path where the workflow metadata will be written.  By default, no workflow metadata will be written.
+
+```
+$ java -jar cromwell.jar run my_wf.wdl - - my_wf.metadata.json
+... play-by-play output ...
+$ cat my_wf.metadata.json
+{
+  "calls": {
+    "example.my_task": [{
+      "executionStatus": "Done",
+      "stdout": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stdout",
+      "outputs": {
+        "result": "my example output"
+      },
+      "inputs": {
+      },
+      "returnCode": 0,
+      "backend": "Local",
+      "end": "2015-10-29T03:16:51.732-03:00",
+      "stderr": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stderr",
+      "start": "2015-10-29T03:16:51.213-03:00"
+    }]
+  },
+  "outputs": {
+    "example.my_task.result": "my = /root/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task"
+  },
+  "id": "22b6f829-e2f9-4813-9d20-3328669c786b",
+  "inputs": {
+  },
+  "submission": "2015-10-29T03:16:51.125-03:00",
+  "status": "Succeeded",
+  "end": "2015-10-29T03:16:51.740-03:00",
+  "start": "2015-10-29T03:16:51.125-03:00"
 }
 ```
 
@@ -350,7 +399,7 @@ Start a server on port 8000, the API for the server is described in the [REST AP
 
 # Getting Started with WDL
 
-If you don't already have a reference to the Cromwell JAR file, compile it with `sbt assembly`, which should produce `cromwell.jar`.
+If you don't already have a reference to the Cromwell JAR file, one can be [downloaded](https://github.com/broadinstitute/cromwell/releases) or [built manually](#building)
 
 ## Hello World WDL
 
@@ -358,6 +407,8 @@ Create a WDL simple file and save it as `hello.wdl`, for example:
 
 ```
 task hello {
+  String name
+
   command {
     echo 'hello ${name}!'
   }
@@ -548,6 +599,9 @@ A `call` can have an optional section to define inputs.  As seen below, the key/
 
 ```
 task hello {
+  String name
+  String salutation
+
   command {
     echo '${salutation} ${name}!'
   }
@@ -637,8 +691,10 @@ So far every example has used the default type of `String` for every input.  Pas
 
 ```
 task grep {
+  File file
+
   command {
-    grep -c '^...$' ${File file}
+    grep -c '^...$' ${file}
   }
   output {
     Int count = read_int(stdout())
@@ -730,6 +786,88 @@ This example calls the `analysis` task once for each element in the array that t
   "example.gather.str": "_one_ _two_ _three_ _four_",
   "example.prepare.array": ["one", "two", "three", "four"]
 }
+```
+
+# Configuring Cromwell
+
+Cromwell's default configuration file is located at `src/main/resources/application.conf`.
+
+The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation) which means the configuration file can specify configuration as JSON-like stanzas like:
+
+```hocon
+webservice {
+  port = 8000
+  interface = 0.0.0.0
+  instance.name = "reference"
+}
+```
+
+Or, alternatively, as dot-separated values:
+
+```hocon
+webservice.port = 8000
+webservice.interface = 0.0.0.0
+webservice.instance.name = "reference"
+```
+
+This allows any value to be overridden on the command line:
+
+```
+java -Dwebservice.port=8080 cromwell.jar ...
+```
+
+It is recommended that one copies `src/main/resources/application.conf`, modify it, then link to it via:
+
+```
+java -Dconfig.file=/path/to/application.conf cromwell.jar ...
+```
+
+## Database
+
+Cromwell uses either an in-memory or MySQL database to track the execution of workflows and store outputs of task invocations.
+
+By default, Cromwell uses an in-memory database which will only live for the duration of the JVM.  This provides a quick way to run workflows locally without having to set up MySQL, though it also makes workflow executions somewhat transient.
+
+To configure Cromwell to instead point to a MySQL database, first create the empty database.  In the example below, the database name is `cromwell`.
+
+Then, edit the configuration file `database` stanza, as follows:
+
+```
+database {
+  config = main.mysql
+
+  main {
+    hsqldb {
+      db.url = "jdbc:hsqldb:mem:${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+      db.driver = "org.hsqldb.jdbcDriver"
+      driver = "slick.driver.HsqldbDriver$"
+      slick.createSchema = true
+    }
+    mysql {
+      db.url = "jdbc:mysql://localhost:3306/cromwell"
+      db.user = "root"
+      db.password = ""
+      db.driver = "com.mysql.jdbc.Driver"
+      driver = "slick.driver.MySQLDriver$"
+    }
+  }
+
+  test {
+    ...
+  }
+}
+```
+
+To initially populate the tables, use the [Java MySQL Connector](https://dev.mysql.com/downloads/connector/j/) JAR file with [Liquibase](http://www.liquibase.org/) (installable via `brew install liquibase`):
+
+```
+liquibase --driver=com.mysql.jdbc.Driver \
+          --classpath=${HOME}/.ivy2/cache/mysql/mysql-connector-java/jars/mysql-connector-java-5.1.35.jar \
+          --changeLogFile=src/main/migrations/changelog.xml \
+          --url="jdbc:mysql://localhost/cromwell" \
+          --username="root" \
+          --password="" \
+          migrate
 ```
 
 # Backends
@@ -835,7 +973,7 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some configuration that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some [configuration](#configuring-cromwell) that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
 
 ```hocon
 backend {
@@ -877,7 +1015,7 @@ google {
 
   // If authScheme is "service"
   serviceAuth {
-    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
 }
@@ -885,7 +1023,8 @@ google {
 
 ### Data Localization
 
-Data localization can be performed on behalf of an other entity (typically a user). 
+Data localization can be performed on behalf of an other entity (typically a user).
+
 This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `authScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
 To enable this feature, two pieces of configuration are needed:
 
@@ -898,10 +1037,10 @@ google {
   authScheme = "service"
 
   serviceAuth {
-    p12File = "/Users/sfrazer/cromwell-svc-acct.p12"
+    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
-  
+
   localizeWithRefreshToken = {
     client_id = "myclientid.apps.googleusercontent.com"
     client_secret = "clientsecretpassphrase"
@@ -911,23 +1050,11 @@ google {
 
 **2 - Refresh Token**
 
-A refresh_token field must be specified in the workflow options when submitting the job.  Omitting this field will cause the workflow to fail.  To pass in workflow options from the command line runner, provide a third parameter which points to a JSON file that contains the options.  For example:
-
-```
-$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
-```
-
-Where `wf_options.json` would contain:
-
-```
-{
-  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
-}
-```
+A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
 
 The refresh token is passed to JES along with the client ID and Secret pair, which allows JES to localize and delocalize data as the entity represented by the refresh token.
 Note that upon generation of the refresh token, the application must ask for GCS read/write permission using the appropriate scope.
- 
+
 ### Docker
 
 It is possible to reference private docker images in dockerhub to be run on JES.
@@ -957,6 +1084,18 @@ task mytask {
 ```
 
 Note that if the docker image to be used is public there is no need to add this configuration.
+
+### Monitoring
+
+In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
+
+```
+{
+  "monitoring_script": "gs://cromwell/monitoring/script.sh"
+}
+```
+
+The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.
 
 # Runtime Attributes
 
@@ -1153,6 +1292,65 @@ There would also be logging to the standard out stream as well.
 
 The `cromwell.<date>.log` file contains an aggregate of every log message, while the `workflow.<uuid>.log` files contain only log messages that pertain to that particular workflow.
 
+# Workflow Options
+
+When running a workflow from the [command line](#run) or [REST API](#post-apiworkflowsversion), one may specify a JSON file that toggles various options for running the workflow.  From the command line, the workflow options is passed in as the third positional parameter to the 'run' subcommand.  From the REST API, it's an optional part in the multi-part POST request.  See the respective sections for more details.
+
+Example workflow options file:
+
+```json
+{
+  "default_backend": "jes",
+  "jes_gcs_root": "gs://my-bucket/workflows",
+  "google_project": "my_google_project",
+  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
+}
+```
+
+Valid keys and their meanings:
+
+* **default_backend** - Backend to use to run this workflow.  Accepts values `jes`, `local`, or `sge`.
+* **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
+* **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+* **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).
+* **google_project** - (JES backend only) Specifies which google project to execute this workflow.
+* **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
+* **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
+* **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+
+# Call Caching
+
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will **copy the results** of the previous job instead of re-running it.
+
+Cromwell's call cache is maintained in its database.  For best mileage with call caching, configure Cromwell to [point to a MySQL database](#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
+
+**Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read-from-cache` is enabled (see below):
+
+* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming `read-from-cache` is enabled (see below)
+* If there was a cache hit, outputs are **copied** from the cached job to the new job's output directory
+
+> **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.
+
+To enable Call Caching, add the following to your Cromwell [configuration](#configuring-cromwell):
+
+```
+call-caching {
+  enabled = true
+  lookup-docker-hash = false
+}
+```
+
+When `call-caching.enabled=true`, Cromwell will add completed calls to the cache as well as do a cache lookup before running any call.
+
+When `call-caching.lookup-docker-hash=true`, Cromwell will contact external services like DockerHub or Google Container Registry to resolve Docker floating container identifiers like `ubuntu:latest` into immutable hashes while computing the hash of the call invocation.  If this option is false, then the raw value specified in the WDL file for the Docker image is the value that will be used.
+
+Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
+
+* If call caching is enabled, but one wishes to run a workflow but not add any of the calls into the call cache when they finish, the `write_to_cache` option can be set to `false`.  This value defaults to `true`.
+* If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`
+
+> **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
+
 # REST API
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
@@ -1344,6 +1542,66 @@ Server: spray-can/1.3.3
 {
     "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
     "status": "Succeeded"
+}
+```
+
+## GET /api/workflows/:version/query
+
+This endpoint allows for querying workflows based on the following criteria:
+
+* `name`
+* `status`
+* `start` (start datetime)
+* `end` (end datetime)
+  
+Names and statuses can be given multiple times to include workflows with any of the specified names or statuses.
+Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
+be in [ISO8601 datetime](http://www.w3.org/TR/NOTE-datetime) format and `start` cannot be after `end`.
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 133
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+  "results": [
+    {
+      "name": "w",
+      "id": "fdfa8482-e870-4528-b639-73514b0469b2",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:52.000-05:00",
+      "start": "2015-11-01T07:38:57.000-05:00"
+    },
+    {
+      "name": "hello",
+      "id": "e69895b1-42ed-40e1-b42d-888532c49a0f",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:30.000-05:00",
+      "start": "2015-11-01T07:38:58.000-05:00"
+    },
+    {
+      "name": "crasher",
+      "id": "ed44cce4-d21b-4c42-b76d-9d145e4d3607",
+      "status": "Failed",
+      "end": "2015-11-01T07:45:44.000-05:00",
+      "start": "2015-11-01T07:38:59.000-05:00"
+    }
+  ]
 }
 ```
 
@@ -1714,6 +1972,80 @@ Server: spray-can/1.3.3
 }
 ```
 
+## POST /api/workflows/:version/:id/call-caching
+
+This endpoint allows for reconfiguration of call cache result reuse settings for all calls within a workflow.
+
+Accepted parameters are:
+
+* `allow` Mandatory boolean value, specifies whether call cache result reuse is allowed for all calls in the
+   specified workflow.
+
+cURL:
+
+```
+$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching?allow=false
+```
+
+HTTPie:
+
+```
+$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching?allow=false
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 17
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 04 Jun 2015 12:15:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "updateCount": 3
+}
+
+```
+
+## POST /api/workflows/:version/:id/call-caching/:call
+
+This endpoint allows for reconfiguration of call cache result reuse settings for a single call within a workflow.
+
+Accepted parameters are:
+
+* `allow` Mandatory boolean value, specifies whether call cache result reuse is allowed for the specified call in the
+  specified workflow.
+
+For scattered calls, individual calls within the scatter can be targeted by appending a dot and the zero-based shard index.
+e.g. `scatter_workflow.A.0` would target the zeroth shard of a scattered `A` call.  If a shard index is not supplied for
+a scattered call, all shards are targeted for update.
+
+cURL:
+
+```
+$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching/three_step.wc?allow=false
+```
+
+HTTPie:
+
+```
+$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching/three_step.wc?allow=false
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 17
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 04 Jun 2015 12:15:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "updateCount": 1
+}
+
+```
+
 # Developer
 
 ## Generate WDL Parser
@@ -1733,6 +2065,13 @@ hermes generate src/main/resources/grammar.hgr \
 
 The grammar for the WDL lexer/parser is defined in `src/main/resources/grammar.hgr`.  Any changes to that grammar should result in a regeneration of the parser and then run the unit tests.  Changing the AST could be disruptive if keys are renamed or objects restructured too much.  It's best to find these issues as soon as possible.
 
+## Generating table of contents on Markdown files
+
+```
+$ pip install mdtoc
+$ mdtoc --check-links README.md
+```
+
 ## Generating and Hosting ScalaDoc
 
 Essentially run `sbt doc` then commit the generated code into the `gh-pages` branch on this repository
@@ -1745,27 +2084,3 @@ $ git add scaladoc
 $ git commit -m "API Docs"
 $ git push origin gh-pages
 ```
-
-## Architecture
-
-![Cromwell Architecture](http://i.imgur.com/kPPTe0l.png)
-
-The architecture is split into four layers, from bottom to top:
-
-### cromwell.parser
-
-Contains only the WDL parser to convert WDL source code to an abstract syntax tree.  Clients should never need to interact with WDL at this level, though nothing specifically precludes that.
-
-### cromwell.binding
-
-Contains code that takes an abstract syntax tree and returns native Scala object representations of those ASTs.  This layer will also have functions for evaluating expressions when support for that is added.
-
-### cromwell.backend
-
-Contains implementations of an interface to launch jobs.  `cromwell.engine` will use this to execute and monitor jobs.
-
-### cromwell.engine
-
-![Engine Actors](http://i.imgur.com/sF9vMt2.png)
-
-Contains the Akka code and actor system to execute a workflow.  This layer should operate entirely on objects returned from the `cromwell.binding` layer.

@@ -1,12 +1,12 @@
 package cromwell.engine.db
 
 import cromwell.binding._
-import cromwell.binding.values.WdlValue
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{JobKey, Backend}
+import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
+import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 
 import scala.concurrent.Future
 
@@ -28,6 +28,8 @@ trait DataAccess {
 
   def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor]
 
+  def getWorkflow(workflowExecutionId: Int): Future[WorkflowDescriptor]
+
   def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]]
 
   def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo]
@@ -36,14 +38,12 @@ trait DataAccess {
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit]
 
-  def getFullyQualifiedName(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Traversable[SymbolStoreEntry]]
-
   def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   // TODO needed to support compatibility with current code, this seems like an inefficient way of getting
   // TODO workflow outputs.
   /** Returns all outputs for this workflowId */
-  def getOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
+  def getWorkflowOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
   def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]]
 
@@ -56,10 +56,10 @@ trait DataAccess {
   def getInputs(id: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: Map[String, WdlValue]): Future[Unit]
+  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, workflowOutputFqns: Seq[ReportableSymbol]): Future[Unit]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
-    setStatus(workflowId, keys, CallStatus(executionStatus, None))
+    setStatus(workflowId, keys, CallStatus(executionStatus, None, None, None))
   }
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus): Future[Unit]
@@ -73,12 +73,15 @@ trait DataAccess {
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
 
-  /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor. */
+  /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor.
+    * TODO this is only called from a test. */
   def shutdown(): Future[Unit]
 
   def getExecutions(id: WorkflowId): Future[Traversable[Execution]]
 
   def getExecutionsForRestart(id: WorkflowId): Future[Traversable[Execution]]
+
+  def getExecutionsWithResuableResultsByHash(hash: String): Future[Traversable[Execution]]
 
   /** Fetch the workflow having the specified `WorkflowId`. */
   def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution]
@@ -96,4 +99,8 @@ trait DataAccess {
   def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit]
 
   def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JobKey]]
+
+  def queryWorkflows(queryParameters: WorkflowQueryParameters): Future[WorkflowQueryResponse]
+
+  def updateCallCaching(cachingParameters: CallCachingParameters): Future[Int]
 }

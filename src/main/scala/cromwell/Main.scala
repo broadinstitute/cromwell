@@ -328,9 +328,16 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
 
   private[this] def initLogging(): Int = {
     val systemProperties = sys.props
-    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
     systemProperties.getOrElseUpdate("LOG_MODE", "PRETTY")
     systemProperties.getOrElseUpdate("LOG_LEVEL", "INFO")
+    /*
+    TODO: When implementing DSDEEPB-2271, make sure not to regress DSDEEPB-2339.
+    If a parameter is not going to be used due to some combination of arguments, log a warning.
+     */
+    if (systemProperties.get("LOG_ROOT").isDefined) {
+      Console.err.println("WARNING: The LOG_ROOT parameter is currently ignored.")
+    }
+    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
 
     try {
       File(logRoot).createDirectories()

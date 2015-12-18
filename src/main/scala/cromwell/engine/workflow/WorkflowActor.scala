@@ -11,13 +11,15 @@ import cromwell.engine.CallActor.CallActorMessage
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, JobKey}
+import cromwell.engine.backend.{BackendCall, Backend, JobKey}
 import cromwell.engine.db.DataAccess._
+import cromwell.engine.db.slick.Execution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
-import cromwell.instrumentation.Instrumentation.Monitor
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -34,7 +36,7 @@ object WorkflowActor {
   case class CallStarted(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
-  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, returnCode: Int) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
   case class CallFailed(callKey: OutputKey, returnCode: Option[Int], failure: String) extends TerminalCallMessage
   case object Terminate extends WorkflowActorMessage
@@ -64,13 +66,20 @@ object WorkflowActor {
   sealed trait CallStartMessage extends WorkflowActorMessage {
     def callKey: CallKey
     def startMode: CallActor.StartMode
-
     def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData
   }
 
   /** Represents starting a call for the first time, as opposed to a restart. */
   final case class InitialStartCall(override val callKey: CallKey,
                                     override val startMode: CallActor.StartMode) extends CallStartMessage {
+
+    // Nothing to do here, startRunnableCalls will have already done this work.
+    override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
+  }
+
+  /** This signifies using an existing previously run call to fulfill the results of the callKey. */
+  final case class UseCachedCall(override val callKey: CallKey,
+                                 override val startMode: CallActor.UseCachedCall) extends CallStartMessage {
 
     // Nothing to do here, startRunnableCalls will have already done this work.
     override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
@@ -205,6 +214,8 @@ object WorkflowActor {
 case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
+  lazy implicit val hasher = backend.fileHasher(workflow)
+
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow.namespace, inputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
@@ -232,7 +243,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
-      taskOutput.name -> new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+      val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+      taskOutput.name -> CallOutput(arrayOfValues, arrayOfValues.getHash)
     } toMap
   }
 
@@ -351,14 +363,20 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       stay() using data.copy(startMode = Option(startMode))
   }
 
-  private def handleCallCompleted(callKey: OutputKey, callOutputs: CallOutputs, returnCode: Int, message: TerminalCallMessage, data: WorkflowData): State = {
+  private def handleCallCompleted(callKey: OutputKey,
+                                  callOutputs: CallOutputs,
+                                  returnCode: Int,
+                                  message: TerminalCallMessage,
+                                  hash: Option[ExecutionHash],
+                                  resultsClonedFrom: Option[BackendCall],
+                                  data: WorkflowData): State = {
     logger.debug(s"handleCallCompleted for ${callKey.tag}")
     // Don't close over sender().
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
       _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
-      _ = persistStatusThenAck(callKey, ExecutionStatus.Done, currentSender, message, Option(callOutputs), Option(returnCode))
+      _ = persistStatusThenAck(callKey, ExecutionStatus.Done, currentSender, message, Option(callOutputs), Option(returnCode), hash, resultsClonedFrom)
     } yield()
 
     completionWork onFailure {
@@ -375,8 +393,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: CallOutputs): Unit = {
     val newEntriesMap = outputs map { case (lqn, value) =>
       val storeKey = SymbolStoreKey(executionKey.scope.fullyQualifiedName, lqn, executionKey.index, input = false)
-      val symbolFqn = s"${storeKey.scope}.${storeKey.name}"
-      new SymbolStoreEntry(storeKey, value.wdlType, Option(value))
+      new SymbolStoreEntry(storeKey, value.wdlValue.wdlType, Option(value.wdlValue), Option(value.hash))
     } groupBy { entry => SymbolCacheKey(entry.scope, entry.isInput) }
 
     newEntriesMap foreach { case (key, entries) =>
@@ -398,12 +415,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message: CallStarted, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
-    case Event(message @ CallCompleted(callKey, outputs, returnCode), data) if data.isPersistedRunning(callKey) =>
-      handleCallCompleted(callKey, outputs, returnCode, message, data)
-    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !data.isPending(collectorKey) =>
+    case Event(message @ CallCompleted(callKey, outputs, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
+      handleCallCompleted(callKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
-      handleCallCompleted(collectorKey, outputs, returnCode, message, data)
-    case Event(message @ CallCompleted(collectorKey: CollectorKey, _, _), _) =>
+      handleCallCompleted(collectorKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, _, _, _, _), _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
     case Event(message @ CallFailed(callKey, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
@@ -455,13 +472,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   when(WorkflowAborting) {
-    case Event(message @ CallCompleted(callKey, outputs, returnCode), data) if data.isPersistedRunning(callKey) =>
-      handleCallCompleted(callKey, outputs, returnCode, message, data)
-    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode), data) if !data.isPending(collectorKey) =>
+    case Event(message @ CallCompleted(callKey, outputs, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
+      handleCallCompleted(callKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
-      handleCallCompleted(collectorKey, outputs, returnCode, message, data)
+      handleCallCompleted(collectorKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallAborted(callKey), data) if data.isPersistedRunning(callKey) =>
-      persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message, None)
+      persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       stay() using updatedData
@@ -563,11 +580,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def persistStatus(storeKey: ExecutionStoreKey,
                             executionStatus: ExecutionStatus,
                             callOutputs: Option[CallOutputs] = None,
-                            returnCode: Option[Int] = None): Future[Unit] = {
+                            returnCode: Option[Int] = None,
+                            hash: Option[ExecutionHash] = None,
+                            resultsClonedFrom: Option[BackendCall] = None): Future[Unit] = {
 
     logger.info(s"persisting status of ${storeKey.tag} to $executionStatus.")
 
-    val persistFuture = globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode))
+    val persistFuture = globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode, hash, resultsClonedFrom))
     persistFuture onComplete {
       case Success(_) => self ! PersistenceCompleted(storeKey, executionStatus, callOutputs)
       case Failure(t) =>
@@ -577,10 +596,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     persistFuture
   }
 
-  private def persistStatusThenAck(storeKey: ExecutionStoreKey, executionStatus: ExecutionStatus, recipient: ActorRef,
-                                   message: TerminalCallMessage, callOutputs: Option[CallOutputs] = None, returnCode: Option[Int] = None): Unit = {
+  private def persistStatusThenAck(storeKey: ExecutionStoreKey,
+                                   executionStatus: ExecutionStatus,
+                                   recipient: ActorRef,
+                                   message: TerminalCallMessage,
+                                   callOutputs: Option[CallOutputs] = None,
+                                   returnCode: Option[Int] = None,
+                                   hash: Option[ExecutionHash] = None,
+                                   resultsClonedFrom: Option[BackendCall] = None): Unit = {
 
-    persistStatus(storeKey, executionStatus, callOutputs, returnCode) map { _ => CallActor.Ack(message) } pipeTo recipient
+    persistStatus(storeKey, executionStatus, callOutputs, returnCode, hash, resultsClonedFrom) map { _ => CallActor.Ack(message) } pipeTo recipient
   }
 
   private def startActor(callKey: CallKey, locallyQualifiedInputs: CallInputs, callActorMessage: CallActorMessage = CallActor.Start): Unit = {
@@ -863,12 +888,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def buildSymbolStoreEntries(namespace: NamespaceWithWorkflow, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
-    val inputSymbols = inputs map { case (name, value) => SymbolStoreEntry(name, value, input = true) }
+    val inputSymbols = inputs map { case (name, value) => SymbolStoreEntry(name, value, value.getHash, input = true) }
 
     val callSymbols = for {
       call <- namespace.workflow.calls
       (k, v) <- call.inputMappings
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, input = true)
+    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, v.getHash, input = true)
 
     inputSymbols.toSet ++ callSymbols.toSet
   }
@@ -938,10 +963,66 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         self ! CallFailed(collector, None, e.getMessage)
       case Success(outputs) =>
         logger.info(s"Collection complete for Scattered Call ${collector.tag}.")
-        self ! CallCompleted(collector, outputs, 0)
+        self ! CallCompleted(collector, outputs, 0, hash = None, resultsClonedFrom = None)
     }
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))
+  }
+
+  private def sendStartMessage(callKey: CallKey, callInputs: Map[String, WdlValue]) = {
+    def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
+    val backendCall = backend.bindCall(workflow, callKey, callInputs, AbortRegistrationFunction(registerAbortFunction))
+    val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
+
+    def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
+      descriptor.namespace.resolve(cachedExecution.callFqn) match {
+        case Some(c: Call) =>
+          val cachedCall = backend.bindCall(
+            descriptor,
+            CallKey(c, cachedExecution.index.toIndex),
+            callInputs,
+            AbortRegistrationFunction(registerAbortFunction)
+          )
+          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
+          self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
+        case _ =>
+          log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
+          self ! InitialStartCall(callKey, CallActor.Start)
+      }
+    }
+
+    /* Tries to use the cached Execution to send a UseCachedCall message.  If anything fails, send an InitialStartCall message */
+    def loadCachedCallOrInitiateCall(cachedDescriptor: Try[WorkflowDescriptor], cachedExecution: Execution) = cachedDescriptor match {
+      case Success(descriptor) => loadCachedBackendCallAndMessage(descriptor, cachedExecution)
+      case Failure(ex) =>
+        log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
+        self ! InitialStartCall(callKey, CallActor.Start)
+    }
+
+    if (backendCall.workflowDescriptor.readFromCache) {
+      backendCall.hash map { hash =>
+        globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
+          case Success(executions) if executions.nonEmpty =>
+            val cachedExecution = executions.head
+            globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
+              loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
+            }
+          case Success(_) =>
+            log.info(s"Call Caching: cache miss")
+            self ! InitialStartCall(callKey, CallActor.Start)
+          case Failure(ex) =>
+            log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
+            self ! InitialStartCall(callKey, CallActor.Start)
+        }
+      } recover { case e =>
+        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
+        scheduleTransition(WorkflowFailed)
+      }
+    }
+    else {
+      log.info(s"Call caching 'readFromCache' is turned off, starting call")
+      self ! InitialStartCall(callKey, CallActor.Start)
+    }
   }
 
   private def processRunnableCall(callKey: CallKey): Try[ExecutionStartResult] = {
@@ -949,7 +1030,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     // The restart scenario assumes a restartable/resumable call is already in Running.
     executionStore += callKey -> ExecutionStatus.Starting
     persistStatus(callKey, ExecutionStatus.Starting)
-    self ! InitialStartCall(callKey, CallActor.Start)
+
+    fetchLocallyQualifiedInputs(callKey) match {
+      case Success(callInputs) => sendStartMessage(callKey, callInputs)
+      case Failure(t) =>
+        logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
+        scheduleTransition(WorkflowFailed)
+    }
     Success(ExecutionStartResult(Set(StartEntry(callKey, ExecutionStatus.Starting))))
   }
 

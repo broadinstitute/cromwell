@@ -15,6 +15,10 @@ case class Execution(workflowExecutionId: Int,
                      rc: Option[Int] = None,
                      startDt: Option[Timestamp] = None,
                      endDt: Option[Timestamp] = None,
+                     allowsResultReuse: Boolean = true,
+                     dockerImageHash: Option[String] = None,
+                     resultsClonedFrom: Option[Int] = None,
+                     overallHash: Option[String] = None,
                      executionId: Option[Int] = None)
 
 trait ExecutionComponent {
@@ -31,8 +35,12 @@ trait ExecutionComponent {
     def rc = column[Option[Int]]("RC")
     def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
+    def allowsResultReuse = column[Boolean]("ALLOWS_RESULT_REUSE")
+    def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
+    def resultsClonedFrom = column[Option[Int]]("RESULTS_CLONED_FROM")
+    def executionHash = column[Option[String]]("EXECUTION_HASH")
 
-    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, executionId.?) <>
+    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, allowsResultReuse, dockerImageHash, resultsClonedFrom, executionHash, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(
@@ -50,7 +58,7 @@ trait ExecutionComponent {
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
@@ -58,14 +66,14 @@ trait ExecutionComponent {
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
       if execution.index === index
-    } yield (execution.status, execution.rc))
+    } yield (execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionStatusByWorkflowExecutionIdAndCallFqn = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc))
+    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int]) => for {
@@ -74,6 +82,27 @@ trait ExecutionComponent {
       if execution.index === index
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield execution)
+
+  val executionsByWorkflowExecutionIdAndCallFqnAndIndex = Compiled(
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+      if execution.callFqn === callFqn
+      if execution.index === index
+    } yield execution)
+
+  val executionsByWorkflowExecutionIdAndCallFqn = Compiled(
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
+      if execution.callFqn === callFqn
+    } yield execution)
+
+  val executionsByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      execution <- executions
+      if execution.workflowExecutionId === workflowExecutionId
     } yield execution)
 
   val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
@@ -99,6 +128,12 @@ trait ExecutionComponent {
       if !(execution.status === ExecutionStatus.NotStarted.toString || execution.status === ExecutionStatus.Done.toString)
     } yield execution)
 
+  val executionsWithReusableResultsByExecutionHash = Compiled(
+    (executionHash: Rep[String]) => for {
+      execution <- executions
+      if execution.executionHash === executionHash && execution.allowsResultReuse
+    } yield execution)
+
   val executionStatusesAndReturnCodesByExecutionId = Compiled(
     (executionId: Rep[Int]) => for {
       execution <- executions
@@ -118,7 +153,7 @@ trait ExecutionComponent {
     /*
      * FIXME: This is bad, there is probably a better way
      * We want entries that have the right workflowID AND a (fqn, index) pair which is in scopeKeys
-     * Use workaround because slick does not supporting tuples with inSet ATM: https://github.com/slick/slick/pull/995 
+     * Use workaround because slick does not supporting tuples with inSet ATM: https://github.com/slick/slick/pull/995
      */
     workflowFilteredQuery filter { exec =>
       scopeID.map({

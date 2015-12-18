@@ -90,16 +90,16 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = workflowLoggerWithCall(backendCall)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
         runSubprocess(backendCall)
-      case Failure(ex) => FailedExecution(ex)
+      case Failure(ex) => FailedExecution(ex).future
     }
-  } map CompletedExecutionHandle
+  }).flatten map CompletedExecutionHandle
 
   /**
    * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
@@ -109,7 +109,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None))
+      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None, None, None))
     }
 
     for {
@@ -144,7 +144,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   }
 
 
-  private def runSubprocess(backendCall: BackendCall): ExecutionResult = {
+  private def runSubprocess(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
     val logger = workflowLoggerWithCall(backendCall)
     val stdoutWriter = backendCall.stdout.untailed
     val stderrTailed = backendCall.stderr.tailed(100)
@@ -173,15 +173,15 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     )
     if (backendCall.call.failOnStderr && stderrFileLength > 0) {
       FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
-        s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength"))
+        s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
 
       def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => SuccessfulExecution(outputs, rc)
+          case Success(outputs) => backendCall.hash map { h => SuccessfulExecution(outputs, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
-            FailedExecution(new Throwable("Failed post processing of outputs" + message, e))
+            FailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future
         }
       }
 
@@ -195,10 +195,10 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
       val continueOnReturnCode = backendCall.call.continueOnReturnCode
       returnCode match {
-        case Success(143) => AbortedExecution // Special case to check for SIGTERM exit code - implying abort
+        case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode))
-        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e))
+        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
+        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e)).future
       }
     }
   }

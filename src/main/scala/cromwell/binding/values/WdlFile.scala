@@ -1,6 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.types.{WdlFileType, WdlType}
+import cromwell.binding.{FileHasher, SymbolHash}
 
 import scala.util.{Success, Try}
 
@@ -15,7 +16,6 @@ object WdlFile {
 
 sealed trait WdlFile extends WdlPrimitive {
   val value: String
-
   val wdlType: WdlType = WdlFileType
 
   def isGlob: Boolean = this match {
@@ -33,7 +33,9 @@ sealed trait WdlFile extends WdlPrimitive {
     case r: WdlString => Success(WdlBoolean(value.toString.equals(r.value.toString) && !isGlob))
     case _ => invalid(s"$value == $rhs")
   }
+
   override def valueString = value.toString
+  override def getHash(implicit hasher: FileHasher): SymbolHash = hasher(this)
 }
 
 case class WdlSingleFile(value: String) extends WdlFile {

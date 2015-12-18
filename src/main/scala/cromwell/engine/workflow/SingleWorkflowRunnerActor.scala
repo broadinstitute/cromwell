@@ -6,6 +6,8 @@ import akka.actor.FSM.Transition
 import akka.actor._
 import better.files._
 import cromwell.binding.FullyQualifiedName
+import cromwell.binding
+import cromwell.binding.{CallOutput, FullyQualifiedName}
 import cromwell.binding.values.WdlValue
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
@@ -96,10 +98,9 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   when (RequestingOutputs) {
     // Can't use the WorkflowOutputs type alias here since the @unchecked needs to be added to suppress
     // compile time warnings.
-    case Event(outputs: Map[FullyQualifiedName@unchecked, WdlValue@unchecked], data) =>
+    case Event(outputs: Map[FullyQualifiedName@unchecked, CallOutput@unchecked], data) =>
       // Outputs go to stdout
-      import cromwell.binding.values.WdlValueJsonFormatter._
-      println(outputs.toJson.prettyPrint)
+      outputOutputs(outputs)
       if (metadataOutputPath.isDefined) requestMetadata else issueReply
   }
   
@@ -129,6 +130,15 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     case Event(m, _) =>
       log.warning(s"$tag: received unexpected message: $m")
       stay()
+  }
+
+  /**
+    * Outputs the outputs to stdout, and then requests the metadata.
+    */
+  private def outputOutputs(outputs: binding.WorkflowOutputs): Unit = {
+    import cromwell.binding.values.WdlValueJsonFormatter._
+    val outputValues = outputs mapValues { case CallOutput(wdlValue, _) => wdlValue }
+    println(outputValues.toJson.prettyPrint)
   }
 
   private def outputMetadata(metadata: WorkflowMetadataResponse): Try[Unit] = {

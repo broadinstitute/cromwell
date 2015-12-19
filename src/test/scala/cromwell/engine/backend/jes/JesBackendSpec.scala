@@ -15,18 +15,22 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.util.Success
 
-object JesBackendSpec {
-  val ActorSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem
-}
+class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll {
+  val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
+  val actorSystem = testWorkflowManagerSystem.actorSystem
 
-class JesBackendSpec extends FlatSpec with Matchers with Mockito {
+  override protected def afterAll() = {
+    testWorkflowManagerSystem.shutdownTestActorSystem()
+    super.afterAll()
+  }
+
   val clientSecrets = SimpleClientSecrets("id", "secrets")
-  val jesBackend = new JesBackend(JesBackendSpec.ActorSystem) {
+  val jesBackend = new JesBackend(actorSystem) {
     private val anyString = ""
     private val anyURL: URL = null
     override lazy val jesConf = new JesAttributes(
@@ -55,7 +59,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend(JesBackendSpec.ActorSystem).adjustInputPaths(ignoredCall, emptyRuntimeAttributes, inputs, mock[WorkflowDescriptor])
+    val mappedInputs: CallInputs  = new JesBackend(actorSystem).adjustInputPaths(ignoredCall, emptyRuntimeAttributes, inputs, mock[WorkflowDescriptor])
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))

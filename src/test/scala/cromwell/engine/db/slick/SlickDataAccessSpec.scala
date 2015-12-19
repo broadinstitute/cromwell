@@ -27,8 +27,9 @@ import org.scalactic.StringNormalizations._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.PartialFunctionValues._
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+
 import scala.concurrent.{ExecutionContext, Future}
 import Hashing._
 
@@ -37,11 +38,16 @@ object SlickDataAccessSpec {
   val AllowTrue = Seq(webservice.QueryParameter("allow", "true"))
 }
 
-class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
+class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll {
 
   import TableDrivenPropertyChecks._
 
   val workflowManagerSystem = new TestWorkflowManagerSystem
+
+  override protected def afterAll() = {
+    workflowManagerSystem.shutdownTestActorSystem()
+    super.afterAll()
+  }
 
   implicit val ec = ExecutionContext.global
 

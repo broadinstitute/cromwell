@@ -57,6 +57,25 @@ object CromwellTestkitSpec {
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
     override val backendType = "local"
     backend // Force initialization
+    /**
+      * Do NOT shut down the test actor system inside the normal flow.
+      * The actor system will be externally shutdown outside the block.
+      */
+    override def shutdownActorSystem() = {}
+
+    def shutdownTestActorSystem() = super.shutdownActorSystem()
+  }
+
+  /**
+    * Loans a test actor system. NOTE: This should be run OUTSIDE of a wait block, never within one.
+    */
+  def withTestWorkflowManagerSystem[T](block: WorkflowManagerSystem => T): T = {
+    val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem
+    try {
+      block(testWorkflowManagerSystem)
+    } finally {
+      TestKit.shutdownActorSystem(testWorkflowManagerSystem.actorSystem, timeoutDuration)
+    }
   }
 
   /**

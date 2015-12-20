@@ -1,39 +1,33 @@
 <configuration>
-  <if condition='property("LOG_MODE").toUpperCase().contains("SERVER")'>
+  <if condition='property("LOG_MODE").toUpperCase().equals("STANDARD")'>
     <then>
-      <appender name="SERVER_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <!-- Support multiple-JVM writing to the same log file -->
-        <prudent>true</prudent>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-          <fileNamePattern>${LOG_ROOT}/cromwell.%d{yyyy-MM-dd}.log</fileNamePattern>
-          <maxHistory>30</maxHistory>
-        </rollingPolicy>
+      <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
           <pattern>%date %thread %-5level - %msg%n</pattern>
         </encoder>
       </appender>
     </then>
     <else>
-      <appender name="SERVER_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
+      <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
     </else>
   </if>
 
-  <if condition='property("LOG_MODE").toUpperCase().contains("CONSOLE")'>
+  <if condition='property("LOG_MODE").toUpperCase().equals("PRETTY")'>
     <then>
-      <appender name="CONSOLE_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
+      <appender name="PRETTY_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
           <layout class="cromwell.logging.TerminalLayout" />
         </encoder>
       </appender>
     </then>
     <else>
-      <appender name="CONSOLE_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
+      <appender name="PRETTY_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
     </else>
   </if>
 
   <root level="${LOG_LEVEL}">
-    <appender-ref ref="SERVER_APPENDER" />
-    <appender-ref ref="CONSOLE_APPENDER" />
+    <appender-ref ref="STANDARD_APPENDER" />
+    <appender-ref ref="PRETTY_APPENDER" />
   </root>
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>

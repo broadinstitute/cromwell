@@ -9,14 +9,14 @@ import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter,
 import cromwell.binding.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor, WorkflowOptions}
+import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.parser.BackendType
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import spray.json._
-import cromwell.engine.backend.Backend.BackendyString
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
@@ -27,6 +27,8 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
+  setupServerLogging(args)
+
   /*
    * scala.App's DelayedInit is tricky, as the docs say. During tests we definitely don't want to use sys.exit on an
    * error, and while testing "run ..." we want to change to a test workflow manager system. Unfortunately...
@@ -43,6 +45,22 @@ object Main extends App {
    * array becoming null in "new Main(args)" when used with: sbt 'run run ...'
    */
   new Main().runAction(args)
+
+  /**
+    * If a cromwell server is going to be run, makes adjustments to the default logback configuration.
+    * Overwrites LOG_MODE system property used in our logback.xml, _before_ the logback classes load.
+    * Restored from similar functionality in
+    *   https://github.com/broadinstitute/cromwell/commit/2e3f45b#diff-facc2160a82442932c41026c9a1e4b2bL28
+    * TODO: Logback is configurable programmatically. We don't have to overwrite system properties like this.
+    *
+    * @param args The command line arguments.
+    */
+  private def setupServerLogging(args: Array[String]): Unit = {
+    args.headOption.map(_.capitalize) match {
+      case Some("Server") => sys.props.getOrElseUpdate("LOG_MODE", "STANDARD")
+      case _ =>
+    }
+  }
 }
 
 /** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
@@ -310,9 +328,16 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
 
   private[this] def initLogging(): Int = {
     val systemProperties = sys.props
-    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
-    systemProperties.getOrElseUpdate("LOG_MODE", "CONSOLE")
+    systemProperties.getOrElseUpdate("LOG_MODE", "PRETTY")
     systemProperties.getOrElseUpdate("LOG_LEVEL", "INFO")
+    /*
+    TODO: When implementing DSDEEPB-2271, make sure not to regress DSDEEPB-2339.
+    If a parameter is not going to be used due to some combination of arguments, log a warning.
+     */
+    if (systemProperties.get("LOG_ROOT").isDefined) {
+      Console.err.println("WARNING: The LOG_ROOT parameter is currently ignored.")
+    }
+    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
 
     try {
       File(logRoot).createDirectories()

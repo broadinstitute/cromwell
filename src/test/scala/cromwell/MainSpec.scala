@@ -238,7 +238,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val result = traceMain(_.initLoggingReturnCode)
       val restoredProps = sys.props
       restoredProps("LOG_ROOT") should be(File(".").fullPath)
-      restoredProps("LOG_MODE") should be("CONSOLE")
+      restoredProps("LOG_MODE") should be("PRETTY")
       restoredProps("LOG_LEVEL") should be("INFO")
       result.out should be(empty)
       result.err should be(empty)
@@ -254,7 +254,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       sys.props += "LOG_ROOT" -> logDir.fullPath
       val result = traceMain(_.initLoggingReturnCode)
       result.out should be(empty)
-      result.err should be(empty)
+      result.err should be("WARNING: The LOG_ROOT parameter is currently ignored.\n")
       result.returnCode should be(0)
       logDir.toJava should exist
       tempDir.delete(ignoreIOExceptions = true)
@@ -270,7 +270,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       sys.props += "LOG_ROOT" -> tempDir.fullPath
       val result = traceMain(_.initLoggingReturnCode)
       result.out should be(empty)
-      result.err should be(empty)
+      result.err should be("WARNING: The LOG_ROOT parameter is currently ignored.\n")
       result.returnCode should be(0)
       tempDir.toJava should exist
       tempDir.delete(ignoreIOExceptions = true)
@@ -284,7 +284,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       sys.props += "LOG_ROOT" -> tempFile.fullPath
       val result = traceMain(_.initLoggingReturnCode)
       result.out should be(empty)
-      result.err shouldNot be(empty)
+      result.err shouldNot be("WARNING: The LOG_ROOT parameter is currently ignored.\n")
       result.returnCode should be(1)
       tempFile.toJava should exist
       tempFile.delete(ignoreIOExceptions = true)

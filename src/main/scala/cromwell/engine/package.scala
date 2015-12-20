@@ -75,14 +75,40 @@ package object engine {
 
     val backend = CromwellBackend.backend()
     val props = sys.props
-    val workflowLogger = props.get("LOG_MODE") match {
-      case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
-        Paths.get(props.getOrElse("LOG_ROOT", ".")),
-        s"workflow.$id.log",
-        Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
-      )
-      case _ => NOPLogger.NOP_LOGGER
-    }
+    /*
+    TODO: DSDEEPB-2272 will restore similar functionality
+
+    FYI, previously from the README:
+
+      If the command `java -DLOG_MODE=server,console -DLOG_ROOT=log -jar cromwell.jar run my_workflow.wdl
+      my_workflow.json` were run three times, we'd see this in the `log` directory:
+
+      ```
+      log
+      ├── cromwell.2015-10-26.log
+      ├── workflow.319df202-a60f-47c8-b886-bd4821747c68.log
+      ├── workflow.36e07688-9e47-45bd-9930-aff58471541e.log
+      └── workflow.7dad065d-9d7a-4450-91c8-1f7ece184851.log
+      ```
+
+      There would also be logging to the standard out stream as well.
+
+      The `cromwell.<date>.log` file contains an aggregate of every log message, while the `workflow.<uuid>.log` files
+      contain only log messages that pertain to that particular workflow.
+
+    Implemented via:
+
+      val workflowLogger = props.get("LOG_MODE") match {
+        case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
+          Paths.get(props.getOrElse("LOG_ROOT", ".")),
+          s"workflow.$id.log",
+          Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
+        )
+        case _ => NOPLogger.NOP_LOGGER
+      }
+
+    */
+    val workflowLogger = NOPLogger.NOP_LOGGER
 
     // Call Caching
     // TODO: Add to lenthall

@@ -1,6 +1,6 @@
 package lenthall.config
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import lenthall.config.ScalaConfig._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -10,6 +10,7 @@ class ScalaConfigSpec extends FlatSpec with Matchers {
   val exampleConfig = ConfigFactory.parseString(
     """
       |{
+      |  configVal: {}
       |  stringVal: "string"
       |  booleanVal: true
       |  intVal: 123
@@ -19,6 +20,7 @@ class ScalaConfigSpec extends FlatSpec with Matchers {
     """.stripMargin)
 
   it should "return the config value as options when present" in {
+    exampleConfig.getConfigOption("configVal") should be('defined)
     exampleConfig.getStringOption("stringVal") should be(Some("string"))
     exampleConfig.getBooleanOption("booleanVal") should be(Some(true))
     exampleConfig.getIntOption("intVal") should be(Some(123))
@@ -27,6 +29,7 @@ class ScalaConfigSpec extends FlatSpec with Matchers {
   }
 
   it should "return the config as None when missing" in {
+    exampleConfig.getConfigOption("missing") should be(None)
     exampleConfig.getStringOption("missing") should be(None)
     exampleConfig.getBooleanOption("missing") should be(None)
     exampleConfig.getIntOption("missing") should be(None)

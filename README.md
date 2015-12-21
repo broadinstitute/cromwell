@@ -11,6 +11,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
+* [Installing](#installing)
 * [API Documentation](#api-documentation)
 * [Scala API Usage](#scala-api-usage)
 * [Command Line Usage](#command-line-usage)
@@ -91,6 +92,10 @@ The following is the toolchain used for development of Cromwell.  Other versions
 `sbt assembly` will build a runnable JAR in `target/scala-2.11/`
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
+
+# Installing
+
+OS X users can install Cromwell with Homebrew: `brew install cromwell`.
 
 # API Documentation
 

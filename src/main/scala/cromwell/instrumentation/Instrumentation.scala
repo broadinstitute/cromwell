@@ -1,7 +1,7 @@
 package cromwell.instrumentation
 
 import com.typesafe.config.ConfigFactory
-import cromwell.util.ConfigUtil._
+import lenthall.config.ScalaConfig._
 import kamon.Kamon
 import kamon.metric.instrument.Histogram.Record
 import kamon.metric.instrument._

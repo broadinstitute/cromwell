@@ -46,11 +46,9 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
   import context.dispatcher
 
   implicit val timeout = Timeout(2 seconds)
-
   val log = Logging(context.system, classOf[CromwellApiHandler])
 
   override def receive = {
-
     case WorkflowStatus(id) =>
       val futureStatus = queryWorkflowManager(WorkflowManagerActor.WorkflowStatus(id))
       futureStatus onSuccess {
@@ -58,7 +56,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Some(workflowState) =>
           context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, workflowState.toString))
       }
-
     case WorkflowQuery(parameters) =>
       val futureQuery = ask(workflowManager, WorkflowManagerActor.WorkflowQuery(parameters)).mapTo[WorkflowQueryResponse]
       futureQuery onComplete {
@@ -71,7 +68,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
               context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
           }
       }
-
     case WorkflowAbort(id) =>
       val futureStatus = queryWorkflowManager(WorkflowManagerActor.WorkflowStatus(id))
       futureStatus onSuccess {
@@ -90,19 +86,15 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
               context.parent ! RequestComplete(StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
           }
       }
-
     case WorkflowSubmit(source) =>
       val workflowManagerResponseFuture = ask(workflowManager, WorkflowManagerActor.SubmitWorkflow(source)).mapTo[WorkflowId]
       workflowManagerResponseFuture.onComplete {
         case Success(id) =>
           context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
-
         case Failure(ex) =>
           ex match {
-            case _: SyntaxError =>
-              context.parent ! RequestComplete(StatusCodes.BadRequest, ex.getMessage)
-            case _ =>
-              context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
+            case _: IllegalArgumentException => context.parent ! RequestComplete(StatusCodes.BadRequest, ex.getMessage)
+            case _ => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
           }
       }
     case WorkflowOutputs(id) =>
@@ -137,7 +129,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
-
     case WorkflowMetadata(id) =>
       val eventualMetadataResponse = ask(workflowManager, WorkflowManagerActor.WorkflowMetadata(id)).mapTo[WorkflowMetadataResponse]
       eventualMetadataResponse onComplete {
@@ -145,7 +136,6 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, ex.getMessage)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
-
     case CallCaching(id, parameters, callName) =>
       val eventualUpdateCount = ask(workflowManager, WorkflowManagerActor.CallCaching(id, parameters, callName)).mapTo[Int]
       eventualUpdateCount onComplete {
@@ -168,6 +158,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         log.error(ex, ex.getMessage)
         context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
     }
+
     future
   }
 }

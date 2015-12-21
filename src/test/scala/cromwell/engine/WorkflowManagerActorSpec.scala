@@ -74,7 +74,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val descriptor = new WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
           val worldSymbolHash = worldWdlString.getHash(backendInstance.fileHasher(descriptor))
           val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
           // FIXME? null AST
@@ -114,7 +114,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           } match {
             case Success(_) => fail("Expected submission to fail with uncoercable inputs")
             case Failure(e) =>
-              e.getMessage shouldBe "The following errors occurred while processing your inputs:\n\nCould not coerce value for 'incr.incr.val' into: WdlIntegerType"
+              e.getMessage contains  "\nThe following errors occurred while processing your inputs:\n\nCould not coerce value for 'incr.incr.val' into: WdlIntegerType"
           }
         }
       }
@@ -126,7 +126,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test a workflowless submission")
       Try(messageAndWait[WorkflowId](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources()))) match {
         case Success(_) => fail("Expected submission to fail due to no runnable workflows")
-        case Failure(e) => e.getMessage shouldBe "Namespace does not have a local workflow to run"
+        case Failure(e) => e.getMessage contains  "Namespace does not have a local workflow to run"
       }
 
     }

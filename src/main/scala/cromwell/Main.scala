@@ -188,7 +188,13 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
     Await.ready(futureResult, Duration.Inf)
 
     if (enableTermination) workflowManagerSystem.actorSystem.shutdown()
-    exit (if (futureResult.value.get.isSuccess) 0 else 1)
+
+    futureResult.value.get match {
+      case Success(_) => exit(0)
+      case Failure(e) =>
+        Console.err.println(e.getMessage)
+        exit(1)
+    }
   }
 
   /* Utilities for the mini-DSL used in tryWorkflowSourceFiles. */
@@ -249,13 +255,9 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
       wdlSource <- Trying.to(readContent _, wdlPath, ShouldProcess, WdlLabel)
       inputsJson <- Trying.to(readJson _, inputsPath, ShouldProcess, InputsLabel)
       workflowOptions <- Trying.to(readJson _, optionsPath, ShouldProcess, OptionsLabel)
-      _ <- Trying.to(parseInputs _, inputsJson, ShouldParse, InputsLabel)
-      parsedOptions <- Trying.to(parseOptions _, workflowOptions, ShouldParse, OptionsLabel)
       _ <- Trying.to(writeTo _, metadataPath, ShouldAccess, MetadataLabel)
-    } yield WorkflowSourceFiles(wdlSource, inputsJson, parsedOptions)
+    } yield WorkflowSourceFiles(wdlSource, inputsJson, workflowOptions)
   }
-
-  /* End .run() method and utilities */
 
   /**
     * Run the workflow options json string through the WorkflowOptions parser.

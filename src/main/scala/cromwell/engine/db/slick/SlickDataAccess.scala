@@ -382,7 +382,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
             workflowExecutionResult.workflowExecutionUuid).result.head
 
           workflowExecutionAuxResult map { workflowExecutionAux =>
-            new WorkflowDescriptor(
+            WorkflowDescriptor(
               WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
               WorkflowSourceFiles(
                 workflowExecutionAux.wdlSource.toRawString,

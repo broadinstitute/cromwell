@@ -164,16 +164,14 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  // FIXME: Currently disabled as there's no way to test this until the new validation stuff goes in
-//  it should "run reading options" in {
-//    testWdl(ThreeStep, optionsJson = """{ "default_backend": "BAD_BACKEND" }""") { wdlAndInputs =>
-//      val wdl = wdlAndInputs.wdl
-//      val inputs = wdlAndInputs.inputs
-//      val options = wdlAndInputs.options
-//      traceErrorWithExceptionRun(wdl, inputs, options)(
-//        "WorkflowManagerActor: Workflow failed submission: bad_backend is not a recognized backend") should be(1)
-//    }
-//  }
+  it should "run reading options" in {
+    testWdl(ThreeStep, optionsJson = """{ foobar bad json! }""") { wdlAndInputs =>
+      val wdl = wdlAndInputs.wdl
+      val inputs = wdlAndInputs.inputs
+      val options = wdlAndInputs.options
+      traceErrorWithExceptionRun(wdl, inputs, options)("WorkflowManagerActor: Workflow failed submission:", classOf[IllegalArgumentException]) should be(1)
+    }
+  }
 
   it should "run writing metadata" in {
     testWdl(ThreeStep) { wdlAndInputs =>
@@ -211,7 +209,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val result = traceMain(_.run(Array(wdl, inputs)))
-      assert(result.err.contains("Expecting a JSON object"))
+      assert(result.err.contains("contains bad inputs JSON"))
       result.returnCode should be(1)
     }
   }
@@ -389,9 +387,9 @@ object MainSpec {
    * @param pattern The pattern to watch for.
    * @return The return code of run.
    */
-  def traceErrorWithExceptionRun(args: String*)(pattern: String): Int = {
-    val workflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem
-    val result = waitForErrorWithException(pattern)(
+  def traceErrorWithExceptionRun(args: String*)(pattern: String, throwableClass: Class[_ <: Throwable] = classOf[Throwable]): Int = {
+    val workflowManagerSystem = new TestWorkflowManagerSystem
+    val result = waitForErrorWithException(pattern, throwableClass = throwableClass)(
       printBlock("run", args) {
         // Explicitly disable shutting down the actor system from within Main, there's a race condition to deliver
         // log messages to the TestKit filter before the system is torn down.  Wait until we see the message we

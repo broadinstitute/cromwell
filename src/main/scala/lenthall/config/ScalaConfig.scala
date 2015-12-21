@@ -2,7 +2,7 @@ package lenthall.config
 
 import com.typesafe.config.{ConfigException, Config}
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object ScalaConfig {
 
@@ -21,9 +21,9 @@ object ScalaConfig {
 
     private def getOption[T](key: String, f: String => T): Option[T] = {
       Try(f(key)) match {
-        case scala.util.Success(value) => Option(value)
-        case scala.util.Failure(e: ConfigException.Missing) => None
-        case scala.util.Failure(e) => throw e
+        case Success(value) => Option(value)
+        case Failure(e: ConfigException.Missing) => None
+        case Failure(e) => throw e
       }
     }
   }

@@ -205,6 +205,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
     WorkflowMetadataResponse(
       id = workflowExecution.workflowExecutionUuid.toString,
+      workflowName = workflowExecution.name,
       status = workflowExecution.status,
       // We currently do not make a distinction between the submission and start dates of a workflow, but it's
       // possible at least theoretically that a workflow might not begin to execute immediately upon submission.
@@ -230,8 +231,9 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       jesJobs <- globalDataAccess.jesJobInfo(id)
       localJobs <- globalDataAccess.localJobInfo(id)
       sgeJobs <- globalDataAccess.sgeJobInfo(id)
+      executionEvents <- globalDataAccess.getAllExecutionEvents(id)
 
-      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
+      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, executionEvents, jesJobs ++ localJobs ++ sgeJobs)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata

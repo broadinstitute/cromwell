@@ -10,7 +10,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with ExecutionComponent
   with JesJobComponent
   with LocalJobComponent
-  with SgeJobComponent {
+  with SgeJobComponent
+  with ExecutionEventComponent {
 
   import driver.api._
 
@@ -21,5 +22,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       executions.schema ++
       localJobs.schema ++
       jesJobs.schema ++
-      sgeJobs.schema
+      sgeJobs.schema ++
+      executionEvents.schema
 }

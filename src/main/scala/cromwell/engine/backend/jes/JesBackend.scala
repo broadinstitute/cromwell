@@ -304,7 +304,7 @@ case class JesBackend(actorSystem: ActorSystem)
           FailedExecutionHandle(ex).future
         case Success(_) => postProcess(backendCall) match {
           case Success(outputs) => backendCall.hash map { h =>
-            SuccessfulExecutionHandle(outputs, backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
+            SuccessfulExecutionHandle(outputs, Seq.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
           case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
             // TODO: What can we return here to retry this operation?
             // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
@@ -498,19 +498,19 @@ case class JesBackend(actorSystem: ActorSystem)
       lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
 
       status match {
-        case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
+        case Run.Success(events) if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength")).future
-        case Run.Success if returnCodeContents.isFailure =>
+        case Run.Success(events) if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
           // Return handle to try again.
           handle.future
-        case Run.Success if returnCode.isFailure =>
+        case Run.Success(events) if returnCode.isFailure =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
-        case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
+        case Run.Success(events) if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get)).future
-        case Run.Success =>
-          backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get, h, handle) }
+        case Run.Success(events) =>
+          backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
@@ -552,11 +552,12 @@ case class JesBackend(actorSystem: ActorSystem)
 
   private def handleSuccess(outputMappings: Try[CallOutputs],
                             workflowDescriptor: WorkflowDescriptor,
+                            executionEvents: Seq[ExecutionEventEntry],
                             returnCode: Int,
                             hash: ExecutionHash,
                             executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, hash)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, returnCode, hash)
       case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle

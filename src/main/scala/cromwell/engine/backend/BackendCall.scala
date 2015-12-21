@@ -4,7 +4,7 @@ import akka.event.LoggingAdapter
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
-import cromwell.engine.{ExecutionHash, WorkflowDescriptor}
+import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
 import cromwell.engine.workflow.CallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.StringUtil._
@@ -59,9 +59,9 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
   override val isDone = true
 }
 
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, returnCode, hash, resultsClonedFrom)
+  override val result = SuccessfulExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }
 
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {

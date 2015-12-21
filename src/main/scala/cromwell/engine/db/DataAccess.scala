@@ -8,6 +8,8 @@ import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 
+import cromwell.engine._
+import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
 import scala.concurrent.Future
 
 object DataAccess {
@@ -57,6 +59,11 @@ trait DataAccess {
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, workflowOutputFqns: Seq[ReportableSymbol]): Future[Unit]
+
+  def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit]
+
+  /** Gets a mapping from call FQN to an execution event entry list */
+  def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
     setStatus(workflowId, keys, CallStatus(executionStatus, None, None, None))

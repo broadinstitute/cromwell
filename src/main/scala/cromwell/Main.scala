@@ -80,7 +80,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   lazy val Log = LoggerFactory.getLogger("cromwell")
   Monitor.start()
 
-  def this() = this(enableTermination = true, managerSystem = () => CromwellServer)
+  def this() = this(enableTermination = true, managerSystem = () => new WorkflowManagerSystem {})
 
   // CromwellServer still doesn't clean up... so => Any
   def runAction(args: Seq[String]): Any = {
@@ -222,16 +222,6 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   /** Try to write to the path by appending a blank string to file. */
   private[this] def writeTo(outputDescription: String, pathOption: Option[Path]): Unit = {
     pathOption.foreach(_.createIfNotExists().append(""))
-  }
-
-  /** Run the input json string through a json parser. */
-  private[this] def parseInputs(inputsJson: String): Try[String] = {
-    Try(inputsJson.parseJson) flatMap {
-      case JsObject(rawInputs) =>
-        rawInputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
-        Success(inputsJson)
-      case unexpected => Failure(new RuntimeException(s"Expecting a JSON object: $unexpected"))
-    }
   }
 
   /**

@@ -1,5 +1,6 @@
 package cromwell.binding.values
 
+import cromwell.binding.TsvSerializable
 import cromwell.binding.types.{WdlAnyType, WdlMapType, WdlPrimitiveType, WdlType}
 import cromwell.binding.{FileHasher, SymbolHash}
 import cromwell.util.StringUtil._
@@ -37,7 +38,7 @@ object WdlMap {
   }
 }
 
-case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends WdlValue {
+case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends WdlValue with TsvSerializable {
   val typesUsedInKey = value.map { case (k,v) => k.wdlType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != wdlType.keyType)

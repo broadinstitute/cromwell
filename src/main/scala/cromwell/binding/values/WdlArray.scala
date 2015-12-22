@@ -1,6 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.{SymbolHash, FileHasher}
+import cromwell.binding.TsvSerializable
 import cromwell.binding.types.{WdlStringType, WdlArrayType, WdlObjectType, WdlPrimitiveType}
 import cromwell.util.StringUtil._
 
@@ -15,7 +16,7 @@ object WdlArray {
   }
 }
 
-case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue {
+case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue with TsvSerializable {
   val typesUsedInValue = Set(value map {_.wdlType}: _*)
   if (typesUsedInValue.size == 1 && typesUsedInValue.head != wdlType.memberType) {
     throw new UnsupportedOperationException(s"Could not construct array of type $wdlType with this value: $value")
@@ -38,7 +39,7 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
     wdlType.memberType match {
       case t: WdlPrimitiveType => Success(value.map(_.valueString).mkString("\n"))
       case WdlObjectType => WdlObject.tsvSerializeArray(value map { _.asInstanceOf[WdlObject] })
-      case _ => Failure(new UnsupportedOperationException("Can only TSV serialize an Array[Primitive]"))
+      case _ => Failure(new UnsupportedOperationException("Can only TSV serialize an Array[Primitive] or Array[Object]"))
     }
   }
 

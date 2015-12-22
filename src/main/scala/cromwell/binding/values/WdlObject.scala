@@ -1,7 +1,7 @@
 package cromwell.binding.values
 
 import cromwell.binding.types._
-import cromwell.binding.{Call, FileHasher, SymbolHash}
+import cromwell.binding.{Call, FileHasher, SymbolHash, TsvSerializable}
 import cromwell.util.FileUtil
 import cromwell.util.StringUtil._
 
@@ -64,7 +64,7 @@ object WdlObject {
 
 }
 
-case class WdlObject(value: Map[String, WdlValue]) extends WdlValue with WdlObjectLike {
+case class WdlObject(value: Map[String, WdlValue]) extends WdlValue with WdlObjectLike with TsvSerializable {
   val wdlType = WdlObjectType
 
   override def toWdlString: String =

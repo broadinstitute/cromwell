@@ -3,6 +3,7 @@ package cromwell
 import cromwell.binding.values.{WdlFile, WdlValue}
 
 import scala.language.implicitConversions
+import scala.util.Try
 
 /**
  * ==WDL Bindings for Scala==
@@ -32,6 +33,10 @@ package object binding {
     def compare(that: SymbolHash) = this.value compare that.value
   }
   type FileHasher = WdlFile => SymbolHash
+
+  trait TsvSerializable {
+    def tsvSerialize: Try[String]
+  }
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)

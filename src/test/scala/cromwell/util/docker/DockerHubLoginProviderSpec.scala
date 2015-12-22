@@ -60,8 +60,9 @@ object DockerHubLoginProviderSpec extends {
     val jsonObject = JSON.parseRaw(jsonString).get.asInstanceOf[JSONObject]
     val jsonAuths = jsonObject.obj("auths").asInstanceOf[JSONObject]
     val dockerAuthObject = jsonAuths.obj("https://index.docker.io/v1/").asInstanceOf[JSONObject]
-    val dockerAuth = dockerAuthObject.obj("auth").asInstanceOf[String]
-    dockerAuth
+    val dockerAccount = dockerAuthObject.obj("email").asInstanceOf[String]
+    val dockerToken = dockerAuthObject.obj("auth").asInstanceOf[String]
+    (dockerAccount, dockerToken)
   }
 
   lazy val DockerHubAuth = DockerHubAuthTry.get
@@ -71,7 +72,8 @@ object DockerHubLoginProviderSpec extends {
   lazy val DockerHubConfig = ConfigFactory.parseString(
       s"""
          |docker {
-         |  dockerToken = "$DockerHubAuth"
+         |  dockerAccount = "${DockerHubAuth._1}"
+         |  dockerToken = "${DockerHubAuth._2}"
          |}
      """.stripMargin)
 

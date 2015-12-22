@@ -1,9 +1,10 @@
 package cromwell.engine.backend.local
 
+import better.files._
 import cromwell.binding.CallInputs
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.CallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.engine.{CallContext, AbortRegistrationFunction, WorkflowDescriptor}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -23,7 +24,9 @@ case class LocalBackendCall(backend: LocalBackend,
   val stdout = callRootPath.resolve("stdout")
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script")
-  val engineFunctions: LocalEngineFunctions = new LocalEngineFunctions(callRootPath, stdout, stderr, workflowDescriptor.ioInterface)
+  private val callContext = new CallContext(callRootPath.fullPath, stdout.fullPath, stderr.fullPath)
+  val engineFunctions = new LocalCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+
   callRootPath.toFile.mkdirs
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)

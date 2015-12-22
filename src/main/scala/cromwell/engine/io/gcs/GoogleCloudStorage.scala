@@ -1,4 +1,4 @@
-package cromwell.util.google
+package cromwell.engine.io.gcs
 
 import java.io._
 import java.math.BigInteger
@@ -6,16 +6,16 @@ import java.util.UUID
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.http.{HttpTransport, InputStreamContent}
-import com.google.api.client.json.JsonFactory
+import com.google.api.client.http.InputStreamContent
 import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
-import cromwell.binding.IOInterface
-import cromwell.logging.WorkflowLogger
+import cromwell.binding.IoInterface
+import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.TryUtil
-import cromwell.util.google.GoogleCloudStorage.GcsBucketInfo
+import cromwell.util.google.GoogleCredentialFactory
+
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -23,8 +23,24 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object GoogleCloudStorage {
-  def apply(appName: String, credential: Credential, jsonFactory: JsonFactory, httpTransport: HttpTransport): GoogleCloudStorage = {
-    GoogleCloudStorage(new Storage.Builder(httpTransport, jsonFactory, credential).setApplicationName(appName).build())
+
+  val RefreshTokenOptionKey = "refresh_token"
+
+  lazy val cromwellAuthenticated: Try[GoogleCloudStorage] = {
+    for {
+      cromwellCredentials <- Try(GoogleCredentialFactory.fromCromwellAuthScheme)
+      conf <- GoogleConfiguration.gcloudConf
+    } yield apply(conf.appName, cromwellCredentials)
+  }
+
+  def userAuthenticated(workflowOptions: WorkflowOptions): Try[GoogleCloudStorage] = for {
+    conf <- GoogleConfiguration.gcloudConf
+    token <- workflowOptions.get(RefreshTokenOptionKey)
+    userCredentials <- GoogleCredentialFactory.fromUserAuthScheme(token)
+  } yield apply(conf.appName, userCredentials)
+
+  private def apply(appName: String, credential: Credential): GoogleCloudStorage = {
+    GoogleCloudStorage(new Storage.Builder(GoogleCredentialFactory.httpTransport, GoogleCredentialFactory.jsonFactory, credential).setApplicationName(appName).build())
   }
 
   case class GcsBucketInfo(bucketName: String, location: String, timeCreated: DateTime, owner: Owner)
@@ -33,9 +49,13 @@ object GoogleCloudStorage {
 /**
  * Provides a connector which can provide access to Google Cloud Storage
  */
-case class GoogleCloudStorage(client: Storage) extends IOInterface {
+case class GoogleCloudStorage private(client: Storage) extends IoInterface {
 
   import GcsPath._
+  import cromwell.util.PathUtil._
+
+  def isValidPath(path: String) = path.isGcsUrl
+
 
   def readFile(path: String): String = {
     new String(downloadObject(path), "UTF-8")
@@ -49,6 +69,8 @@ case class GoogleCloudStorage(client: Storage) extends IOInterface {
     val obj = client.objects().get(googleCloudStoragePath.bucket, googleCloudStoragePath.objectName).execute()
     obj.getCrc32c
   }
+
+  def hash(path: String) = getCrc32c(GcsPath(path))
 
   def exists(path: String): Boolean = {
     val getObject = client.objects.get(path.bucket, path.objectName)

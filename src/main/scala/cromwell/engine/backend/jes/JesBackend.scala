@@ -7,9 +7,9 @@ import java.nio.file.{Path, Paths}
 import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding._
-import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
+import cromwell.binding.expression.NoFunctions
 import cromwell.binding.values._
+import cromwell.binding.{IoInterface, _}
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend._
@@ -19,12 +19,12 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
+import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
 import cromwell.util.StringUtil._
-import cromwell.util.google.{GcsPath, GoogleCloudStorage, GoogleCredentialFactory}
 import cromwell.util.{AggregatedException, TryUtil}
 
 import scala.concurrent.duration._
@@ -49,7 +49,6 @@ object JesBackend {
   val JesMonitoringLogFile = "monitoring.log"
 
   // Workflow options keys
-  val RefreshTokenOptionKey = "refresh_token"
   val GcsRootOptionKey = "jes_gcs_root"
   val MonitoringScriptOptionKey = "monitoring_script"
   val GoogleProjectOptionKey = "google_project"
@@ -57,7 +56,7 @@ object JesBackend {
   val WriteToCacheOptionKey = "write_to_cache"
   val ReadFromCacheOptionKey = "read_from_cache"
   val OptionKeys = Set(
-    RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
+    GoogleCloudStorage.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
     AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
   )
 
@@ -138,8 +137,6 @@ object JesBackend {
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
-
-  type IOInterface = GoogleCloudStorage
 }
 
 final case class JesJobKey(operationId: String) extends JobKey
@@ -164,7 +161,6 @@ case class JesBackend(actorSystem: ActorSystem)
   with ProductionJesAuthentication
   with ProductionJesConfiguration {
   type BackendCall = JesBackendCall
-  type IOInterface = JesBackend.IOInterface
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
@@ -173,12 +169,11 @@ case class JesBackend(actorSystem: ActorSystem)
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
   }
 
-  def fileHasher(workflow: WorkflowDescriptor): FileHasher = { wdlFile: WdlFile => SymbolHash(getCrc32c(workflow, GcsPath(wdlFile.value))) }
-
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
     val log = workflowLogger(workflow)
 
-    generateAuthJson(jesConf.dockerCredentials, getGcsAuthInformation(workflow)) foreach { content =>
+    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) foreach { content =>
+
       val path = GcsPath(gcsAuthFilePath(workflow))
       def upload(prev: Option[Unit]) = connection.storage.uploadJson(path, content)
 
@@ -191,13 +186,23 @@ case class JesBackend(actorSystem: ActorSystem)
     _.getCrc32c(googleCloudStoragePath)
   }
 
+  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions = {
+    new JesWorkflowEngineFunctions(ioInterface, workflowContext)
+  }
+
   /**
    * Get a GcsLocalizing from workflow options if client secrets and refresh token are available.
    */
   def getGcsAuthInformation(workflow: WorkflowDescriptor): Option[JesAuthInformation] = {
+    def extractSecrets(userAuthMode: GoogleUserAuthMode) = userAuthMode match {
+      case Refresh(secrets) => Option(secrets)
+      case _ => None
+    }
+
     for {
-      secrets <- jesConf.googleSecrets if jesConf.localizeWithRefreshToken
-      token <- workflow.workflowOptions.get(RefreshTokenOptionKey).toOption
+      userAuthMode <- googleConf.userAuthMode
+      secrets <- extractSecrets(userAuthMode)
+      token <- workflow.workflowOptions.get(GoogleCloudStorage.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(secrets, token)
   }
 
@@ -217,8 +222,8 @@ case class JesBackend(actorSystem: ActorSystem)
       case _ =>
     }
 
-    if (jesConf.localizeWithRefreshToken) {
-      Seq(RefreshTokenOptionKey) filterNot options.toMap.keySet match {
+    if (googleConf.userAuthMode.isDefined) {
+      Seq(GoogleCloudStorage.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
         case missing if missing.nonEmpty =>
           throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
         case _ =>
@@ -270,7 +275,11 @@ case class JesBackend(actorSystem: ActorSystem)
     new JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext(interface)
+  override def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = {
+    val bucket = workflowOptions.getOrElse(GcsRootOptionKey, jesConf.executionBucket)
+    val workflowPath = s"$bucket/$name/$workflowId"
+    new WorkflowContext(workflowPath)
+  }
 
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(backendCall)
@@ -483,7 +492,7 @@ case class JesBackend(actorSystem: ActorSystem)
       taskOutput.name -> attemptedValue
     }).toMap
 
-    TryUtil.sequenceMap(outputMappings).map(_.mapValues(v => CallOutput(v, v.getHash(fileHasher(backendCall.workflowDescriptor)))))
+    TryUtil.sequenceMap(outputMappings).map(_.mapValues(v => CallOutput(v, v.getHash(backendCall.workflowDescriptor.fileHasher))))
   }
 
   def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
@@ -654,24 +663,12 @@ case class JesBackend(actorSystem: ActorSystem)
 
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if (jesConf.localizeWithRefreshToken || jesConf.isDockerAuthenticated)
+    if (googleConf.userAuthMode.isDefined || dockerConf.isDefined)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor)))
     else None
   }
 
   override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = {
     globalDataAccess.findResumableJesExecutions(id)
-  }
-
-  /**
-    * Will try to instantiate a user authenticated IOInterface if possible.
-    * If not, will default back to the Cromwell authenticated IOInterface.
-    */
-  override def ioInterface(workflowOptions: WorkflowOptions): GoogleCloudStorage = {
-    val userCredentials = for {
-      secrets <- jesConf.googleSecrets
-      token <- workflowOptions.get(RefreshTokenOptionKey).toOption
-    } yield GoogleCredentialFactory.forRefreshToken(secrets, token)
-    userCredentials map { GcsFactory(jesConf.applicationName, _) } getOrElse jesCromwellConnection.storage
   }
 }

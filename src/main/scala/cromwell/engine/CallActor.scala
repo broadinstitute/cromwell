@@ -9,6 +9,7 @@ import cromwell.binding.values.WdlValue
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
+import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
@@ -16,6 +17,9 @@ import cromwell.logging.WorkflowLogger
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
+
+import scala.util.{Try, Success, Failure}
+
 
 object CallActor {
 

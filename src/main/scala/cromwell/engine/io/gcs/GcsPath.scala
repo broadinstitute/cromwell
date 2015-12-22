@@ -1,7 +1,7 @@
-package cromwell.util.google
+package cromwell.engine.io.gcs
 
-import scala.util.{Failure, Success, Try}
 import scala.language.implicitConversions
+import scala.util.{Failure, Success, Try}
 
 /** Represents a Google Cloud Storage path, like gs://bucket/path/to/object.txt
   *

@@ -6,7 +6,6 @@ backend {
   backend = "JES"
 
   jes {
-    applicationName = "cromwell"
     project = "{{.Data.jes_project}}"
     baseExecutionBucket = "{{.Data.jes_base_execution_bucket}}"
     endpointUrl = "https://genomics.googleapis.com/"
@@ -20,14 +19,16 @@ docker {
 }
 
 google {
-  authScheme = "service"
+  applicationName = "cromwell"
+  cromwellAuthenticationScheme = "service_account"
 
   serviceAuth {
     pemFile = "{{.Data.service_auth_pem_file}}"
     serviceAccountId = "{{.Data.service_auth_service_account_id}}"
   }
-  
-  localizeWithRefreshToken {
+
+  userAuthenticationScheme = "refresh"
+  refreshTokenAuth {
       client_id = "{{.Data.localize_with_refresh_token_client_id}}"
       client_secret = "{{.Data.localize_with_refresh_token_client_secret}}"
   }

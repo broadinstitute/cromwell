@@ -1,9 +1,9 @@
 package cromwell.util.docker
 
 import akka.actor.ActorSystem
-import com.typesafe.config.ConfigException.Missing
 import com.typesafe.config.ConfigFactory
-import cromwell.util.google.GoogleCredentialFactorySpec
+import cromwell.util.DockerConfiguration
+import cromwell.util.google.{GoogleCredentialFactory, GoogleCredentialFactorySpec}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -87,7 +87,8 @@ with IntegrationPatience {
       "ubuntu:latest",
       "library/ubuntu:latest")
 
-    val parser = new DockerIdentifierParser(DockerHubLoginProviderSpec.DockerHubConfig)
+    val dockerConf = DockerConfiguration.build(DockerHubLoginProviderSpec.DockerHubConfig)
+    val parser = new DockerIdentifierParser(dockerConf, None)
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)
@@ -108,11 +109,13 @@ with IntegrationPatience {
     val badDockerConfig = ConfigFactory.parseString(
       s"""
          |docker {
+         |  dockerAccount = "fakeAccount"
          |  dockerToken = "YmFkdXNlcjpiYWRwYXNz" // baduser:badpass
          |}
      """.stripMargin)
 
-    val parser = new DockerIdentifierParser(badDockerConfig)
+    val dockerConf = DockerConfiguration.build(badDockerConfig)
+    val parser = new DockerIdentifierParser(dockerConf, None)
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)
@@ -130,8 +133,8 @@ with IntegrationPatience {
 
     forAll(identifiers) { identifier =>
       val exception = client.getDockerHash(identifier).failed.futureValue
-      exception shouldBe a[Missing]
-      exception.getMessage should be("No configuration setting found for key 'google.authScheme'")
+      exception shouldBe an[UnsuccessfulResponseException]
+      exception.getMessage should startWith("Status: 404 Not Found\nBody:")
     }
   }
 
@@ -159,7 +162,11 @@ with IntegrationPatience {
       "gcr.io/broad-dsde-dev/ubuntu",
       "us.gcr.io/broad-dsde-dev/cromwell:dev")
 
-    val parser = new DockerIdentifierParser(GoogleCredentialFactorySpec.AccountConfig)
+    val dockerConf = DockerConfiguration.build(DockerHubLoginProviderSpec.DockerHubConfig)
+    val googleCreds = new GoogleCredentialFactory {
+      override val GoogleConf = GoogleCredentialFactorySpec.GoogleAccountConfig
+    }.fromCromwellAuthScheme
+    val parser = new DockerIdentifierParser(dockerConf, Option(googleCreds))
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)

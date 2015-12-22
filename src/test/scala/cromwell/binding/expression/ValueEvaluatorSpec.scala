@@ -36,6 +36,8 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   def identifierTypeLookup(name: String): WdlType = identifierLookup(name).wdlType
 
   class TestValueFunctions extends WdlStandardLibraryFunctions {
+    override def interface = fail("No IoInterface")
+
     def b(params: Seq[Try[WdlValue]]): Try[WdlValue] =
       Success(WdlInteger(params.head.asInstanceOf[Try[WdlInteger]].get.value + 1))
 

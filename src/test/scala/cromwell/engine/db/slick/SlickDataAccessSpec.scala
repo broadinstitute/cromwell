@@ -49,16 +49,18 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
   val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
 
-  implicit val hasher = localBackend.fileHasher(WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources))
+  implicit val hasher = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources).fileHasher
 
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
   object UnknownBackend extends Backend {
+
+    def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions =
+      throw new NotImplementedError
+
     type BackendCall = LocalBackendCall
 
     override val actorSystem = workflowManagerSystem.actorSystem
-
-    override def fileHasher(workflow: WorkflowDescriptor): FileHasher = throw new NotImplementedError
 
     override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor) =
       throw new NotImplementedError
@@ -81,13 +83,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
                           abortRegistrationFunction: AbortRegistrationFunction): BackendCall =
       throw new NotImplementedError
 
-    override def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions =
-      throw new NotImplementedError
-
     override def backendType: BackendType =
       throw new NotImplementedError
 
-    override def ioInterface(workflowOptions: WorkflowOptions): IOInterface = throw new NotImplementedError
+    override def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = throw new NotImplementedError
+
   }
 
   // Tests against main database used for command line

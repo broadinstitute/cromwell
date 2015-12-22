@@ -80,7 +80,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   lazy val Log = LoggerFactory.getLogger("cromwell")
   Monitor.start()
 
-  def this() = this(enableTermination = true, managerSystem = () => new WorkflowManagerSystem {})
+  def this() = this(enableTermination = true, managerSystem = () => CromwellServer)
 
   // CromwellServer still doesn't clean up... so => Any
   def runAction(args: Seq[String]): Any = {

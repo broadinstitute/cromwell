@@ -48,7 +48,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManager: ActorRef
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute
+    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
 
   def statusRoute =
     path("workflows" / Segment / Segment / "status") { (version, id) =>

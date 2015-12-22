@@ -100,6 +100,19 @@ trait SymbolComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)
 
+  def symbolsFilterByWorkflowAndScopeAndNameAndIndex(workflowExecutionId: Int, scope: String, name: String, index: Int) = {
+    val workflowFilteredQuery = for {
+      symbol <- symbols
+      if symbol.workflowExecutionId === workflowExecutionId
+    } yield symbol
+
+    workflowFilteredQuery filter { s =>
+      s.scope === scope &&
+      s.name === name &&
+      s.index === index
+    }
+  }
+
   val symbolsForWorkflowOutput = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       symbol <- symbols

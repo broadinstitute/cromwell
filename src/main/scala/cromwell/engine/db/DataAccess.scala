@@ -60,6 +60,9 @@ trait DataAccess {
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, workflowOutputFqns: Seq[ReportableSymbol]): Future[Unit]
 
+  /** Updates the existing input symbols to replace expressions with real values **/
+  def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int]
+
   def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit]
 
   /** Gets a mapping from call FQN to an execution event entry list */

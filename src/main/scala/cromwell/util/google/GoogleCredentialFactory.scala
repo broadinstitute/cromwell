@@ -44,10 +44,6 @@ trait GoogleCredentialFactory {
 
   /** Returns the initial credential that will be refreshed. */
   protected def initCredential(): Credential
-
-  protected lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
-  protected lazy val jsonFactory = JacksonFactory.getDefaultInstance
-  protected lazy val scopes = GoogleScopes.Scopes.asJava
 }
 
 object GoogleCredentialFactory {
@@ -55,6 +51,7 @@ object GoogleCredentialFactory {
     config.getString("google.authScheme").toLowerCase match {
       case "user" => new UserCredentialFactory(config)
       case "service" => new ServiceAccountCredentialFactory(config)
+      case "application-default" => new ApplicationDefaultCredentialFactory()
     }
   }
 
@@ -73,6 +70,10 @@ object GoogleCredentialFactory {
       case Success(_) => credential
     }
   }
+
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
+  lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  lazy val scopes = GoogleScopes.Scopes.asJava
 }
 
 /**
@@ -91,11 +92,12 @@ class UserCredentialFactory(userId: String, secretsPath: Path, dataStoreDir: Pat
   }
 
   protected def initCredential(): Credential = {
-    val clientSecrets = GoogleClientSecrets.load(jsonFactory, new FileReader(secretsPath.toFile))
-    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, jsonFactory, clientSecrets, scopes)
+    val clientSecrets = GoogleClientSecrets.load(GoogleCredentialFactory.jsonFactory,
+      new FileReader(secretsPath.toFile))
+    val builder = new GoogleAuthorizationCodeFlow.Builder(GoogleCredentialFactory.httpTransport,
+      GoogleCredentialFactory.jsonFactory, clientSecrets, GoogleCredentialFactory.scopes)
       .setDataStoreFactory(new FileDataStoreFactory(dataStoreDir.toFile))
-      .build()
-    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(userId)
+    new AuthorizationCodeInstalledApp(builder.build(), new GooglePromptReceiver).authorize(userId)
   }
 }
 
@@ -114,9 +116,9 @@ class ServiceAccountCredentialFactory(serviceAccountId: String, pemPath: Path) e
 
   protected def initCredential(): Credential = {
     new GoogleCredential.Builder()
-      .setTransport(httpTransport)
-      .setJsonFactory(jsonFactory)
-      .setServiceAccountScopes(scopes)
+      .setTransport(GoogleCredentialFactory.httpTransport)
+      .setJsonFactory(GoogleCredentialFactory.jsonFactory)
+      .setServiceAccountScopes(GoogleCredentialFactory.scopes)
       .setServiceAccountId(serviceAccountId)
       .setServiceAccountPrivateKeyFromPemFile(pemPath.toFile)
       .build()
@@ -141,10 +143,24 @@ class RefreshTokenCredentialFactory(clientId: String, clientSecret: String,
 
   protected def initCredential(): Credential = {
     new GoogleCredential.Builder()
-      .setTransport(httpTransport)
-      .setJsonFactory(jsonFactory)
+      .setTransport(GoogleCredentialFactory.httpTransport)
+      .setJsonFactory(GoogleCredentialFactory.jsonFactory)
       .setClientSecrets(clientId, clientSecret)
       .build()
       .setRefreshToken(refreshToken)
+  }
+}
+
+/**
+  * Creates a credential using the default service account credentials. This is useful if you are running on a GCE VM
+  * and if you don't need user level access.
+  *
+  * See https://developers.google.com/accounts/docs/application-default-credentials for more info.
+  */
+class ApplicationDefaultCredentialFactory() extends GoogleCredentialFactory {
+  protected def initCredential(): Credential = {
+    GoogleCredential
+      .getApplicationDefault(GoogleCredentialFactory.httpTransport, GoogleCredentialFactory.jsonFactory)
+      .createScoped(GoogleCredentialFactory.scopes)
   }
 }

@@ -38,7 +38,7 @@ object SingleWorkflowRunnerActorSpec {
   def tempDir() = File.newTempDir("metadata.dir.").path
 }
 
-abstract class SingleWorkflowRunnerActorSpec(name: String) extends CromwellTestkitSpec(name) {
+abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   def workflowManagerActor(): ActorRef = {
     system.actorOf(Props(classOf[WorkflowManagerActor], LocalBackend(system)))
   }
@@ -56,7 +56,7 @@ abstract class SingleWorkflowRunnerActorSpec(name: String) extends CromwellTestk
   }
 }
 
-class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorNormalSpec") {
+class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {
       within(timeoutDuration) {
@@ -69,8 +69,7 @@ class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec(
   }
 }
 
-class SingleWorkflowRunnerActorWithMetadataSpec extends
-SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataSpec") with TableDrivenPropertyChecks {
+class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActorSpec with TableDrivenPropertyChecks {
   val metadataFile = tempFile()
 
   override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
@@ -142,8 +141,7 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataSpec") with 
   }
 }
 
-class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends
-SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataOnFailureSpec") {
+class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowRunnerActorSpec {
   val metadataFile = tempFile()
 
   override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
@@ -191,8 +189,7 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithMetadataOnFailureSpe
   }
 }
 
-class SingleWorkflowRunnerActorWithBadMetadataSpec extends
-SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithBadMetadataSpec") {
+class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerActorSpec {
   val metadataDir = tempDir()
 
   override protected def afterAll() = metadataDir.delete(ignoreIOExceptions = true)
@@ -215,8 +212,7 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorWithBadMetadataSpec") {
   }
 }
 
-class SingleWorkflowRunnerActorFailureSpec extends
-SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorFailureSpec") {
+class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully terminate the system on an exception" in {
       within(timeoutDuration) {
@@ -236,8 +232,7 @@ SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorFailureSpec") {
   }
 }
 
-class SingleWorkflowRunnerActorUnexpectedSpec extends
-SingleWorkflowRunnerActorSpec("SingleWorkflowRunnerActorUnexpectedSpec") {
+class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully warn about unexpected output" in {
       within(timeoutDuration) {

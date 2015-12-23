@@ -7,7 +7,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class GlobbingWorkflowSpec extends CromwellTestkitSpec("GlobbingWorkflowSpec") {
+class GlobbingWorkflowSpec extends CromwellTestkitSpec {
   def doTheTest(runtime: String = "") = {
     val outputs = runWdl(
       sampleWdl = SampleWdl.GlobtasticWorkflow,

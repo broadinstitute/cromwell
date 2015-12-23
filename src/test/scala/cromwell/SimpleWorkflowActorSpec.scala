@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSpec") {
+class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
 
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: String):
   TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {

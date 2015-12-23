@@ -26,7 +26,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
+class WorkflowManagerActorSpec extends CromwellTestkitSpec {
   val backendInstance = Backend.from(CromwellSpec.Config, system)
 
   "A WorkflowManagerActor" should {

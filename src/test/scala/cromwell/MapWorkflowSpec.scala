@@ -13,7 +13,7 @@ import cromwell.util.SampleWdl
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
+class MapWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
   val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""), BackendType.LOCAL)
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(

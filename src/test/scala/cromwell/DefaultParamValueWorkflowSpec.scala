@@ -6,7 +6,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class DefaultParamValueWorkflowSpec extends CromwellTestkitSpec("DefaultParamValueWorkflowSpec") {
+class DefaultParamValueWorkflowSpec extends CromwellTestkitSpec {
   "A task with a parameter that has a default value" should {
     "accept a value for that parameter" in {
       runWdlAndAssertOutputs(

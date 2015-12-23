@@ -7,7 +7,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec("BadTaskOutputWorkflowSpec") {
+class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec {
   "A task which fails to output a file which we're expecting it to output" should {
     "fail and result in a failed workflow" in {
       runWdlAndAssertOutputs(

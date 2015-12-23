@@ -7,7 +7,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ArrayOfArrayCoercionSpec extends CromwellTestkitSpec("ArrayOfArrayCoercionSpec") {
+class ArrayOfArrayCoercionSpec extends CromwellTestkitSpec {
   "A workflow that has an Array[Array[File]] input " should {
     "accept an Array[Array[String]] as the value for the input" in {
       runWdlAndAssertOutputs(

@@ -12,7 +12,7 @@ import org.scalatest.concurrent.ScalaFutures
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
-class BackendCallSpec extends CromwellTestkitSpec("BackendCallSpec") with ScalaFutures {
+class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
 
   val backend = new LocalBackend(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
   val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()

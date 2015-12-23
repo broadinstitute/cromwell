@@ -8,7 +8,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ScatterWorkflowSpec extends CromwellTestkitSpec("ScatterWorkflowSpec") {
+class ScatterWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with a stand-alone scatter block in it" should {
     "run properly" in {
       runWdlAndAssertOutputs(

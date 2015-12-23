@@ -112,9 +112,10 @@ object CromwellTestkitSpec {
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 }
 
-abstract class CromwellTestkitSpec(name: String) extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
+abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
+  val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =

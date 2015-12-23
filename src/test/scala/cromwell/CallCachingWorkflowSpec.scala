@@ -10,7 +10,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class CallCachingWorkflowSpec extends CromwellTestkitSpec("CallCachingWorkflowSpec") {
+class CallCachingWorkflowSpec extends CromwellTestkitSpec {
   def cacheHitMessageForCall(name: String) = s"Call Caching: Cache hit. Using UUID\\(.{8}\\):$name\\.*"
 
   val expectedOutputs = Map(

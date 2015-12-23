@@ -13,7 +13,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
+class ArrayWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
   val ns = NamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""), BackendType.LOCAL)
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))

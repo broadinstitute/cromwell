@@ -5,7 +5,7 @@ import cromwell.webservice.WorkflowQueryKey._
 import org.joda.time.DateTime
 import scalaz.{Name => _, _}
 
-class WorkflowQueryParametersSpec extends CromwellTestkitSpec("WorkflowQueryParametersSpec") {
+class WorkflowQueryParametersSpec extends CromwellTestkitSpec {
 
   val StartDateString = "2015-11-01T11:11:11"
   val EndDateString = "2015-11-01T12:12:12"

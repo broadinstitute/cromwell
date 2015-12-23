@@ -24,6 +24,12 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
       case Failure(f) => fail(s"exception while coercing JsArray: $f")
     }
   }
+  it should "coerce single values into one-element arrays" in {
+    WdlArrayType(WdlStringType).coerceRawValue(WdlString("edamame is tasty")) match {
+      case Success(array) => array shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("edamame is tasty")))
+      case Failure(f) => fail("exception coercing single value to array", f)
+    }
+  }
   it should "stringify its type" in {
     intArray.wdlType.toWdlString shouldEqual "Array[Int]"
   }

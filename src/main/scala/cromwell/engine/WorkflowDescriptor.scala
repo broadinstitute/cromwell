@@ -197,19 +197,15 @@ object WorkflowDescriptor {
        |As a result the calls in this workflow $consequence
        """.stripMargin
 
-  val writeDisabled = disabledMessage("Write to Cache", "WILL NOT be cached")
-  val readDisabled = disabledMessage("Read from Cache", "WILL ALL be executed")
+  private val writeDisabled = disabledMessage("Write to Cache", "WILL NOT be cached")
+  private val readDisabled = disabledMessage("Read from Cache", "WILL ALL be executed")
 
-  def configCallCaching(conf: Config) = lookupWithDefault(conf, "call-caching", "enabled", DefaultCallCachingValue)
-  def lookupDockerHash(conf: Config) = lookupWithDefault(conf, "call-caching", "lookup-docker-hash", DefaultLookupDockerHash)
-  // TODO: Add to lenthall
-  // FIXME: There's an identicaly named function in ConfigUtil which doesn't behave quite the same
-  def getConfigOption(conf: Config, key: String): Option[Config] = if (conf.hasPath(key)) Option(conf.getConfig(key)) else None
+  private def configCallCaching(conf: Config) = lookupBooleanWithDefault(conf, "call-caching", "enabled", DefaultCallCachingValue)
+  private def lookupDockerHash(conf: Config) = lookupBooleanWithDefault(conf, "call-caching", "lookup-docker-hash", DefaultLookupDockerHash)
 
-  // FIXME/TODO: Should live in ConfigUtil but getConfigOption is weird, see above
-  def lookupWithDefault(conf: Config, stanza: String, key: String, default: Boolean) = {
+  private def lookupBooleanWithDefault(conf: Config, stanza: String, key: String, default: Boolean) = {
     (for {
-      config <- getConfigOption(conf, stanza)
+      config <- conf.getConfigOption(stanza)
       value <- config.getBooleanOption(key)
     } yield value) getOrElse default
   }

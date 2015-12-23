@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.math.BigInteger
 import java.net.SocketTimeoutException
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter

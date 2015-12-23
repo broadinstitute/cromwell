@@ -298,6 +298,40 @@ object SampleWdl {
     override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
+  object WorkflowOutputsWithFiles extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        task A {
+          command {
+            echo "Enfin un peu de francais pour contrer ce raz-de-marée anglais !" > out
+            echo "Jacques Chirac fait du jetski sur la Seine en costume traditionnel russe" > out2
+          }
+          output {
+            File out = "out"
+            File out2 = "out2"
+          }
+        }
+        task B {
+          command {
+             echo "Je contre avec un bonnet peruvien et tire une carte chance" > out
+             echo "Kamoulox !" > out2
+          }
+          output {
+             Array[File] outs = ["out", "out2"]
+          }
+        }
+        workflow wfoutputs {
+          call A
+          call B
+          output {
+            A.*
+            B.outs
+          }
+        }
+      """.stripMargin
+    override lazy val rawInputs = Map.empty[String, String]
+  }
+
   object NestedScatterWdl extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """

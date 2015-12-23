@@ -4,7 +4,7 @@ import java.io.{PrintWriter, StringWriter}
 
 import cromwell.logging.WorkflowLogger
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -53,7 +53,8 @@ object TryUtil {
                     maxPollingInterval: Duration,
                     logger: WorkflowLogger,
                     failMessage: Option[String] = None,
-                    priorValue: Option[T] = None): Try[T] = {
+                    priorValue: Option[T] = None,
+                    fatalExceptions: Seq[Class[_ <: Throwable]] = Seq.empty): Try[T] = {
 
     def logFailures(attempt: Try[T]): Unit = {
       attempt recover {
@@ -63,6 +64,7 @@ object TryUtil {
 
     Try { fn(priorValue) } match {
       case Success(x) if isSuccess(x) => Success(x)
+      case Failure(f) if fatalExceptions.contains(f.getClass) => Failure(f)
       case value if (retryLimit.isDefined && retryLimit.get > 1) || retryLimit.isEmpty =>
         logFailures(value)
         val retryCountMessage = if (retryLimit.getOrElse(0) > 0) s" (${retryLimit.getOrElse(0) - 1} more retries) " else ""
@@ -86,6 +88,20 @@ object TryUtil {
         logFailures(f)
         f
     }
+  }
+
+  def defaultRetry[T](f: => T, logger: WorkflowLogger, failureMessage: String, fatalExceptions: Seq[Class[_ <: Throwable]] = Seq.empty) = {
+    def action(retries: Option[T]): T = f
+    TryUtil.retryBlock(
+      fn = action,
+      retryLimit = Option(5),
+      pollingInterval = 5 seconds,
+      pollingBackOffFactor = 1,
+      maxPollingInterval = 10 seconds,
+      logger = logger,
+      failMessage = Option(failureMessage),
+      fatalExceptions = fatalExceptions
+    )
   }
 
   private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {

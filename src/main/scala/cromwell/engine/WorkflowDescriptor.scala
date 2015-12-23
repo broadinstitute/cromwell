@@ -20,6 +20,7 @@ import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json.{JsObject, _}
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 
@@ -44,9 +45,10 @@ case class WorkflowDescriptor(id: WorkflowId,
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   val props = sys.props
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
+  lazy val workflowOutputsDestination = workflowOptions get "workflow_outputs_destination" toOption
 
-  private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
-  private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
+  private lazy val optionCacheWriting = workflowOptions getBoolean "write_to_cache" getOrElse configCallCaching
+  private lazy val optionCacheReading = workflowOptions getBoolean "read_from_cache" getOrElse configCallCaching
 
   if (!configCallCaching) {
     if (optionCacheWriting) logWriteDisabled()

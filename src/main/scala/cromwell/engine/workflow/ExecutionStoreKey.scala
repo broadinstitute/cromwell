@@ -46,3 +46,7 @@ case class ScatterKey(scope: Scatter, index: Option[Int]) extends ExecutionStore
     }
   }
 }
+
+case class FinalCallKey(scope: FinalCall) extends OutputKey {
+  override def index: Option[Int] = None
+}

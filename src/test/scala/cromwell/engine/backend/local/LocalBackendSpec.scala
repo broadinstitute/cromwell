@@ -12,7 +12,7 @@ import cromwell.util.SampleWdl
 import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext.Implicits.global
-class LocalBackendSpec extends CromwellTestkitSpec("LocalBackendSpec") with Mockito {
+class LocalBackendSpec extends CromwellTestkitSpec with Mockito {
 
   object StdoutWdl extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =

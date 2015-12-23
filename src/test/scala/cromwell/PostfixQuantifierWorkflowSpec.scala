@@ -6,7 +6,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class PostfixQuantifierWorkflowSpec extends CromwellTestkitSpec("PostfixQuantifierWorkflowSpec") {
+class PostfixQuantifierWorkflowSpec extends CromwellTestkitSpec {
   "A task which contains a parameter with a zero-or-more postfix quantifier" should {
     "accept an array of size 3" in {
       runWdlAndAssertOutputs(

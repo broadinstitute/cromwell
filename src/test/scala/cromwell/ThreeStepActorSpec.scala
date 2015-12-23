@@ -15,7 +15,7 @@ object ThreeStepActorSpec {
   val EventMessage = s"starting calls: three_step.cgrep, three_step.wc"
 }
 
-class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
+class ThreeStepActorSpec extends CromwellTestkitSpec {
   import ThreeStepActorSpec._
 
   "A three step workflow" should {

@@ -1639,4 +1639,33 @@ object SampleWdl {
       "wf.a2" -> WdlString("world")
     )
   }
+
+  object SingleToArrayCoercion extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task singleFile {
+        |  command {
+        |    echo hello
+        |  }
+        |  output {
+        |    File out = stdout()
+        |  }
+        |}
+        |
+        |task listFiles {
+        |  Array[File] manyIn
+        |  command {
+        |    cat ${sep=" " manyIn}
+        |  }
+        |  output {
+        |    String result = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow oneToMany {
+        |  call singleFile
+        |  call listFiles { input: manyIn = singleFile.out }
+        |}
+      """.stripMargin
+    override val rawInputs = Map.empty[String, String]
+  }
 }

@@ -6,7 +6,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class StdoutStderrWorkflowSpec extends CromwellTestkitSpec("StdoutStderrWorkflowSpec") {
+class StdoutStderrWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with tasks that produce stdout/stderr" should {
     "have correct contents in stdout/stderr files for a call" in {
       runWdlAndAssertStdoutStderr(

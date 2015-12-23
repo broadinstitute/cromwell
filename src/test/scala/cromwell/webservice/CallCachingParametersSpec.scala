@@ -11,7 +11,7 @@ object CallCachingParametersSpec {
   val AllowFalse = QueryParameter("allow", "false")
 }
 
-class CallCachingParametersSpec extends CromwellTestkitSpec("CallCachingParametersSpec") {
+class CallCachingParametersSpec extends CromwellTestkitSpec {
 
   import CallCachingParametersSpec._
 

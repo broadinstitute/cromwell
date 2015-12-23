@@ -8,7 +8,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestkitSpec("WdlFunctionsAtWorkflowLevelSpec") {
+class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestkitSpec {
   val outputMap = WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
     WdlString("k1") -> WdlString("v1"),
     WdlString("k2") -> WdlString("v2"),

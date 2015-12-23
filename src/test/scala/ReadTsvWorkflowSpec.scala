@@ -8,7 +8,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ReadTsvWorkflowSpec extends CromwellTestkitSpec("ReadTsvWorkflowSpec") {
+class ReadTsvWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with array/map indexes in expressions" should {
     "run locally" in {
       runWdlAndAssertOutputs(

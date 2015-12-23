@@ -8,7 +8,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ReadLinesFunctionSpec extends CromwellTestkitSpec("ReadLinesFunctionSpec") {
+class ReadLinesFunctionSpec extends CromwellTestkitSpec {
   val outputArray = WdlArray(WdlArrayType(WdlStringType), Seq(
     WdlString("java"),
     WdlString("scala"),

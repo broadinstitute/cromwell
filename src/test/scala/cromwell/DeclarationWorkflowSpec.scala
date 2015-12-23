@@ -10,7 +10,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class DeclarationWorkflowSpec extends CromwellTestkitSpec("DeclarationWorkflowSpec") {
+class DeclarationWorkflowSpec extends CromwellTestkitSpec {
   val outputs = Map(
     "two_step.cgrep.str" -> WdlString("foobar"),
     "two_step.cgrep.count" -> WdlInteger(1)

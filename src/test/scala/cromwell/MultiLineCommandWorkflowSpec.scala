@@ -7,7 +7,7 @@ import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class MultiLineCommandWorkflowSpec extends CromwellTestkitSpec("MultiLineCommandWorkflowSpec") {
+class MultiLineCommandWorkflowSpec extends CromwellTestkitSpec {
   "A workflow that calls a task with a multi-line command" should {
     "honor the newlines in the command" in {
       runWdlAndAssertOutputs(

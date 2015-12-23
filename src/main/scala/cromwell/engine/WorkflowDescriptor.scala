@@ -9,14 +9,12 @@ import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.binding._
 import cromwell.binding.values.WdlFile
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{CromwellBackend, Backend}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.io.IoManager
 import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
 import cromwell.engine.workflow.WorkflowOptions
-import cromwell.server.CromwellServer
-import cromwell.util.TryUtil
 import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
@@ -99,7 +97,7 @@ object WorkflowDescriptor {
   }
 
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, conf: Config): WorkflowDescriptor = {
-    validateWorkflowDescriptor(id, sourceFiles, CromwellServer.backend, conf) match {
+    validateWorkflowDescriptor(id, sourceFiles, CromwellBackend.backend(), conf) match {
       case scalaz.Success(w) => w
       case scalaz.Failure(f) =>
         throw new IllegalArgumentException(s"""Workflow $id failed to process inputs:\n${f.list.mkString("\n")}""")

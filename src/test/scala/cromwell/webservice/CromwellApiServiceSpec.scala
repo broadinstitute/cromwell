@@ -4,8 +4,9 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import akka.pattern.pipe
-import cromwell.binding._
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlValue}
+import cromwell.engine.{CallOutput, SymbolHash}
+import wdl4s._
+import wdl4s.values.{WdlFile, WdlInteger, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
 import cromwell.engine.workflow.WorkflowManagerActor._

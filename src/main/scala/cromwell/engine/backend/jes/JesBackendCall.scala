@@ -3,8 +3,8 @@ package cromwell.engine.backend.jes
 import java.nio.file.Paths
 
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding._
-import cromwell.binding.values.WdlFile
+import wdl4s._
+import wdl4s.values.WdlFile
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication

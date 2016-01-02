@@ -7,9 +7,10 @@ import java.nio.file.{Path, Paths}
 import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding.expression.NoFunctions
-import cromwell.binding.values._
-import cromwell.binding.{_}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s.{Scatter, UnsatisfiedInputsException, Call, CallInputs}
+import wdl4s.expression.NoFunctions
+import wdl4s.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend._
@@ -23,8 +24,9 @@ import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, _}
+import cromwell.engine.{HostInputs, CallOutput, CallOutputs}
 import cromwell.logging.WorkflowLogger
-import cromwell.parser.BackendType
+import cromwell.engine.backend.BackendType
 import cromwell.util.{AggregatedException, TryUtil}
 
 import scala.concurrent.duration._
@@ -39,7 +41,7 @@ object JesBackend {
     where stdout.txt is input and output. Redirect stdout/stderr to a different name, but it'll be localized back
     in GCS as stdout/stderr. Yes, it's hacky.
    */
-  val LocalWorkingDiskValue = s"disk://${RuntimeAttributes.LocalDiskName}"
+  val LocalWorkingDiskValue = s"disk://${CromwellRuntimeAttributes.LocalDiskName}"
   val ExecParamName = "exec"
   val MonitoringParamName = "monitoring"
   val WorkingDiskParamName = "working_disk"
@@ -165,7 +167,11 @@ case class JesBackend(actorSystem: ActorSystem)
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
-  override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
+  override def adjustInputPaths(callKey: CallKey,
+                                runtimeAttributes: CromwellRuntimeAttributes,
+                                inputs: CallInputs,
+                                workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
+
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
   }
@@ -291,7 +297,7 @@ case class JesBackend(actorSystem: ActorSystem)
     val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq ++ monitoringScript :+ backendCall.cmdInput
     val jesOutputs: Seq[JesOutput] = generateJesOutputs(backendCall) ++ monitoringOutput
 
-    backendCall.instantiateCommand match {
+    instantiateCommand(backendCall) match {
       case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs, runIdForResumption, monitoringScript.isDefined)
       case Failure(ex: SocketTimeoutException) => throw ex // probably a GCS transient issue, throwing will cause it to be retried
       case Failure(ex) => FailedExecutionHandle(ex)
@@ -349,7 +355,7 @@ case class JesBackend(actorSystem: ActorSystem)
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
     val log = workflowLoggerWithCall(backendCall)
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
-      taskOutput.expression.evaluateFiles(backendCall.lookupFunction, new NoFunctions, taskOutput.wdlType) match {
+      taskOutput.expression.evaluateFiles(backendCall.lookupFunction, NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) => wdlFiles map gcsPathToLocal
         case Failure(ex) =>
           log.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}")
@@ -412,6 +418,7 @@ case class JesBackend(actorSystem: ActorSystem)
         backendCall.jesCommandLine,
         backendCall.workflowDescriptor,
         backendCall.key,
+        backendCall.runtimeAttributes,
         jesParameters,
         googleProject(backendCall.workflowDescriptor),
         connection,
@@ -509,10 +516,10 @@ case class JesBackend(actorSystem: ActorSystem)
       lazy val stderrLength: BigInteger = authenticateAsUser(backendCall.workflowDescriptor) { _.objectSize(GcsPath(backendCall.stderrJesOutput.gcs)) }
       lazy val returnCodeContents = backendCall.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
-      lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
+      lazy val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
 
       status match {
-        case Run.Success(events) if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
+        case Run.Success(events) if backendCall.runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength")).future
         case Run.Success(events) if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get

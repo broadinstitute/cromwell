@@ -1,7 +1,7 @@
 package cromwell.engine.backend.local
 
 import java.nio.file.Paths
-import cromwell.binding.values.WdlValue
+import wdl4s.values.WdlValue
 import cromwell.engine.io.IoInterface
 import cromwell.engine.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions}
 

@@ -5,10 +5,10 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.binding._
-import cromwell.binding.expression.NoFunctions
-import cromwell.binding.types.WdlArrayType
-import cromwell.binding.values.{WdlArray, WdlCallOutputsObject, WdlValue}
+import wdl4s._
+import wdl4s.expression.NoFunctions
+import wdl4s.types.WdlArrayType
+import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 import cromwell.engine.CallActor.CallActorMessage
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
@@ -19,6 +19,7 @@ import cromwell.engine.db.slick.Execution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.instrumentation.Instrumentation.Monitor
+import cromwell.engine.{CallOutput, HostInputs, CallOutputs, EnhancedFullyQualifiedName}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
 
@@ -753,7 +754,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def lookupScatterVariable(callKey: CallKey, workflow: Workflow)(name: String): Try[WdlValue] = {
     val scatterBlock = callKey.scope.ancestry collect { case s: Scatter => s } find { _.item == name }
     val scatterCollection = scatterBlock map { s =>
-      s.collection.evaluate(scatterCollectionLookupFunction(workflow, callKey), new NoFunctions) match {
+      s.collection.evaluate(scatterCollectionLookupFunction(workflow, callKey), NoFunctions) match {
         case Success(v: WdlArray) if callKey.index.isDefined =>
           if (v.value.isDefinedAt(callKey.index.get))
             Success(v.value(callKey.index.get))
@@ -810,7 +811,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       val taskInput = findTaskInput(entry.scope, entry.key.name).get
 
       val value = entry.wdlValue match {
-        case Some(e: WdlExpression) => e.evaluate(lookup, new NoFunctions)
+        case Some(e: WdlExpression) => e.evaluate(lookup, NoFunctions)
         case Some(v) => Success(v)
         case _ => Failure(new WdlExpressionException("Unknown error"))
       }
@@ -967,7 +968,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     val rootWorkflow = scatterKey.scope.rootWorkflow
     for {
-      collection <- scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), new NoFunctions)
+      collection <- scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), NoFunctions)
     } yield buildExecutionStartResult(collection)
   }
 
@@ -1036,8 +1037,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
         scheduleTransition(WorkflowFailed)
       }
-    }
-    else {
+    } else {
       log.info(s"Call caching 'readFromCache' is turned off, starting call")
       self ! InitialStartCall(callKey, CallActor.Start)
     }

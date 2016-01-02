@@ -1,6 +1,6 @@
 package cromwell.engine.backend.sge
 
-import cromwell.binding.CallInputs
+import wdl4s.CallInputs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.CallKey

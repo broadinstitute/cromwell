@@ -7,9 +7,10 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.binding._
-import cromwell.binding.values.WdlFile
-import cromwell.engine.backend.{CromwellBackend, Backend}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s._
+import wdl4s.values.WdlFile
+import cromwell.engine.backend.{BackendType, CromwellBackend, Backend}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.io.gcs.GoogleCloudStorage
@@ -100,7 +101,7 @@ object WorkflowDescriptor {
     validateWorkflowDescriptor(id, sourceFiles, CromwellBackend.backend(), conf) match {
       case scalaz.Success(w) => w
       case scalaz.Failure(f) =>
-        throw new IllegalArgumentException(s"""Workflow $id failed to process inputs:\n${f.list.mkString("\n")}""")
+        throw new IllegalArgumentException(s"""Workflow $id failed to process inputs:\n${f.toList.mkString("\n")}""")
     }
   }
 
@@ -108,36 +109,57 @@ object WorkflowDescriptor {
                                          sourceFiles: WorkflowSourceFiles,
                                          backend: Backend,
                                          conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val namespace = validateNamespace(id, sourceFiles.wdlSource, backend)
+    val namespace = validateNamespace(id, sourceFiles.wdlSource)
     val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
     val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
-    (namespace |@| rawInputs |@| options) { (_, _, _) } match {
-      case scalaz.Success((n, r, o)) =>
-        val gcsInterface = GoogleCloudStorage.userAuthenticated(o) orElse GoogleCloudStorage.cromwellAuthenticated
-        val ioManager = backend match {
-          case _: JesBackend => gcsInterface getOrElse { // JesBackend only supports gcsInterface
-            throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.")
-          }
-          case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
-        }
-        val wfContext = backend.workflowContext(o, id, n.workflow.fullyQualifiedName)
-        val engineFunctions = backend.engineFunctions(ioManager, wfContext)
 
-        val validatedDescriptor = for {
-          c <- validateCoercedInputs(id, r, n).disjunction
-          d <- validateDeclarations(id, n, o, c, engineFunctions).disjunction
-        } yield WorkflowDescriptor(id, sourceFiles, o, r, n, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
-          gcsInterface, ioManager, wfContext, engineFunctions)
-        validatedDescriptor.validation
-      case scalaz.Failure(f) => f.list.mkString("\n").failureNel
+    val runtimeAttributes = for {
+      n <- namespace.disjunction
+    } yield validateRuntimeAttributes(id, n, backend.backendType)
+
+    (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } match {
+      case scalaz.Success((n, r, o, a)) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
+      case scalaz.Failure(f) => f.toList.mkString("\n").failureNel
     }
   }
 
-  private def validateNamespace(id: WorkflowId, source: WdlSource, backend: Backend): ErrorOr[NamespaceWithWorkflow] = {
+  private def buildWorkflowDescriptor(id: WorkflowId,
+                                      sourceFiles: WorkflowSourceFiles,
+                                      namespace: NamespaceWithWorkflow,
+                                      rawInputs: Map[String, JsValue],
+                                      options: WorkflowOptions,
+                                      backend: Backend,
+                                      conf: Config): ErrorOr[WorkflowDescriptor] = {
+    val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
+    val ioManager = backend match {
+      case _: JesBackend => gcsInterface getOrElse { // JesBackend only supports gcsInterface
+        throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.")
+      }
+      case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
+    }
+    val wfContext = backend.workflowContext(options, id, namespace.workflow.fullyQualifiedName)
+    val engineFunctions = backend.engineFunctions(ioManager, wfContext)
+
+    val validatedDescriptor = for {
+      c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
+      d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
+    } yield WorkflowDescriptor(id, sourceFiles, options, rawInputs, namespace, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
+      gcsInterface, ioManager, wfContext, engineFunctions)
+    validatedDescriptor.validation
+  }
+
+  private def validateNamespace(id: WorkflowId, source: WdlSource): ErrorOr[NamespaceWithWorkflow] = {
     try {
-      NamespaceWithWorkflow.load(source, backend.backendType).successNel
+      NamespaceWithWorkflow.load(source).successNel
     } catch {
       case e: Exception => s"Workflow $id unable to load namespace: ${e.getMessage}".failureNel
+    }
+  }
+
+  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
+    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }) match {
+      case scala.util.Success(_) => ().successNel
+      case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }
   }
 

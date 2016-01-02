@@ -3,7 +3,7 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
-import cromwell.binding._
+import wdl4s._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowActor

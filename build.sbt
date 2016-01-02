@@ -35,6 +35,7 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-statsd" % kamonV,
   "org.aspectj" % "aspectjweaver" % "1.8.6",
   "org.broadinstitute" %% "lenthall" % lenthallV,
+  "org.broadinstitute" %% "wdl4s" % "0.1-0a4a842-SNAPSHOT",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
   "org.joda" % "joda-convert" % "1.8.1",
   "org.webjars" % "swagger-ui" % "2.1.1",

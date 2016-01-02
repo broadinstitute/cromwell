@@ -4,8 +4,8 @@ import akka.actor.FSM.NullFunction
 import akka.actor.{Actor, Cancellable, LoggingFSM, Props}
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
-import cromwell.binding._
-import cromwell.binding.values.WdlValue
+import wdl4s._
+import wdl4s.values.WdlValue
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._

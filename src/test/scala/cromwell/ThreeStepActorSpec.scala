@@ -2,7 +2,7 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.values.WdlInteger
+import wdl4s.values.WdlInteger
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

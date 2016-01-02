@@ -3,7 +3,7 @@ package cromwell.logging
 import java.util.UUID
 
 import cromwell.CromwellTestkitSpec
-import cromwell.binding.values.WdlValue
+import wdl4s.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId, WorkflowSourceFiles}

@@ -3,7 +3,7 @@ package cromwell.util
 import java.io.{FileWriter, File}
 import java.nio.file.{Files, Path}
 
-import cromwell.binding.values._
+import wdl4s.values._
 
 trait TestFileUtil {
   private def write(file: File, contents: String) = {

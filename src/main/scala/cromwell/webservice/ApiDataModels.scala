@@ -1,7 +1,7 @@
 package cromwell.webservice
 
-import cromwell.binding.FullyQualifiedName
-import cromwell.binding.values.WdlValue
+import wdl4s.FullyQualifiedName
+import wdl4s.values.WdlValue
 import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, CallLogs}
 import org.joda.time.DateTime
 import spray.json.JsObject

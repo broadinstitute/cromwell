@@ -5,13 +5,12 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.{Actor, ActorRef, Props, Status}
 import better.files._
-import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import cromwell.binding.{AstTools, _}
+import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl4s.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
-import cromwell.parser.BackendType
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
@@ -114,7 +113,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   def inputs(args: Seq[String]): Int = {
     continueIf(args.length == 1) {
       loadWdl(args.head) { namespace =>
-        import cromwell.binding.types.WdlTypeJsonFormatter._
+        import wdl4s.types.WdlTypeJsonFormatter._
         namespace match {
           case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
           case _ => println("WDL does not have a local workflow")
@@ -351,9 +350,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   } yield a
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Int): Int = {
-    val backendType = BackendType.LOCAL
-
-    Try(WdlNamespace.load(new JFile(path), backendType)) match {
+    Try(WdlNamespace.load(new JFile(path))) match {
       case Success(namespace) => f(namespace)
       case Failure(t) =>
         println(t.getMessage)

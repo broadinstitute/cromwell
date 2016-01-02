@@ -1,8 +1,9 @@
-package cromwell.binding.values
+package cromwell.webservice
 
-import cromwell.binding.{SymbolHash, WdlExpression}
-import cromwell.binding.types.WdlArrayType
 import spray.json._
+import wdl4s.WdlExpression
+import wdl4s.types.WdlArrayType
+import wdl4s.values._
 
 object WdlValueJsonFormatter extends DefaultJsonProtocol {
   implicit object WdlValueJsonFormat extends RootJsonFormat[WdlValue] {
@@ -40,12 +41,3 @@ object WdlFileJsonFormatter extends DefaultJsonProtocol {
   }
 }
 
-object SymbolHashJsonFormatter extends DefaultJsonProtocol {
-  implicit object SymbolHashJsonFormatter extends RootJsonFormat[SymbolHash] {
-    def write(value: SymbolHash) = JsString(value.value)
-    def read(value: JsValue): SymbolHash = value match {
-      case JsString(hash) => SymbolHash(hash)
-      case unsupported => throw new UnsupportedOperationException(s"Cannot deserialize $unsupported to a SymbolHash")
-    }
-  }
-}

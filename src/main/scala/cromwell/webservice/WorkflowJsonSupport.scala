@@ -1,7 +1,7 @@
 package cromwell.webservice
 
-import cromwell.binding.values.WdlFileJsonFormatter._
-import cromwell.binding.values.WdlValueJsonFormatter._
+import WdlFileJsonFormatter._
+import WdlValueJsonFormatter._
 import cromwell.engine.ExecutionEventEntry
 import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, CallLogs}
 import org.joda.time.DateTime

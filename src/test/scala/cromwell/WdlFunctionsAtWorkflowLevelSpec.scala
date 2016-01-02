@@ -1,8 +1,8 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlMapType, WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlMap, WdlArray, WdlString}
+import wdl4s.types.{WdlMapType, WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlMap, WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.util.SampleWdl
 

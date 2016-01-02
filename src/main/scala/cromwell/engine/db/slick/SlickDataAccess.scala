@@ -7,9 +7,9 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.binding._
-import cromwell.binding.types.{WdlPrimitiveType, WdlType}
-import cromwell.binding.values.WdlValue
+import wdl4s._
+import wdl4s.types.{WdlPrimitiveType, WdlType}
+import wdl4s.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
@@ -19,6 +19,7 @@ import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import cromwell.engine.{SymbolHash, CallOutput, WorkflowOutputs}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime

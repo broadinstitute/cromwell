@@ -5,14 +5,14 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
 import better.files._
-import cromwell.binding._
+import wdl4s._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.CallKey
-import cromwell.parser.BackendType
+import cromwell.engine.backend.BackendType
 import cromwell.util.FileUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -92,7 +92,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = workflowLoggerWithCall(backendCall)
-    backendCall.instantiateCommand match {
+    instantiateCommand(backendCall) match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
@@ -148,7 +148,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     val logger = workflowLoggerWithCall(backendCall)
     val stdoutWriter = backendCall.stdout.untailed
     val stderrTailed = backendCall.stderr.tailed(100)
-    val dockerRun = backendCall.call.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
+    val dockerRun = backendCall.runtimeAttributes.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
     val argv = Seq("/bin/bash", "-c", s"cat ${backendCall.script} | $dockerRun /bin/bash <&0")
     val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
 
@@ -161,7 +161,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
     val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
     val returnCode = Try(
-      if (processReturnCode == 0 || backendCall.call.docker.isEmpty) {
+      if (processReturnCode == 0 || backendCall.runtimeAttributes.docker.isEmpty) {
         val rc = backendCall.returnCode.contentAsString.stripLineEnd.toInt
         logger.info(s"Return code: $rc")
         rc
@@ -171,7 +171,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
         throw new Exception(s"Unexpected process exit code: $processReturnCode")
       }
     )
-    if (backendCall.call.failOnStderr && stderrFileLength > 0) {
+    if (backendCall.runtimeAttributes.failOnStderr && stderrFileLength > 0) {
       FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
         s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
@@ -193,7 +193,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
             |${stderrTailed.tailString}
           """.stripMargin
 
-      val continueOnReturnCode = backendCall.call.continueOnReturnCode
+      val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
       returnCode match {
         case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)

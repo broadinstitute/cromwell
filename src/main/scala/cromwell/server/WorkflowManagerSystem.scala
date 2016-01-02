@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{CromwellBackend, Backend}
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.parser.BackendType
+import cromwell.engine.backend.BackendType
 
 trait WorkflowManagerSystem {
   protected def systemName = "cromwell-system"

@@ -3,9 +3,9 @@ package cromwell.util
 import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
-import cromwell.binding._
-import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values._
+import wdl4s._
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values._
 import cromwell.engine.WorkflowSourceFiles
 import spray.json._
 

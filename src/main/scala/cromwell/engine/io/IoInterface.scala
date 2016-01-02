@@ -15,6 +15,5 @@ trait IoInterface {
   def glob(path: String, pattern: String): Seq[String]
   def copy(from: String, to: String): Unit
   def hash(path: String): String
-
   def isValidPath(path: String): Boolean
 }

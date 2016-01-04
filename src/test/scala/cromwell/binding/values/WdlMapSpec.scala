@@ -1,11 +1,12 @@
 package cromwell.binding.values
 
 import cromwell.binding.types._
+import cromwell.engine.Hashing._
 import cromwell.engine.backend.local.SharedFileSystem
 import cromwell.util.HashUtil
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 
 class WdlMapSpec extends FlatSpec with Matchers with HashUtil {
 

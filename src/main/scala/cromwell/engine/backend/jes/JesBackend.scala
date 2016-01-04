@@ -24,13 +24,13 @@ import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType
-import cromwell.util.StringUtil._
 import cromwell.util.{AggregatedException, TryUtil}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
 object JesBackend {
   /*

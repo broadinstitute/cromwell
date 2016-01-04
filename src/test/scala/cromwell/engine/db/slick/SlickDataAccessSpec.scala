@@ -28,7 +28,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.PartialFunctionValues._
 import scala.concurrent.{ExecutionContext, Future}
-
+import Hashing._
 
 object SlickDataAccessSpec {
   val AllowFalse = Seq(webservice.QueryParameter("allow", "false"))

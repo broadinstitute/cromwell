@@ -3,7 +3,6 @@ package cromwell.binding.values
 import cromwell.binding.types._
 import cromwell.binding.{Call, FileHasher, SymbolHash, TsvSerializable}
 import cromwell.util.FileUtil
-import cromwell.util.StringUtil._
 
 import scala.collection.immutable.TreeMap
 import scala.util.{Failure, Success, Try}
@@ -81,13 +80,6 @@ case class WdlObject(value: Map[String, WdlValue]) extends WdlValue with WdlObje
     }
 
     s"$keysLine\n${values.mkString("\t")}"
-  }
-
-  override def getHash(implicit hasher: FileHasher) = {
-    val hashedMap = value mapValues { _.getHash }
-    // productIterator returns an Iterator over the elements of a Tuple2 Map entry.
-    val concatenatedMap = TreeMap(hashedMap.toArray: _*) flatMap { _.productIterator } mkString ""
-    SymbolHash((getClass.getCanonicalName + concatenatedMap).md5Sum)
   }
 }
 

@@ -35,7 +35,6 @@ sealed trait WdlFile extends WdlPrimitive {
   }
 
   override def valueString = value.toString
-  override def getHash(implicit hasher: FileHasher): SymbolHash = hasher(this)
 }
 
 case class WdlSingleFile(value: String) extends WdlFile {

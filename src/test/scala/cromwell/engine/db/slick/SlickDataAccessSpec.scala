@@ -13,7 +13,7 @@ import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, ScatterKey, WorkflowOptions}
-import cromwell.engine.{CallOutput, CallOutputs, _}
+import cromwell.engine.{CallOutputs, _}
 import cromwell.util.SampleWdl
 import cromwell.webservice
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
@@ -26,9 +26,9 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.SpanSugar._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlString}
+import wdl4s.{CallInputs, _}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -145,12 +145,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
           case _ => Future.successful(())
         }
       } yield ()).futureValue
-    }
-
-    it should "setup via liquibase if necessary" taggedAs IntegrationTest in {
-      assume(canConnect || testRequired)
-      if (testDatabase.useLiquibase)
-        testDatabase.setupLiquibase()
     }
 
     it should "create and retrieve the workflow for just reading" taggedAs IntegrationTest in {

@@ -47,7 +47,7 @@ object GoogleConfiguration {
       case Failure(f) => s"Could not find a value for cromwellAuthenticationScheme: $f".failureNel
     }
 
-    def clientSecrets = googleConf.getConfig("refreshAuthScheme") validateAny {
+    def clientSecrets = googleConf.getConfig("refreshTokenAuth") validateAny {
       config => SimpleClientSecrets(config.getString("client_id"), config.getString("client_secret"))
     }
     val userAuth = googleConf.validateString("userAuthenticationScheme") match {

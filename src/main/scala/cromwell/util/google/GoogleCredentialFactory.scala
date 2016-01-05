@@ -1,6 +1,6 @@
 package cromwell.util.google
 
-import java.io.{File, FileInputStream, InputStreamReader}
+import java.io.{File, FileInputStream, InputStreamReader, IOException}
 import java.nio.file.Paths
 
 import com.google.api.client.auth.oauth2.Credential
@@ -61,6 +61,7 @@ abstract class GoogleCredentialFactory {
   lazy val fromCromwellAuthScheme: Credential = GoogleConf.cromwellAuthMode match {
     case user: UserMode => validateCredentials(forUser(user))
     case service: ServiceAccountMode => validateCredentials(forServiceAccount(service))
+    case ApplicationDefaultMode => validateCredentials(forApplicationDefaultCredentials())
   }
 
   lazy val fromUserAuthScheme: (String) => Try[Credential] = (forClientSecrets _).andThen(_ map validateCredentials)
@@ -113,5 +114,15 @@ abstract class GoogleCredentialFactory {
           .setRefreshToken(token))
       case unrecognized => Failure(new IllegalArgumentException(s"Unrecognized userSchemeAuthentication: $unrecognized"))
     } getOrElse Failure(new Throwable("No user authentication configuration has been found."))
+  }
+
+  private def forApplicationDefaultCredentials(): Credential = {
+    try {
+      GoogleCredential.getApplicationDefault().createScoped(GoogleScopes.Scopes.asJava)
+    } catch {
+      case e: IOException =>
+       log.warn("Failed to get application default credentials", e)
+       throw e
+    }
   }
 }

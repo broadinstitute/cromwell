@@ -1,7 +1,5 @@
 package cromwell.engine.io
 
-import cromwell.binding.IoInterface
-
 /**
   * Given a list of IoInterfaces, tries to find a suitable one to process the given path.
   */

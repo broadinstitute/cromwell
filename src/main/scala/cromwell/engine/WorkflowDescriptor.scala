@@ -11,7 +11,7 @@ import cromwell.binding._
 import cromwell.binding.values.WdlFile
 import cromwell.engine.backend.{CromwellBackend, Backend}
 import cromwell.engine.backend.jes.JesBackend
-import cromwell.engine.io.IoManager
+import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
 import cromwell.engine.workflow.WorkflowOptions

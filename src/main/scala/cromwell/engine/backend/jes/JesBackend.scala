@@ -9,7 +9,7 @@ import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.binding.expression.NoFunctions
 import cromwell.binding.values._
-import cromwell.binding.{IoInterface, _}
+import cromwell.binding.{_}
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend._
@@ -19,6 +19,7 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
+import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, _}

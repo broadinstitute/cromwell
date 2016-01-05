@@ -14,6 +14,7 @@ import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
+import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, ScatterKey, WorkflowOptions}
 import cromwell.parser.BackendType
 import cromwell.util.SampleWdl

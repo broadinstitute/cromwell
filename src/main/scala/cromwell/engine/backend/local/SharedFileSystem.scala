@@ -10,6 +10,7 @@ import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType}
 import cromwell.binding.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.{CallLogs, LocalFileSystemBackendCall, _}
+import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId, _}

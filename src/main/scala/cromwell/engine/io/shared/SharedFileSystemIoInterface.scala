@@ -2,7 +2,7 @@ package cromwell.engine.io.shared
 
 import java.nio.file.{Files, Paths}
 
-import cromwell.binding.IoInterface
+import cromwell.engine.io.IoInterface
 
 import scala.language.postfixOps
 import scala.util.Try

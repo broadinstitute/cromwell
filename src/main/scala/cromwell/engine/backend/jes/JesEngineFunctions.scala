@@ -1,8 +1,8 @@
 package cromwell.engine.backend.jes
 
-import cromwell.binding.IoInterface
 import cromwell.binding.values.WdlValue
 import cromwell.engine._
+import cromwell.engine.io.IoInterface
 import cromwell.util.PathUtil._
 
 import scala.util.Try

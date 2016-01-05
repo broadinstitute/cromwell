@@ -1,4 +1,4 @@
-package cromwell.binding
+package cromwell.engine.io
 
 /**
   * Defines the set of IO methods needed by the WdlStandardLibrary to execute IO engine functions (read_*, write_*, glob, ...).

@@ -12,11 +12,11 @@ import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor, _}
-import cromwell.util.StringUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
 object JesBackendCall {
 

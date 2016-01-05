@@ -25,6 +25,7 @@ import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec {
   val backendInstance = Backend.from(CromwellSpec.Config, system)

@@ -1,13 +1,13 @@
 package cromwell.engine.backend
 
 import akka.event.LoggingAdapter
+import cromwell.engine._
+import Hashing._
 import cromwell.binding._
 import cromwell.binding.expression.WdlStandardLibraryFunctions
 import cromwell.binding.values.WdlValue
 import cromwell.engine.workflow.CallKey
-import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
 import cromwell.logging.WorkflowLogger
-import cromwell.util.StringUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try

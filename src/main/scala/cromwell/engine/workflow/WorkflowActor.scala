@@ -27,6 +27,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
 object WorkflowActor {
   sealed trait WorkflowActorMessage

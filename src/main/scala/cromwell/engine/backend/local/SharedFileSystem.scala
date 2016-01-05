@@ -21,6 +21,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
 object SharedFileSystem {
   type LocalizationStrategy = (String, Path, WorkflowDescriptor) => Try[Unit]

@@ -4,6 +4,7 @@ import java.io.{File, FileInputStream, Writer}
 import java.nio.file.Path
 
 import better.files._
+import cromwell.engine.Hashable
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.immutable.Queue

@@ -3,7 +3,7 @@ package cromwell.util.docker
 import javax.xml.bind.DatatypeConverter
 
 import cromwell.engine.ErrorOr
-import cromwell.util.StringUtil._
+import cromwell.engine.Hashing._
 import cromwell.util.TryUtil
 
 import scala.util.{Failure, Success, Try}

@@ -108,7 +108,7 @@ object WorkflowDescriptor {
                                          sourceFiles: WorkflowSourceFiles,
                                          backend: Backend,
                                          conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val namespace = validateNamespace(sourceFiles.wdlSource, backend)
+    val namespace = validateNamespace(id, sourceFiles.wdlSource, backend)
     val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
     val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
     (namespace |@| rawInputs |@| options) { (_, _, _) } match {
@@ -133,7 +133,7 @@ object WorkflowDescriptor {
     }
   }
 
-  private def validateNamespace(source: WdlSource, backend: Backend): ErrorOr[NamespaceWithWorkflow] = {
+  private def validateNamespace(id: WorkflowId, source: WdlSource, backend: Backend): ErrorOr[NamespaceWithWorkflow] = {
     try {
       NamespaceWithWorkflow.load(source, backend.backendType).successNel
     } catch {

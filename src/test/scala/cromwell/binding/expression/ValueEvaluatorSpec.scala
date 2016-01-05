@@ -3,6 +3,7 @@ package cromwell.binding.expression
 import cromwell.binding.WdlExpression
 import cromwell.binding.types._
 import cromwell.binding.values._
+import cromwell.engine.WdlStandardLibraryImpl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -35,7 +36,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
   def identifierTypeLookup(name: String): WdlType = identifierLookup(name).wdlType
 
-  class TestValueFunctions extends WdlStandardLibraryFunctions {
+  class TestValueFunctions extends WdlStandardLibraryImpl {
     override def interface = fail("No IoInterface")
 
     def b(params: Seq[Try[WdlValue]]): Try[WdlValue] =

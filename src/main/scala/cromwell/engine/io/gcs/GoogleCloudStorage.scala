@@ -11,7 +11,7 @@ import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
-import cromwell.binding.IoInterface
+import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCredentialFactory

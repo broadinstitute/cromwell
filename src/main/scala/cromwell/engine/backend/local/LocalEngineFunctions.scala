@@ -1,8 +1,8 @@
 package cromwell.engine.backend.local
 
 import java.nio.file.Paths
-import cromwell.binding.IoInterface
 import cromwell.binding.values.WdlValue
+import cromwell.engine.io.IoInterface
 import cromwell.engine.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions}
 
 import scala.language.postfixOps

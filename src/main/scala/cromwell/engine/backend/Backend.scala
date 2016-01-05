@@ -10,6 +10,7 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.logging.WorkflowLogger
 import cromwell.parser.BackendType

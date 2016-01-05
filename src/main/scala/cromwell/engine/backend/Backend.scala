@@ -2,7 +2,6 @@ package cromwell.engine.backend
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import cromwell.engine.{CallInputs, CallOutputs}
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import wdl4s._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
@@ -17,9 +16,11 @@ import cromwell.engine.{HostInputs, CallOutputs}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
+import wdl4s.values.WdlValue
+import scala.language.postfixOps
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Success, Try}
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
@@ -52,6 +53,18 @@ object Backend {
 }
 
 trait JobKey
+
+final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
+  def toPair = name -> value
+}
+
+object AttemptedLookupResult {
+  implicit class AugmentedAttemptedLookupSequence(s: Seq[AttemptedLookupResult]) {
+    def toLookupMap: Map[String, WdlValue] = s collect {
+      case AttemptedLookupResult(name, Success(value)) => (name, value)
+    } toMap
+  }
+}
 
 /**
  * Trait to be implemented by concrete backends.

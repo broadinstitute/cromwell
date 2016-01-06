@@ -17,10 +17,10 @@ object GcsFileSystem {
     if(root.isGcsUrl) new GcsFileSystem(GcsFileSystemProvider.getInstance(interface), root)
     else throw new IllegalArgumentException(s"$root is not am absolute GCS path")
   }
-  val SEPARATOR = "/"
-  private [io] val PROTOCOL = "gs://"
-  private val GS_URI_REGEX = s"""$PROTOCOL(.*)""".r
-  private val attributeViews = Collections.singleton("basic")
+  val Separator = "/"
+  private [io] val Protocol = "gs://"
+  private val GsUriRegex = s"""$Protocol(.*)""".r
+  private val AttributeViews = Collections.singleton("basic")
 }
 
 /**
@@ -32,9 +32,9 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
 
   val root = getPath(gcsRoot)
 
-  override def supportedFileAttributeViews(): JSet[String] = attributeViews
+  override def supportedFileAttributeViews(): JSet[String] = AttributeViews
 
-  override def getSeparator: String = SEPARATOR
+  override def getSeparator: String = Separator
 
   override def getRootDirectories: Iterable[Path] = Collections.singleton(root)
 
@@ -48,8 +48,8 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
 
   override def getPath(first: String, more: String*): Path = {
     first match {
-      case GS_URI_REGEX(chunks) => new NioGcsPath(chunks.split(SEPARATOR) ++ more.toArray[String], true)(this)
-      case _ => throw new InvalidPathException(first, s"Path does not start with $PROTOCOL")
+      case GsUriRegex(chunks) => new NioGcsPath(chunks.split(Separator) ++ more.toArray[String], true)(this)
+      case _ => throw new InvalidPathException(first, s"Path does not start with $Protocol")
     }
   }
 
@@ -57,7 +57,7 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
     * Allow instantiation of relative gcs path.
     */
   def getFlexiblePath(first: String, more: String*): Path = {
-    def relativePath: Path = new NioGcsPath(first.split(SEPARATOR) ++ more.toArray[String], false)(this)
+    def relativePath: Path = new NioGcsPath(first.split(Separator) ++ more.toArray[String], false)(this)
     Try(getPath(first, more: _*)) getOrElse relativePath
   }
 

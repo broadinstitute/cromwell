@@ -23,7 +23,7 @@ object NioGcsPath {
     }
   }
 
-  val protocol = GcsFileSystem.PROTOCOL
+  val protocol = GcsFileSystem.Protocol
 }
 
 /**
@@ -36,15 +36,14 @@ object NioGcsPath {
   * @param chunks array containing all parts of the path in between separators - except the protocol (gs://)
   *               eg: gs://path/to/resource.txt -> chunks = [path, to, resource.txt]
   * @param absolute true if this path is to be considered absolute.
-  *                 Only absolute GCS paths can be used to actually locate resources as its impossible to retrieve an absolute path from a relative path.
-  *                 However in order to be able to perform basic path manipulation on GCS paths (resolve, subpath, ...), relative paths are permitted.
+  *                 Only absolute GCS paths can be used to actually locate resources.
   *                 Calling methods on an absolute path can return a relative paths (eg subpath).
   * @param gcsFileSystem the gcsFileSystem to be used when performing operations on this path
   */
 class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit gcsFileSystem: GcsFileSystem) extends Path {
   import NioGcsPath._
 
-  private val separator = GcsFileSystem.SEPARATOR
+  private val separator = GcsFileSystem.Separator
 
   private val objectChunks = if(isAbsolute) chunks.tail else chunks
   private val fullPath = chunksToString(chunks)

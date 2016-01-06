@@ -2,10 +2,10 @@ package cromwell.engine.db
 
 import cromwell.binding._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine._
 import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
-import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 
 import scala.concurrent.Future

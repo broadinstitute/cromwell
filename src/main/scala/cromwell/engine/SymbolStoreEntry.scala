@@ -10,18 +10,18 @@ object SymbolStoreEntry {
     (fullyQualifiedName.substring(0, lastIndex), fullyQualifiedName.substring(lastIndex + 1))
   }
 
-  def apply(fullyQualifiedName: FullyQualifiedName, wdlValue: WdlValue, symbolHash: SymbolHash, input: Boolean): SymbolStoreEntry = {
+  def apply(fullyQualifiedName: FullyQualifiedName, wdlValue: WdlValue, symbolHash: Option[SymbolHash], input: Boolean): SymbolStoreEntry = {
     val (scope, name) = splitFqn(fullyQualifiedName)
     val key = SymbolStoreKey(scope, name, index = None, input)
-    SymbolStoreEntry(key, wdlValue.wdlType, Option(wdlValue), Option(symbolHash))
+    SymbolStoreEntry(key, wdlValue.wdlType, Option(wdlValue), symbolHash)
   }
 
   def toWorkflowOutputs(t: Traversable[SymbolStoreEntry]): WorkflowOutputs = t.map { e =>
-    s"${e.key.scope}.${e.key.name}" -> CallOutput(e.wdlValue.get, e.symbolHash.get)
+    s"${e.key.scope}.${e.key.name}" -> CallOutput(e.wdlValue.get, e.symbolHash)
   }.toMap
 
   def toCallOutputs(traversable: Traversable[SymbolStoreEntry]): CallOutputs = traversable.map { entry =>
-    entry.key.name -> CallOutput(entry.wdlValue.get, entry.symbolHash.get)
+    entry.key.name -> CallOutput(entry.wdlValue.get, entry.symbolHash)
   }.toMap
 }
 

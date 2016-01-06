@@ -5,11 +5,9 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
-import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState}
+import cromwell.engine.{SymbolStoreEntry, WorkflowDescriptor, WorkflowId, WorkflowState, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 
-import cromwell.engine._
-import cromwell.webservice.{WorkflowQueryParameters, WorkflowQueryResponse}
 import scala.concurrent.Future
 
 object DataAccess {

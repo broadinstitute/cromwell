@@ -220,7 +220,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   lazy implicit val hasher = workflow.fileHasher
 
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
-    val symbolStoreEntries = buildSymbolStoreEntries(workflow.namespace, inputs)
+    val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
     globalDataAccess.createWorkflow(
       workflow, symbolStoreEntries, workflow.namespace.workflow.children, backend)
@@ -247,7 +247,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
       val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-      taskOutput.name -> CallOutput(arrayOfValues, arrayOfValues.getHash)
+      val hash = if (workflow.configCallCaching) Option(arrayOfValues.getHash) else None
+      taskOutput.name -> CallOutput(arrayOfValues, hash)
     } toMap
   }
 
@@ -398,7 +399,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: CallOutputs): Unit = {
     val newEntriesMap = outputs map { case (lqn, value) =>
       val storeKey = SymbolStoreKey(executionKey.scope.fullyQualifiedName, lqn, executionKey.index, input = false)
-      new SymbolStoreEntry(storeKey, value.wdlValue.wdlType, Option(value.wdlValue), Option(value.hash))
+      new SymbolStoreEntry(storeKey, value.wdlValue.wdlType, Option(value.wdlValue), value.hash)
     } groupBy { entry => SymbolCacheKey(entry.scope, entry.isInput) }
 
     newEntriesMap foreach { case (key, entries) =>
@@ -898,13 +899,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     } yield (executionCache, symbolCache)
   }
 
-  private def buildSymbolStoreEntries(namespace: NamespaceWithWorkflow, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
-    val inputSymbols = inputs map { case (name, value) => SymbolStoreEntry(name, value, value.getHash, input = true) }
+  private def buildSymbolStoreEntries(descriptor: WorkflowDescriptor, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
+    val inputSymbols = inputs map {
+      case (name, value) =>
+        val hash = if (descriptor.configCallCaching) Option(value.getHash) else None
+        SymbolStoreEntry(name, value, hash, input = true)
+    }
 
     val callSymbols = for {
-      call <- namespace.workflow.calls
+      call <- descriptor.namespace.workflow.calls
       (k, v) <- call.inputMappings
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, v.getHash, input = true)
+      hash = if (descriptor.configCallCaching) Option(v.getHash) else None
+    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, hash, input = true)
 
     inputSymbols.toSet ++ callSymbols.toSet
   }

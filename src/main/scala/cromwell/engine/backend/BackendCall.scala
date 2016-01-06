@@ -175,7 +175,10 @@ trait BackendCall {
       else
         Future.successful(Option(dockerImage))
 
-    call.task.runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
+    if (workflowDescriptor.configCallCaching)
+      call.task.runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
+    else
+      Future.successful(ExecutionHash("", None))
   }
 
   /**

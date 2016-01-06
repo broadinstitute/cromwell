@@ -17,7 +17,7 @@ object GcsFileSystem {
     if(root.isGcsUrl) new GcsFileSystem(GcsFileSystemProvider.getInstance(interface), root)
     else throw new IllegalArgumentException(s"$root is not am absolute GCS path")
   }
-  private val SEPARATOR = "/"
+  val SEPARATOR = "/"
   private [io] val PROTOCOL = "gs://"
   private val GS_URI_REGEX = s"""$PROTOCOL(.*)""".r
   private val attributeViews = Collections.singleton("basic")

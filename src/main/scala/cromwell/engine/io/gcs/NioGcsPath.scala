@@ -44,7 +44,7 @@ object NioGcsPath {
 class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit gcsFileSystem: GcsFileSystem) extends Path {
   import NioGcsPath._
 
-  private val separator = gcsFileSystem.getSeparator
+  private val separator = GcsFileSystem.SEPARATOR
 
   private val objectChunks = if(isAbsolute) chunks.tail else chunks
   private val fullPath = chunksToString(chunks)
@@ -61,9 +61,9 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def toFile: File = throw new UnsupportedOperationException("A GCS path cannot be converted to a File.")
 
-  override def resolveSibling(other: Path): Path = new NioGcsPath(chunks.init ++ other.asGcsPath.chunks, isAbsolute)
+  override def resolveSibling(other: Path): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ other.asGcsPath.chunks, isAbsolute)
 
-  override def resolveSibling(other: String): Path = new NioGcsPath(chunks.init ++ NioGcsPath(other).asGcsPath.chunks, isAbsolute)
+  override def resolveSibling(other: String): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ gcsFileSystem.getFlexiblePath(other).asGcsPath.chunks, isAbsolute)
 
   override def getFileSystem: FileSystem = gcsFileSystem
 
@@ -114,7 +114,11 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def startsWith(other: String): Boolean = chunks.startsWith(gcsFileSystem.getFlexiblePath(other).asGcsPath.chunks)
 
-  override def toString: String = s"$protocol$fullPath"
+  override def toString: String = {
+    if(absolute)
+      s"$protocol$fullPath"
+    else fullPath
+  }
 
   override def isAbsolute: Boolean = absolute
 }

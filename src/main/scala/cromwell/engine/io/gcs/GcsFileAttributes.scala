@@ -5,21 +5,21 @@ import java.nio.file.attribute.{FileTime, BasicFileAttributes}
 
 class GcsFileAttributes(path: Path) extends BasicFileAttributes {
 
-  override def fileKey(): AnyRef = ???
+  override def fileKey(): AnyRef = throw new NotImplementedError()
 
-  override def isRegularFile: Boolean = ???
+  override def isRegularFile: Boolean = throw new NotImplementedError()
 
-  override def isOther: Boolean = ???
+  override def isOther: Boolean = throw new NotImplementedError()
 
-  override def lastModifiedTime(): FileTime = ???
+  override def lastModifiedTime(): FileTime = throw new NotImplementedError()
 
-  override def size(): Long = ???
+  override def size(): Long = throw new NotImplementedError()
 
   override def isDirectory: Boolean = false
 
   override def isSymbolicLink: Boolean = false
 
-  override def creationTime(): FileTime = ???
+  override def creationTime(): FileTime = throw new NotImplementedError()
 
-  override def lastAccessTime(): FileTime = ???
+  override def lastAccessTime(): FileTime = throw new NotImplementedError()
 }

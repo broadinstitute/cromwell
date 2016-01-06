@@ -2,6 +2,7 @@ package cromwell.util.docker
 
 import better.files._
 import com.typesafe.config.ConfigFactory
+import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertions, FlatSpec, Matchers}
@@ -44,7 +45,7 @@ class DockerHubLoginProviderSpec extends FlatSpec with Matchers {
     exception.getMessage should be("Illegal base64 character 5f")
   }
 
-  it should "find the docker hub token's username and password" in {
+  it should "find the docker hub token's username and password" taggedAs (DockerTest, IntegrationTest) in {
     DockerHubLoginProviderSpec.assumeDockerHubAuthExists()
 
     val user = new DockerHubLoginProvider(DockerHubLoginProviderSpec.DockerHubConfig).dockerLogin.get.username

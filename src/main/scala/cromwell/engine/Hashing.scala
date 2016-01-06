@@ -27,11 +27,14 @@ object Hashing {
       symbolHash(concatenatedMap)
     }
 
-    def getHash(implicit hasher: FileHasher): SymbolHash = {
+    def getHash(descriptor: WorkflowDescriptor): Option[SymbolHash] =
+      if (descriptor.configCallCaching) Option(computeHash(descriptor.fileHasher)) else None
+
+    def computeHash(implicit hasher: FileHasher): SymbolHash = {
       wdlValue match {
-        case w: WdlObject => symbolHash(w.value mapValues { _.getHash })
-        case w: WdlMap => symbolHash(w.value map { case (k, v) => k.getHash -> v.getHash })
-        case w: WdlArray => symbolHash(w.value map { _.getHash } mkString "")
+        case w: WdlObject => symbolHash(w.value mapValues { _.computeHash(hasher) })
+        case w: WdlMap => symbolHash(w.value map { case (k, v) => k.computeHash(hasher) -> v.computeHash(hasher) })
+        case w: WdlArray => symbolHash(w.value map { _.computeHash(hasher) } mkString "")
         case w: WdlFile => hasher(w)
         case w => symbolHash(w.valueString)
       }

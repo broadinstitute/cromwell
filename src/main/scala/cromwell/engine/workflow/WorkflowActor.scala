@@ -247,8 +247,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
       val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-      val hash = if (workflow.configCallCaching) Option(arrayOfValues.getHash) else None
-      taskOutput.name -> CallOutput(arrayOfValues, hash)
+      taskOutput.name -> CallOutput(arrayOfValues, arrayOfValues.getHash(workflow))
     } toMap
   }
 
@@ -901,16 +900,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   private def buildSymbolStoreEntries(descriptor: WorkflowDescriptor, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
     val inputSymbols = inputs map {
-      case (name, value) =>
-        val hash = if (descriptor.configCallCaching) Option(value.getHash) else None
-        SymbolStoreEntry(name, value, hash, input = true)
+      case (name, value) => SymbolStoreEntry(name, value, value.getHash(descriptor), input = true)
     }
 
     val callSymbols = for {
       call <- descriptor.namespace.workflow.calls
       (k, v) <- call.inputMappings
-      hash = if (descriptor.configCallCaching) Option(v.getHash) else None
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, hash, input = true)
+    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, v.getHash(descriptor), input = true)
 
     inputSymbols.toSet ++ callSymbols.toSet
   }

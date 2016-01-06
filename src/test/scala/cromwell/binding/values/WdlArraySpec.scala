@@ -47,8 +47,8 @@ class WdlArraySpec extends FlatSpec with Matchers with HashUtil {
       WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("cromwell.binding.values.WdlString"), WdlString("cromwell.binding.values.WdlString"))))
     )
 
-    forAll(sameHashTable) { (arr1, arr2) => arr1.getHash should be(arr2.getHash) }
-    forAll(differentHashTable) { (arr1, arr2) => arr1.getHash shouldNot be(arr2.getHash) }
+    forAll(sameHashTable) { (arr1, arr2) => arr1.computeHash should be(arr2.computeHash) }
+    forAll(differentHashTable) { (arr1, arr2) => arr1.computeHash shouldNot be(arr2.computeHash) }
   }
 
 }

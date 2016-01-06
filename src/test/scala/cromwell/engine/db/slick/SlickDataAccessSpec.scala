@@ -123,9 +123,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     }
 
     val testWdlString = WdlString("testStringvalue")
-    val testWdlStringHash = testWdlString.getHash
+    val testWdlStringHash = testWdlString.computeHash
     val testWdlStringShard = WdlString("testStringValueShard")
-    val testWdlStringShardHash = testWdlStringShard.getHash
+    val testWdlStringShardHash = testWdlStringShard.computeHash
 
     it should "(if hsqldb) have transaction isolation mvcc" in {
       assume(canConnect || testRequired)
@@ -608,7 +608,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowDescriptor = WorkflowDescriptor(workflowId, testSources)
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
-      val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray), Option(wdlArray.getHash))
+      val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray), Option(wdlArray.computeHash))
       val task = new Task("taskName", Nil, Nil, Nil, null, BackendType.LOCAL)
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
@@ -627,7 +627,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
           resultSymbol.wdlValue shouldNot be(empty)
           resultSymbol.wdlValue.get should be(wdlArray)
           resultSymbol.symbolHash shouldNot be(empty)
-          resultSymbol.symbolHash should be(Option(wdlArray.getHash))
+          resultSymbol.symbolHash should be(Option(wdlArray.computeHash))
         }
       } yield ()).futureValue
     }

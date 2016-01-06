@@ -46,10 +46,10 @@ class MockWorkflowManagerActor extends Actor  {
   implicit lazy val hasher: WdlValue => SymbolHash = { x => SymbolHash("NOT REALLY IMPORTANT IN THESE TESTs!!") }
 
   val int8 = WdlInteger(8)
-  val int8hash = int8.getHash
+  val int8hash = int8.computeHash
 
   val file = WdlFile("/tmp/ps.stdout.tmp")
-  val fileHash = file.getHash
+  val fileHash = file.computeHash
 
   def receive = {
     case SubmitWorkflow(sources) =>

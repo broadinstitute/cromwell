@@ -495,11 +495,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
       outputMap mapValues { v =>
-        val hash = if (backendCall.workflowDescriptor.configCallCaching)
-          Option(v.getHash(backendCall.workflowDescriptor.fileHasher))
-        else
-          None
-        CallOutput(v, hash)
+        CallOutput(v, v.getHash(backendCall.workflowDescriptor))
       }
     }
   }

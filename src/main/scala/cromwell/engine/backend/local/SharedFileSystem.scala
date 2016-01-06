@@ -136,8 +136,7 @@ trait SharedFileSystem {
 
     if (taskOutputFailures.isEmpty) {
       val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) =>
-        val hash = if (backendCall.workflowDescriptor.configCallCaching) Option(wdlValue.getHash) else None
-        name -> CallOutput(wdlValue, hash)
+        name -> CallOutput(wdlValue, wdlValue.getHash(backendCall.workflowDescriptor))
       }
       Success(unwrappedMap.toMap)
     } else {

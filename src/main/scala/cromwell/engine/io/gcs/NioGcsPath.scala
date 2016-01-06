@@ -45,11 +45,19 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   private val separator = GcsFileSystem.Separator
 
-  private val objectChunks = if(isAbsolute) chunks.tail else chunks
+  private val objectChunks = chunks match {
+    case values if isAbsolute && values.nonEmpty => values.tail
+    case _ => chunks
+  }
+
   private val fullPath = chunksToString(chunks)
 
   // Attributes
-  lazy val bucket = if(isAbsolute) chunks.head else throw new UnsupportedOperationException("This Gcs path is relative, its bucket is unknown")
+  lazy val bucket: String = chunks match {
+    case values if values.isEmpty && isAbsolute => throw new IllegalStateException("An absolute gcs path cannot be empty")
+    case _ => if(isAbsolute) chunks.head else gcsFileSystem.root.asGcsPath.bucket
+  }
+
   val objectName = chunksToString(objectChunks)
 
   private def chunksToString(chunksArray: Array[String]): String = chunksArray.mkString(separator)
@@ -68,7 +76,10 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def getName(index: Int): Path = new NioGcsPath(Array(chunks(index)), isAbsolute && index == 0)
 
-  override def getParent: Path = new NioGcsPath(chunks.init, isAbsolute)
+  override def getParent: Path = chunks match {
+    case values if values.isEmpty || values.length == 1 => null
+    case values => new NioGcsPath(values.init, isAbsolute)
+  }
 
   override def toAbsolutePath: Path = if (isAbsolute) this else gcsFileSystem.root.resolve(this)
 
@@ -76,7 +87,7 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def getNameCount: Int = chunks.length
 
-  override def toUri: URI = new URI(toString)
+  override def toUri: URI = throw new UnsupportedOperationException()
 
   override def compareTo(other: Path): Int = throw new NotImplementedError()
 
@@ -84,11 +95,14 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def register(watcher: WatchService, events: Kind[_]*): WatchKey = throw new UnsupportedOperationException()
 
-  override def getFileName: Path = new NioGcsPath(Array(chunks.last), false)
+  override def getFileName: Path = chunks match {
+    case values if values.isEmpty => null
+    case _ => new NioGcsPath(Array(chunks.last), isAbsolute && chunks.length == 1)
+  }
 
   override def getRoot: Path = new NioGcsPath(Array(bucket), true)
 
-  override def iterator(): util.Iterator[Path] = (chunks map { gcsFileSystem.getFlexiblePath(_) } iterator).asJava
+  override def iterator(): util.Iterator[Path] = (chunks map { elt => new NioGcsPath(Array(elt), false).asInstanceOf[Path] } iterator).asJava
 
   override def normalize(): Path = if (isAbsolute) this else throw new UnsupportedOperationException("Cannot normalize a relative GCS path.")
 

@@ -1,5 +1,9 @@
 package cromwell.engine.io.gcs
 
+import java.lang.IllegalStateException
+import java.net.URI
+import java.nio.file.{Path, Paths}
+
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -80,6 +84,162 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
     val relToRel = relPath1.resolve(relPath2)
     relToRel.isAbsolute shouldBe false
     relToRel.toString shouldBe "some/relative/path/another/relative/resource/path"
+  }
+
+  it should "implement getName" in {
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    val nameAbs1 = absPath1.getName(0)
+    nameAbs1.isAbsolute shouldBe true
+    nameAbs1.toString shouldBe "gs://absolute"
+
+    val nameAbs2 = absPath1.getName(1)
+    nameAbs2.isAbsolute shouldBe false
+    nameAbs2.toString shouldBe "path"
+
+    val nameRel1 = relPath1.getName(0)
+    nameRel1.isAbsolute shouldBe false
+    nameRel1.toString shouldBe "some"
+
+    val nameRel2 = relPath1.getName(1)
+    nameRel2.isAbsolute shouldBe false
+    nameRel2.toString shouldBe "relative"
+  }
+
+  it should "implement getParent" in {
+    val empty = new NioGcsPath(Array.empty[String], true)
+    val singleton = new NioGcsPath(Array("singleton"), true)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    val parentAbs1 = absPath1.getParent
+    parentAbs1.isAbsolute shouldBe true
+    parentAbs1.toString shouldBe "gs://absolute/path/to"
+
+    empty.getParent shouldBe null
+    singleton.getParent shouldBe null
+
+    val nameRel1 = relPath1.getParent
+    nameRel1.isAbsolute shouldBe false
+    nameRel1.toString shouldBe "some/relative"
+  }
+
+  it should "implement toAbsolutePath" in {
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    val abs = absPath1.toAbsolutePath
+    abs.isAbsolute shouldBe true
+    abs.toString shouldBe "gs://absolute/path/to/somewhere"
+
+    val rel = relPath1.toAbsolutePath
+    rel.isAbsolute shouldBe true
+    rel.toString shouldBe "gs://root/some/relative/path"
+  }
+
+  it should "implement getNameCount" in {
+    val empty = new NioGcsPath(Array.empty[String], true)
+    val singleton = new NioGcsPath(Array("singleton"), true)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    absPath1.getNameCount shouldBe 4
+    relPath1.getNameCount shouldBe 3
+    empty.getNameCount shouldBe 0
+    singleton.getNameCount shouldBe 1
+  }
+
+  it should "implement getFileName" in {
+    val empty = new NioGcsPath(Array.empty[String], true)
+    val singletonAbs = new NioGcsPath(Array("singleton"), true)
+    val singletonRel = new NioGcsPath(Array("singleton"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    val emptyFileName = empty.getFileName
+    emptyFileName shouldBe null
+
+    val singletonAbsFileName = singletonAbs.getFileName
+    singletonAbsFileName.isAbsolute shouldBe true
+    singletonAbsFileName.toString shouldBe "gs://singleton"
+
+    val singletonRelFileName = singletonRel.getFileName
+    singletonRelFileName.isAbsolute shouldBe false
+    singletonRelFileName.toString shouldBe "singleton"
+
+    val relFileName = relPath1.getFileName
+    relFileName.isAbsolute shouldBe false
+    relFileName.toString shouldBe "path"
+
+    val absFileName = absPath1.getFileName
+    absFileName.isAbsolute shouldBe false
+    absFileName.toString shouldBe "somewhere"
+  }
+
+  it should "implement getRoot" in {
+    val empty = new NioGcsPath(Array.empty[String], true)
+    val singletonAbs = new NioGcsPath(Array("singleton"), true)
+    val singletonRel = new NioGcsPath(Array("singleton"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    an[IllegalStateException] shouldBe thrownBy(empty.getRoot)
+
+    val singletonAbsFileName = singletonAbs.getRoot
+    singletonAbsFileName.isAbsolute shouldBe true
+    singletonAbsFileName.toString shouldBe "gs://singleton"
+
+    val singletonRelFileName = singletonRel.getRoot
+    singletonRelFileName.isAbsolute shouldBe true
+    singletonRelFileName.toString shouldBe "gs://root"
+
+    val relFileName = relPath1.getRoot
+    relFileName.isAbsolute shouldBe true
+    relFileName.toString shouldBe "gs://root"
+
+    val absFileName = absPath1.getRoot
+    absFileName.isAbsolute shouldBe true
+    absFileName.toString shouldBe "gs://absolute"
+  }
+
+  it should "implement getIterator" in {
+    val empty = new NioGcsPath(Array.empty[String], true)
+    val singletonAbs = new NioGcsPath(Array("singleton"), true)
+    val singletonRel = new NioGcsPath(Array("singleton"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+
+    empty.iterator().hasNext shouldBe false
+
+    val singletonAbsIterator = singletonAbs.iterator()
+    val nextAbsSingleton: Path = singletonAbsIterator.next()
+    nextAbsSingleton.isAbsolute shouldBe false
+    nextAbsSingleton.toString shouldBe "singleton"
+    singletonAbsIterator.hasNext shouldBe false
+
+    val singletonRelIterator = singletonRel.iterator()
+    val nextRelSingleton: Path = singletonRelIterator.next()
+    nextRelSingleton.isAbsolute shouldBe false
+    nextRelSingleton.toString shouldBe "singleton"
+    singletonRelIterator.hasNext shouldBe false
+
+    val relIterator = relPath1.iterator()
+    val nextRel: Path = relIterator.next()
+    nextRel.isAbsolute shouldBe false
+    nextRel.toString shouldBe "some"
+    relIterator.next().toString shouldBe "relative"
+    relIterator.next().toString shouldBe "path"
+    relIterator.hasNext shouldBe false
+
+    val absIterator = absPath1.iterator()
+    val absRel: Path = absIterator.next()
+    absRel.isAbsolute shouldBe false
+    absRel.toString shouldBe "absolute"
+    absIterator.next().toString shouldBe "path"
+    absIterator.next().toString shouldBe "to"
+    absIterator.next().toString shouldBe "somewhere"
+    absIterator.hasNext shouldBe false
   }
 
 }

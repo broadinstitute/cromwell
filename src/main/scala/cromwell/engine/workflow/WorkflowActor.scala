@@ -262,7 +262,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       for {
         _ <- backend.cleanUpForWorkflow(workflow)
         _ <- globalDataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
-        _ <- if(toState == WorkflowSucceeded) workflow.postProcessWorkflow else Future.successful({})
         _ = self ! Terminate
       } yield ()
     }

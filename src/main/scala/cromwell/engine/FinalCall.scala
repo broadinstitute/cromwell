@@ -1,6 +1,6 @@
-package cromwell.binding
+package cromwell.engine
 
-import cromwell.engine.WorkflowDescriptor
+import cromwell.binding._
 import cromwell.engine.workflow.{ExecutionStoreKey, FinalCallKey}
 
 import scala.concurrent.{ExecutionContext, Future}

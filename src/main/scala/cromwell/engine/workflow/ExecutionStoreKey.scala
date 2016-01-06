@@ -1,7 +1,7 @@
 package cromwell.engine.workflow
 
 import cromwell.binding._
-import cromwell.engine.ExecutionStatus
+import cromwell.engine.{FinalCall, ExecutionStatus}
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
 
 import scala.language.postfixOps

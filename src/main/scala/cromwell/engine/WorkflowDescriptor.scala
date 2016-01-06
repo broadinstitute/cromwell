@@ -7,12 +7,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s._
-import wdl4s.values.{WdlSingleFile, WdlFile}
-import cromwell.engine.backend.{BackendType, CromwellBackend, Backend}
 import cromwell.engine.backend.jes.JesBackend
-import cromwell.engine.backend.{Backend, CromwellBackend}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.io.gcs.{GcsFileSystem, GoogleCloudStorage}
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
@@ -23,6 +20,8 @@ import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json.{JsObject, _}
+import wdl4s._
+import wdl4s.values.{WdlFile, WdlSingleFile}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -51,9 +50,22 @@ case class WorkflowDescriptor(id: WorkflowId,
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   val props = sys.props
   val relativeWorkflowRootPath = s"$name/$id"
+  val wfOutputsRoot = workflowOptions.get("outputs_path").toOption
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
-  val gcsFilesystem = gcsInterface map GcsFileSystem.getInstance
-  val CopyOutputsOptionKey = "outputs_path"
+
+  // GCS FS with the workflow working directory as root
+  val gcsFilesystem = for {
+    interface <- gcsInterface.toOption
+    fs <- Try(GcsFileSystem.getInstance(interface, wfContext.root)).toOption
+  } yield fs
+
+  // GCS FS with the workflow outputs directory as root
+  val gcsOutputsFilesystem = for {
+    root <- wfOutputsRoot
+    interface <- gcsInterface.toOption
+    fs <- Try(GcsFileSystem.getInstance(interface, root)).toOption
+  } yield fs
+
 
   private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
   private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
@@ -75,44 +87,43 @@ case class WorkflowDescriptor(id: WorkflowId,
     case _ => NOPLogger.NOP_LOGGER
   }
 
-  /**
-    * Delete authentication file in GCS once workflow is in a terminal state.
-    *
-    * First queries for the existence of the auth file, then deletes it if it exists.
-    * If either of these operations fails, then a Future.failure is returned
-    */
   def postProcessWorkflow(implicit executionContext: ExecutionContext): Future[Any] = {
     // Try to copy outputs to final destination
-    workflowOptions.get(CopyOutputsOptionKey) map copyOutputFiles getOrElse Future.successful({})
+    wfOutputsRoot map copyOutputFiles getOrElse Future.successful({})
   }
 
   private def copyOutputFiles(destDirectory: String)(implicit executionContext: ExecutionContext): Future[Unit] = {
-    import cromwell.util.PathUtil._
+    import PathString._
     val logger = backend.workflowLogger(this)
-    implicit val gcsFs = gcsFilesystem
 
-    def copyFile(file: WdlFile) = {
-      val src = file.valueString.toPath
-      val wfPath = wfContext.root.toPath.toAbsolutePath // Absolute path of the workflow directory
+    def copyFile(file: WdlFile): Try[Unit] = {
+      val src = file.valueString.toPath(gcsFilesystem)
+      val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath // Absolute path of the workflow directory
       val relativeFilePath = src.subpath(wfPath.getNameCount, src.getNameCount) // Path of the src file relatively to the workflow directory
-      val dest = destDirectory.toPath.resolve(relativeWorkflowRootPath).resolve(relativeFilePath) // Path of destination file
+      val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeWorkflowRootPath).resolve(relativeFilePath) // Path of destination file
 
-      def copy = {
+      def copy(): Unit = {
         logger.info(s"Trying to copy output file $src to $dest")
         Files.createDirectories(dest.getParent)
         Files.copy(src, dest)
       }
 
-      TryUtil.defaultRetry(copy, logger, s"Failed to copy file $src to $dest", Seq(classOf[FileAlreadyExistsException])) recover {
-        case alreadyExists: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
+      TryUtil.defaultRetry(copy(), logger, s"Failed to copy file $src to $dest", Seq(classOf[FileAlreadyExistsException])) recover {
+        case _: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
       }
     }
 
-    def processOutputs(outputs: Traversable[SymbolStoreEntry]) = {
+    def processOutputs(outputs: Traversable[SymbolStoreEntry]): Unit = {
       // All outputs should have wdl values at this point, if they don't there's nothing we can do here
-      TryUtil.sequence(outputs map { o => Try(o.wdlValue.get) } toSeq) match {
-        case Success(wdlValues) => wdlValues flatMap { _ collectAsSeq { case f: WdlSingleFile => f } } foreach copyFile
-        case Failure(e) => throw new Throwable(s"Unable to resolve the following workflow outputs for workflow $id: ${e.getMessage}", e)
+      val copies = TryUtil.sequence(outputs map { o => Try(o.wdlValue.get) } toSeq) match {
+        case Success(wdlValues) => wdlValues flatMap { _ collectAsSeq { case f: WdlSingleFile => f } } map copyFile
+        case Failure(e) => throw new Throwable(s"Unable to resolve the following workflow outputs for workflow $id: ${e.getMessage}")
+      }
+
+      // Throw an exception if one or more of the copies failed.
+      TryUtil.sequence(copies) match {
+        case Success(_) => ()
+        case Failure(e) => throw new Throwable(s"Output copy failed for the following files:\n ${e.getMessage}")
       }
     }
 

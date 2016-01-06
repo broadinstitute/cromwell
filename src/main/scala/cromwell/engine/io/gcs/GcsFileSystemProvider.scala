@@ -42,7 +42,14 @@ object ExecutionContextExecutorServiceBridge {
   }
 }
 
-class GcsFileSystemProvider(googleCloudStorage: GoogleCloudStorage, executionContext: ExecutionContext) extends FileSystemProvider {
+/**
+  * Implements java.nio.FileSystemProvider for GoogleCloudStorage
+  * This implementation is not complete and mostly a proof of concept that it's possible to *copy* around files from/to local/gcs.
+  * Copying is the only functionality that has been successfully tested (same and cross filesystems).
+  * @param googleCloudStorage must be properly set up (credentials) according to the context. Might be absorbed by this class eventually.
+  * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
+  */
+class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, executionContext: ExecutionContext) extends FileSystemProvider {
 
   private val executionService = ExecutionContextExecutorServiceBridge(executionContext)
   private val errorExtractor = new ApiErrorExtractor()
@@ -57,11 +64,14 @@ class GcsFileSystemProvider(googleCloudStorage: GoogleCloudStorage, executionCon
 
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
 
-  override def getFileSystem(uri: URI): FileSystem = ???
+  override def getFileSystem(uri: URI): FileSystem = throw new UnsupportedOperationException()
 
+  /**
+    * Note: options and attributes are not honored.
+    */
   override def newByteChannel(path: Path, options: util.Set[_ <: OpenOption], attrs: FileAttribute[_]*): SeekableByteChannel = {
     path match {
-      case gcsPath: GcsPath =>
+      case gcsPath: NioGcsPath =>
         new GoogleCloudStorageReadChannel(googleCloudStorage.client,
           gcsPath.bucket,
           gcsPath.objectName,
@@ -72,9 +82,13 @@ class GcsFileSystemProvider(googleCloudStorage: GoogleCloudStorage, executionCon
     }
   }
 
+  /**
+    * Overrides the default implementation to provide a writable channel (which newByteChannel doesn't).
+    * NOTE: options are not honored.
+    */
   override def newOutputStream(path: Path, options: OpenOption*): OutputStream = {
     path match {
-      case gcsPath: GcsPath =>
+      case gcsPath: NioGcsPath =>
         val channel = new GoogleCloudStorageWriteChannel(
           executionService,
           googleCloudStorage.client,
@@ -95,8 +109,8 @@ class GcsFileSystemProvider(googleCloudStorage: GoogleCloudStorage, executionCon
 
   override def copy(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
-      case (s: GcsPath, d: GcsPath) => googleCloudStorage.copy(s, d)
-      case _ => throw new UnsupportedOperationException("Can only copy from GCS to GCS")
+      case (s: NioGcsPath, d: NioGcsPath) => googleCloudStorage.copy(s, d)
+      case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
     }
   }
 

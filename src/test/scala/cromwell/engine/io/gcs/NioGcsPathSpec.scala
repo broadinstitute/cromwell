@@ -1,11 +1,10 @@
 package cromwell.engine.io.gcs
 
-import java.lang.IllegalStateException
-import java.net.URI
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
+
+import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext

@@ -18,7 +18,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
-import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import cromwell.engine.workflow._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
@@ -186,6 +186,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
       case call: Call => CallKey(call, None)
       case scatter: Scatter => ScatterKey(scatter, None)
+      case finalCall: FinalCall => FinalCallKey(finalCall)
     }
 
     val action = for {

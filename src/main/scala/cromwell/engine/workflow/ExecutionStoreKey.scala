@@ -1,7 +1,7 @@
 package cromwell.engine.workflow
 
 import cromwell.binding._
-import cromwell.engine.ExecutionStatus
+import cromwell.engine.{FinalCall, ExecutionStatus}
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
 
 import scala.language.postfixOps
@@ -45,4 +45,8 @@ case class ScatterKey(scope: Scatter, index: Option[Int]) extends ExecutionStore
         throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
     }
   }
+}
+
+case class FinalCallKey(scope: FinalCall) extends OutputKey {
+  override def index: Option[Int] = None
 }

@@ -12,6 +12,7 @@ import scalaz._
 sealed trait GoogleCromwellAuthMode
 final case class ServiceAccountMode(accountId: String, pemPath: String) extends GoogleCromwellAuthMode
 final case class UserMode(user: String, secretsFile: String, datastoreDir: String) extends GoogleCromwellAuthMode
+case object ApplicationDefaultMode extends GoogleCromwellAuthMode
 
 // Google Authentication modes supported for User
 sealed trait GoogleUserAuthMode
@@ -43,6 +44,7 @@ object GoogleConfiguration {
     val cromwellAuth = googleConf.validateString("cromwellAuthenticationScheme") match {
       case Success("service_account") => serviceAccountAuth
       case Success("user_account") => userAccountAuth
+      case Success("application_default") => ApplicationDefaultMode.successNel
       case Success(unsupported) => s"Unsupported cromwellAuthenticationScheme: $unsupported".failureNel
       case Failure(f) => s"Could not find a value for cromwellAuthenticationScheme: $f".failureNel
     }

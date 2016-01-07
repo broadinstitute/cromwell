@@ -164,6 +164,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     for {
         _ <- assertWorkflowExistence(workflowId)
         descriptor <- globalDataAccess.getWorkflow(workflowId)
+        _ <- assertCallExistence(workflowId, callFqn)
         callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
@@ -299,6 +300,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def callCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]): Future[Int] = {
     for {
+      _ <- assertWorkflowExistence(id)
       cachingParameters <- CallCachingParameters.from(id, callName, parameters)
       updateCount <- globalDataAccess.updateCallCaching(cachingParameters)
     } yield updateCount

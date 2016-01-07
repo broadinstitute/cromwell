@@ -1,8 +1,8 @@
 package cromwell.engine.backend
 
 import akka.actor.ActorSystem
+import cromwell.engine.backend.Backend.BackendyString
 import org.slf4j.LoggerFactory
-import Backend.BackendyString
 
 /**
   * Provides a global singleton access to the instantiated backend. This isn't bulletproof and can lead to

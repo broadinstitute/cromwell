@@ -30,6 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
+import scalaz.Validation.FlatMap._
 
 case class WorkflowDescriptor(id: WorkflowId,
                               sourceFiles: WorkflowSourceFiles,
@@ -180,7 +181,10 @@ object WorkflowDescriptor {
     validateWorkflowDescriptor(id, sourceFiles, CromwellBackend.backend(), conf) match {
       case scalaz.Success(w) => w
       case scalaz.Failure(f) =>
-        throw new IllegalArgumentException(s"""Workflow $id failed to process inputs:\n${f.toList.mkString("\n")}""")
+        throw new IllegalArgumentException() with ThrowableWithErrors {
+          val message = s"Workflow input processing failed."
+          val errors = f
+        }
     }
   }
 
@@ -196,9 +200,8 @@ object WorkflowDescriptor {
       n <- namespace.disjunction
     } yield validateRuntimeAttributes(id, n, backend.backendType)
 
-    (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } match {
-      case scalaz.Success((n, r, o, a)) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
-      case scalaz.Failure(f) => f.toList.mkString("\n").failureNel
+    (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } flatMap {
+      case (n, r, o, a) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
     }
   }
 
@@ -263,6 +266,7 @@ object WorkflowDescriptor {
                                     namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
     namespace.coerceRawInputs(rawInputs) match {
       case Success(r) => r.successNel
+      case Failure(e: ThrowableWithErrors) => scalaz.Failure(e.errors)
       case Failure(e) => e.getMessage.failureNel
     }
   }

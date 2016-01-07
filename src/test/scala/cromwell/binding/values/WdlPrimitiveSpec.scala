@@ -37,7 +37,7 @@ class WdlPrimitiveSpec extends FlatSpec with Matchers with HashUtil {
       (WdlInteger(1), WdlFloat(1.0F))
     )
 
-    forAll(sameHashTable) { (p1, p2) => p1.getHash should be(p2.getHash) }
-    forAll(differentHashTable) { (p1, p2) => p1.getHash shouldNot be(p2.getHash) }
+    forAll(sameHashTable) { (p1, p2) => p1.computeHash should be(p2.computeHash) }
+    forAll(differentHashTable) { (p1, p2) => p1.computeHash shouldNot be(p2.computeHash) }
   }
 }

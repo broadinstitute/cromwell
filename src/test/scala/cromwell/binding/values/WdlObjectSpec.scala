@@ -118,8 +118,8 @@ class WdlObjectSpec extends FlatSpec with Matchers with TryValues with HashUtil 
       (refObject, WdlObject(Map("key0" -> anotherFile, "key1" -> string1)))
     )
 
-    forAll(sameHashTable) { (obj1, obj2) => obj1.getHash should be(obj2.getHash) }
-    forAll(differentHashTable) { (obj1, obj2) => obj1.getHash shouldNot be(obj2.getHash) }
+    forAll(sameHashTable) { (obj1, obj2) => obj1.computeHash should be(obj2.computeHash) }
+    forAll(differentHashTable) { (obj1, obj2) => obj1.computeHash shouldNot be(obj2.computeHash) }
   }
 
 }

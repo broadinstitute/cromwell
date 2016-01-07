@@ -76,8 +76,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
           val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
-          val worldSymbolHash = worldWdlString.getHash(descriptor.fileHasher)
-          val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
+          val worldSymbolHash = worldWdlString.getHash(descriptor)
+          val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST
           val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)

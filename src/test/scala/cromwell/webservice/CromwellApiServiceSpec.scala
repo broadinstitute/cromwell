@@ -46,10 +46,10 @@ class MockWorkflowManagerActor extends Actor  {
   implicit lazy val hasher: WdlValue => SymbolHash = { x => SymbolHash("NOT REALLY IMPORTANT IN THESE TESTs!!") }
 
   val int8 = WdlInteger(8)
-  val int8hash = int8.getHash
+  val int8hash = int8.computeHash
 
   val file = WdlFile("/tmp/ps.stdout.tmp")
-  val fileHash = file.getHash
+  val fileHash = file.computeHash
 
   def receive = {
     case SubmitWorkflow(sources) =>
@@ -85,9 +85,9 @@ class MockWorkflowManagerActor extends Actor  {
       val futureOutputs = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
           Future.successful(Map(
-            "three_step.cgrep.count" -> CallOutput(int8, int8hash),
-            "three_step.ps.procs" -> CallOutput(file, fileHash),
-            "three_step.wc.count" -> CallOutput(int8, int8hash)))
+            "three_step.cgrep.count" -> CallOutput(int8, Option(int8hash)),
+            "three_step.ps.procs" -> CallOutput(file, Option(fileHash)),
+            "three_step.wc.count" -> CallOutput(int8, Option(int8hash))))
         case w => Future.failed(new WorkflowNotFoundException(s"Workflow '$w' not found"))
       }
       futureOutputs pipeTo sender
@@ -97,9 +97,9 @@ class MockWorkflowManagerActor extends Actor  {
           id match {
             case MockWorkflowManagerActor.submittedWorkflowId =>
               callFqn match {
-                case "three_step.cgrep" => Map("count" -> CallOutput(int8, int8hash))
-                case "three_step.ps" => Map("procs" -> CallOutput(file, fileHash))
-                case "three_step.wc" => Map("count" -> CallOutput(int8, int8hash))
+                case "three_step.cgrep" => Map("count" -> CallOutput(int8, Option(int8hash)))
+                case "three_step.ps" => Map("procs" -> CallOutput(file, Option(fileHash)))
+                case "three_step.wc" => Map("count" -> CallOutput(int8, Option(int8hash)))
                 case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
               }
             case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")

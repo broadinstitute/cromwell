@@ -220,8 +220,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   // Converts the SymbolStoreEntry to Symbols. Does not create the action to do the insert.
   private def toInputSymbols(workflowExecution: WorkflowExecution,
-                        rootWorkflowScope: Workflow,
-                        symbolStoreEntries: Traversable[SymbolStoreEntry]): Seq[Symbol] = {
+                             rootWorkflowScope: Workflow,
+                             symbolStoreEntries: Traversable[SymbolStoreEntry]): Seq[Symbol] = {
     symbolStoreEntries.toSeq map { symbol =>
       val reportableResult = rootWorkflowScope.outputs exists { _.fullyQualifiedName == symbol.key.fqn }
       new Symbol(
@@ -547,7 +547,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
             reportableSymbol,
             wdlValue.wdlType.toWdlString,
             Option(wdlValueToDbValue(wdlValue).toClob),
-            Option(hash.value)
+            hash.value.map(_.value)
           )
       }
     } yield ()

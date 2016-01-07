@@ -155,7 +155,7 @@ trait BackendCall {
     val overallHash = Seq(
       backend.backendType.toString,
       call.task.commandTemplateString,
-      orderedInputs map { case (k, v) => s"$k=${v.getHash(workflowDescriptor.fileHasher).value}" } mkString "\n",
+      orderedInputs map { case (k, v) => s"$k=${v.computeHash(workflowDescriptor.fileHasher).value}" } mkString "\n",
       orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
       orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.expression.toWdlString}" } mkString "\n"
     ).mkString("\n---\n").md5Sum
@@ -175,7 +175,10 @@ trait BackendCall {
       else
         Future.successful(Option(dockerImage))
 
-    call.task.runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
+    if (workflowDescriptor.configCallCaching)
+      call.task.runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
+    else
+      Future.successful(ExecutionHash("", None))
   }
 
   /**

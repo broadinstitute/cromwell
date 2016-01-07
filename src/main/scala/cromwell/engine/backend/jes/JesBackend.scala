@@ -493,7 +493,11 @@ case class JesBackend(actorSystem: ActorSystem)
       taskOutput.name -> attemptedValue
     }).toMap
 
-    TryUtil.sequenceMap(outputMappings).map(_.mapValues(v => CallOutput(v, v.getHash(backendCall.workflowDescriptor.fileHasher))))
+    TryUtil.sequenceMap(outputMappings) map { outputMap =>
+      outputMap mapValues { v =>
+        CallOutput(v, v.getHash(backendCall.workflowDescriptor))
+      }
+    }
   }
 
   def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {

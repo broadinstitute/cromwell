@@ -9,6 +9,7 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.language.postfixOps
+import scala.util.Try
 
 object NioGcsPath {
   def apply(path: String)(implicit gcsFileSystem: GcsFileSystem)= {
@@ -18,7 +19,7 @@ object NioGcsPath {
   implicit class PathEnhanced(val path: Path) extends AnyVal {
     def asGcsPath(implicit gcsFileSystem: GcsFileSystem) = path match {
       case gcsPath: NioGcsPath => gcsPath
-      case otherPath: Path => gcsFileSystem.getFlexiblePath(otherPath.toString).asInstanceOf[NioGcsPath]
+      case otherPath: Path => gcsFileSystem.getPath(otherPath.toString).asInstanceOf[NioGcsPath]
       case _ => throw new IllegalArgumentException("Only GcsPaths are supported.")
     }
   }
@@ -70,7 +71,7 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def resolveSibling(other: Path): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ other.asGcsPath.chunks, isAbsolute)
 
-  override def resolveSibling(other: String): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ gcsFileSystem.getFlexiblePath(other).asGcsPath.chunks, isAbsolute)
+  override def resolveSibling(other: String): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ gcsFileSystem.getPath(other).asGcsPath.chunks, isAbsolute)
 
   override def getFileSystem: FileSystem = gcsFileSystem
 
@@ -106,9 +107,21 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def normalize(): Path = if (isAbsolute) this else throw new UnsupportedOperationException("Cannot normalize a relative GCS path.")
 
-  override def endsWith(other: Path): Boolean = chunks.endsWith(other.asGcsPath.chunks)
+  override def endsWith(other: Path): Boolean = {
+    other match {
+      case rel: NioGcsPath if !isAbsolute && rel.isAbsolute => false
+      case _: NioGcsPath => chunks.endsWith(other.asGcsPath.chunks)
+      case _ => false
+    }
+  }
 
-  override def endsWith(other: String): Boolean = chunks.endsWith(gcsFileSystem.getFlexiblePath(other).asGcsPath.chunks)
+  override def endsWith(other: String): Boolean = {
+    Try(gcsFileSystem.getPath(other)) map {
+      case rel: NioGcsPath if !isAbsolute && rel.isAbsolute => false
+      case path@(_: NioGcsPath) => chunks.endsWith(path.asGcsPath.chunks)
+      case _ => false
+    } getOrElse false
+  }
 
   override def resolve(other: Path): Path = {
     if (other.isAbsolute) other
@@ -116,16 +129,28 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
   }
 
   override def resolve(other: String): Path = {
-    val otherPath = gcsFileSystem.getFlexiblePath(other)
+    val otherPath = gcsFileSystem.getPath(other)
     if (otherPath.isAbsolute) otherPath
     else new NioGcsPath(chunks ++ otherPath.asGcsPath.chunks, isAbsolute)
   }
 
   override def toRealPath(options: LinkOption*): Path = this
 
-  override def startsWith(other: Path): Boolean = chunks.startsWith(other.asGcsPath.chunks)
+  override def startsWith(other: Path): Boolean = {
+    other match {
+      case rel: NioGcsPath if !isAbsolute && rel.isAbsolute => false
+      case _: NioGcsPath => chunks.startsWith(other.asGcsPath.chunks)
+      case _ => false
+    }
+  }
 
-  override def startsWith(other: String): Boolean = chunks.startsWith(gcsFileSystem.getFlexiblePath(other).asGcsPath.chunks)
+  override def startsWith(other: String): Boolean = {
+    Try(gcsFileSystem.getPath(other)) map {
+      case rel: NioGcsPath if !isAbsolute && rel.isAbsolute => false
+      case path@(_: NioGcsPath) => chunks.startsWith(path.asGcsPath.chunks)
+      case _ => false
+    } getOrElse false
+  }
 
   override def toString: String = {
     if(absolute)

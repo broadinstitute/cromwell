@@ -3,7 +3,8 @@ package cromwell.engine.io.gcs
 import java.lang.IllegalStateException
 import java.net.URI
 import java.nio.file.{Path, Paths}
-
+import org.scalatest.prop.TableDrivenPropertyChecks._
+import org.scalatest.prop.Tables.Table
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -13,7 +14,7 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   behavior of "NioGcsPath"
 
-  implicit val GCSFs = GcsFileSystem.getInstance(mock[GoogleCloudStorage], "gs://root")(mock[ExecutionContext])
+  implicit val GCSFs = GcsFileSystem.getInstance(mock[GoogleCloudStorage], "gs://absolute")(mock[ExecutionContext])
 
   it should "implement toString" in {
     val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
@@ -135,7 +136,7 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
     val rel = relPath1.toAbsolutePath
     rel.isAbsolute shouldBe true
-    rel.toString shouldBe "gs://root/some/relative/path"
+    rel.toString shouldBe "gs://absolute/some/relative/path"
   }
 
   it should "implement getNameCount" in {
@@ -192,11 +193,11 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
     val singletonRelFileName = singletonRel.getRoot
     singletonRelFileName.isAbsolute shouldBe true
-    singletonRelFileName.toString shouldBe "gs://root"
+    singletonRelFileName.toString shouldBe "gs://absolute"
 
     val relFileName = relPath1.getRoot
     relFileName.isAbsolute shouldBe true
-    relFileName.toString shouldBe "gs://root"
+    relFileName.toString shouldBe "gs://absolute"
 
     val absFileName = absPath1.getRoot
     absFileName.isAbsolute shouldBe true
@@ -240,6 +241,79 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
     absIterator.next().toString shouldBe "to"
     absIterator.next().toString shouldBe "somewhere"
     absIterator.hasNext shouldBe false
+  }
+
+  it should "implement startsWith" in {
+    val empty = new NioGcsPath(Array.empty[String], false)
+    val singletonAbs = new NioGcsPath(Array("absolute"), true)
+    val singletonRel = new NioGcsPath(Array("absolute"), false)
+
+    val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val startsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to"), true)
+    val doesntStartsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true)
+    val absPathStartingLikeRel = new NioGcsPath(Array("some", "relative", "path"), true)
+
+    val relPath = new NioGcsPath(Array("some", "relative", "path"), false)
+    val startsWithRelPath = new NioGcsPath(Array("some", "relative"), false)
+    val doesntStartsWithRelPath = new NioGcsPath(Array("some", "relative", "other", "path"), false)
+    val relPathStartingLikeAbs = new NioGcsPath(Array("absolute", "path", "to"), false)
+
+    val paths = Table(
+      ("path1", "path2", "result"),
+      (empty, empty, true),
+      (empty, absPath, false),
+      (singletonAbs, singletonAbs, true),
+      (absPath, startsWithAbsPath, true),
+      (absPath, doesntStartsWithAbsPath, false),
+      (absPath, relPathStartingLikeAbs, true),
+      (absPath, relPath, false),
+      (relPath, startsWithRelPath, true),
+      (relPath, doesntStartsWithRelPath, false),
+      (relPath, absPathStartingLikeRel, false),
+      (relPath, absPath, false)
+    )
+
+    forAll(paths) { (p1, p2, res) =>
+      val startsWith: Boolean = p1.startsWith(p2)
+      startsWith shouldBe res
+      val startsWith1: Boolean = p1.startsWith(p2.toString)
+      startsWith1 shouldBe res
+    }
+  }
+
+  it should "implement endsWith" in {
+    val empty = new NioGcsPath(Array.empty[String], false)
+    val singletonAbs = new NioGcsPath(Array("absolute"), true)
+    val singletonRel = new NioGcsPath(Array("absolute"), false)
+
+    val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
+    val doesntEndWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true)
+    val absPathEndingLikeRel = new NioGcsPath(Array("relative", "path"), true)
+
+    val relPath = new NioGcsPath(Array("some", "relative", "path"), false)
+    val endsWithRelPath = new NioGcsPath(Array("relative", "path"), false)
+    val doesntStartsWithRelPath = new NioGcsPath(Array("relative", "other", "path"), false)
+    val relPathEndingLikeAbs = new NioGcsPath(Array("path", "to", "somewhere"), false)
+
+    val paths = Table(
+      ("path1", "path2", "result"),
+      (empty, empty, true),
+      (empty, absPath, false),
+      (singletonAbs, singletonAbs, true),
+      (absPath, absPath, true),
+      (absPath, doesntEndWithAbsPath, false),
+      (absPath, relPathEndingLikeAbs, true),
+      (absPath, relPath, false),
+      (relPath, endsWithRelPath, true),
+      (relPath, doesntStartsWithRelPath, false),
+      (relPath, absPathEndingLikeRel, false),
+      (relPath, absPath, false)
+    )
+
+    forAll(paths) { (p1, p2, res) =>
+      p1.endsWith(p2) shouldBe res
+      p1.endsWith(p2.toString) shouldBe res
+    }
   }
 
 }

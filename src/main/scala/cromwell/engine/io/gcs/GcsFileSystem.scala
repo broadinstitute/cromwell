@@ -9,7 +9,6 @@ import java.util.{Collections, Set => JSet}
 import cromwell.engine.PathString
 
 import scala.concurrent.ExecutionContext
-import scala.util.Try
 
 object GcsFileSystem {
   import PathString._
@@ -25,12 +24,16 @@ object GcsFileSystem {
 
 /**
   * Implements the java.nio.FileSystem interface for GoogleCloudStorage.
+  *
   */
 class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRoot: String) extends FileSystem {
 
   import GcsFileSystem._
 
-  val root = getPath(gcsRoot)
+  val root = gcsRoot match {
+    case GsUriRegex(chunks) => new NioGcsPath(chunks.split(Separator), true)(this)
+    case _ => throw new InvalidPathException(gcsRoot, s"Root of GCS file system must be an absolute GCS path: $gcsRoot")
+  }
 
   override def supportedFileAttributeViews(): JSet[String] = AttributeViews
 
@@ -48,17 +51,13 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
 
   override def getPath(first: String, more: String*): Path = {
     first match {
-      case GsUriRegex(chunks) => new NioGcsPath(chunks.split(Separator) ++ more.toArray[String], true)(this)
-      case _ => throw new InvalidPathException(first, s"Path does not start with $Protocol")
+      case GsUriRegex(chunks) =>
+        val path = new NioGcsPath(chunks.split(Separator) ++ more.toArray[String], true)(this)
+        if (path.startsWith(root)) path
+        else throw new InvalidPathException(first, s"Path $path has a different root than this filesystem: $root")
+      case empty if empty.isEmpty => new NioGcsPath(Array.empty[String] ++ more.toArray[String], false)(this)
+      case _ => new NioGcsPath(first.split(Separator) ++ more.toArray[String], false)(this)
     }
-  }
-
-  /**
-    * Allow instantiation of relative gcs path.
-    */
-  def getFlexiblePath(first: String, more: String*): Path = {
-    def relativePath: Path = new NioGcsPath(first.split(Separator) ++ more.toArray[String], false)(this)
-    Try(getPath(first, more: _*)) getOrElse relativePath
   }
 
   override def isOpen: Boolean = true

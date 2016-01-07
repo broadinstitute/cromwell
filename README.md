@@ -34,10 +34,12 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Configuring Cromwell](#configuring-cromwell)
   * [Database](#database)
 * [Backends](#backends)
-  * [Local Filesystem Assumptions / Layout](#local-filesystem-assumptions--layout)
+  * [Backend Filesystems](#backend-filesystems)
+    * [Shared Local Filesystem](#shared-local-filesystem)
+    * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
   * [Local Backend](#local-backend)
-  * [Sun GridEngine](#sun-gridengine)
-  * [Google JES](#google-jes)
+  * [Sun GridEngine Backend](#sun-gridengine-backend)
+  * [Google JES Backend](#google-jes-backend)
     * [Data Localization](#data-localization)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
@@ -56,9 +58,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
-  * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
+  * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
+  * [GET /api/workflows/:version/:id/timing](#get-apiworkflowsversionidtiming)
   * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
   * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
   * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
@@ -171,18 +174,6 @@ $ java -jar cromwell.jar
 java -jar cromwell.jar <action> <parameters>
 
 Actions:
-
-validate <WDL file>
-
-  Performs full validation of the WDL file including syntax
-  and semantic checking
-
-inputs <WDL file>
-
-  Print a JSON skeleton file of the inputs needed for this
-  workflow.  Fill in the values in this JSON document and
-  pass it in to the 'run' subcommand.
-
 run <WDL file> [<JSON inputs file> [<JSON workflow options>
   [<OUTPUT workflow metadata>]]]
 
@@ -195,6 +186,11 @@ run <WDL file> [<JSON inputs file> [<JSON workflow options>
   Use a single dash ("-") to skip optional files. Ex:
     run noinputs.wdl - - metadata.json
 
+server
+
+  Starts a web server on port 8000.  See the web server
+  documentation for more details about the API endpoints.
+
 parse <WDL file>
 
   Compares a WDL file against the grammar and prints out an
@@ -203,17 +199,23 @@ parse <WDL file>
   via this sub-command and the 'validate' subcommand should
   be used for full validation
 
+validate <WDL file>
+
+  Performs full validation of the WDL file including syntax
+  and semantic checking
+
+inputs <WDL file>
+
+  Print a JSON skeleton file of the inputs needed for this
+  workflow.  Fill in the values in this JSON document and
+  pass it in to the 'run' subcommand.
+
 highlight <WDL file> <html|console>
 
   Reformats and colorizes/tags a WDL file. The second
   parameter is the output type.  "html" will output the WDL
   file with <span> tags around elements.  "console" mode
   will output colorized text to the terminal
-
-server
-
-  Starts a web server on port 8000.  See the web server
-  documentation for more details about the API endpoints.
 ```
 
 ## validate
@@ -289,7 +291,7 @@ $ java -jar cromwell.jar run my_workflow.wdl -
 
 The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
-Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes) for more details.
+Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes-backend) for more details.
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -886,25 +888,119 @@ A backend represents a way to run the user's command specified in the `task` sec
 
 * Local - Run jobs as subprocesses.  Supports launching in Docker containers.
 * Sun GridEngine - Use `qsub` and job monitoring to run scripts.
-* Google JES - Launch on Google Compute Cluster through JES.
+* Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
 
-Backends are specified via the configuration option `backend.backend` which can accept the values: sge, local, jes (e.g. `java -Dbackend.backend=sge`).
+Backends are specified via the configuration option `backend.backend` which can accept the values: `sge`, `local`, and `jes` (e.g. `java -Dbackend.backend=sge`).
 
-## Local Filesystem Assumptions / Layout
+## Backend Filesystems
 
-For backends `local` and `sge`, there are certain filesystem requirements that your environment needs to meet:
+Each backend will utilize one filesystem to store the directory structure of an executed workflow.  Currently, the backend and the type of filesystem that the backend uses are tightly coupled.  In future versions of Cromwell, they may be more loosely coupled.
 
-* The Cromwell process can write to the current working directory
+The backend/filesystem pairings are as follows:
+
+* [Local Backend](#local-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
+* [SGE Backend](#sun-gridengine-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
+* [JES Backend](#google-jes-backend) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
+
+### Shared Local Filesystem
+
+For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) backends, the following is required of the underlying filesystem:
+
 * (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
-* (`sge` backend) Jobs launched with `qsub` can use child directories as the working directory of the job, and write files to those directories.
+* (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
 
-The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line.
+The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line, or via [Cromwell's configuration file](#configuring-cromwell)
 
-When cromwell runs a workflow through either of these two backends, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
+When cromwell runs a workflow, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
 
-Any input files to a call need to be localized in the `<call_dir>`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
+An example of a workflow output directory would look like this:
+
+```
+cromwell-executions/
+└── three_step
+    └── df6363df-d812-4088-acfd-5b00ef3f5dcc
+        ├── call-cgrep
+        │   ├── cromwell_root
+        │   │   └── cromwell
+        │   │       └── cromwell-executions
+        │   │           └── three_step
+        │   │               └── df6363df-d812-4088-acfd-5b00ef3f5dcc
+        │   │                   └── call-ps
+        │   │                       └── stdout
+        │   ├── rc
+        │   ├── script
+        │   ├── stderr
+        │   └── stdout
+        ├── call-ps
+        │   ├── rc
+        │   ├── script
+        │   ├── stderr
+        │   └── stdout
+        └── call-wc
+            ├── cromwell_root
+            │   └── cromwell
+            │       └── cromwell-executions
+            │           └── three_step
+            │               └── df6363df-d812-4088-acfd-5b00ef3f5dcc
+            │                   └── call-ps
+            │                       └── stdout
+            ├── rc
+            ├── script
+            ├── stderr
+            └── stdout
+```
+
+WDL File
+
+```wdl
+task ps {
+  command {
+    ps
+  }
+  output {
+    File procs = stdout()
+  }
+}
+
+task cgrep {
+  String pattern
+  File in_file
+  command {
+    grep '${pattern}' ${in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+task wc {
+  File in_file
+  command {
+    cat ${in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+workflow three_step {
+  call ps
+  call cgrep {
+    input: in_file=ps.procs
+  }
+  call wc {
+    input: in_file=ps.procs
+  }
+}
+```
+
+This workflow output directory would be the result of running the above WDL file with Cromwell from the directory `/cromwell_root`.
+
+In the above directory structure, you'll notice that the `call-cgrep` and `call-wc` sub-directories both contain a directory structure to point to the `stdout` file from the invocation of `ps`.  In these cases, that `stdout` file is a localized version of the one within `call-ps/stdout`.  By default both of those `stdout` files would be hard-links but they could also be symbolic links or copies of the file, depending on how Cromwell is configured (see below).  The directory structure is nested so deeply to avoid collisions.  For example, if either of these call invocations referenced two files called `stdout`, they'd collide if they were put into the same directory so the full directory structure is maintained.
+
+Any input files to a call need to be localized into the `<call_dir>`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
 
 * `hard-link` - This will create a hard link (not symbolic) link to the file
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
@@ -916,13 +1012,19 @@ These options can be overridden with command line options to Java.  For instance
 java -Dbackend.shared-filesystem.localization.0=copy -Dbackend.shared-filesystem.localization.1=hard-link cromwell.jar ...
 ```
 
-## Cross-Filesystems Support
+Backends that use the shared filesystem can accept the following values for `File` variables:
 
-Cromwell differentiates between Backends (eg. Local, JES, SGE) and Filesystems (eg. Shared Filesystem, Google Cloud Storage).
-This allows some Backends to communicate with different Filesystems at runtime.
-For instance, it is possible to reference files located in GCS to be used as inputs for a workflow submitted to a Local instance of Cromwell.
-The files will be localized (ie downloaded) to the local cromwell Filesystem before the workflow / call executes.
-**NOTE**: Because the files will be downloaded locally, be aware that referencing large GCS files on a local cromwell instance can result in a significant delay in the workflow execution and consume bandwidth.
+* Local file system paths, either relative or absolute.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
+* [Google Cloud Storage](https://cloud.google.com/storage/) URIs (e.g. `gs://my-bucket/x/y/z.txt`).  Any GCS URI will be downloaded locally
+
+### Google Cloud Storage Filesystem
+
+The Google Cloud Storage (GCS) Filesystem is only used for when a workflow is run on Google JES.  It uses the same directory structure as the [Shared Local Filesystem](#shared-local-filesystem), however it is rooted at one of the following GCS locations:
+
+* If the `jes_gcs_root` [workflow option](#workflow-options) is set, this is used first.
+* Otherwise, `backend.jes.baseExecutionBucket` in the [configuration file](#configuring-cromwell), which can also be set via `java -Dbackend.jes.baseExecutionBucket="gs://my-bucket/"`, will be used instead.
+
+Google Cloud Storage URIs are the only acceptable values for `File` inputs for workflows using the JES backend.
 
 ## Local Backend
 
@@ -956,7 +1058,7 @@ Where `<docker_run>` will be non-empty if this particular task specified a Docke
 docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
 ```
 
-## Sun GridEngine
+## Sun GridEngine Backend
 
 The GridEngine backend uses `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
 
@@ -989,7 +1091,7 @@ The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
 
 Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
 
-## Google JES
+## Google JES Backend
 
 Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some [configuration](#configuring-cromwell) that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
 
@@ -1318,7 +1420,7 @@ Valid keys and their meanings:
 * **default_backend** - Backend to use to run this workflow.  Accepts values `jes`, `local`, or `sge`.
 * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
 * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
-* **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).
+* **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
 * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
 * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
 * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
@@ -1523,34 +1625,6 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 --f3fd038395644de596c460257626edd7--
 ```
 
-## GET /api/workflows/:version/:id/status
-
-cURL:
-
-```
-$ curl http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
-```
-
-HTTPie:
-
-```
-$ http http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 74
-Content-Type: application/json; charset=UTF-8
-Date: Tue, 02 Jun 2015 18:06:56 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
-    "status": "Succeeded"
-}
-```
-
 ## GET /api/workflows/:version/query
 
 This endpoint allows for querying workflows based on the following criteria:
@@ -1559,10 +1633,10 @@ This endpoint allows for querying workflows based on the following criteria:
 * `status`
 * `start` (start datetime)
 * `end` (end datetime)
-  
+
 Names and statuses can be given multiple times to include workflows with any of the specified names or statuses.
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
-be in [ISO8601 datetime](http://www.w3.org/TR/NOTE-datetime) format and `start` cannot be after `end`.
+be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format and `start` cannot be after `end`.
 
 cURL:
 
@@ -1611,6 +1685,34 @@ Server: spray-can/1.3.3
 }
 ```
 
+## GET /api/workflows/:version/:id/status
+
+cURL:
+
+```
+$ curl http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+```
+
+HTTPie:
+
+```
+$ http http://localhost:8000/api/workflows/v1/69d1d92f-3895-4a7b-880a-82535e9a096e/status
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 74
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
+    "status": "Succeeded"
+}
+```
+
 ## GET /api/workflows/:version/:id/outputs
 
 cURL:
@@ -1643,6 +1745,11 @@ Server: spray-can/1.3.3
 }
 ```
 
+## GET /api/workflows/:version/:id/timing
+
+This endpoint is meant to be used in a web browser.  It will show a Gantt Chart of a particular workflow.  The bars in the chart represent start and end times for individual task invocations.
+
+![Timing diagram](http://i.imgur.com/EOE2HoL.png)
 
 ## GET /api/workflows/:version/:id/outputs/:call
 

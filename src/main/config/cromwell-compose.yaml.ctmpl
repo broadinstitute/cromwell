@@ -10,10 +10,11 @@
 {{$env_callback_uri := .Data.env_callback_uri}}
 {{$env_log_level := .Data.env_log_level}}
 {{$env_server_name := .Data.env_server_name}}
-
 {{$commonkey := printf "secret/dsde/%s/common/proxy-ldap" $environment}}{{with vault $commonkey}}
 {{$proxy_ldap_group := .Data.proxy_ldap_group}}
 {{$proxy_ldap_url := .Data.proxy_ldap_url}}
+{{$proxy_ldap_bind_dn := .Data.proxy_ldap_bind_dn}}
+{{$proxy_ldap_bind_password := .Data.proxy_ldap_bind_password}}
 app:
   image: {{ $cromwell_image }}
   {{ $cromwell_dns }}
@@ -40,5 +41,7 @@ proxy:
     AUTH_REQUIRE2: Require ldap-group {{ $proxy_ldap_group }}
     AUTH_LDAP_URL2: 'AuthLDAPURL "{{ $proxy_ldap_url }}"'
     AUTH_LDAP_GROUP_ATTR2: 'AuthLDAPGroupAttribute member'
+    AUTH_LDAP_BIND_DN2: 'AuthLDAPBindDN "{{ $proxy_ldap_bind_dn }}"'
+    AUTH_LDAP_BIND_PASSWORD2: 'AuthLDAPBindPassword {{ $proxy_ldap_bind_password }}'
     REMOTE_USER_CLAIM: sub
 {{end}}{{end}}{{end}}

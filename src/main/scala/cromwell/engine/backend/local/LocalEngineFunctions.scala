@@ -3,7 +3,7 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 import wdl4s.values.WdlValue
 import cromwell.engine.io.IoInterface
-import cromwell.engine.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions}
+import cromwell.engine.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions, _}
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -11,7 +11,7 @@ import scala.util.Try
 class LocalWorkflowEngineFunctions(interface: IoInterface, context: WorkflowContext) extends WorkflowEngineFunctions(interface, context)
 
 class LocalCallEngineFunctions(interface: IoInterface, context: CallContext) extends LocalWorkflowEngineFunctions(interface ,context) with CallEngineFunctions {
-  import cromwell.util.PathUtil._
+  import PathString._
 
   override def fileContentsToString(path: String) = {
     if (!Paths.get(path).isAbsolute && !path.isUriWithProtocol)

@@ -221,16 +221,6 @@ Only a few workflow options are available currently and are all to be used with 
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
 ```
 
-Where `wf_options.json` would contain:
-
-```
-{
-  "jes_gcs_root": "gs://my-bucket/workflows",
-  "google_project": "my_google_project",
-  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
-}
-```
-
 The fourth, optional parameter to the 'run' subcommand is a path where the workflow metadata will be written.  By default, no workflow metadata will be written.
 
 ```
@@ -565,7 +555,7 @@ Google Cloud Storage URIs are the only acceptable values for `File` inputs for w
 
 ## Local Backend
 
-The local backend will simply launch a subprocess and wait for it to exit.
+The local backend will simply launch a subprocess for each task invocation and wait for it to exit.
 
 This backend creates three files in the `<call_dir>` (see previous section):
 
@@ -594,6 +584,16 @@ Where `<docker_run>` will be non-empty if this particular task specified a Docke
 ```
 docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
 ```
+
+> **NOTE**: If you are using the local backend with Docker and Docker Machine on Mac OS X, by default Cromwell can only
+> run from in any path under your home directory.
+>
+> The `-v` flag will only work if `<local_workflow_dir>` is within your home directory because VirtualBox with
+> Docker Machine only exposes the home directory by default.  Any local path used in `-v` that is not within the user's
+> home directory will silently be interpreted as references to paths on the VirtualBox VM.  This can manifest in
+> Cromwell as tasks failing for odd reasons (like missing RC file)
+>
+> See https://docs.docker.com/engine/userguide/dockervolumes/ for more information on volume mounting in Docker.
 
 ## Sun GridEngine Backend
 
@@ -945,7 +945,6 @@ Example workflow options file:
 
 ```json
 {
-  "default_backend": "jes",
   "jes_gcs_root": "gs://my-bucket/workflows",
   "google_project": "my_google_project",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
@@ -954,9 +953,9 @@ Example workflow options file:
 
 Valid keys and their meanings:
 
-* **default_backend** - Backend to use to run this workflow.  Accepts values `jes`, `local`, or `sge`.
 * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
 * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+* **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
 * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
 * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
 * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.

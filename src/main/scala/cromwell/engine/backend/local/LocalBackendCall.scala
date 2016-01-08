@@ -4,7 +4,7 @@ import better.files._
 import wdl4s.CallInputs
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.CallKey
-import cromwell.engine.{CallContext, AbortRegistrationFunction, WorkflowDescriptor}
+import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor}
 
 import scala.concurrent.{ExecutionContext, Future}
 

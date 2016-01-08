@@ -565,7 +565,7 @@ Google Cloud Storage URIs are the only acceptable values for `File` inputs for w
 
 ## Local Backend
 
-The local backend will simply launch a subprocess and wait for it to exit.
+The local backend will simply launch a subprocess for each task invocation and wait for it to exit.
 
 This backend creates three files in the `<call_dir>` (see previous section):
 
@@ -594,6 +594,16 @@ Where `<docker_run>` will be non-empty if this particular task specified a Docke
 ```
 docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
 ```
+
+> **NOTE**: If you are using the local backend with Docker and Docker Machine on Mac OS X, by default Cromwell can only
+> run from in any path under your home directory.
+>
+> The `-v` flag will only work if `<local_workflow_dir>` is within your home directory because VirtualBox with
+> Docker Machine only exposes the home directory by default.  Any local path used in `-v` that is not within the user's
+> home directory will silently be interpreted as references to paths on the VirtualBox VM.  This can manifest in
+> Cromwell as tasks failing for odd reasons (like missing RC file)
+>
+> See https://docs.docker.com/engine/userguide/dockervolumes/ for more information on volume mounting in Docker.
 
 ## Sun GridEngine Backend
 

@@ -563,18 +563,17 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     type ProjectionFunction = SlickDataAccess.this.dataAccess.Symbols => (Rep[String], Rep[Option[Clob]])
     val projectionFn: ProjectionFunction = (s: SlickDataAccess.this.dataAccess.Symbols) => (s.wdlType, s.wdlValue)
 
-    val futureCounts = callInputs map { case (inputName, wdlValue) =>
-      val action = for {
+    val inputUpdateActions = callInputs map { case (inputName, wdlValue) =>
+      for {
         workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
         symbols = dataAccess.symbolsFilterByWorkflowAndScopeAndNameAndIndex(workflowExecutionResult.workflowExecutionId.get, key.scope.fullyQualifiedName, inputName, key.index.fromIndex)
         count <- symbols.map(projectionFn).update(wdlValue.wdlType.toWdlString, Option(wdlValueToDbValue(wdlValue).toClob))
       } yield count
-
-      runTransaction(action)
     }
 
-    // Do an FP dance to get the Future[Int] from Future[Traversable[Int]]:
-    Future.sequence(futureCounts) map { _.sum }
+    // Do an FP dance to get the DBIOAction[Iterable[Int]] from Iterable[DBIOAction[Int]].
+    val allInputUpdatesAction = DBIO.sequence(inputUpdateActions)
+    runTransaction(allInputUpdatesAction) map { _.sum }
   }
 
   override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit] = {

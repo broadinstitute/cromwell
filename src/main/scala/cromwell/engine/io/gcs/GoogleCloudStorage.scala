@@ -199,13 +199,9 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
     insertObject.execute()
   }
 
-  def deleteObject(gcsPath: GcsPath): Unit = {
-    client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
-  }
+  def deleteObject(gcsPath: GcsPath): Unit = client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
 
-  def deleteObject(gcsPath: NioGcsPath): Unit = {
-    client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
-  }
+  def deleteObject(gcsPath: NioGcsPath): Unit = client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
 
   def downloadObject(gcsPath: GcsPath): Array[Byte] = {
     val outputStream: ByteArrayOutputStream = new ByteArrayOutputStream()

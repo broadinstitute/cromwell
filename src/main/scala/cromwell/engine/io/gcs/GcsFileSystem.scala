@@ -12,8 +12,8 @@ import scala.concurrent.ExecutionContext
 
 object GcsFileSystem {
   import PathString._
-  def getInstance(interface: GoogleCloudStorage, root: String)(implicit executionContext: ExecutionContext) = {
-    if(root.isGcsUrl) new GcsFileSystem(GcsFileSystemProvider.getInstance(interface), root)
+  def instance(interface: GoogleCloudStorage, root: String)(implicit executionContext: ExecutionContext) = {
+    if (root.isGcsUrl) new GcsFileSystem(GcsFileSystemProvider.instance(interface), root)
     else throw new IllegalArgumentException(s"$root is not am absolute GCS path")
   }
   val Separator = "/"
@@ -36,19 +36,16 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
   }
 
   override def supportedFileAttributeViews(): JSet[String] = AttributeViews
-
   override def getSeparator: String = Separator
-
   override def getRootDirectories: Iterable[Path] = Collections.singleton(root)
-
-  override def newWatchService(): WatchService = throw new UnsupportedOperationException("GCS FS does not support Watch Service")
-
+  override def newWatchService(): WatchService = throw new NotImplementedError()("GCS FS does not support Watch Service at this time")
   override def getFileStores: Iterable[FileStore] = Collections.emptyList()
-
   override def isReadOnly: Boolean = false
-
   override def provider(): FileSystemProvider = gcsFileSystemProvider
-
+  override def isOpen: Boolean = true
+  override def close(): Unit = throw new UnsupportedOperationException("GCS FS cannot be closed")
+  override def getPathMatcher(syntaxAndPattern: String): PathMatcher = FileSystems.getDefault.getPathMatcher(syntaxAndPattern)
+  override def getUserPrincipalLookupService: UserPrincipalLookupService = throw new UnsupportedOperationException()
   override def getPath(first: String, more: String*): Path = {
     first match {
       case GsUriRegex(chunks) =>
@@ -59,12 +56,4 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
       case _ => new NioGcsPath(first.split(Separator) ++ more.toArray[String], false)(this)
     }
   }
-
-  override def isOpen: Boolean = true
-
-  override def close(): Unit = throw new UnsupportedOperationException("GCS FS cannot be closed")
-
-  override def getPathMatcher(syntaxAndPattern: String): PathMatcher = FileSystems.getDefault.getPathMatcher(syntaxAndPattern)
-
-  override def getUserPrincipalLookupService: UserPrincipalLookupService = throw new NotImplementedError()
 }

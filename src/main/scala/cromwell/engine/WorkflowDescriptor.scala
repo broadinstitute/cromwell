@@ -25,6 +25,7 @@ import wdl4s.values.{WdlFile, WdlSingleFile}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
@@ -50,20 +51,20 @@ case class WorkflowDescriptor(id: WorkflowId,
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   val props = sys.props
   val relativeWorkflowRootPath = s"$name/$id"
-  val wfOutputsRoot = workflowOptions.get("outputs_path").toOption
+  val wfOutputsRoot = workflowOptions.get("outputs_path")
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
 
   // GCS FS with the workflow working directory as root
   val gcsFilesystem = for {
-    interface <- gcsInterface.toOption
-    fs <- Try(GcsFileSystem.getInstance(interface, wfContext.root)).toOption
+    interface <- gcsInterface
+    fs <- Try(GcsFileSystem.instance(interface, wfContext.root))
   } yield fs
 
   // GCS FS with the workflow outputs directory as root
   val gcsOutputsFilesystem = for {
     root <- wfOutputsRoot
-    interface <- gcsInterface.toOption
-    fs <- Try(GcsFileSystem.getInstance(interface, root)).toOption
+    interface <- gcsInterface
+    fs <- Try(GcsFileSystem.instance(interface, root))
   } yield fs
 
 
@@ -97,10 +98,10 @@ case class WorkflowDescriptor(id: WorkflowId,
     val logger = backend.workflowLogger(this)
 
     def copyFile(file: WdlFile): Try[Unit] = {
-      val src = file.valueString.toPath(gcsFilesystem)
-      val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath // Absolute path of the workflow directory
-      val relativeFilePath = src.subpath(wfPath.getNameCount, src.getNameCount) // Path of the src file relatively to the workflow directory
-      val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeWorkflowRootPath).resolve(relativeFilePath) // Path of destination file
+      val src = file.valueString.toPath(workflowLogger, gcsFilesystem)
+      val wfPath = wfContext.root.toPath(workflowLogger, gcsFilesystem).toAbsolutePath
+      val relativeFilePath = src.subpath(wfPath.getNameCount, src.getNameCount)
+      val dest = destDirectory.toPath(workflowLogger, gcsOutputsFilesystem).resolve(relativeWorkflowRootPath).resolve(relativeFilePath)
 
       def copy(): Unit = {
         logger.info(s"Trying to copy output file $src to $dest")
@@ -108,7 +109,16 @@ case class WorkflowDescriptor(id: WorkflowId,
         Files.copy(src, dest)
       }
 
-      TryUtil.defaultRetry(copy(), logger, s"Failed to copy file $src to $dest", Seq(classOf[FileAlreadyExistsException])) recover {
+      TryUtil.retryBlock(
+        fn = (retries: Option[Unit]) => copy(),
+        retryLimit = Option(5),
+        pollingInterval = 5 seconds,
+        pollingBackOffFactor = 1,
+        maxPollingInterval = 10 seconds,
+        logger = logger,
+        failMessage = Option(s"Failed to copy file $src to $dest"),
+        fatalExceptions = Seq(classOf[FileAlreadyExistsException])
+      ) recover {
         case _: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
       }
     }
@@ -128,7 +138,6 @@ case class WorkflowDescriptor(id: WorkflowId,
     }
 
     globalDataAccess.getWorkflowOutputs(id) map processOutputs
-
   }
 
   private def makeFileLogger(root: Path, name: String, level: Level): Logger = {

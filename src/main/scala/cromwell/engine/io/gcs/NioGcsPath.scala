@@ -12,9 +12,7 @@ import scala.language.postfixOps
 import scala.util.Try
 
 object NioGcsPath {
-  def apply(path: String)(implicit gcsFileSystem: GcsFileSystem)= {
-    gcsFileSystem.getPath(path)
-  }
+  def apply(path: String)(implicit gcsFileSystem: GcsFileSystem)= gcsFileSystem.getPath(path)
 
   implicit class PathEnhanced(val path: Path) extends AnyVal {
     def asGcsPath(implicit gcsFileSystem: GcsFileSystem) = path match {
@@ -24,7 +22,7 @@ object NioGcsPath {
     }
   }
 
-  val protocol = GcsFileSystem.Protocol
+  val Protocol = GcsFileSystem.Protocol
 }
 
 /**
@@ -53,7 +51,6 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   private val fullPath = chunksToString(chunks)
 
-  // Attributes
   lazy val bucket: String = chunks match {
     case values if values.isEmpty && isAbsolute => throw new IllegalStateException("An absolute gcs path cannot be empty")
     case _ => if(isAbsolute) chunks.head else gcsFileSystem.root.asGcsPath.bucket
@@ -153,8 +150,7 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
   }
 
   override def toString: String = {
-    if(absolute)
-      s"$protocol$fullPath"
+    if (absolute) s"$Protocol$fullPath"
     else fullPath
   }
 

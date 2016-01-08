@@ -19,11 +19,12 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 
 object GcsFileSystemProvider {
-  def getInstance(gcsInterface: GoogleCloudStorage)(implicit executionContext: ExecutionContext) = new GcsFileSystemProvider(gcsInterface, executionContext)
+  def instance(gcsInterface: GoogleCloudStorage)(implicit executionContext: ExecutionContext) = new GcsFileSystemProvider(gcsInterface, executionContext)
 }
 
 /**
   * Converts a Scala ExecutionContext to a Java ExecutorService.
+  * https://groups.google.com/forum/#!topic/scala-user/ZyHrfzD7eX8
   */
 object ExecutionContextExecutorServiceBridge {
   def apply(ec: ExecutionContext): ExecutionContextExecutorService = ec match {
@@ -55,7 +56,7 @@ class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, exe
   private val errorExtractor = new ApiErrorExtractor()
 
   private def checkExists(path: Path) = {
-    if(!googleCloudStorage.exists(path.toString)) throw new FileNotFoundException(path.toString)
+    if (!googleCloudStorage.exists(path.toString)) throw new FileNotFoundException(path.toString)
   }
 
   override def move(source: Path, target: Path, options: CopyOption*): Unit = throw new NotImplementedError()
@@ -87,20 +88,24 @@ class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, exe
     * NOTE: options are not honored.
     */
   override def newOutputStream(path: Path, options: OpenOption*): OutputStream = {
+
+    def initializeOutputStream(gcsPath: NioGcsPath) = {
+      val channel = new GoogleCloudStorageWriteChannel(
+        executionService,
+        googleCloudStorage.client,
+        new ClientRequestHelper[StorageObject](),
+        gcsPath.bucket,
+        gcsPath.objectName,
+        AsyncWriteChannelOptions.newBuilder().build(),
+        new ObjectWriteConditions(),
+        Map.empty[String, String].asJava,
+        "text/plain")
+      channel.initialize()
+      Channels.newOutputStream(channel)
+    }
+
     path match {
-      case gcsPath: NioGcsPath =>
-        val channel = new GoogleCloudStorageWriteChannel(
-          executionService,
-          googleCloudStorage.client,
-          new ClientRequestHelper[StorageObject](),
-          gcsPath.bucket,
-          gcsPath.objectName,
-          AsyncWriteChannelOptions.newBuilder().build(),
-          new ObjectWriteConditions(),
-          Map.empty[String, String].asJava,
-          "text/plain")
-        channel.initialize()
-        Channels.newOutputStream(channel)
+      case gcsPath: NioGcsPath => initializeOutputStream(gcsPath)
       case _ => throw new UnsupportedOperationException("Only Gcs paths are supported.")
     }
   }

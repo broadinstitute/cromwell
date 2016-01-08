@@ -13,7 +13,7 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   behavior of "NioGcsPath"
 
-  implicit val GCSFs = GcsFileSystem.getInstance(mock[GoogleCloudStorage], "gs://absolute")(mock[ExecutionContext])
+  implicit val GCSFs = GcsFileSystem.instance(mock[GoogleCloudStorage], "gs://absolute")(mock[ExecutionContext])
 
   it should "implement toString" in {
     val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)

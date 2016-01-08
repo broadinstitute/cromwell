@@ -90,20 +90,6 @@ object TryUtil {
     }
   }
 
-  def defaultRetry[T](f: => T, logger: WorkflowLogger, failureMessage: String, fatalExceptions: Seq[Class[_ <: Throwable]] = Seq.empty) = {
-    def action(retries: Option[T]): T = f
-    TryUtil.retryBlock(
-      fn = action,
-      retryLimit = Option(5),
-      pollingInterval = 5 seconds,
-      pollingBackOffFactor = 1,
-      maxPollingInterval = 10 seconds,
-      logger = logger,
-      failMessage = Option(failureMessage),
-      fatalExceptions = fatalExceptions
-    )
-  }
-
   private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
     tries collect { case f: Failure[_] => f } match {
       case failures if failures.nonEmpty => Failure(new AggregatedException(failures map { _.exception } toSeq, prefixErrorMessage))

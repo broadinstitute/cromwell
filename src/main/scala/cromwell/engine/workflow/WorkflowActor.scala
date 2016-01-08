@@ -446,12 +446,17 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       val callKey = message.callKey
       fetchLocallyQualifiedInputs(callKey) match {
         case Success(callInputs) =>
-          val updateDbCallInputs = globalDataAccess.updateCallInputs(workflow.id, callKey, callInputs)
-          updateDbCallInputs onComplete {
-            case Success(i) =>
-              logger.debug(s"$i call input expression(s) updated in database.")
-              startActor(callKey, callInputs, message.startMode)
-            case Failure(e) => self ! AsyncFailure(new SQLException(s"Failed to update symbol inputs for ${callKey.scope.fullyQualifiedName}.${callKey.tag}.${callKey.index}", e))
+          // TODO: The block of code is only run on non-shards because of issues with DSDEEPB-2490
+          if (!callKey.index.isShard) {
+            val updateDbCallInputs = globalDataAccess.updateCallInputs(workflow.id, callKey, callInputs)
+            updateDbCallInputs onComplete {
+              case Success(i) =>
+                logger.debug(s"$i call input expression(s) updated in database.")
+                startActor(callKey, callInputs, message.startMode)
+              case Failure(e) => self ! AsyncFailure(new SQLException(s"Failed to update symbol inputs for ${callKey.scope.fullyQualifiedName}.${callKey.tag}.${callKey.index}", e))
+            }
+          } else {
+            startActor(callKey, callInputs, message.startMode)
           }
         case Failure(t) =>
           logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)

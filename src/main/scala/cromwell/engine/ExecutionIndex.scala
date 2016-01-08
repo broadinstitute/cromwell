@@ -19,6 +19,7 @@ object ExecutionIndex {
       case None => IndexNone
       case Some(i) => i
     }
+    def isShard: Boolean = index.nonEmpty
   }
 
   implicit val ExecutionIndexOrdering = new Ordering[ExecutionIndex] {

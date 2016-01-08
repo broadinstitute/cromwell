@@ -38,7 +38,7 @@ class GcsFileSystem private (gcsFileSystemProvider: GcsFileSystemProvider, gcsRo
   override def supportedFileAttributeViews(): JSet[String] = AttributeViews
   override def getSeparator: String = Separator
   override def getRootDirectories: Iterable[Path] = Collections.singleton(root)
-  override def newWatchService(): WatchService = throw new NotImplementedError()("GCS FS does not support Watch Service at this time")
+  override def newWatchService(): WatchService = throw new NotImplementedError("GCS FS does not support Watch Service at this time")
   override def getFileStores: Iterable[FileStore] = Collections.emptyList()
   override def isReadOnly: Boolean = false
   override def provider(): FileSystemProvider = gcsFileSystemProvider

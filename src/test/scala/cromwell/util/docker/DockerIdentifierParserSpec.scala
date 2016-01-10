@@ -1,5 +1,6 @@
 package cromwell.util.docker
 
+import cromwell.CromwellSpec.IntegrationTest
 import cromwell.util.DockerConfiguration
 import cromwell.util.google.{GoogleCredentialFactory, GoogleCredentialFactorySpec}
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -35,7 +36,7 @@ class DockerIdentifierParserSpec extends FlatSpec with Matchers {
     }
   }
 
-  it should "parse gcr.io tagged identifiers" in {
+  it should "parse gcr.io tagged identifiers" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeAccountConfigExists()
 
     val googleCredentials = new GoogleCredentialFactory {

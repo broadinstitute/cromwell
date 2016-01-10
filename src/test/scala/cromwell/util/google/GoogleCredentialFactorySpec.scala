@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.typesafe.config.ConfigFactory
+import cromwell.CromwellSpec.IntegrationTest
 import cromwell.engine.io.gcs.GoogleConfiguration
 import cromwell.util.google.GoogleCredentialFactory.EnhancedCredentials
 import org.scalatest.{Assertions, FlatSpec, Matchers}
@@ -12,7 +13,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
 
   behavior of "GoogleCredentialFactory"
 
-  it should "refresh a token using user credentials" in {
+  it should "refresh a token using user credentials" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeUserConfigExists()
 
     val credentialFactory = {
@@ -37,7 +38,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
     secondCredential.getExpiresInSeconds.longValue should be > 60L
   }
 
-  it should "refresh a token using a service account" in {
+  it should "refresh a token using a service account" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeAccountConfigExists()
 
     val credentialFactory = {
@@ -62,7 +63,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
     secondCredential.getExpiresInSeconds.longValue should be > 60L
   }
 
-  it should "refresh a token using a refresh token" in {
+  it should "refresh a token using a refresh token" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeRefreshConfigExists()
 
     val refreshToken = {

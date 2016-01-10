@@ -141,6 +141,10 @@ assemblyMergeStrategy in assembly := customMergeStrategy
 // https://github.com/scala/pickling/issues/10
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
 
+lazy val AllTests = config("alltests") extend Test
+
+lazy val NoTests = config("notests") extend Test
+
 lazy val DockerTest = config("docker") extend Test
 
 lazy val NoDockerTest = config("nodocker") extend Test
@@ -152,22 +156,64 @@ lazy val CromwellNoIntegrationTest = config("nointegration") extend Test
 // NOTE: The following block may cause problems with IntelliJ IDEA
 // by creating multiple test configurations.
 // May need to comment out when importing the project.
-lazy val root = (project in file("."))
-  .configs(DockerTest).configs(NoDockerTest)
-  .configs(CromwellIntegrationTest).configs(CromwellNoIntegrationTest)
-  .settings(inConfig(DockerTest)(Defaults.testTasks): _*)
-  .settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
-  .settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
-  .settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
+lazy val root = sbt.project.in(file("."))
+  .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
+  .configs(NoTests).settings(inConfig(NoTests)(Defaults.testTasks): _*)
+  .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)
+  .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
+  .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
+  .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
 
-testOptions in DockerTest += Tests.Argument("-n", "DockerTest")
+/*
+  The arguments that will be added to the default test config, but removed from all other configs.
+  `sbt coverage test` adds other arguments added to generate the coverage reports.
+  Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
+ */
+lazy val defaultTestArgs = Seq(Tests.Argument("-l", "DockerTest"), Tests.Argument("-l", "CromwellIntegrationTest"))
 
-testOptions in NoDockerTest += Tests.Argument("-l", "DockerTest")
+// `test` (or `assembly`) - Run all tests, except docker and integration
+testOptions in Test ++= defaultTestArgs
 
-testOptions in CromwellIntegrationTest += Tests.Argument("-n", "CromwellIntegrationTest")
+// `alltests:test` - Run all tests
+testOptions in AllTests := (testOptions in Test).value.diff(defaultTestArgs)
 
-testOptions in CromwellNoIntegrationTest += Tests.Argument("-l", "CromwellIntegrationTest")
+// `docker:test` - Run docker tests, except integration
+testOptions in DockerTest := (testOptions in Test).value.diff(defaultTestArgs) ++
+  Seq(Tests.Argument("-n", "DockerTest"), Tests.Argument("-l", "CromwellIntegrationTest"))
 
-test in assembly := {}
+// `nodocker:test` - Run all tests, except docker
+testOptions in NoDockerTest := (testOptions in Test).value.diff(defaultTestArgs) ++
+  Seq(Tests.Argument("-l", "DockerTest"))
+
+// `integration:test` - Run integration tests, except docker
+testOptions in CromwellIntegrationTest := (testOptions in Test).value.diff(defaultTestArgs) ++
+  Seq(Tests.Argument("-l", "DockerTest"), Tests.Argument("-n", "CromwellIntegrationTest"))
+
+// `nointegration:test` - Run all tests, except integration
+testOptions in CromwellNoIntegrationTest := (testOptions in Test).value.diff(defaultTestArgs) ++
+  Seq(Tests.Argument("-l", "CromwellIntegrationTest"))
+
+// `notests:assembly` - Disable all tests during assembly
+/*
+  TODO: This syntax of test in (NoTests, assembly) isn't correct
+
+  Trying to get:
+
+    sbt notests:assembly
+
+  To be the same as:
+
+    sbt 'set test in assembly := {}' assembly
+
+  For now, one must use the more verbose command line until someone can crack sbt's custom configs/tasks/scopes for the
+  assembly plugin:
+
+    http://www.scala-sbt.org/0.13/tutorial/Scopes.html
+ */
+//test in (NoTests, assembly) := {}
+
+// Also tried
+//test in (NoTests, assemblyPackageDependency) := {}
+//test in (NoTests, assemblyPackageScala) := {}
 
 parallelExecution := false

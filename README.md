@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/broadinstitute/wdl4s.svg?branch=develop)](https://travis-ci.org/broadinstitute/wdl4s?branch=develop)
-[![Coverage Status](https://coveralls.io/repos/broadinstitute/wdl4s/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/wdl4s?branch=develop)
+[![Build Status](https://travis-ci.org/broadinstitute/wdl4s.svg?branch=master)](https://travis-ci.org/broadinstitute/wdl4s?branch=master)
+[![Coverage Status](https://coveralls.io/repos/broadinstitute/wdl4s/badge.svg?branch=master)](https://coveralls.io/r/broadinstitute/wdl4s?branch=master)
 
 # Scala binding API for WDL
 

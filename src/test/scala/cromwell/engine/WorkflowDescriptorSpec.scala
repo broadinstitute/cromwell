@@ -89,7 +89,7 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
 
     val descriptor = WorkflowDescriptor(WorkflowId.randomId(), sources, ConfigFactory.load)
 
-    descriptor.postProcessWorkflow onComplete {
+    descriptor.copyWorkflowOutputs onComplete {
       case Success(_) =>
         forAll(outputs) { (call, file) =>
           val path = tmpDir.resolve(Paths.get(descriptor.name, descriptor.id.toString, call, file))

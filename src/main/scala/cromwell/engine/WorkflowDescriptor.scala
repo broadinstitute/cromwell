@@ -15,6 +15,7 @@ import cromwell.engine.io.gcs.{GcsFileSystem, GoogleCloudStorage}
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.workflow.WorkflowOptions
+import cromwell.logging.WorkflowLogger
 import cromwell.util.TryUtil
 import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
@@ -24,8 +25,8 @@ import wdl4s._
 import wdl4s.values.{WdlFile, WdlSingleFile}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
@@ -51,7 +52,11 @@ case class WorkflowDescriptor(id: WorkflowId,
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   val props = sys.props
   val relativeWorkflowRootPath = s"$name/$id"
-  val wfOutputsRoot = workflowOptions.get("outputs_path")
+  private val log = WorkflowLogger("WorkflowDescriptor", this)
+  val workflowOutputsPath = workflowOptions.get("outputs_path") recover { case e: IllegalArgumentException =>
+    log.warn("outputs_path expected to be of type String", e)
+    throw e
+  }
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
 
   // GCS FS with the workflow working directory as root
@@ -62,14 +67,14 @@ case class WorkflowDescriptor(id: WorkflowId,
 
   // GCS FS with the workflow outputs directory as root
   val gcsOutputsFilesystem = for {
-    root <- wfOutputsRoot
+    root <- workflowOutputsPath
     interface <- gcsInterface
     fs <- Try(GcsFileSystem.instance(interface, root))
   } yield fs
 
 
-  private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
-  private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
+  private lazy val optionCacheWriting = workflowOptions getBoolean "write_to_cache" getOrElse configCallCaching
+  private lazy val optionCacheReading = workflowOptions getBoolean "read_from_cache" getOrElse configCallCaching
 
   if (!configCallCaching) {
     if (optionCacheWriting) logWriteDisabled()
@@ -88,9 +93,9 @@ case class WorkflowDescriptor(id: WorkflowId,
     case _ => NOPLogger.NOP_LOGGER
   }
 
-  def postProcessWorkflow(implicit executionContext: ExecutionContext): Future[Any] = {
+  def copyWorkflowOutputs(implicit executionContext: ExecutionContext): Future[Unit] = {
     // Try to copy outputs to final destination
-    wfOutputsRoot map copyOutputFiles getOrElse Future.successful({})
+    workflowOutputsPath map copyOutputFiles getOrElse Future.successful(())
   }
 
   private def copyOutputFiles(destDirectory: String)(implicit executionContext: ExecutionContext): Future[Unit] = {

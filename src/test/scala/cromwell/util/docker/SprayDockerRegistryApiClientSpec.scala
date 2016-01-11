@@ -1,9 +1,10 @@
 package cromwell.util.docker
 
 import akka.actor.ActorSystem
-import com.typesafe.config.ConfigException.Missing
 import com.typesafe.config.ConfigFactory
-import cromwell.util.google.GoogleCredentialFactorySpec
+import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.util.DockerConfiguration
+import cromwell.util.google.{GoogleCredentialFactory, GoogleCredentialFactorySpec}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -30,7 +31,7 @@ with IntegrationPatience {
 
   behavior of "SprayDockerRegistryApiClient"
 
-  it should "resolve docker hub image hashes" in {
+  it should "resolve docker hub image hashes" taggedAs IntegrationTest in {
     val identifiers = Table(
       "identifier",
       "ubuntu",
@@ -45,7 +46,7 @@ with IntegrationPatience {
     }
   }
 
-  it should "resolve docker hub image v1 layer ids" in {
+  it should "resolve docker hub image v1 layer ids" taggedAs IntegrationTest in {
     val identifiers = Table(
       "identifier",
       "ubuntu",
@@ -62,7 +63,7 @@ with IntegrationPatience {
     }
   }
 
-  it should "resolve docker hub and gcr digests" in {
+  it should "resolve docker hub and gcr digests" taggedAs IntegrationTest in {
     val identifiers = Table(
       "identifier",
       "ubuntu@sha256:f91f9bab1fe6d0db0bfecc751d127a29d36e85483b1c68e69a246cf1df9b4251",
@@ -77,7 +78,7 @@ with IntegrationPatience {
     }
   }
 
-  it should "resolve docker hub tags using authentication" in {
+  it should "resolve docker hub tags using authentication" taggedAs(DockerTest, IntegrationTest) in {
     DockerHubLoginProviderSpec.assumeDockerHubAuthExists()
 
     val identifiers = Table(
@@ -87,7 +88,8 @@ with IntegrationPatience {
       "ubuntu:latest",
       "library/ubuntu:latest")
 
-    val parser = new DockerIdentifierParser(DockerHubLoginProviderSpec.DockerHubConfig)
+    val dockerConf = DockerConfiguration.build(DockerHubLoginProviderSpec.DockerHubConfig)
+    val parser = new DockerIdentifierParser(dockerConf, None)
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)
@@ -97,7 +99,7 @@ with IntegrationPatience {
     }
   }
 
-  it should "not resolve docker hub tags when using bad authentication" in {
+  it should "not resolve docker hub tags when using bad authentication" taggedAs IntegrationTest in {
     val identifiers = Table(
       "identifier",
       "ubuntu",
@@ -108,11 +110,13 @@ with IntegrationPatience {
     val badDockerConfig = ConfigFactory.parseString(
       s"""
          |docker {
+         |  dockerAccount = "fakeAccount"
          |  dockerToken = "YmFkdXNlcjpiYWRwYXNz" // baduser:badpass
          |}
      """.stripMargin)
 
-    val parser = new DockerIdentifierParser(badDockerConfig)
+    val dockerConf = DockerConfiguration.build(badDockerConfig)
+    val parser = new DockerIdentifierParser(dockerConf, None)
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)
@@ -122,7 +126,7 @@ with IntegrationPatience {
     }
   }
 
-  it should "fail to resolve gcr image tags when google authentication is not setup" in {
+  it should "fail to resolve gcr image tags when google authentication is not setup" taggedAs IntegrationTest in {
     val identifiers = Table(
       "identifier",
       "gcr.io/broad-dsde-dev/ubuntu",
@@ -130,12 +134,12 @@ with IntegrationPatience {
 
     forAll(identifiers) { identifier =>
       val exception = client.getDockerHash(identifier).failed.futureValue
-      exception shouldBe a[Missing]
-      exception.getMessage should be("No configuration setting found for key 'google.authScheme'")
+      exception shouldBe an[UnsuccessfulResponseException]
+      exception.getMessage should startWith("Status: 404 Not Found\nBody:")
     }
   }
 
-  it should "fail to resolve gcr image tags when unauthenticated" in {
+  it should "fail to resolve gcr image tags when unauthenticated" taggedAs IntegrationTest in {
     val gcrRegistry = DockerRegistry("gcr.io", NoLoginProvider)
     val gcrUSRegistry = DockerRegistry("us.gcr.io", NoLoginProvider)
 
@@ -147,11 +151,19 @@ with IntegrationPatience {
     forAll(identifiers) { identifier =>
       val exception = client.getDockerHashable(identifier).failed.futureValue
       exception shouldBe an[UnsuccessfulResponseException]
-      exception.getMessage should be("Status: 404 Not Found\nBody: Not found.")
+      /*
+        Something on the GCR server changed, or perhaps our test environment now supplies a default credential? Either
+        way, we're now getting 403 Forbidden errors instead of 404 Not Found. Just in case this a temporary change,
+        check for either. Alternatively, we could also just check for any 4xx, or not test for the message at all.
+       */
+      exception.getMessage should (
+        be(s"Status: 403 Forbidden\nBody: Unable to access the repository: ${identifier.name}; " +
+          "please verify that it exists and you have permission to access it (no valid credential was supplied).") or
+        be("Status: 404 Not Found\nBody: Not found."))
     }
   }
 
-  it should "resolve gcr image tags when google authentication is setup" in {
+  it should "resolve gcr image tags when google authentication is setup" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeAccountConfigExists()
 
     val identifiers = Table(
@@ -159,7 +171,11 @@ with IntegrationPatience {
       "gcr.io/broad-dsde-dev/ubuntu",
       "us.gcr.io/broad-dsde-dev/cromwell:dev")
 
-    val parser = new DockerIdentifierParser(GoogleCredentialFactorySpec.AccountConfig)
+    val dockerConf = DockerConfiguration.build(DockerHubLoginProviderSpec.DockerHubConfig)
+    val googleCreds = new GoogleCredentialFactory {
+      override val GoogleConf = GoogleCredentialFactorySpec.GoogleAccountConfig
+    }.fromCromwellAuthScheme
+    val parser = new DockerIdentifierParser(dockerConf, Option(googleCreds))
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)

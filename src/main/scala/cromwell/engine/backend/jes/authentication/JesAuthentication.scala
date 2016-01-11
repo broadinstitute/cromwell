@@ -1,32 +1,34 @@
 package cromwell.engine.backend.jes.authentication
 
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend.JesWorkflowDescriptor
 import cromwell.engine.backend.jes._
-import cromwell.util.google.{GoogleCloudStorage, GoogleCredentialFactory}
+import cromwell.engine.io.gcs.GoogleCloudStorage
+import cromwell.util.google.GoogleCredentialFactory
 import spray.json.JsObject
 
 /**
  * Trait for JesConnection
  */
 trait JesConnection {
-  def jesCromwellConnection: JesInterface
+  def jesCromwellInterface: JesInterface
 
   /**
     * This method should try its best to provide a GCS connection setup with the user's credentials.
     * In the case where it's not able to provide such a method, a default one can be provided instead.
     */
-  def jesUserConnection(workflow: WorkflowDescriptor): JesBackend.IOInterface
+  def jesUserConnection(workflow: WorkflowDescriptor): GoogleCloudStorage
 }
 
 object ProductionJesConnection {
   import ProductionJesConfiguration._
 
-  // Only one instance of jesCromwellConnection is needed. It uses whichever authScheme has been set in the configuration.
-  lazy val jesCromwellConnection: JesInterface = {
-    val cromwellCredentials = GoogleCredentialFactory.fromAuthScheme
-    val gcsInterface = GcsFactory(jesConf.applicationName, cromwellCredentials)
-    val genomicsInterface = GenomicsFactory(jesConf.applicationName, jesConf.endpointUrl, cromwellCredentials)
+  // Only one instance of jesCromwellInterface is needed. It uses whichever authScheme has been set in the configuration.
+  lazy val jesCromwellInterface: JesInterface = {
+    val cromwellCredentials = GoogleCredentialFactory.fromCromwellAuthScheme
+    // .get to fail now, as we can't run on Jes without a Cromwell authenticated GCS interface
+    val gcsInterface = GoogleCloudStorage.cromwellAuthenticated.get
+    val genomicsInterface = GenomicsFactory(googleConf.appName, jesConf.endpointUrl, cromwellCredentials)
+
     JesInterface(gcsInterface, genomicsInterface)
   }
 }
@@ -36,7 +38,7 @@ object ProductionJesConnection {
  */
 trait JesAuthentication { self: JesConnection =>
 
-  def authenticateAsCromwell[A](f: JesInterface => A) = f(jesCromwellConnection)
+  def authenticateAsCromwell[A](f: JesInterface => A) = f(jesCromwellInterface)
 
   /**
    * Important note: Will default back to cromwell authentication if the configuration for user authentication has not been set or if the refreshToken has been supplied.
@@ -58,12 +60,11 @@ trait JesAuthentication { self: JesConnection =>
 }
 
 trait ProductionJesAuthentication extends JesAuthentication with JesConnection {
-  override lazy val jesCromwellConnection = ProductionJesConnection.jesCromwellConnection
+  override lazy val jesCromwellInterface = ProductionJesConnection.jesCromwellInterface
 
-  /*
-   * As long as everything runs on the same backend, this downcast is safe because the workflow backend and the call backend are the same.
-   * We can then re-use for all Backend Call the IOInterface from the WorkflowDescriptor.
-   * If per-call backend is implemented this assumption might not hold anymore which may require changes here.
+  /* We re-use the same workflow-level interface for all calls here.
+   * We can .get safely because at WorkflowDescriptor instantiation time we make sure gcsInterface is defined if running on JES.
+   * TODO: remove the Option[...] through inheritance or implicits ?
    */
-  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.IOInterface.asInstanceOf[JesBackend.IOInterface]
+  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.gcsInterface.get
 }

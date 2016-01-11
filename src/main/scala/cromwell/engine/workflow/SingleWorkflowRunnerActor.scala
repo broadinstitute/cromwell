@@ -5,14 +5,13 @@ import java.nio.file.Path
 import akka.actor.FSM.Transition
 import akka.actor._
 import better.files._
-import cromwell.binding.FullyQualifiedName
-import cromwell.binding
-import cromwell.binding.{CallOutput, FullyQualifiedName}
-import cromwell.binding.values.WdlValue
+import cromwell.engine
+import wdl4s.FullyQualifiedName
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.webservice.WorkflowMetadataResponse
+import cromwell.engine.CallOutput
+import cromwell.webservice.{WdlValueJsonFormatter, WorkflowMetadataResponse}
 import spray.json._
 
 import scala.util._
@@ -135,8 +134,8 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   /**
     * Outputs the outputs to stdout, and then requests the metadata.
     */
-  private def outputOutputs(outputs: binding.WorkflowOutputs): Unit = {
-    import cromwell.binding.values.WdlValueJsonFormatter._
+  private def outputOutputs(outputs: engine.WorkflowOutputs): Unit = {
+    import WdlValueJsonFormatter._
     val outputValues = outputs mapValues { case CallOutput(wdlValue, _) => wdlValue }
     println(outputValues.toJson.prettyPrint)
   }

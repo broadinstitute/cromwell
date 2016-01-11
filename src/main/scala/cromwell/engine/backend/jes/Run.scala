@@ -1,8 +1,9 @@
 package cromwell.engine.backend.jes
 
+import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.AbortFunction
+import cromwell.engine.{ExecutionEventEntry, AbortFunction}
 import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput, JesParameter}
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
@@ -10,6 +11,7 @@ import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
 import cromwell.engine.workflow.CallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.google.GoogleScopes
+import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -88,10 +90,42 @@ object Run  {
   trait TerminalRunStatus extends RunStatus
   case object Initializing extends RunStatus
   case object Running extends RunStatus
-  case object Success extends TerminalRunStatus
+  case class Success(events: Seq[ExecutionEventEntry]) extends TerminalRunStatus {
+    override def toString = "Success"
+  }
   final case class Failed(errorCode: Int, errorMessage: String) extends TerminalRunStatus {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
+  }
+
+  // An event with a startTime timestamp
+  private case class EventStartTime(name: String, timestamp: DateTime)
+
+  def getEventList(op: Operation): Seq[ExecutionEventEntry] = {
+    val starterEvents = eventIfExists("createTime", op, "chilling out, maxing") ++ eventIfExists("startTime", op, "relaxing all cool")
+
+    val eventsList: Seq[EventStartTime] = if (op.getMetadata.containsKey("events")) {
+      op.getMetadata.get("events").asInstanceOf[java.util.ArrayList[AnyRef]].asScala map { x =>
+        val entry = x.asInstanceOf[ArrayMap[String, String]]
+        EventStartTime(entry.get("description"), DateTime.parse(entry.get("startTime")))
+      } toSeq
+    } else Seq.empty
+
+    // The final event is only used as the book-end for the final pairing (see below) so the name is never actually used...
+    // ... which is rather a pity actually - it's a jolly good name.
+    val finaleEvents = eventIfExists("endTime", op, "cromwell poll interval") ++ Seq(
+      EventStartTime("The Queen flying around with a jet-pack, with Winston Churchill cheering and waving a huge Union Jack in the background", DateTime.now))
+
+    // Join the Seqs together, pair up consecutive elements then make events with start and end times.
+    ((starterEvents ++ eventsList ++ finaleEvents).sliding(2) toSeq) map { case Seq(a, b) => ExecutionEventEntry(a.name, a.timestamp, b.timestamp) }
+  }
+
+  private def eventIfExists(name: String, op: Operation, eventName: String): Seq[EventStartTime] = {
+    val metadata = op.getMetadata
+    if(metadata.containsKey(name))
+      Seq(EventStartTime(eventName, DateTime.parse(metadata.get(name).asInstanceOf[String])))
+    else
+      Seq.empty
   }
 }
 
@@ -102,10 +136,9 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
 
   def status(): RunStatus = {
     val op = pipeline.genomicsService.operations().get(runId).execute
-
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
-      Option(op.getError) map { x => Failed(x.getCode, x.getMessage) } getOrElse Success
+      Option(op.getError) map { x => Failed(x.getCode, x.getMessage) } getOrElse Success(getEventList(op))
     } else if (op.hasStarted) {
       Running
     } else {

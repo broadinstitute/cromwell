@@ -1,6 +1,6 @@
 package cromwell.engine.backend.sge
 
-import cromwell.binding.CallInputs
+import wdl4s.CallInputs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.CallKey
@@ -19,7 +19,7 @@ case class SgeBackendCall(backend: SgeBackend,
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script.sh")
   val returnCode = callRootPath.resolve("rc")
-  val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr, workflowDescriptor.IOInterface)
+  val engineFunctions: SgeEngineFunctions = new SgeEngineFunctions(callRootPath, stdout, stderr, workflowDescriptor.ioManager)
   callRootPath.toFile.mkdirs
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)

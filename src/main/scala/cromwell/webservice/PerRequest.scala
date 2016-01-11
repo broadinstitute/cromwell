@@ -58,11 +58,10 @@ trait PerRequest extends Actor {
 
   override val supervisorStrategy =
     OneForOneStrategy() {
-      case e => {
+      case e =>
         system.log.error(e, "error processing request: " + r.request.uri)
         r.complete(InternalServerError, e.getMessage)
         Stop
-      }
     }
 }
 

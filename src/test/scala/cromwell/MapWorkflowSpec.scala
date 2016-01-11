@@ -3,19 +3,18 @@ package cromwell
 import java.nio.file.{Files, Paths}
 
 import akka.testkit._
-import cromwell.binding.NamespaceWithWorkflow
-import cromwell.binding.expression.{NoFunctions, WdlFunctions}
-import cromwell.binding.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
-import cromwell.binding.values._
-import cromwell.parser.BackendType
+import wdl4s.NamespaceWithWorkflow
+import wdl4s.expression.{NoFunctions, WdlFunctions}
+import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
+import wdl4s.values._
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
+class MapWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
-  val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""), BackendType.LOCAL)
+  val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""))
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
     WdlFile("f2") -> WdlString("bob"),
@@ -47,7 +46,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec("MapWorkflowSpec") {
       val expression = declaration.expression.getOrElse {
         fail("Expected an expression for declaration 'map'")
       }
-      val value = expression.evaluate((s:String) => fail("No lookups"), new NoFunctions()).getOrElse {
+      val value = expression.evaluate((s:String) => fail("No lookups"), NoFunctions).getOrElse {
         fail("Expected expression for 'map' to evaluate")
       }
       expectedMap.wdlType.coerceRawValue(value).get shouldEqual expectedMap

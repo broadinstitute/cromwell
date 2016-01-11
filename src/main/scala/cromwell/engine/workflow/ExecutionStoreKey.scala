@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import cromwell.binding._
+import wdl4s._
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
 

@@ -4,29 +4,29 @@ import java.util.UUID
 
 import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellTestkitSpec._
-import cromwell.binding._
-import cromwell.binding.command.CommandPart
-import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlInteger, WdlString}
+import cromwell.engine.workflow.WorkflowManagerActor._
+import wdl4s._
+import wdl4s.command.CommandPart
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlInteger, WdlString}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor.{CallOutputs, WorkflowOutputs, _}
-import cromwell.parser.BackendType
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.webservice.WorkflowMetadataResponse
-import cromwell.{CromwellSpec, CromwellTestkitSpec, binding}
+import cromwell.{engine, CromwellSpec, CromwellTestkitSpec}
 
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
-class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActorSpec") {
+class WorkflowManagerActorSpec extends CromwellTestkitSpec {
   val backendInstance = Backend.from(CromwellSpec.Config, system)
 
   "A WorkflowManagerActor" should {
@@ -44,12 +44,12 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
       status shouldEqual WorkflowSucceeded
 
-      val workflowOutputs = messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(workflowId))
+      val workflowOutputs = messageAndWait[engine.WorkflowOutputs](WorkflowOutputs(workflowId))
 
       val actualWorkflowOutputs = workflowOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualWorkflowOutputs shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
 
-      val callOutputs = messageAndWait[binding.CallOutputs](CallOutputs(workflowId, "hello.hello"))
+      val callOutputs = messageAndWait[engine.CallOutputs](CallOutputs(workflowId, "hello.hello"))
       val actualCallOutputs = callOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
 
@@ -74,11 +74,11 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val descriptor = new WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
-          val worldSymbolHash = worldWdlString.getHash(backendInstance.fileHasher(descriptor))
-          val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), Option(worldSymbolHash)))
+          val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val worldSymbolHash = worldWdlString.getHash(descriptor)
+          val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST
-          val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null, BackendType.LOCAL)
+          val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null)
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
             _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
@@ -114,7 +114,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           } match {
             case Success(_) => fail("Expected submission to fail with uncoercable inputs")
             case Failure(e) =>
-              e.getMessage shouldBe "The following errors occurred while processing your inputs:\n\nCould not coerce value for 'incr.incr.val' into: WdlIntegerType"
+              e.getMessage contains  "\nThe following errors occurred while processing your inputs:\n\nCould not coerce value for 'incr.incr.val' into: WdlIntegerType"
           }
         }
       }
@@ -126,7 +126,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test a workflowless submission")
       Try(messageAndWait[WorkflowId](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources()))) match {
         case Success(_) => fail("Expected submission to fail due to no runnable workflows")
-        case Failure(e) => e.getMessage shouldBe "Namespace does not have a local workflow to run"
+        case Failure(e) => e.getMessage contains  "Namespace does not have a local workflow to run"
       }
 
     }
@@ -138,7 +138,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec("WorkflowManagerActor
           self, "Test WorkflowManagerActor output lookup failure")
         val id = WorkflowId(UUID.randomUUID())
         Try {
-          messageAndWait[binding.WorkflowOutputs](WorkflowOutputs(id))
+          messageAndWait[engine.WorkflowOutputs](WorkflowOutputs(id))
         } match {
           case Success(_) => fail("Expected lookup to fail with unknown workflow")
           case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"

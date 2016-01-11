@@ -1,20 +1,22 @@
 package cromwell.util.docker
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.google.api.client.auth.oauth2.Credential
+import cromwell.util.DockerConfiguration
+import cromwell.util.google.GoogleCredentialFactory
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 /**
   * Parses a String into a DockerIdentifier.
-  *
-  * @param config The configuration for the parsers.
   */
-class DockerIdentifierParser(config: Config) {
-  private lazy val dockerHubRegistryParser = new DockerHubRegistryParser(config)
-  private lazy val googleContainerRegistryParser = new GoogleContainerRegistryParser(config)
+class DockerIdentifierParser(dockerConf: DockerConfiguration, googleCredentials: Option[Credential]) {
+
+  private lazy val dockerHubRegistryParser = new DockerHubRegistryParser(dockerConf)
+  private lazy val googleContainerRegistryParser = googleCredentials map { new GoogleContainerRegistryParser(_) }
 
   /** The list of supported registry parsers. */
-  private lazy val registryParsers = Seq(googleContainerRegistryParser, dockerHubRegistryParser)
+  private lazy val registryParsers = Seq(googleContainerRegistryParser, Option(dockerHubRegistryParser)).flatten
 
   /**
     * Parses a String into a DockerIdentifier.
@@ -46,5 +48,5 @@ class DockerIdentifierParser(config: Config) {
 }
 
 object DockerIdentifierParser {
-  lazy val Default = new DockerIdentifierParser(ConfigFactory.load)
+  lazy val Default = new DockerIdentifierParser(DockerConfiguration.dockerConf, Try(GoogleCredentialFactory.fromCromwellAuthScheme).toOption)
 }

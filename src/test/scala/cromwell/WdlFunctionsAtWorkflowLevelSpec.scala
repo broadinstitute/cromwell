@@ -1,14 +1,14 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlMapType, WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlMap, WdlArray, WdlString}
+import wdl4s.types.{WdlMapType, WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlMap, WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestkitSpec("WdlFunctionsAtWorkflowLevelSpec") {
+class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestkitSpec {
   val outputMap = WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
     WdlString("k1") -> WdlString("v1"),
     WdlString("k2") -> WdlString("v2"),

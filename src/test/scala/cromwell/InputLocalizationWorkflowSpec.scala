@@ -2,12 +2,12 @@ package cromwell
 
 import akka.testkit.EventFilter
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.types.{WdlFileType, WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlArray, WdlFile, WdlString}
+import wdl4s.types.{WdlFileType, WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlArray, WdlFile, WdlString}
 import cromwell.util.SampleWdl
 
 
-class InputLocalizationWorkflowSpec extends CromwellTestkitSpec("InputLocalizationWorkflowSpec") {
+class InputLocalizationWorkflowSpec extends CromwellTestkitSpec {
   "a workflow running on a SharedFileSystem" should {
 
     val expectedOutputs = Map(

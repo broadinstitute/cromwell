@@ -1,12 +1,12 @@
 package cromwell
 
 import akka.testkit.EventFilter
-import cromwell.binding.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.engine.WorkflowFailed
+import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag}
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 
-class ContinueOnReturnCodeSpec extends CromwellTestkitSpec("ContinueOnReturnCodeSpec") {
+class ContinueOnReturnCodeSpec extends CromwellTestkitSpec {
   "A workflow with tasks that produce non-zero return codes" should {
     "have correct contents in stdout/stderr files for a call that implicitly continues on return code" in {
       runWdlAndAssertWorkflowStdoutStderr(

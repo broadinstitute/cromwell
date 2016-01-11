@@ -1,14 +1,14 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlInteger, WdlArray, WdlString}
+import wdl4s.types.{WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlInteger, WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ArrayAndMapIndexingWorkflowSpec extends CromwellTestkitSpec("ArrayAndMapIndexingWorkflowSpec") {
+class ArrayAndMapIndexingWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with array/map indexes in expressions" should {
     "run locally" in {
       runWdlAndAssertOutputs(

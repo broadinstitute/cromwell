@@ -1,25 +1,25 @@
 package cromwell.util.google
 
-import java.io.FileReader
-import java.nio.file.{Path, Paths}
+import java.io.{File, FileInputStream, InputStreamReader, IOException}
+import java.nio.file.Paths
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets, GoogleCredential}
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
-import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.engine.io.gcs._
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Holds a reference to a Google Credential, optionally refreshing the access token before returning the Credential.
-  */
-trait GoogleCredentialFactory {
-  lazy val rawCredential = initCredential()
+object GoogleCredentialFactory extends GoogleCredentialFactory {
+  // gcloudConf is a Try, calling .get will throw an exception containing all validation failures.
+  override lazy val GoogleConf = GoogleConfiguration.gcloudConf.get
 
   /**
     * Before it returns the raw credential, checks if the token will expire within 60 seconds.
@@ -33,39 +33,38 @@ trait GoogleCredentialFactory {
     *
     * @see Credential#handleResponse(HttpRequest, HttpResponse, boolean)
     */
-  def freshCredential: Try[Credential] = {
-    val stillValid = Option(rawCredential.getExpiresInSeconds).exists(_ > 60)
-    if (stillValid || rawCredential.refreshToken()) {
-      Success(rawCredential)
-    } else {
-      Failure(new Exception("Unable to refresh token"))
+  implicit class EnhancedCredentials(val credential: Credential) extends AnyVal {
+    def freshCredential: Try[Credential] = {
+      val stillValid = Option(credential.getExpiresInSeconds).exists(_ > 60)
+      if (stillValid || credential.refreshToken()) {
+        Success(credential)
+      } else {
+        Failure(new Exception("Unable to refresh token"))
+      }
     }
   }
 
-  /** Returns the initial credential that will be refreshed. */
-  protected def initCredential(): Credential
-
-  protected lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
-  protected lazy val jsonFactory = JacksonFactory.getDefaultInstance
-  protected lazy val scopes = GoogleScopes.Scopes.asJava
 }
 
-object GoogleCredentialFactory {
-  def fromAuthScheme(config: Config) = {
-    config.getString("google.authScheme").toLowerCase match {
-      case "user" => new UserCredentialFactory(config)
-      case "service" => new ServiceAccountCredentialFactory(config)
-    }
+/**
+  * Should not be instantiated except in tests. Use the GoogleCredentialFactory object instead.
+  */
+abstract class GoogleCredentialFactory {
+
+  // Abstract to allow use of custom configuration in the tests.
+  val GoogleConf: GoogleConfiguration
+
+  private lazy val log = LoggerFactory.getLogger("GoogleCredentialFactory")
+  lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
+
+  lazy val fromCromwellAuthScheme: Credential = GoogleConf.cromwellAuthMode match {
+    case user: UserMode => validateCredentials(forUser(user))
+    case service: ServiceAccountMode => validateCredentials(forServiceAccount(service))
+    case ApplicationDefaultMode => validateCredentials(forApplicationDefaultCredentials())
   }
 
-  lazy val fromAuthScheme: Credential = validateCredentials(
-    GoogleCredentialFactory.fromAuthScheme(ConfigFactory.load).rawCredential)
-
-  lazy val forRefreshToken: (ClientSecrets, String) => Credential = forClientSecrets
-
-  private def forClientSecrets(secrets: ClientSecrets, token: String): Credential = {
-    validateCredentials(new RefreshTokenCredentialFactory(secrets.clientId, secrets.clientSecret, token).rawCredential)
-  }
+  lazy val fromUserAuthScheme: (String) => Try[Credential] = (forClientSecrets _).andThen(_ map validateCredentials)
 
   private def validateCredentials(credential: Credential) = {
     Try(credential.refreshToken()) match {
@@ -73,78 +72,57 @@ object GoogleCredentialFactory {
       case Success(_) => credential
     }
   }
-}
 
-/**
-  * Creates credentials for a userId.
-  * @param userId The user id to authenticate as.
-  * @param secretsPath The path to a file that holds the user's secrets.
-  * @param dataStoreDir A directory that holds the possibly existing cached credentials for the user's credentials.
-  */
-class UserCredentialFactory(userId: String, secretsPath: Path, dataStoreDir: Path) extends GoogleCredentialFactory {
-  def this(config: Config) = {
-    this(
-      config.getString("google.userAuth.user"),
-      Paths.get(config.getString("google.userAuth.secretsFile")),
-      Paths.get(config.getString("google.userAuth.dataStoreDir"))
-    )
+  private def filePathToSecrets(secrets: String, jsonFactory: JsonFactory) = {
+    val secretsPath = Paths.get(secrets)
+    if(!secretsPath.toFile.canRead) {
+      log.warn("Secrets file does not exist or is not readable.")
+    }
+    val secretStream = new InputStreamReader(new FileInputStream(secretsPath.toFile))
+
+    GoogleClientSecrets.load(jsonFactory, secretStream)
   }
 
-  protected def initCredential(): Credential = {
-    val clientSecrets = GoogleClientSecrets.load(jsonFactory, new FileReader(secretsPath.toFile))
-    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, jsonFactory, clientSecrets, scopes)
-      .setDataStoreFactory(new FileDataStoreFactory(dataStoreDir.toFile))
-      .build()
-    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(userId)
-  }
-}
-
-/**
-  * Creates a credential for a service account.
-  * @param serviceAccountId The id of the service account.
-  * @param pemPath The path to the pem file for the service account.
-  */
-class ServiceAccountCredentialFactory(serviceAccountId: String, pemPath: Path) extends GoogleCredentialFactory {
-  def this(config: Config) = {
-    this(
-      config.getString("google.serviceAuth.serviceAccountId"),
-      Paths.get(config.getString("google.serviceAuth.pemFile"))
-    )
+  private def forUser(userConf: UserMode): Credential = {
+    val user = userConf.user
+    val clientSecrets = filePathToSecrets(userConf.secretsFile, jsonFactory)
+    val dataStore = Paths.get(userConf.datastoreDir)
+    val dataStoreFactory = new FileDataStoreFactory(dataStore.toFile)
+    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
+      jsonFactory,
+      clientSecrets,
+      GoogleScopes.Scopes.asJava).setDataStoreFactory(dataStoreFactory).build
+    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user)
   }
 
-  protected def initCredential(): Credential = {
-    new GoogleCredential.Builder()
-      .setTransport(httpTransport)
+  private def forServiceAccount(serviceAccountMode: ServiceAccountMode): Credential = {
+    new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
-      .setServiceAccountScopes(scopes)
-      .setServiceAccountId(serviceAccountId)
-      .setServiceAccountPrivateKeyFromPemFile(pemPath.toFile)
+      .setServiceAccountId(serviceAccountMode.accountId)
+      .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
+      .setServiceAccountPrivateKeyFromPemFile(new File(serviceAccountMode.pemPath))
       .build()
   }
-}
 
-/**
-  * Creates a credential for a refresh token.
-  * @param clientId The client id.
-  * @param clientSecret The client secret.
-  * @param refreshToken The refresh token.
-  */
-class RefreshTokenCredentialFactory(clientId: String, clientSecret: String,
-                                    refreshToken: String) extends GoogleCredentialFactory {
-  def this(config: Config, refreshToken: String) = {
-    this(
-      config.getString("google.localizeWithRefreshToken.client_id"),
-      config.getString("google.localizeWithRefreshToken.client_secret"),
-      refreshToken
-    )
+  private def forClientSecrets(token: String): Try[Credential] = {
+    GoogleConf.userAuthMode collect {
+      case refresh: Refresh =>
+        Success(new GoogleCredential.Builder().setTransport(httpTransport)
+          .setJsonFactory(jsonFactory)
+          .setClientSecrets(refresh.clientSecrets.clientId, refresh.clientSecrets.clientSecret)
+          .build()
+          .setRefreshToken(token))
+      case unrecognized => Failure(new IllegalArgumentException(s"Unrecognized userSchemeAuthentication: $unrecognized"))
+    } getOrElse Failure(new Throwable("No user authentication configuration has been found."))
   }
 
-  protected def initCredential(): Credential = {
-    new GoogleCredential.Builder()
-      .setTransport(httpTransport)
-      .setJsonFactory(jsonFactory)
-      .setClientSecrets(clientId, clientSecret)
-      .build()
-      .setRefreshToken(refreshToken)
+  private def forApplicationDefaultCredentials(): Credential = {
+    try {
+      GoogleCredential.getApplicationDefault().createScoped(GoogleScopes.Scopes.asJava)
+    } catch {
+      case e: IOException =>
+       log.warn("Failed to get application default credentials", e)
+       throw e
+    }
   }
 }

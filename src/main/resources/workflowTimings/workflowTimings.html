@@ -1,66 +1,127 @@
 <html>
 <head>
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-    <script type="text/javascript">
-        google.load("visualization", "1.1", {packages:["gantt"]});
-        google.setOnLoadCallback(drawChart);
 
-        function drawChart() {
-            $.getJSON("./metadata", function( data ) {
-                var graphData = new google.visualization.DataTable();
-                graphData.addColumn('string', 'Task ID');
-                graphData.addColumn('string', 'Task Name');
-                graphData.addColumn('string', 'Resource');
-                graphData.addColumn('date', 'Start');
-                graphData.addColumn('date', 'End');
-                graphData.addColumn('number', 'Duration');
-                graphData.addColumn('number', 'Percent Complete');
-                graphData.addColumn('string', 'Dependencies');
+<script type="text/javascript" src="https://www.google.com/jsapi?autoload={'modules':[{'name':'visualization',
+       'version':'1','packages':['timeline']}]}"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script type="text/javascript">
 
-                for (var key in data.calls) {
-                    if(data.calls.hasOwnProperty(key)) {
-                        for (var callIndex in data.calls[key])
-                        {
-                            var index = data.calls[key][callIndex]["shardIndex"]
-                            var callName = (index == -1 ? key : key + " (shard " + index + ")");
-                            var startDate = new Date(data.calls[key][callIndex]["start"]);
-                            var endDate = new Date(data.calls[key][callIndex]["end"]);
+    google.setOnLoadCallback(drawChart);
+    function drawChart() {
+        $.getJSON("./metadata", function( data ) {
+
+            var container = document.getElementById('chart_div');
+            var chart = new google.visualization.Timeline(container);
+
+            var dataTable = new google.visualization.DataTable();
+            dataTable.addColumn({ type: 'string', id: 'Position' });
+            dataTable.addColumn({ type: 'string', id: 'Name' });
+            dataTable.addColumn({ type: 'date', id: 'Start' });
+            dataTable.addColumn({ type: 'date', id: 'End' });
+
+            var executionCallsCount = 0;
+            var workflowName = data.workflowName;
+            var workflowEnd = null;
+            if (data.hasOwnProperty("end")) {
+                workflowEnd = new Date(data.end);
+            }
+
+            var callsList = data.calls;
+            var sortable = [];
+            for (var key in callsList) {
+                sortable.push([key, callsList[key]]);
+            }
+            sortable.sort(function(a,b) {
+                return new Date(a[1][0].start) - new Date(b[1][0].start);
+            });
+
+            for(var sortableIndex in sortable)
+            {
+                var callName = sortable[sortableIndex][0];
+                var callList = sortable[sortableIndex][1];
+
+                for (var callIndex in callList)
+                {
+                    var index = callList[callIndex]["shardIndex"];
+
+                    // Remove the workflow name
+                    var thisCallName = (index == -1 ? callName : callName + "." + index);
+                    thisCallName = thisCallName.replace(new RegExp("^" + workflowName + "\\."), "");
+
+                    var executionEvents = callList[callIndex].executionEvents;
+
+                    var firstEventStart = null;
+                    var finalEventEnd = null;
+
+                    if(callList[callIndex].executionStatus == "Done" || callList[callIndex].executionStatus == "Failed") {
+                        executionCallsCount++;
+                        for (var executionEventIndex in executionEvents) {
+                            var executionEvent = callList[callIndex].executionEvents[executionEventIndex];
+                            var description = executionEvent["description"];
+                            // Replace all "start(...)" with just "start" so that the names (and therefore the "color" assigned from the list below) are consistent:
+                            description = description.replace(new RegExp("^start.*"), "start");
+                            var startDate = new Date(executionEvent["startTime"]);
+                            var endDate = new Date(executionEvent["endTime"]);
+                            if (firstEventStart == null || startDate < firstEventStart) {
+                                firstEventStart = startDate
+                            }
+                            if (finalEventEnd == null || endDate > finalEventEnd) {
+                                finalEventEnd = endDate
+                            }
                             // NB: See the column definitions above.
-                            graphData.addRow([callName, callName, null, startDate, endDate, null, 100, null]);
+                            dataTable.addRow([thisCallName, description, startDate, endDate]);
+                        }
+
+                        if (callList[callIndex].hasOwnProperty("start")) {
+                            var callStart = new Date(callList[callIndex].start);
+                        }
+                        else {
+                            var callStart = firstEventStart
+                        }
+                        if (callList[callIndex].hasOwnProperty("end")) {
+                            var callEnd = new Date(callList[callIndex].end);
+                        }
+                        else {
+                            var callStart = finalEventEnd
+                        }
+
+                        if (firstEventStart == null || finalEventEnd == null) {
+                            dataTable.addRow([thisCallName, callList[callIndex].executionStatus, callStart, callEnd]);
+                        } else {
+                            if (callStart < firstEventStart) dataTable.addRow([thisCallName, "cromwell starting overhead", callStart, firstEventStart]);
+                            if (callEnd > finalEventEnd) dataTable.addRow([thisCallName, "cromwell final overhead", finalEventEnd, callEnd]);
+                        }
+                    } else if (callList[callIndex].executionStatus == "Running") {
+                        executionCallsCount++;
+                        var endDate = workflowEnd;
+                        if(endDate == null) {
+                            dataTable.addRow([thisCallName, "Running", new Date(callList[callIndex].start), new Date(Date.now())]);
+                        }
+                        else {
+                            dataTable.addRow([thisCallName, "Still running when workflow ended", new Date(callList[callIndex].start), endDate]);
                         }
                     }
                 }
+            }
 
-                var options = {
-                    height: graphData.getNumberOfRows() * 20 + 60,
-                    gantt: {
-                        trackHeight: 20,
-                        barHeight: 15,
-                        arrow: {
-                            angle: 180,
-                            width: 1,
-                            color: 'green',
-                            radius: 1
-                        },
-                        labelMaxWidth: 250,
-                        labelStyle: {
-                            fontName: "Roboto2",
-                            fontSize: 10,
-                            color: '#757575'
-                        }
-                    }
-                };
-
-                var chart = new google.visualization.GanttChart(document.getElementById('chart_div'));
-
-                chart.draw(graphData, options);
-            });
-        }
-    </script>
+            var options = {
+                colors: ['#33178f', '#c5bc12', '#5e8229', '#9a03f8', '#9e4653', '#4ef2ca', '#2dd801', '#3f7b49', '#763097', '#bc8b28', '#cb716f', '#adce53', '#c3768d', '#fdf92a'],
+                height: executionCallsCount * 18 + 60,
+                timeline: {
+                    avoidOverlappingGridLines: false,
+                    showBarLabels: false,
+                    rowLabelStyle: { fontName: 'Helvetica', fontSize: 10, color: '#603913' },
+                    // Although bar labels are unshown, they still affect the height of each row. So make it small.
+                    barLabelStyle: { fontName: 'Helvetica', fontSize: 5, color: '#603913' },
+                }
+            };
+            chart.draw(dataTable, options);
+        });
+    }
+</script>
 </head>
 <body>
-
+<title id="title"></title>
 <div id="chart_div"></div>
 </body>
 </html>

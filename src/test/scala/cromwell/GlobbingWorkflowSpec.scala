@@ -2,12 +2,12 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.values.WdlString
+import wdl4s.values.WdlString
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class GlobbingWorkflowSpec extends CromwellTestkitSpec("GlobbingWorkflowSpec") {
+class GlobbingWorkflowSpec extends CromwellTestkitSpec {
   def doTheTest(runtime: String = "") = {
     val outputs = runWdl(
       sampleWdl = SampleWdl.GlobtasticWorkflow,

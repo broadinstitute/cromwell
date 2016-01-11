@@ -1,11 +1,12 @@
 package cromwell.engine.workflow
 
-import cromwell.binding._
+import wdl4s._
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.SymbolStoreEntry
+import cromwell.engine.{ExecutionEventEntry, SymbolStoreEntry}
 import cromwell.engine.backend.{CallMetadata, CallLogs}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
+import cromwell.engine.EnhancedFullyQualifiedName
 import org.joda.time.DateTime
 
 import scala.language.postfixOps
@@ -25,7 +26,8 @@ object CallMetadataBuilder {
                                            streams: Option[CallLogs] = None,
                                            backend: Option[String] = None,
                                            jobId: Option[String] = None,
-                                           backendStatus: Option[String] = None)
+                                           backendStatus: Option[String] = None,
+                                           executionEvents: Seq[ExecutionEventEntry] = Seq.empty)
 
   // Types used in interim steps of the construction of the call metadata.
   // Map from an `ExecutionDatabaseKey` to the interim `AssembledCallMetadata` format.
@@ -95,6 +97,17 @@ object CallMetadataBuilder {
     }
 
   /**
+    * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
+    */
+  private def buildExecutionEventsTransformer(eventsMap: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]): ExecutionMapTransformer =
+    executionMap => {
+      for {
+        (key, events) <- eventsMap
+        baseMetadata = executionMap.get(key).get
+      } yield key -> baseMetadata.copy(executionEvents = events)
+    }
+
+  /**
    * Function to build a transformer that adds job data to the entries in the input `ExecutionMap`.
    */
   private def buildJobDataTransformer(executionKeys: Traversable[ExecutionDatabaseKey], jobMap: Map[ExecutionDatabaseKey, Any]): ExecutionMapTransformer =
@@ -146,6 +159,7 @@ object CallMetadataBuilder {
             standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]],
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
+            executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
             jobMap: Map[ExecutionDatabaseKey, Any]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
 
     val executionKeys = executions map { x => ExecutionDatabaseKey(x.callFqn, x.index.toIndex) }
@@ -155,6 +169,7 @@ object CallMetadataBuilder {
       buildBaseTransformer(executions, executionKeys),
       buildInputsTransformer(callInputs),
       buildOutputsTransformer(callOutputs),
+      buildExecutionEventsTransformer(executionEvents),
       buildJobDataTransformer(executionKeys, jobMap),
       buildStreamsTransformer(standardStreamsMap)
     )
@@ -185,7 +200,8 @@ object CallMetadataBuilder {
         shardIndex = metadata.execution.index,
         stdout = metadata.streams map { _.stdout },
         stderr = metadata.streams map { _.stderr },
-        backendLogs = metadata.streams flatMap { _.backendLogs })
+        backendLogs = metadata.streams flatMap { _.backendLogs },
+        executionEvents = metadata.executionEvents)
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index.

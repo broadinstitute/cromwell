@@ -3,9 +3,9 @@ package cromwell.util
 import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
-import cromwell.binding._
-import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values._
+import wdl4s._
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values._
 import cromwell.engine.WorkflowSourceFiles
 import spray.json._
 
@@ -1608,5 +1608,64 @@ object SampleWdl {
       "w.t.c" -> WdlString("foobar"),
       "w.t.d" -> WdlFile(cannedFile.getAbsolutePath)
     )
+  }
+
+  object ExpressionsInInputs extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task echo {
+        |  String inString
+        |  command {
+        |    echo ${inString}
+        |  }
+        |
+        |  output {
+        |    String outString = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  String a1
+        |  String a2
+        |  call echo {
+        |   input: inString = a1 + " " + a2
+        |  }
+        |  call echo as echo2 {
+        |    input: inString = a1 + " " + echo.outString + " " + a2
+        |  }
+        |}
+      """.stripMargin
+    override val rawInputs = Map(
+      "wf.a1" -> WdlString("hello"),
+      "wf.a2" -> WdlString("world")
+    )
+  }
+
+  object SingleToArrayCoercion extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task singleFile {
+        |  command {
+        |    echo hello
+        |  }
+        |  output {
+        |    File out = stdout()
+        |  }
+        |}
+        |
+        |task listFiles {
+        |  Array[File] manyIn
+        |  command {
+        |    cat ${sep=" " manyIn}
+        |  }
+        |  output {
+        |    String result = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow oneToMany {
+        |  call singleFile
+        |  call listFiles { input: manyIn = singleFile.out }
+        |}
+      """.stripMargin
+    override val rawInputs = Map.empty[String, String]
   }
 }

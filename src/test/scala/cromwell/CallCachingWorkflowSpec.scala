@@ -3,14 +3,14 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
-import cromwell.binding.types.{WdlIntegerType, WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlInteger, WdlFile, WdlArray, WdlString}
+import wdl4s.types.{WdlIntegerType, WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlInteger, WdlFile, WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class CallCachingWorkflowSpec extends CromwellTestkitSpec("CallCachingWorkflowSpec") {
+class CallCachingWorkflowSpec extends CromwellTestkitSpec {
   def cacheHitMessageForCall(name: String) = s"Call Caching: Cache hit. Using UUID\\(.{8}\\):$name\\.*"
 
   val expectedOutputs = Map(

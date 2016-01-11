@@ -24,8 +24,10 @@ proxy:
     LOG_LEVEL: {{.Data.env_log_level}}
     PROXY_URL: http://app:8000/
     PROXY_URL2: http://app:8000/api
-    SERVER_ADMIN: devops@broadinstitute.org
     SERVER_NAME: {{.Data.env_server_name}}
-
+    AUTH_REQUIRE2: Require ldap-group {{.Data.proxy_ldap_group}}
+    AUTH_LDAP_URL2: 'AuthLDAPURL "{{.Data.proxy_ldap_url}}"'
+    AUTH_LDAP_GROUP_ATTR2: 'AuthLDAPGroupAttribute member'
+    REMOTE_USER_CLAIM: sub
 {{end}}
 {{end}}

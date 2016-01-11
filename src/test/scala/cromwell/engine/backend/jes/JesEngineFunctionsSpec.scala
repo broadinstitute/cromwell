@@ -1,13 +1,5 @@
 package cromwell.engine.backend.jes
 
-import java.nio.file.{Paths, Path}
-
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlString}
-import cromwell.util.google.GcsPath
-import org.scalatest.{Matchers, FlatSpec}
-
-import scala.util.{Try, Success}
-
 // FIXME: See DSDEEPB-828, leaving this here as an example for when that ticket gets picked up
 
 ///**

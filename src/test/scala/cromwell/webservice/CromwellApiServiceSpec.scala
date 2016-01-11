@@ -4,8 +4,9 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import akka.pattern.pipe
-import cromwell.binding._
-import cromwell.binding.values.{WdlFile, WdlInteger, WdlValue}
+import cromwell.engine.{CallOutput, SymbolHash}
+import wdl4s._
+import wdl4s.values.{WdlFile, WdlInteger, WdlValue}
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
 import cromwell.engine.workflow.WorkflowManagerActor._
@@ -22,6 +23,8 @@ import spray.testkit.ScalatestRouteTest
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
+import Hashing._
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage
@@ -44,14 +47,22 @@ class MockWorkflowManagerActor extends Actor  {
   implicit lazy val hasher: WdlValue => SymbolHash = { x => SymbolHash("NOT REALLY IMPORTANT IN THESE TESTs!!") }
 
   val int8 = WdlInteger(8)
-  val int8hash = int8.getHash
+  val int8hash = int8.computeHash
 
   val file = WdlFile("/tmp/ps.stdout.tmp")
-  val fileHash = file.getHash
+  val fileHash = file.computeHash
 
   def receive = {
     case SubmitWorkflow(sources) =>
-      sender ! MockWorkflowManagerActor.submittedWorkflowId
+      val id = MockWorkflowManagerActor.submittedWorkflowId
+      /*
+        id will always succeed, but WorkflowDescriptor might not. If all of this works we
+        want to pass Future[WorkflowId] but otherwise we want to pass the error. Try the
+        WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
+        from WorkflowDescriptor's validation
+       */
+      val response = Future.fromTry(Try(WorkflowDescriptor(id, sources)) map { _ => id })
+      response pipeTo sender
 
     case WorkflowStatus(id) =>
       val msg = id match {
@@ -63,7 +74,6 @@ class MockWorkflowManagerActor extends Actor  {
           None
       }
       sender ! msg
-
     case WorkflowAbort(id) =>
       val msg = id match {
         case MockWorkflowManagerActor.runningWorkflowId =>
@@ -72,34 +82,31 @@ class MockWorkflowManagerActor extends Actor  {
           None
       }
       sender ! msg
-
     case WorkflowOutputs(id) =>
       val futureOutputs = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
           Future.successful(Map(
-            "three_step.cgrep.count" -> CallOutput(int8, int8hash),
-            "three_step.ps.procs" -> CallOutput(file, fileHash),
-            "three_step.wc.count" -> CallOutput(int8, int8hash)))
+            "three_step.cgrep.count" -> CallOutput(int8, Option(int8hash)),
+            "three_step.ps.procs" -> CallOutput(file, Option(fileHash)),
+            "three_step.wc.count" -> CallOutput(int8, Option(int8hash))))
         case w => Future.failed(new WorkflowNotFoundException(s"Workflow '$w' not found"))
       }
       futureOutputs pipeTo sender
-
     case CallOutputs(id, callFqn) =>
       val futureOutputs =
         Future {
           id match {
             case MockWorkflowManagerActor.submittedWorkflowId =>
               callFqn match {
-                case "three_step.cgrep" => Map("count" -> CallOutput(int8, int8hash))
-                case "three_step.ps" => Map("procs" -> CallOutput(file, fileHash))
-                case "three_step.wc" => Map("count" -> CallOutput(int8, int8hash))
+                case "three_step.cgrep" => Map("count" -> CallOutput(int8, Option(int8hash)))
+                case "three_step.ps" => Map("procs" -> CallOutput(file, Option(fileHash)))
+                case "three_step.wc" => Map("count" -> CallOutput(int8, Option(int8hash)))
                 case _ => throw new CallNotFoundException(s"Bad call FQN: $callFqn")
               }
             case _ => throw new WorkflowNotFoundException(s"Bad workflow ID: $id")
           }
         }
       futureOutputs pipeTo sender
-
     case CallStdoutStderr(id, callFqn) =>
       val futureOutputs =
       Future {
@@ -118,7 +125,6 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureOutputs pipeTo sender
-
     case WorkflowStdoutStderr(id) =>
       val futureOutputs =
       Future {
@@ -133,7 +139,6 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureOutputs pipeTo sender
-
     case WorkflowQuery(rawParameters) =>
       val futureResult = Future {
         val head = rawParameters.head
@@ -154,7 +159,6 @@ class MockWorkflowManagerActor extends Actor  {
         }
       }
       futureResult pipeTo sender
-
     case CallCaching(id, parameters, callFqn) =>
       val parametersByKey = parameters.groupBy(_.key.toLowerCase.capitalize) mapValues { _ map { _.value } } mapValues { _.toSet }
       val futureResponse =
@@ -234,8 +238,8 @@ object CromwellApiServiceSpec {
 }
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
-  def actorRefFactory = system
-  val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
+  override def actorRefFactory = system
+  override val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
@@ -344,11 +348,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
-        assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
-          responseAs[String]
-        }
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(true) {
+          responseAs[String].contains("contains bad inputs JSON")
         }
       }
   }
@@ -357,11 +361,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString(), "workflowOptions" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>
       check {
-        assertResult("Expecting JSON object for workflowInputs and workflowOptions fields") {
-          responseAs[String]
-        }
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(true) {
+          responseAs[String].contains("contains bad options JSON")
         }
       }
   }

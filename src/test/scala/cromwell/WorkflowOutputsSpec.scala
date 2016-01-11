@@ -6,7 +6,7 @@ import cromwell.CromwellTestkitSpec.AnyValueIsFine
 
 import scala.language.postfixOps
 
-class WorkflowOutputsSpec extends CromwellTestkitSpec("WorkflowOutputsSpec") {
+class WorkflowOutputsSpec extends CromwellTestkitSpec {
   "Workflow outputs" should {
     "use all outputs if none are specified" in {
       runWdlAndAssertOutputs(

@@ -4,15 +4,17 @@ import java.net.URL
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
-import cromwell.binding.CallInputs
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlFile, WdlMap, WdlString}
+import cromwell.engine.backend.{BackendType, Backend}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s.{RuntimeAttributes, CallInputs}
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString}
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend.{JesWorkflowDescriptor, JesInput, JesOutput}
+import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
+import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
-import cromwell.util.google.SimpleClientSecrets
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
@@ -23,21 +25,18 @@ object JesBackendSpec {
 }
 
 class JesBackendSpec extends FlatSpec with Matchers with Mockito {
+  val clientSecrets = SimpleClientSecrets("id", "secrets")
   val jesBackend = new JesBackend(JesBackendSpec.ActorSystem) {
     private val anyString = ""
     private val anyURL: URL = null
     override lazy val jesConf = new JesAttributes(
-      applicationName = anyString,
       project = anyString,
       executionBucket = anyString,
-      endpointUrl = anyURL,
-      authMode = JesAuthMode.fromString("service"),
-      dockerCredentials = None,
-      googleSecrets = Some(SimpleClientSecrets("myclientId", "myclientSecret"))) {
-      override val localizeWithRefreshToken = true
+      endpointUrl = anyURL) {
     }
-    override lazy val jesCromwellConnection = null
     override def jesUserConnection(workflow: WorkflowDescriptor) = null
+    override lazy val jesCromwellInterface = null
+    override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "p12"), Option(Refresh(clientSecrets)))
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
@@ -48,7 +47,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
     val localFileVal = WdlFile("/blah/abc")
     val gcsFileKey = "gcsf"
     val gcsFileVal = WdlFile("gs://blah/abc")
-
+    val emptyRuntimeAttributes = CromwellRuntimeAttributes(RuntimeAttributes(Map.empty[String, Seq[String]]), BackendType.LOCAL)
 
     val inputs: CallInputs = collection.immutable.HashMap(
       stringKey -> stringVal,
@@ -56,7 +55,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend(JesBackendSpec.ActorSystem).adjustInputPaths(ignoredCall, inputs, mock[WorkflowDescriptor])
+    val mappedInputs: CallInputs  = new JesBackend(JesBackendSpec.ActorSystem).adjustInputPaths(ignoredCall, emptyRuntimeAttributes, inputs, mock[WorkflowDescriptor])
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -100,7 +99,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
     workflowDescriptor.workflowOptions returns mockedWfOptions
     mockedWfOptions.get("refresh_token") returns Success("myRefreshToken")
 
-    jesBackend.getGcsAuthInformation(workflowDescriptor) shouldBe Some(GcsLocalizing(jesBackend.jesConf.googleSecrets.get, "myRefreshToken"))
+    jesBackend.getGcsAuthInformation(workflowDescriptor) shouldBe Some(GcsLocalizing(clientSecrets, "myRefreshToken"))
   }
 
   it should "generate correct JesInputs from a WdlMap" in {

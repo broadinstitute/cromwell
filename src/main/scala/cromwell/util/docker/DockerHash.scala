@@ -3,7 +3,7 @@ package cromwell.util.docker
 import javax.xml.bind.DatatypeConverter
 
 import cromwell.engine.ErrorOr
-import cromwell.util.StringUtil._
+import cromwell.engine.Hashing._
 import cromwell.util.TryUtil
 
 import scala.util.{Failure, Success, Try}
@@ -78,7 +78,7 @@ object DockerHash {
     validateHashString(hashString) match {
       case SuccessZ(_) => Success(DockerHash(hashType, hashString))
       case FailureZ(e) =>
-        val errorMessages = e.list.mkString(", ")
+        val errorMessages = e.toList.mkString(", ")
         Failure(new IllegalArgumentException(s"hashString '$hashString' is not valid: $errorMessages"))
     }
   }

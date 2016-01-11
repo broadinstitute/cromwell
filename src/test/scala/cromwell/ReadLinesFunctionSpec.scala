@@ -1,14 +1,14 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlArray, WdlString}
+import wdl4s.types.{WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ReadLinesFunctionSpec extends CromwellTestkitSpec("ReadLinesFunctionSpec") {
+class ReadLinesFunctionSpec extends CromwellTestkitSpec {
   val outputArray = WdlArray(WdlArrayType(WdlStringType), Seq(
     WdlString("java"),
     WdlString("scala"),

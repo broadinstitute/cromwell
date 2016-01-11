@@ -15,28 +15,10 @@ object ConfigUtil {
 
   val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
 
-  class ConfigValidationException(context: String, validationException: ConfigException.ValidationFailed)
-    extends ConfigException.ValidationFailed(validationException.problems()) {
-    override def getMessage: String = {
-      val problems = validationException.problems().map(_.problem()).mkString(", ")
-      s"$context configuration validation failed : $problems"
-    }
-  }
+  class ConfigValidationException(context: String, message: String) extends Exception(s"Invalid $context configuration: $message")
 
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
-
     def keys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
-
-    private def getOption[T](key: String, f: String => T): Option[T] = {
-      Try(f(key)) match {
-        case scala.util.Success(value) => Option(value)
-        case scala.util.Failure(e: ConfigException.Missing) => None
-        case scala.util.Failure(e) => throw e
-      }
-    }
-
-    def getBooleanOption(key: String): Option[Boolean] = getOption(key, config.getBoolean)
-    def getConfigOption(key: String): Option[Config] = getOption(key, config.getConfig)
 
     /**
      * For keys that are in the configuration but not in the reference keySet, log a warning.

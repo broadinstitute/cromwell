@@ -2,7 +2,7 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.values.WdlInteger
+import wdl4s.values.WdlInteger
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
@@ -15,7 +15,7 @@ object ThreeStepActorSpec {
   val EventMessage = s"starting calls: three_step.cgrep, three_step.wc"
 }
 
-class ThreeStepActorSpec extends CromwellTestkitSpec("ThreeStepActorSpec") {
+class ThreeStepActorSpec extends CromwellTestkitSpec {
   import ThreeStepActorSpec._
 
   "A three step workflow" should {

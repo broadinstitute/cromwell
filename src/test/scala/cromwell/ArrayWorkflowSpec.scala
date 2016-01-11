@@ -4,18 +4,17 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 import akka.testkit._
-import cromwell.binding.NamespaceWithWorkflow
-import cromwell.binding.expression.NoFunctions
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlFile, WdlInteger, WdlString}
-import cromwell.parser.BackendType
+import wdl4s.NamespaceWithWorkflow
+import wdl4s.expression.NoFunctions
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
+class ArrayWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
-  val ns = NamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""), BackendType.LOCAL)
+  val ns = NamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""))
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
 
   "A task which contains a parameter " should {
@@ -40,7 +39,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
       val expression = declaration.expression.getOrElse {
         fail("Expected an expression for declaration 'arr'")
       }
-      val value = expression.evaluate((s:String) => fail("No lookups"), new NoFunctions()).getOrElse {
+      val value = expression.evaluate((s:String) => fail("No lookups"), NoFunctions).getOrElse {
         fail("Expected expression for 'arr' to evaluate")
       }
       value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
@@ -49,7 +48,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec("ArrayWorkflowSpec") {
       val catTask = ns.findTask("cat").getOrElse {
         fail("Expected to find task 'cat'")
       }
-      val command = catTask.instantiateCommand(Map("files" -> expectedArray)).getOrElse {
+      val command = catTask.instantiateCommand(Map("files" -> expectedArray), NoFunctions).getOrElse {
         fail("Expected instantiation to work")
       }
       command shouldEqual "cat -s f1 f2 f3"

@@ -1,7 +1,7 @@
 package cromwell.util.docker
 
-import com.typesafe.config.Config
-import lenthall.config.ScalaConfig._
+import com.google.api.client.auth.oauth2.Credential
+import cromwell.util.DockerConfiguration
 
 /**
   * Parses a String into a DockerIdentifier for a particular registry.
@@ -16,13 +16,13 @@ sealed trait DockerRegistryIdentifierParser {
 /**
   * Parses Docker Hub image strings.
   */
-class DockerHubRegistryParser(val config: Config) extends DockerRegistryIdentifierParser {
-  private lazy val dockerHubLoginProvider = new DockerHubLoginProvider(config)
+class DockerHubRegistryParser(dockerConfig: DockerConfiguration) extends DockerRegistryIdentifierParser {
+  private lazy val dockerHubLoginProvider = new DockerHubLoginProvider(dockerConfig.dockerCredentials map { _.token })
 
   private lazy val dockerHubRegistry = DockerRegistry(
-    config.getStringOr("docker.hub.namespace", "docker.io"),
-    config.getStringOr("docker.hub.v1Registry", "index.docker.io"),
-    config.getStringOr("docker.hub.v2Registry", "registry-1.docker.io"),
+    dockerConfig.dockerHubConf.namespace,
+    dockerConfig.dockerHubConf.v1Registry,
+    dockerConfig.dockerHubConf.v2Registry,
     dockerHubLoginProvider
   )
   /** When all else fails, just look for the image at that name on DockerHub. */
@@ -46,8 +46,8 @@ class DockerHubRegistryParser(val config: Config) extends DockerRegistryIdentifi
 /**
   * Parses an image hosted on *.gcr.io.
   */
-class GoogleContainerRegistryParser(config: Config) extends DockerRegistryIdentifierParser {
-  private val gcrLoginProvider = new GcrLoginProvider(config)
+class GoogleContainerRegistryParser(credential: Credential) extends DockerRegistryIdentifierParser {
+  private val gcrLoginProvider = new GcrLoginProvider(credential)
   private val gcrLatest = """(.*\.?gcr.io)/(.*)/(.*)""".r
   private val gcrWithTag = """(.*\.?gcr.io)/(.*)/(.*):([^:]+)""".r
   private val gcrWithDigest = """(.*\.?gcr.io)/(.*)/(.*)@([^@]+)""".r

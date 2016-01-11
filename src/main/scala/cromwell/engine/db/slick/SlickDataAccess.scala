@@ -7,9 +7,9 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.binding._
-import cromwell.binding.types.{WdlPrimitiveType, WdlType}
-import cromwell.binding.values.WdlValue
+import wdl4s._
+import wdl4s.types.{WdlPrimitiveType, WdlType}
+import wdl4s.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
@@ -19,6 +19,7 @@ import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import cromwell.engine.{SymbolHash, CallOutput, WorkflowOutputs}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
@@ -220,8 +221,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   // Converts the SymbolStoreEntry to Symbols. Does not create the action to do the insert.
   private def toInputSymbols(workflowExecution: WorkflowExecution,
-                        rootWorkflowScope: Workflow,
-                        symbolStoreEntries: Traversable[SymbolStoreEntry]): Seq[Symbol] = {
+                             rootWorkflowScope: Workflow,
+                             symbolStoreEntries: Traversable[SymbolStoreEntry]): Seq[Symbol] = {
     symbolStoreEntries.toSeq map { symbol =>
       val reportableResult = rootWorkflowScope.outputs exists { _.fullyQualifiedName == symbol.key.fqn }
       new Symbol(
@@ -382,7 +383,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
             workflowExecutionResult.workflowExecutionUuid).result.head
 
           workflowExecutionAuxResult map { workflowExecutionAux =>
-            new WorkflowDescriptor(
+            WorkflowDescriptor(
               WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
               WorkflowSourceFiles(
                 workflowExecutionAux.wdlSource.toRawString,
@@ -547,12 +548,71 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
             reportableSymbol,
             wdlValue.wdlType.toWdlString,
             Option(wdlValueToDbValue(wdlValue).toClob),
-            Option(hash.value)
+            hash.value.map(_.value)
           )
       }
     } yield ()
 
     runTransaction(action)
+  }
+
+  /**
+    * Updates the existing input symbols to replace expressions with real values.
+    * @return The number of rows updated - as a Future.
+    */
+  override def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int] = {
+    type ProjectionFunction = SlickDataAccess.this.dataAccess.Symbols => (Rep[String], Rep[Option[Clob]])
+    val projectionFn: ProjectionFunction = (s: SlickDataAccess.this.dataAccess.Symbols) => (s.wdlType, s.wdlValue)
+
+    val inputUpdateActions = callInputs map { case (inputName, wdlValue) =>
+      for {
+        workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+        symbols = dataAccess.symbolsFilterByWorkflowAndScopeAndNameAndIndex(workflowExecutionResult.workflowExecutionId.get, key.scope.fullyQualifiedName, inputName, key.index.fromIndex)
+        count <- symbols.map(projectionFn).update(wdlValue.wdlType.toWdlString, Option(wdlValueToDbValue(wdlValue).toClob))
+      } yield count
+    }
+
+    // Do an FP dance to get the DBIOAction[Iterable[Int]] from Iterable[DBIOAction[Int]].
+    val allInputUpdatesAction = DBIO.sequence(inputUpdateActions)
+    runTransaction(allInputUpdatesAction) map { _.sum }
+  }
+
+  override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit] = {
+    val action = for {
+      execution <- shardIndex match {
+        case Some(idx) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(workflowId.toString, callFqn, idx).result.head
+        case None => dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(workflowId.toString, callFqn).result.head
+      }
+      _ <- dataAccess.executionEventsAutoInc ++= events map { executionEventEntry =>
+        new ExecutionEvent(
+          execution.executionId.get,
+          executionEventEntry.description,
+          new Timestamp(executionEventEntry.startTime.getMillis),
+          new Timestamp(executionEventEntry.endTime.getMillis))
+      }
+    } yield ()
+
+    runTransaction(action)
+  }
+
+  override def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]] = {
+    // The database query gives us a Seq[(CallFqn, ExecutionEvent)]. We want a Map[CallFqn -> ExecutionEventEntry].
+    // So let's do some functional programming!
+    val action = dataAccess.executionEventsByWorkflowExecutionUuid(workflowId.toString).result
+    runTransaction(action) map toExecutionEvents
+  }
+
+  private def toExecutionEvents(events: Traversable[((String, Int), ExecutionEvent)]): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
+      // First: Group all the entries together by name
+      val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex) }
+      // Second: Transform the values. The value no longer needs the String since that's now part of the Map, and
+      // convert the executionEvent into a friendlier ExecutionEventEntry:
+      grouped mapValues { _ map { case (_ , event: ExecutionEvent) =>
+        ExecutionEventEntry(
+          event.description,
+          new DateTime(event.startTime.getTime),
+          new DateTime(event.endTime.getTime))
+      } }
   }
 
   private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],

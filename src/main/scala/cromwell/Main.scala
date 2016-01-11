@@ -5,18 +5,17 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.{Actor, ActorRef, Props, Status}
 import better.files._
-import cromwell.binding.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import cromwell.binding.{AstTools, _}
+import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl4s.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowManagerActor, WorkflowOptions}
+import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
-import cromwell.parser.BackendType
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import spray.json._
-import cromwell.engine.backend.Backend.BackendyString
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
@@ -27,6 +26,8 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
+  setupServerLogging(args)
+
   /*
    * scala.App's DelayedInit is tricky, as the docs say. During tests we definitely don't want to use sys.exit on an
    * error, and while testing "run ..." we want to change to a test workflow manager system. Unfortunately...
@@ -43,6 +44,22 @@ object Main extends App {
    * array becoming null in "new Main(args)" when used with: sbt 'run run ...'
    */
   new Main().runAction(args)
+
+  /**
+    * If a cromwell server is going to be run, makes adjustments to the default logback configuration.
+    * Overwrites LOG_MODE system property used in our logback.xml, _before_ the logback classes load.
+    * Restored from similar functionality in
+    *   https://github.com/broadinstitute/cromwell/commit/2e3f45b#diff-facc2160a82442932c41026c9a1e4b2bL28
+    * TODO: Logback is configurable programmatically. We don't have to overwrite system properties like this.
+    *
+    * @param args The command line arguments.
+    */
+  private def setupServerLogging(args: Array[String]): Unit = {
+    args.headOption.map(_.capitalize) match {
+      case Some("Server") => sys.props.getOrElseUpdate("LOG_MODE", "STANDARD")
+      case _ =>
+    }
+  }
 }
 
 /** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
@@ -96,7 +113,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   def inputs(args: Seq[String]): Int = {
     continueIf(args.length == 1) {
       loadWdl(args.head) { namespace =>
-        import cromwell.binding.types.WdlTypeJsonFormatter._
+        import wdl4s.types.WdlTypeJsonFormatter._
         namespace match {
           case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
           case _ => println("WDL does not have a local workflow")
@@ -170,7 +187,13 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
     Await.ready(futureResult, Duration.Inf)
 
     if (enableTermination) workflowManagerSystem.actorSystem.shutdown()
-    exit (if (futureResult.value.get.isSuccess) 0 else 1)
+
+    futureResult.value.get match {
+      case Success(_) => exit(0)
+      case Failure(e) =>
+        Console.err.println(e.getMessage)
+        exit(1)
+    }
   }
 
   /* Utilities for the mini-DSL used in tryWorkflowSourceFiles. */
@@ -200,16 +223,6 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
     pathOption.foreach(_.createIfNotExists().append(""))
   }
 
-  /** Run the input json string through a json parser. */
-  private[this] def parseInputs(inputsJson: String): Try[String] = {
-    Try(inputsJson.parseJson) flatMap {
-      case JsObject(rawInputs) =>
-        rawInputs foreach { case (k, v) => Log.info(s"input: $k => $v") }
-        Success(inputsJson)
-      case unexpected => Failure(new RuntimeException(s"Expecting a JSON object: $unexpected"))
-    }
-  }
-
   /**
     * Run sanity checks on each of the argument paths.
     *
@@ -231,13 +244,9 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
       wdlSource <- Trying.to(readContent _, wdlPath, ShouldProcess, WdlLabel)
       inputsJson <- Trying.to(readJson _, inputsPath, ShouldProcess, InputsLabel)
       workflowOptions <- Trying.to(readJson _, optionsPath, ShouldProcess, OptionsLabel)
-      _ <- Trying.to(parseInputs _, inputsJson, ShouldParse, InputsLabel)
-      parsedOptions <- Trying.to(parseOptions _, workflowOptions, ShouldParse, OptionsLabel)
       _ <- Trying.to(writeTo _, metadataPath, ShouldAccess, MetadataLabel)
-    } yield WorkflowSourceFiles(wdlSource, inputsJson, parsedOptions)
+    } yield WorkflowSourceFiles(wdlSource, inputsJson, workflowOptions)
   }
-
-  /* End .run() method and utilities */
 
   /**
     * Run the workflow options json string through the WorkflowOptions parser.
@@ -310,9 +319,16 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
 
   private[this] def initLogging(): Int = {
     val systemProperties = sys.props
-    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
-    systemProperties.getOrElseUpdate("LOG_MODE", "CONSOLE")
+    systemProperties.getOrElseUpdate("LOG_MODE", "PRETTY")
     systemProperties.getOrElseUpdate("LOG_LEVEL", "INFO")
+    /*
+    TODO: When implementing DSDEEPB-2271, make sure not to regress DSDEEPB-2339.
+    If a parameter is not going to be used due to some combination of arguments, log a warning.
+     */
+    if (systemProperties.get("LOG_ROOT").isDefined) {
+      Console.err.println("WARNING: The LOG_ROOT parameter is currently ignored.")
+    }
+    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
 
     try {
       File(logRoot).createDirectories()
@@ -334,9 +350,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   } yield a
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Int): Int = {
-    val backendType = BackendType.LOCAL
-
-    Try(WdlNamespace.load(new JFile(path), backendType)) match {
+    Try(WdlNamespace.load(new JFile(path))) match {
       case Success(namespace) => f(namespace)
       case Failure(t) =>
         println(t.getMessage)

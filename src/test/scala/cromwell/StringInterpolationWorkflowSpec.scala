@@ -1,12 +1,12 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.values.{WdlInteger, WdlFile}
+import wdl4s.values.{WdlInteger, WdlFile}
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class StringInterpolationWorkflowSpec extends CromwellTestkitSpec("StringInterpolationWorkflowSpec") {
+class StringInterpolationWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with a task that uses string interpolation" should {
     "interpolate strings correctly and run" in {
       runWdlAndAssertOutputs(

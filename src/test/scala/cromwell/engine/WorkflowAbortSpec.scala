@@ -1,13 +1,13 @@
 package cromwell.engine
 
 import akka.testkit.TestActorRef
-import cromwell.{CromwellTestkitSpec, binding, CromwellSpec}
+import cromwell.{CromwellTestkitSpec, CromwellSpec}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.{TripleSleep, HelloWorld}
 
-class WorkflowAbortSpec extends CromwellTestkitSpec("WorkflowAbortSpec") {
+class WorkflowAbortSpec extends CromwellTestkitSpec {
 
   // TODO: When re-enabled, this test also needs to check that child processes have actually been stopped.
   "A WorkflowManagerActor" should {

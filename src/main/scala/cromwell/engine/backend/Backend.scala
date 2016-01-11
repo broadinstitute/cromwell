@@ -2,17 +2,19 @@ package cromwell.engine.backend
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import cromwell.binding._
-import cromwell.binding.expression.WdlStandardLibraryFunctions
+import cromwell.engine.{CallInputs, CallOutputs}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.{HostInputs, CallOutputs}
 import cromwell.logging.WorkflowLogger
-import cromwell.parser.BackendType
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
 
@@ -56,15 +58,27 @@ trait JobKey
  */
 trait Backend {
   type BackendCall <: backend.BackendCall
-  type IOInterface <: cromwell.binding.IOInterface
 
   def actorSystem: ActorSystem
+
+  /**
+    * Attempt to evaluate all the ${...} tags in a command and return a String representation
+    * of the command.  This could fail for a variety of reasons related to expression evaluation
+    * which is why it returns a Try[String]
+    */
+  def instantiateCommand(backendCall: BackendCall): Try[String] = {
+    val backendInputs = adjustInputPaths(backendCall.key, backendCall.runtimeAttributes, backendCall.locallyQualifiedInputs, backendCall.workflowDescriptor)
+    backendCall.call.instantiateCommandLine(backendInputs, backendCall.engineFunctions)
+  }
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs
+  def adjustInputPaths(callKey: CallKey,
+                       runtimeAttributes: CromwellRuntimeAttributes,
+                       inputs: CallInputs,
+                       workflowDescriptor: WorkflowDescriptor): CallInputs
 
   // FIXME: This is never called...
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs
@@ -89,15 +103,9 @@ trait Backend {
                locallyQualifiedInputs: CallInputs,
                abortRegistrationFunction: AbortRegistrationFunction): BackendCall
 
-  /**
-   * Engine functions that don't need a Call context (e.g. read_lines(), read_float(), etc)
-   */
-  def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions
+  def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext
 
-  /**
-    * Interface to be used primarily by engine functions requiring IO capabilities.
-    */
-  def ioInterface(workflowOptions: WorkflowOptions): IOInterface
+  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions
 
   /**
    * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
@@ -108,11 +116,6 @@ trait Backend {
    * Return CallStandardOutput which contains the stdout/stderr of the particular call
    */
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
-
-  /**
-   * Provides a function that given a WdlFile, returns its hash.
-   */
-  def fileHasher(workflowDescriptor: WorkflowDescriptor): FileHasher
 
   def backendType: BackendType
 

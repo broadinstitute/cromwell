@@ -48,9 +48,7 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
 
     def makeWorkflowDescriptor(config: Map[String, String], write: Option[Boolean], read: Option[Boolean]) = {
       val sources = WorkflowSourceFiles(dummyWdl, "{}", makeOptions(write, read))
-      new WorkflowDescriptor(WorkflowId.randomId(), sources) {
-        override lazy val conf = ConfigFactory.parseMap(config.asJava)
-      }
+      WorkflowDescriptor(WorkflowId.randomId(), sources, ConfigFactory.parseMap(config.asJava))
     }
 
     writeCacheOnCombinations foreach {

@@ -7,9 +7,10 @@ import java.nio.file.{Path, Paths}
 import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.binding._
-import cromwell.binding.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import cromwell.binding.values._
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s.{Scatter, UnsatisfiedInputsException, Call, CallInputs}
+import wdl4s.expression.NoFunctions
+import wdl4s.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend._
@@ -19,18 +20,20 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
+import cromwell.engine.io.IoInterface
+import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, _}
+import cromwell.engine.{AbortRegistrationFunction, _}
+import cromwell.engine.{HostInputs, CallOutput, CallOutputs}
 import cromwell.logging.WorkflowLogger
-import cromwell.parser.BackendType
-import cromwell.util.StringUtil._
-import cromwell.util.google.{GcsPath, GoogleCloudStorage, GoogleCredentialFactory}
+import cromwell.engine.backend.BackendType
 import cromwell.util.{AggregatedException, TryUtil}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Hashing._
 
 object JesBackend {
   /*
@@ -38,7 +41,7 @@ object JesBackend {
     where stdout.txt is input and output. Redirect stdout/stderr to a different name, but it'll be localized back
     in GCS as stdout/stderr. Yes, it's hacky.
    */
-  val LocalWorkingDiskValue = s"disk://${RuntimeAttributes.LocalDiskName}"
+  val LocalWorkingDiskValue = s"disk://${CromwellRuntimeAttributes.LocalDiskName}"
   val ExecParamName = "exec"
   val MonitoringParamName = "monitoring"
   val WorkingDiskParamName = "working_disk"
@@ -49,7 +52,6 @@ object JesBackend {
   val JesMonitoringLogFile = "monitoring.log"
 
   // Workflow options keys
-  val RefreshTokenOptionKey = "refresh_token"
   val GcsRootOptionKey = "jes_gcs_root"
   val MonitoringScriptOptionKey = "monitoring_script"
   val GoogleProjectOptionKey = "google_project"
@@ -57,7 +59,7 @@ object JesBackend {
   val WriteToCacheOptionKey = "write_to_cache"
   val ReadFromCacheOptionKey = "read_from_cache"
   val OptionKeys = Set(
-    RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
+    GoogleCloudStorage.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
     AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
   )
 
@@ -138,8 +140,6 @@ object JesBackend {
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
-
-  type IOInterface = GoogleCloudStorage
 }
 
 final case class JesJobKey(operationId: String) extends JobKey
@@ -164,21 +164,23 @@ case class JesBackend(actorSystem: ActorSystem)
   with ProductionJesAuthentication
   with ProductionJesConfiguration {
   type BackendCall = JesBackendCall
-  type IOInterface = JesBackend.IOInterface
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
-  override def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
+  override def adjustInputPaths(callKey: CallKey,
+                                runtimeAttributes: CromwellRuntimeAttributes,
+                                inputs: CallInputs,
+                                workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
+
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
   }
 
-  def fileHasher(workflow: WorkflowDescriptor): FileHasher = { wdlFile: WdlFile => SymbolHash(getCrc32c(workflow, GcsPath(wdlFile.value))) }
-
   private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
     val log = workflowLogger(workflow)
 
-    generateAuthJson(jesConf.dockerCredentials, getGcsAuthInformation(workflow)) foreach { content =>
+    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) foreach { content =>
+
       val path = GcsPath(gcsAuthFilePath(workflow))
       def upload(prev: Option[Unit]) = connection.storage.uploadJson(path, content)
 
@@ -191,13 +193,23 @@ case class JesBackend(actorSystem: ActorSystem)
     _.getCrc32c(googleCloudStoragePath)
   }
 
+  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions = {
+    new JesWorkflowEngineFunctions(ioInterface, workflowContext)
+  }
+
   /**
    * Get a GcsLocalizing from workflow options if client secrets and refresh token are available.
    */
   def getGcsAuthInformation(workflow: WorkflowDescriptor): Option[JesAuthInformation] = {
+    def extractSecrets(userAuthMode: GoogleUserAuthMode) = userAuthMode match {
+      case Refresh(secrets) => Option(secrets)
+      case _ => None
+    }
+
     for {
-      secrets <- jesConf.googleSecrets if jesConf.localizeWithRefreshToken
-      token <- workflow.workflowOptions.get(RefreshTokenOptionKey).toOption
+      userAuthMode <- googleConf.userAuthMode
+      secrets <- extractSecrets(userAuthMode)
+      token <- workflow.workflowOptions.get(GoogleCloudStorage.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(secrets, token)
   }
 
@@ -217,8 +229,8 @@ case class JesBackend(actorSystem: ActorSystem)
       case _ =>
     }
 
-    if (jesConf.localizeWithRefreshToken) {
-      Seq(RefreshTokenOptionKey) filterNot options.toMap.keySet match {
+    if (googleConf.userAuthMode.isDefined) {
+      Seq(GoogleCloudStorage.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
         case missing if missing.nonEmpty =>
           throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
         case _ =>
@@ -270,7 +282,11 @@ case class JesBackend(actorSystem: ActorSystem)
     new JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def engineFunctions(interface: IOInterface): WdlStandardLibraryFunctions = new JesEngineFunctionsWithoutCallContext(interface)
+  override def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = {
+    val bucket = workflowOptions.getOrElse(GcsRootOptionKey, jesConf.executionBucket)
+    val workflowPath = s"$bucket/$name/$workflowId"
+    new WorkflowContext(workflowPath)
+  }
 
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(backendCall)
@@ -281,7 +297,7 @@ case class JesBackend(actorSystem: ActorSystem)
     val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq ++ monitoringScript :+ backendCall.cmdInput
     val jesOutputs: Seq[JesOutput] = generateJesOutputs(backendCall) ++ monitoringOutput
 
-    backendCall.instantiateCommand match {
+    instantiateCommand(backendCall) match {
       case Success(command) => runWithJes(backendCall, command, jesInputs, jesOutputs, runIdForResumption, monitoringScript.isDefined)
       case Failure(ex: SocketTimeoutException) => throw ex // probably a GCS transient issue, throwing will cause it to be retried
       case Failure(ex) => FailedExecutionHandle(ex)
@@ -304,7 +320,7 @@ case class JesBackend(actorSystem: ActorSystem)
           FailedExecutionHandle(ex).future
         case Success(_) => postProcess(backendCall) match {
           case Success(outputs) => backendCall.hash map { h =>
-            SuccessfulExecutionHandle(outputs, backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
+            SuccessfulExecutionHandle(outputs, Seq.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
           case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
             // TODO: What can we return here to retry this operation?
             // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
@@ -339,7 +355,7 @@ case class JesBackend(actorSystem: ActorSystem)
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
     val log = workflowLoggerWithCall(backendCall)
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
-      taskOutput.expression.evaluateFiles(backendCall.lookupFunction, new NoFunctions, taskOutput.wdlType) match {
+      taskOutput.expression.evaluateFiles(backendCall.lookupFunction, NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) => wdlFiles map gcsPathToLocal
         case Failure(ex) =>
           log.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}")
@@ -402,6 +418,7 @@ case class JesBackend(actorSystem: ActorSystem)
         backendCall.jesCommandLine,
         backendCall.workflowDescriptor,
         backendCall.key,
+        backendCall.runtimeAttributes,
         jesParameters,
         googleProject(backendCall.workflowDescriptor),
         connection,
@@ -483,7 +500,11 @@ case class JesBackend(actorSystem: ActorSystem)
       taskOutput.name -> attemptedValue
     }).toMap
 
-    TryUtil.sequenceMap(outputMappings).map(_.mapValues(v => CallOutput(v, v.getHash(fileHasher(backendCall.workflowDescriptor)))))
+    TryUtil.sequenceMap(outputMappings) map { outputMap =>
+      outputMap mapValues { v =>
+        CallOutput(v, v.getHash(backendCall.workflowDescriptor))
+      }
+    }
   }
 
   def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
@@ -495,22 +516,22 @@ case class JesBackend(actorSystem: ActorSystem)
       lazy val stderrLength: BigInteger = authenticateAsUser(backendCall.workflowDescriptor) { _.objectSize(GcsPath(backendCall.stderrJesOutput.gcs)) }
       lazy val returnCodeContents = backendCall.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
-      lazy val continueOnReturnCode = backendCall.call.continueOnReturnCode
+      lazy val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
 
       status match {
-        case Run.Success if backendCall.call.failOnStderr && stderrLength.intValue > 0 =>
+        case Run.Success(events) if backendCall.runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength")).future
-        case Run.Success if returnCodeContents.isFailure =>
+        case Run.Success(events) if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
           // Return handle to try again.
           handle.future
-        case Run.Success if returnCode.isFailure =>
+        case Run.Success(events) if returnCode.isFailure =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
-        case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
+        case Run.Success(events) if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get)).future
-        case Run.Success =>
-          backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, returnCode.get, h, handle) }
+        case Run.Success(events) =>
+          backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage) =>
           val throwable = if (errorMessage contains "Operation canceled at") {
             new TaskAbortedException()
@@ -552,11 +573,12 @@ case class JesBackend(actorSystem: ActorSystem)
 
   private def handleSuccess(outputMappings: Try[CallOutputs],
                             workflowDescriptor: WorkflowDescriptor,
+                            executionEvents: Seq[ExecutionEventEntry],
                             returnCode: Int,
                             hash: ExecutionHash,
                             executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, hash)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, returnCode, hash)
       case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
@@ -653,24 +675,12 @@ case class JesBackend(actorSystem: ActorSystem)
 
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if (jesConf.localizeWithRefreshToken || jesConf.isDockerAuthenticated)
+    if (googleConf.userAuthMode.isDefined || dockerConf.isDefined)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor)))
     else None
   }
 
   override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = {
     globalDataAccess.findResumableJesExecutions(id)
-  }
-
-  /**
-    * Will try to instantiate a user authenticated IOInterface if possible.
-    * If not, will default back to the Cromwell authenticated IOInterface.
-    */
-  override def ioInterface(workflowOptions: WorkflowOptions): GoogleCloudStorage = {
-    val userCredentials = for {
-      secrets <- jesConf.googleSecrets
-      token <- workflowOptions.get(RefreshTokenOptionKey).toOption
-    } yield GoogleCredentialFactory.forRefreshToken(secrets, token)
-    userCredentials map { GcsFactory(jesConf.applicationName, _) } getOrElse jesCromwellConnection.storage
   }
 }

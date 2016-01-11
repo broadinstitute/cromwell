@@ -8,8 +8,9 @@ import akka.testkit._
 import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
-import cromwell.binding._
-import cromwell.binding.values.{WdlArray, WdlFile, WdlString, WdlValue}
+import cromwell.engine.WorkflowOutputs
+import wdl4s._
+import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs
@@ -112,9 +113,10 @@ object CromwellTestkitSpec {
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 }
 
-abstract class CromwellTestkitSpec(name: String) extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
+abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
 with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
+  val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =

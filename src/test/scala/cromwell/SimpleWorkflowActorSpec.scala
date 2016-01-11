@@ -3,7 +3,7 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
-import cromwell.binding._
+import wdl4s._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowActor
@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSpec") {
+class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
 
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: String):
   TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {
@@ -45,13 +45,13 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec("SimpleWorkflowActorSp
     }
 
     "fail to construct with missing inputs" in {
-      intercept[UnsatisfiedInputsException] {
+      intercept[IllegalArgumentException] {
         buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = "{}")
       }
     }
 
     "fail to construct with inputs of the wrong type" in {
-      intercept[UnsatisfiedInputsException] {
+      intercept[IllegalArgumentException] {
         buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = s""" { "$Addressee" : 3} """)
       }
     }

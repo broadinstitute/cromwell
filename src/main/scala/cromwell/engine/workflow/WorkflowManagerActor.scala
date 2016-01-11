@@ -4,9 +4,9 @@ import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{pipe, ask}
-import com.typesafe.config.ConfigFactory
-import cromwell.binding
-import cromwell.binding._
+import cromwell.engine
+import cromwell.engine.EnhancedFullyQualifiedName
+import wdl4s._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
@@ -73,8 +73,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   }
 
   def receive = LoggingReceive {
-    case SubmitWorkflow(source) =>
-      submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
+    case SubmitWorkflow(source) => submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
     case WorkflowStatus(id) => globalDataAccess.getWorkflowState(id) pipeTo sender
     case WorkflowQuery(rawParameters) => query(rawParameters) pipeTo sender
     case WorkflowAbort(id) =>
@@ -131,7 +130,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     }
   }
 
-  private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
+  private def workflowOutputs(id: WorkflowId): Future[engine.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
       outputs <- globalDataAccess.getWorkflowOutputs(id)
@@ -140,7 +139,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     }
   }
 
-  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[binding.CallOutputs] = {
+  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[engine.CallOutputs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
@@ -196,7 +195,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
                                     workflowExecutionAux: WorkflowExecutionAux,
-                                    workflowOutputs: binding.WorkflowOutputs,
+                                    workflowOutputs: engine.WorkflowOutputs,
                                     callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]]): WorkflowMetadataResponse = {
 
     val startDate = new DateTime(workflowExecution.startDt)
@@ -205,6 +204,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
     WorkflowMetadataResponse(
       id = workflowExecution.workflowExecutionUuid.toString,
+      workflowName = workflowExecution.name,
       status = workflowExecution.status,
       // We currently do not make a distinction between the submission and start dates of a workflow, but it's
       // possible at least theoretically that a workflow might not begin to execute immediately upon submission.
@@ -230,15 +230,15 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       jesJobs <- globalDataAccess.jesJobInfo(id)
       localJobs <- globalDataAccess.localJobInfo(id)
       sgeJobs <- globalDataAccess.sgeJobInfo(id)
+      executionEvents <- globalDataAccess.getAllExecutionEvents(id)
 
-      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, jesJobs ++ localJobs ++ sgeJobs)
+      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, executionEvents, jesJobs ++ localJobs ++ sgeJobs)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata
   }
 
-  private def submitWorkflow(source: WorkflowSourceFiles,
-                             maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
+  private def submitWorkflow(source: WorkflowSourceFiles, maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
     val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
     log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
     val isRestart = maybeWorkflowId.isDefined

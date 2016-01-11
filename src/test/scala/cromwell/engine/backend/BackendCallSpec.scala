@@ -12,7 +12,7 @@ import org.scalatest.concurrent.ScalaFutures
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
-class BackendCallSpec extends CromwellTestkitSpec("BackendCallSpec") with ScalaFutures {
+class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
 
   val backend = new LocalBackend(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
   val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()
@@ -21,13 +21,13 @@ class BackendCallSpec extends CromwellTestkitSpec("BackendCallSpec") with ScalaF
   val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, AbortRegistrationFunction(_ => ()))
 
   "BackendCall hash function" should {
-    "not change very often" in {
+    "not change very often - if it changes, make sure it is for a good reason" in {
       val actual = backendCall.hash.futureValue.overallHash
-      val expected = "20e7ec16a9d743a927791d530cba1807"
+      val expected = "fe71298bb881a586178dca7c92fa945f"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
 
-    "not change with a Docker image hash specified" in {
+    "not change with a Docker image hash specified - if it changes, make sure it is for a good reason" in {
       val nameAndDigest = "ubuntu@sha256:a2c950138e95bf603d919d0f74bec16a81d5cc1e3c3d574e8d5ed59795824f47"
       val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources( s"""runtime { docker: "$nameAndDigest" } """)
       val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
@@ -35,7 +35,7 @@ class BackendCallSpec extends CromwellTestkitSpec("BackendCallSpec") with ScalaF
       val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, AbortRegistrationFunction(_ => ()))
 
       val actual = backendCall.hash.futureValue.overallHash
-      val expected = "8ed446e4662cc7c0455231dc98713e87"
+      val expected = "ca6ee457780b78290785f112c3a3acb4"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
   }

@@ -2,12 +2,12 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.values.WdlString
+import wdl4s.values.WdlString
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
-class MultiLineCommandWorkflowSpec extends CromwellTestkitSpec("MultiLineCommandWorkflowSpec") {
+class MultiLineCommandWorkflowSpec extends CromwellTestkitSpec {
   "A workflow that calls a task with a multi-line command" should {
     "honor the newlines in the command" in {
       runWdlAndAssertOutputs(

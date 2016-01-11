@@ -299,6 +299,8 @@ object SampleWdl {
   }
 
   object WorkflowOutputsWithFiles extends SampleWdl {
+    // ASCII art from http://www.chris.com/ascii/joan/www.geocities.com/SoHo/7373/flag.html with pipes
+    // replaced by exclamation points to keep stripMargin from removing the flagpole.
     override def wdlSource(runtime: String = "") =
       """
         task A {
@@ -320,9 +322,42 @@ object SampleWdl {
              Array[File] outs = ["out", "out2"]
           }
         }
+        task C {
+          command {
+            cat > out <<END
+            (_)
+             !_________________________________________
+             !*  *  *  *  * |##########################|
+             ! *  *  *  *  *|                          |
+             !*  *  *  *  * |##########################|
+             ! *  *  *  *  *|                          |
+             !*  *  *  *  * |##########################|
+             ! *  *  *  *  *|                          |
+             !*  *  *  *  * |##########################|
+             !~~~~~~~~~~~~~~~                          |
+             !#########################################|
+             !                                         |
+             !#########################################|
+             !                                         |
+             !###################################JGS###|
+             !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+             !
+             !
+             !
+             !
+             !
+             !
+             !
+            END
+          }
+          output {
+            File out = "out"
+          }
+        }
         workflow wfoutputs {
           call A
           call B
+          call C
           output {
             A.*
             B.outs

@@ -59,7 +59,6 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
   * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
 * [Developer](#developer)
-  * [Generate WDL Parser](#generate-wdl-parser)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
 
@@ -1697,23 +1696,6 @@ Server: spray-can/1.3.3
 ```
 
 # Developer
-
-## Generate WDL Parser
-
-Install the latest version of [Hermes](http://github.com/scottfrazer/hermes), then run the following command within this directory:
-
-```
-hermes generate src/main/resources/grammar.hgr \
-  --language=java \
-  --directory=src/main/java \
-  --name=wdl \
-  --java-package=cromwell.parser \
-  --java-use-apache-commons \
-  --java-imports=org.apache.commons.lang3.StringEscapeUtils \
-  --header
-```
-
-The grammar for the WDL lexer/parser is defined in `src/main/resources/grammar.hgr`.  Any changes to that grammar should result in a regeneration of the parser and then run the unit tests.  Changing the AST could be disruptive if keys are renamed or objects restructured too much.  It's best to find these issues as soon as possible.
 
 ## Generating table of contents on Markdown files
 

@@ -1,15 +1,26 @@
+import com.typesafe.sbt.GitPlugin.autoImport._
 import sbt.Keys._
 import sbtassembly.MergeStrategy
+import com.typesafe.sbt.SbtGit.GitCommand
 
 name := "wdl4s"
-
-version := "0.1"
 
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
-assemblyJarName in assembly := "wdl4s-" + version.value + ".jar"
+// Upcoming release, or current if we're on the master branch
+git.baseVersion := "0.1"
+
+// Shorten the git commit hash
+git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) }
+
+// Travis will deploy tagged releases, add -SNAPSHOT for all local builds
+git.gitUncommittedChanges := true
+
+versionWithGit
+
+assemblyJarName in assembly := "wdl4s-" + git.baseVersion.value + ".jar"
 
 logLevel in assembly := Level.Info
 

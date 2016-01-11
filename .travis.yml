@@ -7,3 +7,9 @@ jdk:
 script: sbt clean coverage test
 after_success:
   - sbt coveralls
+  - src/bin/publish_snapshot.sh
+deploy:
+  provider: script
+  script: src/bin/publish_release.sh
+  on:
+    tags: true

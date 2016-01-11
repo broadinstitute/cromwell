@@ -151,7 +151,15 @@ with IntegrationPatience {
     forAll(identifiers) { identifier =>
       val exception = client.getDockerHashable(identifier).failed.futureValue
       exception shouldBe an[UnsuccessfulResponseException]
-      exception.getMessage should be("Status: 404 Not Found\nBody: Not found.")
+      /*
+        Something on the GCR server changed, or perhaps our test environment now supplies a default credential? Either
+        way, we're now getting 403 Forbidden errors instead of 404 Not Found. Just in case this a temporary change,
+        check for either. Alternatively, we could also just check for any 4xx, or not test for the message at all.
+       */
+      exception.getMessage should (
+        be(s"Status: 403 Forbidden\nBody: Unable to access the repository: ${identifier.name}; " +
+          "please verify that it exists and you have permission to access it (no valid credential was supplied).") or
+        be("Status: 404 Not Found\nBody: Not found."))
     }
   }
 

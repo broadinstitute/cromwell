@@ -3,6 +3,8 @@
 
 # Scala binding API for WDL
 
+This repository provides scala tools to parse a [WDL](https://github.com/broadinstitute/wdl) file and transform it into a scala object hierarchy. 
+
 The main entry point into the parser is the `WdlNamespace` object.  A [WDL](https://github.com/broadinstitute/wdl) file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
 ```scala

@@ -2,9 +2,10 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import cromwell.binding.WdlNamespace
-import cromwell.binding.values.{WdlFile, WdlString}
-import cromwell.parser.BackendType
+import wdl4s.WdlNamespace
+import wdl4s.expression.NoFunctions
+import wdl4s.values.{WdlFile, WdlString}
+import cromwell.engine.backend.BackendType
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
@@ -53,12 +54,12 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec {
          |  call find
          |}
        """.stripMargin
-      val ns = WdlNamespace.load(wf, BackendType.LOCAL)
+      val ns = WdlNamespace.load(wf)
       val findTask = ns.findTask("find") getOrElse {
         fail("Expected to find task 'find'")
       }
 
-      val instantiateWithoutValue = findTask.instantiateCommand(Map("root" -> WdlFile("src"))) getOrElse {
+      val instantiateWithoutValue = findTask.instantiateCommand(Map("root" -> WdlFile("src")), NoFunctions) getOrElse {
         fail("Expected instantiation to work")
       }
       instantiateWithoutValue shouldEqual "find src"
@@ -66,7 +67,7 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec {
       val instantiateWithValue = findTask.instantiateCommand(Map(
         "root" -> WdlFile("src"),
         "pattern" -> WdlString("*.java")
-      )).getOrElse {fail("Expected instantiation to work")}
+      ), NoFunctions).getOrElse {fail("Expected instantiation to work")}
       instantiateWithValue shouldEqual "find src -name *.java"
     }
   }

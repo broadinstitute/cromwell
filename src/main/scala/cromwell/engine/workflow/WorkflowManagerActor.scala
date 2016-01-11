@@ -4,9 +4,9 @@ import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
 import akka.pattern.{pipe, ask}
-import com.typesafe.config.ConfigFactory
-import cromwell.binding
-import cromwell.binding._
+import cromwell.engine
+import cromwell.engine.EnhancedFullyQualifiedName
+import wdl4s._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
@@ -130,7 +130,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     }
   }
 
-  private def workflowOutputs(id: WorkflowId): Future[binding.WorkflowOutputs] = {
+  private def workflowOutputs(id: WorkflowId): Future[engine.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
       outputs <- globalDataAccess.getWorkflowOutputs(id)
@@ -139,7 +139,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     }
   }
 
-  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[binding.CallOutputs] = {
+  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[engine.CallOutputs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
@@ -195,7 +195,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
                                     workflowExecutionAux: WorkflowExecutionAux,
-                                    workflowOutputs: binding.WorkflowOutputs,
+                                    workflowOutputs: engine.WorkflowOutputs,
                                     callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]]): WorkflowMetadataResponse = {
 
     val startDate = new DateTime(workflowExecution.startDt)

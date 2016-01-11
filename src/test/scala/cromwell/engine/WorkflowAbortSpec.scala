@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import akka.testkit.TestActorRef
-import cromwell.{CromwellTestkitSpec, binding, CromwellSpec}
+import cromwell.{CromwellTestkitSpec, CromwellSpec}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
 import cromwell.engine.workflow.WorkflowManagerActor._

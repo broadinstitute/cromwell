@@ -8,8 +8,9 @@ import akka.testkit._
 import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
-import cromwell.binding._
-import cromwell.binding.values.{WdlArray, WdlFile, WdlString, WdlValue}
+import cromwell.engine.WorkflowOutputs
+import wdl4s._
+import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs

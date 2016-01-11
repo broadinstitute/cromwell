@@ -4,9 +4,11 @@ import java.net.URL
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
-import cromwell.binding.CallInputs
-import cromwell.binding.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlFile, WdlMap, WdlString}
+import cromwell.engine.backend.{BackendType, Backend}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s.{RuntimeAttributes, CallInputs}
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString}
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
@@ -45,7 +47,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
     val localFileVal = WdlFile("/blah/abc")
     val gcsFileKey = "gcsf"
     val gcsFileVal = WdlFile("gs://blah/abc")
-
+    val emptyRuntimeAttributes = CromwellRuntimeAttributes(RuntimeAttributes(Map.empty[String, Seq[String]]), BackendType.LOCAL)
 
     val inputs: CallInputs = collection.immutable.HashMap(
       stringKey -> stringVal,
@@ -53,7 +55,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito {
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend(JesBackendSpec.ActorSystem).adjustInputPaths(ignoredCall, inputs, mock[WorkflowDescriptor])
+    val mappedInputs: CallInputs  = new JesBackend(JesBackendSpec.ActorSystem).adjustInputPaths(ignoredCall, emptyRuntimeAttributes, inputs, mock[WorkflowDescriptor])
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))

@@ -1,8 +1,7 @@
 package cromwell.engine
 
-import cromwell.binding._
-import cromwell.binding.types.WdlType
-import cromwell.binding.values.WdlValue
+import wdl4s.types.WdlType
+import wdl4s.values.WdlValue
 
 object SymbolStoreEntry {
   private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {

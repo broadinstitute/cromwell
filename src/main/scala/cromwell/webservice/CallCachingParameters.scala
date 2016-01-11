@@ -12,7 +12,6 @@ import scalaz.{Failure, Success}
 case class CallCachingParameters private(workflowId: WorkflowId, callKey: Option[ExecutionDatabaseKey], allow: Boolean)
 
 object CallCachingParameters {
-
   private [webservice] def validateRecognizedKeys(queryParameters: QueryParameters): ErrorOr[Unit] = {
     val badKeys = queryParameters collect { case q if q.key.toLowerCase != "allow" => q.key }
     if (badKeys.nonEmpty) ("Found unrecognized keys: " + badKeys.mkString(", ")).failureNel else ().successNel
@@ -31,6 +30,7 @@ object CallCachingParameters {
 
     val (trues, falses) = booleans partition { _._2.get }
     val coherentValues = if (trues.nonEmpty && falses.nonEmpty) "Found both true and false 'allow' values".failureNel else trues.nonEmpty.successNel
+
     (allBooleans |@| coherentValues) {
       case (_, allow) => allow
     }
@@ -44,7 +44,7 @@ object CallCachingParameters {
   }
 
   private [webservice] def validateCallName(callName: Option[String]): ErrorOr[Option[ExecutionDatabaseKey]] = {
-    import cromwell.binding.Patterns.CallFullyQualifiedName
+    import Patterns.CallFullyQualifiedName
     callName map {
       case CallFullyQualifiedName(fqn, index) => Option(ExecutionDatabaseKey(fqn, Option(index) map { _.toInt })).successNel
       case name => s"Specified call does not parse as a fully qualified name with optional index: $name".failureNel

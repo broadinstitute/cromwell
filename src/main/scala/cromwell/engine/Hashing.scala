@@ -1,7 +1,6 @@
 package cromwell.engine
 
-import cromwell.binding._
-import cromwell.binding.values._
+import wdl4s.values._
 import org.apache.commons.codec.digest.DigestUtils
 
 import scala.collection.immutable.TreeMap

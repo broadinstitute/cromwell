@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.binding.values.{WdlFile, WdlValue}
+import wdl4s.values.{WdlFile, WdlValue}
 import cromwell.engine.ExecutionEventEntry
 import org.joda.time.DateTime
 

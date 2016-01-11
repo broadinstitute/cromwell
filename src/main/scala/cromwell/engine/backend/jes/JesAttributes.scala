@@ -9,10 +9,7 @@ import scala.language.postfixOps
 import scalaz.Scalaz._
 import scalaz._
 
-case class JesAttributes(project: String,
-                         executionBucket: String,
-                         endpointUrl: URL) {
-}
+case class JesAttributes(project: String, executionBucket: String, endpointUrl: URL)
 
 object JesAttributes {
 
@@ -39,7 +36,7 @@ object JesAttributes {
     } match {
       case Success(r) => r
       case Failure(f) =>
-        val errorMessages = f.list.mkString(", ")
+        val errorMessages = f.toList.mkString(", ")
         throw new IllegalArgumentException(s"Jes Configuration is not valid: Errors: $errorMessages")
     }
   }

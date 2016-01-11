@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit.EventFilter
-import cromwell.binding.values.{WdlString, WdlFile}
+import wdl4s.values.{WdlString, WdlFile}
 import cromwell.util.SampleWdl
 
 class SingleToArrayCoercionSpec extends CromwellTestkitSpec {

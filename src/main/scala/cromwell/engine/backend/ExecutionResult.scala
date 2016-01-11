@@ -1,11 +1,8 @@
 package cromwell.engine.backend
 
-import cromwell.binding._
 import cromwell.engine.ExecutionEventEntry
 import cromwell.engine.ExecutionHash
-
-import scala.util.Try
-
+import cromwell.engine.CallOutputs
 
 /**
  * ADT representing the result of an execution of a BackendCall.

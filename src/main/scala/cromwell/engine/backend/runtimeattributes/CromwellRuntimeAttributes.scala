@@ -1,34 +1,31 @@
-package cromwell.binding
+package cromwell.engine.backend.runtimeattributes
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.binding.AstTools.{AstNodeName, EnhancedAstNode}
-import cromwell.binding.expression.NoFunctions
-import cromwell.binding.values._
-import cromwell.parser.RuntimeKey._
-import cromwell.parser.WdlParser.{Ast, AstList}
-import cromwell.parser.{BackendType, MemorySize, RuntimeKey}
+import cromwell.engine.backend.BackendType
+import cromwell.engine.backend.runtimeattributes.RuntimeKey._
 import org.slf4j.LoggerFactory
+import wdl4s._
+import wdl4s.parser.MemorySize
 
-import scala.collection.JavaConverters._
 import scala.language.postfixOps
+import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
-case class RuntimeAttributes(docker: Option[String],
-              defaultZones: Seq[String],
-              failOnStderr: Boolean,
-              continueOnReturnCode: ContinueOnReturnCode,
-              cpu: Long,
-              preemptible: Boolean,
-              defaultDisks: Seq[Disk],
-              memoryGB: Double)
+case class CromwellRuntimeAttributes(docker: Option[String],
+                                     defaultZones: Seq[String],
+                                     failOnStderr: Boolean,
+                                     continueOnReturnCode: ContinueOnReturnCode,
+                                     cpu: Long,
+                                     preemptible: Boolean,
+                                     defaultDisks: Seq[Disk],
+                                     memoryGB: Double)
 
-object RuntimeAttributes {
+object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
 
-  def apply(ast: Ast, backendType: BackendType): RuntimeAttributes = {
-    val attributeMap = ast.toAttributes
-
+  def apply(wdlRuntimeAttributes: RuntimeAttributes, backendType: BackendType): CromwellRuntimeAttributes = {
+    val attributeMap = AttributeMap(wdlRuntimeAttributes.attrs)
     /**
      *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
      *  the keys are known to be supported on at least one backend other than this.
@@ -42,15 +39,14 @@ object RuntimeAttributes {
     validatedRuntimeAttributes match {
       case Success(r) => r
       case Failure(f) =>
-        val errorMessages = f.list.mkString(", ")
+        val errorMessages = f.toList.mkString(", ")
         throw new IllegalArgumentException(s"RuntimeAttribute is not valid: Errors: $errorMessages")
     }
   }
 
   val LocalDiskName = "local-disk"
-
   val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD, Option(10)).toDisk
-  
+
   /** Fallback values if values for these keys are not specified in a task "runtime" stanza. */
   object Defaults {
     val Cpu = 1L
@@ -62,7 +58,7 @@ object RuntimeAttributes {
     val Zones = Vector("us-central1-a")
   }
 
-  private def validateRuntimeAttributes(attributeMap: AttributeMap): ValidationNel[String, RuntimeAttributes] = {
+  private def validateRuntimeAttributes(attributeMap: AttributeMap): ValidationNel[String, CromwellRuntimeAttributes] = {
     val docker = attributeMap.get(DOCKER)
     val zones = attributeMap.get(DEFAULT_ZONES) map { _.split("\\s+").toVector } getOrElse Defaults.Zones
     val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
@@ -73,7 +69,7 @@ object RuntimeAttributes {
     val memory = validateMemory(attributeMap.get(MEMORY))
 
     (failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
-      RuntimeAttributes(docker, zones, _, _, _, _, _, _)
+      CromwellRuntimeAttributes(docker, zones, _, _, _, _, _, _)
     }
   }
 
@@ -101,9 +97,7 @@ object RuntimeAttributes {
     }
   }
 
-  private def validateContinueOnReturnCode(returnCode: String): ValidationNel[String, Int] = {
-    validateInt(returnCode)
-  }
+  private def validateContinueOnReturnCode(returnCode: String): ValidationNel[String, Int] = validateInt(returnCode)
 
   private def validateLocalDisks(value: Option[String]): ValidationNel[String, Seq[Disk]] = {
     value match {
@@ -143,9 +137,8 @@ object RuntimeAttributes {
   }
 
   private def validateMemStringInGb(mem: String): ValidationNel[String, Double] = {
-    val memoryPattern = """(\d+)\s*(\w+)""".r
     mem match {
-      case memoryPattern(amountString, unitString) =>
+      case MemoryAndUnitPattern(amountString, unitString) =>
         val amount = validateLong(amountString)
         val unit = validateMemoryUnit(unitString)
         (amount |@| unit) { (a, u) => MemorySize.GB.fromBytes(u.toBytes(a)) }
@@ -223,28 +216,6 @@ object RuntimeAttributes {
     }
   }
 
-  private def processRuntimeAttribute(ast: Ast): (String, Seq[String]) = {
-    val key = ast.getAttribute("key").sourceString
-    val seq = Option(ast.getAttribute("value")) map { valAttr =>
-      // TODO: NoFunctions should be converted to a case object or a constant
-      WdlExpression.evaluate(valAttr, NoLookup, new NoFunctions) match {
-        case scala.util.Success(wdlPrimitive: WdlPrimitive) => Seq(wdlPrimitive.valueString)
-        case scala.util.Success(wdlArray: WdlArray) => wdlArray.value.map(_.valueString)
-        case scala.util.Success(wdlValue: WdlValue) =>
-          throw new IllegalArgumentException(
-            s"WdlType not supported for $key, ${wdlValue.wdlType}: ${wdlValue.valueString}")
-        case null =>
-          throw new IllegalArgumentException(s"value was null: $key}")
-        case scala.util.Failure(f) => throw f
-      }
-    } getOrElse Seq.empty
-    (key, seq)
-  }
-
-  private def processRuntimeAttributes(astList: AstList): Map[String, Seq[String]] = {
-    astList.asScala.toVector map { a => processRuntimeAttribute(a.asInstanceOf[Ast]) } toMap
-  }
-
   private case class LocalDisk(name: String, diskType: DiskType, sizeGbOption: Option[Long] = None) {
     def toDisk: Disk = {
       val disk = new Disk().setName(name).setType(diskType.googleTypeName).setAutoDelete(true)
@@ -254,14 +225,23 @@ object RuntimeAttributes {
     }
   }
 
-  implicit class EnhancedAst(val ast: Ast) extends AnyVal {
-    def toAttributes: AttributeMap = {
-      val asts = ast.findAsts(AstNodeName.Runtime)
-      if (asts.size > 1) throw new UnsupportedOperationException("Only one runtime block may be defined per task")
-      val astList = asts.headOption map { _.getAttribute("map").asInstanceOf[AstList] }
-      AttributeMap(astList map processRuntimeAttributes getOrElse Map.empty[String, Seq[String]])
+  implicit class EnhancedBackendType(val backendType: BackendType) extends AnyVal {
+    def supportedKeys: Set[RuntimeKey] = for {
+      key <- RuntimeKey.values().toSet
+      if key.supports(backendType)
+    } yield key
+  }
+
+  implicit class EnhancedAttributeMap(val attrs: Map[String, String]) extends AnyVal {
+    def unsupportedKeys(backendType: BackendType): Seq[String] = {
+      val supportedKeys = backendType.supportedKeys map { _.key }
+      val unsupportedKeys = attrs.keySet -- supportedKeys
+
+      if (unsupportedKeys.isEmpty) Vector.empty
+      else Vector(s"Found unsupported keys for backend '$backendType': " + unsupportedKeys.toSeq.sorted.mkString(", "))
     }
   }
 
-  val MemoryAndUnitPattern = "(\\d+)\\s*(\\w+)".r
+  val DefaultReturnCodeNel = Set.empty[Int].successNel[String]
+  val MemoryAndUnitPattern = """(\d+)\s*(\w+)""".r
 }

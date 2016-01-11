@@ -25,7 +25,7 @@ object WorkflowQueryKey {
     override val name = "Name"
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
-      import cromwell.binding.Patterns.WorkflowName
+      import Patterns.WorkflowName
 
       val values = valuesFromMap(grouped).toList
       val nels = values map {
@@ -74,11 +74,8 @@ sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[DateTime]]
 }
 
 sealed trait SeqStringWorkflowQueryKey extends WorkflowQueryKey[Seq[String]] {
-
   /** `sequence` the `List[ErrorOr[String]]` to a single `ErrorOr[List[String]]` */
-  protected def sequenceListOfValidationNels(prefix: String,
-                                             errorOrList: List[ErrorOr[String]]): ErrorOr[List[String]] = {
-
+  protected def sequenceListOfValidationNels(prefix: String, errorOrList: List[ErrorOr[String]]): ErrorOr[List[String]] = {
     val errorOr = errorOrList.sequence[ErrorOr, String]
     // With a leftMap, prepend an error message to the concatenated error values if there are error values.
     // This turns the ValidationNel into a Validation, force it back to a ValidationNel with toValidationNel.

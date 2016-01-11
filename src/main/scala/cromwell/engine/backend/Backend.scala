@@ -2,8 +2,9 @@ package cromwell.engine.backend
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import cromwell.binding._
-import cromwell.binding.values.WdlFile
+import cromwell.engine.{CallInputs, CallOutputs}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import wdl4s._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
@@ -12,8 +13,8 @@ import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.{HostInputs, CallOutputs}
 import cromwell.logging.WorkflowLogger
-import cromwell.parser.BackendType
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
 
@@ -61,10 +62,23 @@ trait Backend {
   def actorSystem: ActorSystem
 
   /**
+    * Attempt to evaluate all the ${...} tags in a command and return a String representation
+    * of the command.  This could fail for a variety of reasons related to expression evaluation
+    * which is why it returns a Try[String]
+    */
+  def instantiateCommand(backendCall: BackendCall): Try[String] = {
+    val backendInputs = adjustInputPaths(backendCall.key, backendCall.runtimeAttributes, backendCall.locallyQualifiedInputs, backendCall.workflowDescriptor)
+    backendCall.call.instantiateCommandLine(backendInputs, backendCall.engineFunctions)
+  }
+
+  /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(callKey: CallKey, inputs: CallInputs, workflowDescriptor: WorkflowDescriptor): CallInputs
+  def adjustInputPaths(callKey: CallKey,
+                       runtimeAttributes: CromwellRuntimeAttributes,
+                       inputs: CallInputs,
+                       workflowDescriptor: WorkflowDescriptor): CallInputs
 
   // FIXME: This is never called...
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs

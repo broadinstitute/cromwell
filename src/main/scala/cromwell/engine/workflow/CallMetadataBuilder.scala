@@ -1,11 +1,12 @@
 package cromwell.engine.workflow
 
-import cromwell.binding._
+import wdl4s._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.{ExecutionEventEntry, SymbolStoreEntry}
 import cromwell.engine.backend.{CallMetadata, CallLogs}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
+import cromwell.engine.EnhancedFullyQualifiedName
 import org.joda.time.DateTime
 
 import scala.language.postfixOps

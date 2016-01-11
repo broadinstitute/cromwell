@@ -1,6 +1,7 @@
 package cromwell.engine.db
 
-import cromwell.binding._
+import cromwell.engine.WorkflowOutputs
+import wdl4s._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, JobKey}

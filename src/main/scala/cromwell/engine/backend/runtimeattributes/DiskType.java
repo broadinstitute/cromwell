@@ -1,4 +1,4 @@
-package cromwell.binding;
+package cromwell.engine.backend.runtimeattributes;
 
 public enum DiskType {
     LOCAL("LOCAL", "LOCAL_SSD"),

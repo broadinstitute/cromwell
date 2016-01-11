@@ -1,4 +1,4 @@
-package cromwell.parser;
+package cromwell.engine.backend;
 
 public enum BackendType {
     LOCAL, JES, SGE;

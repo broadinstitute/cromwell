@@ -78,7 +78,7 @@ object DockerHash {
     validateHashString(hashString) match {
       case SuccessZ(_) => Success(DockerHash(hashType, hashString))
       case FailureZ(e) =>
-        val errorMessages = e.list.mkString(", ")
+        val errorMessages = e.toList.mkString(", ")
         Failure(new IllegalArgumentException(s"hashString '$hashString' is not valid: $errorMessages"))
     }
   }

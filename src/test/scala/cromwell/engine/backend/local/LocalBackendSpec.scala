@@ -3,8 +3,8 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
-import cromwell.binding.WdlSource
-import cromwell.binding.values.WdlValue
+import wdl4s.WdlSource
+import wdl4s.values.WdlValue
 import cromwell.engine.backend._
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}

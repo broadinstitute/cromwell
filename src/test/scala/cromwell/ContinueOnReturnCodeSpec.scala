@@ -1,8 +1,8 @@
 package cromwell
 
 import akka.testkit.EventFilter
-import cromwell.binding.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.engine.WorkflowFailed
+import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag}
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 

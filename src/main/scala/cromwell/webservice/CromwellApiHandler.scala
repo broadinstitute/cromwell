@@ -8,10 +8,9 @@ import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowManagerActorMessage
-import cromwell.parser.WdlParser.SyntaxError
 import cromwell.webservice.CromwellApiHandler.{CallOutputs, WorkflowOutputs, _}
 import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.{binding, engine}
+import cromwell.engine
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 
@@ -21,7 +20,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object CromwellApiHandler {
-
   def props(workflowManagerActorRef: ActorRef): Props = {
     Props(new CromwellApiHandler(workflowManagerActorRef))
   }
@@ -41,7 +39,6 @@ object CromwellApiHandler {
 }
 
 class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
-
   import WorkflowJsonSupport._
   import context.dispatcher
 
@@ -98,14 +95,14 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
           }
       }
     case WorkflowOutputs(id) =>
-      val eventualWorkflowOutputs = ask(workflowManager, WorkflowManagerActor.WorkflowOutputs(id)).mapTo[binding.WorkflowOutputs]
+      val eventualWorkflowOutputs = ask(workflowManager, WorkflowManagerActor.WorkflowOutputs(id)).mapTo[engine.WorkflowOutputs]
       eventualWorkflowOutputs onComplete {
         case Success(outputs) => context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputs.mapToValues))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound)
         case Failure(ex) => context.parent ! RequestComplete(StatusCodes.InternalServerError, ex.getMessage)
       }
     case CallOutputs(id, callFqn) =>
-      val eventualCallOutputs = ask(workflowManager, WorkflowManagerActor.CallOutputs(id, callFqn)).mapTo[binding.CallOutputs]
+      val eventualCallOutputs = ask(workflowManager, WorkflowManagerActor.CallOutputs(id, callFqn)).mapTo[engine.CallOutputs]
       eventualCallOutputs onComplete {
         case Success(outputs) if outputs.nonEmpty => context.parent ! RequestComplete(StatusCodes.OK, CallOutputResponse(id.toString, callFqn, outputs.mapToValues))
         case Failure(ex: WorkflowManagerActor.WorkflowNotFoundException) => context.parent ! RequestComplete(StatusCodes.NotFound, s"Workflow '$id' not found.")

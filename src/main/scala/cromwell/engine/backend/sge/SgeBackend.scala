@@ -4,7 +4,7 @@ import java.nio.file.Files
 
 import akka.actor.ActorSystem
 import better.files._
-import cromwell.binding.CallInputs
+import wdl4s.CallInputs
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.db.DataAccess._
@@ -12,7 +12,7 @@ import cromwell.engine.db.SgeCallBackendInfo
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
-import cromwell.parser.BackendType
+import cromwell.engine.backend.BackendType
 import cromwell.util.FileUtil._
 
 import scala.annotation.tailrec
@@ -37,7 +37,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future( {
     val logger = workflowLoggerWithCall(backendCall)
-    backendCall.instantiateCommand match {
+    instantiateCommand(backendCall) match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand)
@@ -168,7 +168,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val waitUntilCompleteFunction = waitUntilComplete(backendCall)
     backendCall.callAbortRegistrationFunction.register(AbortFunction(abortFunction))
     val jobReturnCode = waitUntilCompleteFunction
-    val continueOnReturnCode = backendCall.call.continueOnReturnCode
+    val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
     logger.info(s"SGE job completed (returnCode=$jobReturnCode)")
     val executionResult = (jobReturnCode, backendCall.stderr.toFile.length) match {
       case (r, _) if r == 143 => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
@@ -176,7 +176,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
         val message = s"SGE job failed because of return code: $r"
         logger.error(message)
         FailedExecution(new Exception(message), Option(r)).future
-      case (_, stderrLength) if stderrLength > 0 && backendCall.call.failOnStderr =>
+      case (_, stderrLength) if stderrLength > 0 && backendCall.runtimeAttributes.failOnStderr =>
         val message = s"SGE job failed because there were $stderrLength bytes on standard error"
         logger.error(message)
         FailedExecution(new Exception(message), Option(0)).future

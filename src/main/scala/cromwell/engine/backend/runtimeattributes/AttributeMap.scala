@@ -1,7 +1,7 @@
-package cromwell.binding
+package cromwell.engine.backend.runtimeattributes
 
-import cromwell.parser.{BackendType, RuntimeKey}
-import AttributeMap._
+import AttributeMap.EnhancedBackendType
+import cromwell.engine.backend.BackendType
 
 object AttributeMap {
   implicit class EnhancedBackendType(val backendType: BackendType) extends AnyVal {

@@ -3,8 +3,8 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
-import cromwell.binding.types.{WdlIntegerType, WdlStringType, WdlArrayType}
-import cromwell.binding.values.{WdlInteger, WdlFile, WdlArray, WdlString}
+import wdl4s.types.{WdlIntegerType, WdlStringType, WdlArrayType}
+import wdl4s.values.{WdlInteger, WdlFile, WdlArray, WdlString}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.util.SampleWdl
 

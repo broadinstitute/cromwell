@@ -1,9 +1,9 @@
-package cromwell.parser;
+package cromwell.engine.backend.runtimeattributes;
 
-import static cromwell.parser.BackendType.JES;
-import static cromwell.parser.BackendType.LOCAL;
-import static cromwell.parser.BackendType.SGE;
-
+import cromwell.engine.backend.BackendType;
+import static cromwell.engine.backend.BackendType.JES;
+import static cromwell.engine.backend.BackendType.LOCAL;
+import static cromwell.engine.backend.BackendType.SGE;
 /**
  * Backend runtime keys and the backends which are known to support them.
  */

@@ -1,12 +1,12 @@
-package cromwell.binding
+package cromwell.engine.backend
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.parser.BackendType
-import org.scalatest.{EitherValues, Matchers, FlatSpec}
-import RuntimeAttributeSpec._
-import RuntimeAttributes.EnhancedAst
+import cromwell.engine.backend.runtimeattributes.{AttributeMap, CromwellRuntimeAttributes, ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
+import wdl4s.NamespaceWithWorkflow
+import cromwell.engine.backend.CromwellRuntimeAttributeSpec._
+import org.scalatest.{EitherValues, FlatSpec, Matchers}
 
-object RuntimeAttributeSpec {
+object CromwellRuntimeAttributeSpec {
   val WorkflowWithRuntime =
     """
       |task ps {
@@ -307,101 +307,106 @@ object RuntimeAttributeSpec {
       |  call messed_up_disk
       |}
     """.stripMargin
+
+  implicit class EnhancedNamespace(val namespace: NamespaceWithWorkflow) extends AnyVal {
+    def toCromwellRuntimeAttribute(index: Int): CromwellRuntimeAttributes = toCromwellRuntimeAttribute(index, BackendType.LOCAL)
+
+    def toCromwellRuntimeAttribute(index: Int, backendType: BackendType): CromwellRuntimeAttributes = {
+      CromwellRuntimeAttributes(namespace.workflow.calls(index).task.runtimeAttributes, backendType)
+    }
+
+    def toCromwellRuntimeAttributes(backendType: BackendType) = {
+      namespace.workflow.calls map { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }
+    }
+  }
 }
 
-class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
-  val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime, BackendType.LOCAL)
+class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
+  val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime)
 
   it should "have docker information" in {
-    assert(NamespaceWithRuntime.workflow.calls forall {
-      _.task.runtimeAttributes.docker.get == "ubuntu:latest"
+    assert(NamespaceWithRuntime.workflow.calls forall { x =>
+      CromwellRuntimeAttributes(x.task.runtimeAttributes, BackendType.LOCAL).docker.get == "ubuntu:latest"
     })
   }
 
   "WDL file with failOnStderr runtime" should "identify failOnStderr for (and only for) appropriate tasks" in {
-    val namespaceWithFailOnStderr = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.LOCAL)
+    val namespaceWithFailOnStderr = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr)
     val echoWithFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.unqualifiedName == "echoWithFailOnStderr")
     assert(echoWithFailOnStderrIndex >= 0)
-    assert(namespaceWithFailOnStderr.workflow.calls(echoWithFailOnStderrIndex).failOnStderr)
+    assert(namespaceWithFailOnStderr.toCromwellRuntimeAttribute(echoWithFailOnStderrIndex).failOnStderr)
 
     val echoWithoutFailOnStderrIndex = namespaceWithFailOnStderr.workflow.calls.indexWhere(call => call.unqualifiedName == "echoWithoutFailOnStderr")
     assert(echoWithoutFailOnStderrIndex >= 0)
-    assert(!namespaceWithFailOnStderr.workflow.calls(echoWithoutFailOnStderrIndex).failOnStderr)
+    assert(!namespaceWithFailOnStderr.toCromwellRuntimeAttribute(echoWithoutFailOnStderrIndex).failOnStderr)
   }
 
   "WDL file with continueOnReturnCode runtime" should "identify continueOnReturnCode for (and only for) appropriate tasks" in {
-    val namespaceWithContinueOnReturnCode = NamespaceWithWorkflow.load(WorkflowWithContinueOnReturnCode, BackendType.LOCAL)
+    val namespaceWithContinueOnReturnCode = NamespaceWithWorkflow.load(WorkflowWithContinueOnReturnCode)
 
     val echoWithSingleContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithSingleContinueOnReturnCode"
       }
     echoWithSingleContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithSingleContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(123)))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithSingleContinueOnReturnCodeIndex).continueOnReturnCode should be (ContinueOnReturnCodeSet(Set(123)))
 
     val echoWithExpressionContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithExpressionContinueOnReturnCode"
       }
     echoWithExpressionContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithExpressionContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(444)))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithExpressionContinueOnReturnCodeIndex).continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(444)))
 
     val echoWithListContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithListContinueOnReturnCode"
       }
     echoWithListContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithListContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(0, 1, 2, 3)))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithListContinueOnReturnCodeIndex).continueOnReturnCode should be(ContinueOnReturnCodeSet(Set(0, 1, 2, 3)))
 
     val echoWithTrueContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithTrueContinueOnReturnCode"
       }
     echoWithTrueContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithTrueContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(true))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithTrueContinueOnReturnCodeIndex).continueOnReturnCode should be(ContinueOnReturnCodeFlag(true))
 
     val echoWithFalseContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithFalseContinueOnReturnCode"
       }
     echoWithFalseContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithFalseContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(false))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithFalseContinueOnReturnCodeIndex).continueOnReturnCode should be(ContinueOnReturnCodeFlag(false))
 
     val echoWithTrueStringContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithTrueStringContinueOnReturnCode"
       }
     echoWithTrueStringContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithTrueStringContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(true))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithTrueStringContinueOnReturnCodeIndex).continueOnReturnCode should be(ContinueOnReturnCodeFlag(true))
 
     val echoWithFalseStringContinueOnReturnCodeIndex =
       namespaceWithContinueOnReturnCode.workflow.calls indexWhere { call =>
         call.unqualifiedName == "echoWithFalseStringContinueOnReturnCode"
       }
     echoWithFalseStringContinueOnReturnCodeIndex should be >= 0
-    namespaceWithContinueOnReturnCode.workflow.calls(echoWithFalseStringContinueOnReturnCodeIndex)
-      .continueOnReturnCode should be(ContinueOnReturnCodeFlag(false))
+    namespaceWithContinueOnReturnCode.toCromwellRuntimeAttribute(echoWithFalseStringContinueOnReturnCodeIndex).continueOnReturnCode should be(ContinueOnReturnCodeFlag(false))
   }
 
   "WDL file with Googly config" should "parse up properly" in {
-    val namespaceWithGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig, BackendType.JES)
+    val namespaceWithGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig)
     val calls = namespaceWithGooglyConfig.workflow.calls
     val callIndex = calls.indexWhere(call => call.unqualifiedName == "googly_task")
     callIndex should be >= 0
 
     val googlyCall = calls(callIndex)
-    val attributes = googlyCall.task.runtimeAttributes
+    val attributes = CromwellRuntimeAttributes(googlyCall.task.runtimeAttributes, BackendType.LOCAL)
     attributes.cpu shouldBe 3
     val firstDisk = new Disk().setName("Disk1").setSizeGb(3L).setType("PERSISTENT_SSD").setAutoDelete(true)
     val secondDisk = new Disk().setName("Disk2").setSizeGb(500L).setType("PERSISTENT_HDD").setAutoDelete(true)
 
-    val expectedDisks = Vector(firstDisk, secondDisk, RuntimeAttributes.LocalizationDisk)
+    val expectedDisks = Vector(firstDisk, secondDisk, CromwellRuntimeAttributes.LocalizationDisk)
     attributes.defaultDisks should contain theSameElementsAs expectedDisks
 
     val expectedZones = Vector("US_Metro", "US_Backwater")
@@ -411,52 +416,52 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   }
 
   "WDL file with no Googly config" should "also parse up properly to defaults" in {
-    val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithoutGooglyConfig, BackendType.LOCAL)
+    val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithoutGooglyConfig)
     val calls = NamespaceWithoutGooglyConfig.workflow.calls
     val callIndex = calls.indexWhere(call => call.unqualifiedName == "googly_task")
     callIndex should be >= 0
 
     val googlyCall = calls(callIndex)
-    val attributes = googlyCall.task.runtimeAttributes
-    attributes.cpu shouldBe RuntimeAttributes.Defaults.Cpu
-    attributes.defaultDisks foreach { d => RuntimeAttributes.Defaults.Disk should contain (d) }
-    attributes.defaultZones foreach { z => RuntimeAttributes.Defaults.Zones should contain (z) }
-    attributes.memoryGB shouldBe RuntimeAttributes.Defaults.Memory
+    val attributes = CromwellRuntimeAttributes(googlyCall.task.runtimeAttributes, BackendType.LOCAL)
+    attributes.cpu shouldBe CromwellRuntimeAttributes.Defaults.Cpu
+    attributes.defaultDisks foreach { d => CromwellRuntimeAttributes.Defaults.Disk should contain (d) }
+    attributes.defaultZones foreach { z => CromwellRuntimeAttributes.Defaults.Zones should contain (z) }
+    attributes.memoryGB shouldBe CromwellRuntimeAttributes.Defaults.Memory
   }
 
   "WDL file with local disk Googly config" should "parse up properly" in {
-    val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithLocalDiskGooglyConfig, BackendType.JES)
+    val NamespaceWithoutGooglyConfig = NamespaceWithWorkflow.load(WorkflowWithLocalDiskGooglyConfig)
     val calls = NamespaceWithoutGooglyConfig.workflow.calls
     val callIndex = calls.indexWhere(call => call.unqualifiedName == "googly_task")
     callIndex should be >= 0
 
     val googlyCall = calls(callIndex)
-    val attributes = googlyCall.task.runtimeAttributes
-    attributes.cpu shouldBe RuntimeAttributes.Defaults.Cpu
+    val attributes = CromwellRuntimeAttributes(googlyCall.task.runtimeAttributes, BackendType.LOCAL)
+    attributes.cpu shouldBe CromwellRuntimeAttributes.Defaults.Cpu
 
     val localHddDisk = new Disk().setName("local-disk").setSizeGb(123L).setType("PERSISTENT_HDD").setAutoDelete(true)
     attributes.defaultDisks should contain theSameElementsAs Vector(localHddDisk)
-    attributes.defaultZones should contain theSameElementsAs RuntimeAttributes.Defaults.Zones
-    attributes.memoryGB shouldBe RuntimeAttributes.Defaults.Memory
+    attributes.defaultZones should contain theSameElementsAs CromwellRuntimeAttributes.Defaults.Zones
+    attributes.memoryGB shouldBe CromwellRuntimeAttributes.Defaults.Memory
   }
 
   "WDL file with Googly config" should "issue warnings on the local backend" in {
-    val workflow = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig, BackendType.LOCAL)
-    val attributeMap = workflow.ast.toAttributes
+    val namespace = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig)
+    val attributeMap = AttributeMap(namespace.workflow.calls.head.task.runtimeAttributes.attrs)
     val expectedString = "Found unsupported keys for backend 'LOCAL': cpu, defaultDisks, defaultZones, memory"
     attributeMap.unsupportedKeys(BackendType.LOCAL).head shouldBe expectedString
   }
 
   "WDL file without runtime section" should "not be accepted on JES backend as it has no docker" in {
     val ex = intercept[IllegalArgumentException] {
-      val workflow = NamespaceWithWorkflow.load(WorkflowWithoutRuntime, BackendType.JES)
+      NamespaceWithWorkflow.load(WorkflowWithoutRuntime).toCromwellRuntimeAttributes(BackendType.JES)
     }
     ex.getMessage should include ("Missing required keys in runtime configuration for backend 'JES': docker")
   }
 
   "WDL file with runtime section but no docker" should "not be accepted on JES backend" in {
     val ex = intercept[IllegalArgumentException] {
-      val workflow = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr, BackendType.JES)
+      val workflow = NamespaceWithWorkflow.load(WorkflowWithFailOnStderr).toCromwellRuntimeAttribute(0, BackendType.JES)
     }
     ex.getMessage should include ("Missing required keys in runtime configuration for backend 'JES': docker")
   }
@@ -464,7 +469,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
   "WDL file with a seriously screwed up memory runtime" should "not parse" in {
     val ex = intercept[IllegalArgumentException] {
-      val namespaceWithBorkedMemory = NamespaceWithWorkflow.load(WorkflowWithMessedUpMemory, BackendType.LOCAL)
+      val namespaceWithBorkedMemory = NamespaceWithWorkflow.load(WorkflowWithMessedUpMemory).toCromwellRuntimeAttributes(BackendType.LOCAL)
     }
 
     ex.getMessage should include ("should be of the form X Unit")
@@ -472,7 +477,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
   "WDL file with an invalid memory unit" should "say so" in {
     val ex = intercept[IllegalArgumentException] {
-      val namespaceWithBorkedMemory = NamespaceWithWorkflow.load(WorkflowWithMessedUpMemoryUnit, BackendType.LOCAL)
+      val namespaceWithBorkedMemory = NamespaceWithWorkflow.load(WorkflowWithMessedUpMemoryUnit).toCromwellRuntimeAttributes(BackendType.LOCAL)
     }
 
     ex.getMessage should include ("is an invalid memory unit")
@@ -480,7 +485,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
   "WDL file with an invalid local disk" should "say so" in {
     val ex = intercept[IllegalArgumentException] {
-      NamespaceWithWorkflow.load(WorkflowWithMessedUpLocalDisk, BackendType.JES)
+      NamespaceWithWorkflow.load(WorkflowWithMessedUpLocalDisk).toCromwellRuntimeAttributes(BackendType.JES)
     }
 
     ex.getMessage should include(
@@ -489,7 +494,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
   "WDL file with an invalid disk size" should "say so" in {
     val ex = intercept[IllegalArgumentException] {
-      NamespaceWithWorkflow.load(WorkflowWithMessedUpDiskSize, BackendType.JES)
+      NamespaceWithWorkflow.load(WorkflowWithMessedUpDiskSize).toCromwellRuntimeAttributes(BackendType.JES)
     }
 
     ex.getMessage should include("123.0 not convertible to a Long")
@@ -497,7 +502,7 @@ class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
 
   "WDL file with an invalid disk type" should "say so" in {
     val ex = intercept[IllegalArgumentException] {
-      NamespaceWithWorkflow.load(WorkflowWithMessedUpDiskType, BackendType.JES)
+      NamespaceWithWorkflow.load(WorkflowWithMessedUpDiskType).toCromwellRuntimeAttributes(BackendType.JES)
     }
 
     ex.getMessage should include("Disk TYPE SDD should be one of LOCAL, SSD, HDD")

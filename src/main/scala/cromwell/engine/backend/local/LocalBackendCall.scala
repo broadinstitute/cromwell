@@ -1,7 +1,7 @@
 package cromwell.engine.backend.local
 
 import better.files._
-import cromwell.binding.CallInputs
+import wdl4s.CallInputs
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{CallContext, AbortRegistrationFunction, WorkflowDescriptor}
@@ -16,7 +16,7 @@ case class LocalBackendCall(backend: LocalBackend,
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
   val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
   val dockerContainerExecutionDir = LocalBackend.containerExecutionPath(workflowDescriptor)
-  val containerCallRoot = call.docker match {
+  val containerCallRoot = runtimeAttributes.docker match {
     case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.unqualifiedName, key.index)
     case None => callRootPath
   }

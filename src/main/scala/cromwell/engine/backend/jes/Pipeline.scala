@@ -5,6 +5,7 @@ import com.google.api.services.genomics.model.CreatePipelineRequest
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.CallKey
 import cromwell.logging.WorkflowLogger
 import org.slf4j.LoggerFactory
@@ -12,16 +13,14 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 
 object Pipeline {
-
   def apply(command: String,
             workflow: WorkflowDescriptor,
             key: CallKey,
+            runtimeAttributes: CromwellRuntimeAttributes,
             jesParameters: Seq[JesParameter],
             projectId: String,
             jesConnection: JesInterface,
             runIdForResumption: Option[String]): Pipeline = {
-
-    val call = key.scope
     val logger = WorkflowLogger(
       "JES Pipeline",
       workflow,
@@ -30,7 +29,7 @@ object Pipeline {
     )
 
     logger.debug(s"Command line is: $command")
-    val runtimeInfo = JesRuntimeInfo(command, call)
+    val runtimeInfo = JesRuntimeInfo(command, runtimeAttributes)
 
     val gcsPath = workflow.callDir(key)
 

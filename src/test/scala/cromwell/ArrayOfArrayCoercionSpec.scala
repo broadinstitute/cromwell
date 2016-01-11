@@ -1,8 +1,8 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.binding.types.{WdlArrayType, WdlStringType}
-import cromwell.binding.values.{WdlArray, WdlString}
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlString}
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

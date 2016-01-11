@@ -4,7 +4,7 @@ import java.io.{ByteArrayOutputStream, OutputStream}
 import java.nio.file.Path
 import java.text.SimpleDateFormat
 import java.util.Date
-import akka.testkit.TestKit
+
 import akka.util.Timeout
 import better.files._
 import cromwell.util.FileUtil._
@@ -14,6 +14,7 @@ import org.apache.commons.io.output.TeeOutputStream
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.time.Span
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -371,12 +372,13 @@ object MainSpec {
    * @return The return code of run.
    */
   def traceInfoRun(args: String*)(pattern: String): Int = {
-    val workflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem
-    waitForInfo(pattern)(
-      printBlock("run", args) {
-        new Main(enableTermination = false, () => workflowManagerSystem).run(args)
-      }
-    )(workflowManagerSystem.actorSystem)
+    withTestWorkflowManagerSystem { workflowManagerSystem =>
+      waitForInfo(pattern)(
+        printBlock("run", args) {
+          new Main(workflowManagerSystem).run(args)
+        }
+      )(workflowManagerSystem.actorSystem)
+    }
   }
 
   /**
@@ -388,17 +390,13 @@ object MainSpec {
    * @return The return code of run.
    */
   def traceErrorWithExceptionRun(args: String*)(pattern: String, throwableClass: Class[_ <: Throwable] = classOf[Throwable]): Int = {
-    val workflowManagerSystem = new TestWorkflowManagerSystem
-    val result = waitForErrorWithException(pattern, throwableClass = throwableClass)(
-      printBlock("run", args) {
-        // Explicitly disable shutting down the actor system from within Main, there's a race condition to deliver
-        // log messages to the TestKit filter before the system is torn down.  Wait until we see the message we
-        // want, then shutdown the system ourselves.
-        new Main(enableTermination = false, () => workflowManagerSystem).run(args)
-      }
-    )(workflowManagerSystem.actorSystem)
-    TestKit.shutdownActorSystem(workflowManagerSystem.actorSystem, timeoutDuration)
-    result
+    withTestWorkflowManagerSystem { workflowManagerSystem =>
+      waitForErrorWithException(pattern, throwableClass = throwableClass)(
+        printBlock("run", args) {
+          new Main(workflowManagerSystem).run(args)
+        }
+      )(workflowManagerSystem.actorSystem)
+    }
   }
 
   /**
@@ -409,14 +407,15 @@ object MainSpec {
    * @return The return code of run.
    */
   def traceInfoAction(args: String*)(pattern: String): Int = {
-    val workflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem
-    waitForInfo(pattern)(
-      printBlock("runAction", args) {
-        new Main(enableTermination = false, () => workflowManagerSystem).runAction(args) match {
-          case status: Int => status
+    withTestWorkflowManagerSystem { workflowManagerSystem =>
+      waitForInfo(pattern)(
+        printBlock("runAction", args) {
+          new Main(workflowManagerSystem).runAction(args) match {
+            case status: Int => status
+          }
         }
-      }
-    )(workflowManagerSystem.actorSystem)
+      )(workflowManagerSystem.actorSystem)
+    }
   }
 
   /**
@@ -427,16 +426,18 @@ object MainSpec {
    * @return return code plus Console.out/Console.err during the block.
    */
   def traceMain(block: Main => Int): TraceResult = {
-    val outStream = TeeStream(Console.out)
-    val errStream = TeeStream(Console.err)
-    val status = {
-      Console.withOut(outStream.teed) {
-        Console.withErr(errStream.teed) {
-          block(new Main(enableTermination = false, () => new CromwellTestkitSpec.TestWorkflowManagerSystem))
+    withTestWorkflowManagerSystem { workflowManagerSystem =>
+      val outStream = TeeStream(Console.out)
+      val errStream = TeeStream(Console.err)
+      val status = {
+        Console.withOut(outStream.teed) {
+          Console.withErr(errStream.teed) {
+            block(new Main(workflowManagerSystem))
+          }
         }
       }
+      TraceResult(status, outStream.captured, errStream.captured)
     }
-    TraceResult(status, outStream.captured, errStream.captured)
   }
 
   /**

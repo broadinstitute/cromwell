@@ -12,8 +12,9 @@ import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 import cromwell.engine.CallActor.CallActorMessage
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine.Hashing._
 import cromwell.engine._
-import cromwell.engine.backend.{BackendCall, Backend, JobKey}
+import cromwell.engine.backend.{Backend, BackendCall, JobKey}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -28,7 +29,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import Hashing._
 
 object WorkflowActor {
   sealed trait WorkflowActorMessage

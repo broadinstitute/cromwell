@@ -6,6 +6,7 @@ import java.nio.file.{Files, Path, Paths}
 import akka.actor.ActorSystem
 import better.files._
 import wdl4s._
+import com.typesafe.config.ConfigFactory
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend._
@@ -14,6 +15,7 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.backend.BackendType
 import cromwell.util.FileUtil._
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -72,6 +74,35 @@ object LocalBackend {
       case None => rootCallPath
     }
   }
+
+  lazy val logger = LoggerFactory.getLogger("cromwell")
+
+  /**
+    * If using Mac OS X with Docker Machine, by default Cromwell can only use the -v flag to 'docker run'
+    * if running from somewhere within the user's home directory.  If not, then -v will mount to the
+    * virtual machine that Docker Machine creates.  This ends up bubbling up to Cromwell when it can't find
+    * an RC file in the call's output directory (because it's actually on the virtual machine).
+    *
+    * This function will at least detect this case and log some WARN messages.
+    */
+  def detectDockerMachinePossibleMisusage = {
+    val backendConf = ConfigFactory.load.getConfig("backend")
+    val sharedFileSystemConf = backendConf.getConfig("shared-filesystem")
+    val cromwellExecutionRoot = Paths.get(sharedFileSystemConf.getString("root")).toAbsolutePath.toString
+    val os = Option(System.getProperty("os.name"))
+    val homeDir = Option(System.getProperty("user.home")).map(Paths.get(_).toAbsolutePath.toString)
+    val dockerMachineName = sys.env.get("DOCKER_MACHINE_NAME")
+    if (dockerMachineName.nonEmpty && os.contains("Mac OS X") && homeDir.isDefined && !cromwellExecutionRoot.startsWith(homeDir.get)) {
+      val message = s"""You are running Docker using Docker Machine and your working directory is not a subdirectory of ${homeDir.get}
+                        |By default, Docker Machine using Virtual Box only allows -v to mount to your Mac's filesystem for paths under your home directory.
+                        |Running Cromwell outside of your home directory could lead to unexpected task failures.
+                        |
+                        |See https://docs.docker.com/engine/userguide/dockervolumes/ for more information on volume mounting in Docker."""
+      message.stripMargin.split("\n").foreach(logger.warn)
+    }
+  }
+
+  detectDockerMachinePossibleMisusage
 }
 
 
@@ -143,7 +174,6 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
   }
 
-
   private def runSubprocess(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
     val logger = workflowLoggerWithCall(backendCall)
     val stdoutWriter = backendCall.stdout.untailed
@@ -171,6 +201,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
         throw new Exception(s"Unexpected process exit code: $processReturnCode")
       }
     )
+
     if (backendCall.runtimeAttributes.failOnStderr && stderrFileLength > 0) {
       FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
         s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength")).future

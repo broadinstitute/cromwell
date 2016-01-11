@@ -11,11 +11,11 @@ import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
+import cromwell.engine.PathString
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.TryUtil
 import cromwell.util.google.GoogleCredentialFactory
-
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -52,7 +52,7 @@ object GoogleCloudStorage {
 case class GoogleCloudStorage private(client: Storage) extends IoInterface {
 
   import GcsPath._
-  import cromwell.util.PathUtil._
+  import PathString._
 
   def isValidPath(path: String) = path.isGcsUrl
 
@@ -116,6 +116,18 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
     * @return a Try[StorageObject] which is a result of the call to Storage.Objects.copy()
     */
   def copy(from: GcsPath, to: GcsPath): Try[StorageObject] = Try {
+    val storageObject = client.objects.get(from.bucket, from.objectName).execute
+    client.objects.copy(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+  }
+
+  /**
+    * Copy file from one GCS path to another
+    *
+    * @param from - source GCS path (must exist and point to a file)
+    * @param to - destination GCS path
+    * @return a Try[StorageObject] which is a result of the call to Storage.Objects.copy()
+    */
+  def copy(from: NioGcsPath, to: NioGcsPath): Try[StorageObject] = Try {
     val storageObject = client.objects.get(from.bucket, from.objectName).execute
     client.objects.copy(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
   }
@@ -187,9 +199,9 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
     insertObject.execute()
   }
 
-  def deleteObject(gcsPath: GcsPath): Unit = {
-    client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
-  }
+  def deleteObject(gcsPath: GcsPath): Unit = client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
+
+  def deleteObject(gcsPath: NioGcsPath): Unit = client.objects.delete(gcsPath.bucket, gcsPath.objectName).execute()
 
   def downloadObject(gcsPath: GcsPath): Array[Byte] = {
     val outputStream: ByteArrayOutputStream = new ByteArrayOutputStream()

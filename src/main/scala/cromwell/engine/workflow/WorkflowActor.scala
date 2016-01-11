@@ -223,8 +223,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
+    // Currently assumes there is at most one possible final call, a `CopyWorkflowOutputs`.
+    val finalCall = workflow.workflowOutputsPath.toOption map { _ => CopyWorkflowOutputs(workflow) }
     globalDataAccess.createWorkflow(
-      workflow, symbolStoreEntries, workflow.namespace.workflow.children, backend)
+      workflow, symbolStoreEntries, workflow.namespace.workflow.children ++ finalCall, backend)
   }
 
   // This is passed as an implicit parameter to methods of classes in the companion object.
@@ -408,17 +410,43 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
   }
 
+  private def handleFinalCallStarted(finalCallKey: FinalCallKey): State = {
+    executionStore += finalCallKey -> ExecutionStatus.Running
+    val finalCallWork = for {
+      _ <- persistStatus(finalCallKey, ExecutionStatus.Running)
+      _ <- finalCallKey.scope.execute
+      _ = self ! CallCompleted(finalCallKey, callOutputs = Map.empty, executionEvents = Seq.empty, returnCode = 0, hash = None, resultsClonedFrom = None)
+    } yield ()
+
+    finalCallWork onFailure {
+      case t =>
+        log.error("Final call work failed", t)
+        scheduleTransition(WorkflowFailed)
+    }
+
+    val updatedData = stateData.addPersisting(finalCallKey, ExecutionStatus.Running)
+    stay() using updatedData
+  }
+
   when(WorkflowRunning) {
     case Event(StartRunnableCalls, data) =>
       val updatedData = startRunnableCalls(data)
       if (isWorkflowDone) scheduleTransition(WorkflowSucceeded)
       stay() using updatedData
+    case Event(CallStarted(finalCallKey: FinalCallKey), _) =>
+      handleFinalCallStarted(finalCallKey)
     case Event(CallStarted(callKey), data) if !data.isPending(callKey) =>
       executionStore += callKey -> ExecutionStatus.Running
       persistStatus(callKey, ExecutionStatus.Running)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Running)
       stay() using updatedData
     case Event(message: CallStarted, _) =>
+      resendDueToPendingExecutionWrites(message)
+      stay()
+    case Event(message @ CallCompleted(finalCallKey: FinalCallKey, _, _, _, _, _), data) if !data.isPersistedRunning(finalCallKey) =>
+      // Unlike "real" calls which are managed by a CallActor, the final call completion message is triggered
+      // internally and there isn't an automatic retry if the message isn't processed.  So if the message can't be
+      // processed due to pending writes, schedule it to be resent here.
       resendDueToPendingExecutionWrites(message)
       stay()
     case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
@@ -489,6 +517,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   when(WorkflowAborting) {
+    case Event(message @ CallCompleted(finalCallKey: FinalCallKey, _, _, _, _, _), data) if !data.isPersistedRunning(finalCallKey) =>
+      // Unlike "real" calls which are managed by a CallActor, the final call completion message is triggered
+      // internally and there isn't an automatic retry if the message isn't processed.  So if the message can't be
+      // processed due to pending writes, schedule it to be resent here.
+      resendDueToPendingExecutionWrites(message)
+      stay()
     case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
       handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
@@ -688,9 +722,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       status == ExecutionStatus.NotStarted && arePrerequisitesDone(key)
     }
 
-    def findRunnableEntries: Traversable[ExecutionStoreEntry] = executionStore filter isRunnable
-
-    val runnableEntries = findRunnableEntries
+    val runnableEntries = executionStore filter isRunnable
 
     val runnableCalls = runnableEntries collect { case(k: CallKey, v) => k.scope }
     if (runnableCalls.nonEmpty)
@@ -700,6 +732,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       case (k: ScatterKey, _) => processRunnableScatter(k)
       case (k: CollectorKey, _) => processRunnableCollector(k)
       case (k: CallKey, _) => processRunnableCall(k)
+      case (k: FinalCallKey, _) => processRunnableFinalCall(k)
       case (k, v) =>
         val message = s"Unknown entry in execution store:\nKEY: $k\nVALUE:$v"
         logger.error(message)
@@ -880,15 +913,21 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def createCaches: Future[(ExecutionStore, SymbolCache)] = {
 
     def isInScatterBlock(c: Call) = c.ancestry.exists(_.isInstanceOf[Scatter])
+    import FinalCall._
 
     val futureExecutionCache = globalDataAccess.getExecutionStatuses(workflow.id) map { statuses =>
       statuses map { case (k, v) =>
-        val key: ExecutionStoreKey = (workflow.namespace.resolve(k.fqn), k.index) match {
-          case (Some(c: Call), Some(i)) => CallKey(c, Option(i))
-          case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c)
-          case (Some(c: Call), None) => CallKey(c, None)
-          case (Some(s: Scatter), None) => ScatterKey(s, None)
-          case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
+        val key: ExecutionStoreKey = if (k.fqn.isFinalCall) {
+          // Final calls are not part of the workflow namespace, handle these differently from other keys.
+          k.fqn.toStoreKey(workflow)
+        } else {
+          (workflow.namespace.resolve(k.fqn), k.index) match {
+            case (Some(c: Call), Some(i)) => CallKey(c, Option(i))
+            case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c)
+            case (Some(c: Call), None) => CallKey(c, None)
+            case (Some(s: Scatter), None) => ScatterKey(s, None)
+            case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
+          }
         }
         key -> v.executionStatus
       }
@@ -986,6 +1025,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))
+  }
+
+  private def processRunnableFinalCall(finalCallKey: FinalCallKey): Try[ExecutionStartResult] = {
+    executionStore += finalCallKey -> ExecutionStatus.Starting
+    persistStatus(finalCallKey, ExecutionStatus.Starting) map { _ => self ! CallStarted(finalCallKey) }
+    Success(ExecutionStartResult(Set(StartEntry(finalCallKey, ExecutionStatus.Starting))))
   }
 
   private def sendStartMessage(callKey: CallKey, callInputs: Map[String, WdlValue]) = {

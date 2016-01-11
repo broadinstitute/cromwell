@@ -6,7 +6,7 @@ import java.nio.file.{Files, Path, Paths}
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s._
+import wdl4s.{Call, TaskOutput}
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
 import wdl4s.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
@@ -14,7 +14,6 @@ import cromwell.engine.backend.{CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId, _}
 import cromwell.engine._
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils

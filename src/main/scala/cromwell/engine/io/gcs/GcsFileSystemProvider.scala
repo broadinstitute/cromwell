@@ -59,14 +59,6 @@ class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, exe
     if (!googleCloudStorage.exists(path.toString)) throw new FileNotFoundException(path.toString)
   }
 
-  override def move(source: Path, target: Path, options: CopyOption*): Unit = throw new NotImplementedError()
-
-  override def checkAccess(path: Path, modes: AccessMode*): Unit = {checkExists(path)}
-
-  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
-
-  override def getFileSystem(uri: URI): FileSystem = throw new UnsupportedOperationException()
-
   /**
     * Note: options and attributes are not honored.
     */
@@ -88,7 +80,6 @@ class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, exe
     * NOTE: options are not honored.
     */
   override def newOutputStream(path: Path, options: OpenOption*): OutputStream = {
-
     def initializeOutputStream(gcsPath: NioGcsPath) = {
       val channel = new GoogleCloudStorageWriteChannel(
         executionService,
@@ -110,8 +101,6 @@ class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, exe
     }
   }
 
-  override def isHidden(path: Path): Boolean = throw new NotImplementedError()
-
   override def copy(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
       case (s: NioGcsPath, d: NioGcsPath) => googleCloudStorage.copy(s, d)
@@ -125,26 +114,23 @@ class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, exe
     }
   }
 
-  override def newDirectoryStream(dir: Path, filter: Filter[_ >: Path]): DirectoryStream[Path] = throw new NotImplementedError()
-
-  override def setAttribute(path: Path, attribute: String, value: scala.Any, options: LinkOption*): Unit = throw new NotImplementedError()
-
-  override def getPath(uri: URI): Path = throw new NotImplementedError()
-
-  override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = throw new NotImplementedError()
-
   override def readAttributes[A <: BasicFileAttributes](path: Path, `type`: Class[A], options: LinkOption*): A = {
     checkExists(path)
     new GcsFileAttributes(path).asInstanceOf[A]
   }
 
+  override def move(source: Path, target: Path, options: CopyOption*): Unit = throw new NotImplementedError()
+  override def checkAccess(path: Path, modes: AccessMode*): Unit = {checkExists(path)}
+  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
+  override def getFileSystem(uri: URI): FileSystem = throw new UnsupportedOperationException()
+  override def isHidden(path: Path): Boolean = throw new NotImplementedError()
+  override def newDirectoryStream(dir: Path, filter: Filter[_ >: Path]): DirectoryStream[Path] = throw new NotImplementedError()
+  override def setAttribute(path: Path, attribute: String, value: scala.Any, options: LinkOption*): Unit = throw new NotImplementedError()
+  override def getPath(uri: URI): Path = throw new NotImplementedError()
+  override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = throw new NotImplementedError()
   override def readAttributes(path: Path, attributes: String, options: LinkOption*): util.Map[String, AnyRef] = throw new NotImplementedError()
-
   override def isSameFile(path: Path, path2: Path): Boolean = throw new NotImplementedError()
-
   override def getFileAttributeView[V <: FileAttributeView](path: Path, `type`: Class[V], options: LinkOption*): V = throw new NotImplementedError()
-
   override def getFileStore(path: Path): FileStore = throw new NotImplementedError()
-
   override def getScheme: String = GcsFileSystem.Protocol
 }

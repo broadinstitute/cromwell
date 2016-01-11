@@ -62,3 +62,24 @@ object main {
   }
 }
 ```
+
+# Developer Zone
+
+This section is intended for developers of wdl4s.
+
+## Generate WDL Parser
+
+If there are any changes to `src/main/resources/grammar.hgr`, then the parser located at `src/main/java/wdl4s/parser/WdlParser.java` needs to be regenerated.  Any changes to the grammar file should result in a regeneration of the parser and then run the unit tests. Changing the AST could be disruptive if keys are renamed or objects restructured too much. It's best to find these issues as soon as possible.
+
+To regenerate the parser, install the latest version of [Hermes](http://github.com/scottfrazer/hermes), then run the following command within this directory:
+
+```
+hermes generate src/main/resources/grammar.hgr \
+  --language=java \
+  --directory=src/main/java \
+  --name=wdl \
+  --java-package=wdl4s.parser \
+  --java-use-apache-commons \
+  --java-imports=org.apache.commons.lang3.StringEscapeUtils \
+  --header
+```

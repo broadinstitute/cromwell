@@ -2,21 +2,22 @@ package cromwell.engine.backend.jes
 
 import java.net.URL
 import java.nio.file.Paths
+import java.util.UUID
 
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.BackendType
 import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.util.EncryptionSpec
+import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId}
+import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString}
+import wdl4s.values._
 import wdl4s.{CallInputs, RuntimeAttributes}
 
 import scala.util.{Success, Try}
@@ -216,15 +217,39 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     jesBackend.monitoringIO(backendCall) shouldBe None
   }
 
-  "JesBackendCall" should "return Jes log paths" in {
-    val stdoutstderr = JesBackendCall.stdoutStderr("gs://path/to/call")
+  "JesBackendCall" should "return JES log paths for non-scattered call" in {
+    val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), SampleWdl.HelloWorld.asWorkflowSources(
+      runtime = """ runtime {docker: "ubuntu:latest"} """,
+      workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
+    ))
+    val call = wd.namespace.workflow.findCallByName("hello").get
+    val backendCall = jesBackend.bindCall(wd, CallKey(call, None))
+    val stdoutstderr = backendCall.stdoutStderr
+
+    stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log")
+    stdoutstderr.stderr shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log")
+
     stdoutstderr.backendLogs shouldBe defined
     val logsMap = stdoutstderr.backendLogs.get
     logsMap should contain key "log"
-    logsMap("log") shouldBe WdlFile("gs://path/to/call/jes.log")
-    logsMap should contain key "stdout"
-    logsMap("stdout") shouldBe WdlFile("gs://path/to/call/jes-stdout.log")
-    logsMap should contain key "stderr"
-    logsMap("stderr") shouldBe WdlFile("gs://path/to/call/jes-stderr.log")
+    logsMap("log") shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log")
+  }
+
+  it should "return JES log paths for scattered call" in {
+    val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), new SampleWdl.ScatterWdl().asWorkflowSources(
+      runtime = """ runtime {docker: "ubuntu:latest"} """,
+      workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
+    ))
+    val call = wd.namespace.workflow.findCallByName("B").get
+    val backendCall = jesBackend.bindCall(wd, CallKey(call, Some(2)))
+    val stdoutstderr = backendCall.stdoutStderr
+
+    stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stdout.log")
+    stdoutstderr.stderr shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stderr.log")
+
+    stdoutstderr.backendLogs shouldBe defined
+    val logsMap = stdoutstderr.backendLogs.get
+    logsMap should contain key "log"
+    logsMap("log") shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2.log")
   }
 }

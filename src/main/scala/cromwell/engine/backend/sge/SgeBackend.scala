@@ -4,7 +4,6 @@ import java.nio.file.Files
 
 import akka.actor.ActorSystem
 import better.files._
-import wdl4s.CallInputs
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.db.DataAccess._
@@ -12,8 +11,8 @@ import cromwell.engine.db.SgeCallBackendInfo
 import cromwell.engine.workflow.CallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
-import cromwell.engine.backend.BackendType
 import cromwell.util.FileUtil._
+import wdl4s.CallInputs
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,9 +30,11 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
                         key: CallKey,
                         locallyQualifiedInputs: CallInputs,
-                        abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
+                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
     SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
+
+  def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future( {
     val logger = workflowLoggerWithCall(backendCall)
@@ -166,7 +167,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val logger = workflowLoggerWithCall(backendCall)
     val abortFunction = killSgeJob(backendCall, sgeJobId)
     val waitUntilCompleteFunction = waitUntilComplete(backendCall)
-    backendCall.callAbortRegistrationFunction.register(AbortFunction(abortFunction))
+    backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(abortFunction)))
     val jobReturnCode = waitUntilCompleteFunction
     val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
     logger.info(s"SGE job completed (returnCode=$jobReturnCode)")

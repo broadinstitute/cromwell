@@ -3,10 +3,9 @@ package cromwell
 import java.net.URL
 
 import akka.testkit.{EventFilter, TestActorRef}
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend.jes.{JesAttributes, JesBackend}
-import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
+import cromwell.engine.io.gcs.{GoogleConfiguration, ServiceAccountMode}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfterAll
@@ -31,13 +30,12 @@ class InvalidRuntimeAttributesSpec extends CromwellTestkitSpec with BeforeAndAft
           executionBucket = anyString,
           endpointUrl = anyURL) {
         }
-        override def callGcsPath(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): String = "gs://fake/path"
         override def jesUserConnection(workflow: WorkflowDescriptor) = null
         override lazy val jesCromwellInterface = null
         override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), None)
       }
 
-      val workflowSources = WorkflowSourceFiles(SampleWdl.HelloWorld.wdlSource(), SampleWdl.HelloWorld.wdlJson, "{}")
+      val workflowSources = WorkflowSourceFiles(SampleWdl.HelloWorld.wdlSource(), SampleWdl.HelloWorld.wdlJson, """ {"jes_gcs_root": "gs://fake/path"} """)
       val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
 
       runWdlWithWorkflowManagerActor(

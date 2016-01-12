@@ -52,7 +52,7 @@ object Run  {
       logger.info(s"Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
       val logging = new Logging()
-      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.JesLog}")
+      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.jesLogFilename(pipeline.key)}")
       rpr.setLogging(logging)
 
       // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
@@ -162,7 +162,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
       // If this has transitioned to a running or complete state from a state this is not running or complete,
       // register the abort function.
       if (currentStatus.isRunningOrComplete && (previousStatus.isEmpty || !previousStatus.get.isRunningOrComplete)) {
-        backendCall.callAbortRegistrationFunction.register(AbortFunction(() => abort()))
+        backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(() => abort())))
       }
     }
 

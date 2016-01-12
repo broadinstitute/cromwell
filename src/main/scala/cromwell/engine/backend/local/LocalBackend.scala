@@ -5,7 +5,6 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
 import better.files._
-import wdl4s._
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
@@ -13,9 +12,9 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.CallKey
-import cromwell.engine.backend.BackendType
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
+import wdl4s._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -117,9 +116,11 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
                         key: CallKey,
                         locallyQualifiedInputs: CallInputs,
-                        abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
+                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
+
+  def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = workflowLoggerWithCall(backendCall)
@@ -183,7 +184,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
 
     // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
-    backendCall.callAbortRegistrationFunction.register(AbortFunction(() => process.destroy()))
+    backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(() => process.destroy())))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes

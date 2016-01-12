@@ -1,16 +1,14 @@
 package cromwell.engine.backend
 
 import akka.event.LoggingAdapter
-import cromwell.engine
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
+import cromwell.engine.Hashing._
+import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
+import cromwell.engine.workflow.CallKey
+import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
+import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
-import cromwell.engine.workflow.CallKey
-import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
-import cromwell.engine.CallOutputs
-import cromwell.logging.WorkflowLogger
-import cromwell.engine.Hashing._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -90,15 +88,15 @@ trait BackendCall {
   def backend: Backend
 
   /**
-   * Inputs to the call.  For example, if a call's task specifies a command like this:
-   *
-   * command {
-   *   File some_dir
-   *   ls ${some_dir}
-   * }
-   *
-   * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
-   */
+    * Inputs to the call.  For example, if a call's task specifies a command like this:
+    *
+    * File some_dir
+    * command {
+    *   ls ${some_dir}
+    * }
+    *
+    * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
+    */
   def locallyQualifiedInputs: CallInputs
 
   /**
@@ -130,6 +128,11 @@ trait BackendCall {
   }
 
   def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
+
+  /**
+    * Return CallLogs which contains the stdout/stderr of the particular call
+    */
+  def stdoutStderr: CallLogs
 
   @throws[IllegalArgumentException]
   lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, backend.backendType)

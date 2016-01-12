@@ -12,7 +12,7 @@ case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,
                             key: CallKey,
                             locallyQualifiedInputs: CallInputs,
-                            callAbortRegistrationFunction: AbortRegistrationFunction) extends BackendCall with LocalFileSystemBackendCall {
+                            callAbortRegistrationFunction: Option[AbortRegistrationFunction]) extends BackendCall with LocalFileSystemBackendCall {
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
   val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
   val dockerContainerExecutionDir = LocalBackend.containerExecutionPath(workflowDescriptor)
@@ -35,4 +35,6 @@ case class LocalBackendCall(backend: LocalBackend,
 
   override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
     backend.useCachedCall(avoidedTo.asInstanceOf[LocalBackendCall], this)
+
+  override def stdoutStderr: CallLogs = backend.stdoutStderr(this)
 }

@@ -106,7 +106,10 @@ trait BackendCall {
    * expression `read_lines(my_file_var)` would have to call lookupFunction()("my_file_var")
    * during expression evaluation
    */
-  def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(locallyQualifiedInputs, key.scope.task.declarations, engineFunctions)
+  def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = {
+    val currentlyKnownValues = locallyQualifiedInputs ++ evaluatedValues
+    WdlExpression.standardLookupFunction(currentlyKnownValues, key.scope.task.declarations, engineFunctions)
+  }
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]

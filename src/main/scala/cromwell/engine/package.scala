@@ -39,7 +39,6 @@ package object engine {
   type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]
   type FullyQualifiedName = String
   type LocallyQualifiedName = String
-  type CallInputs = Map[String, WdlValue]
   case class CallOutput(wdlValue: WdlValue, hash: Option[SymbolHash])
   type CallOutputs = Map[LocallyQualifiedName, CallOutput]
   type HostInputs = Map[String, WdlValue]

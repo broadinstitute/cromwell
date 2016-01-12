@@ -6,7 +6,7 @@ import java.nio.file.{Files, Path, Paths}
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s.{Call, TaskOutput}
+import wdl4s.{CallInputs, Call, TaskOutput}
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
 import wdl4s.values.{WdlValue, _}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
@@ -14,6 +14,7 @@ import cromwell.engine.backend.{CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId}
 import cromwell.engine._
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
@@ -24,6 +25,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import Hashing._
+import cromwell.engine.backend.AttemptedLookupResult
 
 object SharedFileSystem {
   type LocalizationStrategy = (String, Path, WorkflowDescriptor) => Try[Unit]
@@ -121,19 +123,12 @@ trait SharedFileSystem {
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
     implicit val hasher = backendCall.workflowDescriptor.fileHasher
-    // Evaluate output expressions, performing conversions from String -> File where required.
-    val outputMappings = backendCall.call.task.outputs map { taskOutput =>
-      val tryConvertedValue =
-        for {
-          expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction, backendCall.engineFunctions)
-          convertedValue <- outputAutoConversion(backendCall, taskOutput, expressionValue)
-          pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, backendCall.callRootPath))
-        } yield pathAdjustedValue
-      taskOutput.name -> tryConvertedValue
-    }
+
+    val outputs = backendCall.call.task.outputs
+    val outputFoldingFunction = getOutputFoldingFunction(backendCall)
+    val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
 
     val taskOutputFailures = outputMappings filter { _._2.isFailure }
-
     if (taskOutputFailures.isEmpty) {
       val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) =>
         name -> CallOutput(wdlValue, wdlValue.getHash(backendCall.workflowDescriptor))
@@ -144,6 +139,18 @@ trait SharedFileSystem {
       Failure(new Throwable(s"Workflow ${backendCall.workflowDescriptor.id}: ${message.mkString("\n")}"))
     }
   }
+
+  private def getOutputFoldingFunction(backendCall: LocalFileSystemBackendCall): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
+    (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
+      currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, backendCall, currentList)))
+    }
+  }
+
+  private def outputLookup(taskOutput: TaskOutput, backendCall: LocalFileSystemBackendCall, currentList: Seq[AttemptedLookupResult]) = for {
+    expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction(currentList.toLookupMap), backendCall.engineFunctions)
+    convertedValue <- outputAutoConversion(backendCall, taskOutput, expressionValue)
+    pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, backendCall.callRootPath))
+  } yield pathAdjustedValue
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 

@@ -8,7 +8,8 @@ import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s.{Scatter, UnsatisfiedInputsException, Call, CallInputs}
+import wdl4s.CallInputs
+import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
@@ -355,7 +356,7 @@ case class JesBackend(actorSystem: ActorSystem)
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
     val log = workflowLoggerWithCall(backendCall)
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
-      taskOutput.expression.evaluateFiles(backendCall.lookupFunction, NoFunctions, taskOutput.wdlType) match {
+      taskOutput.expression.evaluateFiles(backendCall.lookupFunction(Map.empty), NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) => wdlFiles map gcsPathToLocal
         case Failure(ex) =>
           log.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}")
@@ -457,8 +458,8 @@ case class JesBackend(actorSystem: ActorSystem)
     }
   }
 
-  private def customLookupFunction(backendCall: BackendCall) = { toBeLookedUp: String =>
-    val originalLookup = backendCall.lookupFunction
+  private def customLookupFunction(backendCall: BackendCall, alreadyGeneratedOutputs: Map[String, WdlValue]): String => WdlValue = toBeLookedUp => {
+    val originalLookup = backendCall.lookupFunction(alreadyGeneratedOutputs)
     gcsInputToGcsOutput(backendCall, originalLookup(toBeLookedUp))
   }
 
@@ -475,37 +476,42 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   def postProcess(backendCall: BackendCall): Try[CallOutputs] = {
-    val outputMappings = backendCall.call.task.outputs.map({ taskOutput =>
-      /**
-        * This will evaluate the task output expression and coerces it to the task output's type.
-        * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
-        * return a WdlFile that represents the GCS path and not the local path.  For example,
-        *
-        * <pre>
-        * output {
-        *   File x = "out" + ".txt"
-        * }
-        * </pre>
-        *
-        * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
-        * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
-        * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
-        */
-      val attemptedValue = for {
-        wdlValue <- taskOutput.expression.evaluate(customLookupFunction(backendCall), backendCall.engineFunctions)
-        coercedValue <- taskOutput.wdlType.coerceRawValue(wdlValue)
-        value = wdlValueToGcsPath(generateJesOutputs(backendCall))(coercedValue)
-      } yield value
-
-      taskOutput.name -> attemptedValue
-    }).toMap
-
+    val outputs = backendCall.call.task.outputs
+    val outputFoldingFunction = getOutputFoldingFunction(backendCall)
+    val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
       outputMap mapValues { v =>
         CallOutput(v, v.getHash(backendCall.workflowDescriptor))
       }
     }
   }
+
+  private def getOutputFoldingFunction(backendCall: BackendCall): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
+    (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
+      currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, backendCall, currentList)))
+    }
+  }
+
+  private def outputLookup(taskOutput: TaskOutput, backendCall: BackendCall, currentList: Seq[AttemptedLookupResult]) = for {
+  /**
+    * This will evaluate the task output expression and coerces it to the task output's type.
+    * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
+    * return a WdlFile that represents the GCS path and not the local path.  For example,
+    *
+    * <pre>
+    * output {
+    *   File x = "out" + ".txt"
+    * }
+    * </pre>
+    *
+    * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
+    * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
+    * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
+    */
+    wdlValue <- taskOutput.expression.evaluate(customLookupFunction(backendCall, currentList.toLookupMap), backendCall.engineFunctions)
+    coercedValue <- taskOutput.wdlType.coerceRawValue(wdlValue)
+    value = wdlValueToGcsPath(generateJesOutputs(backendCall))(coercedValue)
+  } yield value
 
   def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(handle.backendCall)

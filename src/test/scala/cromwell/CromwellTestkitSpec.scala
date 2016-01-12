@@ -234,7 +234,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                              runtime: String = "",
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
-                             terminalState: WorkflowState = WorkflowSucceeded): Unit = {
+                             terminalState: WorkflowState = WorkflowSucceeded): WorkflowId = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
     val wfSources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
     val submitMessage = WorkflowManagerActor.SubmitWorkflow(wfSources)
@@ -257,6 +257,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
             if (expectedValue != AnyValueIsFine) validateOutput(actualValue.wdlValue, expectedValue)
           }
         }
+        workflowId
       }
     }
   }

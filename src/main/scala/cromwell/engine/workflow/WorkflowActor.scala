@@ -609,10 +609,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       scheduleTransition(WorkflowFailed)
       stay()
     case Event(message @ AsyncFailure(t), _) =>
-      // This is the unusual combination of debug + throwable logging since the expectation is that this will eventually
+      // This is the unusual combination of warn + throwable logging since the expectation is that this will eventually
       // be logged in the case above as an error, but if for some weird reason this actor never ends up in that
       // state we don't want to be completely blind to the cause of the AsyncFailure.
-      logger.debug(t.getMessage, t)
+      logger.warn(t.getMessage, t)
       resendDueToPendingExecutionWrites(message)
       stay()
     case Event(Terminate, data) if data.pendingExecutions.isEmpty && stateName.isTerminal =>

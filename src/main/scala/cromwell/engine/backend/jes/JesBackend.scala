@@ -2,39 +2,36 @@ package cromwell.engine.backend.jes
 
 import java.math.BigInteger
 import java.net.SocketTimeoutException
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 import akka.actor.ActorSystem
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s.CallInputs
-import wdl4s._
-import wdl4s.expression.NoFunctions
-import wdl4s.values._
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend._
+import cromwell.engine.Hashing._
+import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, _}
-import cromwell.engine.{HostInputs, CallOutput, CallOutputs}
+import cromwell.engine.{AbortRegistrationFunction, CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
-import cromwell.engine.backend.BackendType
 import cromwell.util.{AggregatedException, TryUtil}
+import wdl4s.{CallInputs, _}
+import wdl4s.expression.NoFunctions
+import wdl4s.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import Hashing._
 
 object JesBackend {
   /*
@@ -539,12 +536,12 @@ case class JesBackend(actorSystem: ActorSystem)
         case Run.Success(events) =>
           backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage) =>
-          val throwable = if (errorMessage contains "Operation canceled at") {
-            new TaskAbortedException()
+          if (errorMessage contains "Operation canceled at") {
+            AbortedExecutionHandle.future
           } else {
-            new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: $errorMessage")
+            val e = new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: $errorMessage")
+            FailedExecutionHandle(e, Option(errorCode)).future
           }
-          FailedExecutionHandle(throwable, Option(errorCode)).future
       }
     } catch {
       case e: Exception =>

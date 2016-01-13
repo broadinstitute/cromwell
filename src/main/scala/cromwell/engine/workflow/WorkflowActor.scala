@@ -466,6 +466,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
       // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
       // cancelled by some external system.
+      executionStore += callKey -> ExecutionStatus.Aborted
       persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       logger.warn(s"Call ${callKey.scope.unqualifiedName} was aborted but the workflow should still be running.")
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
@@ -529,6 +530,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       // Collector keys are weird internal things and never go to Running state.
       handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallAborted(callKey), data) if data.isPersistedRunning(callKey) =>
+      executionStore += callKey -> ExecutionStatus.Aborted
       persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
@@ -545,10 +547,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       val updatedData = data.removePersisting(callKey, ExecutionStatus.Done)
       stay() using updatedData
-    case Event(m, _) =>
-      logger.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
-      if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
-      stay()
   }
 
   /**

@@ -70,6 +70,11 @@ final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[
   override val result = FailedExecution(throwable, returnCode)
 }
 
+case object AbortedExecutionHandle extends ExecutionHandle {
+  override def isDone: Boolean = true
+  override def result: ExecutionResult = AbortedExecution
+}
+
 trait BackendCall {
   /**
    * The Workflow and Call to invoke.  It is assumed that in the creation

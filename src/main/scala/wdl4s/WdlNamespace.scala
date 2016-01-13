@@ -13,6 +13,8 @@ import wdl4s.util.FileUtil.EnhancedFile
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import scalaz.NonEmptyList
+import scalaz.Scalaz._
 
 /**
  * Define WdlNamespace as a sum type w/ two states - one containing a local workflow and one without.
@@ -81,8 +83,9 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
         optionValue = tryValue.get if tryValue.get.isDefined
       } yield key -> optionValue.get)
     } else {
-      val message = failures.values.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
-      Failure(new UnsatisfiedInputsException(s"The following errors occurred while processing your inputs:\n\n$message"))
+      val errors = failures.values.collect { case f: Failure[_] => f.exception.getMessage }
+      // .get because failures is guaranteed to be nonEmpty
+      Failure(new ValidationException("Workflow input processing failed.", errors.toList.toNel.get))
     }
   }
 
@@ -126,8 +129,9 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     if (failures.isEmpty) {
       Success(successes.map {case (k,v) => k -> v.get})
     } else {
-      val message = failures.values.collect {case f: Failure[_] => f.exception.getMessage}.mkString("\n")
-      Failure(new UnsatisfiedInputsException(s"Could not evaluate some declaration expressions:\n\n$message"))
+      val errors = failures.values.collect { case f: Failure[_] => f.exception.getMessage }
+        // .get because failures is guaranteed to be nonEmpty
+      Failure(new ValidationException("Could not evaluate some declaration expressions", errors.toList.toNel.get))
     }
   }
 

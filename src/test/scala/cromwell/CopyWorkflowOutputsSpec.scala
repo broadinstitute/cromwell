@@ -12,7 +12,7 @@ import scala.language.postfixOps
 
 class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
-  "CopyWorkflowOutputs" should {
+  "CopyWorkflowOutputsCall" should {
     "copy workflow outputs" in {
       val workflowOutputsPath = "copy-workflow-outputs"
 

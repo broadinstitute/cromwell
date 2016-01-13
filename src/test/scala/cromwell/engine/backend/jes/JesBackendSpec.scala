@@ -11,8 +11,9 @@ import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId}
+import cromwell.engine.workflow.BackendCallKey
+import cromwell.engine.workflow.WorkflowOptions
+import cromwell.engine.{WorkflowDescriptor, WorkflowId}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -59,7 +60,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
-    val ignoredCall = mock[CallKey]
+    val ignoredCall = mock[BackendCallKey]
     val stringKey = "abc"
     val stringVal = WdlString("abc")
     val localFileKey = "lf"
@@ -223,7 +224,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     ))
     val call = wd.namespace.workflow.findCallByName("hello").get
-    val backendCall = jesBackend.bindCall(wd, CallKey(call, None))
+    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, None))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log")
@@ -241,7 +242,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     ))
     val call = wd.namespace.workflow.findCallByName("B").get
-    val backendCall = jesBackend.bindCall(wd, CallKey(call, Some(2)))
+    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, Some(2)))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stdout.log")

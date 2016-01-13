@@ -1,15 +1,18 @@
-package cromwell.engine
+package cromwell.engine.callexecution
 
 import akka.actor.{Actor, Props}
-import akka.event.{Logging, LoggingReceive}
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import akka.event.{LoggingAdapter, LoggingReceive, Logging}
 import com.google.api.client.util.ExponentialBackOff
-import cromwell.engine.backend._
+import cromwell.engine.callactor.CallActor
+import cromwell.engine.finalcall.FinalCall
+import cromwell.engine.{CromwellFatalException, CromwellActor}
+import cromwell.engine.backend.{FailedExecutionHandle, BackendCall, JobKey, ExecutionHandle}
+import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, PollResponseReceived, IssuePollRequest, Finish}
 import cromwell.logging.WorkflowLogger
-
-import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import wdl4s.Scope
+import scala.concurrent.Future
 import scala.language.postfixOps
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object CallExecutionActor {
@@ -18,43 +21,27 @@ object CallExecutionActor {
   final case class PollResponseReceived(executionHandle: ExecutionHandle) extends CallExecutionActorMessage
   final case class Finish(executionHandle: ExecutionHandle) extends CallExecutionActorMessage
 
-  sealed trait ExecutionMode extends CallExecutionActorMessage {
-    def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle]
-  }
+  sealed trait ExecutionMode extends CallExecutionActorMessage
 
-  case object Execute extends ExecutionMode {
-    override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.execute
-  }
+  case object Execute extends ExecutionMode
+  final case class Resume(jobKey: JobKey) extends ExecutionMode
+  final case class UseCachedCall(cachedBackendCall: BackendCall) extends ExecutionMode
 
-  final case class Resume(jobKey: JobKey) extends ExecutionMode {
-    override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.resume(jobKey)
-  }
-
-  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends ExecutionMode {
-    override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext) = backendCall.useCachedCall(cachedBackendCall)
-  }
-
-  def props(backendCall: BackendCall): Props = Props(new CallExecutionActor(backendCall))
+  def props(backendCall: BackendCall): Props = Props(new BackendCallExecutionActor(backendCall))
+  def props(finalCall: FinalCall): Props = Props(new FinalCallExecutionActor(finalCall))
 }
 
-/** Actor to manage the execution of a single call. */
-class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellActor {
-  import CallExecutionActor._
+trait CallExecutionActor extends Actor with CromwellActor {
 
   val akkaLogger = Logging(context.system, classOf[CallExecutionActor])
-  val logger = WorkflowLogger(
-    "CallExecutionActor",
-    backendCall.workflowDescriptor,
-    akkaLogger = Option(akkaLogger),
-    callTag = Option(backendCall.key.tag)
-  )
+  def logger: WorkflowLogger
 
   implicit val ec = context.system.dispatcher
 
   /**
-   * Schedule work according to the schedule of the `backoff`.
-   */
-  private def scheduleWork(work: => Unit): Unit = {
+    * Schedule work according to the schedule of the `backoff`.
+    */
+  protected def scheduleWork(work: => Unit): Unit = {
     val interval = backoff.nextBackOffMillis().millis
     context.system.scheduler.scheduleOnce(interval) {
       work
@@ -69,9 +56,9 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     .build()
 
   /**
-   * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule
-   * the execution of the `onFailure` work using an exponential backoff.
-   */
+    * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule
+    * the execution of the `onFailure` work using an exponential backoff.
+    */
   def withRetry(work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit): Unit = {
     work onComplete {
       case Success(s) => onSuccess(s)
@@ -88,21 +75,34 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
     }
   }
 
+  /**
+    * Update the ExecutionHandle
+    */
+  def poll(handle: ExecutionHandle): Future[ExecutionHandle]
+
+  /**
+    * Start the execution. Once the Future resolves, the ExecutionHandle can be used to poll
+    * the state of the execution.
+    */
+  def execute(mode: ExecutionMode): Future[ExecutionHandle]
+  def call: Scope
+
   override def receive = LoggingReceive {
     case mode: ExecutionMode =>
-      withRetry(mode.execute(backendCall),
+      withRetry(execute(mode),
         onSuccess = self ! IssuePollRequest(_),
         onFailure = self ! mode
       )
+
     case IssuePollRequest(handle) =>
-      withRetry(backendCall.poll(handle),
+      withRetry(poll(handle),
         onSuccess = self ! PollResponseReceived(_),
         onFailure = self ! IssuePollRequest(handle)
       )
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) => scheduleWork(self ! IssuePollRequest(handle))
     case Finish(handle) =>
-      context.parent ! CallActor.ExecutionFinished(backendCall.call, handle.result)
+      context.parent ! CallActor.ExecutionFinished(call, handle.result)
       context.stop(self)
     case badMessage => logger.error(s"Unexpected message $badMessage.")
   }

@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import org.slf4j.LoggerFactory
 
@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
 object Pipeline {
   def apply(command: String,
             workflow: WorkflowDescriptor,
-            key: CallKey,
+            key: BackendCallKey,
             runtimeAttributes: CromwellRuntimeAttributes,
             jesParameters: Seq[JesParameter],
             projectId: String,
@@ -66,7 +66,7 @@ case class Pipeline private(command: String,
                             projectId: String,
                             gcsPath: String,
                             workflow: WorkflowDescriptor,
-                            key: CallKey,
+                            key: BackendCallKey,
                             jesParameters: Seq[JesParameter],
                             runtimeInfo: JesRuntimeInfo,
                             genomicsService: Genomics,

@@ -10,6 +10,8 @@ import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
+import cromwell.engine.{HostInputs, CallOutputs}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
@@ -86,7 +88,7 @@ trait Backend {
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(callKey: CallKey,
+  def adjustInputPaths(callKey: BackendCallKey,
                        runtimeAttributes: CromwellRuntimeAttributes,
                        inputs: CallInputs,
                        workflowDescriptor: WorkflowDescriptor): CallInputs
@@ -110,7 +112,7 @@ trait Backend {
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
   def bindCall(workflowDescriptor: WorkflowDescriptor,
-               key: CallKey,
+               key: BackendCallKey,
                locallyQualifiedInputs: CallInputs = Map.empty[String, WdlValue],
                abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
 

@@ -5,7 +5,7 @@ import java.util.UUID
 import cromwell.CromwellTestkitSpec
 import wdl4s.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId, WorkflowSourceFiles}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
@@ -29,7 +29,7 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   val backendCall = LocalBackendCall(
     backend,
     descriptor,
-    CallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
+    BackendCallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
     Map.empty[String, WdlValue],
     callAbortRegistrationFunction = None
   )

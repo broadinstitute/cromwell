@@ -8,7 +8,7 @@ import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput, JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.google.GoogleScopes
 import org.joda.time.DateTime
@@ -157,7 +157,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
 
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
-      globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
+      globalDataAccess.updateExecutionBackendInfo(workflowId, BackendCallKey(call, pipeline.key.index), newBackendInfo)
 
       // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.

@@ -25,5 +25,6 @@ case class TaskDescriptor(name: String,
                           command: String,
                           commandArgs: Option[Seq[String]],
                           workingDir: String,
+                          inputs: Map[OutputType, String],
                           outputs: Map[OutputType, String],
                           runtimeAttributes: Map[String, String])

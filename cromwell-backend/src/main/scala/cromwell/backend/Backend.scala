@@ -1,11 +1,12 @@
 package cromwell.backend
 
 import cromwell.backend.model.Subscription
+import cromwell.caching.Cacheable
 
 /**
   * Defines basic functionality to interact with a Backend.
   */
-trait Backend {
+trait Backend extends Cacheable{
   /**
     * Prepare the task and context for execution.
     */

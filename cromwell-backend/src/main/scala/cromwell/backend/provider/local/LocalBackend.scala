@@ -20,36 +20,43 @@ import scala.util.Try
 object LocalBackend {
   // Folders
   val CromwellExecutionDir = "cromwell-executions"
-  val ContainerDir = "root"
 
   // Files
-  val returnCodeFile = "rc"
-  val stdoutFile = "stdout"
-  val stderrFile = "stderr"
-  val scriptFile = "script"
+  val ReturnCodeFile = "rc"
+  val StdoutFile = "stdout"
+  val StderrFile = "stderr"
+  val ScriptFile = "script"
+
+  val DockerFlag = "Docker"
 
   // don't know yet
   val CallPrefix = "call"
   val ShardPrefix = "shard"
 }
 
-// TODO: add hashing trait to check for inputs hashes.
+/**
+  * Executes a task in local computer through command line. It can be also executed in a Docker container.
+  * @param task Task descriptor.
+  * @param actorSystem Cromwell actor system.
+  */
 class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) extends BackendActor with StrictLogging {
+
   import LocalBackend._
+
   implicit val timeout = Timeout(10 seconds)
   val subscriptions = ArrayBuffer[Subscription[ActorRef]]()
 
   val workingDir = task.workingDir
   val taskWorkingDir = workingDir + task.name
   val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir)
-  val containerImageName = task.runtimeAttributes.filter(p => p._1.equals("Docker")).values
-  val stdout = Paths.get(taskWorkingDir, stdoutFile)
-  val stderr = Paths.get(taskWorkingDir, stderrFile)
-  val script = Paths.get(taskWorkingDir, scriptFile)
-  val returnCode = Paths.get(taskWorkingDir, returnCodeFile)
+  val stdout = Paths.get(executionDir.toString, StdoutFile)
+  val stderr = Paths.get(executionDir.toString, StderrFile)
+  val script = Paths.get(executionDir.toString, ScriptFile)
+  val returnCode = Paths.get(executionDir.toString, ReturnCodeFile)
   val stdoutWriter = stdout.untailed
   val stderrTailed = stderr.tailed(100)
   val argv = Seq("/bin/bash", "-c", s"cat ${script}")
+  val dockerImage = getDockerImage(task.runtimeAttributes)
   var processAbortFunc: Option[() => Unit] = None
 
   /**
@@ -99,6 +106,52 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
   }
 
   /**
+    * Get file content hash.
+    * @param files List of files to compute.
+    * @return List of hashes related to files.
+    */
+  override def computeInputFileHash(files: List[Path]): Map[Path, String] = {
+    files.map(path => path -> File(path.toString).md5).toMap[Path, String]
+  }
+
+  /**
+    * Get container image hash.
+    * @param imageName Image name.
+    * @return A hash.
+    */
+  override def computeContainerImageHash(imageName: String): Map[String, String] = ???
+
+  /**
+    * Gather Docker image name from runtime attributes. It it's not present returns none.
+    * @param runtimeAttributes Runtime requirements for the task.
+    */
+  private def getDockerImage(runtimeAttributes: Map[String, String]): Option[String] = {
+    if (runtimeAttributes.contains(DockerFlag) && runtimeAttributes.filter(p => p._1.equals(DockerFlag)).size == 1 &&
+      !runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head.isEmpty) {
+      Some(runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head)
+    } else {
+      None
+    }
+  }
+
+  /**
+    * Creates docker command in order to execute the task into a container.
+    * @param image Docker image name.
+    * @return Command to execute.
+    */
+  private def buildDockerRunCommand(image: String): String = {
+    def extractFolder(file: String): String = file.substring(0, file.lastIndexOf("/"))
+    val dockerVolume = "-v %s:%s"
+    val inputFolder = task.inputs.filter(p => p._1.equals(OutputType.File)).flatMap(p => extractFolder(p._2)).toList.distinct
+    val inputVolumes = inputFolder.map(v => dockerVolume.format(v, v)).mkString(" ")
+    val outputVolume = dockerVolume.format(executionDir, executionDir)
+    log.debug(s"DockerInputVolume: $inputVolumes")
+    log.debug(s"DockerOutputVolume: $outputVolume")
+    val dockerCmd = s"docker run %s %s --rm %s %s" //TODO: make it configurable.
+    dockerCmd.format(inputVolumes, outputVolume, image, argv.mkString(" "))
+  }
+
+  /**
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
@@ -116,14 +169,22 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     * @return A TaskStatus with the final status of the task.
     */
   private def executeTask(): TaskStatus[Option[Map[OutputType, String]]] = {
-    val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
+    def getCmdToExecute(): Seq[String] = dockerImage match
+      {
+      case Some(image) => buildDockerRunCommand(image).split(" ").toSeq
+      case None => argv
+    }
+
+    val process = getCmdToExecute.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
     processAbortFunc = Some(() => process.destroy())
 
     val backendCommandString = argv.map(s => "\"" + s + "\"").mkString(" ")
     logger.debug(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
 
-    Vector(stdoutWriter.writer, stderrTailed.writer) foreach { _.flushAndClose() }
+    Vector(stdoutWriter.writer, stderrTailed.writer) foreach {
+      _.flushAndClose()
+    }
 
     val stderrFileLength = Try(Files.size(stderr)).getOrElse(0L)
 
@@ -138,6 +199,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
       TaskStatus(Status.Succeeded, Option(task.outputs))
     }
   }
+
   // TODO: check continue on error.
   /*
     val badReturnCodeMessage =

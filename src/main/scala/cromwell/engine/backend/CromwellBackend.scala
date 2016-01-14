@@ -1,8 +1,9 @@
 package cromwell.engine.backend
 
 import akka.actor.ActorSystem
+import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.server.WorkflowManagerSystem
 import org.slf4j.LoggerFactory
-import Backend.BackendyString
 
 /**
   * Provides a global singleton access to the instantiated backend. This isn't bulletproof and can lead to
@@ -23,8 +24,8 @@ object CromwellBackend {
         val backend = Backend.from(backendType, actorSystem)
         _backend = Option(backend)
         backend
-      case Some(x) if x.backendType == backendType.toBackendType =>
-        log.error(errorString(x, backendType))
+      case Some(x) if x.backendName == backendType =>
+        log.warn(errorString(x, backendType))
         x
       case Some(x) => throw new IllegalStateException(errorString(x, backendType))
     }
@@ -32,10 +33,12 @@ object CromwellBackend {
 
   def backend() = _backend match {
     case Some(x) => x
-    case None => throw new IllegalStateException("Backend called prior to initBackend")
+    case None =>
+      initBackend("cromwell.engine.backend.local.LocalBackend", WorkflowManagerSystem.system)
+    //      throw new IllegalStateException("Backend called prior to initBackend")
   }
 
   private def errorString(newBackend: Backend, oldBackend: String): String = {
-    s"Backend already initialized to ${newBackend.backendType} attempting to change it to $oldBackend"
+    s"Backend already initialized to ${newBackend.backendName} attempting to change it to $oldBackend"
   }
 }

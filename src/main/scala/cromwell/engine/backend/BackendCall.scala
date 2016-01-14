@@ -1,56 +1,53 @@
 package cromwell.engine.backend
 
 import akka.event.LoggingAdapter
-import cromwell.engine
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
+import cromwell.engine.Hashing._
+import cromwell.engine.workflow.CallKey
+import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
+import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
-import cromwell.engine.workflow.CallKey
-import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
-import cromwell.engine.CallOutputs
-import cromwell.logging.WorkflowLogger
-import cromwell.engine.Hashing._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * Represents a Call that is intended to be run on a specific Backend.
- *
- * A BackendCall is created by calling `Backend.bindCall(c: Call)`.  The
- * combination of a Call and a Backend give enough context to be able to
- * instantiate the Call's Task's command line, and provide an implementation
- * of the WDL standard library functions as well as a lookup functions to
- * resolve identifiers in expressions.
- *
- * The BackendCall also includes a Map[String, WdlValue] (CallInputs) which
- * represents the locally-qualified input values for this call.
- *
- * BackendCall aims to package everything that a Call needs to run into one
- * object so a client can do a parameterless `.execute()` to run the job.
- *
- * To understand why one needs a Backend and locally-qualified inputs in order
- * to instantiate a command, consider this example:
- *
- * task test {
- *   Array[String] something
- *   command {
- *     ./analysis --something-list=${write_lines(something)}
- *   }
- * }
- *
- * Without the Backend and the locallyQualifiedInputs, the expression
- * `write_lines(something)` could not be evaluated because:
- *
- * 1) We need to resolve "something" in locallyQualifiedInputs
- * 2) We need a place to write the results of `write_lines()`, and that location
- *    is backend-specific
- */
+  * Represents a Call that is intended to be run on a specific Backend.
+  *
+  * A BackendCall is created by calling `Backend.bindCall(c: Call)`.  The
+  * combination of a Call and a Backend give enough context to be able to
+  * instantiate the Call's Task's command line, and provide an implementation
+  * of the WDL standard library functions as well as a lookup functions to
+  * resolve identifiers in expressions.
+  *
+  * The BackendCall also includes a Map[String, WdlValue] (CallInputs) which
+  * represents the locally-qualified input values for this call.
+  *
+  * BackendCall aims to package everything that a Call needs to run into one
+  * object so a client can do a parameterless `.execute()` to run the job.
+  *
+  * To understand why one needs a Backend and locally-qualified inputs in order
+  * to instantiate a command, consider this example:
+  *
+  * task test {
+  *   Array[String] something
+  *   command {
+  *     ./analysis --something-list=${write_lines(something)}
+  *   }
+  * }
+  *
+  * Without the Backend and the locallyQualifiedInputs, the expression
+  * `write_lines(something)` could not be evaluated because:
+  *
+  * 1) We need to resolve "something" in locallyQualifiedInputs
+  * 2) We need a place to write the results of `write_lines()`, and that location
+  *    is backend-specific
+  */
 
 /**
- * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
- * with the `poll` API to feed results of previous job status queries forward.
- */
+  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
+  * with the `poll` API to feed results of previous job status queries forward.
+  */
 trait ExecutionHandle {
   def isDone: Boolean
   def result: ExecutionResult
@@ -72,79 +69,81 @@ final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[
 
 trait BackendCall {
   /**
-   * The Workflow and Call to invoke.  It is assumed that in the creation
-   * of a BackendCall object that the 'call' would be within the workflow
-   */
+    * The Workflow and Call to invoke.  It is assumed that in the creation
+    * of a BackendCall object that the 'call' would be within the workflow
+    */
   def workflowDescriptor: WorkflowDescriptor
   def key: CallKey
   def call = key.scope
 
   /**
-   * Backend which will be used to execute the Call
-   */
+    * Backend which will be used to execute the Call
+    */
   def backend: Backend
 
   /**
-   * Inputs to the call.  For example, if a call's task specifies a command like this:
-   *
-   * command {
-   *   File some_dir
-   *   ls ${some_dir}
-   * }
-   *
-   * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
-   */
+    * Inputs to the call.  For example, if a call's task specifies a command like this:
+    *
+    * command {
+    *   File some_dir
+    *   ls ${some_dir}
+    * }
+    *
+    * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
+    */
   def locallyQualifiedInputs: CallInputs
 
   /**
-   * Implementation of the WDL Standard Library Functions, used to evaluate WdlExpressions
-   */
+    * Implementation of the WDL Standard Library Functions, used to evaluate WdlExpressions
+    */
   def engineFunctions: WdlStandardLibraryFunctions
 
   /**
-   * Function used to get the value for identifiers in expressions.  For example, the
-   * expression `read_lines(my_file_var)` would have to call lookupFunction()("my_file_var")
-   * during expression evaluation
-   */
+    * Function used to get the value for identifiers in expressions.  For example, the
+    * expression `read_lines(my_file_var)` would have to call lookupFunction()("my_file_var")
+    * during expression evaluation
+    */
   def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(locallyQualifiedInputs, key.scope.task.declarations, engineFunctions)
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
   /**
-   * The default implementation of this method is not expected to be called and simply throws an `NotImplementedError`.
-   * If the corresponding backend does not override `Backend#findResumableExecutions` to return resumable executions,
-   * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
-   * `BackendCall` should override this method to actually do the resumption work.
-   */
+    * The default implementation of this method is not expected to be called and simply throws an `NotImplementedError`.
+    * If the corresponding backend does not override `Backend#findResumableExecutions` to return resumable executions,
+    * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
+    * `BackendCall` should override this method to actually do the resumption work.
+    */
   def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     throw new NotImplementedError(s"resume() called on a non-resumable BackendCall: $this")
   }
 
   def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
 
-  val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, backend.backendType)
+  val runtimeAttributes = call.task.runtimeAttributes
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {
     val orderedInputs = locallyQualifiedInputs.toSeq.sortBy(_._1)
     val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
-    val orderedRuntime = Seq(
-      ("docker", dockerHash getOrElse ""),
-      ("defaultZones", runtimeAttributes.defaultZones.sorted.mkString(",")),
-      ("failOnStderr", runtimeAttributes.failOnStderr.toString),
-      ("continueOnReturnCode", runtimeAttributes.continueOnReturnCode match {
-        case ContinueOnReturnCodeFlag(bool) => bool.toString
-        case ContinueOnReturnCodeSet(codes) => codes.toList.sorted.mkString(",")
-      }),
-      ("cpu", runtimeAttributes.cpu.toString),
-      ("preemptible", runtimeAttributes.preemptible.toString),
-      ("defaultDisks", runtimeAttributes.defaultDisks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
-      ("memoryGB", runtimeAttributes.memoryGB.toString)
-    )
+    val orderedRuntime = runtimeAttributes.attrs
+    //TODO: Use defaults!
+    //      Seq(
+    //      ("docker", dockerHash getOrElse ""),
+    //      ("defaultZones", runtime.get("defaultZones").getOrElse(Seq()).sorted.mkString(",")),
+    //      ("failOnStderr", runtime.get("failOnStderr").getOrElse(Seq()).toString),
+    //      ("continueOnReturnCode", runtime.get("continueOnReturnCode").getOrElse(Seq()) match {
+    //        case ContinueOnReturnCodeFlag(bool) => bool.toString
+    //        case ContinueOnReturnCodeSet(codes) => codes.toList.sorted.mkString(",")
+    //      }),
+    //      ("cpu", runtime.get("cpu").m),
+    //      ("preemptible", runtime.preemptible.toString),
+    //      ("defaultDisks", runtime.get("defaultDisks").getOrElse(Seq()).sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
+    //      ("memoryGB", runtime.memoryGB.toString)
+    //    )
 
     val overallHash = Seq(
-      backend.backendType.toString,
+      backend.backendName.toString,
       call.task.commandTemplateString,
       orderedInputs map { case (k, v) => s"$k=${v.computeHash(workflowDescriptor.fileHasher).value}" } mkString "\n",
       orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
@@ -162,20 +161,22 @@ trait BackendCall {
     // hash string, otherwise return a `Future.successful` of `None`.
     def hashDockerImage(dockerImage: String): Future[Option[String]] =
       if (workflowDescriptor.lookupDockerHash)
-        backend.dockerHashClient.getDockerHash(dockerImage) map { dh => Option(dh.hashString) }
+      //FIXME: Once we know where the SprayDockerRegistryClient lies, we should change this
+      // backend.dockerHashClient.getDockerHash(dockerImage) map { dh => Option(dh.hashString) }
+        Future(Option(dockerImage.hashCode.toString))
       else
         Future.successful(Option(dockerImage))
 
     if (workflowDescriptor.configCallCaching)
-      runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
+      call.task.runtimeAttributes.attrs.get("docker").flatMap(_.headOption) map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
     else
       Future.successful(ExecutionHash("", None))
   }
 
   /**
-   * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution
-   * of this `BackendCall`.
-   */
+    * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution
+    * of this `BackendCall`.
+    */
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
   def workflowLoggerWithCall(source: String, akkaLogger: Option[LoggingAdapter] = None) = WorkflowLogger(

@@ -2,8 +2,6 @@ package cromwell.engine.workflow
 
 import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.backend.CromwellBackend
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import wdl4s._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.{WorkflowJsonSupport, WorkflowValidateResponse}
@@ -26,8 +24,9 @@ object ValidateActor {
     Props(new ValidateActor(wdlSource, wdlJson))
   }
 
+  //TODO: [gaurav] Check what and how is this being used
   implicit class EnhancedCall(val call: Call) extends AnyVal {
-    def toRuntimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, CromwellBackend.backend().backendType)
+    def toRuntimeAttributes = call.task.runtimeAttributes
   }
 }
 

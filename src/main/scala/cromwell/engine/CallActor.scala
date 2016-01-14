@@ -4,12 +4,15 @@ import akka.actor.FSM.NullFunction
 import akka.actor.{Actor, Cancellable, LoggingFSM, Props}
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
+import com.typesafe.config.ConfigFactory
 import wdl4s._
 import wdl4s.values.WdlValue
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
+import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
+import cromwell.engine.workflow.WorkflowActor.{InitialStartCall, UseCachedCall}
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
@@ -24,6 +27,7 @@ import scala.util.{Try, Success, Failure}
 object CallActor {
 
   sealed trait CallActorMessage
+  case object Initialize extends CallActorMessage
   sealed trait StartMode extends CallActorMessage {
     def executionMessage: CallExecutionActorMessage
   }
@@ -58,10 +62,10 @@ object CallActor {
                            timer: Option[Cancellable] = None) {
 
     /**
-     * Schedule a single retry of sending the specified message to the specified actor.  Return a copy of this
-     * `CallActorData` holding a reference to the timer to allow for its cancellation in the event an `Ack` is
-     * received prior to its expiration.
-     */
+      * Schedule a single retry of sending the specified message to the specified actor.  Return a copy of this
+      * `CallActorData` holding a reference to the timer to allow for its cancellation in the event an `Ack` is
+      * received prior to its expiration.
+      */
     def copyWithRetry(actor: Actor, callMessage: WorkflowActor.CallMessage)(implicit ec: ExecutionContext): CallActorData = {
       val timer = actor.context.system.scheduler.scheduleOnce(backoff.get.nextBackOffMillis().millis) {
         actor.self ! Retry(callMessage)
@@ -75,12 +79,12 @@ object CallActor {
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
 
-  def props(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
-    Props(new CallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
+  def props(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
+    Props(new CallActor(key, locallyQualifiedInputs, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor)
+class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
   extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
 
   import CallActor._
@@ -90,7 +94,11 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   startWith(CallNotStarted, CallActorData())
   CallCounter.increment()
 
-  implicit val ec = context.system.dispatcher
+  val actorSystem = context.system
+  implicit val ec = actorSystem.dispatcher
+
+  // TODO: [gaurav] Need this to not be a var and move it to somewhere else
+  var backend: Backend = _
 
   val call = key.scope
   val akkaLogger = Logging(context.system, classOf[CallActor])
@@ -110,6 +118,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
   }
 
   when(CallNotStarted) {
+    case Event(_@Initialize, _) =>
+      sendStartMessage()
+      stay()
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
@@ -217,5 +228,78 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
 
   private def registerAbortFunction(abortFunction: AbortFunction): Unit = {
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
+  }
+
+  //----------------------------------------------------------------------------------------//
+  //                                        NEW CHANGES                                     //
+  //----------------------------------------------------------------------------------------//
+
+  // Currently this method will create a backend
+  override def preStart(): Unit = {
+    def backendType: String = {
+      val x = ConfigFactory.load.getConfig("backend").getString("backend")
+      println(s"BackendType = $x")
+      x
+    }
+    backend = CromwellBackend.initBackend(backendType, actorSystem)
+  }
+
+  private def sendStartMessage() = {
+    def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
+    val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
+    val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
+
+    def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
+      descriptor.namespace.resolve(cachedExecution.callFqn) match {
+        case Some(c: Call) =>
+          val cachedCall = backend.bindCall(
+            descriptor,
+            CallKey(c, Option(cachedExecution.index)),
+            locallyQualifiedInputs,
+            AbortRegistrationFunction(registerAbortFunction)
+          )
+          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
+          context.parent ! WorkflowActor.UseCachedCall(key, CallActor.UseCachedCall(cachedCall, backendCall))
+        case _ =>
+          log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
+          context.parent ! InitialStartCall(key, CallActor.Start)
+      }
+    }
+
+    /* Tries to use the cached Execution to send a UseCachedCall message.  If anything fails, send an InitialStartCall message */
+    def loadCachedCallOrInitiateCall(cachedDescriptor: Try[WorkflowDescriptor], cachedExecution: Execution) = cachedDescriptor match {
+      case Success(descriptor) => loadCachedBackendCallAndMessage(descriptor, cachedExecution)
+      case Failure(ex) =>
+        log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
+        context.parent ! InitialStartCall(key, CallActor.Start)
+    }
+
+    if (backendCall.workflowDescriptor.readFromCache) {
+      backendCall.hash map { hash =>
+        globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
+          case Success(executions) if executions.nonEmpty =>
+            val cachedExecution = executions.head
+            globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
+              loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
+            }
+          case Success(_) =>
+            log.info(s"Call Caching: cache miss")
+            context.parent ! InitialStartCall(key, CallActor.Start)
+          case Failure(ex) =>
+            log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
+            context.parent ! InitialStartCall(key, CallActor.Start)
+        }
+      } recover { case e =>
+        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
+        val failedExecution = FailedExecution(e)
+        handleFinished(call, failedExecution)
+        //        context.parent ! WorkflowActor.CallFailed(callKey)
+        //        scheduleTransition(WorkflowFailed)
+      }
+    }
+    else {
+      log.info(s"Call caching 'readFromCache' is turned off, starting call")
+      context.parent ! InitialStartCall(key, CallActor.Start)
+    }
   }
 }

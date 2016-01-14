@@ -7,11 +7,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import wdl4s._
 import wdl4s.values.WdlFile
 import cromwell.engine.backend.{BackendType, CromwellBackend, Backend}
-import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
@@ -115,7 +113,7 @@ object WorkflowDescriptor {
 
     val runtimeAttributes = for {
       n <- namespace.disjunction
-    } yield validateRuntimeAttributes(id, n, backend.backendType)
+    } yield validateRuntimeAttributes(id, n)
 
     (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } match {
       case scalaz.Success((n, r, o, a)) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
@@ -131,12 +129,7 @@ object WorkflowDescriptor {
                                       backend: Backend,
                                       conf: Config): ErrorOr[WorkflowDescriptor] = {
     val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
-    val ioManager = backend match {
-      case _: JesBackend => gcsInterface getOrElse { // JesBackend only supports gcsInterface
-        throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.")
-      }
-      case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
-    }
+    val ioManager = new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
     val wfContext = backend.workflowContext(options, id, namespace.workflow.fullyQualifiedName)
     val engineFunctions = backend.engineFunctions(ioManager, wfContext)
 
@@ -156,8 +149,8 @@ object WorkflowDescriptor {
     }
   }
 
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }) match {
+  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow): ErrorOr[Unit] = {
+    Try(namespace.workflow.calls foreach { x => x.task.runtimeAttributes }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }
@@ -194,7 +187,7 @@ object WorkflowDescriptor {
       options.successNel
     } catch {
       case e: Exception =>
-        s"Workflow $id has invalid options for backend ${backend.backendType}: ${e.getMessage}".failureNel
+        s"Workflow $id has invalid options for backend ${backend.backendName}: ${e.getMessage}".failureNel
     }
   }
 

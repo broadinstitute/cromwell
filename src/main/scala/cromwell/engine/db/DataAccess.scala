@@ -2,9 +2,9 @@ package cromwell.engine.db
 
 import cromwell.engine.WorkflowOutputs
 import wdl4s._
+import wdl4s.CallInputs
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
@@ -17,13 +17,12 @@ object DataAccess {
 
 trait DataAccess {
   /**
-   * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
-   * `backend`.  Or perhaps defer this?
-   */
+    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
+    * `backend`.  Or perhaps defer this?
+    */
   def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                      workflowInputs: Traversable[SymbolStoreEntry],
-                     calls: Traversable[Scope],
-                     backend: Backend): Future[Unit]
+                     calls: Traversable[Scope]): Future[Unit]
 
   def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]]
 
@@ -80,7 +79,7 @@ trait DataAccess {
 
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 
-  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey]): Future[Unit]
 
   /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor.
     * TODO this is only called from a test. */
@@ -97,19 +96,12 @@ trait DataAccess {
 
   def getWorkflowExecutionAux(id: WorkflowId): Future[WorkflowExecutionAux]
 
-  def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]]
-
-  def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]]
-
-  def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]]
-
   def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String): Future[Unit]
-
-  def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit]
-
-  def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JobKey]]
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters): Future[WorkflowQueryResponse]
 
   def updateCallCaching(cachingParameters: CallCachingParameters): Future[Int]
+
+  // TODO: This shouldn't be here
+  def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]]
 }

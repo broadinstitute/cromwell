@@ -8,7 +8,6 @@ import akka.testkit.TestKit
 import better.files._
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
-import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.util.SampleWdl
@@ -40,7 +39,7 @@ object SingleWorkflowRunnerActorSpec {
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(classOf[WorkflowManagerActor], LocalBackend(system)))
+    system.actorOf(WorkflowManagerActor.props())
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

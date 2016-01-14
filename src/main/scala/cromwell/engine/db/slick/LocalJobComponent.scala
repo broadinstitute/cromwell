@@ -1,5 +1,6 @@
 package cromwell.engine.db.slick
 
+//TODO: Maybe replace the name of this to just, Job, say?
 case class LocalJob
 (
   executionId: Int,

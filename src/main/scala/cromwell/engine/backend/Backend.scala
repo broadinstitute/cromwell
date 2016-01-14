@@ -2,21 +2,15 @@ package cromwell.engine.backend
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import cromwell.engine.{CallInputs, CallOutputs}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine._
-import cromwell.engine.backend.jes.JesBackend
-import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{HostInputs, CallOutputs}
+import cromwell.engine.{CallInputs, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
+import wdl4s._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -26,36 +20,25 @@ object Backend {
 
   def from(backendConf: Config, actorSystem: ActorSystem): Backend = Backend.from(backendConf.getString("backend"), actorSystem)
 
-  def from(backendType: BackendType, actorSystem: ActorSystem): Backend = backendType match {
-    case BackendType.LOCAL => LocalBackend(actorSystem)
-    case BackendType.JES => JesBackend(actorSystem)
-    case BackendType.SGE => SgeBackend(actorSystem)
-    case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
-  }
-
-  def from(name: String, actorSystem: ActorSystem): Backend = {
-    val backendType = name.toBackendType
-    Backend.from(backendType, actorSystem)
+  def from(name: String, actorSystem: ActorSystem) = {
+    try {
+      //      val constructor = Class.forName(name).getConstructor(ActorSystem.getClass)
+      //      constructor.newInstance(actorSystem).asInstanceOf[Backend]
+      Class.forName(name).newInstance().asInstanceOf[Backend]
+    } catch {
+      case exception: Exception =>
+        throw new IllegalArgumentException(s"No backends could be loaded with the config $name. Reason: ${exception.getMessage}", exception)
+    }
   }
 
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
-
-  implicit class BackendyString(val backendType: String) extends AnyVal {
-    def toBackendType: BackendType = {
-      try {
-        BackendType.valueOf(backendType.toUpperCase)
-      } catch {
-        case e: Exception => throw new IllegalArgumentException(s"$backendType is not a recognized backend")
-      }
-    }
-  }
 }
 
 trait JobKey
 
 /**
- * Trait to be implemented by concrete backends.
- */
+  * Trait to be implemented by concrete backends.
+  */
 trait Backend {
   type BackendCall <: backend.BackendCall
 
@@ -72,11 +55,11 @@ trait Backend {
   }
 
   /**
-   * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
-   * been performed for this `Backend` implementation.
-   */
+    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
+    * been performed for this `Backend` implementation.
+    */
   def adjustInputPaths(callKey: CallKey,
-                       runtimeAttributes: CromwellRuntimeAttributes,
+                       runtimeAttributes: RuntimeAttributes,
                        inputs: CallInputs,
                        workflowDescriptor: WorkflowDescriptor): CallInputs
 
@@ -84,20 +67,20 @@ trait Backend {
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs
 
   /**
-   * Do whatever work is required to initialize the workflow, returning a copy of
-   * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s
-   * adjusted for the host workflow execution path.
-   */
+    * Do whatever work is required to initialize the workflow, returning a copy of
+    * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s
+    * adjusted for the host workflow execution path.
+    */
   def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs]
 
   /**
-   * Do whatever cleaning up work is required when a workflow reaches a terminal state.
-   */
+    * Do whatever cleaning up work is required when a workflow reaches a terminal state.
+    */
   def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
 
   /**
-   * Essentially turns a Call object + CallInputs into a BackendCall
-   */
+    * Essentially turns a Call object + CallInputs into a BackendCall
+    */
   def bindCall(workflowDescriptor: WorkflowDescriptor,
                key: CallKey,
                locallyQualifiedInputs: CallInputs,
@@ -108,24 +91,24 @@ trait Backend {
   def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions
 
   /**
-   * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
-   */
+    * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
+    */
   def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
-   * Return CallStandardOutput which contains the stdout/stderr of the particular call
-   */
+    * Return CallStandardOutput which contains the stdout/stderr of the particular call
+    */
   def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
 
-  def backendType: BackendType
+  def backendName: String
 
   /**
-   * Validate that workflow options contain all required information.
-   */
+    * Validate that workflow options contain all required information.
+    */
   @throws[IllegalArgumentException]("if a value is missing / incorrect")
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
-  private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
+  private[backend] def backendClassString = backendName.toLowerCase.capitalize + "Backend"
 
   /** Default implementation assumes backends do not support resume, returns an empty Map. */
   def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)

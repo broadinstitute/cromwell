@@ -14,7 +14,6 @@ import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs
-import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
 import cromwell.util.SampleWdl
@@ -55,8 +54,7 @@ object CromwellTestkitSpec {
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-    override val backendType = "local"
-    backend // Force initialization
+    override val backendType = "cromwell.engine.backend.local.LocalBackend"
   }
 
   /**
@@ -174,7 +172,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {
-    TestActorRef(new WorkflowManagerActor(new LocalBackend(system)))
+    TestActorRef(new WorkflowManagerActor)
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

@@ -5,6 +5,45 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 class SyntaxHighlightSpec extends Matchers with WordSpecLike {
 
+  "foo" should {
+    "bar" in {
+      val namespace = WdlNamespace.load(
+        """task t {
+          |  String f
+          |  Int p
+          |  command {
+          |    ./cmd ${f} ${p}
+          |  }
+          |  runtime {
+          |    docker: "broadinstitute/blah"
+          |  }
+          |}
+          |
+          |workflow w {
+          |  Array[String] a = ["foo", "bar", "baz"]
+          |  call t
+          |  call t as u {
+          |    input: f="abc", p=2
+          |  }
+          |  scatter (b in a) {
+          |    call t as v {
+          |      input: f=t, p=3
+          |    }
+          |  }
+          |  output {
+          |    t.p
+          |    t.f
+          |  }
+          |}
+        """.stripMargin
+      )
+      val ansi = new SyntaxFormatter(AnsiSyntaxHighlighter).format(namespace)
+      val html = new SyntaxFormatter(HtmlSyntaxHighlighter).format(namespace)
+      println(ansi)
+      println(html)
+    }
+  }
+
   "SyntaxFormatter for simple workflow" should {
     val namespace = WdlNamespace.load(
       """task t {
@@ -13,7 +52,11 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  command {
         |    ./cmd ${f} ${p}
         |  }
+        |  runtime {
+        |    docker: "broadinstitute/blah"
+        |  }
         |}
+        |
         |workflow w {
         |  Array[String] a = ["foo", "bar", "baz"]
         |  call t
@@ -25,6 +68,10 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |      input: f=t, p=3
         |    }
         |  }
+        |  output {
+        |    t.p
+        |    t.f
+        |  }
         |}
       """.stripMargin
     )
@@ -35,6 +82,9 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mp\u001b[0m
         |  \u001b[38;5;214mcommand\u001b[0m {
         |    ./cmd ${f} ${p}
+        |  }
+        |  \u001b[38;5;214mruntime\u001b[0m {
+        |    docker: "broadinstitute/blah"
         |  }
         |}
         |
@@ -49,6 +99,10 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |      input: f=t, p=3
         |    }
         |  }
+        |  \u001b[38;5;214moutput\u001b[0m {
+        |    t.p
+        |    t.f
+        |  }
         |}""".stripMargin
 
     val html =
@@ -57,6 +111,9 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  <span class="type">Int</span> <span class="variable">p</span>
         |  <span class="section">command</span> {
         |    <span class="command">./cmd ${f} ${p}</span>
+        |  }
+        |  <span class="keyword">runtime</span> {
+        |    docker: "broadinstitute/blah"
         |  }
         |}
         |
@@ -70,6 +127,10 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |    <span class="keyword">call</span> <span class="name">t</span> as <span class="alias">v</span> {
         |      input: f=t, p=3
         |    }
+        |  }
+        |  <span class="keyword">output</span> {
+        |    t.p
+        |    t.f
         |  }
         |}""".stripMargin
 

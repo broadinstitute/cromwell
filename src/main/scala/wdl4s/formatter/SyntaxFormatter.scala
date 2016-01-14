@@ -90,12 +90,36 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
       case x: Seq[String] if x.nonEmpty => x.mkString("\n")
       case _ => ""
     }
-    val sections = List(declarations, command, outputs).filter(_.nonEmpty)
+    val runtime = formatRuntimeSection(task, 1)
+    val sections = List(declarations, command, outputs, runtime).filter(_.nonEmpty)
     val header = s"""${highlighter.keyword("task")} ${highlighter.name(task.name)} {
        |${sections.mkString("\n")}
        |}"""
      .stripMargin
     header
+  }
+
+  private def formatRuntimeSection(task: Task, level: Int): String = {
+    task.runtimeAttributes.attrs match {
+      case m: Map[String, Seq[String]] if m.nonEmpty =>
+        val attrs = m map { case (k, v) => formatRuntimeAttribute(k, v, 1) }
+        indent(
+          s"""${highlighter.keyword("runtime")} {
+             |${attrs.mkString("\n")}
+             |}""".stripMargin, level)
+      case _ => ""
+    }
+  }
+
+  private def formatRuntimeAttribute(key: String, value: Seq[String], level: Int) = {
+    val rhs = value match {
+      case s: Seq[String] if s.isEmpty => "\"\""
+      case s: Seq[String] if s.size == 1 => "\"" + s.head + "\""
+      case s: Seq[String] =>
+        val stringList = s.map(x => "\"" + x + "\"").mkString(", ")
+        s"[$stringList]"
+    }
+    indent(s"$key: $rhs", level)
   }
 
   private def formatCommandSection(task: Task, level:Int): String = {
@@ -123,11 +147,32 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   private def formatWorkflow(workflow: Workflow): String = {
     val declarations = workflow.declarations.map(formatDeclaration(_, 1))
     val children = workflow.children.map(formatScope(_, 1))
-    val sections = (declarations ++ children).filter(_.nonEmpty)
+    val outputs = formatWorkflowOutputs(workflow.workflowOutputDecls, 1)
+    val sections = (declarations ++ children ++ Seq(outputs)).filter(_.nonEmpty)
     s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.unqualifiedName)} {
         |${sections.mkString("\n")}
         |}""".stripMargin
   }
+
+  private def formatWorkflowOutputs(outputs: Seq[WorkflowOutputDeclaration], level: Int): String = {
+    outputs match {
+      case x: Seq[WorkflowOutputDeclaration] if x.nonEmpty =>
+        val outputStrings = outputs.map(formatWorkflowOutput(_, 1))
+        indent(s"""${highlighter.keyword("output")} {
+                  |${outputStrings.mkString("\n")}
+                  |}""".stripMargin, 1)
+      case _ => ""
+    }
+  }
+
+  private def formatWorkflowOutput(output: WorkflowOutputDeclaration, level: Int): String = {
+    output.wildcard match {
+      case true => indent(s"${formatWorkflowOutputFqn(output.fqn)}.*", level)
+      case false => indent(formatWorkflowOutputFqn(output.fqn), level)
+    }
+  }
+
+  private def formatWorkflowOutputFqn(fqn: String) = fqn.replaceFirst("[a-zA-Z0-9]+\\.", "")
 
   private def formatDeclaration(decl: Declaration, level: Int): String = {
     val expression = decl.expression.map(e => s" = ${e.toWdlString}").getOrElse("")

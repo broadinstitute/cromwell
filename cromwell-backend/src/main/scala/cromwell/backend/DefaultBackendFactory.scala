@@ -1,10 +1,12 @@
-package cromwell.backend.config
+package cromwell.backend
 
 import akka.actor.ActorSystem
 import cromwell.backend.model.TaskDescriptor
-import cromwell.backend.{Backend, BackendActor, BackendFactory}
 
-class DefaultBackendFactory extends BackendFactory {
+/**
+  * Returns a backend based on the type.
+  */
+object DefaultBackendFactory extends BackendFactory {
   /**
     * Returns a backend instance based on the name and specific task.
     * @param initClass Initialization class for the specific backend.

@@ -1,10 +1,12 @@
 package cromwell.engine
 
 import akka.actor.FSM.NullFunction
-import akka.actor.{Actor, Cancellable, LoggingFSM, Props}
+import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
+import cromwell.backend.DefaultBackendFactory
+import cromwell.backend.config.BackendConfiguration
 import wdl4s._
 import wdl4s.values.WdlValue
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
@@ -241,7 +243,10 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       println(s"BackendType = $x")
       x
     }
-    backend = CromwellBackend.initBackend(backendType, actorSystem)
+
+    val backendConfig = BackendConfiguration.apply()
+    val backend = backendConfig.getDefaultBackend()
+    backend = DefaultBackendFactory.getBackend(backend.initClass, actorSystem, ???)
   }
 
   private def sendStartMessage() = {

@@ -16,7 +16,7 @@ case class LocalBackendCall(backend: LocalBackend,
   val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
   val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
   val dockerContainerExecutionDir = LocalBackend.containerExecutionPath(workflowDescriptor)
-  val containerCallRoot = runtimeAttributes.docker match {
+  lazy val containerCallRoot = runtimeAttributes.docker match {
     case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.unqualifiedName, key.index)
     case None => callRootPath
   }

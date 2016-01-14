@@ -207,22 +207,57 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
 
   def expressionExpectedToBeString(key: Terminal) = {
     s"""ERROR: Value for this attribute is expected to be a string:
-        |
+       |
        |${pointToSource(key)}
      """.stripMargin
   }
 
   def expectedAtMostOneSectionPerTask(section: String, taskName: Terminal) = {
     s"""ERROR: Expecting to find at most one '$section' section in the task:
-        |
+       |
        |${pointToSource(taskName)}
      """.stripMargin
   }
 
   def expectedExactlyOneCommandSectionPerTask(taskName: Terminal) = {
     s"""ERROR: Expecting to find at most one 'command' section in the task:
-        |
+       |
        |${pointToSource(taskName)}
+     """.stripMargin
+  }
+
+  def commandExpressionContainsInvalidVariableReference(taskName: Terminal, variable: Terminal) = {
+    s"""ERROR: Variable does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
+        |
+        |${pointToSource(variable)}
+        |
+        |Task defined here (line ${taskName.getLine}, col ${taskName.getColumn}):
+        |
+        |${pointToSource(taskName)}
+     """.stripMargin
+  }
+
+  def declarationContainsInvalidVariableReference(declarationName: Terminal, variable: Terminal) = {
+    s"""ERROR: Variable does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
+        |
+        |${pointToSource(variable)}
+        |
+        |Declaration starts here (line ${declarationName.getLine}, col ${declarationName.getColumn}):
+        |
+        |${pointToSource(declarationName)}
+     """.stripMargin
+  }
+
+  def variableDeclaredMultipleTimes(first: Terminal, second: Terminal) = {
+    s"""ERROR: Variable '${first.getSourceString}' is declared more than once.
+        |
+        |First occurrence (line ${first.getLine}, col ${first.getColumn}):
+        |
+        |${pointToSource(first)}
+        |
+        |Second occurrence (line ${second.getLine}, col ${second.getColumn}):
+        |
+        |${pointToSource(second)}
      """.stripMargin
   }
 }

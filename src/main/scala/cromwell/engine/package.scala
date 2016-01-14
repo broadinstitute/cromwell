@@ -43,6 +43,8 @@ package object engine {
   type CallOutputs = Map[LocallyQualifiedName, CallOutput]
   type HostInputs = Map[String, WdlValue]
 
+  class CromwellFatalException(exception: Throwable) extends Exception(exception)
+
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)
     def scopeAndVariableName: (String, String) = {

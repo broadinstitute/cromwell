@@ -6,7 +6,8 @@ import cromwell.engine.backend.CromwellBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import wdl4s._
 import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.webservice.{WorkflowJsonSupport, WorkflowValidateResponse}
+import cromwell.webservice.{APIResponse, WorkflowJsonSupport, WorkflowValidateResponse}
+import cromwell.webservice.WorkflowJsonSupport._
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 import spray.json._
@@ -58,14 +59,14 @@ class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
         logger.info(s"$tag success $sentBy")
         sentBy ! RequestComplete(
           StatusCodes.OK,
-          WorkflowValidateResponse(valid = true, error = None))
+          APIResponse.success("Validation succeeded."))
 
       case Failure(ex) =>
         val messageOrBlank = Option(ex.getMessage).mkString
         logger.info(s"$tag error $sentBy: $messageOrBlank")
         sentBy ! RequestComplete(
           StatusCodes.BadRequest,
-          WorkflowValidateResponse(valid = false, error = Option(messageOrBlank)))
+          APIResponse.fail(ex))
     }
   }
 }

@@ -1,10 +1,12 @@
 package cromwell.webservice
 
-import wdl4s.FullyQualifiedName
-import wdl4s.values.WdlValue
-import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, CallLogs}
+import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
 import org.joda.time.DateTime
-import spray.json.JsObject
+import spray.json._
+import wdl4s.values.WdlValue
+import wdl4s.{FullyQualifiedName, ThrowableWithErrors}
+
+import scala.language.postfixOps
 
 case class WorkflowValidateResponse(valid: Boolean, error: Option[String])
 
@@ -33,3 +35,24 @@ case class WorkflowMetadataResponse(id: String,
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
 
 final case class CallCachingResponse(updateCount: Int)
+
+object APIResponse {
+  private def constructFailureResponse(status: String, ex: Throwable) ={
+    ex match {
+      case cex: ThrowableWithErrors => FailureResponse(status, cex.message, Option(JsArray(cex.errors.list.map(JsString(_)).toVector)))
+      case e: Throwable => FailureResponse(status, e.getMessage, None)
+    }
+  }
+
+  /** When the data submitted in the request is incorrect. */
+  def fail(ex: Throwable) = constructFailureResponse("fail", ex)
+
+  /** When an exception is thrown while processing the request. */
+  def error(ex: Throwable) = constructFailureResponse("error", ex)
+
+  /** When a request completes successfully. */
+  def success(message: String, data: Option[JsValue] = None) = SuccessResponse("success", message, data)
+}
+
+case class SuccessResponse(status: String, message: String, data: Option[JsValue])
+case class FailureResponse(status: String, message: String, errors: Option[JsValue])

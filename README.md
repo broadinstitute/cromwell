@@ -60,6 +60,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
   * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
+  * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
@@ -1695,6 +1696,60 @@ Server: spray-can/1.3.3
 }
 
 ```
+
+## Error handling
+Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:
+
+```
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "Error response schema",
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": [ "fail", "error"]
+    },
+    "message": {
+      "type": "string"
+    },
+    "errors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  },
+  "required": ["status", "message"]
+}
+```
+
+The `status` field can take two values:
+> "fail" means that the request was invalid and/or data validation failed. "fail" status is most likely returned with a 4xx HTTP Status code.
+e.g.
+
+```
+{
+  "status": "fail",
+  "message": "Workflow input processing failed.",
+  "errors": [
+    "Required workflow input 'helloworld.input' not specified."
+  ]
+}
+```
+
+> "error" means that an error occurred while processing the request. "error" status is most likely returned with a 5xx HTTP Status code.
+e.g.
+
+```
+{
+  "status": "error",
+  "message": "Connection to the database failed."
+}
+```
+
+The `message` field contains a short description of the error.
+
+The `errors` field is optional and may contain additional information about why the request failed.
 
 # Developer
 

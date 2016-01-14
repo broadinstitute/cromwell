@@ -134,6 +134,23 @@ case class Workflow(unqualifiedName: String,
   }
 
   /**
+    * Find a Call object by name.  For example,
+    *
+    * {{{
+    * workflow w {
+    *   call foobar
+    * }
+    * }}}
+    *
+    * calling findCallByName("foobar") will return a Some(call).  All
+    * other values would return a None
+    *
+    * @param name name of call to return
+    * @return Some(Call) if one with that name was found otherwise None
+    */
+  def findCallByName(name: String): Option[Call] = calls.find(_.unqualifiedName == name)
+
+  /**
    * All outputs for this workflow and their associated types
    *
    * @return a Map[FullyQualifiedName, WdlType] representing the union

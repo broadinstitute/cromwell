@@ -169,8 +169,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     * @return A TaskStatus with the final status of the task.
     */
   private def executeTask(): TaskStatus[Option[Map[OutputType, String]]] = {
-    def getCmdToExecute(): Seq[String] = dockerImage match
-      {
+    def getCmdToExecute(): Seq[String] = dockerImage match {
       case Some(image) => buildDockerRunCommand(image).split(" ").toSeq
       case None => argv
     }

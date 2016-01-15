@@ -5,11 +5,9 @@ import java.util.UUID
 import cromwell.CromwellTestkitSpec
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId}
+import cromwell.engine.{WorkflowDescriptor, WorkflowId}
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 
 class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {

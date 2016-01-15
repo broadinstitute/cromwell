@@ -62,7 +62,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         get {
           Try(WorkflowId.fromString(workflowId)) match {
             case Success(w) =>
-              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStatus(w))
+              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStatus(w))
             case Failure(ex) => invalidWorkflowId(workflowId)
           }
         }
@@ -75,7 +75,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         traceName("query") {
           get {
             requestContext =>
-              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowQuery(parameters))
+              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowQuery(parameters))
           }
         }
       }
@@ -87,7 +87,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         post {
           Try(WorkflowId.fromString(workflowId)) match {
             case Success(w) =>
-              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowAbort(w))
+              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowAbort(w))
             case Failure(ex) => invalidWorkflowId(workflowId)
           }
         }
@@ -101,7 +101,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
             requestContext =>
               val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
-              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowSubmit(workflowSourceFiles))
+              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
           }
         }
       }
@@ -128,7 +128,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         get {
           Try(WorkflowId.fromString(workflowId)) match {
             case Success(w) =>
-              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowOutputs(w))
+              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowOutputs(w))
             case Failure(ex) => invalidWorkflowId(workflowId)
           }
         }
@@ -141,7 +141,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
             // This currently does not attempt to parse the call name for conformation to any pattern.
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallOutputs(w, callFqn))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallOutputs(w, callFqn))
           case Failure(_) => invalidWorkflowId(workflowId)
         }
       }
@@ -153,7 +153,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
             // This currently does not attempt to parse the call name for conformation to any pattern.
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallStdoutStderr(w, callFqn))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallStdoutStderr(w, callFqn))
           case Failure(_) => invalidWorkflowId(workflowId)
         }
       }
@@ -164,7 +164,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       traceName("workflowLogs") {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowStdoutStderr(w))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStdoutStderr(w))
           case Failure(_) => invalidWorkflowId(workflowId)
         }
       }
@@ -175,7 +175,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       traceName("workflowMetadata") {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.WorkflowMetadata(w))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowMetadata(w))
           case Failure(_) => invalidWorkflowId(workflowId)
         }
       }
@@ -199,7 +199,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           Try(WorkflowId.fromString(workflowId)) match {
             case Success(w) =>
               requestContext =>
-                perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.CallCaching(w, queryParameters, callFqn))
+                perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallCaching(w, queryParameters, callFqn))
             case Failure(_) => invalidWorkflowId(workflowId)
           }
         }

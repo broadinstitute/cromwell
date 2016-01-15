@@ -36,11 +36,10 @@ class InvalidRuntimeAttributesSpec extends CromwellTestkitSpec with BeforeAndAft
       }
 
       val workflowSources = WorkflowSourceFiles(SampleWdl.HelloWorld.wdlSource(), SampleWdl.HelloWorld.wdlJson, """ {"jes_gcs_root": "gs://fake/path"} """)
-      val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
 
       runWdlWithWorkflowManagerActor(
         wma = TestActorRef(new WorkflowManagerActor(jesBackend)),
-        submitMsg = submitMessage,
+        sources = workflowSources,
         stdout = Map.empty,
         stderr = Map.empty,
         eventFilter = EventFilter.error(pattern = "RuntimeAttribute is not valid.", occurrences = 1),

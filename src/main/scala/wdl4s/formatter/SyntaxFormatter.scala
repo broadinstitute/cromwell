@@ -90,8 +90,10 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
       case x: Seq[String] if x.nonEmpty => x.mkString("\n")
       case _ => ""
     }
-    val runtime = formatRuntimeSection(task, 1)
-    val sections = List(declarations, command, outputs, runtime).filter(_.nonEmpty)
+    val runtime = formatRuntimeSection(task.runtimeAttributes, 1)
+    val meta = formatMetaSection("meta", task.meta, 1)
+    val parameterMeta = formatMetaSection("parameter_meta", task.parameterMeta, 1)
+    val sections = List(declarations, command, outputs, runtime, meta, parameterMeta).filter(_.nonEmpty)
     val header = s"""${highlighter.keyword("task")} ${highlighter.name(task.name)} {
        |${sections.mkString("\n")}
        |}"""
@@ -99,9 +101,21 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     header
   }
 
-  private def formatRuntimeSection(task: Task, level: Int): String = {
-    task.runtimeAttributes.attrs match {
-      case m: Map[String, Seq[String]] if m.nonEmpty =>
+  private def formatMetaSection(section: String, attrs: Map[String, String], level: Int): String = {
+    attrs match {
+      case m: Map[String, String] if m.nonEmpty =>
+        val wdlAttrs = m map { case (k, v) => indent(s"$k: " + "\"" + v + "\"", 1) }
+        indent(
+          s"""${highlighter.keyword(section)} {
+             |${wdlAttrs.mkString("\n")}
+             |}""".stripMargin, level)
+      case _ => ""
+    }
+  }
+
+  private def formatRuntimeSection(runtimeAttributes: RuntimeAttributes, level: Int): String = {
+    runtimeAttributes.attrs match {
+      case m if m.nonEmpty =>
         val attrs = m map { case (k, v) => formatRuntimeAttribute(k, v, 1) }
         indent(
           s"""${highlighter.keyword("runtime")} {
@@ -115,9 +129,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     val rhs = value match {
       case s: Seq[String] if s.isEmpty => "\"\""
       case s: Seq[String] if s.size == 1 => "\"" + s.head + "\""
-      case s: Seq[String] =>
-        val stringList = s.map(x => "\"" + x + "\"").mkString(", ")
-        s"[$stringList]"
+      case s: Seq[String] => s.map(x => "\"" + x + "\"").mkString("[", ", ", "]")
     }
     indent(s"$key: $rhs", level)
   }
@@ -160,7 +172,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
         val outputStrings = outputs.map(formatWorkflowOutput(_, 1))
         indent(s"""${highlighter.keyword("output")} {
                   |${outputStrings.mkString("\n")}
-                  |}""".stripMargin, 1)
+                  |}""".stripMargin, level)
       case _ => ""
     }
   }

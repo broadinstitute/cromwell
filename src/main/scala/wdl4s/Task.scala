@@ -16,17 +16,42 @@ import scala.util.Try
 object Task {
   val Ws = Pattern.compile("[\\ \\t]+")
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
-    val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
+    val taskNameTerminal = ast.getAttribute("name").asInstanceOf[Terminal]
+    val name = taskNameTerminal.sourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, "name", wdlSyntaxErrorFormatter))
     val commandAsts = ast.findAsts(AstNodeName.Command)
-    if (commandAsts.size != 1) throw new UnsupportedOperationException("Expecting exactly one Command section")
+    val runtimeAttributes = RuntimeAttributes(ast)
+    val meta = wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
+    val parameterMeta = wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
+
+    if (commandAsts.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.expectedExactlyOneCommandSectionPerTask(taskNameTerminal))
     val commandTemplate = commandAsts.head.getAttribute("parts").asInstanceOf[AstList].asScala.toVector map {
       case x: Terminal => new StringCommandPart(x.getSourceString)
       case x: Ast => ParameterCommandPart(x, wdlSyntaxErrorFormatter)
     }
 
     val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, declarations, wdlSyntaxErrorFormatter) }
-    Task(name, declarations, commandTemplate, outputs, ast)
+    Task(name, declarations, commandTemplate, runtimeAttributes, meta, parameterMeta, outputs, ast)
+  }
+
+  private def wdlSectionToStringMap(taskAst: Ast, node: String, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, String] = {
+    taskAst.findAsts(node) match {
+      case a if a.isEmpty => Map.empty[String, String]
+      case a if a.size == 1 =>
+        // Yes, even 'meta {}' and 'parameter_meta {}' sections have RuntimeAttribute ASTs.
+        // In hindsight, this was a poor name for the AST.
+        a.head.findAsts(AstNodeName.RuntimeAttribute).map({ ast =>
+          val key = ast.getAttribute("key").asInstanceOf[Terminal]
+          val value = ast.getAttribute("value")
+          if (!value.isInstanceOf[Terminal] || value.asInstanceOf[Terminal].getTerminalStr != "string") {
+            // Keys are parsed as identifiers, but values are parsed as expressions.
+            // For now, only accept expressions that are strings
+            throw new SyntaxError(wdlSyntaxErrorFormatter.expressionExpectedToBeString(key))
+          }
+          key.sourceString -> value.sourceString
+        }).toMap
+      case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.expectedAtMostOneSectionPerTask(node, taskAst.getAttribute("name").asInstanceOf[Terminal]))
+    }
   }
 }
 
@@ -36,19 +61,21 @@ object Task {
  * @param name Name of the task
  * @param declarations Any declarations (e.g. String something = "hello") defined in the task
  * @param commandTemplate Sequence of command pieces, essentially a parsed command template
+ * @param runtimeAttributes 'runtime' section of a file
+ * @param meta 'meta' section of a task
+ * @param parameterMeta - 'parameter_meta' section of a task
  * @param outputs Set of defined outputs in the `output` section of the task
  * @param ast The syntax tree from which this was built.
  */
 case class Task(name: String,
                 declarations: Seq[Declaration],
                 commandTemplate: Seq[CommandPart],
+                runtimeAttributes: RuntimeAttributes,
+                meta: Map[String, String],
+                parameterMeta: Map[String, String],
                 outputs: Seq[TaskOutput],
                 ast: Ast) extends Executable {
   import Task._
-  /**
-   * Attributes defined in the runtime {...} section of a WDL task
-   */
-  val runtimeAttributes = RuntimeAttributes(ast)
 
   /**
    * Inputs to this task, as locally qualified names

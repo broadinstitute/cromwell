@@ -4,46 +4,6 @@ import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxForm
 import org.scalatest.{Matchers, WordSpecLike}
 
 class SyntaxHighlightSpec extends Matchers with WordSpecLike {
-
-  "foo" should {
-    "bar" in {
-      val namespace = WdlNamespace.load(
-        """task t {
-          |  String f
-          |  Int p
-          |  command {
-          |    ./cmd ${f} ${p}
-          |  }
-          |  runtime {
-          |    docker: "broadinstitute/blah"
-          |  }
-          |}
-          |
-          |workflow w {
-          |  Array[String] a = ["foo", "bar", "baz"]
-          |  call t
-          |  call t as u {
-          |    input: f="abc", p=2
-          |  }
-          |  scatter (b in a) {
-          |    call t as v {
-          |      input: f=t, p=3
-          |    }
-          |  }
-          |  output {
-          |    t.p
-          |    t.f
-          |  }
-          |}
-        """.stripMargin
-      )
-      val ansi = new SyntaxFormatter(AnsiSyntaxHighlighter).format(namespace)
-      val html = new SyntaxFormatter(HtmlSyntaxHighlighter).format(namespace)
-      println(ansi)
-      println(html)
-    }
-  }
-
   "SyntaxFormatter for simple workflow" should {
     val namespace = WdlNamespace.load(
       """task t {
@@ -54,6 +14,15 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  }
         |  runtime {
         |    docker: "broadinstitute/blah"
+        |  }
+        |	parameter_meta {
+        |    memory_mb: "Amount of memory to allocate to the JVM"
+        |    param: "Some arbitrary parameter"
+        |    sample_id: "The ID of the sample in format foo_bar_baz"
+        |  }
+        |  meta {
+        |    author: "Joe Somebody"
+        |    email: "joe@company.org"
         |  }
         |}
         |
@@ -72,8 +41,7 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |    t.p
         |    t.f
         |  }
-        |}
-      """.stripMargin
+        |}""".stripMargin
     )
 
     val console =
@@ -85,6 +53,15 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  }
         |  \u001b[38;5;214mruntime\u001b[0m {
         |    docker: "broadinstitute/blah"
+        |  }
+        |  \u001b[38;5;214mmeta\u001b[0m {
+        |    author: "Joe Somebody"
+        |    email: "joe@company.org"
+        |  }
+        |  \u001b[38;5;214mparameter_meta\u001b[0m {
+        |    memory_mb: "Amount of memory to allocate to the JVM"
+        |    param: "Some arbitrary parameter"
+        |    sample_id: "The ID of the sample in format foo_bar_baz"
         |  }
         |}
         |
@@ -114,6 +91,15 @@ class SyntaxHighlightSpec extends Matchers with WordSpecLike {
         |  }
         |  <span class="keyword">runtime</span> {
         |    docker: "broadinstitute/blah"
+        |  }
+        |  <span class="keyword">meta</span> {
+        |    author: "Joe Somebody"
+        |    email: "joe@company.org"
+        |  }
+        |  <span class="keyword">parameter_meta</span> {
+        |    memory_mb: "Amount of memory to allocate to the JVM"
+        |    param: "Some arbitrary parameter"
+        |    sample_id: "The ID of the sample in format foo_bar_baz"
         |  }
         |}
         |

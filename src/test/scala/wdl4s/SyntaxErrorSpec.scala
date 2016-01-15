@@ -256,5 +256,34 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin)
   }
+  it should "detect when a meta or parameter_meta value is not a string" in {
+    expectError(
+      """task a {
+        |  command { ./script }
+        |  output {
+        |    Int x = "bad value"
+        |  }
+        |  meta {
+        |    foo: 1+1
+        |  }
+        |}
+        |
+        |workflow w {
+        |  call a
+        |}
+      """.stripMargin)
+  }
+  it should "detect when a two command sections are specified" in {
+    expectError(
+      """task a {
+        |  command { ./script }
+        |  command { ps }
+        |}
+        |
+        |workflow w {
+        |  call a
+        |}
+      """.stripMargin)
+  }
 }
 

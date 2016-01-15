@@ -53,6 +53,8 @@ object Task {
       case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.expectedAtMostOneSectionPerTask(node, taskAst.getAttribute("name").asInstanceOf[Terminal]))
     }
   }
+
+  def empty: Task = new Task("taskName", Seq.empty, Seq.empty, RuntimeAttributes(Map.empty[String, Seq[String]]), Map.empty, Map.empty, Seq.empty, null)
 }
 
 /**

@@ -23,6 +23,11 @@ class ThreeStepSpec extends FlatSpec with Matchers {
   it should "Have three outputs" in {
     namespace.workflow.outputs.size shouldEqual 3
   }
+  it should "Be able to find calls by name" in {
+    namespace.workflow.findCallByName("ps").map(_.fullyQualifiedName) shouldEqual Option("three_step.ps")
+    namespace.workflow.findCallByName("wc").map(_.fullyQualifiedName) shouldEqual Option("three_step.wc")
+    namespace.workflow.findCallByName("cgrep").map(_.fullyQualifiedName) shouldEqual Option("three_step.cgrep")
+  }
 
   "Binding Tasks" should "Have three task definitions" in {
     namespace.tasks.size shouldEqual 3

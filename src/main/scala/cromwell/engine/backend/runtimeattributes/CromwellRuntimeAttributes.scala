@@ -39,8 +39,10 @@ object CromwellRuntimeAttributes {
     validatedRuntimeAttributes match {
       case Success(r) => r
       case Failure(f) =>
-        val errorMessages = f.toList.mkString(", ")
-        throw new IllegalArgumentException(s"RuntimeAttribute is not valid: Errors: $errorMessages")
+        throw new IllegalArgumentException() with ThrowableWithErrors {
+          val message = "RuntimeAttribute is not valid."
+          val errors = f
+        }
     }
   }
 

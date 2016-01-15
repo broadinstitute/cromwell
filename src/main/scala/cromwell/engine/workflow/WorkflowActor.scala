@@ -1061,28 +1061,36 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         self ! InitialStartCall(callKey, CallActor.Start)
     }
 
-    if (backendCall.workflowDescriptor.readFromCache) {
-      backendCall.hash map { hash =>
-        globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
-          case Success(executions) if executions.nonEmpty =>
-            val cachedExecution = executions.head
-            globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
-              loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
-            }
-          case Success(_) =>
-            log.info(s"Call Caching: cache miss")
-            self ! InitialStartCall(callKey, CallActor.Start)
-          case Failure(ex) =>
-            log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
-            self ! InitialStartCall(callKey, CallActor.Start)
+    def startCall = {
+      if (backendCall.workflowDescriptor.readFromCache) {
+        backendCall.hash map { hash =>
+          globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
+            case Success(executions) if executions.nonEmpty =>
+              val cachedExecution = executions.head
+              globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
+                loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
+              }
+            case Success(_) =>
+              log.info(s"Call Caching: cache miss")
+              self ! InitialStartCall(callKey, CallActor.Start)
+            case Failure(ex) =>
+              log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
+              self ! InitialStartCall(callKey, CallActor.Start)
+          }
+        } recover { case e =>
+          log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
+          scheduleTransition(WorkflowFailed)
         }
-      } recover { case e =>
-        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
-        scheduleTransition(WorkflowFailed)
+      } else {
+        log.info(s"Call caching 'readFromCache' is turned off, starting call")
+        self ! InitialStartCall(callKey, CallActor.Start)
       }
-    } else {
-      log.info(s"Call caching 'readFromCache' is turned off, starting call")
-      self ! InitialStartCall(callKey, CallActor.Start)
+    }
+
+    Try(backendCall.runtimeAttributes) map { _ => startCall } recover {
+      case f =>
+        log.error(f.getMessage)
+        scheduleTransition(WorkflowFailed)
     }
   }
 

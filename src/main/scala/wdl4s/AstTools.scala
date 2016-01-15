@@ -114,9 +114,12 @@ object AstTools {
     val Inputs = "Inputs"
     val MemberAccess = "MemberAccess"
     val Runtime = "Runtime"
+    val RuntimeAttribute = "RuntimeAttribute"
     val Declaration = "Declaration"
     val WorkflowOutput = "WorkflowOutput"
     val Scatter = "Scatter"
+    val Meta = "Meta"
+    val ParameterMeta = "ParameterMeta"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {

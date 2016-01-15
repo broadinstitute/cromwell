@@ -199,9 +199,30 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
   }
 
   def trueAndFalseAttributesAreRequired(firstAttribute: Terminal) = {
-    s"""ERROR: both 'true' and 'false' attributes must be specified if either is specified:
+    s"""ERROR: Both 'true' and 'false' attributes must be specified if either is specified:
        |
        |${pointToSource(firstAttribute)}
+     """.stripMargin
+  }
+
+  def expressionExpectedToBeString(key: Terminal) = {
+    s"""ERROR: Value for this attribute is expected to be a string:
+        |
+       |${pointToSource(key)}
+     """.stripMargin
+  }
+
+  def expectedAtMostOneSectionPerTask(section: String, taskName: Terminal) = {
+    s"""ERROR: Expecting to find at most one '$section' section in the task:
+        |
+       |${pointToSource(taskName)}
+     """.stripMargin
+  }
+
+  def expectedExactlyOneCommandSectionPerTask(taskName: Terminal) = {
+    s"""ERROR: Expecting to find at most one 'command' section in the task:
+        |
+       |${pointToSource(taskName)}
      """.stripMargin
   }
 }

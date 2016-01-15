@@ -13,4 +13,4 @@ object Status extends Enumeration {
 /**
   * Defines a task status with its related blob data.
   */
-case class TaskStatus[T](status: Status, blob: T)
+case class TaskStatus[T](status: Status, blob: T) extends ExecutionEvent

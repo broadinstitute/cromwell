@@ -67,7 +67,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     executionDir.toString.toFile.createIfNotExists(true)
     logger.debug(s"Creating bash script for executing command: ${task.command}.")
     writeBashScript(task.command, executionDir)
-    subscriptions.filter(subs => subs.eventType.equals(ExecutionEvent)).foreach(
+    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
       subs => subs.subscriber ! new TaskStatus(Status.Created, ""))
   }
 
@@ -76,7 +76,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     */
   override def stop(): Unit = {
     processAbortFunc.get.apply()
-    subscriptions.filter(subs => subs.eventType.equals(ExecutionEvent)).foreach(
+    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
       subs => subs.subscriber ! new TaskStatus(Status.Canceled, ""))
   }
 
@@ -84,7 +84,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     * Executes task in given context.
     */
   override def execute(): Unit = {
-    subscriptions.filter(subs => subs.eventType.equals(ExecutionEvent)).foreach(
+    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
       subs => subs.subscriber ! executeTask)
   }
 
@@ -180,7 +180,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
 
     val process = getCmdToExecute.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
     processAbortFunc = Some(() => process.destroy())
-    subscriptions.filter(subs => subs.eventType.equals(ExecutionEvent)).foreach(
+    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
       subs => subs.subscriber ! new TaskStatus(Status.Running, ""))
     val backendCommandString = argv.map(s => "\"" + s + "\"").mkString(" ")
     logger.debug(s"command: $backendCommandString")

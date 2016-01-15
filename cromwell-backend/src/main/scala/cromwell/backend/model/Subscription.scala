@@ -7,7 +7,10 @@ trait EventType
 /**
   * Represents an event due to a task execution.
   */
-case object ExecutionEvent extends EventType
+class ExecutionEvent extends EventType
+trait SubscriptionEvent extends EventType
+case object Subscribed extends SubscriptionEvent
+case object Unsubscribed extends SubscriptionEvent
 
 /**
   * Serves as a subscription object in which the subscriber is tied to an event.

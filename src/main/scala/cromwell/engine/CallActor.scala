@@ -1,16 +1,21 @@
 package cromwell.engine
 
+import java.nio.file.Paths
+
 import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.DefaultBackendFactory
+import cromwell.backend.BackendActor.Prepare
+import cromwell.backend.{BackendActor, DefaultBackendFactory}
 import cromwell.backend.config.BackendConfiguration
+import cromwell.backend.model.OutputType.OutputType
+import cromwell.backend.model._
+import cromwell.engine
 import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.values.{WdlString, WdlValue}
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
-import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
@@ -30,14 +35,10 @@ object CallActor {
 
   sealed trait CallActorMessage
   case object Initialize extends CallActorMessage
-  sealed trait StartMode extends CallActorMessage {
-    def executionMessage: CallExecutionActorMessage
-  }
-  case object Start extends StartMode { override val executionMessage = CallExecutionActor.Execute }
-  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
-  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode {
-    override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall, backendCall)
-  }
+  sealed trait StartMode extends CallActorMessage
+  case object Start extends StartMode
+//  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
+  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
   final case class ExecutionFinished(call: Call, executionResult: ExecutionResult) extends CallActorMessage
@@ -127,9 +128,12 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
       context.parent ! WorkflowActor.CallStarted(key)
-      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
-      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
-      context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! startMode.executionMessage
+//      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
+      //TODO: Take care of the 'Backend' type
+      val backendActor: BackendActor = createBackendActor()
+      subscribe(self, backendActor)
+//      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
+//      context.actorOf(CallExecutionActor.props(), executionActorName) ! backendActor
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
@@ -165,7 +169,26 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       stay()
   }
 
+  import cromwell.backend.model._
+
   whenUnhandled {
+    case Event(Subscribed, _) =>
+      sender ! Prepare
+      stay()
+    case Event(TaskStatus(Status.Created, _), _) =>
+      sender ! cromwell.backend.BackendActor.Execute
+      stay()
+    case Event(TaskStatus(Status.Canceled | Status.Failed, throwable:Throwable), _) =>
+      val failureHandle = new FailedExecution(throwable)
+      self ! ExecutionFinished(call, failureHandle)
+      stay
+    case Event(TaskStatus(Status.Succeeded, result:Option[Map[OutputType, String]]), _) =>
+      val outputs = result.asInstanceOf[Option[Map[OutputType, String]]].get
+      val callOps: cromwell.engine.CallOutputs = convertOutputsToCallOutput(outputs)
+      val successResult = new SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
+      self ! ExecutionFinished(call, successResult)
+      stay()
+
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
     case Event(Retry(message), data) =>
       logger.debug(s"CallActor retrying ${message.callKey.tag}")
@@ -236,17 +259,62 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   //                                        NEW CHANGES                                     //
   //----------------------------------------------------------------------------------------//
 
-  // Currently this method will create a backend
-  override def preStart(): Unit = {
-    def backendType: String = {
-      val x = ConfigFactory.load.getConfig("backend").getString("backend")
-      println(s"BackendType = $x")
-      x
-    }
+  /**
+    * It changes the output string name by a CCCID.
+    * @param outputs Task status
+    * @return CallOutputs
+    */
+  def convertOutputsToCallOutput(outputs: Map[OutputType, String]): cromwell.engine.CallOutputs = {
+    require(call.task.outputs.size == outputs.size,
+      "PostProcessing failed! Some of the outputs could not be materialized as CCCIDs.")
+    import scala.collection.breakOut
+    val outputAndCccidMap = (call.task.outputs zip outputs.values)(breakOut): Map[TaskOutput, String]
+    val callOutputs = call.task.outputs.map(op => op.name -> WdlString(outputAndCccidMap.get(op).get)).toMap
+    callOutputs.asInstanceOf[cromwell.engine.CallOutputs]
+  }
 
+  private def subscribe(subscriberActorRef: ActorRef, backendActor: BackendActor) = {
+    val subscription = Subscription[ActorRef](new ExecutionEvent, subscriberActorRef)
+    backendActor.self ! BackendActor.SubscribeToEvent[ActorRef](subscription)
+  }
+
+  // Currently this method will create a backend
+  def createBackendActor(): BackendActor = {
     val backendConfig = BackendConfiguration.apply()
     val backend = backendConfig.getDefaultBackend()
-    backend = DefaultBackendFactory.getBackend(backend.initClass, actorSystem, ???)
+    val task = buildTaskDescriptor()
+    val backendActor: BackendActor = DefaultBackendFactory.getBackend(backend.initClass, actorSystem, task)
+    backendActor
+  }
+
+  /**
+    * Returns a TaskDescriptor, given the context of a task
+    * @return
+    */
+  private def buildTaskDescriptor(): TaskDescriptor = {
+    val name = call.fullyQualifiedName
+    val user = System.getProperty("user.name")
+
+    val engineFunctions = new DefaultWorkflowEngineFunctions(workflowDescriptor.ioManager, workflowDescriptor.wfContext)
+    val commandTry = call.instantiateCommandLine(locallyQualifiedInputs, engineFunctions)
+    val command = commandTry match {
+      case Success(command) => command
+      case Failure(error) => throw new IllegalStateException(s"Failed to instantiate command! Message = ${error.getMessage}", error)
+    }
+    val commandArgs: Seq[String] = command.split(" ")
+    val runtimeAttributes = call.task.runtimeAttributes.attrs.map{case (k,v) => (k,v.head)}
+    val lookupFunction: String => WdlValue = inputName => locallyQualifiedInputs.get(inputName).get
+    val outputsExpressions = call.task.outputs.map(output => output.expression.evaluate(lookupFunction, engineFunctions))
+    if(outputsExpressions.filter(_.isFailure).size > 0)
+    throw new IllegalStateException("Failed to evaluate output expressions!")
+    val outputs = outputsExpressions.filter(_.isSuccess).map(out => (OutputType.File, wdlStringToScalaString(out.get))).toMap
+    val inputs: Map[OutputType, String] = locallyQualifiedInputs.valuesIterator.toList.map(wdlVal => (OutputType.File, wdlStringToScalaString(wdlVal))).toMap
+    TaskDescriptor(name, user, command, Option(commandArgs), s"${workflowDescriptor.name}-${workflowDescriptor.id}" , inputs, outputs, runtimeAttributes)
+  }
+
+  private def wdlStringToScalaString(input: WdlValue): String = {
+    // 'toWdlString' returns a string wrapped in double quotes. We need to strip that off
+    input.toWdlString.substring(1, input.toWdlString.length - 1)
   }
 
   private def sendStartMessage() = {

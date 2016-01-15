@@ -10,7 +10,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc start-->
 
-* [Mailing List](#mailing-list)
+* [How To Reach Us](#how-to-reach-us)
+  * [Gitter](#gitter)
+  * [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
@@ -67,8 +69,12 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc end-->
 
-# Mailing List
+# How To Reach Us
 
+## Gitter
+There is a [gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
+
+## Mailing List
 The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstitute.org.
 
 If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.

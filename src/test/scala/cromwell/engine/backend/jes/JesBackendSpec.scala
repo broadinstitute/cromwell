@@ -41,7 +41,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     }
     override def jesUserConnection(workflow: WorkflowDescriptor) = null
     override lazy val jesCromwellInterface = null
-    override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "p12"), Option(Refresh(clientSecrets)))
+    override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
   }
 
   it should "consider 403 as a fatal exception" in {

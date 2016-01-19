@@ -9,7 +9,6 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.BackendActor
 import cromwell.backend.model._
 import cromwell.backend.provider.local.FileExtensions._
-import sun.plugin.dom.exception.InvalidStateException
 import wdl4s.types.WdlFileType
 import wdl4s.values.WdlValue
 
@@ -196,10 +195,10 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
 
     if (stderrFileLength > 0) {
       // TODO: verify generated files exist
-      TaskStatus(Status.Failed, Some(FailureResult(new InvalidStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureResult(new IllegalStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
     } else if (stderrFileLength <= 0 && processReturnCode != 0) {
       // TODO: verify generated files exist
-      TaskStatus(Status.Failed, Some(FailureResult(new InvalidStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureResult(new IllegalStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
     } else {
       val lookupFunction: String => WdlValue = inputName => task.inputs.get(inputName).get
       val outputsExpressions = task.outputs.map(output => output.name -> output.expression.evaluate(lookupFunction, new WorkflowEngineFunctions(executionDir)))

@@ -10,7 +10,6 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendActor.Prepare
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
 import cromwell.backend.config.BackendConfiguration
-import cromwell.backend.model.OutputType.OutputType
 import cromwell.backend.model._
 import cromwell.engine
 import wdl4s._
@@ -41,7 +40,7 @@ object CallActor {
   final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
-  final case class ExecutionFinished(call: Call, executionResult: ExecutionResult) extends CallActorMessage
+  final case class ExecutionFinished(call: Call, executionResult: cromwell.engine.backend.ExecutionResult) extends CallActorMessage
 
   sealed trait CallActorState
   case object CallNotStarted extends CallActorState
@@ -182,10 +181,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       val failureHandle = new FailedExecution(throwable)
       self ! ExecutionFinished(call, failureHandle)
       stay
-    case Event(TaskStatus(Status.Succeeded, result:Option[Map[OutputType, String]]), _) =>
-      val outputs = result.asInstanceOf[Option[Map[OutputType, String]]].get
-      val callOps: cromwell.engine.CallOutputs = convertOutputsToCallOutput(outputs)
-      val successResult = new SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
+    case Event(TaskStatus(Status.Succeeded, result: SuccesfulResult), _) =>
+      val callOps: Map[String, CallOutput] = result.outputs.map(output => output._1 -> CallOutput(output._2, None))
+      val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
       self ! ExecutionFinished(call, successResult)
       stay()
 
@@ -218,7 +216,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     }
   }
 
-  private def handleFinished(call: Call, executionResult: ExecutionResult): State = {
+  private def handleFinished(call: Call, executionResult: cromwell.engine.backend.ExecutionResult): State = {
 
     def createBackoff: Option[ExponentialBackOff] = Option(
       new ExponentialBackOff.Builder()
@@ -259,20 +257,6 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   //                                        NEW CHANGES                                     //
   //----------------------------------------------------------------------------------------//
 
-  /**
-    * It changes the output string name by a CCCID.
-    * @param outputs Task status
-    * @return CallOutputs
-    */
-  def convertOutputsToCallOutput(outputs: Map[OutputType, String]): cromwell.engine.CallOutputs = {
-    require(call.task.outputs.size == outputs.size,
-      "PostProcessing failed! Some of the outputs could not be materialized as CCCIDs.")
-    import scala.collection.breakOut
-    val outputAndCccidMap = (call.task.outputs zip outputs.values)(breakOut): Map[TaskOutput, String]
-    val callOutputs = call.task.outputs.map(op => op.name -> WdlString(outputAndCccidMap.get(op).get)).toMap
-    callOutputs.asInstanceOf[cromwell.engine.CallOutputs]
-  }
-
   private def subscribe(subscriberActorRef: ActorRef, backendActor: BackendActor) = {
     val subscription = Subscription[ActorRef](new ExecutionEvent, subscriberActorRef)
     backendActor.self ! BackendActor.SubscribeToEvent[ActorRef](subscription)
@@ -303,13 +287,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     }
     val commandArgs: Seq[String] = command.split(" ")
     val runtimeAttributes = call.task.runtimeAttributes.attrs.map{case (k,v) => (k,v.head)}
-    val lookupFunction: String => WdlValue = inputName => locallyQualifiedInputs.get(inputName).get
-    val outputsExpressions = call.task.outputs.map(output => output.expression.evaluate(lookupFunction, engineFunctions))
-    if(outputsExpressions.filter(_.isFailure).size > 0)
-    throw new IllegalStateException("Failed to evaluate output expressions!")
-    val outputs = outputsExpressions.filter(_.isSuccess).map(out => (OutputType.File, wdlStringToScalaString(out.get))).toMap
-    val inputs: Map[OutputType, String] = locallyQualifiedInputs.valuesIterator.toList.map(wdlVal => (OutputType.File, wdlStringToScalaString(wdlVal))).toMap
-    TaskDescriptor(name, user, command, Option(commandArgs), s"${workflowDescriptor.name}-${workflowDescriptor.id}" , inputs, outputs, runtimeAttributes)
+    TaskDescriptor(name, user, command, Option(commandArgs), s"${workflowDescriptor.name}-${workflowDescriptor.id}" , locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
   }
 
   private def wdlStringToScalaString(input: WdlValue): String = {

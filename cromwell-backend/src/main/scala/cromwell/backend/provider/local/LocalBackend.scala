@@ -7,9 +7,11 @@ import akka.util.Timeout
 import better.files._
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.BackendActor
-import cromwell.backend.model.OutputType.OutputType
 import cromwell.backend.model._
 import cromwell.backend.provider.local.FileExtensions._
+import sun.plugin.dom.exception.InvalidStateException
+import wdl4s.types.WdlFileType
+import wdl4s.values.WdlValue
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -68,7 +70,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     logger.debug(s"Creating bash script for executing command: ${task.command}.")
     writeBashScript(task.command, executionDir)
     subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! new TaskStatus(Status.Created, ""))
+      subs => subs.subscriber ! new TaskStatus(Status.Created, None))
   }
 
   /**
@@ -77,7 +79,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
   override def stop(): Unit = {
     processAbortFunc.get.apply()
     subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! new TaskStatus(Status.Canceled, ""))
+      subs => subs.subscriber ! new TaskStatus(Status.Canceled, None))
   }
 
   /**
@@ -146,7 +148,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
   private def buildDockerRunCommand(image: String): String = {
     def extractFolder(file: String): String = file.substring(0, file.lastIndexOf("/"))
     val dockerVolume = "-v %s:%s"
-    val inputFolder = task.inputs.filter(p => p._1.equals(OutputType.File)).flatMap(p => extractFolder(p._2)).toList.distinct
+    val inputFolder = task.inputs.filter(p => p._2.wdlType.equals(WdlFileType)).flatMap(p => extractFolder(p._2.valueString)).toList.distinct
     val inputVolumes = inputFolder.map(v => dockerVolume.format(v, v)).mkString(" ")
     val outputVolume = dockerVolume.format(executionDir, executionDir)
     log.debug(s"DockerInputVolume: $inputVolumes")
@@ -172,7 +174,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     * Run a command using a bash script.
     * @return A TaskStatus with the final status of the task.
     */
-  private def executeTask(): TaskStatus[Option[Map[OutputType, String]]] = {
+  private def executeTask(): TaskStatus = {
     def getCmdToExecute(): Seq[String] = dockerImage match {
       case Some(image) => buildDockerRunCommand(image).split(" ").toSeq
       case None => argv
@@ -181,7 +183,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     val process = getCmdToExecute.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
     processAbortFunc = Some(() => process.destroy())
     subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! new TaskStatus(Status.Running, ""))
+      subs => subs.subscriber ! new TaskStatus(Status.Running, None))
     val backendCommandString = argv.map(s => "\"" + s + "\"").mkString(" ")
     logger.debug(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
@@ -194,13 +196,17 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
 
     if (stderrFileLength > 0) {
       // TODO: verify generated files exist
-      TaskStatus(Status.Failed, Option(Map(OutputType.StdError -> stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureResult(new InvalidStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
     } else if (stderrFileLength <= 0 && processReturnCode != 0) {
       // TODO: verify generated files exist
-      TaskStatus(Status.Failed, Option(Map(OutputType.StdError -> returnCode.toString)))
+      TaskStatus(Status.Failed, Some(FailureResult(new InvalidStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
     } else {
+      val lookupFunction: String => WdlValue = inputName => task.inputs.get(inputName).get
+      val outputsExpressions = task.outputs.map(output => output.name -> output.expression.evaluate(lookupFunction, new WorkflowEngineFunctions(executionDir)))
+      if(outputsExpressions.filter(_._2.isFailure).size > 0)
+        throw new IllegalStateException("Failed to evaluate output expressions!", outputsExpressions.filter(_._2.isFailure).head._2.failed.get)
       // TODO: verify generated files exist
-      TaskStatus(Status.Succeeded, Option(task.outputs))
+      TaskStatus(Status.Succeeded, Some(SuccesfulResult(outputsExpressions.map(output => output._1 -> output._2.get).toMap)))
     }
   }
 

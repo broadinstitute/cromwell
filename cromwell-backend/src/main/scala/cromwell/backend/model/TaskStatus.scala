@@ -11,6 +11,6 @@ object Status extends Enumeration {
 }
 
 /**
-  * Defines a task status with its related blob data.
+  * Defines a task status with its result data.
   */
-case class TaskStatus[T](status: Status, blob: T) extends ExecutionEvent
+case class TaskStatus(status: Status, result: Option[ExecutionResult]) extends ExecutionEvent

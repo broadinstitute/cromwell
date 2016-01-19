@@ -1,14 +1,7 @@
 package cromwell.backend.model
 
-import cromwell.backend.model.OutputType.OutputType
-
-/**
-  * Defines an output type such as standard output or file.
-  */
-object OutputType extends Enumeration {
-  type OutputType = Value
-  val StdOutput, StdError, File = Value
-}
+import wdl4s.TaskOutput
+import wdl4s.values.WdlValue
 
 /**
   * Represents basic data needed to execute a task in a defined backend.
@@ -25,6 +18,6 @@ case class TaskDescriptor(name: String,
                           command: String,
                           commandArgs: Option[Seq[String]],
                           workingDir: String,
-                          inputs: Map[OutputType, String],
-                          outputs: Map[OutputType, String],
+                          inputs: Map[String, WdlValue], //TODO: extract WdlValue from cromwell-backend lib.
+                          outputs: Seq[TaskOutput], //TODO: extract TaskOutput from cromwell-backend lib.
                           runtimeAttributes: Map[String, String])

@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import akka.actor.ActorSystem
+import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
@@ -157,4 +158,6 @@ trait Backend {
   )
 
   lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
+
+  def pollBackoff: ExponentialBackOff
 }

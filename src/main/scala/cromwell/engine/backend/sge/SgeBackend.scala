@@ -4,6 +4,7 @@ import java.nio.file.Files
 
 import akka.actor.ActorSystem
 import better.files._
+import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.db.DataAccess._
@@ -16,6 +17,7 @@ import wdl4s.CallInputs
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
@@ -26,6 +28,17 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   import LocalBackend.WriteWithNewline
 
   override def backendType = BackendType.SGE
+
+  /**
+    * Exponential Backoff Builder to be used when polling for call status.
+    */
+  final private lazy val pollBackoffBuilder = new Builder()
+    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
+    .setMaxElapsedTimeMillis(Int.MaxValue)
+    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
+    .setMultiplier(1.1D)
+
+  override def pollBackoff = pollBackoffBuilder.build()
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
                         key: BackendCallKey,

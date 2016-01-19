@@ -5,19 +5,19 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
 import better.files._
+import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
-import cromwell.engine.backend._
+import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.engine.workflow.CallKey
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.backend.BackendType
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import wdl4s._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
@@ -114,6 +114,17 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   type BackendCall = LocalBackendCall
 
   import LocalBackend._
+
+  /**
+    * Exponential Backoff Builder to be used when polling for call status.
+    */
+  final private lazy val pollBackoffBuilder = new Builder()
+    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
+    .setMaxElapsedTimeMillis(Int.MaxValue)
+    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
+    .setMultiplier(1.1D)
+
+  override def pollBackoff = pollBackoffBuilder.build()
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
                         key: BackendCallKey,

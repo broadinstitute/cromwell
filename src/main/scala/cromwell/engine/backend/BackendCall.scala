@@ -3,17 +3,12 @@ package cromwell.engine.backend
 import akka.event.LoggingAdapter
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
 import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
-import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
-import cromwell.engine.CallOutputs
-import cromwell.logging.WorkflowLogger
-import cromwell.engine.Hashing._
 
 import scala.concurrent.{ExecutionContext, Future}
 

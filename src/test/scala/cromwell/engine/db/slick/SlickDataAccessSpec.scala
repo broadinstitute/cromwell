@@ -3,6 +3,7 @@ package cromwell.engine.db.slick
 import java.sql.SQLException
 import java.util.UUID
 
+import com.google.api.client.util.ExponentialBackOff
 import cromwell.CromwellSpec.IntegrationTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.Hashing._
@@ -88,7 +89,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
     override def backendType: BackendType = throw new NotImplementedError
     override def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = throw new NotImplementedError
-
+    override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
   }
 
   // Tests against main database used for command line

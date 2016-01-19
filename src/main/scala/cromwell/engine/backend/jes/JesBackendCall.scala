@@ -3,9 +3,9 @@ package cromwell.engine.backend.jes
 import java.nio.file.Paths
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.scalalogging.LazyLogging
-import wdl4s._
-import wdl4s.values.WdlFile
+import cromwell.engine.Hashing._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
@@ -13,11 +13,13 @@ import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor, _}
+import wdl4s._
+import wdl4s.values.WdlFile
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import Hashing._
 
 object JesBackendCall {
   def jesLogBasename(key: BackendCallKey) = {

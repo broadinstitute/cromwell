@@ -1,18 +1,19 @@
 package cromwell.engine.callexecution
 
 import akka.actor.{Actor, Props}
-import akka.event.{LoggingAdapter, LoggingReceive, Logging}
+import akka.event.{Logging, LoggingReceive}
 import com.google.api.client.util.ExponentialBackOff
+import cromwell.engine.backend.{BackendCall, ExecutionHandle, JobKey, _}
 import cromwell.engine.callactor.CallActor
+import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, Finish, IssuePollRequest, PollResponseReceived}
 import cromwell.engine.finalcall.FinalCall
-import cromwell.engine.{CromwellFatalException, CromwellActor}
-import cromwell.engine.backend.{FailedExecutionHandle, BackendCall, JobKey, ExecutionHandle}
-import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, PollResponseReceived, IssuePollRequest, Finish}
+import cromwell.engine.{CromwellActor, CromwellFatalException}
 import cromwell.logging.WorkflowLogger
 import wdl4s.Scope
+
 import scala.concurrent.Future
-import scala.language.postfixOps
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object CallExecutionActor {
@@ -48,12 +49,7 @@ trait CallExecutionActor extends Actor with CromwellActor {
     }
   }
 
-  private val backoff = new ExponentialBackOff.Builder()
-    .setInitialIntervalMillis(5.seconds.toMillis.toInt)
-    .setMaxIntervalMillis(30.seconds.toMillis.toInt)
-    .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
-    .setMultiplier(1.1)
-    .build()
+  def backoff: ExponentialBackOff
 
   /**
     * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule

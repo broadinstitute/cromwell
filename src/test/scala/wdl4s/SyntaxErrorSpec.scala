@@ -260,9 +260,6 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     expectError(
       """task a {
         |  command { ./script }
-        |  output {
-        |    Int x = "bad value"
-        |  }
         |  meta {
         |    foo: 1+1
         |  }
@@ -283,6 +280,78 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a
         |}
+      """.stripMargin)
+  }
+  it should "detect when expressions within a command block don't reference actual variables" in {
+    expectError(
+      """task a {
+        |  Int x
+        |  command { ./script ${x+y} }
+        |}
+        |
+        |workflow w {
+        |  call a
+        |}
+      """.stripMargin)
+  }
+  it should "detect when a task declaration references a variable that doesn't exist" in {
+    expectError(
+      """task a {
+        |  Int x
+        |  Int y = x + z
+        |  command { ./script ${x} }
+        |}
+        |
+        |workflow w {
+        |  call a {input: x=5}
+        |}
+      """.stripMargin)
+  }
+  it should "detect when there's more than one command in a task" in {
+    expectError(
+      """task a {
+        |  Int x
+        |  command { ./script ${x} }
+        |  command { ps }
+        |}
+        |
+        |workflow w {
+        |  call a {input: x=5}
+        |}
+      """.stripMargin)
+  }
+  it should "detect duplicate variable declarations (1)" in {
+    expectError(
+      """task inputOops {
+        |  Int a = 5
+        |  Int a = 10
+        |  command { echo ${a} }
+        |}
+        |workflow a { call inputOops }
+      """.stripMargin)
+  }
+  it should "detect duplicate variable declarations (2)" in {
+    expectError(
+      """task outputOops {
+        |  command { echo 5 }
+        |  output {
+        |    Int b = 5
+        |    Int b = 10
+        |  }
+        |}
+        |workflow b { call outputOops }
+      """.stripMargin)
+  }
+  it should "detect duplicate variable declarations (3)" in {
+    expectError(
+      """task inputOutputOops {
+        |  Int c = 5
+        |  command { echo 5 }
+        |  output {
+        |    Int c = 10
+        |  }
+        |}
+        |workflow c { call inputOutputOops }
       """.stripMargin)
   }
 }

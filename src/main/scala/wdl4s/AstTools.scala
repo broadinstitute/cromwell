@@ -1,6 +1,7 @@
 package wdl4s
 
 import java.io.File
+import scala.language.postfixOps
 
 import wdl4s.types._
 import wdl4s.values._
@@ -16,7 +17,14 @@ object AstTools {
     def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
       AstTools.findAstsWithTrail(astNode, name, trail)
     }
-    def findTerminals(): Seq[Terminal] = AstTools.findTerminals(astNode)
+    def findTerminalsWithTrail(terminalType: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] = {
+      astNode match {
+        case a: Ast => a.getAttributes.values.asScala flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
+        case a: AstList => a.asScala.toVector flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
+        case t: Terminal if t.getTerminalStr == terminalType => Map(t -> trail)
+        case _ => Map.empty[Terminal, Seq[AstNode]]
+      }
+    }
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
     def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
     def astListAsVector(): Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector

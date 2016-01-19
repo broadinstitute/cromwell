@@ -25,9 +25,16 @@
     </else>
   </if>
 
+  <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+    <destination>localhost:4560</destination>
+    <!-- encoder is required -->
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+  </appender>
+
   <root level="${LOG_LEVEL}">
     <appender-ref ref="STANDARD_APPENDER" />
     <appender-ref ref="PRETTY_APPENDER" />
+    <appender-ref ref="LOGSTASH" />
   </root>
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>

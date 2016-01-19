@@ -5,6 +5,7 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
+import cromwell.pubsub.EventStream
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
@@ -16,12 +17,12 @@ import cromwell.engine.Hashing._
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, BackendCall, JobKey}
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.Execution
+import cromwell.engine.db.slick.{WorkflowExecution, Execution}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.engine.{CallOutput, HostInputs, CallOutputs, EnhancedFullyQualifiedName}
-import cromwell.logging.WorkflowLogger
+import cromwell.logging.{WorkflowExecutionEvent, BusinessLogging, SubscribeToLogging, WorkflowLogger}
 import cromwell.util.TerminalUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -233,6 +234,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private var symbolCache: SymbolCache = _
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
+
+  val workflowLogger = context.actorOf(BusinessLogging.props(),"BusinessLogging")
+  workflowLogger ! SubscribeToLogging
 
   startWith(WorkflowSubmitted, WorkflowData())
   WorkflowCounter.increment()
@@ -484,8 +488,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   when(WorkflowAborted) { FSM.NullFunction }
 
   onTransition {
-    case WorkflowSubmitted -> WorkflowRunning =>
-      stateData.startMode.get.start(this)
+    case WorkflowSubmitted -> x => x match {
+      case WorkflowRunning =>
+        stateData.startMode.get.start(this)
+        publishWorkflowEvent()
+      case _ => publishWorkflowEvent()
+    }
   }
 
   when(WorkflowAborting) {
@@ -515,6 +523,25 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       logger.error("Unexpected message in Aborting state: " + m.getClass.getSimpleName)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       stay()
+  }
+
+  /**
+    *  Publish workflow structure to centralized logging.
+    */
+  private def publishWorkflowEvent() : Unit = {
+
+    import org.json4s._
+    import org.json4s.native.Serialization.{write}
+
+    log.debug(s"--------> publishWorkflowEvent ")
+    implicit val formats = DefaultFormats + FieldSerializer[WorkflowExecution]()
+
+    for{
+      status <-globalDataAccess.getWorkflowExecution(workflow.id)
+    } yield {
+      EventStream.publish(context.system,WorkflowExecutionEvent,write(status))
+    }
+
   }
 
   /**

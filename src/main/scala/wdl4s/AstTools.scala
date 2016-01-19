@@ -14,10 +14,12 @@ import scala.collection.JavaConverters._
 object AstTools {
   implicit class EnhancedAstNode(val astNode: AstNode) extends AnyVal {
     def findAsts(name: String): Seq[Ast] = AstTools.findAsts(astNode, name)
-    def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] =
+    def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
       AstTools.findAstsWithTrail(astNode, name, trail)
-    def findTerminalsWithTrail(terminalType: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] =
+    }
+    def findTerminalsWithTrail(terminalType: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] = {
       AstTools.findTerminalsWithTrail(astNode, terminalType, trail)
+    }
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
     def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
     def astListAsVector(): Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector

@@ -5,8 +5,8 @@ import java.util.regex.Pattern
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl4s.command.{CommandPart, ParameterCommandPart, StringCommandPart}
 import wdl4s.expression.WdlFunctions
-import wdl4s.values.WdlValue
 import wdl4s.parser.WdlParser._
+import wdl4s.values.WdlValue
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -42,45 +42,57 @@ object Task {
       }
     }
 
+    case class DeclarationAccumulator(errors: Seq[SyntaxError] = Seq.empty, declarations: Seq[Declaration] = Seq.empty)
+    case class TaskOutputAccumulator(errors: Seq[SyntaxError] = Seq.empty, taskOutputs: Seq[TaskOutput] = Seq.empty)
+
     /**
       * Ensures that the current declaration doesn't have a name conflict with another declaration
       * and that the expression for the current declaration only has valid variable references in it
       *
-      * @param accumulated The declarations that come lexically before 'current'
+      * @param accumulated The declarations that come lexically before 'current' as well
+      *                    as the accumulated errors up until this point
       * @param current The declaration being validated
       */
-    def validateDeclaration(accumulated: Seq[Declaration], current: Declaration): Seq[Declaration] = {
+    def validateDeclaration(accumulated: DeclarationAccumulator, current: Declaration): DeclarationAccumulator = {
       val variableReferences = for (expr <- current.expression.toIterable; variable <- expr.variableReferences) yield variable
       val declarationAstsWithSameName = ast.findAsts(AstNodeName.Declaration) collect {
         case a: Ast if a.getAttribute("name").sourceString == current.name => a
       }
 
-      if (declarationAstsWithSameName.size > 1) {
-        val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
-        throw new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), declNameTerminals(1)))
+      val multipleDeclarationsError = declarationAstsWithSameName match {
+        case x if x.size > 1 =>
+          val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
+          Some(new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), declNameTerminals(1))))
+        case _ => None
       }
 
-      variableReferences foreach { variable =>
-        if (!accumulated.map(_.name).contains(variable.getSourceString)) {
+      val invalidVariableReferenceErrors = variableReferences flatMap { variable =>
+        if (!accumulated.declarations.map(_.name).contains(variable.getSourceString)) {
           // .head below because we are assuming if you have a Declaration object that it must have come from a Declaration AST
-          throw new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
+          Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
             declarationAstsWithSameName.head.getAttribute("name").asInstanceOf[Terminal],
             variable
-          ))
+          )))
+        } else {
+          None
         }
       }
 
-      accumulated :+ current
+      DeclarationAccumulator(
+        accumulated.errors ++ multipleDeclarationsError.toSeq ++ invalidVariableReferenceErrors.toSeq,
+        accumulated.declarations :+ current
+      )
     }
 
     /**
       * Ensures that each task output is uniquely named and that all variables
       * referenced in the expression refer to valid declarations or other task outputs
       *
-      * @param accumulated All task outputs declared lexically before 'current'
+      * @param accumulated All task outputs declared lexically before 'current' as well
+      *                    as the accumulated errors up until this point
       * @param current The TaskOutput to validate
       */
-    def validateOutput(accumulated: Seq[TaskOutput], current: TaskOutput): Seq[TaskOutput] = {
+    def validateOutput(accumulated: TaskOutputAccumulator, current: TaskOutput): TaskOutputAccumulator = {
       val declarationAstsWithSameName = ast.findAsts(AstNodeName.Declaration) collect {
         case a: Ast if a.getAttribute("name").sourceString == current.name => a
       }
@@ -90,27 +102,41 @@ object Task {
       val outputNameTerminals = taskOutputAstsWithSameName.map(_.getAttribute("var").asInstanceOf[Terminal])
       val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
 
-      if (taskOutputAstsWithSameName.size > 1)
-        throw new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(outputNameTerminals(0), outputNameTerminals(1)))
+      val duplicateTaskOutputError = taskOutputAstsWithSameName match {
+        case x if x.size > 1 => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(outputNameTerminals(0), outputNameTerminals(1))))
+        case _ => None
+      }
 
-      if (declarationAstsWithSameName.nonEmpty)
-        throw new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), outputNameTerminals(0)))
+      val declarationHasSameNameError = declarationAstsWithSameName match {
+        case x if x.nonEmpty => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), outputNameTerminals(0))))
+        case _ => None
+      }
 
-      current.expression.variableReferences foreach { variable =>
+      val invalidVariableReferenceErrors = current.expression.variableReferences flatMap { variable =>
         val varName = variable.getSourceString
-        if (!accumulated.map(_.name).contains(varName) && !declarations.map(_.name).contains(varName)) {
-          throw new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
+        if (!accumulated.taskOutputs.map(_.name).contains(varName) && !declarations.map(_.name).contains(varName)) {
+          Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
             taskOutputAstsWithSameName.head.getAttribute("var").asInstanceOf[Terminal],
             variable
-          ))
+          )))
+        } else {
+          None
         }
       }
 
-      accumulated :+ current
+      TaskOutputAccumulator(
+        accumulated.errors ++ duplicateTaskOutputError.toSeq ++ declarationHasSameNameError.toSeq ++ invalidVariableReferenceErrors.toSeq,
+        accumulated.taskOutputs :+ current
+      )
     }
 
-    declarations.foldLeft(Seq.empty[Declaration])(validateDeclaration)
-    outputs.foldLeft(Seq.empty[TaskOutput])(validateOutput)
+    val declarationErrors = declarations.foldLeft(DeclarationAccumulator())(validateDeclaration)
+    val outputErrors = outputs.foldLeft(TaskOutputAccumulator())(validateOutput)
+
+    declarationErrors.errors ++ outputErrors.errors match {
+      case x if x.nonEmpty => throw new SyntaxError(x.map(_.getMessage).mkString(s"\n${"-" * 20}\n"))
+      case _ =>
+    }
 
     Task(name, declarations, commandTemplate, runtimeAttributes, meta, parameterMeta, outputs, ast)
   }

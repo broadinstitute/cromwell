@@ -102,7 +102,7 @@ object Run  {
   private case class EventStartTime(name: String, timestamp: DateTime)
 
   def getEventList(op: Operation): Seq[ExecutionEventEntry] = {
-    val starterEvents = eventIfExists("createTime", op, "chilling out, maxing") ++ eventIfExists("startTime", op, "relaxing all cool")
+    val starterEvents = eventIfExists("createTime", op, "waiting for quota") ++ eventIfExists("startTime", op, "initializing VM")
 
     val eventsList: Seq[EventStartTime] = if (op.getMetadata.containsKey("events")) {
       op.getMetadata.get("events").asInstanceOf[java.util.ArrayList[AnyRef]].asScala map { x =>
@@ -159,7 +159,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
       val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
       globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
 
-      // If this has transitioned to a running or complete state from a state this is not running or complete,
+      // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.
       if (currentStatus.isRunningOrComplete && (previousStatus.isEmpty || !previousStatus.get.isRunningOrComplete)) {
         backendCall.callAbortRegistrationFunction.register(AbortFunction(() => abort()))

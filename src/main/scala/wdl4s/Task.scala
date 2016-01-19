@@ -42,8 +42,15 @@ object Task {
       }
     }
 
-    case class DeclarationAccumulator(errors: Seq[SyntaxError] = Seq.empty, declarations: Seq[Declaration] = Seq.empty)
-    case class TaskOutputAccumulator(errors: Seq[SyntaxError] = Seq.empty, taskOutputs: Seq[TaskOutput] = Seq.empty)
+    /** The below functions, validateDeclaration and validateOutput use the following case classes
+      * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
+      *
+      * We're using this approach instead of a scalaz ValidationNel because we still want to
+      * accumulate Declarations/TaskOutputs even if there was an error with that particular
+      * Declaration/TaskOutput
+      */
+    case class DeclarationAccumulator(errors: Seq[String] = Seq.empty, declarations: Seq[Declaration] = Seq.empty)
+    case class TaskOutputAccumulator(errors: Seq[String] = Seq.empty, taskOutputs: Seq[TaskOutput] = Seq.empty)
 
     /**
       * Ensures that the current declaration doesn't have a name conflict with another declaration
@@ -62,17 +69,17 @@ object Task {
       val multipleDeclarationsError = declarationAstsWithSameName match {
         case x if x.size > 1 =>
           val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
-          Some(new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), declNameTerminals(1))))
+          Some(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), declNameTerminals(1)))
         case _ => None
       }
 
       val invalidVariableReferenceErrors = variableReferences flatMap { variable =>
         if (!accumulated.declarations.map(_.name).contains(variable.getSourceString)) {
           // .head below because we are assuming if you have a Declaration object that it must have come from a Declaration AST
-          Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
+          Option(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
             declarationAstsWithSameName.head.getAttribute("name").asInstanceOf[Terminal],
             variable
-          )))
+          ))
         } else {
           None
         }
@@ -103,22 +110,22 @@ object Task {
       val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
 
       val duplicateTaskOutputError = taskOutputAstsWithSameName match {
-        case x if x.size > 1 => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(outputNameTerminals(0), outputNameTerminals(1))))
+        case x if x.size > 1 => Option(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(outputNameTerminals(0), outputNameTerminals(1)))
         case _ => None
       }
 
       val declarationHasSameNameError = declarationAstsWithSameName match {
-        case x if x.nonEmpty => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), outputNameTerminals(0))))
+        case x if x.nonEmpty => Option(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), outputNameTerminals(0)))
         case _ => None
       }
 
       val invalidVariableReferenceErrors = current.expression.variableReferences flatMap { variable =>
         val varName = variable.getSourceString
         if (!accumulated.taskOutputs.map(_.name).contains(varName) && !declarations.map(_.name).contains(varName)) {
-          Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
+          Option(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
             taskOutputAstsWithSameName.head.getAttribute("var").asInstanceOf[Terminal],
             variable
-          )))
+          ))
         } else {
           None
         }
@@ -134,7 +141,7 @@ object Task {
     val outputErrors = outputs.foldLeft(TaskOutputAccumulator())(validateOutput)
 
     declarationErrors.errors ++ outputErrors.errors match {
-      case x if x.nonEmpty => throw new SyntaxError(x.map(_.getMessage).mkString(s"\n${"-" * 20}\n"))
+      case x if x.nonEmpty => throw new SyntaxError(x.mkString(s"\n${"-" * 50}\n\n"))
       case _ =>
     }
 

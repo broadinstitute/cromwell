@@ -131,10 +131,13 @@ val customMergeStrategy: String => MergeStrategy = {
     }
   case "asm-license.txt" | "overview.html" | "cobertura.properties" =>
     MergeStrategy.discard
+  case "application.conf" => MergeStrategy.concat
   case _ => MergeStrategy.deduplicate
 }
 
 assemblyMergeStrategy in assembly := customMergeStrategy
+
+test in assembly := {}
 
 // The reason why -Xmax-classfile-name is set is because this will fail
 // to build on Docker otherwise.  The reason why it's 200 is because it

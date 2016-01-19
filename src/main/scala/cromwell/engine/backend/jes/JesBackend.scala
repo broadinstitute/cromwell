@@ -5,6 +5,8 @@ import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 
 import akka.actor.ActorSystem
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.client.http.HttpResponseException
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
@@ -110,6 +112,11 @@ object JesBackend {
     }
   }
 
+  def isFatalJesException(t: Throwable): Boolean = t match {
+    case e: HttpResponseException if e.getStatusCode == 403 => true
+    case _ => false
+  }
+
   protected def withRetry[T](f: Option[T] => T, logger: WorkflowLogger, failureMessage: String) = TryUtil.retryBlock(
     fn = f,
     retryLimit = Option(10),
@@ -117,7 +124,8 @@ object JesBackend {
     pollingBackOffFactor = 1,
     maxPollingInterval = 10 seconds,
     logger = logger,
-    failMessage = Option(failureMessage)
+    failMessage = Option(failureMessage),
+    isFatal = isFatalJesException
   )
 
   sealed trait JesParameter {

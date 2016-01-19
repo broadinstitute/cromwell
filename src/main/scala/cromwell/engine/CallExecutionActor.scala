@@ -75,7 +75,7 @@ class CallExecutionActor(backendCall: BackendCall) extends Actor with CromwellAc
   def withRetry(work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit): Unit = {
     work onComplete {
       case Success(s) => onSuccess(s)
-      case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 403 =>
+      case Failure(e: CromwellFatalException) =>
         logger.error(e.getMessage, e)
         self ! Finish(FailedExecutionHandle(e))
       case Failure(e: Exception) =>

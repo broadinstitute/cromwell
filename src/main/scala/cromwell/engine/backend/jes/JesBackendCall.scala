@@ -2,6 +2,7 @@ package cromwell.engine.backend.jes
 
 import java.nio.file.Paths
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.typesafe.scalalogging.LazyLogging
 import wdl4s._
 import wdl4s.values.WdlFile
@@ -89,6 +90,9 @@ class JesBackendCall(val backend: JesBackend,
         status match {
           case Success(s: TerminalRunStatus) => backend.executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
+          case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
+            logger.error(s"JES Job ID ${handle.run.runId} has not been found, failing call")
+            FailedExecutionHandle(e).future
           case Failure(e: Exception) =>
             // Log exceptions and return the original handle to try again.
             logger.warn("Caught exception, retrying: " + e.getMessage, e)

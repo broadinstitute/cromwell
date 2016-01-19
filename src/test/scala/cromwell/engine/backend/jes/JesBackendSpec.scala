@@ -3,22 +3,23 @@ package cromwell.engine.backend.jes
 import java.net.URL
 import java.nio.file.Paths
 
+import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.{BackendType, Backend}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s.{RuntimeAttributes, CallInputs}
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString}
 import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.BackendType
 import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.authentication._
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.util.EncryptionSpec
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString}
+import wdl4s.{CallInputs, RuntimeAttributes}
 
-import scala.util.Success
+import scala.util.{Success, Try}
 
 class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
@@ -41,6 +42,19 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     override def jesUserConnection(workflow: WorkflowDescriptor) = null
     override lazy val jesCromwellInterface = null
     override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "p12"), Option(Refresh(clientSecrets)))
+  }
+
+  it should "consider 403 as a fatal exception" in {
+    val transport = new MockHttpTransport() {
+      override def buildRequest(method: String, url: String) = {
+        new MockLowLevelHttpRequest() {
+          override def execute() = new MockLowLevelHttpResponse().setStatusCode(403)
+        }
+      }
+    }
+    val request = transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL)
+    val mockedResponse = Try(request.execute()).failed.get
+    JesBackend.isFatalJesException(mockedResponse) shouldBe true
   }
 
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {

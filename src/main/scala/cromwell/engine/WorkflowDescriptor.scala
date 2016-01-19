@@ -123,7 +123,7 @@ case class WorkflowDescriptor(id: WorkflowId,
         maxPollingInterval = 10 seconds,
         logger = logger,
         failMessage = Option(s"Failed to copy file $src to $dest"),
-        fatalExceptions = Seq(classOf[FileAlreadyExistsException])
+        isFatal = (t: Throwable) => t.isInstanceOf[FileAlreadyExistsException]
       ) recover {
         case _: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
       }

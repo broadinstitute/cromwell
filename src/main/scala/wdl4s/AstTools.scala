@@ -18,7 +18,12 @@ object AstTools {
       AstTools.findAstsWithTrail(astNode, name, trail)
     }
     def findTerminalsWithTrail(terminalType: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] = {
-      AstTools.findTerminalsWithTrail(astNode, terminalType, trail)
+      astNode match {
+        case a: Ast => a.getAttributes.values.asScala flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
+        case a: AstList => a.asScala.toVector flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
+        case t: Terminal if t.getTerminalStr == terminalType => Map(t -> trail)
+        case _ => Map.empty[Terminal, Seq[AstNode]]
+      }
     }
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
     def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
@@ -160,15 +165,6 @@ object AstTools {
       case x: AstList => x.asScala.toVector.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap
       case x: Terminal => Map.empty[Ast, Seq[AstNode]]
       case _ => Map.empty[Ast, Seq[AstNode]]
-    }
-  }
-
-  def findTerminalsWithTrail(root: AstNode, name: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] = {
-    root match {
-      case a: Ast => a.getAttributes.values.asScala flatMap { _.findTerminalsWithTrail(name, trail :+ a) } toMap
-      case a: AstList => a.asScala.toVector flatMap { _.findTerminalsWithTrail(name, trail :+ a) } toMap
-      case t: Terminal if t.getTerminalStr == name => Map(t -> trail)
-      case _ => Map.empty[Terminal, Seq[AstNode]]
     }
   }
 

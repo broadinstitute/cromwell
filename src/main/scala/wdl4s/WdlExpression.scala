@@ -207,7 +207,7 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   def prerequisiteCallNames: Set[LocallyQualifiedName] = this.toMemberAccesses map { _.lhs }
   def toMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
   def variableReferences: Iterable[Terminal] = {
-    AstTools.findTerminalsWithTrail(ast, "identifier") flatMap { case (terminal, trail) =>
+    ast.findTerminalsWithTrail("identifier") flatMap { case (terminal, trail) =>
       // function calls have 'identifier' terminals to represent the name of the function
       if (trail.nonEmpty && trail.last.isInstanceOf[Ast] && trail.last.asInstanceOf[Ast].isFunctionCall)
         None

@@ -4,9 +4,6 @@ import cromwell.engine.backend.jes.authentication.JesDockerCredentials
 import cromwell.engine.io.gcs.GoogleConfiguration
 import cromwell.util.DockerConfiguration
 
-/**
- * Trait for JesConfiguration
- */
 trait JesConfiguration {
   def jesConf: JesAttributes
   def googleConf: GoogleConfiguration

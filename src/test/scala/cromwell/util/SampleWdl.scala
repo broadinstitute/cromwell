@@ -1141,6 +1141,7 @@ object SampleWdl {
       |  command {
       |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
       |  }
+      |  RUNTIME
       |  output {
       |    Array[String] A_out = read_lines(stdout())
       |  }
@@ -1151,6 +1152,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(len('${B_in}'))"
       |  }
+      |  RUNTIME
       |  output {
       |    Int B_out = read_int(stdout())
       |  }
@@ -1161,6 +1163,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(${C_in}*100)"
       |  }
+      |  RUNTIME
       |  output {
       |    Int C_out = read_int(stdout())
       |  }
@@ -1171,6 +1174,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(${sep = '+' D_in})"
       |  }
+      |  RUNTIME
       |  output {
       |    Int D_out = read_int(stdout())
       |  }
@@ -1180,6 +1184,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(9)"
       |  }
+      |  RUNTIME
       |  output {
       |    Int E_out = read_int(stdout())
       |  }
@@ -1198,7 +1203,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -1219,7 +1224,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }

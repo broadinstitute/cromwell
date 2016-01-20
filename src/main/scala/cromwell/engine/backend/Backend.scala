@@ -2,24 +2,22 @@ package cromwell.engine.backend
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s._
-import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{HostInputs, CallOutputs}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
+import wdl4s._
 import wdl4s.values.WdlValue
-import scala.language.postfixOps
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 object Backend {
@@ -113,8 +111,8 @@ trait Backend {
    */
   def bindCall(workflowDescriptor: WorkflowDescriptor,
                key: CallKey,
-               locallyQualifiedInputs: CallInputs,
-               abortRegistrationFunction: AbortRegistrationFunction): BackendCall
+               locallyQualifiedInputs: CallInputs = Map.empty[String, WdlValue],
+               abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
 
   def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext
 
@@ -126,9 +124,9 @@ trait Backend {
   def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
-   * Return CallStandardOutput which contains the stdout/stderr of the particular call
+   * Return CallLogs which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
+  def stdoutStderr(backendCall: BackendCall): CallLogs
 
   def backendType: BackendType
 

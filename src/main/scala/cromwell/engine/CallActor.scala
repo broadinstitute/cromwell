@@ -111,7 +111,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
       context.parent ! WorkflowActor.CallStarted(key)
-      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
+      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, Option(AbortRegistrationFunction(registerAbortFunction)))
       val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
       context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)

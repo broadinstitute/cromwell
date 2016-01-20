@@ -78,7 +78,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
           val worldSymbolHash = worldWdlString.getHash(descriptor)
           val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST
-          val task = new Task("taskName", Seq.empty[Declaration], Seq.empty[CommandPart], Seq.empty, null)
+          val task = Task.empty
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
             _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))

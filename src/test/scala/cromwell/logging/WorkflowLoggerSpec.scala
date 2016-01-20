@@ -31,7 +31,7 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
     descriptor,
     CallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
     Map.empty[String, WdlValue],
-    AbortRegistrationFunction(_ => ())
+    callAbortRegistrationFunction = None
   )
 
   "WorkflowLogger" should "create a valid tag" in {

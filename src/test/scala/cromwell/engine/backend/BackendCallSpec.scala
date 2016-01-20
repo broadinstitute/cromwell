@@ -18,7 +18,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
   val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()
   val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
   val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-  val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, AbortRegistrationFunction(_ => ()))
+  val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, abortRegistrationFunction = None)
 
   "BackendCall hash function" should {
     "not change very often - if it changes, make sure it is for a good reason" in {
@@ -32,7 +32,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources( s"""runtime { docker: "$nameAndDigest" } """)
       val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-      val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, AbortRegistrationFunction(_ => ()))
+      val backendCall = backend.bindCall(descriptor, CallKey(call, None), descriptor.actualInputs, abortRegistrationFunction = None)
 
       val actual = backendCall.hash.futureValue.overallHash
       val expected = "ca6ee457780b78290785f112c3a3acb4"

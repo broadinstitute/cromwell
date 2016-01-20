@@ -20,26 +20,15 @@ import scala.util.{Failure, Success, Try}
 import Hashing._
 
 object JesBackendCall {
-
-  def stdoutStderr(callGcsPath: String): CallLogs = {
-    CallLogs(
-      stdout = WdlFile(s"$callGcsPath/$StdoutFilename"),
-      stderr = WdlFile(s"$callGcsPath/$StderrFilename"),
-      Option(Map("log" -> WdlFile(s"$callGcsPath/$JesLog"),
-        "stdout" -> WdlFile(s"$callGcsPath/$JesStdout"),
-        "stderr" -> WdlFile(s"$callGcsPath/$JesStderr")
-      ))
-    )
+  def jesLogBasename(key: CallKey) = {
+    val index = key.index.map(s => s"-$s").getOrElse("")
+    s"${key.scope.unqualifiedName}$index"
   }
 
-  val StdoutFilename = "job.stdout.txt"
-  val StderrFilename = "job.stderr.txt"
-  val RcFilename = "job.rc.txt"
-
-  val JesLogBasename = "jes"
-  private [jes] val JesLog = s"$JesLogBasename.log"
-  private val JesStdout = s"$JesLogBasename-stdout.log"
-  private val JesStderr = s"$JesLogBasename-stderr.log"
+  def jesLogFilename(key: CallKey) = s"${jesLogBasename(key)}.log"
+  def jesLogStdoutFilename(key: CallKey) = s"${jesLogBasename(key)}-stdout.log"
+  def jesLogStderrFilename(key: CallKey) = s"${jesLogBasename(key)}-stderr.log"
+  def jesReturnCodeFilename(key: CallKey) = s"${jesLogBasename(key)}-rc.txt"
 
   private def jesOutput(callGcsPath: String, filename: String): JesOutput =
     JesOutput(filename, s"$callGcsPath/$filename", localFilePathFromRelativePath(filename))
@@ -49,32 +38,36 @@ class JesBackendCall(val backend: JesBackend,
                      val workflowDescriptor: WorkflowDescriptor,
                      val key: CallKey,
                      val locallyQualifiedInputs: CallInputs,
-                     val callAbortRegistrationFunction: AbortRegistrationFunction)
+                     val callAbortRegistrationFunction: Option[AbortRegistrationFunction])
   extends BackendCall with ProductionJesAuthentication with LazyLogging {
 
   import JesBackend._
   import JesBackendCall._
 
-  def jesCommandLine = s"/bin/bash ${cmdInput.local} > ${stdoutJesOutput.local} 2> ${stderrJesOutput.local}"
+  def jesCommandLine = s"/bin/bash ${cmdInput.local}"
 
-  val callGcsPath = backend.callGcsPath(workflowDescriptor, call.unqualifiedName, key.index)
+  val callGcsPath = JesBackend.callGcsPath(workflowDescriptor, key)
   val callDir = GcsPath(callGcsPath)
   val gcsExecPath = GcsPath(callGcsPath + "/" + JesExecScript)
   val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile
 
-  private val callContext = new CallContext(callGcsPath, stdoutJesOutput.gcs, stderrJesOutput.gcs)
+  val returnCodeFilename = jesReturnCodeFilename(key)
+  val jesStdoutGcsPath = s"$callGcsPath/${jesLogStdoutFilename(key)}"
+  val jesStderrGcsPath = s"$callGcsPath/${jesLogStderrFilename(key)}"
+  val jesLogGcsPath = s"$callGcsPath/${jesLogFilename(key)}"
+  val returnCodeGcsPath = s"$callGcsPath/$returnCodeFilename"
+
+  private val callContext = new CallContext(callGcsPath, jesStdoutGcsPath, jesStderrGcsPath)
 
   val engineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
-  lazy val stderrJesOutput = jesOutput(callGcsPath, StderrFilename)
-  lazy val stdoutJesOutput = jesOutput(callGcsPath, StdoutFilename)
-  lazy val rcJesOutput = jesOutput(callGcsPath, RcFilename)
+  lazy val rcJesOutput = jesOutput(callGcsPath, returnCodeFilename)
   lazy val cmdInput = JesInput(ExecParamName, gcsExecPath.toString, localFilePathFromRelativePath(JesExecScript))
   lazy val diskInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, Paths.get(JesCromwellRoot))
 
-  def standardParameters = Seq(stderrJesOutput, stdoutJesOutput, rcJesOutput, diskInput)
+  def standardParameters = Seq(rcJesOutput, diskInput)
 
-  def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(s"$callGcsPath/$RcFilename")) }
+  def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(returnCodeGcsPath)) }
 
   /**
    * Determine the output directory for the files matching a particular glob.
@@ -112,4 +105,12 @@ class JesBackendCall(val backend: JesBackend,
 
   override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
     backend.useCachedCall(avoidedTo.asInstanceOf[JesBackendCall], this)
+
+  override def stdoutStderr: CallLogs = {
+    CallLogs(
+      stdout = WdlFile(jesStdoutGcsPath),
+      stderr = WdlFile(jesStderrGcsPath),
+      Option(Map("log" -> WdlFile(jesLogGcsPath)))
+    )
+  }
 }

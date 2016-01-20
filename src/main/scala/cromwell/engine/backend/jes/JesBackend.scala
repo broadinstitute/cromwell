@@ -9,10 +9,10 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.ExecutionIndex.{ExecutionIndex, IndexEnhancedInt}
+import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.Hashing._
-import cromwell.engine.backend.{BackendType, _}
+import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
@@ -26,9 +26,9 @@ import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{AggregatedException, TryUtil}
-import wdl4s.{CallInputs, _}
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
+import wdl4s.{Call, CallInputs, Scatter, UnsatisfiedInputsException, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -71,7 +71,7 @@ object JesBackend {
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
     extends JesBackend(CromwellBackend.backend().actorSystem) {
-    def callDir(key: CallKey) = callGcsPath(descriptor, key.scope.unqualifiedName, key.index)
+    def callDir(key: CallKey) = callGcsPath(descriptor, key)
   }
 
   /**
@@ -145,6 +145,17 @@ object JesBackend {
     def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
+  }
+
+  def callGcsPath(descriptor: WorkflowDescriptor, callKey: CallKey): String = {
+    val shardPath = callKey.index map { i => s"/shard-$i" } getOrElse ""
+    val workflowPath = workflowGcsPath(descriptor)
+    s"$workflowPath/call-${callKey.scope.unqualifiedName}$shardPath"
+  }
+
+  def workflowGcsPath(descriptor: WorkflowDescriptor): String = {
+    val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
+    s"$bucket/${descriptor.namespace.workflow.unqualifiedName}/${descriptor.id}"
   }
 }
 
@@ -277,14 +288,12 @@ case class JesBackend(actorSystem: ActorSystem)
       }
   }
 
-  override def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs = {
-    JesBackendCall.stdoutStderr(callGcsPath(descriptor, callName, index))
-  }
+  override def stdoutStderr(backendCall: BackendCall): CallLogs = backendCall.stdoutStderr
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
                         key: CallKey,
                         locallyQualifiedInputs: CallInputs,
-                        abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
+                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
     new JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
@@ -409,7 +418,7 @@ case class JesBackend(actorSystem: ActorSystem)
          |cd $JesCromwellRoot
          |$monitoring
          |$command
-         |echo $$? > ${JesBackendCall.RcFilename}
+         |echo $$? > ${JesBackendCall.jesReturnCodeFilename(backendCall.key)}
        """.stripMargin.trim
 
     def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticateAsUser(backendCall.workflowDescriptor) { _.uploadObject(backendCall.gcsExecPath, fileContent) }
@@ -524,7 +533,7 @@ case class JesBackend(actorSystem: ActorSystem)
     try {
       val backendCall = handle.backendCall
       val outputMappings = postProcess(backendCall)
-      lazy val stderrLength: BigInteger = authenticateAsUser(backendCall.workflowDescriptor) { _.objectSize(GcsPath(backendCall.stderrJesOutput.gcs)) }
+      lazy val stderrLength: BigInteger = authenticateAsUser(backendCall.workflowDescriptor) { _.objectSize(GcsPath(backendCall.jesStderrGcsPath)) }
       lazy val returnCodeContents = backendCall.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
@@ -667,17 +676,6 @@ case class JesBackend(actorSystem: ActorSystem)
     // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
     val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse workflowGcsPath(descriptor)
     s"$bucket/${descriptor.id}_auth.json"
-  }
-
-  def callGcsPath(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): String = {
-    val shardPath = index map { i => s"/shard-$i"} getOrElse ""
-    val workflowPath = workflowGcsPath(descriptor)
-    s"$workflowPath/call-$callName$shardPath"
-  }
-
-  def workflowGcsPath(descriptor: WorkflowDescriptor): String = {
-    val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, jesConf.executionBucket).stripSuffix("/")
-    s"$bucket/${descriptor.namespace.workflow.unqualifiedName}/${descriptor.id}"
   }
 
   def googleProject(descriptor: WorkflowDescriptor): String = {

@@ -5,27 +5,24 @@ import java.nio.file.{Files, Path, Paths}
 
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.Hashing._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s.{CallInputs, Call, TaskOutput}
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
-import wdl4s.values.{WdlValue, _}
-import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.backend.{CallLogs, LocalFileSystemBackendCall, _}
+import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId}
-import cromwell.engine._
+import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId, _}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
+import wdl4s.values.{WdlValue, _}
+import wdl4s.{Call, CallInputs, TaskOutput}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import Hashing._
-import cromwell.engine.backend.AttemptedLookupResult
 
 object SharedFileSystem {
   type LocalizationStrategy = (String, Path, WorkflowDescriptor) => Try[Unit]
@@ -154,13 +151,22 @@ trait SharedFileSystem {
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs = {
-    val dir = LocalBackend.hostCallPath(descriptor.namespace.workflow.unqualifiedName, descriptor.id, callName, index)
+  def sharedFileSystemStdoutStderr(backendCall: BackendCall): CallLogs = {
+    val descriptor = backendCall.workflowDescriptor
+    val key = backendCall.key
+    val dir = LocalBackend.hostCallPath(
+      descriptor.namespace.workflow.unqualifiedName,
+      descriptor.id,
+      key.scope.unqualifiedName,
+      key.index
+    )
+
     CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
     )
   }
+
   /**
    * Creates host execution directory.
    */

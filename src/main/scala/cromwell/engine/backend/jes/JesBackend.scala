@@ -540,7 +540,8 @@ case class JesBackend(actorSystem: ActorSystem)
 
       status match {
         case Run.Success(events) if backendCall.runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength")).future
+          // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"), returnCode.toOption).future
         case Run.Success(events) if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
@@ -549,7 +550,7 @@ case class JesBackend(actorSystem: ActorSystem)
         case Run.Success(events) if returnCode.isFailure =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
         case Run.Success(events) if !continueOnReturnCode.continueFor(returnCode.get) =>
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get)).future
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
         case Run.Success(events) =>
           backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage) =>

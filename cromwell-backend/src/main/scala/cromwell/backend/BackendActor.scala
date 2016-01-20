@@ -1,6 +1,7 @@
 package cromwell.backend
 
 import akka.actor.{Actor, ActorLogging}
+import akka.event.LoggingReceive
 import cromwell.backend.BackendActor._
 import cromwell.backend.model.Subscription
 
@@ -20,7 +21,7 @@ object BackendActor {
   * Backend methods should be implemented by each custom backend.
   */
 trait BackendActor extends Backend with Actor with ActorLogging {
-  def receive: Receive = {
+  def receive: Receive = LoggingReceive {
     case Prepare => prepare
     case Execute => execute
     case Stop => stop

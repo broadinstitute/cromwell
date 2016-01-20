@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import cromwell.backend.model.TaskDescriptor
 
 /**
@@ -22,5 +22,5 @@ trait BackendFactory {
     * @param task Specific task to be executed in the backend.
     * @return A backend instance.
     */
-  def getBackend(initClass: String, actorSystem: ActorSystem, task: TaskDescriptor) : BackendActor
+  def getBackend(initClass: String, actorSystem: ActorSystem, task: TaskDescriptor) : ActorRef
 }

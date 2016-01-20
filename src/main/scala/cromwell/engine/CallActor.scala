@@ -129,7 +129,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       context.parent ! WorkflowActor.CallStarted(key)
 //      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
       //TODO: Take care of the 'Backend' type
-      val backendActor: BackendActor = createBackendActor()
+      val backendActor = createBackendActor()
       subscribe(self, backendActor)
 //      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
 //      context.actorOf(CallExecutionActor.props(), executionActorName) ! backendActor
@@ -177,16 +177,15 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     case Event(TaskStatus(Status.Created, _), _) =>
       sender ! cromwell.backend.BackendActor.Execute
       stay()
-    case Event(TaskStatus(Status.Canceled | Status.Failed, throwable:Throwable), _) =>
-      val failureHandle = new FailedExecution(throwable)
+    case Event(TaskStatus(Status.Canceled | Status.Failed, failed:Option[FailedExecution]), _) =>
+      val failureHandle = new FailedExecution(failed.get.asInstanceOf[FailureResult].exception)
       self ! ExecutionFinished(call, failureHandle)
       stay
-    case Event(TaskStatus(Status.Succeeded, result: SuccesfulResult), _) =>
-      val callOps: Map[String, CallOutput] = result.outputs.map(output => output._1 -> CallOutput(output._2, None))
+    case Event(TaskStatus(Status.Succeeded, result: Option[SuccesfulResult]), _) =>
+      val callOps: Map[String, CallOutput] = result.get.outputs.map(output => output._1 -> CallOutput(output._2, None))
       val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
       self ! ExecutionFinished(call, successResult)
       stay()
-
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
     case Event(Retry(message), data) =>
       logger.debug(s"CallActor retrying ${message.callKey.tag}")
@@ -257,17 +256,17 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   //                                        NEW CHANGES                                     //
   //----------------------------------------------------------------------------------------//
 
-  private def subscribe(subscriberActorRef: ActorRef, backendActor: BackendActor) = {
+  private def subscribe(subscriberActorRef: ActorRef, backendActor: ActorRef) = {
     val subscription = Subscription[ActorRef](new ExecutionEvent, subscriberActorRef)
-    backendActor.self ! BackendActor.SubscribeToEvent[ActorRef](subscription)
+    backendActor ! BackendActor.SubscribeToEvent[ActorRef](subscription)
   }
 
   // Currently this method will create a backend
-  def createBackendActor(): BackendActor = {
+  def createBackendActor(): ActorRef = {
     val backendConfig = BackendConfiguration.apply()
     val backend = backendConfig.getDefaultBackend()
     val task = buildTaskDescriptor()
-    val backendActor: BackendActor = DefaultBackendFactory.getBackend(backend.initClass, actorSystem, task)
+    val backendActor = DefaultBackendFactory.getBackend(backend.initClass, actorSystem, task)
     backendActor
   }
 

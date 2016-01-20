@@ -2,7 +2,7 @@ package cromwell.backend.provider.local
 
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{Props, ActorRef}
 import akka.util.Timeout
 import better.files._
 import com.typesafe.scalalogging.StrictLogging
@@ -33,14 +33,15 @@ object LocalBackend {
   // don't know yet
   val CallPrefix = "call"
   val ShardPrefix = "shard"
+
+  def props(task: TaskDescriptor): Props = Props(new LocalBackend(task))
 }
 
 /**
   * Executes a task in local computer through command line. It can be also executed in a Docker container.
   * @param task Task descriptor.
-  * @param actorSystem Cromwell actor system.
   */
-class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) extends BackendActor with StrictLogging {
+class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging {
 
   import LocalBackend._
 
@@ -48,7 +49,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
   val subscriptions = ArrayBuffer[Subscription[ActorRef]]()
 
   val workingDir = task.workingDir
-  val taskWorkingDir = workingDir + task.name
+  val taskWorkingDir = task.name
   val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir)
   val stdout = Paths.get(executionDir.toString, StdoutFile)
   val stderr = Paths.get(executionDir.toString, StderrFile)
@@ -56,7 +57,7 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
   val returnCode = Paths.get(executionDir.toString, ReturnCodeFile)
   val stdoutWriter = stdout.untailed
   val stderrTailed = stderr.tailed(100)
-  val argv = Seq("/bin/bash", "-c", s"cat ${script}")
+  val argv = Seq("/bin/bash", script.toString)
   val dockerImage = getDockerImage(task.runtimeAttributes)
   var processAbortFunc: Option[() => Unit] = None
 
@@ -100,14 +101,18 @@ class LocalBackend(task: TaskDescriptor)(implicit actorSystem: ActorSystem) exte
     * Subscribe to events on backend.
     */
   override def subscribeToEvent[T](subscription: Subscription[T]): Unit = {
-    subscriptions += subscription.asInstanceOf[Subscription[ActorRef]]
+    val sub = subscription.asInstanceOf[Subscription[ActorRef]]
+    subscriptions += sub
+    sub.subscriber ! Subscribed
   }
 
   /**
     * Unsubscribe to events on backend.
     */
   override def unsubscribeToEvent[T](subscription: Subscription[T]): Unit = {
-    subscriptions -= subscription.asInstanceOf[Subscription[ActorRef]]
+    val sub = subscription.asInstanceOf[Subscription[ActorRef]]
+    subscriptions -= sub
+    sub.subscriber ! Unsubscribed
   }
 
   /**

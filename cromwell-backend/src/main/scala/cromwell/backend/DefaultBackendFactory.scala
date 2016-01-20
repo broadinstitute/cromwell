@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, Actor, Props, ActorSystem}
 import cromwell.backend.model.TaskDescriptor
 
 /**
@@ -25,8 +25,8 @@ object DefaultBackendFactory extends BackendFactory {
     * @param task Specific task to be executed in the backend.
     * @return A backend instance.
     */
-  override def getBackend(initClass: String, actorSystem: ActorSystem, task: TaskDescriptor): BackendActor = {
-    val constructor = Class.forName(initClass).getConstructor(ActorSystem.getClass, TaskDescriptor.getClass)
-    constructor.newInstance(actorSystem, task).asInstanceOf[BackendActor]
+  override def getBackend(initClass: String, actorSystem: ActorSystem, task: TaskDescriptor): ActorRef = {
+    val backendActor = Props.create(Class.forName(initClass).asInstanceOf[Class[BackendActor]], task)
+    actorSystem.actorOf(backendActor)
   }
 }

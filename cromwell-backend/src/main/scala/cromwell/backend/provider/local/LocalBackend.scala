@@ -2,15 +2,15 @@ package cromwell.backend.provider.local
 
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.{Props, ActorRef}
+import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import better.files._
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.BackendActor
 import cromwell.backend.model._
 import cromwell.backend.provider.local.FileExtensions._
-import wdl4s.types.WdlFileType
-import wdl4s.values.WdlValue
+import wdl4s.types.{WdlFileType, WdlType}
+import wdl4s.values.{WdlFile, WdlSingleFile, WdlValue}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -28,11 +28,8 @@ object LocalBackend {
   val StderrFile = "stderr"
   val ScriptFile = "script"
 
-  val DockerFlag = "Docker"
-
-  // don't know yet
-  val CallPrefix = "call"
-  val ShardPrefix = "shard"
+  // Other
+  val DockerFlag = "docker"
 
   def props(task: TaskDescriptor): Props = Props(new LocalBackend(task))
 }
@@ -50,7 +47,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
 
   val workingDir = task.workingDir
   val taskWorkingDir = task.name
-  val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir)
+  val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir).toAbsolutePath
   val stdout = Paths.get(executionDir.toString, StdoutFile)
   val stderr = Paths.get(executionDir.toString, StderrFile)
   val script = Paths.get(executionDir.toString, ScriptFile)
@@ -136,11 +133,29 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * @param runtimeAttributes Runtime requirements for the task.
     */
   private def getDockerImage(runtimeAttributes: Map[String, String]): Option[String] = {
-    if (runtimeAttributes.contains(DockerFlag) && runtimeAttributes.filter(p => p._1.equals(DockerFlag)).size == 1 &&
+    if (runtimeAttributes.filter(p => p._1.equals(DockerFlag)).size == 1 &&
       !runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head.isEmpty) {
       Some(runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head)
     } else {
       None
+    }
+  }
+
+  /**
+    * Extracts folder path from specific input file.
+    * @param file Absolute path from input file.
+    * @return File's folder.
+    */
+  private def extractFolder(file: String): Option[String] = {
+    try {
+      Some(file.substring(0, file.lastIndexOf("/")))
+    } catch {
+      case oooe: StringIndexOutOfBoundsException =>
+        logger.warn("Input with no valid folder pattern. It may be a intermediate value.", oooe)
+        None
+      case ex: Exception =>
+        logger.error("Unhandled exception.", ex)
+        throw ex
     }
   }
 
@@ -150,14 +165,17 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * @return Command to execute.
     */
   private def buildDockerRunCommand(image: String): String = {
-    def extractFolder(file: String): String = file.substring(0, file.lastIndexOf("/"))
     val dockerVolume = "-v %s:%s"
-    val inputFolder = task.inputs.filter(p => p._2.wdlType.equals(WdlFileType)).flatMap(p => extractFolder(p._2.valueString)).toList.distinct
-    val inputVolumes = inputFolder.map(v => dockerVolume.format(v, v)).mkString(" ")
+    val inputFolder = task.inputs.filter(p => p._2.isInstanceOf[WdlFile]).map(p => extractFolder(p._2.toWdlString.replace("\"", "")))
+      .filter(p => p.isDefined).map(p => p.get).toList.distinct
+    val inputVolumes = inputFolder match {
+      case a: List[String] => inputFolder.map(v => dockerVolume.format(v, v)).mkString(" ")
+      case _ => ""
+    }
     val outputVolume = dockerVolume.format(executionDir, executionDir)
     log.debug(s"DockerInputVolume: $inputVolumes")
     log.debug(s"DockerOutputVolume: $outputVolume")
-    val dockerCmd = s"docker run %s %s --rm %s %s" //TODO: make it configurable.
+    val dockerCmd = s"docker run %s %s --rm %s %s" //TODO: make it configurable from file.
     dockerCmd.format(inputVolumes, outputVolume, image, argv.mkString(" "))
   }
 
@@ -172,6 +190,18 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
           |$taskCommand
           |echo $$? > rc
           |""".stripMargin)
+  }
+
+  /**
+    * Resolves absolute path for output files. If it is not a file, it will returns same value.
+    * @param output Pair of WdlType and WdlValue
+    * @return WdlValue with absolute path if it is a file.
+    */
+  private def resolveOutputValue(output: (WdlType, Try[WdlValue])): WdlValue = {
+    output._1 match {
+      case WdlFileType => new WdlSingleFile(Paths.get(executionDir.toString, output._2.get.toWdlString.replace("\"", "").trim).toString)
+      case _ => output._2.get
+    }
   }
 
   /**
@@ -200,17 +230,20 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
 
     if (stderrFileLength > 0) {
       // TODO: verify generated files exist
-      TaskStatus(Status.Failed, Some(FailureResult(new IllegalStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureResult(
+        new IllegalStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
     } else if (stderrFileLength <= 0 && processReturnCode != 0) {
       // TODO: verify generated files exist
-      TaskStatus(Status.Failed, Some(FailureResult(new IllegalStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureResult(
+        new IllegalStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
     } else {
       val lookupFunction: String => WdlValue = inputName => task.inputs.get(inputName).get
-      val outputsExpressions = task.outputs.map(output => output.name -> output.expression.evaluate(lookupFunction, new WorkflowEngineFunctions(executionDir)))
-      if(outputsExpressions.filter(_._2.isFailure).size > 0)
-        throw new IllegalStateException("Failed to evaluate output expressions!", outputsExpressions.filter(_._2.isFailure).head._2.failed.get)
+      val outputsExpressions = task.outputs.map(
+        output => output.name ->(output.wdlType, output.expression.evaluate(lookupFunction, new WorkflowEngineFunctions(executionDir))))
+      if (outputsExpressions.filter(_._2._2.isFailure).size > 0)
+        throw new IllegalStateException("Failed to evaluate output expressions!", outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get)
       // TODO: verify generated files exist
-      TaskStatus(Status.Succeeded, Some(SuccesfulResult(outputsExpressions.map(output => output._1 -> output._2.get).toMap)))
+      TaskStatus(Status.Succeeded, Some(SuccesfulResult(outputsExpressions.map(output => output._1 -> resolveOutputValue(output._2)).toMap)))
     }
   }
 

@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import akka.actor.{ActorRef, Actor, Props, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import cromwell.backend.model.TaskDescriptor
 
 /**

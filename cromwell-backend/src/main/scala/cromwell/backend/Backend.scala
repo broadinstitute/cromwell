@@ -6,11 +6,12 @@ import cromwell.caching.Cacheable
 /**
   * Defines basic functionality to interact with a Backend.
   */
-trait Backend extends Cacheable{
+trait Backend extends Cacheable {
   /**
     * Prepare the task and context for execution.
     */
   def prepare(): Unit
+
   /**
     * Executes task in given context.
     */

@@ -2,6 +2,8 @@ package wdl4s
 
 import java.nio.file.{Files, Path}
 
+import wdl4s.values.WdlValue
+
 import scala.language.postfixOps
 
 // FIXME: Figure out if anything can be removed from cromwell completely or pulled from here
@@ -220,6 +222,37 @@ object SampleWdl {
         |    call E
         |  }
         |  call D {input: D_in = B.B_out}
+        |}
+      """.stripMargin
+
+    override lazy val rawInputs = Map.empty[String, String]
+  }
+
+  class DeclarationsWdl extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task a {
+        |  String foo = "notfoo"
+        |  String bar = "bar"
+        |  String foobar = foo + bar
+        |  command {ps}
+        |}
+        |
+        |task b {
+        |  Int foo = 10
+        |  Int bar = 2
+        |  Int foobar = foo + bar
+        |  Int foobar2 = foo + 2
+        |  command {ps}
+        |}
+        |
+        |workflow w {
+        |  String foo = "foo"
+        |  String bar = "bar"
+        |  String foobar = foo + bar
+        |
+        |  call a
+        |  call a as a_prime
+        |  call b
         |}
       """.stripMargin
 

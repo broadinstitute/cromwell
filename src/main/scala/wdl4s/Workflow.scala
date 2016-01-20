@@ -87,7 +87,7 @@ object Workflow {
 
   private def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, name, wdlSyntaxErrorFormatter))
+    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, wdlSyntaxErrorFormatter))
     val callNames = ast.findAsts(AstNodeName.Call).map {call =>
       Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
     }
@@ -128,8 +128,16 @@ case class Workflow(unqualifiedName: String,
    *         inputs that the user needs to provide to this workflow
    */
   def inputs: Map[FullyQualifiedName, WorkflowInput] = {
-    val callInputs = for { call <- calls; input <- call.unsatisfiedInputs } yield input
-    val declarationInputs = for { declaration <- declarations; input <- declaration.asWorkflowInput } yield input
+    val callInputs = for {
+      call <- calls
+      input <- call.unsatisfiedInputs
+    } yield input
+
+    val declarationInputs = for {
+      declaration <- scopedDeclarations
+      input <- declaration.asWorkflowInput
+    } yield input
+
     (callInputs ++ declarationInputs) map { input => input.fqn -> input } toMap
   }
 
@@ -151,6 +159,11 @@ case class Workflow(unqualifiedName: String,
   def findCallByName(name: String): Option[Call] = calls.find(_.unqualifiedName == name)
 
   /**
+    * @return Seq[ScopedDeclaration] which are scoped to this Workflow
+    */
+  def scopedDeclarations: Seq[ScopedDeclaration] = declarations.map(decl => ScopedDeclaration(this, decl))
+
+  /**
    * All outputs for this workflow and their associated types
    *
    * @return a Map[FullyQualifiedName, WdlType] representing the union
@@ -169,7 +182,7 @@ case class Workflow(unqualifiedName: String,
 
     val inputs: Seq[PotentialReportableSymbol] = for {
       call: Call <- calls
-      input <- call.task.inputs
+      input <- call.task.declarations
     } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${input.name}", input.wdlType, matchWorkflowOutputWildcards = false)
 
     val filtered = if (workflowOutputDecls isEmpty) {

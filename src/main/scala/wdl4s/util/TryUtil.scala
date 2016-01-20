@@ -39,4 +39,9 @@ object TryUtil {
     def unbox = tries map { _.get }
     sequenceIterable(tries, unbox _, prefixErrorMessage)
   }
+
+  def sequenceMap[T, U](tries: Map[T, Try[U]], prefixErrorMessage: String = ""): Try[Map[T, U]] = {
+    def unbox = tries mapValues { _.get }
+    sequenceIterable(tries.values, unbox _, prefixErrorMessage)
+  }
 }

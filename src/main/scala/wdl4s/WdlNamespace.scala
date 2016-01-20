@@ -4,16 +4,16 @@ import java.io.File
 
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
 import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.types._
-import wdl4s.values._
-import wdl4s.parser.WdlParser._
 import wdl4s.parser.WdlParser
+import wdl4s.parser.WdlParser._
+import wdl4s.types._
 import wdl4s.util.FileUtil.EnhancedFile
+import wdl4s.util.TryUtil
+import wdl4s.values._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.NonEmptyList
 import scalaz.Scalaz._
 
 /**
@@ -89,13 +89,13 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     }
   }
 
-  private def declarationLookupFunction(decl: Declaration, inputs: Map[FullyQualifiedName, WdlValue]): String => WdlValue ={
+  private def declarationLookupFunction(decl: ScopedDeclaration, inputs: Map[FullyQualifiedName, WdlValue]): String => WdlValue ={
     def identifierLookup(string: String): WdlValue = {
 
       /* This is a scope hierarchy to search for the variable `string`.  If `decl.scopeFqn` == "a.b.c"
        * then `hierarchy` should be Seq("a.b.c", "a.b", "a")
        */
-      val hierarchy = decl.scopeFqn.split("\\.").reverse.tails.toSeq.map {_.reverse.mkString(".")}
+      val hierarchy = decl.scope.fullyQualifiedName.split("\\.").reverse.tails.toSeq.map {_.reverse.mkString(".")}
 
       /* Attempt to resolve the string in each scope */
       val attemptedValues = hierarchy.map {scope => inputs.get(s"$scope.$string")}
@@ -111,28 +111,20 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
    * and return the value for storage in the symbol store
    */
   def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
-    import scala.collection.mutable
-    val collected = mutable.Map[String, WdlValue]()
-    val allDeclarations = workflow.declarations ++ workflow.calls.flatMap {_.task.declarations}
-
-    val evaluatedDeclarations = allDeclarations.filter {_.expression.isDefined}.map {decl =>
-      val value = decl.expression.get.evaluate(declarationLookupFunction(decl, collected.toMap ++ userInputs), wdlFunctions)
-      collected += (decl.fullyQualifiedName -> value.get)
-      val coercedValue = value match {
-        case Success(s) => decl.wdlType.coerceRawValue(s)
-        case f => f
+    def evalDeclaration(accumulated: Map[String, Try[WdlValue]], current: ScopedDeclaration): Map[String, Try[WdlValue]] = {
+      current.expression match {
+        case Some(expr) =>
+          val successfulAccumulated = accumulated.collect({ case (k, v) if v.isSuccess => k -> v.get })
+          val value = expr.evaluate(declarationLookupFunction(current, successfulAccumulated ++ userInputs), wdlFunctions)
+          accumulated + (current.fullyQualifiedName -> value)
+        case None => accumulated
       }
-      decl.fullyQualifiedName -> coercedValue
-    }.toMap
-
-    val (successes, failures) = evaluatedDeclarations.partition {case (_, tryValue) => tryValue.isSuccess}
-    if (failures.isEmpty) {
-      Success(successes.map {case (k,v) => k -> v.get})
-    } else {
-      val errors = failures.values.collect { case f: Failure[_] => f.exception.getMessage }
-        // .get because failures is guaranteed to be nonEmpty
-      Failure(new ValidationException("Could not evaluate some declaration expressions", errors.toList.toNel.get))
     }
+
+    // declarationsByScope is a Seq[Seq[ScopedDeclaration]] where each Declaration in the Seq[ScopedDeclaration] have the same scope
+    val declarationsByScope = workflow.calls.map(_.scopedDeclarations) ++ Seq(workflow.scopedDeclarations)
+    val attemptedEvaluations = declarationsByScope.flatMap(d => d.foldLeft(Map.empty[String, Try[WdlValue]])(evalDeclaration)).toMap
+    TryUtil.sequenceMap(attemptedEvaluations)
   }
 
   /**

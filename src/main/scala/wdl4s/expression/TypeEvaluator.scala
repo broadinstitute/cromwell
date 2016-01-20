@@ -75,7 +75,7 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
           evaluate(a.getAttribute("lhs")).flatMap {
             case o: WdlCallOutputsObjectType =>
               o.call.task.outputs.find(_.name == rhs.getSourceString) match {
-                case Some(taskOutput) => evaluate(taskOutput.expression.ast)
+                case Some(taskOutput) => evaluate(taskOutput.requiredExpression.ast)
                 case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
               }
             case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))

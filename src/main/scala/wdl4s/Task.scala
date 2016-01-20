@@ -4,26 +4,37 @@ import java.util.regex.Pattern
 
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl4s.command.{CommandPart, ParameterCommandPart, StringCommandPart}
-import wdl4s.expression.WdlFunctions
+import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctionsType, WdlFunctions}
 import wdl4s.parser.WdlParser._
+import wdl4s.types.{WdlIntegerType, WdlType}
 import wdl4s.values.WdlValue
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Task {
   val Ws = Pattern.compile("[\\ \\t]+")
+
+  /** The function validateDeclaration() and the DeclarationAccumulator class are used
+    * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
+    *
+    * We're using this approach instead of a scalaz ValidationNel because we still want to
+    * accumulate Declarations even if there was an error with that particular
+    * Declaration
+    */
+  case class DeclarationAccumulator(errors: Seq[String] = Seq.empty, declarations: Seq[Declaration] = Seq.empty)
+
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Task = {
     val taskNameTerminal = ast.getAttribute("name").asInstanceOf[Terminal]
     val name = taskNameTerminal.sourceString
-    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, "name", wdlSyntaxErrorFormatter))
+    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, wdlSyntaxErrorFormatter))
     val commandAsts = ast.findAsts(AstNodeName.Command)
     val runtimeAttributes = RuntimeAttributes(ast)
     val meta = wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
     val parameterMeta = wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
-    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, declarations, wdlSyntaxErrorFormatter) }
+    val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, wdlSyntaxErrorFormatter) }
 
     if (commandAsts.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.expectedExactlyOneCommandSectionPerTask(taskNameTerminal))
     val commandTemplate = commandAsts.head.getAttribute("parts").asInstanceOf[AstList].asScala.toVector map {
@@ -42,110 +53,100 @@ object Task {
       }
     }
 
-    /** The below functions, validateDeclaration and validateOutput use the following case classes
-      * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
-      *
-      * We're using this approach instead of a scalaz ValidationNel because we still want to
-      * accumulate Declarations/TaskOutputs even if there was an error with that particular
-      * Declaration/TaskOutput
-      */
-    case class DeclarationAccumulator(errors: Seq[String] = Seq.empty, declarations: Seq[Declaration] = Seq.empty)
-    case class TaskOutputAccumulator(errors: Seq[String] = Seq.empty, taskOutputs: Seq[TaskOutput] = Seq.empty)
+    val declarationErrors = (declarations ++ outputs).foldLeft(DeclarationAccumulator())(validateDeclaration(ast, wdlSyntaxErrorFormatter))
 
-    /**
-      * Ensures that the current declaration doesn't have a name conflict with another declaration
-      * and that the expression for the current declaration only has valid variable references in it
-      *
-      * @param accumulated The declarations that come lexically before 'current' as well
-      *                    as the accumulated errors up until this point
-      * @param current The declaration being validated
-      */
-    def validateDeclaration(accumulated: DeclarationAccumulator, current: Declaration): DeclarationAccumulator = {
-      val variableReferences = for (expr <- current.expression.toIterable; variable <- expr.variableReferences) yield variable
-      val declarationAstsWithSameName = ast.findAsts(AstNodeName.Declaration) collect {
-        case a: Ast if a.getAttribute("name").sourceString == current.name => a
-      }
-
-      val multipleDeclarationsError = declarationAstsWithSameName match {
-        case x if x.size > 1 =>
-          val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
-          Some(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), declNameTerminals(1)))
-        case _ => None
-      }
-
-      val invalidVariableReferenceErrors = variableReferences flatMap { variable =>
-        if (!accumulated.declarations.map(_.name).contains(variable.getSourceString)) {
-          // .head below because we are assuming if you have a Declaration object that it must have come from a Declaration AST
-          Option(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
-            declarationAstsWithSameName.head.getAttribute("name").asInstanceOf[Terminal],
-            variable
-          ))
-        } else {
-          None
-        }
-      }
-
-      DeclarationAccumulator(
-        accumulated.errors ++ multipleDeclarationsError.toSeq ++ invalidVariableReferenceErrors.toSeq,
-        accumulated.declarations :+ current
-      )
-    }
-
-    /**
-      * Ensures that each task output is uniquely named and that all variables
-      * referenced in the expression refer to valid declarations or other task outputs
-      *
-      * @param accumulated All task outputs declared lexically before 'current' as well
-      *                    as the accumulated errors up until this point
-      * @param current The TaskOutput to validate
-      */
-    def validateOutput(accumulated: TaskOutputAccumulator, current: TaskOutput): TaskOutputAccumulator = {
-      val declarationAstsWithSameName = ast.findAsts(AstNodeName.Declaration) collect {
-        case a: Ast if a.getAttribute("name").sourceString == current.name => a
-      }
-      val taskOutputAstsWithSameName = ast.findAsts(AstNodeName.Output) collect {
-        case a: Ast if a.getAttribute("var").sourceString == current.name => a
-      }
-      val outputNameTerminals = taskOutputAstsWithSameName.map(_.getAttribute("var").asInstanceOf[Terminal])
-      val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal])
-
-      val duplicateTaskOutputError = taskOutputAstsWithSameName match {
-        case x if x.size > 1 => Option(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(outputNameTerminals(0), outputNameTerminals(1)))
-        case _ => None
-      }
-
-      val declarationHasSameNameError = declarationAstsWithSameName match {
-        case x if x.nonEmpty => Option(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(declNameTerminals(0), outputNameTerminals(0)))
-        case _ => None
-      }
-
-      val invalidVariableReferenceErrors = current.expression.variableReferences flatMap { variable =>
-        val varName = variable.getSourceString
-        if (!accumulated.taskOutputs.map(_.name).contains(varName) && !declarations.map(_.name).contains(varName)) {
-          Option(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
-            taskOutputAstsWithSameName.head.getAttribute("var").asInstanceOf[Terminal],
-            variable
-          ))
-        } else {
-          None
-        }
-      }
-
-      TaskOutputAccumulator(
-        accumulated.errors ++ duplicateTaskOutputError.toSeq ++ declarationHasSameNameError.toSeq ++ invalidVariableReferenceErrors.toSeq,
-        accumulated.taskOutputs :+ current
-      )
-    }
-
-    val declarationErrors = declarations.foldLeft(DeclarationAccumulator())(validateDeclaration)
-    val outputErrors = outputs.foldLeft(TaskOutputAccumulator())(validateOutput)
-
-    declarationErrors.errors ++ outputErrors.errors match {
+    declarationErrors.errors match {
       case x if x.nonEmpty => throw new SyntaxError(x.mkString(s"\n${"-" * 50}\n\n"))
       case _ =>
     }
 
     Task(name, declarations, commandTemplate, runtimeAttributes, meta, parameterMeta, outputs, ast)
+  }
+
+  /**
+    * Ensures that the current declaration doesn't have a name conflict with another declaration
+    * and that the expression for the current declaration only has valid variable references in it
+    *
+    * @param accumulated The declarations that come lexically before 'current' as well
+    *                    as the accumulated errors up until this point
+    * @param current The declaration being validated
+    */
+  private def validateDeclaration(taskAst: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter)
+                                 (accumulated: DeclarationAccumulator, current: Declaration): DeclarationAccumulator = {
+    val variableReferences = for (expr <- current.expression.toIterable; variable <- expr.variableReferences) yield variable
+    val declarationAstsWithSameName = taskAst.findAsts(AstNodeName.Declaration) collect {
+      case a: Ast if a.getAttribute("name").sourceString == current.name => a
+    }
+    val taskOutputAstsWithSameName = taskAst.findAsts(AstNodeName.Output) collect {
+      case a: Ast if a.getAttribute("var").sourceString == current.name => a
+    }
+
+    val declNameTerminals = declarationAstsWithSameName.map(_.getAttribute("name").asInstanceOf[Terminal]) ++
+                            taskOutputAstsWithSameName.map(_.getAttribute("var").asInstanceOf[Terminal])
+
+    val duplicateDeclarationError = declNameTerminals match {
+      case terminals if terminals.size > 1 => Option(wdlSyntaxErrorFormatter.variableDeclaredMultipleTimes(terminals(0), terminals(1)))
+      case _ => None
+    }
+
+    val invalidVariableReferenceErrors = variableReferences flatMap { variable =>
+      if (!accumulated.declarations.map(_.name).contains(variable.getSourceString)) {
+        // .head below because we are assuming if you have a Declaration object that it must have come from a Declaration AST
+        Option(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
+          declarationAstsWithSameName.head.getAttribute("name").asInstanceOf[Terminal],
+          variable
+        ))
+      } else {
+        None
+      }
+    }
+
+    val typeErrors = (invalidVariableReferenceErrors, current.expression) match {
+      case (Nil, Some(expr)) => typeCheckExpression(
+        expr, current.wdlType, accumulated.declarations, declNameTerminals.head, wdlSyntaxErrorFormatter
+      )
+      case _ => None
+    }
+
+    DeclarationAccumulator(
+      accumulated.errors ++ duplicateDeclarationError.toSeq ++ invalidVariableReferenceErrors.toSeq ++ typeErrors.toSeq,
+      accumulated.declarations :+ current
+    )
+  }
+
+  /** Validates that `expr`, which is assumed to come from a Declaration, is compatible with
+    * `expectedType`.  If not, a string error message will be returned.
+    *
+    * @param expr Expression to be validated
+    * @param expectedType The type ascription of the declaration
+    * @param priorDeclarations Declarations that come lexically before
+    * @param declNameTerminal The Terminal that represents the name of the variable in the
+    *                         declaration that `expr` comes from.
+    * @param wdlSyntaxErrorFormatter A syntax error formatter in case an error was found.
+    * @return Some(String) if an error occurred where the String is the error message, otherwise None
+    */
+  private def typeCheckExpression(expr: WdlExpression, expectedType: WdlType, priorDeclarations: Seq[Declaration],
+                                  declNameTerminal: Terminal, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[String] = {
+
+    // .get below because lookup functions should throw exceptions if they could not lookup the variable
+    def lookupType(n: String) = priorDeclarations.find(_.name == n).map(_.wdlType).get
+
+    expr.evaluateType(lookupType, new WdlStandardLibraryFunctionsType) match {
+      case Success(expressionWdlType) if !expectedType.isCoerceableFrom(expressionWdlType) =>
+        Option(wdlSyntaxErrorFormatter.taskOutputExpressionTypeDoesNotMatchDeclaredType(
+          declNameTerminal, expressionWdlType, expectedType
+        ))
+      case Success(wdlType) =>
+        expr.evaluate((s: String) => throw new Throwable("not implemented"), NoFunctions) match {
+          case Success(value) if expectedType.coerceRawValue(value).isFailure =>
+            Option(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(
+              declNameTerminal, expectedType
+            ))
+          case _ => None
+        }
+      case Failure(ex) =>
+        Option(wdlSyntaxErrorFormatter.failedToDetermineTypeOfDeclaration(declNameTerminal))
+    }
   }
 
   private def wdlSectionToStringMap(taskAst: Ast, node: String, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, String] = {
@@ -192,15 +193,6 @@ case class Task(name: String,
                 outputs: Seq[TaskOutput],
                 ast: Ast) extends Executable {
   import Task._
-
-  /**
-   * Inputs to this task, as locally qualified names
-   *
-   * @return Seq[TaskInput] where TaskInput contains the input
-   *         name & type as well as any postfix quantifiers (?, +)
-   */
-  val inputs: Seq[TaskInput] = for (declaration <- declarations; input <- declaration.asTaskInput) yield input
-  // TODO: I think TaskInput can be replaced by Declaration
 
   /**
    * Given a map of task-local parameter names and WdlValues, create a command String.

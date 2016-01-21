@@ -285,12 +285,6 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}" , locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
   }
 
-  private def wdlStringToScalaString(input: WdlValue): String = {
-    // 'toWdlString' returns a string wrapped in double quotes. We need to strip that off
-    input.toWdlString.substring(1, input.toWdlString.length - 1)
-  }
-
-  /*
   private def sendStartMessage() = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
     val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
@@ -348,5 +342,5 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       log.info(s"Call caching 'readFromCache' is turned off, starting call")
       context.parent ! InitialStartCall(key, CallActor.Start)
     }
-  }*/
+  }
 }

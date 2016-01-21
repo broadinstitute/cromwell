@@ -6,6 +6,7 @@ import java.nio.file.{Path, Paths}
 
 import akka.actor.ActorSystem
 import com.google.api.client.http.HttpResponseException
+import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
@@ -24,7 +25,7 @@ import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
-import cromwell.util.{AggregatedException, TryUtil}
+import cromwell.util.{SimpleExponentialBackoff, AggregatedException, TryUtil}
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
 import wdl4s.{Call, CallInputs, Scatter, UnsatisfiedInputsException, _}
@@ -112,20 +113,28 @@ object JesBackend {
   }
 
   def isFatalJesException(t: Throwable): Boolean = t match {
+      // Unauthorized
     case e: HttpResponseException if e.getStatusCode == 403 => true
     case _ => false
   }
 
-  protected def withRetry[T](f: Option[T] => T, logger: WorkflowLogger, failureMessage: String) = TryUtil.retryBlock(
-    fn = f,
-    retryLimit = Option(10),
-    pollingInterval = 5 seconds,
-    pollingBackOffFactor = 1,
-    maxPollingInterval = 10 seconds,
-    logger = logger,
-    failMessage = Option(failureMessage),
-    isFatal = isFatalJesException
-  )
+  def isTransientJesException(t: Throwable): Boolean = t match {
+      // Quota exceeded
+    case e: HttpResponseException if e.getStatusCode == 429 => true
+    case _ => false
+  }
+
+  protected def withRetry[T](f: Option[T] => T, logger: WorkflowLogger, failureMessage: String) = {
+    TryUtil.retryBlock(
+      fn = f,
+      retryLimit = Option(10),
+      backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
+      logger = logger,
+      failMessage = Option(failureMessage),
+      isFatal = isFatalJesException,
+      isTransient = isTransientJesException
+    )
+  }
 
   sealed trait JesParameter {
     def name: String

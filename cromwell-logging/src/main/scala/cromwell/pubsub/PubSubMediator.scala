@@ -4,43 +4,60 @@ package cromwell.pubsub
 /**
   * Created by himanshu on 1/12/16.
   */
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Props, Actor, ActorRef, ActorSystem}
 
-import scala.reflect.ClassTag
+
+trait PubSubMediator{
+
+  /**
+    *Subscribes consumer function(topic,message) where topic is event structure and message is event data.
+    * @param actorRef actor that needs to be subscribed,this Actor class is of type (T,Any) where
+    *                 T is generic topic and Any is any payload
+    * @param system system actor system for creating subscriber actor this is implicit
+    * @tparam T
+    * @return
+    */
+  def subscribe[T](actorRef: ActorRef)(implicit system:ActorSystem) = {
+    system.eventStream.subscribe(actorRef, classOf[(T, Any)])
+  }
+
+  /**
+    * Producer produces event by publishing to Event Stream using publish method.
+    * @param topic event topic this could be any t
+    * @param payload
+    * @param system
+    * @tparam T
+    */
+  def publish[T](topic: T, payload: Any)(implicit system:ActorSystem) {
+    system.eventStream.publish(topic, payload)
+  }
+
+  /**
+    *This will un-subscribe from the akka system eventstream
+    * @param system actor system implicit
+    * @param actorRef actor that needs to be unsubscribe
+    * @param topic optional topic that needs to be unsubscribe
+    * @tparam T
+    */
+  def unsubscribe[T](actorRef: ActorRef,topic:Option[T] = None)(implicit system: ActorSystem): Unit = {
+    topic match {
+      case None => system.eventStream.unsubscribe(actorRef)
+      case Some(x) => system.eventStream.unsubscribe(actorRef,classOf[(T,Any)])
+    }
+  }
+}
+
+object PubSubMediator extends PubSubMediator
 
 /***
   * Subscriber actor allows consumer to subscribe for events, This actor is created by
   * parent actor how is intended to subscribe for events hence manage lifecycle of this actor.
   * @param f is a biFunction that receive workflow event as a topic and message as Any type.
   */
-sealed class Subscriber[T : ClassTag](f: (T, Any) => Unit) extends Actor {
-  override def receive = { case (topic: T, payload: Any) => f(topic, payload) }
+class Subscriber(f: (Any, Any) => Option[Unit]) extends Actor {
+  override def receive = { case (topic: Any, payload: Any) => f(topic, payload) }
 }
 
-object EventStream{
-
-  /**
-    * Subscribes consumer function(topic,message) where topic is event structure and message is event data.
-    * @param system actor system for creating subscriber actor
-    * @param f it is a function of parameters topic of type T that can be defined and message of type Any
-    * @param name is subscriber name
-    * @return
-    */
-  def subscribe[T : ClassTag](system:ActorSystem,f: (T, Any) => Option[Unit], name: String) = {
-    val props = Props(classOf[Subscriber[T]], f)
-    val subscriber = system.actorOf(props, name = name)
-    system.eventStream.subscribe(subscriber, classOf[(T, Any)])
-  }
-
-  /**
-    * Producer produces event by publishing to Event Stream using publish method.
-    * @param system actor system for publishing to Event Stream
-    * @param topic event name
-    * @param payload event data
-    * @tparam T is event type
-    */
-  def publish[T](system:ActorSystem,topic: T, payload: Any) {
-    system.eventStream.publish(topic, payload)
-  }
-
+object Subscriber{
+  def props[T](f :(T,Any) => Option[Unit]) : Props = Props(classOf[Subscriber],f)
 }

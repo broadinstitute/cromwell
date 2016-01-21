@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, Actor, ActorLogging, Props}
 import akka.util.Timeout
 import org.slf4j.LoggerFactory
 import scala.concurrent.duration._
-import cromwell.pubsub.EventStream
+import cromwell.pubsub.{Subscriber, PubSubMediator}
 import scala.language.postfixOps
 
 /**
@@ -28,6 +28,10 @@ trait LogWrapper {
   def info(message: String, t : Throwable)
 }
 
+/**
+  * Workflow execution event topics that business logging
+  * subscribed to and expecting,
+  */
 sealed trait WorkflowEvent
 case object CallExecutionEvent extends WorkflowEvent
 case object WorkflowExecutionEvent extends WorkflowEvent
@@ -37,7 +41,7 @@ case object WorkflowExecutionEvent extends WorkflowEvent
   * different components inside cromwell.
   */
 trait BusinessLogEvent extends LogWrapper{
-  val  eventLog = LoggerFactory.getLogger(this.getClass.getName)
+  val  eventLog = LoggerFactory.getLogger("cromwell.logging.BusinessLogEvent")
 
   override def info(message: String) = eventLog.info(message)
   override def info(message: String, t : Throwable) = eventLog.info(message,t)
@@ -62,10 +66,10 @@ trait BusinessLogEvent extends LogWrapper{
     * This method receive events from different actor inside cromwell engine
     * like WorkflowActor , CallActor and so on.
     */
-  val onEvent = (topic: WorkflowEvent, payload: Any) => Some(topic) collect {
+  val onBusinessLoggingEvent = (topic: WorkflowEvent, payload: Any) => Some(topic) collect {
     case event@(CallExecutionEvent | WorkflowExecutionEvent) =>
       logEvent(s"topic => $event and payload => $payload")
-      debug(s"<---------- received business event ------------>")
+      info(s"<---------- received business event ------------>")
   }
 }
 
@@ -81,16 +85,18 @@ class BusinessLogging extends Actor with ActorLogging {
   this : BusinessLogEvent =>
 
   implicit val timeout = Timeout(10 seconds)
+  implicit val actorSystem = context.system
 
   def actorRefFactory: ActorContext = context
 
   override def receive: Receive = {
     case SubscribeToLogging =>
-      EventStream.subscribe(actorRefFactory.system, onEvent, "BusinessLogging")
-      log.debug(s"received subscription message")
+      val subscriber = actorSystem.actorOf(Subscriber.props[WorkflowEvent](onBusinessLoggingEvent),"BusinessLogging")
+      PubSubMediator.subscribe[WorkflowEvent](subscriber)
+      log.info(s"received subscription message")
   }
 }
 
 object BusinessLogging {
-  def props(): Props = Props(new BusinessLogging() with BusinessLogEvent )
+  def props(): Props = Props(new BusinessLogging() with BusinessLogEvent)
 }

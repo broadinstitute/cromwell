@@ -5,7 +5,7 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.pubsub.EventStream
+import cromwell.pubsub.PubSubMediator
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
@@ -22,7 +22,7 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.engine.{CallOutput, HostInputs, CallOutputs, EnhancedFullyQualifiedName}
-import cromwell.logging.{WorkflowExecutionEvent, BusinessLogging, SubscribeToLogging, WorkflowLogger}
+import cromwell.logging.{SubscribeToLogging, BusinessLogging, WorkflowExecutionEvent, WorkflowLogger}
 import cromwell.util.TerminalUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -488,12 +488,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   when(WorkflowAborted) { FSM.NullFunction }
 
   onTransition {
-    case WorkflowSubmitted -> x => x match {
-      case WorkflowRunning =>
-        stateData.startMode.get.start(this)
-        publishWorkflowEvent()
-      case _ => publishWorkflowEvent()
-    }
+    case WorkflowSubmitted -> WorkflowRunning =>
+      stateData.startMode.get.start(this)
+      publishWorkflowEvent()
+    case WorkflowRunning -> _ => publishWorkflowEvent()
   }
 
   when(WorkflowAborting) {
@@ -533,13 +531,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     import org.json4s._
     import org.json4s.native.Serialization.{write}
 
-    log.debug(s"--------> publishWorkflowEvent ")
+    logger.info(s"--------> publishWorkflowEvent ")
     implicit val formats = DefaultFormats + FieldSerializer[WorkflowExecution]()
+    implicit val actorSystem = context.system;
 
     for{
       status <-globalDataAccess.getWorkflowExecution(workflow.id)
     } yield {
-      EventStream.publish(context.system,WorkflowExecutionEvent,write(status))
+      PubSubMediator.publish(WorkflowExecutionEvent,write(status))
     }
 
   }

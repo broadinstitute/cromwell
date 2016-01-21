@@ -31,10 +31,13 @@
     <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
   </appender>
 
+  <logger name="cromwell.logging.BusinessLogEvent" level="INFO" additivity="false">
+    <appender-ref ref="LOGSTASH"/>
+  </logger>
+
   <root level="${LOG_LEVEL}">
     <appender-ref ref="STANDARD_APPENDER" />
     <appender-ref ref="PRETTY_APPENDER" />
-    <appender-ref ref="LOGSTASH" />
   </root>
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>

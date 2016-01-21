@@ -111,7 +111,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / "validate") { version =>
       traceName("validate") {
         post {
-          formFields("wdlSource", "workflowInputs") { (wdlSource, workflowInputs) =>
+          formFields("wdlSource", "workflowInputs".?) { (wdlSource, workflowInputs) =>
             requestContext =>
               perRequest(
                 requestContext,

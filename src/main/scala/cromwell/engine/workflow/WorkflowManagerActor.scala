@@ -14,14 +14,15 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.server.CromwellServer
 import cromwell.util.WriteOnceStore
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
-
+import wdl4s.values.WdlFile
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
@@ -67,6 +68,25 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   type WorkflowActorRef = ActorRef
 
   private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
+
+  if (getAbortJobsOnTerminate) {
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        log.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
+        workflowStore.toMap.foreach{case (id, actor)=>
+          CromwellServer.workflowManagerActor ! WorkflowManagerActor.WorkflowAbort(id)
+        }
+        var numRemaining = -1
+        while(numRemaining != 0) {
+          Thread.sleep(1000)
+          val result = globalDataAccess.getWorkflowsByState(Seq(WorkflowRunning, WorkflowAborting))
+          numRemaining = Await.result(result,Duration.Inf).size
+          log.info(s"$tag: Waiting for all workflows to abort ($numRemaining remaining).")
+        }
+        log.info(s"$tag: All workflows aborted.")
+      }
+    })
+  }
 
   override def preStart() {
     restartIncompleteWorkflows()

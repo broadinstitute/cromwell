@@ -23,7 +23,7 @@ object ValidateActor {
   sealed trait ValidateActorMessage
   case object ValidateWorkflow extends ValidateActorMessage
 
-  def props(wdlSource: WdlSource, wdlJson: WdlJson): Props = {
+  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson]): Props = {
     Props(new ValidateActor(wdlSource, wdlJson))
   }
 
@@ -32,7 +32,7 @@ object ValidateActor {
   }
 }
 
-class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
+class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson])
   extends Actor with LazyLogging {
 
   import ValidateActor.{ValidateWorkflow, tag}
@@ -45,15 +45,26 @@ class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
       // NOTE: self shuts down when the parent PerRequest shuts down
   }
 
+  private def validateInputs(namespaceWithWorkflow: NamespaceWithWorkflow, maybeWorkflowInputs: Option[WdlJson]): Future[Unit] = {
+    maybeWorkflowInputs match {
+      case Some(wi) =>
+        for {
+          inputs <- Future(wi.parseJson).map(_.asJsObject.fields)
+          coercedInputs <- Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
+        } yield ()
+      case None => Future.successful(())
+    }
+  }
+
   private def validateWorkflow(sentBy: ActorRef): Unit = {
     logger.info(s"$tag for $sentBy")
     val futureValidation: Future[Unit] = for {
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
-      inputs <- Future(wdlJson.parseJson).map(_.asJsObject.fields)
-      coercedInputs <- Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
+      validatedInputs <- validateInputs(namespaceWithWorkflow, workflowInputs)
       runtime = namespaceWithWorkflow.workflow.calls foreach { _.toRuntimeAttributes }
-    } yield () // Validate that the future run and return `Success[Unit]` aka (), or `Failure[Exception]`
+    } yield ()
 
+    // Now validate that this Future completed successfully:
     futureValidation onComplete {
       case Success(_) =>
         logger.info(s"$tag success $sentBy")

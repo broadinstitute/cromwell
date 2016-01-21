@@ -105,7 +105,7 @@ paths:
           in: formData
         - name: workflowInputs
           description: WDL JSON
-          required: true
+          required: false
           type: file
           in: formData
       tags:

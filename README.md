@@ -385,17 +385,12 @@ database {
   config = main.mysql
 
   main {
-    hsqldb {
-      db.url = "jdbc:hsqldb:mem:${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
-      db.driver = "org.hsqldb.jdbcDriver"
-      driver = "slick.driver.HsqldbDriver$"
-      slick.createSchema = true
-    }
     mysql {
       db.url = "jdbc:mysql://localhost:3306/cromwell"
       db.user = "root"
       db.password = ""
       db.driver = "com.mysql.jdbc.Driver"
+      db.connectionTimeout = 5000 // NOTE: The default 1000ms is often too short for production mysql use
       driver = "slick.driver.MySQLDriver$"
     }
   }

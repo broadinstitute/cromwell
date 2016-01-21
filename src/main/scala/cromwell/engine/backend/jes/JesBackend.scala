@@ -370,7 +370,7 @@ case class JesBackend(actorSystem: ActorSystem)
   def generateJesOutputs(backendCall: BackendCall): Seq[JesOutput] = {
     val log = workflowLoggerWithCall(backendCall)
     val wdlFileOutputs = backendCall.call.task.outputs flatMap { taskOutput =>
-      taskOutput.expression.evaluateFiles(backendCall.lookupFunction(Map.empty), NoFunctions, taskOutput.wdlType) match {
+      taskOutput.requiredExpression.evaluateFiles(backendCall.lookupFunction(Map.empty), NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) => wdlFiles map gcsPathToLocal
         case Failure(ex) =>
           log.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}")
@@ -522,7 +522,7 @@ case class JesBackend(actorSystem: ActorSystem)
     * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
     * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
     */
-    wdlValue <- taskOutput.expression.evaluate(customLookupFunction(backendCall, currentList.toLookupMap), backendCall.engineFunctions)
+    wdlValue <- taskOutput.requiredExpression.evaluate(customLookupFunction(backendCall, currentList.toLookupMap), backendCall.engineFunctions)
     coercedValue <- taskOutput.wdlType.coerceRawValue(wdlValue)
     value = wdlValueToGcsPath(generateJesOutputs(backendCall))(coercedValue)
   } yield value

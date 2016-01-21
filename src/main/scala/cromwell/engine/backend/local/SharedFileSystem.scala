@@ -144,7 +144,7 @@ trait SharedFileSystem {
   }
 
   private def outputLookup(taskOutput: TaskOutput, backendCall: LocalFileSystemBackendCall, currentList: Seq[AttemptedLookupResult]) = for {
-    expressionValue <- taskOutput.expression.evaluate(backendCall.lookupFunction(currentList.toLookupMap), backendCall.engineFunctions)
+    expressionValue <- taskOutput.requiredExpression.evaluate(backendCall.lookupFunction(currentList.toLookupMap), backendCall.engineFunctions)
     convertedValue <- outputAutoConversion(backendCall, taskOutput, expressionValue)
     pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, backendCall.callRootPath))
   } yield pathAdjustedValue

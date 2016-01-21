@@ -121,7 +121,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
 
   when(CallNotStarted) {
     case Event(_@Initialize, _) =>
-      sendStartMessage()
+//      sendStartMessage()
       stay()
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
@@ -278,15 +278,11 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     val name = call.fullyQualifiedName
     val user = System.getProperty("user.name")
 
-    val engineFunctions = new DefaultWorkflowEngineFunctions(workflowDescriptor.ioManager, workflowDescriptor.wfContext)
-    val commandTry = call.instantiateCommandLine(locallyQualifiedInputs, engineFunctions)
-    val command = commandTry match {
-      case Success(command) => command
-      case Failure(error) => throw new IllegalStateException(s"Failed to instantiate command! Message = ${error.getMessage}", error)
-    }
-    val commandArgs: Seq[String] = command.split(" ")
+    // Need Declarations, CallInputs, command template sequence
+    val cmdTemplateSeq = call.task.commandTemplate
+    val declarations = call.task.declarations
     val runtimeAttributes = call.task.runtimeAttributes.attrs.map{case (k,v) => (k,v.head)}
-    TaskDescriptor(name, user, command, Option(commandArgs), s"${workflowDescriptor.name}-${workflowDescriptor.id}" , locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
+    TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}" , locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
   }
 
   private def wdlStringToScalaString(input: WdlValue): String = {
@@ -294,6 +290,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     input.toWdlString.substring(1, input.toWdlString.length - 1)
   }
 
+  /*
   private def sendStartMessage() = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
     val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
@@ -351,5 +348,5 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       log.info(s"Call caching 'readFromCache' is turned off, starting call")
       context.parent ! InitialStartCall(key, CallActor.Start)
     }
-  }
+  }*/
 }

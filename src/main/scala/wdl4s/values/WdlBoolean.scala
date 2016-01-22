@@ -8,6 +8,7 @@ object WdlBoolean {
   val True = new WdlBoolean(true)
   val False = new WdlBoolean(false)
   def apply(value: Boolean) = if (value) WdlBoolean.True else WdlBoolean.False
+  def unapply(b: WdlBoolean): Option[Boolean] = Option(b.value)
 }
 
 /** The constructor is private to force access through the companion

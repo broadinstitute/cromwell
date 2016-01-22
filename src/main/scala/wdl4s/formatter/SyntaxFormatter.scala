@@ -116,22 +116,13 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   private def formatRuntimeSection(runtimeAttributes: RuntimeAttributes, level: Int): String = {
     runtimeAttributes.attrs match {
       case m if m.nonEmpty =>
-        val attrs = m map { case (k, v) => formatRuntimeAttribute(k, v, 1) }
+        val attrs = m map { case (k, v) => indent(s"$k: ${v.toWdlString}", level) }
         indent(
           s"""${highlighter.keyword("runtime")} {
              |${attrs.mkString("\n")}
              |}""".stripMargin, level)
       case _ => ""
     }
-  }
-
-  private def formatRuntimeAttribute(key: String, value: Seq[String], level: Int) = {
-    val rhs = value match {
-      case s: Seq[String] if s.isEmpty => "\"\""
-      case s: Seq[String] if s.size == 1 => "\"" + s.head + "\""
-      case s: Seq[String] => s.map(x => "\"" + x + "\"").mkString("[", ", ", "]")
-    }
-    indent(s"$key: $rhs", level)
   }
 
   private def formatCommandSection(task: Task, level:Int): String = {

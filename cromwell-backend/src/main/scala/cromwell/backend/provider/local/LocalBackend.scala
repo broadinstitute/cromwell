@@ -1,6 +1,7 @@
 package cromwell.backend.provider.local
 
 import java.nio.file.{Files, Path, Paths}
+import java.util.regex.Pattern
 
 import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
@@ -9,14 +10,16 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.BackendActor
 import cromwell.backend.model._
 import cromwell.backend.provider.local.FileExtensions._
+import wdl4s.WdlExpression
 import wdl4s.types.{WdlFileType, WdlType}
 import wdl4s.values.{WdlFile, WdlSingleFile, WdlValue}
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.sys.process._
-import scala.util.Try
+import scala.util.{Random, Try}
 
 object LocalBackend {
   // Folders
@@ -47,7 +50,8 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
 
   val workingDir = task.workingDir
   val taskWorkingDir = task.name
-  val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir).toAbsolutePath
+  val shardId = Random.nextInt(Integer.MAX_VALUE).toString;
+  val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir, shardId).toAbsolutePath
   val stdout = Paths.get(executionDir.toString, StdoutFile)
   val stderr = Paths.get(executionDir.toString, StderrFile)
   val script = Paths.get(executionDir.toString, ScriptFile)
@@ -57,6 +61,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   val argv = Seq("/bin/bash", script.toString)
   val dockerImage = getDockerImage(task.runtimeAttributes)
   var processAbortFunc: Option[() => Unit] = None
+  val expressionEval = new WorkflowEngineFunctions(executionDir)
 
   /**
     * Prepare the task and context for execution.
@@ -64,10 +69,17 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   override def prepare(): Unit = {
     logger.debug(s"Creating execution folder: $executionDir")
     executionDir.toString.toFile.createIfNotExists(true)
-    logger.debug(s"Creating bash script for executing command: ${task.command}.")
-    writeBashScript(task.command, executionDir)
-    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! new TaskStatus(Status.Created, None))
+
+    try {
+      val command = initiateCommand()
+      logger.debug(s"Creating bash script for executing command: ${command}.")
+      writeBashScript(command, executionDir)
+      subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
+        subs => subs.subscriber ! new TaskStatus(Status.Created, None))
+    } catch {
+      case ex: Exception => subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
+        subs => subs.subscriber ! new TaskStatus(Status.Failed, Some(FailureResult(ex, None, ""))))
+    }
   }
 
   /**
@@ -176,7 +188,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     log.debug(s"DockerInputVolume: $inputVolumes")
     log.debug(s"DockerOutputVolume: $outputVolume")
     val dockerCmd = s"docker run %s %s --rm %s %s" //TODO: make it configurable from file.
-    dockerCmd.format(inputVolumes, outputVolume, image, argv.mkString(" "))
+    dockerCmd.format(inputVolumes, outputVolume, image, argv.mkString(" ")).replace("  ", " ")
   }
 
   /**
@@ -198,9 +210,20 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * @return WdlValue with absolute path if it is a file.
     */
   private def resolveOutputValue(output: (WdlType, Try[WdlValue])): WdlValue = {
+    def getAbsolutePath(file: String): Path = {
+      val absolutePath = Paths.get(executionDir.toString, file)
+      absolutePath.exists match {
+        case true => absolutePath
+        case false => throw new IllegalStateException(s"Output file $file does not exist.")
+      }
+    }
+
+    //TODO: WdlArray[File] is missing here.
     output._1 match {
-      case WdlFileType => new WdlSingleFile(Paths.get(executionDir.toString, output._2.get.toWdlString.replace("\"", "").trim).toString)
-      case _ => output._2.get
+      case lhs if output._2.get.wdlType == WdlFileType | lhs == WdlFileType =>
+        new WdlSingleFile(getAbsolutePath(output._2.get.toWdlString.replace("\"", "").trim).toString)
+      case lhs if lhs == output._2.get.wdlType => output._2.get
+      case lhs => lhs.coerceRawValue(output._2.get).get
     }
   }
 
@@ -228,41 +251,98 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
 
     val stderrFileLength = Try(Files.size(stderr)).getOrElse(0L)
 
+    // TODO: check continue on error.
+
     if (stderrFileLength > 0) {
-      // TODO: verify generated files exist
       TaskStatus(Status.Failed, Some(FailureResult(
         new IllegalStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
     } else if (stderrFileLength <= 0 && processReturnCode != 0) {
-      // TODO: verify generated files exist
       TaskStatus(Status.Failed, Some(FailureResult(
         new IllegalStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
     } else {
-      val lookupFunction: String => WdlValue = inputName => task.inputs.get(inputName).get
+      def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(task.inputs, task.declarations, expressionEval)
       val outputsExpressions = task.outputs.map(
-        output => output.name ->(output.wdlType, output.expression.evaluate(lookupFunction, new WorkflowEngineFunctions(executionDir))))
-      if (outputsExpressions.filter(_._2._2.isFailure).size > 0)
-        throw new IllegalStateException("Failed to evaluate output expressions!", outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get)
-      // TODO: verify generated files exist
-      TaskStatus(Status.Succeeded, Some(SuccesfulResult(outputsExpressions.map(output => output._1 -> resolveOutputValue(output._2)).toMap)))
+        output => output.name ->(output.wdlType, output.expression.evaluate(lookupFunction, expressionEval)))
+      processOutputResult(processReturnCode, outputsExpressions)
     }
   }
 
-  // TODO: check continue on error.
-  /*
-    val badReturnCodeMessage =
-      s"""Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
-          |
-          |Full command was: $backendCommandString
-          |
-          |${stderrTailed.tailString}
-        """.stripMargin
-
-    val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
-    returnCode match {
-      case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
-      case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-      case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
-      case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e)).future
+  /**
+    * Process output evaluating expressions, checking for created files and converting WdlString to WdlSimpleFile if necessary.
+    * @param processReturnCode Return code from process.
+    * @param outputsExpressions Outputs.
+    * @return TaskStatus with final status of the task.
+    */
+  private def processOutputResult(processReturnCode: Int, outputsExpressions: Seq[(String, (WdlType, Try[WdlValue]))]): TaskStatus = {
+    if (outputsExpressions.filter(_._2._2.isFailure).size > 0) {
+      TaskStatus(Status.Failed, Some(FailureResult(new IllegalStateException("Failed to evaluate output expressions.",
+        outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get), Some(processReturnCode), stderr.toString)))
+    } else {
+      try {
+        TaskStatus(Status.Succeeded, Some(SuccesfulResult(outputsExpressions.map(
+          output => output._1 -> resolveOutputValue(output._2)).toMap)))
+      } catch {
+        case ex: Exception => TaskStatus(Status.Failed, Some(FailureResult(ex, Some(processReturnCode), stderr.toString)))
+      }
     }
-  }*/
+  }
+
+  /**
+    * 1) Remove all leading newline chars
+    * 2) Remove all trailing newline AND whitespace chars
+    * 3) Remove all *leading* whitespace that's common among every line in the input string
+    *
+    * For example, the input string:
+    *
+    * "
+    * first line
+    * second line
+    * third line
+    *
+    * "
+    *
+    * Would be normalized to:
+    *
+    * "first line
+    * second line
+    * third line"
+    *
+    * @param s String to process
+    * @return String which has common leading whitespace removed from each line
+    */
+  private def normalize(s: String): String = {
+    val trimmed = stripAll(s, "\r\n", "\r\n \t")
+    val parts = trimmed.split("[\\r\\n]+")
+    val indent = parts.map(leadingWhitespaceCount).min
+    parts.map(_.substring(indent)).mkString("\n")
+  }
+
+  private def leadingWhitespaceCount(s: String): Int = {
+    val Ws = Pattern.compile("[\\ \\t]+")
+    val matcher = Ws.matcher(s)
+    if (matcher.lookingAt) matcher.end else 0
+  }
+
+  private def stripAll(s: String, startChars: String, endChars: String): String = {
+    /* https://stackoverflow.com/questions/17995260/trimming-strings-in-scala */
+    @tailrec
+    def start(n: Int): String = {
+      if (n == s.length) ""
+      else if (startChars.indexOf(s.charAt(n)) < 0) end(n, s.length)
+      else start(1 + n)
+    }
+
+    @tailrec
+    def end(a: Int, n: Int): String = {
+      if (n <= a) s.substring(a, n)
+      else if (endChars.indexOf(s.charAt(n - 1)) < 0) s.substring(a, n)
+      else end(a, n - 1)
+    }
+
+    start(0)
+  }
+
+  private def initiateCommand(): String = {
+    normalize(task.commandTemplate.map(_.instantiate(task.declarations, task.inputs, expressionEval)).mkString(""))
+  }
 }

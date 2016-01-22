@@ -1,7 +1,7 @@
 package cromwell.util
 
 import java.io.{File, FileWriter}
-import java.nio.file.{Files, Path}
+import java.nio.file.{Paths, Files, Path}
 
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
@@ -865,7 +865,9 @@ object SampleWdl {
         |  Array[File] arr = ["f1", "f2", "f3"]
         |  call cat {input: files = arr}
         |}
-      """.stripMargin
+      """.stripMargin.replace("f1", Paths.get(catRootDir.toString,"f1").toAbsolutePath.toString)
+        .replace("f2", Paths.get(catRootDir.toString,"f2").toAbsolutePath.toString)
+        .replace("f3", Paths.get(catRootDir.toString,"f3").toAbsolutePath.toString)
 
     override val rawInputs = Map.empty[String, String]
   }
@@ -903,7 +905,9 @@ object SampleWdl {
         |  call write_map {input: file_to_name = map}
         |  call read_map
         |}
-      """.stripMargin
+      """.stripMargin.replace("f1", Paths.get(catRootDir.toString,"f1").toAbsolutePath.toString)
+        .replace("f2", Paths.get(catRootDir.toString,"f2").toAbsolutePath.toString)
+        .replace("f3", Paths.get(catRootDir.toString,"f3").toAbsolutePath.toString)
 
     override val rawInputs = Map.empty[String, String]
   }

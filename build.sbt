@@ -25,6 +25,8 @@ val googleClientApiV = "1.20.0"
 
 val kamonV = "0.5.2"
 
+val json4sV = "3.3.0"
+
 resolvers ++= Seq(
   "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
   "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/")
@@ -46,6 +48,10 @@ libraryDependencies ++= Seq(
   "io.spray" %% "spray-client" % sprayV,
   "io.spray" %% "spray-http" % sprayV,
   "io.spray" %% "spray-json" % DowngradedSprayV,
+  //----------- Marshalling to json string --------//
+  "org.json4s" %% "json4s-native" % json4sV,
+  "org.json4s" %% "json4s-jackson" % json4sV,
+  "org.json4s" %% "json4s-ext" % json4sV,
   "com.typesafe.akka" %% "akka-actor" % akkaV,
   "com.typesafe.akka" %% "akka-slf4j" % akkaV,
   "commons-codec" % "commons-codec" % "1.10",
@@ -137,6 +143,8 @@ val customMergeStrategy: String => MergeStrategy = {
 
 assemblyMergeStrategy in assembly := customMergeStrategy
 
+test in assembly := {}
+
 // The reason why -Xmax-classfile-name is set is because this will fail
 // to build on Docker otherwise.  The reason why it's 200 is because it
 // fails if the value is too close to 256 (even 254 fails).  For more info:
@@ -144,80 +152,5 @@ assemblyMergeStrategy in assembly := customMergeStrategy
 // https://github.com/sbt/sbt-assembly/issues/69
 // https://github.com/scala/pickling/issues/10
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
-
-lazy val AllTests = config("alltests") extend Test
-
-lazy val NoTests = config("notests") extend Test
-
-lazy val DockerTest = config("docker") extend Test
-
-lazy val NoDockerTest = config("nodocker") extend Test
-
-lazy val CromwellIntegrationTest = config("integration") extend Test
-
-lazy val CromwellNoIntegrationTest = config("nointegration") extend Test
-
-// NOTE: The following block may cause problems with IntelliJ IDEA
-// by creating multiple test configurations.
-// May need to comment out when importing the project.
-lazy val root = sbt.project.in(file("."))
-  .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
-  .configs(NoTests).settings(inConfig(NoTests)(Defaults.testTasks): _*)
-  .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)
-  .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
-  .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
-  .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
-
-/*
-  The arguments that will be added to the default test config, but removed from all other configs.
-  `sbt coverage test` adds other arguments added to generate the coverage reports.
-  Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
- */
-lazy val defaultTestArgs = Seq(Tests.Argument("-l", "DockerTest"), Tests.Argument("-l", "CromwellIntegrationTest"))
-
-// `test` (or `assembly`) - Run all tests, except docker and integration
-testOptions in Test ++= defaultTestArgs
-
-// `alltests:test` - Run all tests
-testOptions in AllTests := (testOptions in Test).value.diff(defaultTestArgs)
-
-// `docker:test` - Run docker tests, except integration
-testOptions in DockerTest := (testOptions in Test).value.diff(defaultTestArgs) ++
-  Seq(Tests.Argument("-n", "DockerTest"), Tests.Argument("-l", "CromwellIntegrationTest"))
-
-// `nodocker:test` - Run all tests, except docker
-testOptions in NoDockerTest := (testOptions in Test).value.diff(defaultTestArgs) ++
-  Seq(Tests.Argument("-l", "DockerTest"))
-
-// `integration:test` - Run integration tests, except docker
-testOptions in CromwellIntegrationTest := (testOptions in Test).value.diff(defaultTestArgs) ++
-  Seq(Tests.Argument("-l", "DockerTest"), Tests.Argument("-n", "CromwellIntegrationTest"))
-
-// `nointegration:test` - Run all tests, except integration
-testOptions in CromwellNoIntegrationTest := (testOptions in Test).value.diff(defaultTestArgs) ++
-  Seq(Tests.Argument("-l", "CromwellIntegrationTest"))
-
-// `notests:assembly` - Disable all tests during assembly
-/*
-  TODO: This syntax of test in (NoTests, assembly) isn't correct
-
-  Trying to get:
-
-    sbt notests:assembly
-
-  To be the same as:
-
-    sbt 'set test in assembly := {}' assembly
-
-  For now, one must use the more verbose command line until someone can crack sbt's custom configs/tasks/scopes for the
-  assembly plugin:
-
-    http://www.scala-sbt.org/0.13/tutorial/Scopes.html
- */
-//test in (NoTests, assembly) := {}
-
-// Also tried
-//test in (NoTests, assemblyPackageDependency) := {}
-//test in (NoTests, assemblyPackageScala) := {}
 
 parallelExecution := false

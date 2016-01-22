@@ -5,6 +5,7 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
+import cromwell.pubsub.PubSubMediator
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
@@ -16,12 +17,12 @@ import cromwell.engine.Hashing._
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, BackendCall, JobKey}
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.Execution
+import cromwell.engine.db.slick.{WorkflowExecution, Execution}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.engine.{CallOutput, HostInputs, CallOutputs, EnhancedFullyQualifiedName}
-import cromwell.logging.WorkflowLogger
+import cromwell.logging.{SubscribeToLogging, BusinessLogging, WorkflowExecutionEvent, WorkflowLogger}
 import cromwell.util.TerminalUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -235,6 +236,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private var symbolCache: SymbolCache = _
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
+
+  val workflowLogger = context.actorOf(BusinessLogging.props(),"BusinessLogging")
+  workflowLogger ! SubscribeToLogging
 
   startWith(WorkflowSubmitted, WorkflowData())
   WorkflowCounter.increment()
@@ -515,6 +519,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   onTransition {
     case WorkflowSubmitted -> WorkflowRunning =>
       stateData.startMode.get.start(this)
+      publishWorkflowEvent()
+    case WorkflowRunning -> _ => publishWorkflowEvent()
   }
 
   when(WorkflowAborting) {
@@ -547,6 +553,26 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       val updatedData = data.removePersisting(callKey, ExecutionStatus.Done)
       stay() using updatedData
+  }
+
+  /**
+    *  Publish workflow structure to centralized logging.
+    */
+  private def publishWorkflowEvent() : Unit = {
+
+    import org.json4s._
+    import org.json4s.native.Serialization.{write}
+
+    logger.info(s"--------> publishWorkflowEvent ")
+    implicit val formats = DefaultFormats + FieldSerializer[WorkflowExecution]()
+    implicit val actorSystem = context.system;
+
+    for{
+      status <-globalDataAccess.getWorkflowExecution(workflow.id)
+    } yield {
+      PubSubMediator.publish(WorkflowExecutionEvent,write(status))
+    }
+
   }
 
   /**

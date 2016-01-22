@@ -25,6 +25,16 @@
     </else>
   </if>
 
+  <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+    <destination>localhost:4560</destination>
+    <!-- encoder is required -->
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+  </appender>
+
+  <logger name="cromwell.logging.BusinessLogEvent" level="INFO" additivity="false">
+    <appender-ref ref="LOGSTASH"/>
+  </logger>
+
   <root level="${LOG_LEVEL}">
     <appender-ref ref="STANDARD_APPENDER" />
     <appender-ref ref="PRETTY_APPENDER" />

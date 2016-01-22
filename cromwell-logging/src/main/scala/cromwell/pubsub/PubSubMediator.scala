@@ -1,12 +1,10 @@
 package cromwell.pubsub
 
+import akka.actor.{Props, Actor, ActorRef, ActorSystem}
 
 /**
   * Created by himanshu on 1/12/16.
   */
-import akka.actor.{Props, Actor, ActorRef, ActorSystem}
-
-
 trait PubSubMediator{
 
   /**
@@ -17,7 +15,7 @@ trait PubSubMediator{
     * @tparam T
     * @return
     */
-  def subscribe[T](actorRef: ActorRef)(implicit system:ActorSystem) = {
+  def subscribe[T](actorRef: ActorRef)(implicit system:ActorSystem):Unit = {
     system.eventStream.subscribe(actorRef, classOf[(T, Any)])
   }
 
@@ -28,7 +26,7 @@ trait PubSubMediator{
     * @param system
     * @tparam T
     */
-  def publish[T](topic: T, payload: Any)(implicit system:ActorSystem) {
+  def publish[T](topic: T, payload: Any)(implicit system:ActorSystem):Unit = {
     system.eventStream.publish(topic, payload)
   }
 

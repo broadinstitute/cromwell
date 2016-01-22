@@ -776,7 +776,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def lookupDeclaration(workflow: Workflow)(name: String): Try[WdlValue] = {
-    workflow.declarations find { _.name == name } match {
+    workflow.scopedDeclarations find { _.name == name } match {
       case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
       case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$name'"))
     }
@@ -816,9 +816,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   def fetchLocallyQualifiedInputs(callKey: CallKey): Try[Map[String, WdlValue]] = Try {
-    val parentWorkflow = callKey.scope.ancestry.lastOption map { _.asInstanceOf[Workflow] } getOrElse {
-      throw new WdlExpressionException("Expecting 'call' to have a 'workflow' parent.")
-    }
+    val parentWorkflow = callKey.scope.rootWorkflow
 
     def lookup(identifier: String): WdlValue = {
       /* This algorithm defines three ways to lookup an identifier in order of their precedence:
@@ -839,24 +837,24 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     val entries = fetchCallInputEntries(callKey)
     entries.map { entry =>
       // .get are used below because the exception will be captured by the Try
-      val taskInput = findTaskInput(entry.scope, entry.key.name).get
+      val declaration = findTaskDeclaration(entry.scope, entry.key.name).get
 
       val value = entry.wdlValue match {
         case Some(e: WdlExpression) => e.evaluate(lookup, NoFunctions)
         case Some(v) => Success(v)
         case _ => Failure(new WdlExpressionException("Unknown error"))
       }
-      val coercedValue = value.flatMap(x => taskInput.wdlType.coerceRawValue(x))
+      val coercedValue = value.flatMap(x => declaration.wdlType.coerceRawValue(x))
       entry.key.name -> coercedValue.get
     }.toMap
   }
 
-  private def findTaskInput(callFqn: String, inputName: String): Try[TaskInput] = {
+  private def findTaskDeclaration(callFqn: String, inputName: String): Try[Declaration] = {
     val exception = new WdlExpressionException(s"Could not find task input '$inputName' for call '$callFqn'")
     workflow.namespace.resolve(callFqn) match {
       case Some(c:Call) =>
-        c.task.inputs.find(_.name == inputName) match {
-          case Some(i) => Success(i)
+        c.task.declarations.find(_.name == inputName) match {
+          case Some(decl) => Success(decl)
           case None => Failure(exception)
         }
       case _ => Failure(exception)

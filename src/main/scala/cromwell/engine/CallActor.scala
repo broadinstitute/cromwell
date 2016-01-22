@@ -7,7 +7,7 @@ import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
-import com.intel.ccc.dispatcher.adapter.CCCBackend
+
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendActor.Prepare
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
@@ -18,6 +18,7 @@ import wdl4s._
 import wdl4s.values.{WdlString, WdlValue}
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.backend._
+
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.WorkflowActor.InitialStartCall

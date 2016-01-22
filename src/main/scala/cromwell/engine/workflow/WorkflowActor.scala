@@ -81,13 +81,14 @@ object WorkflowActor {
     override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
   }
 
+  //TODO: [caching] Need to re-use this for caching
   /** This signifies using an existing previously run call to fulfill the results of the callKey. */
-  final case class UseCachedCall(override val callKey: CallKey,
-                                 override val startMode: CallActor.UseCachedCall) extends CallStartMessage {
-
-    // Nothing to do here, startRunnableCalls will have already done this work.
-    override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
-  }
+//  final case class UseCachedCall(override val callKey: CallKey,
+//                                 override val startMode: CallActor.UseCachedCall) extends CallStartMessage {
+//
+//    // Nothing to do here, startRunnableCalls will have already done this work.
+//    override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
+//  }
 
   /** Represents restarting a call for backends which support restart. */
   final case class RestartCall(override val callKey: CallKey, override val startMode: CallActor.StartMode) extends CallStartMessage {
@@ -993,62 +994,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))
   }
-
-  //  private def sendStartMessage(callKey: CallKey, callInputs: Map[String, WdlValue]) = {
-  //    def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
-  //    val backendCall = backend.bindCall(workflow, callKey, callInputs, AbortRegistrationFunction(registerAbortFunction))
-  //    val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
-  //
-  //    def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
-  //      descriptor.namespace.resolve(cachedExecution.callFqn) match {
-  //        case Some(c: Call) =>
-  //          val cachedCall = backend.bindCall(
-  //            descriptor,
-  //            CallKey(c, cachedExecution.index.toIndex),
-  //            callInputs,
-  //            AbortRegistrationFunction(registerAbortFunction)
-  //          )
-  //          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
-  //          self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
-  //        case _ =>
-  //          log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
-  //          self ! InitialStartCall(callKey, CallActor.Start)
-  //      }
-  //    }
-  //
-  //    /* Tries to use the cached Execution to send a UseCachedCall message.  If anything fails, send an InitialStartCall message */
-  //    def loadCachedCallOrInitiateCall(cachedDescriptor: Try[WorkflowDescriptor], cachedExecution: Execution) = cachedDescriptor match {
-  //      case Success(descriptor) => loadCachedBackendCallAndMessage(descriptor, cachedExecution)
-  //      case Failure(ex) =>
-  //        log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
-  //        self ! InitialStartCall(callKey, CallActor.Start)
-  //    }
-  //
-  //    if (backendCall.workflowDescriptor.readFromCache) {
-  //      backendCall.hash map { hash =>
-  //        globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
-  //          case Success(executions) if executions.nonEmpty =>
-  //            val cachedExecution = executions.head
-  //            globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
-  //              loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
-  //            }
-  //          case Success(_) =>
-  //            log.info(s"Call Caching: cache miss")
-  //            self ! InitialStartCall(callKey, CallActor.Start)
-  //          case Failure(ex) =>
-  //            log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
-  //            self ! InitialStartCall(callKey, CallActor.Start)
-  //        }
-  //      } recover { case e =>
-  //        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
-  //        scheduleTransition(WorkflowFailed)
-  //      }
-  //    }
-  //    else {
-  //      log.info(s"Call caching 'readFromCache' is turned off, starting call")
-  //      self ! InitialStartCall(callKey, CallActor.Start)
-  //    }
-  //  }
 
   private def processRunnableCall(callKey: CallKey): Try[ExecutionStartResult] = {
     // In the `startRunnableCalls` context, record the call as Starting and initiate persistence.

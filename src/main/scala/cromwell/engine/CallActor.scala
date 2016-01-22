@@ -1,11 +1,13 @@
 package cromwell.engine
 
-import java.nio.file.Paths
+import java.io.File
+import java.nio.file.{Files, Paths}
 
 import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
+import com.intel.ccc.dispatcher.adapter.CCCBackend
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendActor.Prepare
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
@@ -18,7 +20,7 @@ import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.WorkflowActor.{InitialStartCall, UseCachedCall}
+import cromwell.engine.workflow.WorkflowActor.InitialStartCall
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
@@ -37,7 +39,8 @@ object CallActor {
   sealed trait StartMode extends CallActorMessage
   case object Start extends StartMode
 //  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
-  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode
+//TODO: [caching] Need to re-use this for caching
+//  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
   final case class ExecutionFinished(call: Call, executionResult: cromwell.engine.backend.ExecutionResult) extends CallActorMessage
@@ -99,9 +102,6 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   val actorSystem = context.system
   implicit val ec = actorSystem.dispatcher
 
-  // TODO: [gaurav] Need this to not be a var and move it to somewhere else
-  var backend: Backend = _
-
   val call = key.scope
   val akkaLogger = Logging(context.system, classOf[CallActor])
   val logger = WorkflowLogger(
@@ -120,20 +120,20 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   }
 
   when(CallNotStarted) {
-    case Event(_@Initialize, _) =>
+//    case Event(_@Initialize, _) =>
 //      sendStartMessage()
-      stay()
+//      stay()
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
       context.parent ! WorkflowActor.CallStarted(key)
-//      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
+      //      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
       //TODO: Take care of the 'Backend' type
-      val backendActor = createBackendActor()
-      subscribe(self, backendActor)
-//      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
-//      context.actorOf(CallExecutionActor.props(), executionActorName) ! backendActor
+      val backend: ActorRef = createBackendActor()
+      subscribe(self, backend)
       goto(CallRunningAbortUnavailable)
+    //      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
+    //      context.actorOf(CallExecutionActor.props(), executionActorName) ! backendActor
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
 
@@ -252,95 +252,37 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }
 
-  //----------------------------------------------------------------------------------------//
-  //                                        NEW CHANGES                                     //
-  //----------------------------------------------------------------------------------------//
-
   private def subscribe(subscriberActorRef: ActorRef, backendActor: ActorRef) = {
     val subscription = Subscription[ActorRef](new ExecutionEvent, subscriberActorRef)
     backendActor ! BackendActor.SubscribeToEvent[ActorRef](subscription)
   }
 
   // Currently this method will create a backend
-  def createBackendActor(): ActorRef = {
+  private def createBackendActor(): ActorRef = {
+    val backendName: String = call.task.runtimeAttributes.attrs.get("backendName").headOption.map(_.head).getOrElse("")
     val backendConfig = BackendConfiguration.apply()
-    val backend = backendConfig.getDefaultBackend()
+    val defaultBackendCfgEntry = backendConfig.getDefaultBackend()
+    val backendCfgEntry = backendConfig.getAllBackendConfigurations().filter(_.name.equals(backendName)).headOption.getOrElse(defaultBackendCfgEntry)
     val task = buildTaskDescriptor()
-    val backendActor = DefaultBackendFactory.getBackend(backend.initClass, actorSystem, task)
-    backendActor
+    backendCfgEntry.`type` match {
+      //TODO: Should be config based
+      case "ActorBased" => DefaultBackendFactory.getBackend(backendCfgEntry.initClass, actorSystem, task)
+      case oops => throw new IllegalStateException(s"Unknown type of backend defined: $oops! Only ActorBased allowed!")
+    }
   }
 
   /**
     * Returns a TaskDescriptor, given the context of a task
+    *
     * @return
     */
   private def buildTaskDescriptor(): TaskDescriptor = {
     val name = call.fullyQualifiedName
     val user = System.getProperty("user.name")
-
     // Need Declarations, CallInputs, command template sequence
     val cmdTemplateSeq = call.task.commandTemplate
     val declarations = call.task.declarations
     val runtimeAttributes = call.task.runtimeAttributes.attrs.map{case (k,v) => (k,v.head)}
     TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}" , locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
-  }
-
-  private def sendStartMessage() = {
-    def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
-    val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
-    val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
-
-    def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
-      descriptor.namespace.resolve(cachedExecution.callFqn) match {
-        case Some(c: Call) =>
-          val cachedCall = backend.bindCall(
-            descriptor,
-            CallKey(c, Option(cachedExecution.index)),
-            locallyQualifiedInputs,
-            AbortRegistrationFunction(registerAbortFunction)
-          )
-          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
-          context.parent ! WorkflowActor.UseCachedCall(key, CallActor.UseCachedCall(cachedCall, backendCall))
-        case _ =>
-          log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
-          context.parent ! InitialStartCall(key, CallActor.Start)
-      }
-    }
-
-    /* Tries to use the cached Execution to send a UseCachedCall message.  If anything fails, send an InitialStartCall message */
-    def loadCachedCallOrInitiateCall(cachedDescriptor: Try[WorkflowDescriptor], cachedExecution: Execution) = cachedDescriptor match {
-      case Success(descriptor) => loadCachedBackendCallAndMessage(descriptor, cachedExecution)
-      case Failure(ex) =>
-        log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
-        context.parent ! InitialStartCall(key, CallActor.Start)
-    }
-
-    if (backendCall.workflowDescriptor.readFromCache) {
-      backendCall.hash map { hash =>
-        globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
-          case Success(executions) if executions.nonEmpty =>
-            val cachedExecution = executions.head
-            globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
-              loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
-            }
-          case Success(_) =>
-            log.info(s"Call Caching: cache miss")
-            context.parent ! InitialStartCall(key, CallActor.Start)
-          case Failure(ex) =>
-            log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
-            context.parent ! InitialStartCall(key, CallActor.Start)
-        }
-      } recover { case e =>
-        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
-        val failedExecution = FailedExecution(e)
-        handleFinished(call, failedExecution)
-        //        context.parent ! WorkflowActor.CallFailed(callKey)
-        //        scheduleTransition(WorkflowFailed)
-      }
-    }
-    else {
-      log.info(s"Call caching 'readFromCache' is turned off, starting call")
-      context.parent ! InitialStartCall(key, CallActor.Start)
-    }
   }
 }

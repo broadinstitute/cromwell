@@ -18,7 +18,7 @@ class SameNameParametersSpec extends FlatSpec with Matchers {
   val task = namespace1.findTask("test").get
 
   "A task with command that uses the same parameter more than once" should "only count it as one input" in {
-    task.inputs shouldEqual Seq(TaskInput(name="x", wdlType=WdlStringType))
+    task.declarations.map(_.toWdlString) shouldEqual Seq("String x")
   }
 
   it should "instantiate the command with duplicated parameter names properly" in {

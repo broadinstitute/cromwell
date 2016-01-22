@@ -198,6 +198,20 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
+  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WdlType) = {
+    s"""ERROR: Value for ${declName.getSourceString} is not coerceable into a ${declType.toWdlString}:
+        |
+       |${pointToSource(declName)}
+     """.stripMargin
+  }
+
+  def failedToDetermineTypeOfDeclaration(declName: Terminal) = {
+    s"""ERROR: Could not determine type of declaration ${declName.getSourceString}:
+       |
+       |${pointToSource(declName)}
+     """.stripMargin
+  }
+
   def trueAndFalseAttributesAreRequired(firstAttribute: Terminal) = {
     s"""ERROR: Both 'true' and 'false' attributes must be specified if either is specified:
        |

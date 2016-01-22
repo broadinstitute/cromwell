@@ -27,7 +27,7 @@ object Call {
     val callInputSectionMappings = processCallInput(ast, wdlSyntaxErrorFormatter)
 
     callInputSectionMappings foreach { case (taskParamName, expression) =>
-      task.inputs find { taskInput => taskInput.name == taskParamName } getOrElse {
+      task.declarations find { decl => decl.name == taskParamName } getOrElse {
         /*
           FIXME-ish
           It took me a while to figure out why this next part is necessary and it's kind of hokey.
@@ -92,7 +92,7 @@ case class Call(alias: Option[String],
    * are satisfied via the 'input' section of the Call definition.
    */
   def unsatisfiedInputs: Seq[WorkflowInput] = for {
-    i <- task.inputs if !inputMappings.contains(i.name)
+    i <- task.declarations if !inputMappings.contains(i.name) && i.expression.isEmpty
   } yield WorkflowInput(s"$fullyQualifiedName.${i.name}", i.wdlType, i.postfixQuantifier)
 
   override def toString: String = s"[Call name=$unqualifiedName, task=$task]"
@@ -102,6 +102,11 @@ case class Call(alias: Option[String],
    */
   def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions[WdlValue]): Try[String] =
     task.instantiateCommand(inputs, functions)
+
+  /**
+    * @return Seq[ScopedDeclaration] which are scoped to this Call
+    */
+  def scopedDeclarations: Seq[ScopedDeclaration] = task.declarations.map(decl => ScopedDeclaration(this, decl))
 
   override def rootWorkflow: Workflow = parent map { _.rootWorkflow } getOrElse { throw new IllegalStateException("Call not in workflow") }
 }

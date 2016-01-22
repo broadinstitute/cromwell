@@ -153,7 +153,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatOutput(output: TaskOutput, level:Int): String = {
-    indent(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.expression.toString(highlighter)}", level)
+    indent(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.requiredExpression.toString(highlighter)}", level)
   }
 
   private def formatWorkflow(workflow: Workflow): String = {

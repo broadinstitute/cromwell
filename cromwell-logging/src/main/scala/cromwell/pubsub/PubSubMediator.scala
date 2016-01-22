@@ -5,6 +5,12 @@ import akka.actor.{Props, Actor, ActorRef, ActorSystem}
 /**
   * Created by himanshu on 1/12/16.
   */
+/**
+  * This is a wrapper to Eventstream as one of the event bus with SubChannel trait,
+  * it is defined inside business logging component but later it needs to moved out
+  * to separate place.
+  */
+//TODO:Needs to move some other place 
 trait PubSubMediator{
 
   /**

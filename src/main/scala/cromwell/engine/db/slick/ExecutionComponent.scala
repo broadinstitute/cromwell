@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.db.ExecutionDatabaseKey
+import slick.profile.RelationalProfile.ColumnOption.Default
 
 import scala.language.postfixOps
 
@@ -35,7 +36,7 @@ trait ExecutionComponent {
     def rc = column[Option[Int]]("RC")
     def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
-    def allowsResultReuse = column[Boolean]("ALLOWS_RESULT_REUSE")
+    def allowsResultReuse = column[Boolean]("ALLOWS_RESULT_REUSE", Default(true))
     def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
     def resultsClonedFrom = column[Option[Int]]("RESULTS_CLONED_FROM")
     def executionHash = column[Option[String]]("EXECUTION_HASH")
@@ -45,6 +46,11 @@ trait ExecutionComponent {
 
     def workflowExecution = foreignKey(
       "FK_EXECUTION_WORKFLOW_EXECUTION_ID", workflowExecutionId, workflowExecutions)(_.workflowExecutionId)
+
+    def resultsClonedFromExecution = foreignKey(
+      "FK_RESULTS_CLONED_FROM", resultsClonedFrom, executions)(_.executionId.?, onDelete = ForeignKeyAction.SetNull)
+
+    def hashIndex = index("HASH_INDEX", executionHash, unique = false)
 
     def uniqueKey = index("UK_WORKFLOW_CALL_INDEX", (workflowExecutionId, callFqn, index), unique = true)
   }

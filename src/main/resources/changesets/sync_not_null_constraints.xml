@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+    <changeSet author="kshakir" id="job_not_null_columns">
+        <comment>
+            Adds missing not null constraints to various tables.
+        </comment>
+        <dropNotNullConstraint
+                tableName="JES_JOB" columnName="JES_RUN_ID"
+                columnDataType="VARCHAR(100)"/>
+        <dropNotNullConstraint
+                tableName="JES_JOB" columnName="JES_STATUS"
+                columnDataType="VARCHAR(100)"/>
+        <dropNotNullConstraint
+                tableName="SGE_JOB" columnName="SGE_JOB_NUMBER"
+                columnDataType="INT"/>
+    </changeSet>
+
+    <changeSet author="kshakir" id="events_end_dt_not_null" dbms="!mysql">
+        <comment>
+            Changes the execution event end date to not null.
+        </comment>
+        <addNotNullConstraint
+                tableName="EXECUTION_EVENT" columnName="END_DT"
+                columnDataType="DATETIME"/>
+    </changeSet>
+
+    <changeSet author="kshakir" id="events_end_dt_not_null_milliseconds" dbms="mysql">
+        <comment>
+            Changes the execution event end date to not null.
+        </comment>
+        <addNotNullConstraint
+                tableName="EXECUTION_EVENT" columnName="END_DT"
+                columnDataType="DATETIME(6)"/>
+    </changeSet>
+</databaseChangeLog>

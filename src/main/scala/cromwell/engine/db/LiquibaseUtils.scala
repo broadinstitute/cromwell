@@ -2,8 +2,10 @@ package cromwell.engine.db
 
 import java.sql.Connection
 
-import liquibase.database.DatabaseConnection
 import liquibase.database.jvm.{HsqlConnection, JdbcConnection}
+import liquibase.database.{Database, DatabaseConnection, DatabaseFactory}
+import liquibase.diff.compare.CompareControl
+import liquibase.diff.{DiffGeneratorFactory, DiffResult}
 import liquibase.resource.ClassLoaderResourceAccessor
 import liquibase.{Contexts, LabelExpression, Liquibase}
 import org.hsqldb.persist.HsqlDatabaseProperties
@@ -104,6 +106,59 @@ object LiquibaseUtils {
     */
   def updateSchema(liquibase: Liquibase): Unit = {
     liquibase.update(DefaultContexts, DefaultLabelExpression)
+  }
+
+  /**
+    * Converts a liquibase connection to a liquibase database.
+    *
+    * @param liquibaseConnection The liquibase connection.
+    * @return The liquibase database.
+    */
+  def toDatabase(liquibaseConnection: DatabaseConnection): Database = {
+    DatabaseFactory.getInstance().findCorrectDatabaseImplementation(liquibaseConnection)
+  }
+
+  /**
+    * Compares a reference to a comparison liquibase database.
+    *
+    * @param referenceDatabase The reference liquibase database.
+    * @param comparisonDatabase The comparison liquibase database.
+    * @return The complete diff results.
+    */
+  def compare(referenceDatabase: Database, comparisonDatabase: Database): DiffResult = {
+    DiffGeneratorFactory.getInstance().compare(referenceDatabase, comparisonDatabase, CompareControl.STANDARD)
+  }
+
+  /**
+    * Compares a reference to a comparison JDBC connection.
+    *
+    * @param referenceJdbc The reference connection.
+    * @param comparisonJdbc The comparison connection.
+    * @return The complete diff results.
+    */
+  def compare(referenceJdbc: Connection, comparisonJdbc: Connection): DiffResult = {
+    withConnection(referenceJdbc) { referenceLiquibase =>
+      withConnection(comparisonJdbc) { comparisonLiquibase =>
+        compare(toDatabase(referenceLiquibase), toDatabase(comparisonLiquibase))
+      }
+    }
+  }
+
+  /**
+    * Provides a connection to a block of code, closing the connection afterwards.
+    *
+    * @param jdbcConnection The connection.
+    * @param block The block to run.
+    * @tparam T The return type of the block.
+    * @return The result of running the block.
+    */
+  def withConnection[T](jdbcConnection: Connection)(block: DatabaseConnection => T): T = {
+    val liquibaseConnection = newConnection(jdbcConnection)
+    try {
+      block(liquibaseConnection)
+    } finally {
+      closeConnection(liquibaseConnection)
+    }
   }
 
   /**

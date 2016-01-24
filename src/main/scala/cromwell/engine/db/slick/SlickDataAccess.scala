@@ -138,7 +138,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     //
     // Otherwise, create one DataAccess and hold on to the reference.
     if (this.databaseConfig.getBooleanOr("slick.createSchema", default = true)) {
-      val future = database.run(SchemaManager.updateSchema(databaseConfig, dataAccess.driver, dataAccess.schema))
+      val schemaManager = SchemaManager.fromConfig(this.databaseConfig)
+      val future = schemaManager.updateSchema(dataAccess.driver, dataAccess.schema, database)
       Await.result(future, Duration.Inf)
     }
   }
@@ -154,7 +155,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     case o => wdlType.fromWdlString(dbValue)
   }
 
-  override def shutdown() = database.shutdown
+  override def close(): Unit = database.close()
 
   // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {

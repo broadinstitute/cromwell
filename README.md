@@ -56,11 +56,11 @@ highlight <WDL file> <html|console>
   
 parse <WDL file>
 
-Compares a WDL file against the grammar and writes out an
-abstract syntax tree if it is valid, and a syntax error
-otherwise.  Note that higher-level AST checks are not done
-via this sub-command and the 'validate' subcommand should
-be used for full validation
+  Compares a WDL file against the grammar and writes out an
+  abstract syntax tree if it is valid, and a syntax error
+  otherwise.  Note that higher-level AST checks are not done
+  via this sub-command and the 'validate' subcommand should
+  be used for full validation
 ```
 
 ## validate

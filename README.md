@@ -36,14 +36,6 @@ $ java -jar wdltool.jar
 java -jar wdltool.jar <action> <parameters>
 
 Actions:
-parse <WDL file>
-
-  Compares a WDL file against the grammar and writes out an
-  abstract syntax tree if it is valid, and a syntax error
-  otherwise.  Note that higher-level AST checks are not done
-  via this sub-command and the 'validate' subcommand should
-  be used for full validation
-
 validate <WDL file>
 
   Performs full validation of the WDL file including syntax
@@ -61,6 +53,14 @@ highlight <WDL file> <html|console>
   parameter is the output type.  "html" will output the WDL
   file with <span> tags around elements.  "console" mode
   will output colorized text to the terminal
+  
+parse <WDL file>
+
+Compares a WDL file against the grammar and writes out an
+abstract syntax tree if it is valid, and a syntax error
+otherwise.  Note that higher-level AST checks are not done
+via this sub-command and the 'validate' subcommand should
+be used for full validation
 ```
 
 ## validate

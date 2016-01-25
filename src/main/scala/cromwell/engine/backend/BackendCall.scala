@@ -135,7 +135,7 @@ trait BackendCall {
   def stdoutStderr: CallLogs
 
   @throws[IllegalArgumentException]
-  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, backend.backendType)
+  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, workflowDescriptor.workflowOptions, backend.backendType)
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {
@@ -143,7 +143,7 @@ trait BackendCall {
     val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
     val orderedRuntime = Seq(
       ("docker", dockerHash getOrElse ""),
-      ("defaultZones", runtimeAttributes.defaultZones.sorted.mkString(",")),
+      ("zones", runtimeAttributes.zones.sorted.mkString(",")),
       ("failOnStderr", runtimeAttributes.failOnStderr.toString),
       ("continueOnReturnCode", runtimeAttributes.continueOnReturnCode match {
         case ContinueOnReturnCodeFlag(bool) => bool.toString
@@ -151,7 +151,7 @@ trait BackendCall {
       }),
       ("cpu", runtimeAttributes.cpu.toString),
       ("preemptible", runtimeAttributes.preemptible.toString),
-      ("defaultDisks", runtimeAttributes.defaultDisks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
+      ("disks", runtimeAttributes.disks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
       ("memoryGB", runtimeAttributes.memoryGB.toString)
     )
 

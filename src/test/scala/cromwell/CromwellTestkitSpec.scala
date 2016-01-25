@@ -138,7 +138,7 @@ object CromwellTestkitSpec {
 
     def submit(sources: WorkflowSourceFiles): WorkflowId = {
       val submitMessage = WorkflowManagerActor.SubmitWorkflow(sources)
-      Await.result(manager.ask(submitMessage).mapTo[WorkflowManagerSubmitSuccess], Duration.Inf).id
+      Await.result(manager.ask(submitMessage), Duration.Inf).asInstanceOf[WorkflowManagerSubmitSuccess].id
     }
 
     def workflowOutputs(id: WorkflowId): engine.WorkflowOutputs = {
@@ -159,7 +159,7 @@ object CromwellTestkitSpec {
 }
 
 abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
-with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
+  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
   val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))

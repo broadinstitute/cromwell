@@ -28,8 +28,8 @@ object JesRuntimeInfo {
       .setRamGb(runtimeAttributes.memoryGB)
       .setCpu(runtimeAttributes.cpu)
       .setPreemptible(runtimeAttributes.preemptible)
-      .setZones(runtimeAttributes.defaultZones.asJava)
-      .setDisks(runtimeAttributes.defaultDisks.asJava)
+      .setZones(runtimeAttributes.zones.asJava)
+      .setDisks(runtimeAttributes.disks.asJava)
   }
 }
 

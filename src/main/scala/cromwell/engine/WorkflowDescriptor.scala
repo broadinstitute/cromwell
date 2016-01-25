@@ -191,15 +191,14 @@ object WorkflowDescriptor {
                                          backend: Backend,
                                          conf: Config): ErrorOr[WorkflowDescriptor] = {
     val namespace = validateNamespace(id, sourceFiles.wdlSource)
-    val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
     val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
 
-    val runtimeAttributes = for {
-      n <- namespace.disjunction
-    } yield validateRuntimeAttributes(id, n, backend.backendType)
-
-    (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } flatMap {
-      case (n, r, o, a) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
+    (namespace |@| options) { (_, _) } flatMap { case (nam, opt) =>
+      val runtimeAttributes = validateRuntimeAttributes(id, nam, opt, backend.backendType)
+      val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
+      (runtimeAttributes |@| rawInputs) { (_, _) } flatMap { case (_, raw) =>
+        buildWorkflowDescriptor(id, sourceFiles, nam, raw, opt, backend, conf)
+      }
     }
   }
 
@@ -236,8 +235,8 @@ object WorkflowDescriptor {
     }
   }
 
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }) match {
+  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, workflowOptions: WorkflowOptions, backendType: BackendType): ErrorOr[Unit] = {
+    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, workflowOptions, backendType) }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }

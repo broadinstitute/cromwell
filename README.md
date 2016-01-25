@@ -51,7 +51,7 @@ validate <WDL file>
 
 inputs <WDL file>
 
-  Print a JSON skeleton file of the inputs needed for this
+  Write a JSON skeleton file of the inputs needed for this
   workflow.  Fill in the values in this JSON document and
   pass it in to the 'run' subcommand.
 

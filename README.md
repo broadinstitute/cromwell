@@ -7,8 +7,8 @@ Command line utilities for interacting with WDL
 * [Command Line Usage](#command-line-usage)
   * [validate](#validate)
   * [inputs](#inputs)
-  * [parse](#parse)
   * [highlight](#highlight)
+  * [parse](#parse)
 * [Getting Started with WDL](#getting-started-with-wdl)
 
 <!---toc end-->
@@ -108,23 +108,6 @@ $ java -jar wdltool.jar inputs 3step.wdl
 
 This inputs document is used as input to the `run` subcommand.
 
-## parse
-
-Given a WDL file input, this does grammar level syntax checks and writes out the resulting abstract syntax tree.
-
-```
-$ echo "workflow wf {}" | java -jar wdltool.jar parse /dev/stdin
-(Document:
-  imports=[],
-  definitions=[
-    (Workflow:
-      name=<stdin:1:10 identifier "d2Y=">,
-      body=[]
-    )
-  ]
-)
-```
-
 ## highlight
 
 Formats a WDL file and semantically tags it.  This takes a second parameter (`html` or `console`) which determines what the output format will be.
@@ -144,6 +127,23 @@ task abc {
 workflow wf {
   call abc
 }
+```
+
+## parse
+
+Given a WDL file input, this does grammar level syntax checks and writes out the resulting abstract syntax tree.
+
+```
+$ echo "workflow wf {}" | java -jar wdltool.jar parse /dev/stdin
+(Document:
+  imports=[],
+  definitions=[
+    (Workflow:
+      name=<stdin:1:10 identifier "d2Y=">,
+      body=[]
+    )
+  ]
+)
 ```
 
 This WDL file can be formatted in HTML as follows:

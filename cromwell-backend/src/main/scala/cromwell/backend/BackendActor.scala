@@ -11,8 +11,8 @@ object BackendActor {
   case object Execute extends BackendActorMessage
   case object Stop extends BackendActorMessage
   case object CleanUp extends BackendActorMessage
-  case class SubscribeToEvent[T](subscription: Subscription[T]) extends BackendActorMessage
-  case class UnsubscribeToEvent[T](subscription: Subscription[T]) extends BackendActorMessage
+  case class SubscribeToEvent[A](subscription: Subscription[A]) extends BackendActorMessage
+  case class UnsubscribeToEvent[A](subscription: Subscription[A]) extends BackendActorMessage
 }
 
 /**

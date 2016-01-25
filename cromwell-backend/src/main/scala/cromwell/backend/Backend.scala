@@ -30,10 +30,10 @@ trait Backend extends Cacheable {
   /**
     * Subscribe to events on backend.
     */
-  def subscribeToEvent[T](subscription: Subscription[T]): Unit
+  def subscribeToEvent[A](subscription: Subscription[A]): Unit
 
   /**
     * Unsubscribe to events on backend.
     */
-  def unsubscribeToEvent[T](subscription: Subscription[T]): Unit
+  def unsubscribeToEvent[A](subscription: Subscription[A]): Unit
 }

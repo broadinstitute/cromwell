@@ -1,57 +1,56 @@
 package cromwell.engine
 
-import java.io.File
-import java.nio.file.{Files, Paths}
-
 import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
-
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendActor.Prepare
-import cromwell.backend.{BackendActor, DefaultBackendFactory}
 import cromwell.backend.config.BackendConfiguration
-import cromwell.backend.model._
-import cromwell.engine
-import wdl4s._
-import wdl4s.values.{WdlString, WdlValue}
+import cromwell.backend.{BackendActor, DefaultBackendFactory}
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.backend._
-
-import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.WorkflowActor.InitialStartCall
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
+import wdl4s._
+import wdl4s.values.WdlValue
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-import scala.util.{Try, Success, Failure}
-
 
 object CallActor {
 
   sealed trait CallActorMessage
+
   case object Initialize extends CallActorMessage
+
   sealed trait StartMode extends CallActorMessage
+
   case object Start extends StartMode
-//  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
-//TODO: [caching] Need to re-use this for caching
-//  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode
+
+  //  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
+  //TODO: [caching] Need to re-use this for caching
+  //  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
+
   case object AbortCall extends CallActorMessage
+
   final case class ExecutionFinished(call: Call, executionResult: cromwell.engine.backend.ExecutionResult) extends CallActorMessage
 
   sealed trait CallActorState
+
   case object CallNotStarted extends CallActorState
+
   case object CallRunningAbortUnavailable extends CallActorState
+
   case object CallRunningAbortAvailable extends CallActorState
+
   case object CallRunningAbortRequested extends CallActorState
+
   case object CallAborting extends CallActorState
+
   case object CallDone extends CallActorState
 
   /** The `WorkflowActor` will drop `TerminalCallMessage`s that it is unable to immediately process.  This message
@@ -80,7 +79,9 @@ object CallActor {
     }
 
     /** Attempt to cancel the last timer if there is one registered. */
-    def cancelTimer() = timer foreach { _.cancel() }
+    def cancelTimer() = timer foreach {
+      _.cancel()
+    }
   }
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
@@ -121,9 +122,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   }
 
   when(CallNotStarted) {
-//    case Event(_@Initialize, _) =>
-//      sendStartMessage()
-//      stay()
+    //    case Event(_@Initialize, _) =>
+    //      sendStartMessage()
+    //      stay()
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
@@ -161,7 +162,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
 
   // When in CallAborting, the only message being listened for is the CallComplete message (which is already
   // handled by whenUnhandled.)
-  when(CallAborting) { NullFunction }
+  when(CallAborting) {
+    NullFunction
+  }
 
   when(CallDone) {
     case Event(e, _) =>
@@ -178,11 +181,18 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     case Event(TaskStatus(Status.Created, _), _) =>
       sender ! cromwell.backend.BackendActor.Execute
       stay()
-    case Event(TaskStatus(Status.Canceled | Status.Failed, failed:Option[FailedExecution]), _) =>
-      val failureHandle = new FailedExecution(failed.get.asInstanceOf[FailureResult].exception)
+    case Event(TaskStatus(Status.Canceled | Status.Failed, failed: Option[ExecutionResult]), _) =>
+      val failureHandle = failed match {
+        case Some(result) => processFailedExecutionResult(result)
+        case None => {
+          val errMsg = "Received a canceled or failed status without an execution result."
+          logger.error(errMsg)
+          new FailedExecution(new IllegalStateException(errMsg))
+        }
+      }
       self ! ExecutionFinished(call, failureHandle)
       stay
-    case Event(TaskStatus(Status.Succeeded, result: Option[SuccesfulResult]), _) =>
+    case Event(TaskStatus(Status.Succeeded, result: Option[SuccessfulTaskResult]), _) =>
       val callOps: Map[String, CallOutput] = result.get.outputs.map(output => output._1 -> CallOutput(output._2, None))
       val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
       self ! ExecutionFinished(call, successResult)
@@ -202,6 +212,14 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     case Event(e, _) =>
       logger.error(s"received unhandled event $e while in state $stateName")
       stay()
+  }
+
+  private def processFailedExecutionResult(result: ExecutionResult): FailedExecution = {
+    result match {
+      case res if res.isInstanceOf[FailureTaskResult] => new FailedExecution(res.asInstanceOf[FailureTaskResult].exception)
+      case res if res.isInstanceOf[FailureResult] => new FailedExecution(res.asInstanceOf[FailureResult].exception)
+      case unknown@_ => new FailedExecution(new IllegalStateException(s"Unhandled failure result. Result received: $unknown."))
+    }
   }
 
   private def tryAbort(data: CallActorData): CallActor.this.State = {
@@ -265,11 +283,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     val defaultBackendCfgEntry = backendConfig.getDefaultBackend()
     val backendCfgEntry = backendConfig.getAllBackendConfigurations().filter(_.name.equals(backendName)).headOption.getOrElse(defaultBackendCfgEntry)
     val task = buildTaskDescriptor()
-    backendCfgEntry.`type` match {
-      //TODO: Should be config based
-      case "ActorBased" => DefaultBackendFactory.getBackend(backendCfgEntry.initClass, actorSystem, task)
-      case oops => throw new IllegalStateException(s"Unknown type of backend defined: $oops! Only ActorBased allowed!")
-    }
+    DefaultBackendFactory.getBackend(backendCfgEntry.initClass, actorSystem, task)
   }
 
   /**
@@ -283,7 +297,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     // Need Declarations, CallInputs, command template sequence
     val cmdTemplateSeq = call.task.commandTemplate
     val declarations = call.task.declarations
-    val runtimeAttributes = call.task.runtimeAttributes.attrs.map{case (k,v) => (k,v.head)}
-    TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}" , locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
+    val runtimeAttributes = call.task.runtimeAttributes.attrs.map { case (k, v) => (k, v.head) }
+    TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}", locallyQualifiedInputs, call.task.outputs, runtimeAttributes)
   }
 }

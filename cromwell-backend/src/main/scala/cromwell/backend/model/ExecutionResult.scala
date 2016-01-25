@@ -8,15 +8,21 @@ import wdl4s.values.WdlValue
 trait ExecutionResult
 
 /**
-  * Succesful execution.
+  * Successful task execution.
   * @param outputs Outputs from task.
   */
-case class SuccesfulResult(outputs: Map[String, WdlValue]) extends ExecutionResult
+case class SuccessfulTaskResult(outputs: Map[String, WdlValue]) extends ExecutionResult
 
 /**
-  * Failure execution.
+  * Failure task execution.
   * @param exception Exception generated during task execution.
   * @param rc Return code from command.
   * @param stdErr Standard error data.
   */
-case class FailureResult(exception: Throwable, rc: Option[Int], stdErr: String) extends ExecutionResult
+case class FailureTaskResult(exception: Throwable, rc: Int, stdErr: String) extends ExecutionResult
+
+/**
+  * Failure execution.
+  * @param exception Exception generated during task execution.
+  */
+case class FailureResult(exception: Throwable) extends ExecutionResult

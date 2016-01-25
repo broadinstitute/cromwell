@@ -60,8 +60,8 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   val stderrTailed = stderr.tailed(100)
   val argv = Seq("/bin/bash", script.toString)
   val dockerImage = getDockerImage(task.runtimeAttributes)
-  var processAbortFunc: Option[() => Unit] = None
   val expressionEval = new WorkflowEngineFunctions(executionDir)
+  private var processAbortFunc: Option[() => Unit] = None
 
   /**
     * Prepare the task and context for execution.
@@ -78,7 +78,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
         subs => subs.subscriber ! new TaskStatus(Status.Created, None))
     } catch {
       case ex: Exception => subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-        subs => subs.subscriber ! new TaskStatus(Status.Failed, Some(FailureResult(ex, None, ""))))
+        subs => subs.subscriber ! new TaskStatus(Status.Failed, Some(FailureResult(ex))))
     }
   }
 
@@ -109,7 +109,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   /**
     * Subscribe to events on backend.
     */
-  override def subscribeToEvent[T](subscription: Subscription[T]): Unit = {
+  override def subscribeToEvent[A](subscription: Subscription[A]): Unit = {
     val sub = subscription.asInstanceOf[Subscription[ActorRef]]
     subscriptions += sub
     sub.subscriber ! Subscribed
@@ -118,7 +118,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   /**
     * Unsubscribe to events on backend.
     */
-  override def unsubscribeToEvent[T](subscription: Subscription[T]): Unit = {
+  override def unsubscribeToEvent[A](subscription: Subscription[A]): Unit = {
     val sub = subscription.asInstanceOf[Subscription[ActorRef]]
     subscriptions -= sub
     sub.subscriber ! Unsubscribed
@@ -254,11 +254,11 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     // TODO: check continue on error.
 
     if (stderrFileLength > 0) {
-      TaskStatus(Status.Failed, Some(FailureResult(
-        new IllegalStateException("StdErr file is not empty."), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureTaskResult(
+        new IllegalStateException("StdErr file is not empty."), processReturnCode, stderr.toString)))
     } else if (stderrFileLength <= 0 && processReturnCode != 0) {
-      TaskStatus(Status.Failed, Some(FailureResult(
-        new IllegalStateException("RC code is not equals to zero."), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureTaskResult(
+        new IllegalStateException("RC code is not equals to zero."), processReturnCode, stderr.toString)))
     } else {
       def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(task.inputs, task.declarations, expressionEval)
       val outputsExpressions = task.outputs.map(
@@ -275,14 +275,14 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     */
   private def processOutputResult(processReturnCode: Int, outputsExpressions: Seq[(String, (WdlType, Try[WdlValue]))]): TaskStatus = {
     if (outputsExpressions.filter(_._2._2.isFailure).size > 0) {
-      TaskStatus(Status.Failed, Some(FailureResult(new IllegalStateException("Failed to evaluate output expressions.",
-        outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get), Some(processReturnCode), stderr.toString)))
+      TaskStatus(Status.Failed, Some(FailureTaskResult(new IllegalStateException("Failed to evaluate output expressions.",
+        outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get), processReturnCode, stderr.toString)))
     } else {
       try {
-        TaskStatus(Status.Succeeded, Some(SuccesfulResult(outputsExpressions.map(
+        TaskStatus(Status.Succeeded, Some(SuccessfulTaskResult(outputsExpressions.map(
           output => output._1 -> resolveOutputValue(output._2)).toMap)))
       } catch {
-        case ex: Exception => TaskStatus(Status.Failed, Some(FailureResult(ex, Some(processReturnCode), stderr.toString)))
+        case ex: Exception => TaskStatus(Status.Failed, Some(FailureTaskResult(ex, processReturnCode, stderr.toString)))
       }
     }
   }
@@ -291,22 +291,17 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * 1) Remove all leading newline chars
     * 2) Remove all trailing newline AND whitespace chars
     * 3) Remove all *leading* whitespace that's common among every line in the input string
-    *
     * For example, the input string:
-    *
     * "
     * first line
     * second line
     * third line
     *
     * "
-    *
     * Would be normalized to:
-    *
     * "first line
     * second line
     * third line"
-    *
     * @param s String to process
     * @return String which has common leading whitespace removed from each line
     */

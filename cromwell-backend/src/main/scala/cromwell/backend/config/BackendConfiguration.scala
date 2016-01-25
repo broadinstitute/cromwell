@@ -8,9 +8,8 @@ import scala.collection.JavaConversions._
   * Defines a backend configuration.
   * @param name Backend name.
   * @param initClass Initialization class for the specific backend.
-  * @param `type` Backend type.
   */
-case class BackendConfigurationEntry(name: String, initClass: String, `type`: String)
+case class BackendConfigurationEntry(name: String, initClass: String)
 
 object BackendConfiguration {
   val config = ConfigFactory.load()
@@ -18,7 +17,7 @@ object BackendConfiguration {
   val defaultBackend = backendCfg.getString("default")
   val backendProviders = backendCfg.getConfigList("providers")
   val backendList = backendProviders.map(entry =>
-    BackendConfigurationEntry(entry.getString("name"), entry.getString("initClass"), entry.getString("type"))).toList
+    BackendConfigurationEntry(entry.getString("name"), entry.getString("initClass"))).toList
 
   def apply(): BackendConfiguration = new BackendConfiguration(backendList, defaultBackend)
 }
@@ -29,9 +28,9 @@ object BackendConfiguration {
   * @param defaultBackend Backend name to be used as default.
   */
 class BackendConfiguration(backendList: List[BackendConfigurationEntry], defaultBackend: String) {
-
   /**
-    * Gets default backend configuration.
+    * Gets default backend configuration. There will be always just one default backend defined in configuration file.
+    * It lookup for the backend definition which contains the name defined in 'default' entry in backend configuration.
     * @return Backend configuration.
     */
   def getDefaultBackend(): BackendConfigurationEntry = {

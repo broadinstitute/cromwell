@@ -5,6 +5,7 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.{Actor, Props, Status}
 import better.files._
+import cromwell.util.TerminalUtil
 import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wdl4s.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
@@ -20,6 +21,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Future, Await, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Main.deprecationNotice
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -66,6 +68,10 @@ object Main extends App {
     argCapitalized = arg.capitalize
     action <- Actions.values find (_.toString == argCapitalized)
   } yield action
+
+  def deprecationNotice(): Unit = {
+    Console.err.println(TerminalUtil.highlight(1, "This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool"))
+  }
 }
 
 /** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
@@ -102,12 +108,14 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   }
 
   def validate(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 1) {
       loadWdl(args.head) { _ => 0 }
     }
   }
 
   def highlight(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 2 && Seq("html", "console").contains(args(1))) {
       loadWdl(args.head) { namespace =>
         val formatter = new SyntaxFormatter(if (args(1) == "html") HtmlSyntaxHighlighter else AnsiSyntaxHighlighter)
@@ -118,6 +126,7 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   }
 
   def inputs(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 1) {
       loadWdl(args.head) { namespace =>
         import wdl4s.types.WdlTypeJsonFormatter._
@@ -273,6 +282,7 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   }
 
   def parse(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 1) {
       println(AstTools.getAst(new JFile(args.head)).toPrettyString)
       0
@@ -304,6 +314,8 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
         |
         |parse <WDL file>
         |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
+        |
         |  Compares a WDL file against the grammar and prints out an
         |  abstract syntax tree if it is valid, and a syntax error
         |  otherwise.  Note that higher-level AST checks are not done
@@ -312,16 +324,22 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
         |
         |validate <WDL file>
         |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
+        |
         |  Performs full validation of the WDL file including syntax
         |  and semantic checking
         |
         |inputs <WDL file>
+        |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
         |
         |  Print a JSON skeleton file of the inputs needed for this
         |  workflow.  Fill in the values in this JSON document and
         |  pass it in to the 'run' subcommand.
         |
         |highlight <WDL file> <html|console>
+        |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
         |
         |  Reformats and colorizes/tags a WDL file. The second
         |  parameter is the output type.  "html" will output the WDL

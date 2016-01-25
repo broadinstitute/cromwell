@@ -31,7 +31,7 @@
     <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
   </appender>
 
-  <logger name="cromwell.logging.BusinessLogEvent" level="INFO" additivity="false">
+  <logger name="cromwell.logging.LogWorkflowEvent" level="INFO" additivity="false">
     <appender-ref ref="LOGSTASH"/>
   </logger>
 

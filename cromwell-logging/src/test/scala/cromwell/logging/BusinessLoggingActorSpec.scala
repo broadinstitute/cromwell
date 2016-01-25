@@ -13,9 +13,9 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
   var logMessage = "message"
   var subscribed  = false
 
-  trait MockBusinessLogEvent extends BusinessLogEvent {
+  trait MockLogWorkflowEvent extends LogWorkflowEvent {
 
-    override def onBusinessLoggingEvent = (topic: WorkflowEvent, payload: Any) => Some(topic) collect {
+    override def onWorkflowEvent = (topic: WorkflowEvent, payload: Any) => Some(topic) collect {
       case event@(CallExecutionEvent | WorkflowExecutionEvent) =>
         logMessage = payload.toString
     }
@@ -43,7 +43,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
 
   "BusinessLogging Actor " must {
     "subscribe a subscriber to " in {
-      val actor = TestActorRef(new BusinessLogging() with MockBusinessLogEvent with MockPubSubMediator)
+      val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with MockPubSubMediator)
       actor ! SubscribeToLogging
       assert(subscribed == true)
     }
@@ -51,7 +51,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
 
   "BusinessLogging Actor " must {
     "ubsubscribe a subscriber to " in {
-      val actor = TestActorRef(new BusinessLogging() with MockBusinessLogEvent with MockPubSubMediator)
+      val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with MockPubSubMediator)
       actor ! SubscribeToLogging
       actor ! UnSubscribeToLogging
       assert(subscribed == false)
@@ -60,7 +60,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
 
   "BusinessLogging Actor " must {
     "subscribe a subscriber and pubsubmediator publish message " in {
-      val actor = TestActorRef(new BusinessLogging() with MockBusinessLogEvent with PubSubMediator)
+      val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with PubSubMediator)
       actor ! SubscribeToLogging
       PubSubMediator.publish(WorkflowExecutionEvent,"workflowevent")
       Thread.sleep(1000L)
@@ -71,7 +71,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
   "BusinessLogging Actor " must {
     "subscribe a subscriber and pubsubmediator publish null message " in {
       logMessage = "message"
-      val actor = TestActorRef(new BusinessLogging() with MockBusinessLogEvent with PubSubMediator)
+      val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with PubSubMediator)
       actor ! SubscribeToLogging
       PubSubMediator.publish(null,"workflowevent")
       Thread.sleep(1000L)

@@ -37,8 +37,8 @@ case object WorkflowExecutionEvent extends WorkflowEvent
   * To report Business logging received as event from
   * different components inside cromwell.
   */
-trait BusinessLogEvent extends LogWrapper {
-  def eventLogger():Logger = LoggerFactory.getLogger("cromwell.logging.BusinessLogEvent")
+trait LogWorkflowEvent extends LogWrapper {
+  def eventLogger():Logger = LoggerFactory.getLogger("cromwell.logging.LogWorkflowEvent")
 
   override def info(message:String) = eventLogger().info(message)
   override def info(message:String , t:Throwable) = {
@@ -73,7 +73,7 @@ trait BusinessLogEvent extends LogWrapper {
     * This method receive events from different actor inside cromwell engine
     * like WorkflowActor , CallActor and so on.
     */
-  def onBusinessLoggingEvent():(WorkflowEvent , Any) => Option[Unit] = {
+  def onWorkflowEvent():(WorkflowEvent , Any) => Option[Unit] = {
     (topic:WorkflowEvent, payload:Any) => Some(topic) collect {
       case event@(CallExecutionEvent | WorkflowExecutionEvent) =>
         logEvent(s"topic => $event and payload => $payload")
@@ -82,23 +82,23 @@ trait BusinessLogEvent extends LogWrapper {
 
 }
 
-sealed trait BusinessLoggingMessage
-case object SubscribeToLogging extends BusinessLoggingMessage
-case object UnSubscribeToLogging extends BusinessLoggingMessage
+sealed trait EventLoggingMessage
+case object SubscribeToLogging extends EventLoggingMessage
+case object UnSubscribeToLogging extends EventLoggingMessage
 
 /**
   * Specific logging implementation which is interested in listening
   * workflow event that could further categorize into workflow execution event
   * and call execution event.
   */
-class BusinessLogging() extends Actor with ActorLogging {
-  this:BusinessLogEvent with PubSubMediator=>
+class WorkflowEventLogging() extends Actor with ActorLogging {
+  this:LogWorkflowEvent with PubSubMediator=>
 
   implicit val timeout = Timeout(10 seconds)
   implicit val actorSystem = context.system
 
   def actorRefFactory: ActorContext = context
-  val subscriber = actorSystem.actorOf(Subscriber.props[WorkflowEvent](onBusinessLoggingEvent()), s"BusinessLogging_${this.hashCode()}")
+  val subscriber = actorSystem.actorOf(Subscriber.props[WorkflowEvent](onWorkflowEvent()), s"BusinessLogging_${this.hashCode()}")
 
   override def receive:Receive = {
     case SubscribeToLogging =>
@@ -110,6 +110,6 @@ class BusinessLogging() extends Actor with ActorLogging {
   }
 }
 
-object BusinessLogging {
-  def props():Props = Props(new BusinessLogging() with BusinessLogEvent with PubSubMediator)
+object WorkflowEventLogging {
+  def props():Props = Props(new WorkflowEventLogging() with LogWorkflowEvent with PubSubMediator)
 }

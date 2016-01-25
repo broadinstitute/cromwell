@@ -22,7 +22,7 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.engine.{CallOutput, HostInputs, CallOutputs, EnhancedFullyQualifiedName}
-import cromwell.logging.{SubscribeToLogging, BusinessLogging, WorkflowExecutionEvent, WorkflowLogger}
+import cromwell.logging.{SubscribeToLogging, WorkflowEventLogging, WorkflowExecutionEvent, WorkflowLogger}
 import cromwell.util.TerminalUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -235,7 +235,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
 
-  val workflowLogger = context.actorOf(BusinessLogging.props(), "BusinessLogging")
+  val workflowLogger = context.actorOf(WorkflowEventLogging.props(), "BusinessLogging")
   workflowLogger ! SubscribeToLogging
 
   startWith(WorkflowSubmitted, WorkflowData())

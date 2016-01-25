@@ -15,7 +15,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
 
   trait MockLogWorkflowEvent extends LogWorkflowEvent {
 
-    override def onWorkflowEvent = (topic: WorkflowEvent, payload: Any) => Some(topic) collect {
+    override def onWorkflowEvent = (topic: WorkflowEvent, payload: Any) => Option(topic) collect {
       case event@(CallExecutionEvent | WorkflowExecutionEvent) =>
         logMessage = payload.toString
     }

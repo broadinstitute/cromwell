@@ -73,13 +73,12 @@ trait LogWorkflowEvent extends LogWrapper {
     * This method receive events from different actor inside cromwell engine
     * like WorkflowActor , CallActor and so on.
     */
-  def onWorkflowEvent():(WorkflowEvent , Any) => Option[Unit] = {
-    (topic:WorkflowEvent, payload:Any) => Some(topic) collect {
+  def onWorkflowEvent():(WorkflowEvent, Any) => Option[Unit] = {
+    (topic:WorkflowEvent, payload:Any) => Option(topic) collect  {
       case event@(CallExecutionEvent | WorkflowExecutionEvent) =>
         logEvent(s"topic => $event and payload => $payload")
     }
   }
-
 }
 
 sealed trait EventLoggingMessage

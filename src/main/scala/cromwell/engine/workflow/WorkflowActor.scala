@@ -527,19 +527,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     *  Publish workflow structure to centralized logging.
     */
   private def publishWorkflowEvent() : Unit = {
-
     import org.json4s._
     import org.json4s.native.Serialization.{write}
 
     logger.info(s"--------> publishWorkflowEvent ")
     implicit val formats = DefaultFormats + FieldSerializer[WorkflowExecution]()
-    implicit val actorSystem = context.system;
+    implicit val actorSystem = context.system
 
-    for{
-      status <-globalDataAccess.getWorkflowExecution(workflow.id)
-    } yield {
-      PubSubMediator.publish(WorkflowExecutionEvent,write(status))
-    }
+    for {
+      status <- globalDataAccess.getWorkflowExecution(workflow.id)
+    } yield PubSubMediator.publish(WorkflowExecutionEvent,write(status))
 
   }
 

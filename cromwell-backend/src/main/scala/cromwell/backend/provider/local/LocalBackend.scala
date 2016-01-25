@@ -46,7 +46,8 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   import LocalBackend._
 
   implicit val timeout = Timeout(10 seconds)
-  val subscriptions = ArrayBuffer[Subscription[ActorRef]]()
+  private val subscriptions = ArrayBuffer[Subscription[ActorRef]]()
+  private var processAbortFunc: Option[() => Unit] = None
 
   val workingDir = task.workingDir
   val taskWorkingDir = task.name
@@ -61,7 +62,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   val argv = Seq("/bin/bash", script.toString)
   val dockerImage = getDockerImage(task.runtimeAttributes)
   val expressionEval = new WorkflowEngineFunctions(executionDir)
-  private var processAbortFunc: Option[() => Unit] = None
+
 
   /**
     * Prepare the task and context for execution.
@@ -74,11 +75,9 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
       val command = initiateCommand()
       logger.debug(s"Creating bash script for executing command: ${command}.")
       writeBashScript(command, executionDir)
-      subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-        subs => subs.subscriber ! new TaskStatus(Status.Created, None))
+      notifyToSubscribers(new TaskStatus(Status.Created))
     } catch {
-      case ex: Exception => subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-        subs => subs.subscriber ! new TaskStatus(Status.Failed, Some(FailureResult(ex))))
+      case ex: Exception => notifyToSubscribers(new TaskFinalStatus(Status.Failed, FailureResult(ex)))
     }
   }
 
@@ -87,24 +86,20 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     */
   override def stop(): Unit = {
     processAbortFunc.get.apply()
-    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! new TaskStatus(Status.Canceled, None))
+    notifyToSubscribers(new TaskStatus(Status.Canceled))
   }
 
   /**
     * Executes task in given context.
     */
   override def execute(): Unit = {
-    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! executeTask)
+    notifyToSubscribers(executeTask)
   }
 
   /**
     * Performs a cleanUp after the task was executed.
     */
-  override def cleanUp(): Unit = {
-    // Do nothing.
-  }
+  override def cleanUp(): Unit = ()
 
   /**
     * Subscribe to events on backend.
@@ -141,6 +136,15 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   override def computeContainerImageHash(imageName: String): Map[String, String] = ???
 
   /**
+    * Notifies to subscribers about a new event while executing the task.
+    * @param message A task status event.
+    */
+  private def notifyToSubscribers(message: ExecutionEvent): Unit = {
+    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
+      subs => subs.subscriber ! message)
+  }
+
+  /**
     * Gather Docker image name from runtime attributes. It it's not present returns none.
     * @param runtimeAttributes Runtime requirements for the task.
     */
@@ -148,9 +152,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     if (runtimeAttributes.filter(p => p._1.equals(DockerFlag)).size == 1 &&
       !runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head.isEmpty) {
       Some(runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head)
-    } else {
-      None
-    }
+    } else None
   }
 
   /**
@@ -231,7 +233,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * Run a command using a bash script.
     * @return A TaskStatus with the final status of the task.
     */
-  private def executeTask(): TaskStatus = {
+  private def executeTask(): TaskFinalStatus = {
     def getCmdToExecute(): Seq[String] = dockerImage match {
       case Some(image) => buildDockerRunCommand(image).split(" ").toSeq
       case None => argv
@@ -239,8 +241,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
 
     val process = getCmdToExecute.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
     processAbortFunc = Some(() => process.destroy())
-    subscriptions.filter(subs => subs.eventType.isInstanceOf[ExecutionEvent]).foreach(
-      subs => subs.subscriber ! new TaskStatus(Status.Running, None))
+    notifyToSubscribers(new TaskStatus(Status.Running))
     val backendCommandString = argv.map(s => "\"" + s + "\"").mkString(" ")
     logger.debug(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
@@ -254,11 +255,11 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     // TODO: check continue on error.
 
     if (stderrFileLength > 0) {
-      TaskStatus(Status.Failed, Some(FailureTaskResult(
-        new IllegalStateException("StdErr file is not empty."), processReturnCode, stderr.toString)))
+      TaskFinalStatus(Status.Failed, FailureTaskResult(
+        new IllegalStateException("StdErr file is not empty."), processReturnCode, stderr.toString))
     } else if (stderrFileLength <= 0 && processReturnCode != 0) {
-      TaskStatus(Status.Failed, Some(FailureTaskResult(
-        new IllegalStateException("RC code is not equals to zero."), processReturnCode, stderr.toString)))
+      TaskFinalStatus(Status.Failed, FailureTaskResult(
+        new IllegalStateException("RC code is not equals to zero."), processReturnCode, stderr.toString))
     } else {
       def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(task.inputs, task.declarations, expressionEval)
       val outputsExpressions = task.outputs.map(
@@ -273,16 +274,16 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * @param outputsExpressions Outputs.
     * @return TaskStatus with final status of the task.
     */
-  private def processOutputResult(processReturnCode: Int, outputsExpressions: Seq[(String, (WdlType, Try[WdlValue]))]): TaskStatus = {
+  private def processOutputResult(processReturnCode: Int, outputsExpressions: Seq[(String, (WdlType, Try[WdlValue]))]): TaskFinalStatus = {
     if (outputsExpressions.filter(_._2._2.isFailure).size > 0) {
-      TaskStatus(Status.Failed, Some(FailureTaskResult(new IllegalStateException("Failed to evaluate output expressions.",
-        outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get), processReturnCode, stderr.toString)))
+      TaskFinalStatus(Status.Failed, FailureTaskResult(new IllegalStateException("Failed to evaluate output expressions.",
+        outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get), processReturnCode, stderr.toString))
     } else {
       try {
-        TaskStatus(Status.Succeeded, Some(SuccessfulTaskResult(outputsExpressions.map(
-          output => output._1 -> resolveOutputValue(output._2)).toMap)))
+        TaskFinalStatus(Status.Succeeded, SuccessfulTaskResult(outputsExpressions.map(
+          output => output._1 -> resolveOutputValue(output._2)).toMap))
       } catch {
-        case ex: Exception => TaskStatus(Status.Failed, Some(FailureTaskResult(ex, processReturnCode, stderr.toString)))
+        case ex: Exception => TaskFinalStatus(Status.Failed, FailureTaskResult(ex, processReturnCode, stderr.toString))
       }
     }
   }

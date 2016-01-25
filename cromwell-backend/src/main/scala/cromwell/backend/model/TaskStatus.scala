@@ -11,6 +11,11 @@ object Status extends Enumeration {
 }
 
 /**
-  * Defines a task status with its result data.
+  * Defines a task intermediate status.
   */
-case class TaskStatus(status: Status, result: Option[ExecutionResult]) extends ExecutionEvent
+case class TaskStatus(status: Status) extends ExecutionEvent
+
+/**
+  * Defines a task final status with the resulting data.
+  */
+case class TaskFinalStatus(status: Status, result: ExecutionResult) extends ExecutionEvent

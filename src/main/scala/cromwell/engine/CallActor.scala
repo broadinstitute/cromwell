@@ -178,22 +178,21 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     case Event(Subscribed, _) =>
       sender ! Prepare
       stay()
-    case Event(TaskStatus(Status.Created, _), _) =>
+    case Event(TaskStatus(Status.Created), _) =>
       sender ! cromwell.backend.BackendActor.Execute
       stay()
-    case Event(TaskStatus(Status.Canceled | Status.Failed, failed: Option[ExecutionResult]), _) =>
-      val failureHandle = failed match {
-        case Some(result) => processFailedExecutionResult(result)
-        case None => {
-          val errMsg = "Received a canceled or failed status without an execution result."
-          logger.error(errMsg)
-          new FailedExecution(new IllegalStateException(errMsg))
-        }
-      }
+    case Event(TaskStatus(Status.Canceled), _) =>
+      val errMsg = "Received a canceled or failed status without an execution result."
+      logger.error(errMsg)
+      val failureHandle = new FailedExecution(new IllegalStateException(errMsg))
       self ! ExecutionFinished(call, failureHandle)
       stay
-    case Event(TaskStatus(Status.Succeeded, result: Option[SuccessfulTaskResult]), _) =>
-      val callOps: Map[String, CallOutput] = result.get.outputs.map(output => output._1 -> CallOutput(output._2, None))
+    case Event(TaskFinalStatus(Status.Failed, result: ExecutionResult), _) =>
+      val failureHandle = processFailedExecutionResult(result)
+      self ! ExecutionFinished(call, failureHandle)
+      stay
+    case Event(TaskFinalStatus(Status.Succeeded, result: SuccessfulTaskResult), _) =>
+      val callOps: Map[String, CallOutput] = result.outputs.map(output => output._1 -> CallOutput(output._2, None))
       val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
       self ! ExecutionFinished(call, successResult)
       stay()

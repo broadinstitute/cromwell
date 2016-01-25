@@ -32,8 +32,8 @@ Tests are run via `sbt test`.  Note that the tests do require Docker to be runni
 Run the JAR file with no arguments to get the usage message:
 
 ```
-$ java -jar cromwell.jar
-java -jar cromwell.jar <action> <parameters>
+$ java -jar wdltool.jar
+java -jar wdltool.jar <action> <parameters>
 
 Actions:
 parse <WDL file>

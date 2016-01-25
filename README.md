@@ -15,7 +15,7 @@ Command line utilities for interacting with WDL
 
 # Requirements
 
-The following is the toolchain used for development of Cromwell.  Other versions may work, but these are recommended.
+The following is the toolchain used for development of wdltool.  Other versions may work, but these are recommended.
 
 * [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7)
 * [SBT 0.13.8](https://github.com/sbt/sbt/releases/tag/v0.13.8)

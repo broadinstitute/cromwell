@@ -7,6 +7,7 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import cromwell.engine.finalcall.FinalCall
 import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values.WdlValue
@@ -185,7 +186,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                               backend: Backend): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => CallKey(call, None)
+      case call: Call => BackendCallKey(call, None)
       case scatter: Scatter => ScatterKey(scatter, None)
       case finalCall: FinalCall => FinalCallKey(finalCall)
     }
@@ -445,7 +446,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
-                                          callKey: CallKey,
+                                          callKey: BackendCallKey,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
     require(backendInfo != null, "backend info is null")
 
@@ -561,7 +562,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     * Updates the existing input symbols to replace expressions with real values.
     * @return The number of rows updated - as a Future.
     */
-  override def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int] = {
+  override def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs): Future[Int] = {
     type ProjectionFunction = SlickDataAccess.this.dataAccess.Symbols => (Rep[String], Rep[Option[Clob]])
     val projectionFn: ProjectionFunction = (s: SlickDataAccess.this.dataAccess.Symbols) => (s.wdlType, s.wdlValue)
 

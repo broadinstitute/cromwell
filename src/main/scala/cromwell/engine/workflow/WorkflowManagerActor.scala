@@ -19,7 +19,6 @@ import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
-import wdl4s.values.WdlFile
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -163,7 +162,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
     def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
-      CallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
+      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
     def backendCallFromKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
       backend.bindCall(descriptor, callKey(descriptor, callName, key))
     for {
@@ -183,7 +182,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
         val callsToPaths = for {
           (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          callKey = CallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
+          callKey = BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
           backendCall = backend.bindCall(descriptor, callKey)
           callStandardOutput = backend.stdoutStderr(backendCall)
         } yield key.fqn -> callStandardOutput

@@ -9,6 +9,11 @@ import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
+import cromwell.engine.workflow.BackendCallKey
+import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
+import cromwell.engine.CallOutputs
+import cromwell.logging.WorkflowLogger
+import cromwell.engine.Hashing._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -60,7 +65,7 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
 
 final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, events, returnCode, hash, resultsClonedFrom)
+  override val result = SuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }
 
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
@@ -79,7 +84,7 @@ trait BackendCall {
    * of a BackendCall object that the 'call' would be within the workflow
    */
   def workflowDescriptor: WorkflowDescriptor
-  def key: CallKey
+  def key: BackendCallKey
   def call = key.scope
 
   /**

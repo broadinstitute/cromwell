@@ -8,7 +8,7 @@ import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.SgeCallBackendInfo
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
@@ -28,7 +28,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def backendType = BackendType.SGE
 
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        key: CallKey,
+                        key: BackendCallKey,
                         locallyQualifiedInputs: CallInputs,
                         abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
     SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
@@ -66,7 +66,8 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
       case FailedExecution(_, _) => ExecutionStatus.Failed
-      case SuccessfulExecution(_, _, _, _, _) => ExecutionStatus.Done
+      case SuccessfulBackendCallExecution(_, _, _, _, _) => ExecutionStatus.Done
+      case SuccessfulFinalCallExecution => ExecutionStatus.Done
     }).toString
 
   private def recordDatabaseFailure(logger: WorkflowLogger, status: String, rc: Int): PartialFunction[Throwable, Unit] = {
@@ -76,7 +77,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]): Future[Unit] = {
     val backendInfo = SgeCallBackendInfo(sgeJobId)
-    globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, CallKey(call.call, call.key.index), backendInfo)
+    globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index), backendInfo)
   }
 
   /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like
@@ -183,7 +184,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
         FailedExecution(new Exception(message), Option(0)).future
       case (r, _) =>
         postProcess(backendCall) match {
-          case Success(callOutputs) => backendCall.hash map { h => SuccessfulExecution(callOutputs, Seq.empty, r, h) }
+          case Success(callOutputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(callOutputs, Seq.empty, r, h) }
           case Failure(e) => FailedExecution(e).future
         }
     }

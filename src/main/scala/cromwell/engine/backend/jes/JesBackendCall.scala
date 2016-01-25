@@ -11,7 +11,7 @@ import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.io.gcs.GcsPath
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor, _}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -20,15 +20,15 @@ import scala.util.{Failure, Success, Try}
 import Hashing._
 
 object JesBackendCall {
-  def jesLogBasename(key: CallKey) = {
+  def jesLogBasename(key: BackendCallKey) = {
     val index = key.index.map(s => s"-$s").getOrElse("")
     s"${key.scope.unqualifiedName}$index"
   }
 
-  def jesLogFilename(key: CallKey) = s"${jesLogBasename(key)}.log"
-  def jesLogStdoutFilename(key: CallKey) = s"${jesLogBasename(key)}-stdout.log"
-  def jesLogStderrFilename(key: CallKey) = s"${jesLogBasename(key)}-stderr.log"
-  def jesReturnCodeFilename(key: CallKey) = s"${jesLogBasename(key)}-rc.txt"
+  def jesLogFilename(key: BackendCallKey) = s"${jesLogBasename(key)}.log"
+  def jesLogStdoutFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stdout.log"
+  def jesLogStderrFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stderr.log"
+  def jesReturnCodeFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-rc.txt"
 
   private def jesOutput(callGcsPath: String, filename: String): JesOutput =
     JesOutput(filename, s"$callGcsPath/$filename", localFilePathFromRelativePath(filename))
@@ -36,7 +36,7 @@ object JesBackendCall {
 
 class JesBackendCall(val backend: JesBackend,
                      val workflowDescriptor: WorkflowDescriptor,
-                     val key: CallKey,
+                     val key: BackendCallKey,
                      val locallyQualifiedInputs: CallInputs,
                      val callAbortRegistrationFunction: Option[AbortRegistrationFunction])
   extends BackendCall with ProductionJesAuthentication with LazyLogging {

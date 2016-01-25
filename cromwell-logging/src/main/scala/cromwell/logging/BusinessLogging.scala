@@ -14,15 +14,15 @@ import scala.language.postfixOps
   */
 trait LogWrapper {
   def debug(message:String)
-  def debug(message:String , t:Throwable)
+  def debug(message:String, t:Throwable)
   def warn(message:String)
-  def warn(message:String , t:Throwable)
+  def warn(message:String, t:Throwable)
   def error(message:String)
-  def error(message:String , t:Throwable)
+  def error(message:String, t:Throwable)
   def trace(message:String)
-  def trace(message:String , t:Throwable)
+  def trace(message:String, t:Throwable)
   def info(message:String)
-  def info(message:String , t:Throwable)
+  def info(message:String, t:Throwable)
 }
 
 /**
@@ -37,32 +37,32 @@ case object WorkflowExecutionEvent extends WorkflowEvent
   * To report Business logging received as event from
   * different components inside cromwell.
   */
-trait BusinessLogEvent extends LogWrapper{
+trait BusinessLogEvent extends LogWrapper {
   def eventLogger():Logger = LoggerFactory.getLogger("cromwell.logging.BusinessLogEvent")
 
   override def info(message:String) = eventLogger().info(message)
   override def info(message:String , t:Throwable) = {
-    eventLogger().info(message,t)
+    eventLogger().info(message, t)
   }
 
   override def debug(message:String) = eventLogger().debug(message)
   override def debug(message:String , t:Throwable) = {
-    eventLogger().debug(message,t)
+    eventLogger().debug(message, t)
   }
 
   override def warn(message:String) = eventLogger().warn(message)
   override def warn(message:String , t:Throwable) = {
-    eventLogger().warn(message,t)
+    eventLogger().warn(message, t)
   }
 
   override def error(message:String) = eventLogger().error(message)
   override def error(message:String , t:Throwable) = {
-    eventLogger().error(message,t)
+    eventLogger().error(message, t)
   }
 
   override def trace(message:String) = eventLogger().trace(message)
   override def trace(message:String , t:Throwable) = {
-    eventLogger().trace(message,t)
+    eventLogger().trace(message, t)
   }
 
   def logEvent(message:String):Unit = {
@@ -74,7 +74,7 @@ trait BusinessLogEvent extends LogWrapper{
     * like WorkflowActor , CallActor and so on.
     */
   def onBusinessLoggingEvent():(WorkflowEvent , Any) => Option[Unit] = {
-    (topic:WorkflowEvent , payload:Any) => Some(topic) collect {
+    (topic:WorkflowEvent, payload:Any) => Some(topic) collect {
       case event@(CallExecutionEvent | WorkflowExecutionEvent) =>
         logEvent(s"topic => $event and payload => $payload")
     }
@@ -98,7 +98,7 @@ class BusinessLogging() extends Actor with ActorLogging {
   implicit val actorSystem = context.system
 
   def actorRefFactory: ActorContext = context
-  val subscriber = actorSystem.actorOf(Subscriber.props[WorkflowEvent](onBusinessLoggingEvent()),s"BusinessLogging_${this.hashCode()}")
+  val subscriber = actorSystem.actorOf(Subscriber.props[WorkflowEvent](onBusinessLoggingEvent()), s"BusinessLogging_${this.hashCode()}")
 
   override def receive:Receive = {
     case SubscribeToLogging =>

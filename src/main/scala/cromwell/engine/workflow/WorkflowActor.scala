@@ -235,7 +235,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
 
-  val workflowLogger = context.actorOf(BusinessLogging.props(),"BusinessLogging")
+  val workflowLogger = context.actorOf(BusinessLogging.props(), "BusinessLogging")
   workflowLogger ! SubscribeToLogging
 
   startWith(WorkflowSubmitted, WorkflowData())
@@ -536,7 +536,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     for {
       status <- globalDataAccess.getWorkflowExecution(workflow.id)
-    } yield PubSubMediator.publish(WorkflowExecutionEvent,write(status))
+    } yield PubSubMediator.publish(WorkflowExecutionEvent, write(status))
 
   }
 

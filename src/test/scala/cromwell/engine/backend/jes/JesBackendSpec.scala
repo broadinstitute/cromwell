@@ -59,6 +59,19 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     JesBackend.isFatalJesException(mockedResponse) shouldBe true
   }
 
+  it should "consider 429 as a transient exception" in {
+    val transport = new MockHttpTransport() {
+      override def buildRequest(method: String, url: String) = {
+        new MockLowLevelHttpRequest() {
+          override def execute() = new MockLowLevelHttpResponse().setStatusCode(429)
+        }
+      }
+    }
+    val request = transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL)
+    val mockedResponse = Try(request.execute()).failed.get
+    JesBackend.isTransientJesException(mockedResponse) shouldBe true
+  }
+
   "adjustInputPaths" should "map GCS paths and *only* GCS paths to local" in {
     val ignoredCall = mock[BackendCallKey]
     val stringKey = "abc"

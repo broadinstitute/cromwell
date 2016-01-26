@@ -3,11 +3,11 @@ package cromwell.util
 import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
+import cromwell.engine.WorkflowSourceFiles
+import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values._
-import cromwell.engine.WorkflowSourceFiles
-import spray.json._
 
 import scala.language.postfixOps
 
@@ -1796,5 +1796,460 @@ object SampleWdl {
         |}
       """.stripMargin
     override val rawInputs = Map.empty[FullyQualifiedName, Any]
+  }
+
+  object WorkflowWithStaticRuntime extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task ps {
+        |  command {
+        |    ps
+        |  }
+        |  output {
+        |    File procs = stdout()
+        |  }
+        |}
+        |
+        |task cgrep {
+        |  String pattern
+        |  File in_file
+        |  command {
+        |    grep '${pattern}' ${in_file} | wc -l
+        |  }
+        |  output {
+        |    Int count = read_int(stdout())
+        |  }
+        |  runtime {docker: "ubuntu:latest"}
+        |}
+        |
+        |workflow two_step {
+        |  call ps
+        |  call cgrep {
+        |    input: in_file=ps.procs
+        |  }
+        |}
+        |
+      """.stripMargin
+
+    val rawInputs = Map(
+      "two_step.cgrep.pattern" -> "abc"
+    )
+  }
+
+  object WorkflowWithThreeTasksAndNoRuntime extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task x {
+        |  command { ps }
+        |}
+        |
+        |task y {
+        |  command { ps }
+        |}
+        |
+        |task z {
+        |  command { ps }
+        |}
+        |
+        |workflow two_step {
+        |  call x
+        |  call y
+        |  call z
+        |}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "two_step.cgrep.pattern" -> "abc"
+    )
+  }
+
+  object WorkflowWithThreeTasksWithRuntimeSections extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task x {
+        |  command { ps }
+        |  runtime { docker: "python:2.7" }
+        |}
+        |
+        |task y {
+        |  command { ps }
+        |  runtime { docker: "python:2.7" }
+        |}
+        |
+        |task z {
+        |  command { ps }
+        |  runtime { docker: "python:2.7" }
+        |}
+        |
+        |workflow two_step {
+        |  call x
+        |  call y
+        |  call z
+        |}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "two_step.cgrep.pattern" -> "abc"
+    )
+  }
+
+  object WorkflowWithoutRuntime extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task hello {
+        |  String addressee
+        |  command {
+        |    echo "Hello ${addressee}!"
+        |  }
+        |  output {
+        |    String salutation = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow hello {
+        |  call hello
+        |}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "hello.hello.addressee" -> "foobar"
+    )
+  }
+
+  object WorkflowWithFailOnStderr extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task echoWithFailOnStderr {
+        |  command {
+        |    echo 66555 >&2
+        |  }
+        |  runtime {
+        |    failOnStderr: "true"
+        |  }
+        |}
+        |task echoWithoutFailOnStderr {
+        |  command {
+        |    echo 66555 >&2
+        |  }
+        |  runtime {
+        |    failOnStderr: "false"
+        |  }
+        |}
+        |
+        |workflow echo_wf {
+        |  call echoWithFailOnStderr
+        |  call echoWithoutFailOnStderr
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithContinueOnReturnCode extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task echoWithSingleContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: 123
+        |  }
+        |}
+        |task echoWithExpressionContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: 123 + 321
+        |  }
+        |}
+        |task echoWithListContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: [0, 1, 2, 3]
+        |  }
+        |}
+        |task echoWithTrueContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: true
+        |  }
+        |}
+        |task echoWithFalseContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: false
+        |  }
+        |}
+        |task echoWithTrueStringContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: "true"
+        |  }
+        |}
+        |task echoWithFalseStringContinueOnReturnCode {
+        |  command {
+        |    cat non_existent_file
+        |  }
+        |  runtime {
+        |    continueOnReturnCode: "false"
+        |  }
+        |}
+        |
+        |workflow echo_wf {
+        |  call echoWithSingleContinueOnReturnCode
+        |  call echoWithExpressionContinueOnReturnCode
+        |  call echoWithListContinueOnReturnCode
+        |  call echoWithTrueContinueOnReturnCode
+        |  call echoWithFalseContinueOnReturnCode
+        |  call echoWithTrueStringContinueOnReturnCode
+        |  call echoWithFalseStringContinueOnReturnCode
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithFullGooglyConfig extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task googly_task {
+        |  command {
+        |    echo "Hello JES!"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |    memory: "4G"
+        |    cpu: "3"
+        |    zones: "US_Metro US_Backwater"
+        |    disks: "Disk1 3 SSD, Disk2 500 HDD"
+        |  }
+        |}
+        |
+        |workflow googly_workflow {
+        |  call googly_task
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithoutGooglyConfig extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task googly_task {
+        |  command {
+        |    echo "Hello JES!"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |  }
+        |}
+        |
+        |workflow googly_workflow {
+        |  call googly_task
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithLocalDiskGooglyConfig extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task googly_task {
+        |  command {
+        |    echo "Hello JES!"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |    disks: "local-disk 123 HDD"
+        |  }
+        |}
+        |
+        |workflow googly_workflow {
+        |  call googly_task
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithMessedUpMemory extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task messed_up_memory {
+        |  command {
+        |      echo "YO"
+        |  }
+        |  runtime {
+        |    memory: "HI TY"
+        |  }
+        |}
+        |
+        |workflow great_googly_moogly {
+        |  call messed_up_memory
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithMessedUpMemoryUnit extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task messed_up_memory {
+        |  command {
+        |      echo "YO"
+        |  }
+        |  runtime {
+        |    memory: "5 TY"
+        |  }
+        |}
+        |
+        |workflow great_googly_moogly {
+        |  call messed_up_memory
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithMessedUpLocalDisk extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task messed_up_disk {
+        |  command {
+        |      echo "YO"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |    disks: "Disk1 123 LOCAL"
+        |  }
+        |}
+        |
+        |workflow great_googly_moogly {
+        |  call messed_up_disk
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithMessedUpDiskSize extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task messed_up_disk {
+        |  command {
+        |      echo "YO"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |    disks: "Disk1 123.0 SSD"
+        |  }
+        |}
+        |
+        |workflow great_googly_moogly {
+        |  call messed_up_disk
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithMessedUpDiskType extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task messed_up_disk {
+        |  command {
+        |    echo "YO"
+        |  }
+        |  runtime {
+        |    docker: "ubuntu:latest"
+        |    disks: "Disk1 123 SDD"
+        |  }
+        |}
+        |
+        |workflow great_googly_moogly {
+        |  call messed_up_disk
+        |}
+      """.stripMargin
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
+  object WorkflowWithRuntimeAttributeExpressions extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task test {
+        |  String tag
+        |  Int disk_gb
+        |  Int memory_gb
+        |
+        |  command { ps }
+        |  runtime {
+        |    docker: "ubuntu:" + tag
+        |    disks: "Disk1 " + disk_gb + " SSD"
+        |    memory: memory_gb + " GB"
+        |  }
+        |}
+        |
+        |workflow w {call test}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "w.test.tag" -> "latest",
+      "w.test.disk_gb" -> 9,
+      "w.test.memory_gb" -> 7
+    )
+  }
+
+  object WorkflowWithRuntimeAttributeExpressions2 extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task x {
+        |  Int a
+        |  Int b = a * 1000
+        |  String c = b + "MB"
+        |  command { ps }
+        |  runtime {
+        |    memory: c
+        |  }
+        |}
+        |
+        |workflow w {call x}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "w.x.a" -> 5
+    )
+  }
+
+  object WorkflowWithFourPreemptibleRetries extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task x {
+        |  command { ps }
+        |  runtime {
+        |    preemptible: 4
+        |    docker: "ubuntu:latest"
+        |  }
+        |}
+        |
+        |workflow w {call x}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "w.x.a" -> 5
+    )
   }
 }

@@ -58,6 +58,12 @@ public enum RuntimeKey {
         return false;
     }
 
+    public static RuntimeKey from(String str) {
+        for (RuntimeKey k : RuntimeKey.values()) {
+            if (str.equalsIgnoreCase(k.key)) return k;
+        }
+        throw new UnsupportedOperationException("Runtime key " + str + " is not valid");
+    }
     /**
      * Returns true if the specified key is mandatory or optional on this backend.
      */

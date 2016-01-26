@@ -130,7 +130,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val localFileVal = WdlFile("/blah/abc")
     val gcsFileKey = "gcsf"
     val gcsFileVal = WdlFile("gs://blah/abc")
-    val emptyRuntimeAttributes = CromwellRuntimeAttributes(RuntimeAttributes(Map.empty[String, Seq[String]]), BackendType.LOCAL)
+    val emptyRuntimeAttributes = CromwellRuntimeAttributes.defaults
 
     val inputs: CallInputs = collection.immutable.HashMap(
       stringKey -> stringVal,

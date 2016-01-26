@@ -797,6 +797,24 @@ This table lists the currently available runtime attributes for cromwell:
 | memory               |       |   x   |       |
 | preemptible          |       |   x   |       |
 
+Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
+
+```
+task runtime_test {
+  String ubuntu_tag
+  Int memory_gb
+
+  command {
+    ./my_binary
+  }
+
+  runtime {
+    docker: "ubuntu:" + ubuntu_tag
+    memory: memory_gb + "GB"
+  }
+}
+```
+
 ## continueOnReturnCode
 
 When each task finishes it returns a code. Normally, a non-zero return code indicates a failure. However you can override this behavior by specifying the `continueOnReturnCode` attribute.

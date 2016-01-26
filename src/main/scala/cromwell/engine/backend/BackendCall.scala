@@ -144,7 +144,7 @@ trait BackendCall {
   def stdoutStderr: CallLogs
 
   @throws[IllegalArgumentException]
-  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, workflowDescriptor.workflowOptions, backend.backendType)
+  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, this, Option(workflowDescriptor.workflowOptions))
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {

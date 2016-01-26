@@ -145,13 +145,13 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   }
 
   /**
-    * Gather Docker image name from runtime attributes. It it's not present returns none.
+    * Gather Docker image name from runtime attributes. If it's not present returns none.
     * @param runtimeAttributes Runtime requirements for the task.
     */
   private def getDockerImage(runtimeAttributes: Map[String, String]): Option[String] = {
-    if (runtimeAttributes.filter(p => p._1.equals(DockerFlag)).size == 1 &&
-      !runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head.isEmpty) {
-      Some(runtimeAttributes.filter(p => p._1.equals(DockerFlag)).values.head)
+    val dockerFlag = runtimeAttributes.filter(p => p._1.equals(DockerFlag))
+    if (dockerFlag.size == 1 && !dockerFlag.values.head.isEmpty) {
+      Option(dockerFlag.values.head)
     } else None
   }
 
@@ -162,14 +162,11 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     */
   private def extractFolder(file: String): Option[String] = {
     try {
-      Some(file.substring(0, file.lastIndexOf("/")))
+      Option(file.substring(0, file.lastIndexOf("/")))
     } catch {
       case oooe: StringIndexOutOfBoundsException =>
         logger.warn("Input with no valid folder pattern. It may be a intermediate value.", oooe)
         None
-      case ex: Exception =>
-        logger.error("Unhandled exception.", ex)
-        throw ex
     }
   }
 
@@ -180,10 +177,13 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     */
   private def buildDockerRunCommand(image: String): String = {
     val dockerVolume = "-v %s:%s"
-    val inputFolder = task.inputs.filter(p => p._2.isInstanceOf[WdlFile]).map(p => extractFolder(p._2.toWdlString.replace("\"", "")))
-      .filter(p => p.isDefined).map(p => p.get).toList.distinct
-    val inputVolumes = inputFolder match {
-      case a: List[String] => inputFolder.map(v => dockerVolume.format(v, v)).mkString(" ")
+    val inputFolders = for {
+      input <- task.inputs.filter(p => p._2.isInstanceOf[WdlFile])
+      folder <- extractFolder(input._2.toWdlString.replace("\"", ""))
+    } yield folder
+    val inputFolderList = inputFolders.toList.distinct
+    val inputVolumes = inputFolderList match {
+      case a: List[String] => inputFolderList.map(v => dockerVolume.format(v, v)).mkString(" ")
       case _ => ""
     }
     val outputVolume = dockerVolume.format(executionDir, executionDir)
@@ -214,10 +214,10 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
   private def resolveOutputValue(output: (WdlType, Try[WdlValue])): WdlValue = {
     def getAbsolutePath(file: String): Path = {
       val absolutePath = Paths.get(executionDir.toString, file)
-      absolutePath.exists match {
-        case true => absolutePath
-        case false => throw new IllegalStateException(s"Output file $file does not exist.")
-      }
+      if (absolutePath.exists)
+        absolutePath
+      else
+        throw new IllegalStateException(s"Output file $file does not exist.")
     }
 
     //TODO: WdlArray[File] is missing here.
@@ -240,15 +240,13 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     }
 
     val process = getCmdToExecute.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
-    processAbortFunc = Some(() => process.destroy())
+    processAbortFunc = Option(() => process.destroy())
     notifyToSubscribers(new TaskStatus(Status.Running))
     val backendCommandString = argv.map(s => "\"" + s + "\"").mkString(" ")
     logger.debug(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
 
-    Vector(stdoutWriter.writer, stderrTailed.writer) foreach {
-      _.flushAndClose()
-    }
+    List(stdoutWriter.writer, stderrTailed.writer).foreach(_.flushAndClose())
 
     val stderrFileLength = Try(Files.size(stderr)).getOrElse(0L)
 

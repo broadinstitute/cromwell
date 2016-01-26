@@ -33,9 +33,7 @@ class BackendConfiguration(backendList: List[BackendConfigurationEntry], default
     * It lookup for the backend definition which contains the name defined in 'default' entry in backend configuration.
     * @return Backend configuration.
     */
-  def getDefaultBackend(): BackendConfigurationEntry = {
-    backendList.filter(entry => entry.name.equals(defaultBackend)).head
-  }
+  def getDefaultBackend(): BackendConfigurationEntry = backendList.filter(_.name.equals(defaultBackend)).head
 
   /**
     * Gets all backend configurations from config file.

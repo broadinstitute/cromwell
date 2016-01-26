@@ -181,8 +181,7 @@ object WorkflowDescriptor {
     try {
       options.successNel
     } catch {
-      case e: Exception =>
-        s"Workflow $id has invalid options: ${e.getMessage}".failureNel
+      case e: Exception => s"Workflow $id has invalid options: ${e.getMessage}".failureNel
     }
   }
 

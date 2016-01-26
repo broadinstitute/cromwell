@@ -2,7 +2,7 @@ package cromwell.backend.config
 
 import com.typesafe.config.ConfigFactory
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * Defines a backend configuration.
@@ -15,9 +15,9 @@ object BackendConfiguration {
   val config = ConfigFactory.load()
   val backendCfg = config.getConfig("backend")
   val defaultBackend = backendCfg.getString("default")
-  val backendProviders = backendCfg.getConfigList("providers")
+  val backendProviders = backendCfg.getConfigList("providers").asScala.toList
   val backendList = backendProviders.map(entry =>
-    BackendConfigurationEntry(entry.getString("name"), entry.getString("initClass"))).toList
+    BackendConfigurationEntry(entry.getString("name"), entry.getString("initClass")))
 
   def apply(): BackendConfiguration = new BackendConfiguration(backendList, defaultBackend)
 }

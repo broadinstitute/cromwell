@@ -6,7 +6,7 @@ import java.nio.file.{Path, Paths}
 
 import akka.actor.ActorSystem
 import com.google.api.client.http.HttpResponseException
-import com.google.api.client.util.ExponentialBackOff
+import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
@@ -25,7 +25,7 @@ import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
-import cromwell.util.{SimpleExponentialBackoff, AggregatedException, TryUtil}
+import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
 import wdl4s.{Call, CallInputs, Scatter, UnsatisfiedInputsException, _}
@@ -113,7 +113,6 @@ object JesBackend {
   }
 
   def isFatalJesException(t: Throwable): Boolean = t match {
-      // Unauthorized
     case e: HttpResponseException if e.getStatusCode == 403 => true
     case _ => false
   }
@@ -189,6 +188,17 @@ case class JesBackend(actorSystem: ActorSystem)
   with ProductionJesAuthentication
   with ProductionJesConfiguration {
   type BackendCall = JesBackendCall
+
+  /**
+    * Exponential Backoff Builder to be used when polling for call status.
+    */
+  final private lazy val pollBackoffBuilder = new Builder()
+    .setInitialIntervalMillis(20.seconds.toMillis.toInt)
+    .setMaxElapsedTimeMillis(Int.MaxValue)
+    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
+    .setMultiplier(1.1D)
+
+  override def pollBackoff = pollBackoffBuilder.build()
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 

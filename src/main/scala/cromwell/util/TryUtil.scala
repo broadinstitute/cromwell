@@ -5,7 +5,6 @@ import java.io.{PrintWriter, StringWriter}
 import cromwell.engine.CromwellFatalException
 import cromwell.logging.WorkflowLogger
 
-import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -55,7 +54,7 @@ object TryUtil {
     *
     * Use `retryLimit` value of None indicates to retry indefinitely.
     */
-  @tailrec
+  @annotation.tailrec
   def retryBlock[T](fn: Option[T] => T,
                     backoff: Backoff,
                     isSuccess: T => Boolean = defaultSuccessFunction _,

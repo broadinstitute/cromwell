@@ -1,10 +1,11 @@
 package cromwell.engine.callexecution
 
+import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine.backend._
+import cromwell.engine.callexecution.CallExecutionActor._
 import cromwell.logging.WorkflowLogger
 
 import scala.language.postfixOps
-import CallExecutionActor._
 
 /**
   * Actor to manage the execution of a single backend call.
@@ -24,4 +25,6 @@ class BackendCallExecutionActor(backendCall: BackendCall) extends CallExecutionA
     case Resume(jobKey) => backendCall.resume(jobKey)
     case UseCachedCall(cachedBackendCall) => backendCall.useCachedCall(cachedBackendCall)
   }
+
+  override val backoff: ExponentialBackOff = backendCall.backend.pollBackoff
 }

@@ -9,7 +9,7 @@ import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.backend.{BackendType, Backend, CromwellBackend}
+import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.io.gcs.{GcsFileSystem, GoogleCloudStorage}
 import cromwell.engine.io.shared.SharedFileSystemIoInterface

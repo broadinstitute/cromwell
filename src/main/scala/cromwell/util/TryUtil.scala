@@ -95,7 +95,9 @@ object TryUtil {
           newLimit,
           logger,
           failMessage,
-          value.toOption
+          value.toOption,
+          isFatal = isFatal,
+          isTransient = isTransient
         )
       case f =>
         logFailures(f)

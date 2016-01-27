@@ -32,7 +32,7 @@ trait DataAccess extends AutoCloseable {
 
   def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]]
 
-  def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo]
+  def getExecutionBackendInfo(workflowId: WorkflowId, call: Call, attempt: Int): Future[CallBackendInfo]
 
   def updateExecutionBackendInfo(workflowId: WorkflowId, callKey: BackendCallKey, backendInfo: CallBackendInfo): Future[Unit]
 
@@ -61,7 +61,7 @@ trait DataAccess extends AutoCloseable {
   /** Updates the existing input symbols to replace expressions with real values **/
   def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs): Future[Int]
 
-  def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit]
+  def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int, events: Seq[ExecutionEventEntry]): Future[Unit]
 
   /** Gets a mapping from call FQN to an execution event entry list */
   def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]

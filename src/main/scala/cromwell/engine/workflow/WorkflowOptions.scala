@@ -1,12 +1,11 @@
 package cromwell.engine.workflow
 
-import com.typesafe.config.ConfigFactory
-import cromwell.util.{EncryptedBytes, SecretKey, Aes256Cbc}
-import scala.collection.JavaConverters._
+import com.typesafe.config.{ConfigException, ConfigFactory}
+import cromwell.util.{Aes256Cbc, EncryptedBytes, SecretKey}
 import spray.json._
-import scala.util.{Try, Success, Failure}
-import scalaz._
-import scalaz.Validation._
+
+import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 /**
  * WorkflowOptions is constructed with a String -> String map (usually as a JsObject).
@@ -77,6 +76,7 @@ object WorkflowOptions {
       case (k, v: JsString) => k -> Success(v)
       case (k, v: JsBoolean) => k -> Success(v)
       case (k, v: JsObject) if defaultRuntimeOptionKey.equals(k) => k -> Success(v)
+      case (k, v: JsNumber) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v) => k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
     }
@@ -125,7 +125,6 @@ case class WorkflowOptions(jsObject: JsObject) {
   def getDefaultRuntimeOptionKeys: Iterable[String] = jsObject.fields.get(defaultRuntimeOptionKey) match {
     case Some(jsObj: JsObject) => jsObj.fields.keys
     case _ => List.empty[String]
-
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {

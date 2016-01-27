@@ -10,13 +10,12 @@ import cromwell.CromwellSpec.IntegrationTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{Backend, BackendType, CallLogs}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey, WorkflowOptions}
-import cromwell.engine.{CallOutputs, _}
+import cromwell.engine.{CallOutput, CallOutputs, _}
 import cromwell.util.SampleWdl
 import cromwell.webservice
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
@@ -70,11 +69,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
     override val actorSystem = workflowManagerSystem.actorSystem
 
-    override def adjustInputPaths(callKey: BackendCallKey,
-                                  runtimeAttributes: CromwellRuntimeAttributes,
-                                  inputs: CallInputs,
-                                  workflowDescriptor: WorkflowDescriptor
-                                 ) = throw new NotImplementedError
+    override def adjustInputPaths(backendCall: BackendCall) = throw new NotImplementedError
 
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = throw new NotImplementedError
     override def stdoutStderr(backendCall: BackendCall): CallLogs = throw new NotImplementedError
@@ -88,7 +83,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       throw new NotImplementedError
 
     override def backendType: BackendType = throw new NotImplementedError
-    override def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = throw new NotImplementedError
+    override def rootPath(workflowOptions: WorkflowOptions): String = throw new NotImplementedError
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
   }
 
@@ -718,11 +713,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call2, shardIndex2)), localBackend)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId, BackendCallKey(call1, shardIndex1), backendInfo1)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId, BackendCallKey(call2, shardIndex2), backendInfo2)
-        _ <- dataAccess.getExecutionBackendInfo(workflowId, call1) map {
+        _ <- dataAccess.getExecutionBackendInfo(workflowId, call1, 1) map {
           case LocalCallBackendInfo(processId: Option[Int]) => assertResult(pid1) { processId }
           case _ => fail("Unexpected backend info type returned")
         }
-        _ <- dataAccess.getExecutionBackendInfo(workflowId, call2) map {
+        _ <- dataAccess.getExecutionBackendInfo(workflowId, call2, 1) map {
           case LocalCallBackendInfo(processId: Option[Int]) => assertResult(pid2) { processId }
           case _ => fail("Unexpected backend info type returned")
         }
@@ -866,7 +861,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId, BackendCallKey(call, None), backendInfo)
-        _ <- dataAccess.getExecutionBackendInfo(workflowId, call) map { insertResultCall =>
+        _ <- dataAccess.getExecutionBackendInfo(workflowId, call, 1) map { insertResultCall =>
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.processId shouldNot be(empty)
@@ -892,13 +887,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.createWorkflow(workflowInfo2, Nil, Seq(call), localBackend)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId1, BackendCallKey(call, None), backendInfo1)
         _ <- dataAccess.updateExecutionBackendInfo(workflowId2, BackendCallKey(call, None), backendInfo2)
-        _ <- dataAccess.getExecutionBackendInfo(workflowId1, call) map { insertResultCall =>
+        _ <- dataAccess.getExecutionBackendInfo(workflowId1, call, 1) map { insertResultCall =>
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.processId shouldNot be(empty)
           insertResultLocalCall.processId.get should be(123)
         }
-        _ <- dataAccess.getExecutionBackendInfo(workflowId2, call) map { insertResultCall =>
+        _ <- dataAccess.getExecutionBackendInfo(workflowId2, call, 1) map { insertResultCall =>
           insertResultCall should be(a[LocalCallBackendInfo])
           val insertResultLocalCall = insertResultCall.asInstanceOf[LocalCallBackendInfo]
           insertResultLocalCall.processId shouldNot be(empty)
@@ -967,31 +962,54 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, None, 2)), localBackend)
         _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex)), localBackend)
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 2)), localBackend)
 
         now = DateTime.now
         mainEventSeq = Seq(
           ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
+          ExecutionEventEntry("o-genki desuka", now.minusHours(4), now.minusHours(2)),
+          ExecutionEventEntry("oopsPreempted", now.minusHours(5), now))
+        mainEventSeqAttempt2 = Seq(
+          ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
           ExecutionEventEntry("cheerio", now.minusHours(5), now))
         shardEventSeq = Seq(
+          ExecutionEventEntry("konnichiwa", now.minusHours(4), now.minusHours(2)),
+          ExecutionEventEntry("preempted again!", now.minusHours(1), now))
+        shardEventSeqAttempt2 = Seq(
           ExecutionEventEntry("konnichiwa", now.minusHours(7), now.minusHours(5)),
           ExecutionEventEntry("o-genki desuka", now.minusHours(5), now.minusHours(2)),
           ExecutionEventEntry("sayounara", now.minusHours(2), now))
 
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, mainEventSeq)
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, shardEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, 1, mainEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, 2, mainEventSeqAttempt2)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, 1, shardEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, 2, shardEventSeqAttempt2)
 
         _ <- dataAccess.getAllExecutionEvents(workflowId) map { retrievedEvents =>
           val mainExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, None)
-          retrievedEvents valueAt mainExecutionDatabaseKey should have size 2
+          retrievedEvents valueAt mainExecutionDatabaseKey should have size 3
           mainEventSeq foreach { event =>
             retrievedEvents valueAt mainExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
           }
 
+          val mainExecutionDatabaseKeyAttempt2 = ExecutionDatabaseKey(call.fullyQualifiedName, None, 2)
+          retrievedEvents valueAt mainExecutionDatabaseKeyAttempt2 should have size 2
+          mainEventSeqAttempt2 foreach { event =>
+            retrievedEvents valueAt mainExecutionDatabaseKeyAttempt2 exists { executionEventsCloseEnough(_, event) } should be (true)
+          }
+
           val shardExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex)
-          retrievedEvents valueAt shardExecutionDatabaseKey should have size 3
+          retrievedEvents valueAt shardExecutionDatabaseKey should have size 2
           shardEventSeq foreach { event =>
             retrievedEvents valueAt shardExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
+          }
+
+          val shardExecutionDatabaseKeyAttempt2 = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex, 2)
+          retrievedEvents valueAt shardExecutionDatabaseKeyAttempt2 should have size 3
+          shardEventSeqAttempt2 foreach { event =>
+            retrievedEvents valueAt shardExecutionDatabaseKeyAttempt2 exists { executionEventsCloseEnough(_, event) } should be (true)
           }
         }
       } yield ()).futureValue
@@ -1008,7 +1026,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
-        _ <- dataAccess.setExecutionEvents(WorkflowId(UUID.randomUUID()), call.fullyQualifiedName, None, Seq(
+        _ <- dataAccess.setExecutionEvents(WorkflowId(UUID.randomUUID()), call.fullyQualifiedName, None, 1, Seq(
           ExecutionEventEntry("hello", DateTime.now.minusHours(7), DateTime.now.minusHours(5)),
           ExecutionEventEntry("cheerio", DateTime.now.minusHours(5), DateTime.now)))
       } yield ()).failed.futureValue should be(a[NoSuchElementException])

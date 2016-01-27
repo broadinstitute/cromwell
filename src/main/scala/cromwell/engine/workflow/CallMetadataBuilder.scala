@@ -2,11 +2,10 @@ package cromwell.engine.workflow
 
 import wdl4s._
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.{ExecutionEventEntry, SymbolStoreEntry}
+import cromwell.engine.{CallAttempt, ExecutionEventEntry, SymbolStoreEntry, EnhancedFullyQualifiedName}
 import cromwell.engine.backend.{CallMetadata, CallLogs}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
-import cromwell.engine.EnhancedFullyQualifiedName
 import org.joda.time.DateTime
 
 import scala.language.postfixOps
@@ -47,6 +46,10 @@ object CallMetadataBuilder {
   // Case class to homogenize the datatypes for each supported backend.
   case class BackendValues(name: String, jobId: Option[String] = None, status: Option[String] = None)
 
+  private def findLastAttempt(executionMap: ExecutionMap, callFqn: String) = {
+    executionMap.keys.filter(_.fqn == callFqn).map(_.attempt).max
+  }
+
   /**
    * Function to build the "base" transformer, this needs to run first in the sequence of transformers since it builds
    * the initial `ExecutionMap` entries.
@@ -56,7 +59,7 @@ object CallMetadataBuilder {
     _ =>
       (for {
         execution <- executions
-        key = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+        key = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
         if !execution.callFqn.isScatter && !key.isCollector(executionKeys)
       } yield key -> AssembledCallMetadata(key, execution)).toMap
 
@@ -89,7 +92,7 @@ object CallMetadataBuilder {
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
       val outputsNoCollectors = filterCollectorSymbols(callOutputs)
-      val outputsByKey = outputsNoCollectors.groupBy(o => ExecutionDatabaseKey(o.scope, o.key.index))
+      val outputsByKey = outputsNoCollectors.groupBy(o => ExecutionDatabaseKey(o.scope, o.key.index, findLastAttempt(executionMap, o.scope)))
       for {
         (key, outputs) <- outputsByKey
         baseMetadata = executionMap.get(key).get
@@ -123,10 +126,10 @@ object CallMetadataBuilder {
   /**
    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
    */
-  private def buildStreamsTransformer(standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]]): ExecutionMapTransformer =
+  private def buildStreamsTransformer(standardStreamsMap: Map[FullyQualifiedName, Seq[Seq[CallLogs]]]): ExecutionMapTransformer =
     executionMap => {
       val databaseKeysWithNoneIndexes = executionMap.keys groupBy { _.fqn } filter {
-        case (fqn, edks) => edks.size == 1 && edks.head.index.isEmpty
+        case (fqn, edks) => edks forall { _.index.isEmpty }
       }
 
       def indexForFqn(fqn: FullyQualifiedName, rawIndex: Int): ExecutionIndex = {
@@ -134,9 +137,11 @@ object CallMetadataBuilder {
       }
 
       for {
-        (fqn, seqOfStreams) <- standardStreamsMap.toTraversable
-        (streams, rawIndex) <- seqOfStreams.zipWithIndex
-        key = ExecutionDatabaseKey(fqn, indexForFqn(fqn, rawIndex))
+        (fqn, seqOfSeqOfStreams) <- standardStreamsMap.toTraversable
+        // Increment all attempts because they're one-based
+        (logsForAttempt, attempt) <- seqOfSeqOfStreams.zipWithIndex map { case (l, a) => (l, a + 1) }
+        (streams, rawIndex) <- logsForAttempt.zipWithIndex
+        key = ExecutionDatabaseKey(fqn, indexForFqn(fqn, rawIndex), attempt)
         baseMetadata = executionMap.get(key).get
       } yield key -> baseMetadata.copy(streams = Option(streams))
     }.toMap
@@ -156,7 +161,7 @@ object CallMetadataBuilder {
    *  for the specified parameters.
    */
   def build(executions: Traversable[Execution],
-            standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]],
+            standardStreamsMap: Map[FullyQualifiedName, Seq[Seq[CallLogs]]],
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
@@ -201,7 +206,8 @@ object CallMetadataBuilder {
         stdout = metadata.streams map { _.stdout },
         stderr = metadata.streams map { _.stderr },
         backendLogs = metadata.streams flatMap { _.backendLogs },
-        executionEvents = metadata.executionEvents)
+        executionEvents = metadata.executionEvents,
+        attempt = metadata.execution.attempt)
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index.

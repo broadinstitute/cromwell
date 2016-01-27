@@ -3,6 +3,8 @@ package cromwell.engine
 import java.nio.file.{Files, Paths}
 
 import com.typesafe.config.ConfigFactory
+import cromwell.CromwellTestkitSpec
+import cromwell.engine.backend.local.LocalBackend
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -17,6 +19,7 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
   val defaultConfig = Map("backend.backend" -> "local")
   val configWithCallCachingOn = defaultConfig + ("call-caching.enabled" -> "true")
   val configWithCallCachingOff = defaultConfig + ("call-caching.enabled" -> "false")
+  val backend = new CromwellTestkitSpec.TestWorkflowManagerSystem()
 
   it should "honor configuration and workflow options for call-caching" in {
     val configs = Seq(defaultConfig, configWithCallCachingOn, configWithCallCachingOff)
@@ -97,6 +100,13 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
         }
       case Failure(f) => fail(f)
     }
+  }
+
+  it should "build the workflow root path" in {
+    val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}", "{}")
+    val randomId: WorkflowId = WorkflowId.randomId()
+    val descriptor = WorkflowDescriptor(randomId, sources, ConfigFactory.load)
+    descriptor.workflowRootPathWithBaseRoot("/root") shouldBe Paths.get(s"/root/wfoutputs/$randomId")
   }
 
 }

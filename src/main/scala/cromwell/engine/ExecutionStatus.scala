@@ -2,11 +2,11 @@ package cromwell.engine
 
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value
-  val NotStarted, Starting, Running, Failed, Done, Aborted = Value
+  val NotStarted, Starting, Running, Failed, Preempted, Done, Aborted = Value
 
   implicit class EnhancedExecutionStatus(val status: ExecutionStatus) extends AnyVal {
     def isTerminal: Boolean = {
-      Seq(Failed, Done, Aborted) contains status
+      Set(Failed, Done, Aborted, Preempted) contains status
     }
   }
 

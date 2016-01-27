@@ -1,13 +1,10 @@
 package cromwell.engine.backend.sge
 
-import com.google.api.client.util.ExponentialBackOff.Builder
-import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import wdl4s.CallInputs
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 case class SgeBackendCall(backend: SgeBackend,
@@ -15,8 +12,7 @@ case class SgeBackendCall(backend: SgeBackend,
                           key: BackendCallKey,
                           locallyQualifiedInputs: CallInputs,
                           callAbortRegistrationFunction: Option[AbortRegistrationFunction]) extends BackendCall with LocalFileSystemBackendCall {
-  val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
-  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
+  val workflowRootPath = workflowDescriptor.workflowRootPath
   val stdout = callRootPath.resolve("stdout")
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script.sh")

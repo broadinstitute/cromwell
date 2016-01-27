@@ -190,10 +190,12 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       reply(workflowId, callName, callOutputs(workflowId, callName), WorkflowManagerCallOutputsSuccess, WorkflowManagerCallOutputsFailure)
       stay()
     case Event(CallStdoutStderr(workflowId, callName), _) =>
-      reply(workflowId, callName, callStdoutStderr(workflowId, callName), WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
+      val flatLogs = callStdoutStderr(workflowId, callName) map { _.flatten }
+      reply(workflowId, callName, flatLogs, WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
       stay()
     case Event(WorkflowStdoutStderr(id), _) =>
-      reply(id, workflowStdoutStderr(id), WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
+      val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
+      reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
       stay()
     case Event(WorkflowMetadata(id), _) =>
       reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
@@ -307,9 +309,9 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
     !key.fqn.isScatter && !key.isCollector(entries)
   }
 
-  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Seq[CallLogs]] = {
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Seq[Seq[CallLogs]]] = {
     def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
-      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
+      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
     def backendCallFromKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
       backend.bindCall(descriptor, callKey(descriptor, callName, key))
     for {
@@ -318,23 +320,25 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
         _ <- assertCallExistence(workflowId, callFqn)
         callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
-        callStandardOutput <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)).map(_.stdoutStderr))
-      } yield callStandardOutput
+        backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
+        grouped = backendKeys.groupBy(_.key.attempt).toSeq.sortBy(_._1).map(_._2.map(_.stdoutStderr))
+      } yield grouped
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[CallLogs]]] = {
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[CallLogs]]] = {
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
           (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          callKey = BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
+          callKey = BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
+          // TODO There should be an easier way than going as far as backend.bindCall just to retrieve stdout/err path
           backendCall = backend.bindCall(descriptor, callKey)
           callStandardOutput = backend.stdoutStderr(backendCall)
-        } yield key.fqn -> callStandardOutput
+        } yield key -> callStandardOutput
 
-        callsToPaths groupBy { _._1 } mapValues { v => v map { _._2 } }
+        callsToPaths groupBy { _._1.fqn } mapValues { v => v.groupBy(_._1.attempt).toSeq.sortBy(_._1).map(_._2.map(_._2)) }
       }
     }
 
@@ -342,8 +346,8 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       _ <- assertWorkflowExistence(workflowId)
       descriptor <- globalDataAccess.getWorkflow(workflowId)
       callToStatusMap <- globalDataAccess.getExecutionStatuses(workflowId)
-      x = callToStatusMap mapValues { _.executionStatus }
-      callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, callToStatusMap mapValues { _.executionStatus }))
+      statusMap = callToStatusMap mapValues { _.executionStatus }
+      callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, statusMap))
     } yield callToLogsMap
   }
 

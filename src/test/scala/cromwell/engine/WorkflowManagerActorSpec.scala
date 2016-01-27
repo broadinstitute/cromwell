@@ -197,6 +197,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
         call.backend.get shouldEqual "Local"
         call.backendStatus should not be defined
         call.executionStatus shouldBe "Done"
+        call.attempt shouldBe 1
       }
 
       (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)

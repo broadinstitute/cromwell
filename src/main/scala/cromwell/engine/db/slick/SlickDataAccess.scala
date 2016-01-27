@@ -255,7 +255,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           status = ExecutionStatus.NotStarted.toString,
           rc = None,
           startDt = None,
-          endDt = None)
+          endDt = None,
+          attempt = key.attempt)
 
       // Depending on the backend, insert a job specific row
       _ <- backend match {
@@ -299,8 +300,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionKeyAndStatusResults <- dataAccess.executionCallFqnsAndStatusesByWorkflowExecutionId(
         workflowExecutionResult.workflowExecutionId.get).result
 
-      executionStatuses = executionKeyAndStatusResults map {
-        case (fqn, indexInt, status, rc, executionHash, dockerHash) => (ExecutionDatabaseKey(fqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc, executionHash map { ExecutionHash(_, dockerHash )}, None)) }
+      executionStatuses = executionKeyAndStatusResults map { execution =>
+        (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt),
+         CallStatus(execution.status.toExecutionStatus, execution.rc, execution.overallHash map { ExecutionHash(_, execution.dockerImageHash )}, None)) }
 
     } yield executionStatuses.toMap
 
@@ -315,9 +317,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionKeyAndStatusResults <- dataAccess.executionStatusByWorkflowExecutionIdAndCallFqn(
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
-      executionStatuses = executionKeyAndStatusResults map { case (callFqn, indexInt, status, rc, hash, dockerHash) =>
-        (ExecutionDatabaseKey(callFqn, indexInt.toIndex), CallStatus(status.toExecutionStatus, rc,
-          hash map { ExecutionHash(_, dockerHash) }, None)) }
+      executionStatuses = executionKeyAndStatusResults map { execution =>
+        (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt), CallStatus(execution.status.toExecutionStatus, execution.rc,
+          execution.overallHash map { ExecutionHash(_, execution.dockerImageHash) }, None)) }
     } yield executionStatuses.toMap
 
     runTransaction(action)
@@ -328,7 +330,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
 
       executionStatuses <- dataAccess.executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey(
-        (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex)).result
+        (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex, key.attempt)).result
 
       maybeStatus = executionStatuses.headOption map { case (status, rc, hash, dockerHash) => CallStatus(status.toExecutionStatus, rc, hash map { ExecutionHash(_, dockerHash )}, None) }
     } yield maybeStatus
@@ -400,10 +402,10 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo] = {
+  override def getExecutionBackendInfo(workflowId: WorkflowId, call: Call, attempt: Int): Future[CallBackendInfo] = {
     val action = for {
-      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(
-        (workflowId.toString, call.fullyQualifiedName)).result.head
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndAttempt(
+        (workflowId.toString, call.fullyQualifiedName, attempt)).result.head
 
       localJobResultOption <- dataAccess.localJobsByExecutionId(executionResult.executionId.get).result.headOption
 
@@ -438,8 +440,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
     import ExecutionIndex._
     val action = for {
-      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(
-        workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex).result.head
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
+        workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt).result.head
 
       backendUpdate <- backendInfo match {
         case localBackendInfo: LocalCallBackendInfo =>
@@ -565,11 +567,11 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(allInputUpdatesAction) map { _.sum }
   }
 
-  override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit] = {
+  override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int, events: Seq[ExecutionEventEntry]): Future[Unit] = {
     val action = for {
       execution <- shardIndex match {
-        case Some(idx) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex(workflowId.toString, callFqn, idx).result.head
-        case None => dataAccess.executionsByWorkflowExecutionUuidAndCallFqn(workflowId.toString, callFqn).result.head
+        case Some(idx) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(workflowId.toString, callFqn, idx, attempt).result.head
+        case None => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndAttempt(workflowId.toString, callFqn, attempt).result.head
       }
       _ <- dataAccess.executionEventsAutoInc ++= events map { executionEventEntry =>
         new ExecutionEvent(
@@ -590,9 +592,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action) map toExecutionEvents
   }
 
-  private def toExecutionEvents(events: Traversable[((String, Int), ExecutionEvent)]): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
+  private def toExecutionEvents(events: Traversable[((String, Int, Int), ExecutionEvent)]): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
       // First: Group all the entries together by name
-      val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex) }
+      val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int, attempt: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex, attempt) }
       // Second: Transform the values. The value no longer needs the String since that's now part of the Map, and
       // convert the executionEvent into a friendlier ExecutionEventEntry:
       grouped mapValues { _ map { case (_ , event: ExecutionEvent) =>
@@ -623,8 +625,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val findResultsClonedFromId = callStatus.resultsClonedFrom map { backendCall =>
       for {
         workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(backendCall.workflowDescriptor.id.toString).result.head
-        execution <- dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndex(
-          workflowExecutionResult.workflowExecutionId.get, backendCall.key.scope.fullyQualifiedName, backendCall.key.index.fromIndex).result.head
+        execution <- dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndexAndAttempt(
+          workflowExecutionResult.workflowExecutionId.get, backendCall.key.scope.fullyQualifiedName, backendCall.key.index.fromIndex, backendCall.key.attempt).result.head
       } yield Option(execution.executionId.get)
     } getOrElse DBIO.successful(None)
 
@@ -787,8 +789,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     // if so whether an index has been specified.
     val executionQuery: (Int) => Query[dataAccess.Executions, Execution, Seq] = {
       (parameters.callKey, parameters.callKey flatMap { _.index }) match {
-        case (Some(key), Some(idx)) => dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndex(_: Int, key.fqn, idx).extract
-        case (Some(key), None) => dataAccess.executionsByWorkflowExecutionIdAndCallFqn(_: Int, key.fqn).extract
+        case (Some(key), Some(idx)) => dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndexAndAttempt(_: Int, key.fqn, idx, key.attempt).extract
+        case (Some(key), None) => dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndAttempt(_: Int, key.fqn, key.attempt).extract
         case _ => dataAccess.executionsByWorkflowExecutionId(_: Int).extract
       }
     }

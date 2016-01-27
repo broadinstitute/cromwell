@@ -1,6 +1,6 @@
 package cromwell.util.google
 
-import java.io.{File, FileInputStream, InputStreamReader, IOException}
+import java.io._
 import java.nio.file.Paths
 
 import com.google.api.client.auth.oauth2.Credential
@@ -96,11 +96,15 @@ abstract class GoogleCredentialFactory {
   }
 
   private def forServiceAccount(serviceAccountMode: ServiceAccountMode): Credential = {
+    val pemFile = new File(serviceAccountMode.pemPath)
+    if (!pemFile.exists()) {
+      throw new FileNotFoundException(s"Pem file ${Paths.get(serviceAccountMode.pemPath).toAbsolutePath} does not exist")
+    }
     new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setServiceAccountId(serviceAccountMode.accountId)
       .setServiceAccountScopes(GoogleScopes.Scopes.asJava)
-      .setServiceAccountPrivateKeyFromPemFile(new File(serviceAccountMode.pemPath))
+      .setServiceAccountPrivateKeyFromPemFile(pemFile)
       .build()
   }
 

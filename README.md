@@ -648,6 +648,9 @@ backend {
 
     // Root URL for the API
     endpointUrl = "https://genomics.googleapis.com/"
+    
+    // Maximum number of times a call should be executed using a preemptible VM
+    preemptible = 0
 
     // Polling for completion backs-off gradually for slower-running jobs.
     // This is the maximum polling interval (in seconds):
@@ -922,11 +925,13 @@ Defaults to "2G".
 
 Passed to JES: "If applicable, preemptible machines may be used for the run."
 
-... more to come ...
+Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
+eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.
+Note: If specified, this attribute overrides [workflow options](#workflow-options) and/or [JES configuration](#google-jes-backend).
 
 ```
 runtime {
-  preemptible: true
+  preemptible: 1
 }
 ```
 
@@ -964,6 +969,7 @@ Valid keys and their meanings:
 * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
 * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
 * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+* **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible).
 
 # Call Caching
 

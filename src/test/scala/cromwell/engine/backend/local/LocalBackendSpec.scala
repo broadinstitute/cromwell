@@ -10,6 +10,7 @@ import cromwell.util.SampleWdl
 import org.specs2.mock.Mockito
 import wdl4s.WdlSource
 import wdl4s.values.WdlValue
+
 class LocalBackendSpec extends CromwellTestkitSpec with Mockito {
 
   object StdoutWdl extends SampleWdl {
@@ -39,7 +40,8 @@ class LocalBackendSpec extends CromwellTestkitSpec with Mockito {
     val backend = new LocalBackend(system)
     val backendCall = backend.bindCall(descriptor, BackendCallKey(call, None), Map.empty[String, WdlValue], abortRegistrationFunction = None)
     backendCall.execute map { _.result } map {
-      case FailedExecution(e, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
+      case NonRetryableExecution(e, _, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
+      case RetryableExecution(e, _, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
       case SuccessfulBackendCallExecution(_, _, _, _, _) => if (!expectSuccess) fail("A call in a failOnStderr test which should have failed has succeeded")
       case SuccessfulFinalCallExecution => fail("A FinalCall shouldn't have run in this failOnStderr")
       case AbortedExecution => fail("Not expecting this at all")

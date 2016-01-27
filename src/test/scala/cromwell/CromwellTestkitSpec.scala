@@ -10,11 +10,11 @@ import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
-import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.engine.backend.CallLogs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
+import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
@@ -23,8 +23,8 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
 import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 
-import scala.concurrent.{ExecutionContext, Await}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
@@ -319,20 +319,23 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                                      stdout: Map[FullyQualifiedName, Seq[String]],
                                      stderr: Map[FullyQualifiedName, Seq[String]],
                                      expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
-                                     terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext) = {
+                                     terminalState: WorkflowState = WorkflowSucceeded,
+                                     assertStdoutStderr: Boolean = false)(implicit ec: ExecutionContext) = {
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, terminalState)
-        val standardStreams = wma.workflowStdoutStderr(workflowId)
 
-        stdout foreach {
-          case(fqn, out) if standardStreams.contains(fqn) =>
-          out shouldEqual (standardStreams(fqn) map { s => File(s.stdout.value).contentAsString })
-        }
-        stderr foreach {
-          case(fqn, err) if standardStreams.contains(fqn) =>
-          err shouldEqual (standardStreams(fqn) map { s => File(s.stderr.value).contentAsString })
+        if (assertStdoutStderr) {
+          val standardStreams = wma.workflowStdoutStderr(workflowId)
+          stdout foreach {
+            case (fqn, out) if standardStreams.contains(fqn) =>
+              out shouldEqual (standardStreams(fqn) map { s => File(s.stdout.value).contentAsString })
+          }
+          stderr foreach {
+            case (fqn, err) if standardStreams.contains(fqn) =>
+              err shouldEqual (standardStreams(fqn) map { s => File(s.stderr.value).contentAsString })
+          }
         }
       }
     }

@@ -32,4 +32,36 @@ class InvalidRuntimeAttributesSpec extends CromwellTestkitSpec with BeforeAndAft
     }
   }
 
+  "A workflow with a task with invalid runtime attributes" should {
+    "fail on JES Backend" in {
+      val jesBackend = new JesBackend(actorSystem) {
+        private val anyString = ""
+        private val anyURL: URL = null
+        override lazy val jesConf = new JesAttributes(
+          project = anyString,
+          executionBucket = anyString,
+          endpointUrl = anyURL,
+          maxPollingInterval = 600) {
+        }
+
+        override def jesUserConnection(workflow: WorkflowDescriptor) = null
+
+        override lazy val jesCromwellInterface = null
+        override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), None)
+      }
+
+      val workflowSources = WorkflowSourceFiles(SampleWdl.HelloWorld.wdlSource(), SampleWdl.HelloWorld.wdlJson, """ {"jes_gcs_root": "gs://fake/path"} """)
+
+      runWdlWithWorkflowManagerActor(
+        wma = TestActorRef(new WorkflowManagerActor(jesBackend)),
+        sources = workflowSources,
+        stdout = Map.empty,
+        stderr = Map.empty,
+        eventFilter = EventFilter.error(pattern = "RuntimeAttribute is not valid.", occurrences = 1),
+        terminalState = WorkflowFailed,
+        assertStdoutStderr = false
+      )
+    }
+  }
+
 }

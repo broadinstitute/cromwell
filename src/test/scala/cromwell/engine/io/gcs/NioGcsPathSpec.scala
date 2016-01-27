@@ -8,12 +8,13 @@ import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext
+import scala.util.Success
 
 class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   behavior of "NioGcsPath"
 
-  implicit val GCSFs = GcsFileSystem.instance(mock[GoogleCloudStorage], "gs://absolute")(mock[ExecutionContext])
+  implicit val GCSFs = GcsFileSystem(Success(mock[GoogleCloudStorage]), "gs://absolute")(mock[ExecutionContext])
 
   it should "implement toString" in {
     val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)

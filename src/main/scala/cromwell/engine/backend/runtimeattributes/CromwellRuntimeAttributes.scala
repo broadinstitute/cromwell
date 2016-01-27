@@ -4,13 +4,11 @@ import com.google.api.services.genomics.model.Disk
 import cromwell.engine.backend.BackendType
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
 import cromwell.engine.workflow.WorkflowOptions
-import cromwell.logging.WorkflowLogger
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.parser.MemorySize
 
 import scala.language.postfixOps
-import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
@@ -19,7 +17,7 @@ case class CromwellRuntimeAttributes(docker: Option[String],
                                      failOnStderr: Boolean,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      cpu: Long,
-                                     preemptible: Boolean,
+                                     preemptible: Int,
                                      disks: Seq[Disk],
                                      memoryGB: Double)
 
@@ -76,7 +74,7 @@ object CromwellRuntimeAttributes {
     val FailOnStderr = false
     val ContinueOnReturnCode = ContinueOnReturnCodeSet(Set(0))
     val Memory = 2.0
-    val Preemptible = false
+    val Preemptible = 0
     val Zones = Vector("us-central1-a")
   }
 
@@ -86,8 +84,8 @@ object CromwellRuntimeAttributes {
     val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
     val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.getSeq(CONTINUE_ON_RETURN_CODE))
     val cpu = validateCpu(attributeMap.get(CPU))
-    val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
     val disks = validateLocalDisks(attributeMap.get(DISKS))
+    val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
     val memory = validateMemory(attributeMap.get(MEMORY))
 
     (failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
@@ -99,8 +97,8 @@ object CromwellRuntimeAttributes {
     value map validateLong getOrElse Defaults.Cpu.successNel
   }
 
-  private def validatePreemptible(value: Option[String]): ValidationNel[String, Boolean] = {
-    value map validateBoolean getOrElse Defaults.Preemptible.successNel
+  private def validatePreemptible(value: Option[String]): ValidationNel[String, Int] = {
+    value map validateInt getOrElse Defaults.Preemptible.successNel
   }
 
   private def validateFailOnStderr(value: Option[String]): ValidationNel[String, Boolean] = {

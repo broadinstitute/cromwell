@@ -17,9 +17,10 @@ import com.google.cloud.hadoop.util.{ApiErrorExtractor, AsyncWriteChannelOptions
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
+import scala.util.Try
 
 object GcsFileSystemProvider {
-  def instance(gcsInterface: GoogleCloudStorage)(implicit executionContext: ExecutionContext) = new GcsFileSystemProvider(gcsInterface, executionContext)
+  def apply(gcsInterface: Try[GoogleCloudStorage])(implicit executionContext: ExecutionContext) = new GcsFileSystemProvider(gcsInterface, executionContext)
 }
 
 /**
@@ -47,11 +48,14 @@ object ExecutionContextExecutorServiceBridge {
   * Implements java.nio.FileSystemProvider for GoogleCloudStorage
   * This implementation is not complete and mostly a proof of concept that it's possible to *copy* around files from/to local/gcs.
   * Copying is the only functionality that has been successfully tested (same and cross filesystems).
-  * @param googleCloudStorage must be properly set up (credentials) according to the context. Might be absorbed by this class eventually.
+  * @param gcs Interface to perform operations with GCS. Type is a try so this class can be instantiated even with a failed interface
+  *            to allow Path manipulations via GcsFileSystem. The interface might be absorbed by this class eventually.
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
-class GcsFileSystemProvider private (googleCloudStorage: GoogleCloudStorage, executionContext: ExecutionContext) extends FileSystemProvider {
+class GcsFileSystemProvider private (gcs: Try[GoogleCloudStorage], executionContext: ExecutionContext) extends FileSystemProvider {
 
+  // We want to throw an exception here if we try to use this class with a failed gcs interface
+  private lazy val googleCloudStorage = gcs.get
   private val executionService = ExecutionContextExecutorServiceBridge(executionContext)
   private val errorExtractor = new ApiErrorExtractor()
 

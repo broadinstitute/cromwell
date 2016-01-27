@@ -49,17 +49,17 @@ object CromwellApiHandler {
   final case class WorkflowManagerStatusFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerAbortSuccess(id: WorkflowId) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerAbortFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerQuerySuccess(val response: WorkflowQueryResponse) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerQuerySuccess(response: WorkflowQueryResponse) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerQueryFailure(override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallOutputsSuccess(id: WorkflowId, callFqn: FullyQualifiedName, outputs: engine.CallOutputs) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallOutputsFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerCallStdoutStderrSuccess(id: WorkflowId, callFqn: FullyQualifiedName, val logs: Seq[CallLogs]) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerCallStdoutStderrSuccess(id: WorkflowId, callFqn: FullyQualifiedName, logs: Seq[CallLogs]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallStdoutStderrFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerWorkflowStdoutStderrSuccess(id: WorkflowId, logs: Map[String, Seq[CallLogs]]) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerWorkflowStdoutStderrSuccess(id: WorkflowId, logs: Map[FullyQualifiedName, Seq[CallLogs]]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowStdoutStderrFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerWorkflowMetadataSuccess(id: WorkflowId, val response: WorkflowMetadataResponse) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerWorkflowMetadataSuccess(id: WorkflowId, response: WorkflowMetadataResponse) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowMetadataFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerCallCachingSuccess(id: WorkflowId, val updateCount: Int) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerCallCachingSuccess(id: WorkflowId, updateCount: Int) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
 }
 

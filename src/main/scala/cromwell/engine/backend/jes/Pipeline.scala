@@ -2,7 +2,6 @@ package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.CreatePipelineRequest
-import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
@@ -18,6 +17,7 @@ object Pipeline {
             key: BackendCallKey,
             runtimeAttributes: CromwellRuntimeAttributes,
             jesParameters: Seq[JesParameter],
+            preemptible: Boolean,
             projectId: String,
             jesConnection: JesInterface,
             runIdForResumption: Option[String]): Pipeline = {
@@ -29,7 +29,7 @@ object Pipeline {
     )
 
     logger.debug(s"Command line is: $command")
-    val runtimeInfo = JesRuntimeInfo(command, runtimeAttributes)
+    val runtimeInfo = if (preemptible) PreemptibleJesRuntimeInfo(command, runtimeAttributes) else NonPreemptibleJesRuntimeInfo(command, runtimeAttributes)
 
     val gcsPath = workflow.callDir(key)
 
@@ -51,7 +51,7 @@ object Pipeline {
     new Pipeline(command,
                  pipelineId,
                  projectId,
-                 gcsPath,
+                 gcsPath.toString,
                  workflow,
                  key,
                  jesParameters,

@@ -20,7 +20,8 @@ case class Execution(workflowExecutionId: Int,
                      dockerImageHash: Option[String] = None,
                      resultsClonedFrom: Option[Int] = None,
                      overallHash: Option[String] = None,
-                     executionId: Option[Int] = None)
+                     executionId: Option[Int] = None,
+                     attempt: Int = 1)
 
 trait ExecutionComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
@@ -40,8 +41,9 @@ trait ExecutionComponent {
     def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
     def resultsClonedFrom = column[Option[Int]]("RESULTS_CLONED_FROM")
     def executionHash = column[Option[String]]("EXECUTION_HASH")
+    def attempt = column[Int]("ATTEMPT")
 
-    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, allowsResultReuse, dockerImageHash, resultsClonedFrom, executionHash, executionId.?) <>
+    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, allowsResultReuse, dockerImageHash, resultsClonedFrom, executionHash, executionId.?, attempt) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(
@@ -52,7 +54,7 @@ trait ExecutionComponent {
 
     def hashIndex = index("HASH_INDEX", executionHash, unique = false)
 
-    def uniqueKey = index("UK_WORKFLOW_CALL_INDEX", (workflowExecutionId, callFqn, index), unique = true)
+    def uniqueKey = index("UK_WORKFLOW_CALL_INDEX_ATTEMPT", (workflowExecutionId, callFqn, index, attempt), unique = true)
   }
 
   protected val executions = TableQuery[Executions]
@@ -64,14 +66,15 @@ trait ExecutionComponent {
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
+    } yield execution)
 
   val executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey = Compiled(
-    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
       if execution.index === index
+      if execution.attempt === attempt
     } yield (execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
   val executionStatusByWorkflowExecutionIdAndCallFqn = Compiled(
@@ -79,30 +82,33 @@ trait ExecutionComponent {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
-    } yield (execution.callFqn, execution.index, execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
+    } yield execution)
 
-  val executionsByWorkflowExecutionUuidAndCallFqnAndShardIndex = Compiled(
-    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int]) => for {
+  val executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt = Compiled(
+    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
       if execution.callFqn === callFqn
       if execution.index === index
+      if execution.attempt === attempt
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
-  val executionsByWorkflowExecutionIdAndCallFqnAndIndex = Compiled(
-    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int]) => for {
+  val executionsByWorkflowExecutionIdAndCallFqnAndIndexAndAttempt = Compiled(
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
       if execution.index === index
+      if execution.attempt === attempt
     } yield execution)
 
-  val executionsByWorkflowExecutionIdAndCallFqn = Compiled(
-    (workflowExecutionId: Rep[Int], callFqn: Rep[String]) => for {
+  val executionsByWorkflowExecutionIdAndCallFqnAndAttempt = Compiled(
+    (workflowExecutionId: Rep[Int], callFqn: Rep[String], attempt: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
       if execution.callFqn === callFqn
+      if execution.attempt === attempt
     } yield execution)
 
   val executionsByWorkflowExecutionId = Compiled(
@@ -111,10 +117,11 @@ trait ExecutionComponent {
       if execution.workflowExecutionId === workflowExecutionId
     } yield execution)
 
-  val executionsByWorkflowExecutionUuidAndCallFqn = Compiled(
-    (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
+  val executionsByWorkflowExecutionUuidAndCallFqnAndAttempt = Compiled(
+    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], attempt: Rep[Int]) => for {
       execution <- executions
       if execution.callFqn === callFqn
+      if execution.attempt === attempt
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
@@ -154,7 +161,7 @@ trait ExecutionComponent {
       if execution.workflowExecutionId === workflowExecutionId
     } yield execution
 
-    val scopeID = scopeKeys.map(k => (k.fqn, k.index.fromIndex)).toIterable
+    val scopeID = scopeKeys.map(k => (k.fqn, k.index.fromIndex, k.attempt)).toIterable
 
     /*
      * FIXME: This is bad, there is probably a better way
@@ -163,7 +170,7 @@ trait ExecutionComponent {
      */
     workflowFilteredQuery filter { exec =>
       scopeID.map({
-        case (name, index) => exec.callFqn === name && exec.index === index
+        case (name, index, attempt) => exec.callFqn === name && exec.index === index && exec.attempt === attempt
       }).fold(falseRep)(_ || _)
     }
   }

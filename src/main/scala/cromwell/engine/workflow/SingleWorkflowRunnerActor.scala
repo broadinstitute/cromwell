@@ -79,6 +79,18 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     case Event(id: WorkflowId, data) =>
       log.info(s"$tag: workflow ID UUID($id)")
       workflowManager ! SubscribeToWorkflow(id)
+
+      if (getAbortJobsOnTerminate) {
+        Runtime.getRuntime.addShutdownHook(new Thread() {
+          override def run(): Unit = {
+            workflowManager ! WorkflowAbort(id)
+            log.info(s"$tag: Waiting for workflow $id to abort...")
+            while(stateName != Done)
+              Thread.sleep(1000)
+            log.info(s"$tag: Workflow $id aborted.")
+          }
+        })
+      }
       stay using data.copy(id = Option(id))
     case Event(Transition(_, _, WorkflowSucceeded), data) =>
       workflowManager ! WorkflowOutputs(data.id.get)

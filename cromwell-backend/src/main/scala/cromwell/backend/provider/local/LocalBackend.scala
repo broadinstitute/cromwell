@@ -11,8 +11,8 @@ import cromwell.backend.BackendActor
 import cromwell.backend.model._
 import cromwell.backend.provider.local.FileExtensions._
 import wdl4s.WdlExpression
-import wdl4s.types.{WdlFileType, WdlType}
-import wdl4s.values.{WdlFile, WdlSingleFile, WdlValue}
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlType}
+import wdl4s.values.{WdlArray, WdlSingleFile, WdlValue}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
@@ -34,6 +34,8 @@ object LocalBackend {
   // Other
   val DockerFlag = "docker"
 
+  case class OutputStmtEval(lhs: WdlType, rhs: Try[WdlValue])
+
   def props(task: TaskDescriptor): Props = Props(new LocalBackend(task))
 }
 
@@ -51,7 +53,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
 
   val workingDir = task.workingDir
   val taskWorkingDir = task.name
-  val shardId = Random.nextInt(Integer.MAX_VALUE).toString;
+  val shardId = Random.nextInt(Integer.MAX_VALUE).toString
   val executionDir = Paths.get(CromwellExecutionDir, workingDir, taskWorkingDir, shardId).toAbsolutePath
   val stdout = Paths.get(executionDir.toString, StdoutFile)
   val stderr = Paths.get(executionDir.toString, StderrFile)
@@ -150,9 +152,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     */
   private def getDockerImage(runtimeAttributes: Map[String, String]): Option[String] = {
     val dockerFlag = runtimeAttributes.filter(p => p._1.equals(DockerFlag))
-    if (dockerFlag.size == 1 && !dockerFlag.values.head.isEmpty) {
-      Option(dockerFlag.values.head)
-    } else None
+    if (dockerFlag.size == 1 && !dockerFlag.values.head.isEmpty) Option(dockerFlag.values.head) else None
   }
 
   /**
@@ -177,11 +177,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     */
   private def buildDockerRunCommand(image: String): String = {
     val dockerVolume = "-v %s:%s"
-    val inputFolders = for {
-      input <- task.inputs.filter(p => p._2.isInstanceOf[WdlFile])
-      folder <- extractFolder(input._2.toWdlString.replace("\"", ""))
-    } yield folder
-    val inputFolderList = inputFolders.toList.distinct
+    val inputFolderList = extractFolderFromInput(task.inputs.map(_._2).toList)
     val inputVolumes = inputFolderList match {
       case a: List[String] => inputFolderList.map(v => dockerVolume.format(v, v)).mkString(" ")
       case _ => ""
@@ -191,6 +187,22 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     log.debug(s"DockerOutputVolume: $outputVolume")
     val dockerCmd = s"docker run %s %s --rm %s %s" //TODO: make it configurable from file.
     dockerCmd.format(inputVolumes, outputVolume, image, argv.mkString(" ")).replace("  ", " ")
+  }
+
+  /**
+    * Extract folder path from input files.
+    * @return A list with folders to be mount in a docker container.
+    */
+  private def extractFolderFromInput(wdlValueList: List[WdlValue]): List[String] = {
+    wdlValueList match {
+      case head :: tail =>
+        head.wdlType match {
+          case WdlFileType => List(extractFolder(head.toWdlString.replace("\"", "")).get) ::: extractFolderFromInput(wdlValueList.tail)
+          case WdlArrayType(WdlFileType) => extractFolderFromInput(head.asInstanceOf[WdlArray].value.toList) ::: extractFolderFromInput(wdlValueList.tail)
+          case _ => extractFolderFromInput(wdlValueList.tail)
+        }
+      case Nil => List()
+    }
   }
 
   /**
@@ -211,7 +223,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * @param output Pair of WdlType and WdlValue
     * @return WdlValue with absolute path if it is a file.
     */
-  private def resolveOutputValue(output: (WdlType, Try[WdlValue])): WdlValue = {
+  private def resolveOutputValue(output: OutputStmtEval): WdlValue = {
     def getAbsolutePath(file: String): Path = {
       val absolutePath = Paths.get(executionDir.toString, file)
       if (absolutePath.exists)
@@ -220,12 +232,17 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
         throw new IllegalStateException(s"Output file $file does not exist.")
     }
 
-    //TODO: WdlArray[File] is missing here.
-    output._1 match {
-      case lhs if output._2.get.wdlType == WdlFileType | lhs == WdlFileType =>
-        new WdlSingleFile(getAbsolutePath(output._2.get.toWdlString.replace("\"", "").trim).toString)
-      case lhs if lhs == output._2.get.wdlType => output._2.get
-      case lhs => lhs.coerceRawValue(output._2.get).get
+    //TODO: check for map of files. If this possible?
+    val lhsType = output.lhs
+    val rhsType = output.rhs.get.wdlType
+    rhsType match {
+      case rhs if rhs == WdlFileType | lhsType == WdlFileType =>
+        new WdlSingleFile(getAbsolutePath(output.rhs.get.toWdlString.replace("\"", "").trim).toString)
+      case rhs if rhs == WdlArrayType(WdlFileType) | lhsType == WdlArrayType(WdlFileType) =>
+        output.rhs.get.asInstanceOf[WdlArray].map(wdlValue =>
+          new WdlSingleFile(getAbsolutePath(wdlValue.toWdlString.replace("\"", "").trim).toString))
+      case rhs if rhs == lhsType => output.rhs.get
+      case rhs => lhsType.coerceRawValue(output.rhs.get).get
     }
   }
 
@@ -261,7 +278,7 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     } else {
       def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(task.inputs, task.declarations, expressionEval)
       val outputsExpressions = task.outputs.map(
-        output => output.name ->(output.wdlType, output.expression.evaluate(lookupFunction, expressionEval)))
+        output => output.name -> OutputStmtEval(output.wdlType, output.expression.evaluate(lookupFunction, expressionEval)))
       processOutputResult(processReturnCode, outputsExpressions)
     }
   }
@@ -272,10 +289,10 @@ class LocalBackend(task: TaskDescriptor) extends BackendActor with StrictLogging
     * @param outputsExpressions Outputs.
     * @return TaskStatus with final status of the task.
     */
-  private def processOutputResult(processReturnCode: Int, outputsExpressions: Seq[(String, (WdlType, Try[WdlValue]))]): TaskFinalStatus = {
-    if (outputsExpressions.filter(_._2._2.isFailure).size > 0) {
+  private def processOutputResult(processReturnCode: Int, outputsExpressions: Seq[(String, OutputStmtEval)]): TaskFinalStatus = {
+    if (outputsExpressions.filter(_._2.rhs.isFailure).size > 0) {
       TaskFinalStatus(Status.Failed, FailureTaskResult(new IllegalStateException("Failed to evaluate output expressions.",
-        outputsExpressions.filter(_._2._2.isFailure).head._2._2.failed.get), processReturnCode, stderr.toString))
+        outputsExpressions.filter(_._2.rhs.isFailure).head._2.rhs.failed.get), processReturnCode, stderr.toString))
     } else {
       try {
         TaskFinalStatus(Status.Succeeded, SuccessfulTaskResult(outputsExpressions.map(

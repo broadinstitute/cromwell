@@ -572,7 +572,7 @@ case class JesBackend(actorSystem: ActorSystem)
         case Run.Success(events) =>
           backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage) =>
-          if (errorMessage contains "Operation canceled at") {
+          if (errorMessage exists { _ contains "Operation canceled at" }) {
             AbortedExecutionHandle.future
           } else {
             val e = new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: $errorMessage")

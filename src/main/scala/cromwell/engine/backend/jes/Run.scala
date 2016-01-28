@@ -93,7 +93,7 @@ object Run  {
   case class Success(events: Seq[ExecutionEventEntry]) extends TerminalRunStatus {
     override def toString = "Success"
   }
-  final case class Failed(errorCode: Int, errorMessage: String) extends TerminalRunStatus {
+  final case class Failed(errorCode: Int, errorMessage: Option[String]) extends TerminalRunStatus {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
   }
@@ -138,7 +138,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
     val op = pipeline.genomicsService.operations().get(runId).execute
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
-      Option(op.getError) map { x => Failed(x.getCode, x.getMessage) } getOrElse Success(getEventList(op))
+      Option(op.getError) map { x => Failed(x.getCode, Option(x.getMessage)) } getOrElse Success(getEventList(op))
     } else if (op.hasStarted) {
       Running
     } else {

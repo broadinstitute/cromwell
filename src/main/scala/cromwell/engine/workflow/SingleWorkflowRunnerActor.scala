@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import java.nio.file.Path
 
-import akka.actor.FSM.Transition
+import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import better.files._
 import cromwell.engine
@@ -53,6 +53,8 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                      metadataOutputPath: Option[Path],
                                      workflowManager: ActorRef) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
 
+  import SingleWorkflowRunnerActor._
+
   val tag = "SingleWorkflowRunnerActor"
 
   startWith(NotStarted, RunnerData())
@@ -78,31 +80,15 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     case Event(WorkflowManagerSubmitSuccess(id), data) =>
       log.info(s"$tag: workflow ID UUID($id)")
       workflowManager ! SubscribeToWorkflow(id)
-
-      if (getAbortJobsOnTerminate) {
-        Runtime.getRuntime.addShutdownHook(new Thread() {
-          override def run(): Unit = {
-            workflowManager ! WorkflowAbort(id)
-            log.info(s"$tag: Waiting for workflow $id to abort...")
-            while(stateName != Done)
-              Thread.sleep(1000)
-            log.info(s"$tag: Workflow $id aborted.")
-          }
-        })
-      }
-      stay using data.copy(id = Option(id))
+      stay() using data.copy(id = Option(id))
     case Event(Transition(_, _, WorkflowSucceeded), data) =>
       workflowManager ! WorkflowOutputs(data.id.get)
       goto(RequestingOutputs) using data.copy(terminalState = Option(WorkflowSucceeded))
-    case Event(Transition(_, _, state: WorkflowState), data) if state.isTerminal =>
-      // A terminal state that is not `WorkflowSucceeded` is a failure.
-      val updatedData = data.copy(terminalState = Option(state)).addFailure(s"Workflow ${data.id.get} transitioned to state $state")
+    case Event(Transition(_, _, WorkflowFailed), data) =>
+      val updatedData = data.copy(terminalState = Option(WorkflowFailed)).addFailure(s"Workflow ${data.id.get} transitioned to state Failed")
       // If there's an output path specified then request metadata, otherwise issue a reply to the original sender.
       val nextState = if (metadataOutputPath.isDefined) requestMetadata else issueReply
       nextState using updatedData
-    case Event(Transition(_, _, state), _) =>
-      log.info(s"$tag: transitioning to $state")
-      stay()
   }
 
   when (RequestingOutputs) {
@@ -141,6 +127,9 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     case Event(r: WorkflowManagerFailureResponse, data) => failAndFinish(r.failure)
     case Event(Failure(e), data) => failAndFinish(e)
     case Event(Status.Failure(e), data) => failAndFinish(e)
+    case Event((CurrentState(_, _) | Transition(_, _, _)), _) =>
+      // ignore uninteresting current state and transition messages
+      stay()
     case Event(m, _) =>
       log.warning(s"$tag: received unexpected message: $m")
       stay()

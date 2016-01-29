@@ -7,6 +7,7 @@ import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.finalcall.{CopyWorkflowOutputsCall, FinalCall}
+import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure, WorkflowActorSubmitSuccess}
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
@@ -106,6 +107,7 @@ object WorkflowActor {
   sealed trait StartMode {
     def runInitialization(actor: WorkflowActor): Future[Unit]
     def start(actor: WorkflowActor): Unit
+    def replyTo: Option[ActorRef]
   }
 
   implicit class EnhancedExecutionStoreKey(val key: ExecutionStoreKey) extends AnyVal {
@@ -113,7 +115,7 @@ object WorkflowActor {
     def toDatabaseKey: ExecutionDatabaseKey = ExecutionDatabaseKey(key.scope.fullyQualifiedName, key.index)
   }
 
-  case object Start extends WorkflowActorMessage with StartMode {
+  case class Start(replyTo: Option[ActorRef] = None) extends WorkflowActorMessage with StartMode {
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
       // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
       // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
@@ -156,6 +158,8 @@ object WorkflowActor {
         case t => actor.self ! AsyncFailure(t)
       }
     }
+
+    override def replyTo: Option[ActorRef] = None
   }
 
   def props(descriptor: WorkflowDescriptor, backend: Backend): Props = {
@@ -363,7 +367,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   when(WorkflowSubmitted) {
     case Event(startMode: StartMode, _) =>
       logger.info(s"$startMode message received")
-      initializeExecutionStore(startMode) pipeTo sender()
+      val sndr = sender()
+      initializeExecutionStore(startMode) onComplete {
+        case Success(id) => sndr ! WorkflowActorSubmitSuccess(startMode.replyTo, workflow.id)
+        case Failure(e) => sndr ! WorkflowActorSubmitFailure(startMode.replyTo, e)
+      }
       stay()
     case Event(CachesCreated(startMode), data) =>
       logger.info(s"ExecutionStoreCreated($startMode) message received")
@@ -380,7 +388,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
                                   resultsClonedFrom: Option[BackendCall],
                                   data: WorkflowData): State = {
     logger.debug(s"handleCallCompleted for ${callKey.tag}")
-    // Don't close over sender().
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.

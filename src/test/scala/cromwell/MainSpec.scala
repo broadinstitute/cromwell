@@ -170,7 +170,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val options = wdlAndInputs.options
-      traceErrorWithExceptionRun(wdl, inputs, options)("WorkflowManagerActor: Workflow failed submission:", classOf[IllegalArgumentException]) should be(1)
+      traceErrorWithExceptionRun(wdl, inputs, options)(".*Workflow failed submission:", classOf[IllegalArgumentException]) should be(1)
     }
   }
 

@@ -1,15 +1,12 @@
 package cromwell.util
 
-import java.util.UUID
-
-import cromwell.CromwellTestkitSpec
-import cromwell.engine.{CromwellFatalException, WorkflowId, WorkflowSourceFiles, WorkflowDescriptor}
+import cromwell.engine.CromwellFatalException
 import cromwell.logging.WorkflowLogger
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.postfixOps
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Success
 
 class TryUtilSpec extends FlatSpec with Matchers with MockitoSugar {

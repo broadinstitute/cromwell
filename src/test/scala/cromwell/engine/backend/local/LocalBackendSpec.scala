@@ -3,15 +3,13 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
-import wdl4s.WdlSource
-import wdl4s.values.WdlValue
+import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend._
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
 import cromwell.util.SampleWdl
 import org.specs2.mock.Mockito
-
-import scala.concurrent.ExecutionContext.Implicits.global
+import wdl4s.WdlSource
+import wdl4s.values.WdlValue
 class LocalBackendSpec extends CromwellTestkitSpec with Mockito {
 
   object StdoutWdl extends SampleWdl {

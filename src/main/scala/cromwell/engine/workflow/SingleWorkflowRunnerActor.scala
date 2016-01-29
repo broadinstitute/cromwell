@@ -6,11 +6,10 @@ import akka.actor.FSM.Transition
 import akka.actor._
 import better.files._
 import cromwell.engine
-import wdl4s.FullyQualifiedName
-import cromwell.engine._
+import cromwell.engine.{CallOutput, _}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.CallOutput
+import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.{WdlValueJsonFormatter, WorkflowMetadataResponse}
 import spray.json._
 
@@ -76,7 +75,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   }
 
   when (RunningWorkflow) {
-    case Event(id: WorkflowId, data) =>
+    case Event(WorkflowManagerSubmitSuccess(id), data) =>
       log.info(s"$tag: workflow ID UUID($id)")
       workflowManager ! SubscribeToWorkflow(id)
 
@@ -107,17 +106,15 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   }
 
   when (RequestingOutputs) {
-    // Can't use the WorkflowOutputs type alias here since the @unchecked needs to be added to suppress
-    // compile time warnings.
-    case Event(outputs: Map[FullyQualifiedName@unchecked, CallOutput@unchecked], data) =>
+    case Event(WorkflowManagerWorkflowOutputsSuccess(id, outputs), data) =>
       // Outputs go to stdout
       outputOutputs(outputs)
       if (metadataOutputPath.isDefined) requestMetadata else issueReply
   }
   
   when (RequestingMetadata) {
-    case Event(response: WorkflowMetadataResponse, data) =>
-      val updatedData = outputMetadata(response) match {
+    case Event(r: WorkflowManagerWorkflowMetadataSuccess, data) =>
+      val updatedData = outputMetadata(r.response) match {
         case Success(_) => data
         case Failure(e) => data.addFailure(e)
       }
@@ -134,10 +131,16 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
       stay()
   }
 
+  private def failAndFinish(e: Throwable): State = {
+    log.error(e, s"$tag received Failure message: ${e.getMessage}")
+    issueReply using stateData.addFailure(e)
+  }
+
   whenUnhandled {
-    case Event(Status.Failure(e), data) =>
-      log.error(e, s"$tag received Failure message: " + e.getMessage)
-      issueReply using data.addFailure(e)
+    // Handle failures for all WorkflowManagerFailureResponses generically.
+    case Event(r: WorkflowManagerFailureResponse, data) => failAndFinish(r.failure)
+    case Event(Failure(e), data) => failAndFinish(e)
+    case Event(Status.Failure(e), data) => failAndFinish(e)
     case Event(m, _) =>
       log.warning(s"$tag: received unexpected message: $m")
       stay()

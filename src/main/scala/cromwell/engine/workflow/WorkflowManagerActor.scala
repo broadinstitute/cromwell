@@ -3,27 +3,26 @@ package cromwell.engine.workflow
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.{ask, pipe}
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine._
-import cromwell.engine.EnhancedFullyQualifiedName
 import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.{EnhancedFullyQualifiedName, _}
 import cromwell.server.CromwellServer
 import cromwell.util.WriteOnceStore
+import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
-import wdl4s.values.WdlFile
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -33,7 +32,10 @@ object WorkflowManagerActor {
   class CallNotFoundException(message: String) extends RuntimeException(message)
 
   sealed trait WorkflowManagerActorMessage
+
   case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
+  case class WorkflowActorSubmitSuccess(replyTo: Option[ActorRef], id: WorkflowId) extends WorkflowManagerActorMessage
+  case class WorkflowActorSubmitFailure(replyTo: Option[ActorRef], failure: Throwable) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -92,22 +94,74 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     restartIncompleteWorkflows()
   }
 
+  private def reply[A](id: WorkflowId, fa: Future[A],
+                       onSuccess: (WorkflowId, A) => WorkflowManagerSuccessResponse,
+                       onFailure: (WorkflowId, Throwable) => WorkflowManagerFailureResponse): Unit = {
+    val sndr = sender()
+    fa onComplete {
+      case Success(a) => sndr ! onSuccess(id, a)
+      case Failure(e) => sndr ! onFailure(id, e)
+    }
+  }
+
+  private def reply[A, B](id: WorkflowId, a: A, fb: Future[B],
+                          onSuccess: (WorkflowId, A, B) => WorkflowManagerSuccessResponse,
+                          onFailure: (WorkflowId, A, Throwable) => WorkflowManagerFailureResponse): Unit = {
+    val sndr = sender()
+    fb onComplete {
+      case Success(b) => sndr ! onSuccess(id, a, b)
+      case Failure(e) => sndr ! onFailure(id, a, e)
+    }
+  }
+
+  private def replyToAbort(id: WorkflowId): Unit = {
+    // Access the mutable state here synchronously, not in the callback.
+    val workflowActor = workflowStore.toMap.get(id)
+    val sndr = sender()
+    globalDataAccess.getWorkflowState(id) onComplete {
+      case Success(Some(s)) if s.isTerminal =>
+        sndr ! WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow $id is in terminal state $s and cannot be aborted."))
+      case Success(Some(s)) =>
+        workflowActor foreach { _ ! WorkflowActor.AbortWorkflow }
+        sndr ! WorkflowManagerAbortSuccess(id)
+      case Failure(x) => sender ! WorkflowManagerAbortFailure(id, x)
+    }
+  }
+
+  private def replyToQuery(rawParameters: Seq[(String, String)]): Unit = {
+    val sndr = sender()
+    query(rawParameters) onComplete {
+      case Success(r) => sndr ! WorkflowManagerQuerySuccess(r)
+      case Failure(e) => sndr ! WorkflowManagerQueryFailure(e)
+    }
+  }
+
+  private def replyToStatus(id: WorkflowId): Unit = {
+    val sndr = sender()
+    globalDataAccess.getWorkflowState(id) onComplete {
+      // A "successful" return from the database API with a None value is actually a failure.  All legitimate
+      // workflow IDs would have a status.
+      case Success(None) => sndr ! WorkflowManagerStatusFailure(id, new WorkflowNotFoundException(s"Workflow $id not found"))
+      case Success(s) => sndr ! WorkflowManagerStatusSuccess(id, s.get)
+      case Failure(e) => sndr ! WorkflowManagerStatusFailure(id, e)
+    }
+  }
+
   def receive = LoggingReceive {
-    case SubmitWorkflow(source) => submitWorkflow(source, maybeWorkflowId = None) pipeTo sender
-    case WorkflowStatus(id) => globalDataAccess.getWorkflowState(id) pipeTo sender
-    case WorkflowQuery(rawParameters) => query(rawParameters) pipeTo sender
-    case WorkflowAbort(id) =>
-      workflowStore.toMap.get(id) match {
-        case Some(x) =>
-          x ! WorkflowActor.AbortWorkflow
-          sender ! Some(WorkflowAborting)
-        case None => sender ! None
-      }
-    case WorkflowOutputs(id) => workflowOutputs(id) pipeTo sender
-    case CallOutputs(workflowId, callName) => callOutputs(workflowId, callName) pipeTo sender
-    case CallStdoutStderr(workflowId, callName) => callStdoutStderr(workflowId, callName) pipeTo sender
-    case WorkflowStdoutStderr(workflowId) => workflowStdoutStderr(workflowId) pipeTo sender
-    case WorkflowMetadata(workflowId) => workflowMetadata(workflowId) pipeTo sender
+    case SubmitWorkflow(source) => submitWorkflow(source, replyTo = Option(sender), id = None)
+    case WorkflowActorSubmitSuccess(replyTo, id) => replyTo foreach { _ ! WorkflowManagerSubmitSuccess(id) }
+    case WorkflowActorSubmitFailure(replyTo, e) => replyTo foreach { _ ! WorkflowManagerSubmitFailure(e) }
+    case WorkflowStatus(id) => replyToStatus(id)
+    case WorkflowQuery(rawParameters) => replyToQuery(rawParameters)
+    case WorkflowAbort(id) => replyToAbort(id)
+    case WorkflowOutputs(id) => reply(id, workflowOutputs(id), WorkflowManagerWorkflowOutputsSuccess, WorkflowManagerWorkflowOutputsFailure)
+    case CallOutputs(workflowId, callName) =>
+      reply(workflowId, callName, callOutputs(workflowId, callName), WorkflowManagerCallOutputsSuccess, WorkflowManagerCallOutputsFailure)
+    case CallStdoutStderr(workflowId, callName) =>
+      reply(workflowId, callName, callStdoutStderr(workflowId, callName), WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
+    case WorkflowStdoutStderr(id) =>
+      reply(id, workflowStdoutStderr(id), WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
+    case WorkflowMetadata(id) => reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
     case SubscribeToWorkflow(id) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
       workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
@@ -117,7 +171,8 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
         self ! RestartWorkflows(ws)
       }
     case RestartWorkflows(Nil) => // No more workflows need restarting.
-    case CallCaching(id, parameters, callName) => callCaching(id, parameters, callName) pipeTo sender
+    case CallCaching(id, parameters, callName) =>
+      reply(id, callCaching(id, parameters, callName), WorkflowManagerCallCachingSuccess, WorkflowManagerCallCachingFailure)
   }
 
   /**
@@ -180,7 +235,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     !key.fqn.isScatter && !key.isCollector(entries)
   }
 
-  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Seq[CallLogs]] = {
     def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
       BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
     def backendCallFromKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
@@ -265,30 +320,29 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     } yield workflowMetadata
   }
 
-  private def submitWorkflow(source: WorkflowSourceFiles, maybeWorkflowId: Option[WorkflowId]): Future[WorkflowId] = {
-    val workflowId: WorkflowId = maybeWorkflowId.getOrElse(WorkflowId.randomId())
-    log.info(s"$tag submitWorkflow input id = $maybeWorkflowId, effective id = $workflowId")
-    val isRestart = maybeWorkflowId.isDefined
+  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): Unit = {
+    val workflowId: WorkflowId = id.getOrElse(WorkflowId.randomId())
+    log.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
+    val isRestart = id.isDefined
 
-    val futureId = for {
+    val workflowActor = for {
       descriptor <- Future.fromTry(Try(WorkflowDescriptor(workflowId, source)))
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
-      _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
-      _ <- workflowActor ? (if (isRestart) Restart else Start)
-    } yield workflowId
+      actor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
+      _ <- Future.fromTry(workflowStore.insert(workflowId, actor))
+    } yield actor
 
-    futureId onFailure {
-      case e =>
+    workflowActor onComplete {
+      case Failure(e) =>
         val messageOrBlank = Option(e.getMessage).mkString
         log.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
+        replyTo foreach { _ ! WorkflowManagerSubmitFailure(e)}
+      case Success(a) => a ! (if (isRestart) Restart else Start(replyTo))
     }
-
-    futureId
   }
 
   private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): Unit = {
     log.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
-    submitWorkflow(restartableWorkflow.sourceFiles, Option(restartableWorkflow.id))
+    submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
   }
 
   private def restartIncompleteWorkflows(): Unit = {

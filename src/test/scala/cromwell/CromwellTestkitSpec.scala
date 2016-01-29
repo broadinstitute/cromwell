@@ -5,24 +5,25 @@ import java.util.UUID
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.testkit._
+import akka.util.Timeout
 import better.files.File
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
-import cromwell.engine.WorkflowOutputs
-import wdl4s._
-import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine._
+import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
+import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.engine.backend.CallLogs
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
 import cromwell.util.SampleWdl
+import cromwell.webservice.CromwellApiHandler._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
+import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 
-import scala.concurrent.Await
+import scala.concurrent.{ExecutionContext, Await}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.reflect.ClassTag
@@ -130,6 +131,31 @@ object CromwellTestkitSpec {
     * the actual value was.
     */
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
+
+  implicit class EnhancedWorkflowManagerActor(val manager: ActorRef) extends AnyVal {
+    // `implicit` for the asks below.
+    private implicit def timeout: Timeout = 30 seconds
+
+    def submit(sources: WorkflowSourceFiles): WorkflowId = {
+      val submitMessage = WorkflowManagerActor.SubmitWorkflow(sources)
+      Await.result(manager.ask(submitMessage).mapTo[WorkflowManagerSubmitSuccess], Duration.Inf).id
+    }
+
+    def workflowOutputs(id: WorkflowId): engine.WorkflowOutputs = {
+      val outputsMessage = WorkflowManagerActor.WorkflowOutputs(id)
+      Await.result(manager.ask(outputsMessage).mapTo[WorkflowManagerWorkflowOutputsSuccess], Duration.Inf).outputs
+    }
+
+    def workflowStdoutStderr(id: WorkflowId): Map[FullyQualifiedName, Seq[CallLogs]] = {
+      val message = WorkflowStdoutStderr(id)
+      Await.result(manager.ask(message).mapTo[WorkflowManagerWorkflowStdoutStderrSuccess], Duration.Inf).logs
+    }
+
+    def callStdoutStderr(id: WorkflowId, fqn: FullyQualifiedName): Seq[CallLogs] = {
+      val message = CallStdoutStderr(id, fqn)
+      Await.result(manager.ask(message).mapTo[WorkflowManagerCallStdoutStderrSuccess], Duration.Inf).logs
+    }
+  }
 }
 
 abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
@@ -137,6 +163,7 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
 
   val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
+  implicit val ec = system.dispatcher
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$") {
@@ -214,16 +241,14 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   def runWdl(sampleWdl: SampleWdl,
              eventFilter: EventFilter,
              runtime: String = "",
-             terminalState: WorkflowState = WorkflowSucceeded): WorkflowOutputs = {
+             terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext): WorkflowOutputs = {
     val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
-    var workflowId: WorkflowId = null
+    val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     eventFilter.intercept {
       within(timeoutDuration) {
-        workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
+        val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, terminalState)
-        wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
+        wma.workflowOutputs(workflowId)
       }
     }
   }
@@ -234,15 +259,14 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                              runtime: String = "",
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
-                             terminalState: WorkflowState = WorkflowSucceeded): WorkflowId = {
-    val wma = buildWorkflowManagerActor(sampleWdl, runtime)
-    val wfSources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(wfSources)
+                             terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext): WorkflowId = {
+    val workflowManager = buildWorkflowManagerActor(sampleWdl, runtime)
+    val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
     eventFilter.intercept {
       within(timeoutDuration) {
-        val workflowId = Await.result(wma.ask(submitMessage).mapTo[WorkflowId], timeoutDuration)
-        verifyWorkflowState(wma, workflowId, terminalState)
-        val outputs: WorkflowOutputs = wma.ask(WorkflowManagerActor.WorkflowOutputs(workflowId)).mapTo[WorkflowOutputs].futureValue
+        val workflowId = workflowManager.submit(sources)
+        verifyWorkflowState(workflowManager, workflowId, terminalState)
+        val outputs = workflowManager.workflowOutputs(workflowId)
 
         val actualOutputNames = outputs.keys mkString ", "
         val expectedOutputNames = expectedOutputs.keys mkString " "
@@ -267,18 +291,18 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
      a full workflow type of thing
   */
   def runSingleCallWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor],
-                                               submitMsg: WorkflowManagerActor.SubmitWorkflow,
+                                               sources: WorkflowSourceFiles,
                                                eventFilter: EventFilter,
                                                fqn: FullyQualifiedName,
                                                index: ExecutionIndex,
                                                stdout: Option[Seq[String]],
                                                stderr: Option[Seq[String]],
-                                               expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty ) = {
+                                               expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty)(implicit ec: ExecutionContext) = {
     eventFilter.intercept {
       within(timeoutDuration) {
-        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
+        val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.CallStdoutStderr(workflowId, fqn)).mapTo[Seq[CallLogs]], timeoutDuration)
+        val standardStreams = wma.callStdoutStderr(workflowId, fqn)
         stdout foreach { souts =>
           souts shouldEqual (standardStreams map { s => File(s.stdout.value).contentAsString })
         }
@@ -290,17 +314,17 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
   }
 
   def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor],
-                                     submitMsg: WorkflowManagerActor.SubmitWorkflow,
+                                     sources: WorkflowSourceFiles,
                                      eventFilter: EventFilter,
                                      stdout: Map[FullyQualifiedName, Seq[String]],
                                      stderr: Map[FullyQualifiedName, Seq[String]],
                                      expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
-                                     terminalState: WorkflowState = WorkflowSucceeded) = {
+                                     terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext) = {
     eventFilter.intercept {
       within(timeoutDuration) {
-        val workflowId = Await.result(wma.ask(submitMsg).mapTo[WorkflowId], timeoutDuration)
+        val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, terminalState)
-        val standardStreams = Await.result(wma.ask(WorkflowManagerActor.WorkflowStdoutStderr(workflowId)).mapTo[Map[FullyQualifiedName, Seq[CallLogs]]], timeoutDuration)
+        val standardStreams = wma.workflowStdoutStderr(workflowId)
 
         stdout foreach {
           case(fqn, out) if standardStreams.contains(fqn) =>
@@ -320,11 +344,10 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                                   index: ExecutionIndex,
                                   runtime: String = "",
                                   stdout: Option[Seq[String]] = None,
-                                  stderr: Option[Seq[String]] = None) = {
+                                  stderr: Option[Seq[String]] = None)(implicit ec: ExecutionContext) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
-    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
-    runSingleCallWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, fqn, index, stdout, stderr)
+    val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
+    runSingleCallWdlWithWorkflowManagerActor(actor, sources, eventFilter, fqn, index, stdout, stderr)
   }
 
   def runWdlAndAssertWorkflowStdoutStderr(sampleWdl: SampleWdl,
@@ -332,22 +355,21 @@ with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with Bef
                                           runtime: String = "",
                                           stdout: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
                                           stderr: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
-                                          terminalState: WorkflowState = WorkflowSucceeded) = {
+                                          terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext) = {
     val actor = buildWorkflowManagerActor(sampleWdl, runtime)
-    // TODO: these two lines seem to be duplicated a lot
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    val submitMessage = WorkflowManagerActor.SubmitWorkflow(workflowSources)
-    runWdlWithWorkflowManagerActor(actor, submitMessage, eventFilter, stdout, stderr, Map.empty, terminalState)
+    runWdlWithWorkflowManagerActor(actor, workflowSources, eventFilter, stdout, stderr, Map.empty, terminalState)
   }
 
-  private def verifyWorkflowState(wma: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState): Unit = {
+  private def verifyWorkflowState(wma: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
     // Continuously check the state of the workflow until it is in a terminal state
-    awaitCond(pollWorkflowState(wma, workflowId).exists(_.isTerminal))
+    awaitCond(pollWorkflowState(wma, workflowId).isTerminal)
     // Now that it's complete verify that we ended up in the state we're expecting
-    pollWorkflowState(wma, workflowId).get should equal (expectedState)
+    pollWorkflowState(wma, workflowId) should equal (expectedState)
   }
 
-  private def pollWorkflowState(wma: ActorRef, workflowId: WorkflowId): Option[WorkflowState] = {
-    Await.result(wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[Option[WorkflowState]], timeoutDuration)
+  private def pollWorkflowState(wma: ActorRef, workflowId: WorkflowId)(implicit ec: ExecutionContext): WorkflowState = {
+    val futureResponse = wma.ask(WorkflowManagerActor.WorkflowStatus(workflowId)).mapTo[WorkflowManagerStatusSuccess]
+    Await.result(futureResponse map { _.state }, timeoutDuration)
   }
 }

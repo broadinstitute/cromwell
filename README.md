@@ -345,7 +345,7 @@ $ java -jar cromwell.jar highlight test.wdl html
 
 # Getting Started with WDL
 
-For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl/tree/develop#getting-started-with-wdl)
+For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl#getting-started-with-wdl)
 
 # Configuring Cromwell
 

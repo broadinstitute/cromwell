@@ -31,4 +31,5 @@
   </root>
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>
+  <logger name="scala.slick" level="INFO" />
 </configuration>

@@ -8,14 +8,12 @@ import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import wdl4s._
+import wdl4s.CallInputs
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
-import cromwell.engine.backend.jes.{JesBackend, JesJobKey}
-import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
 import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
@@ -29,6 +27,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.{implicitConversions, postfixOps}
 
+//TODO: Remove all references to the backend from here. LocalBackend Currently remains
 object SlickDataAccess {
   type IoValue = String
   val IoInput = "INPUT"
@@ -70,23 +69,23 @@ object SlickDataAccess {
 
   implicit class ConfigWithUniqueSchema(val config: Config) extends AnyVal {
     /**
-     * Returns either the "url" or "properties.url"
-     */
+      * Returns either the "url" or "properties.url"
+      */
     def urlKey = if (config.hasPath("db.url")) "db.url" else "db.properties.url"
 
     /**
-     * Returns the value of either the "url" or "properties.url"
-     */
+      * Returns the value of either the "url" or "properties.url"
+      */
     def urlValue = config.getString(urlKey)
 
     /**
-     * Modifies config.getString("url") to return a unique schema, if the original url contains the text
-     * "${slick.uniqueSchema}".
-     *
-     * This allows each instance of a SlickDataAccess object to use a clean, and different, in memory database.
-     *
-     * @return Config with ${slick.uniqueSchema} in url replaced with a unique string.
-     */
+      * Modifies config.getString("url") to return a unique schema, if the original url contains the text
+      * "${slick.uniqueSchema}".
+      *
+      * This allows each instance of a SlickDataAccess object to use a clean, and different, in memory database.
+      *
+      * @return Config with ${slick.uniqueSchema} in url replaced with a unique string.
+      */
     def withUniqueSchema: Config = {
       if (urlValue.contains("${slick.uniqueSchema}")) {
         // Config wasn't updating with a simple withValue/withFallback.
@@ -107,12 +106,12 @@ object SlickDataAccess {
 }
 
 /**
- * Data Access implementation using Slick.
- *
- * NOTE: the uses of .head below will cause an exception to be thrown
- * if the list is empty.  In every use case as of the writing of this comment,
- * those exceptions would have been wrapped in a failed Future and returned.
- */
+  * Data Access implementation using Slick.
+  *
+  * NOTE: the uses of .head below will cause an exception to be thrown
+  * if the list is empty.  In every use case as of the writing of this comment,
+  * those exceptions would have been wrapped in a failed Future and returned.
+  */
 class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   import SlickDataAccess._
@@ -176,13 +175,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /**
-   * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
-   * `backend`.  Or perhaps defer this?
-   */
+    * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
+    * `backend`.  Or perhaps defer this?
+    */
   override def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                               workflowInputs: Traversable[SymbolStoreEntry],
-                              scopes: Traversable[Scope],
-                              backend: Backend): Future[Unit] = {
+                              scopes: Traversable[Scope]): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
       case call: Call => CallKey(call, None)
@@ -212,7 +210,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       // - DBIO.sequence(mySeq) converts Seq[ DBIOAction[R] ] to DBIOAction[ Seq[R] ]
       // - DBIO.fold(mySeq, init) converts Seq[ DBIOAction[R] ] to DBIOAction[R]
 
-      _ <- DBIO.sequence(toScopeActions(workflowExecutionInsert, backend, scopeKeys))
+      //TODO: [gaurav] Move this to CallLevel
+      _ <- DBIO.sequence(toScopeActions(workflowExecutionInsert, scopeKeys))
 
     } yield ()
 
@@ -240,22 +239,22 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
-  private def toScopeActions(workflowExecution: WorkflowExecution, backend: Backend,
-                            keys: Traversable[ExecutionStoreKey]): Seq[DBIO[Unit]] = {
-    keys.toSeq map toScopeAction(workflowExecution, backend)
+  private def toScopeActions(workflowExecution: WorkflowExecution,
+                             keys: Traversable[ExecutionStoreKey]): Seq[DBIO[Unit]] = {
+    keys.toSeq map toScopeAction(workflowExecution)
   }
 
-  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit] = {
+  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey]): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-      _ <- DBIO.sequence(toScopeActions(workflowExecution, backend, keys))
+      _ <- DBIO.sequence(toScopeActions(workflowExecution, keys))
     } yield ()
 
     runTransaction(action)
   }
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
-  private def toScopeAction(workflowExecution: WorkflowExecution, backend: Backend)
+  private def toScopeAction(workflowExecution: WorkflowExecution)
                            (key: ExecutionStoreKey): DBIO[Unit] = {
     for {
     // Insert an execution row
@@ -269,25 +268,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           startDt = None,
           endDt = None)
 
-      // Depending on the backend, insert a job specific row
-      _ <- backend match {
-        case _: LocalBackend =>
-          dataAccess.localJobsAutoInc +=
-            new LocalJob(
-              executionInsert.executionId.get,
-              None,
-              None)
-        case j: JesBackend =>
-          // FIXME: Placeholder for now, discussed w/ Khalid
-          dataAccess.jesJobsAutoInc += new JesJob(executionInsert.executionId.get, None, None, None)
-        case s: SgeBackend =>
-          dataAccess.sgeJobsAutoInc += new SgeJob(executionInsert.executionId.get, None)
-        case null =>
-          throw new IllegalArgumentException("Backend is null")
-        case unknown =>
-          throw new IllegalArgumentException("Unknown backend: " + backend.getClass)
-      }
-
+      // TODO: [gaurav] currently always inserting into localbackend. Ultimately, there should exist a single
+      //common backend table
+      _ <- dataAccess.localJobsAutoInc += new LocalJob(executionInsert.executionId.get, None, None)
     } yield ()
   }
 
@@ -419,19 +402,10 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
       localJobResultOption <- dataAccess.localJobsByExecutionId(executionResult.executionId.get).result.headOption
 
-      jesJobResultOption <- dataAccess.jesJobsByExecutionId(executionResult.executionId.get).result.headOption
-
-      sgeJobResultOption <- dataAccess.sgeJobsByExecutionId(executionResult.executionId.get).result.headOption
-
-      jobResultOption = localJobResultOption orElse jesJobResultOption orElse sgeJobResultOption
+      jobResultOption = localJobResultOption
       backendInfo = jobResultOption match {
         case Some(localJobResult: LocalJob) =>
           new LocalCallBackendInfo(localJobResult.pid)
-        case Some(jesJobResult: JesJob) =>
-          new JesCallBackendInfo(jesJobResult.jesRunId map JesId,
-            jesJobResult.jesStatus map JesStatus)
-        case Some(sgeJobResult: SgeJob) =>
-          new SgeCallBackendInfo(sgeJobResult.sgeJobNumber)
         case _ =>
           throw new IllegalArgumentException(
             s"Unknown backend from db for (uuid, fqn): " +
@@ -457,19 +431,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         case localBackendInfo: LocalCallBackendInfo =>
           dataAccess.localJobPidsByExecutionId(
             executionResult.executionId.get).update(
-              localBackendInfo.processId)
-
-        case jesBackendInfo: JesCallBackendInfo =>
-          dataAccess.jesIdsAndJesStatusesByExecutionId(
-            executionResult.executionId.get).update(
-              jesBackendInfo.jesId map { _.id },
-              jesBackendInfo.jesStatus map { _.status }
-            )
-
-        case sgeBackendInfo: SgeCallBackendInfo =>
-          dataAccess.sgeJobNumberByExecutionId(
-            executionResult.executionId.get
-          ).update(sgeBackendInfo.sgeJobNumber)
+            localBackendInfo.processId)
       }
 
       _ = require(backendUpdate == 1, s"Unexpected backend update count $backendUpdate")
@@ -603,16 +565,16 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   private def toExecutionEvents(events: Traversable[((String, Int), ExecutionEvent)]): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
-      // First: Group all the entries together by name
-      val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex) }
-      // Second: Transform the values. The value no longer needs the String since that's now part of the Map, and
-      // convert the executionEvent into a friendlier ExecutionEventEntry:
-      grouped mapValues { _ map { case (_ , event: ExecutionEvent) =>
-        ExecutionEventEntry(
-          event.description,
-          new DateTime(event.startTime.getTime),
-          new DateTime(event.endTime.getTime))
-      } }
+    // First: Group all the entries together by name
+    val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex) }
+    // Second: Transform the values. The value no longer needs the String since that's now part of the Map, and
+    // convert the executionEvent into a friendlier ExecutionEventEntry:
+    grouped mapValues { _ map { case (_ , event: ExecutionEvent) =>
+      ExecutionEventEntry(
+        event.description,
+        new DateTime(event.startTime.getTime),
+        new DateTime(event.endTime.getTime))
+    } }
   }
 
   private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
@@ -699,33 +661,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action) map toSymbolStoreEntries
   }
 
-  override def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]] = {
-    val action = for {
-      executionAndJob <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
-    } yield executionAndJob
-
-    runTransaction(action) map { results =>
-      results map { case (execution, job) =>
-          ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
-      } toMap
-    }
-  }
-
   override def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]] = {
     val action = for {
       executionAndJob <- dataAccess.localJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
-    } yield executionAndJob
-
-    runTransaction(action) map { results =>
-      results map { case (execution, job) =>
-        ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex) -> job
-      } toMap
-    }
-  }
-
-  override def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]] = {
-    val action = for {
-      executionAndJob <- dataAccess.sgeJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
 
     runTransaction(action) map { results =>
@@ -743,41 +681,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     } yield ()
 
     runTransaction(action)
-  }
-
-  override def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit] = {
-    // These executions have no corresponding recorded operation ID and are therefore not resumable.
-    def collectNonResumableDatabaseKeys(executionsAndJobs: Seq[(Execution, JesJob)]): Seq[ExecutionDatabaseKey] = {
-      executionsAndJobs collect {
-        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesRunId.isEmpty =>
-          ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
-      }
-    }
-
-    val action = for {
-      executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
-      nonResumableDatabaseKeys = collectNonResumableDatabaseKeys(executionsAndJobs)
-      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None, None, None))
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJobKey]] = {
-    // These executions have a corresponding recorded operation ID and should therefore be resumable.
-    def collectResumableKeyPairs(executionsAndJobs: Traversable[(Execution, JesJob)]): Traversable[(ExecutionDatabaseKey, JesJobKey)] = {
-      executionsAndJobs collect {
-        case (execution, job) if execution.status.toExecutionStatus == ExecutionStatus.Running && job.jesRunId.nonEmpty =>
-          (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex), JesJobKey(job.jesRunId.get))
-      }
-    }
-
-    val action = for {
-      executionsAndJobs <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(workflowId.toString).result
-      resumableKeyPairs = collectResumableKeyPairs(executionsAndJobs)
-    } yield resumableKeyPairs
-
-    runTransaction(action) map { _.toMap }
   }
 
   override def queryWorkflows(queryParameters: WorkflowQueryParameters): Future[WorkflowQueryResponse] = {

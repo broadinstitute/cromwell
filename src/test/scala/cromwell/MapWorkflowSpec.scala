@@ -16,9 +16,9 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
   val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""))
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
-    WdlFile("f1") -> WdlString("alice"),
-    WdlFile("f2") -> WdlString("bob"),
-    WdlFile("f3") -> WdlString("chuck")
+    WdlFile(Paths.get(".","f1").toAbsolutePath.toString) -> WdlString("alice"),
+    WdlFile(Paths.get(".","f2").toAbsolutePath.toString) -> WdlString("bob"),
+    WdlFile(Paths.get(".","f3").toAbsolutePath.toString) -> WdlString("chuck")
   ))
 
   "A task which contains a parameter " should {
@@ -32,7 +32,10 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
             WdlString("y") -> WdlInteger(600),
             WdlString("z") -> WdlInteger(700)
           )),
-          "wf.write_map.contents" -> WdlString("f1\talice\nf2\tbob\nf3\tchuck")
+          "wf.write_map.contents" -> WdlString(s"${Paths.get(".","f1")
+            .toAbsolutePath.toString}\talice\n${Paths.get(".","f2")
+            .toAbsolutePath.toString}\tbob\n${Paths.get(".","f3")
+            .toAbsolutePath.toString}\tchuck")
         )
       )
     }

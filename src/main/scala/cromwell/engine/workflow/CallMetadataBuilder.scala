@@ -12,8 +12,8 @@ import org.joda.time.DateTime
 import scala.language.postfixOps
 
 /**
- * Builds call metadata suitable for return as part of a workflow metadata request.
- */
+  * Builds call metadata suitable for return as part of a workflow metadata request.
+  */
 object CallMetadataBuilder {
 
   // The various data passed into the `build` method has a very different shape from what the workflow/metadata
@@ -35,12 +35,11 @@ object CallMetadataBuilder {
   // A function that transforms from one `ExecutionMap` to another.
   private type ExecutionMapTransformer = ExecutionMap => ExecutionMap
 
+  //TODO: BACKEND - This shouldn't be here. Should be gone once we remove backend dependency from the DB layer
   object BackendValues {
     def extract(job: Any): BackendValues = {
       job match {
         case ji: LocalJob => BackendValues("Local")
-        case ji: JesJob => BackendValues("JES", jobId = ji.jesRunId, status = ji.jesStatus)
-        case ji: SgeJob => BackendValues("SGE", jobId = ji.sgeJobNumber map { _.toString })
       }
     }
   }
@@ -48,9 +47,9 @@ object CallMetadataBuilder {
   case class BackendValues(name: String, jobId: Option[String] = None, status: Option[String] = None)
 
   /**
-   * Function to build the "base" transformer, this needs to run first in the sequence of transformers since it builds
-   * the initial `ExecutionMap` entries.
-   */
+    * Function to build the "base" transformer, this needs to run first in the sequence of transformers since it builds
+    * the initial `ExecutionMap` entries.
+    */
   private def buildBaseTransformer(executions: Traversable[Execution], executionKeys: Traversable[ExecutionDatabaseKey]): ExecutionMapTransformer =
   // The input ExecutionMap is ignored in this transformer!
     _ =>
@@ -62,8 +61,8 @@ object CallMetadataBuilder {
 
 
   /**
-   * Function to build a transformer that adds inputs data to the entries in the input `ExecutionMap`.
-   */
+    * Function to build a transformer that adds inputs data to the entries in the input `ExecutionMap`.
+    */
   private def buildInputsTransformer(callInputs: Traversable[SymbolStoreEntry]): ExecutionMapTransformer =
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
@@ -83,8 +82,8 @@ object CallMetadataBuilder {
     }
 
   /**
-   * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
-   */
+    * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
+    */
   private def buildOutputsTransformer(callOutputs: Traversable[SymbolStoreEntry]): ExecutionMapTransformer =
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
@@ -108,8 +107,8 @@ object CallMetadataBuilder {
     }
 
   /**
-   * Function to build a transformer that adds job data to the entries in the input `ExecutionMap`.
-   */
+    * Function to build a transformer that adds job data to the entries in the input `ExecutionMap`.
+    */
   private def buildJobDataTransformer(executionKeys: Traversable[ExecutionDatabaseKey], jobMap: Map[ExecutionDatabaseKey, Any]): ExecutionMapTransformer =
     executionMap => {
       for {
@@ -121,8 +120,8 @@ object CallMetadataBuilder {
     }.toMap
 
   /**
-   * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
-   */
+    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
+    */
   private def buildStreamsTransformer(standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]]): ExecutionMapTransformer =
     executionMap => {
       val databaseKeysWithNoneIndexes = executionMap.keys groupBy { _.fqn } filter {
@@ -152,9 +151,9 @@ object CallMetadataBuilder {
   }
 
   /**
-   *  Construct the map of `FullyQualifiedName`s to `Seq[CallMetadata]` that contains all the call metadata available
-   *  for the specified parameters.
-   */
+    *  Construct the map of `FullyQualifiedName`s to `Seq[CallMetadata]` that contains all the call metadata available
+    *  for the specified parameters.
+    */
   def build(executions: Traversable[Execution],
             standardStreamsMap: Map[FullyQualifiedName, Seq[CallLogs]],
             callInputs: Traversable[SymbolStoreEntry],

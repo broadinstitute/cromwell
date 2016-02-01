@@ -7,11 +7,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import wdl4s._
 import wdl4s.values.WdlFile
-import cromwell.engine.backend.{BackendType, CromwellBackend, Backend}
-import cromwell.engine.backend.jes.JesBackend
+import cromwell.engine.backend.{DefaultWorkflowEngineFunctions, BackendType, Backend}
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
@@ -31,7 +29,6 @@ case class WorkflowDescriptor(id: WorkflowId,
                               namespace: NamespaceWithWorkflow,
                               coercedInputs: WorkflowCoercedInputs,
                               declarations: WorkflowCoercedInputs,
-                              backend: Backend,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
                               gcsInterface: Try[GoogleCloudStorage],
@@ -98,7 +95,7 @@ object WorkflowDescriptor {
   }
 
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, conf: Config): WorkflowDescriptor = {
-    validateWorkflowDescriptor(id, sourceFiles, CromwellBackend.backend(), conf) match {
+    validateWorkflowDescriptor(id, sourceFiles, conf) match {
       case scalaz.Success(w) => w
       case scalaz.Failure(f) =>
         throw new IllegalArgumentException(s"""Workflow $id failed to process inputs:\n${f.toList.mkString("\n")}""")
@@ -107,18 +104,17 @@ object WorkflowDescriptor {
 
   private def validateWorkflowDescriptor(id: WorkflowId,
                                          sourceFiles: WorkflowSourceFiles,
-                                         backend: Backend,
                                          conf: Config): ErrorOr[WorkflowDescriptor] = {
     val namespace = validateNamespace(id, sourceFiles.wdlSource)
     val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
-    val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
+    val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson)
 
     val runtimeAttributes = for {
       n <- namespace.disjunction
-    } yield validateRuntimeAttributes(id, n, backend.backendType)
+    } yield validateRuntimeAttributes(id, n)
 
     (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } match {
-      case scalaz.Success((n, r, o, a)) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
+      case scalaz.Success((n, r, o, a)) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, conf)
       case scalaz.Failure(f) => f.toList.mkString("\n").failureNel
     }
   }
@@ -128,22 +124,16 @@ object WorkflowDescriptor {
                                       namespace: NamespaceWithWorkflow,
                                       rawInputs: Map[String, JsValue],
                                       options: WorkflowOptions,
-                                      backend: Backend,
                                       conf: Config): ErrorOr[WorkflowDescriptor] = {
     val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
-    val ioManager = backend match {
-      case _: JesBackend => gcsInterface getOrElse { // JesBackend only supports gcsInterface
-        throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.")
-      }
-      case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
-    }
-    val wfContext = backend.workflowContext(options, id, namespace.workflow.fullyQualifiedName)
-    val engineFunctions = backend.engineFunctions(ioManager, wfContext)
+    val ioManager = new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
+    val wfContext = new WorkflowContext(id.toString)
+    val engineFunctions = new DefaultWorkflowEngineFunctions(ioManager, wfContext)
 
     val validatedDescriptor = for {
       c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
       d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
-    } yield WorkflowDescriptor(id, sourceFiles, options, rawInputs, namespace, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
+    } yield WorkflowDescriptor(id, sourceFiles, options, rawInputs, namespace, c, d, configCallCaching(conf), lookupDockerHash(conf),
       gcsInterface, ioManager, wfContext, engineFunctions)
     validatedDescriptor.validation
   }
@@ -156,18 +146,17 @@ object WorkflowDescriptor {
     }
   }
 
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }) match {
+  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow): ErrorOr[Unit] = {
+    Try(namespace.workflow.calls foreach { x => x.task.runtimeAttributes }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }
   }
 
   private def validateWorkflowOptions(id: WorkflowId,
-                                      optionsJson: WorkflowOptionsJson,
-                                      backend: Backend): ErrorOr[WorkflowOptions] = {
+                                      optionsJson: WorkflowOptionsJson): ErrorOr[WorkflowOptions] = {
     WorkflowOptions.fromJsonString(optionsJson) match {
-      case Success(o) => validateBackendOptions(id, o, backend)
+      case Success(o) => validateBackendOptions(id, o)
       case Failure(e) => s"Workflow $id contains bad options JSON: ${e.getMessage}".failureNel
     }
   }
@@ -188,13 +177,11 @@ object WorkflowDescriptor {
     }
   }
 
-  private def validateBackendOptions(id: WorkflowId, options: WorkflowOptions, backend: Backend): ErrorOr[WorkflowOptions] = {
+  private def validateBackendOptions(id: WorkflowId, options: WorkflowOptions): ErrorOr[WorkflowOptions] = {
     try {
-      backend.assertWorkflowOptions(options)
       options.successNel
     } catch {
-      case e: Exception =>
-        s"Workflow $id has invalid options for backend ${backend.backendType}: ${e.getMessage}".failureNel
+      case e: Exception => s"Workflow $id has invalid options: ${e.getMessage}".failureNel
     }
   }
 

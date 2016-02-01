@@ -14,11 +14,12 @@ import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.workflow.WorkflowActor.Start
 import cromwell.util.WriteOnceStore
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
+import wdl4s.values.WdlSingleFile
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -45,7 +46,8 @@ object WorkflowManagerActor {
   final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
 
-  def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
+  //  def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
+  def props(): Props = Props(new WorkflowManagerActor)
 
   // How long to delay between restarting each workflow that needs to be restarted.  Attempting to
   // restart 500 workflows at exactly the same time crushes the database connection pool.
@@ -53,13 +55,13 @@ object WorkflowManagerActor {
 }
 
 /**
- * Responses to messages:
- * SubmitWorkflow: Returns a `Future[WorkflowId]`
- * WorkflowStatus: Returns a `Future[Option[WorkflowState]]`
- * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
- *
- */
-class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
+  * Responses to messages:
+  * SubmitWorkflow: Returns a `Future[WorkflowId]`
+  * WorkflowStatus: Returns a `Future[Option[WorkflowState]]`
+  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
+  *
+  */
+class WorkflowManagerActor extends Actor with CromwellActor {
   import WorkflowManagerActor._
   private val log = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
@@ -101,8 +103,8 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   }
 
   /**
-   * Returns a `Future[Any]` which will be failed if there is no workflow with the specified id.
-   */
+    * Returns a `Future[Any]` which will be failed if there is no workflow with the specified id.
+    */
   private def assertWorkflowExistence(id: WorkflowId): Future[Any] = {
     // Confirm the workflow exists by querying its state.  If no state is found the workflow doesn't exist.
     globalDataAccess.getWorkflowState(id) map {
@@ -119,8 +121,8 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   }
 
   /**
-   * Retrieve the entries that produce stdout and stderr.
-   */
+    * Retrieve the entries that produce stdout and stderr.
+    */
   private def getCallLogKeys(id: WorkflowId, callFqn: FullyQualifiedName): Future[Seq[ExecutionDatabaseKey]] = {
     globalDataAccess.getExecutionStatuses(id, callFqn) map {
       case map if map.isEmpty => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
@@ -160,24 +162,29 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     !key.fqn.isScatter && !key.isCollector(entries)
   }
 
+
+  //TODO: Need to implement this. Currently just throwing an exception to see if and how the code reaches here.
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
-    for {
-        _ <- assertWorkflowExistence(workflowId)
-        descriptor <- globalDataAccess.getWorkflow(workflowId)
-        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
-        callLogKeys <- getCallLogKeys(workflowId, callFqn)
-        callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
-      } yield callStandardOutput
+    val mockCallLog = CallLogs(new WdlSingleFile("Dummy CallOut"), new WdlSingleFile("Dummy CallError"), None)
+    Future{mockCallLog}
+    //    for {
+    //      _ <- assertWorkflowExistence(workflowId)
+    //      descriptor <- globalDataAccess.getWorkflow(workflowId)
+    //      callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
+    //      callLogKeys <- getCallLogKeys(workflowId, callFqn)
+    //      callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
+    //    } yield callStandardOutput
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[CallLogs]]] = {
+    val mockCallLog = CallLogs(new WdlSingleFile("Dummy CallOut"), new WdlSingleFile("Dummy CallError"), None)
     def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[CallLogs]]] = {
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
           (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          callStandardOutput = backend.stdoutStderr(descriptor, callName, key.index)
+          callStandardOutput = mockCallLog //backend.stdoutStderr(descriptor, callName, key.index)
         } yield key.fqn -> callStandardOutput
 
         callsToPaths groupBy { _._1 } mapValues { v => v map { _._2 } }
@@ -216,6 +223,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       calls = callMetadata)
   }
 
+  //TODO: BACKEND - Remove dependency
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
     for {
       workflowExecution <- globalDataAccess.getWorkflowExecution(id)
@@ -227,12 +235,10 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       executions <- globalDataAccess.getExecutions(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
-      jesJobs <- globalDataAccess.jesJobInfo(id)
       localJobs <- globalDataAccess.localJobInfo(id)
-      sgeJobs <- globalDataAccess.sgeJobInfo(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
 
-      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, executionEvents, jesJobs ++ localJobs ++ sgeJobs)
+      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, executionEvents, localJobs)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata
@@ -245,9 +251,11 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
     val futureId = for {
       descriptor <- Future.fromTry(Try(WorkflowDescriptor(workflowId, source)))
-      workflowActor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
+      workflowActor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
       _ <- Future.fromTry(workflowStore.insert(workflowId, workflowActor))
-      _ <- workflowActor ? (if (isRestart) Restart else Start)
+      //      _ <- workflowActor ? (if (isRestart) Restart else Start)
+      //TODO: Dont know much about restart yet
+      _ <- workflowActor ? Start
     } yield workflowId
 
     futureId onFailure {

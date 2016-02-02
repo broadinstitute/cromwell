@@ -1,8 +1,9 @@
 package cromwell.engine.workflow
 
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.{Actor, ActorRef, Props}
-import akka.event.{Logging, LoggingReceive}
+import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import akka.actor._
+import akka.event.Logging
+import com.typesafe.config.ConfigFactory
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
@@ -11,18 +12,18 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.{EnhancedFullyQualifiedName, _}
-import cromwell.server.CromwellServer
-import cromwell.util.WriteOnceStore
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
+import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, Promise}
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -47,12 +48,33 @@ object WorkflowManagerActor {
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
+  case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
   def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
 
+  // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
+  // as much work as can reasonably be handled.
   // How long to delay between restarting each workflow that needs to be restarted.  Attempting to
   // restart 500 workflows at exactly the same time crushes the database connection pool.
   lazy val RestartDelay = 200 milliseconds
+
+  sealed trait WorkflowManagerState
+  case object Running extends WorkflowManagerState
+  case object Aborting extends WorkflowManagerState
+  case object Done extends WorkflowManagerState
+
+  type WorkflowActorRef = ActorRef
+
+  case class WorkflowManagerData(workflows: Map[WorkflowId, WorkflowActorRef]) {
+    def add(entry: (WorkflowId, WorkflowActorRef)): WorkflowManagerData = this.copy(workflows = workflows + entry)
+    def remove(id: WorkflowId): WorkflowManagerData = this.copy(workflows = workflows - id)
+    def remove(actor: WorkflowActorRef): WorkflowManagerData = {
+      val workflowId = workflows.collectFirst { case (id, a) if a == actor => id }
+      // If the ID was found in the lookup return a modified copy of the state data, otherwise just return
+      // the same state data.
+      workflowId map remove getOrElse this
+    }
+  }
 }
 
 /**
@@ -62,36 +84,29 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
-  import WorkflowManagerActor._
-  private val log = Logging(context.system, this)
+class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
+  private val logger = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
 
-  type WorkflowActorRef = ActorRef
-
-  private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
-
-  if (getAbortJobsOnTerminate) {
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
-        log.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
-        workflowStore.toMap.foreach{case (id, actor)=>
-          CromwellServer.workflowManagerActor ! WorkflowManagerActor.WorkflowAbort(id)
-        }
-        var numRemaining = -1
-        while(numRemaining != 0) {
-          Thread.sleep(1000)
-          val result = globalDataAccess.getWorkflowsByState(Seq(WorkflowRunning, WorkflowAborting))
-          numRemaining = Await.result(result,Duration.Inf).size
-          log.info(s"$tag: Waiting for all workflows to abort ($numRemaining remaining).")
-        }
-        log.info(s"$tag: All workflows aborted.")
-      }
-    })
-  }
+  private val donePromise = Promise[Unit]()
 
   override def preStart() {
+    addShutdownHook()
     restartIncompleteWorkflows()
+  }
+
+  private def addShutdownHook(): Unit = {
+    // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
+    val abortJobsOnTerminate =
+      ConfigFactory.load.getConfig("backend").getBooleanOr("abortJobsOnTerminate", default = false)
+
+    if (abortJobsOnTerminate) {
+      sys.addShutdownHook {
+        logger.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
+        self ! AbortAllWorkflows
+        Await.ready(donePromise.future, Duration.Inf)
+      }
+    }
   }
 
   private def reply[A](id: WorkflowId, fa: Future[A],
@@ -116,7 +131,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def replyToAbort(id: WorkflowId): Unit = {
     // Access the mutable state here synchronously, not in the callback.
-    val workflowActor = workflowStore.toMap.get(id)
+    val workflowActor = stateData.workflows.get(id)
     val sndr = sender()
     globalDataAccess.getWorkflowState(id) onComplete {
       case Success(Some(s)) if s.isTerminal =>
@@ -147,32 +162,89 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     }
   }
 
-  def receive = LoggingReceive {
-    case SubmitWorkflow(source) => submitWorkflow(source, replyTo = Option(sender), id = None)
-    case WorkflowActorSubmitSuccess(replyTo, id) => replyTo foreach { _ ! WorkflowManagerSubmitSuccess(id) }
-    case WorkflowActorSubmitFailure(replyTo, e) => replyTo foreach { _ ! WorkflowManagerSubmitFailure(e) }
-    case WorkflowStatus(id) => replyToStatus(id)
-    case WorkflowQuery(rawParameters) => replyToQuery(rawParameters)
-    case WorkflowAbort(id) => replyToAbort(id)
-    case WorkflowOutputs(id) => reply(id, workflowOutputs(id), WorkflowManagerWorkflowOutputsSuccess, WorkflowManagerWorkflowOutputsFailure)
-    case CallOutputs(workflowId, callName) =>
+  startWith(Running, WorkflowManagerData(workflows = Map.empty))
+
+  when (Running) {
+    case Event(SubmitWorkflow(source), _) =>
+      val updatedData = submitWorkflow(source, replyTo = Option(sender), id = None)
+      stay() using updatedData
+    case Event(WorkflowActorSubmitSuccess(replyTo, id), _) =>
+      replyTo foreach { _ ! WorkflowManagerSubmitSuccess(id) }
+      stay()
+    case Event(WorkflowActorSubmitFailure(replyTo, e), _) =>
+      replyTo foreach { _ ! WorkflowManagerSubmitFailure(e) }
+      stay()
+    case Event(WorkflowStatus(id), _) =>
+      replyToStatus(id)
+      stay()
+    case Event(WorkflowQuery(rawParameters), _) =>
+      replyToQuery(rawParameters)
+      stay()
+    case Event(WorkflowAbort(id), _) =>
+      replyToAbort(id)
+      stay()
+    case Event(WorkflowOutputs(id), _) =>
+      reply(id, workflowOutputs(id), WorkflowManagerWorkflowOutputsSuccess, WorkflowManagerWorkflowOutputsFailure)
+      stay()
+    case Event(CallOutputs(workflowId, callName), _) =>
       reply(workflowId, callName, callOutputs(workflowId, callName), WorkflowManagerCallOutputsSuccess, WorkflowManagerCallOutputsFailure)
-    case CallStdoutStderr(workflowId, callName) =>
+      stay()
+    case Event(CallStdoutStderr(workflowId, callName), _) =>
       reply(workflowId, callName, callStdoutStderr(workflowId, callName), WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
-    case WorkflowStdoutStderr(id) =>
+      stay()
+    case Event(WorkflowStdoutStderr(id), _) =>
       reply(id, workflowStdoutStderr(id), WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
-    case WorkflowMetadata(id) => reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
-    case SubscribeToWorkflow(id) =>
+      stay()
+    case Event(WorkflowMetadata(id), _) =>
+      reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
+      stay()
+    case Event(SubscribeToWorkflow(id), data) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
-      workflowStore.toMap.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
-    case RestartWorkflows(w :: ws) =>
-      restartWorkflow(w)
+      data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
+      stay()
+    case Event(RestartWorkflows(w :: ws), _) =>
+      val updatedData = restartWorkflow(w)
       context.system.scheduler.scheduleOnce(RestartDelay) {
         self ! RestartWorkflows(ws)
       }
-    case RestartWorkflows(Nil) => // No more workflows need restarting.
-    case CallCaching(id, parameters, callName) =>
+      stay() using updatedData
+    case Event(RestartWorkflows(Nil), _) =>
+      // No more workflows need restarting.
+      stay()
+    case Event(CallCaching(id, parameters, callName), _) =>
       reply(id, callCaching(id, parameters, callName), WorkflowManagerCallCachingSuccess, WorkflowManagerCallCachingFailure)
+      stay()
+    case Event(Transition(workflowActor, _, toState: WorkflowState), data) if toState.isTerminal =>
+      // Remove terminal actors from the store.
+      val updatedData = data.remove(workflowActor)
+      stay() using updatedData
+    case Event(AbortAllWorkflows, data) if data.workflows.isEmpty =>
+      goto(Done)
+    case Event(AbortAllWorkflows, data) =>
+      data.workflows.values.foreach { _ ! WorkflowActor.AbortWorkflow }
+      goto(Aborting)
+  }
+
+  when (Aborting) {
+    case Event(Transition(workflowActor, _, toState: WorkflowState), data) if toState.isTerminal =>
+      // Remove this terminal actor from the workflowStore and log a progress message.
+      val updatedData = data.remove(workflowActor)
+      logger.info(s"$tag: Waiting for all workflows to abort (${updatedData.workflows.size} remaining).")
+      // If there are no more workflows to abort we're done, otherwise just stay in the current state.
+      (if (updatedData.workflows.isEmpty) goto(Done) else stay()) using updatedData
+  }
+
+  when (Done) { FSM.NullFunction }
+
+  whenUnhandled {
+    // Uninteresting transition and current state notifications.
+    case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
+  }
+
+  onTransition {
+    case _ -> Done =>
+      logger.info(s"$tag: All workflows aborted.")
+      donePromise.trySuccess(())
   }
 
   /**
@@ -320,28 +392,38 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     } yield workflowMetadata
   }
 
-  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): Unit = {
+  /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
+    * Workflow ID -> WorkflowActorRef entry.
+    */
+  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): WorkflowManagerData = {
     val workflowId: WorkflowId = id.getOrElse(WorkflowId.randomId())
-    log.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
+    logger.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
     val isRestart = id.isDefined
 
-    val workflowActor = for {
-      descriptor <- Future.fromTry(Try(WorkflowDescriptor(workflowId, source)))
-      actor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
-      _ <- Future.fromTry(workflowStore.insert(workflowId, actor))
-    } yield actor
+    case class ActorAndStateData(actor: WorkflowActorRef, data: WorkflowManagerData)
 
-    workflowActor onComplete {
+    val actorAndData = for {
+      descriptor <- Try(WorkflowDescriptor(workflowId, source))
+      actor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
+      _ = actor ! SubscribeTransitionCallBack(self)
+      data = stateData.add(workflowId -> actor)
+    } yield ActorAndStateData(actor, data)
+
+    actorAndData match {
       case Failure(e) =>
         val messageOrBlank = Option(e.getMessage).mkString
-        log.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
+        logger.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
         replyTo foreach { _ ! WorkflowManagerSubmitFailure(e)}
-      case Success(a) => a ! (if (isRestart) Restart else Start(replyTo))
+        // Return the original state data if the workflow failed submission.
+        stateData
+      case Success(a) =>
+        a.actor ! (if (isRestart) Restart else Start(replyTo))
+        a.data
     }
   }
 
-  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): Unit = {
-    log.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
+  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): WorkflowManagerData = {
+    logger.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
     submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
   }
 
@@ -351,11 +433,11 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
       val displayNum = if (num == 0) "no" else num.toString
       val plural = if (num == 1) "" else "s"
 
-      log.info(s"$tag Found $displayNum workflow$plural to restart.")
+      logger.info(s"$tag Found $displayNum workflow$plural to restart.")
 
       if (num > 0) {
         val ids = restartableWorkflows.map { _.id.toString }.toSeq.sorted
-        log.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
+        logger.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
       }
     }
 
@@ -366,7 +448,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
     } yield ()
 
     result recover {
-      case e: Throwable => log.error(e, e.getMessage)
+      case e: Throwable => logger.error(e, e.getMessage)
     }
   }
 

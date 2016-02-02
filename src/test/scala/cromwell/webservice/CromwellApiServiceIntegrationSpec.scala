@@ -17,6 +17,11 @@ class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService
   override val workflowManager = TestActorRef(new WorkflowManagerActor(new LocalBackend(actorRefFactory)))
   val version = "v1"
 
+  override protected def afterAll() = {
+    testWorkflowManagerSystem.shutdownTestActorSystem()
+    super.afterAll()
+  }
+
   it should "return 400 for a malformed WDL " in {
     Post(s"/workflows/$version", FormData(Seq("wdlSource" -> CromwellApiServiceSpec.MalformedWdl, "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>

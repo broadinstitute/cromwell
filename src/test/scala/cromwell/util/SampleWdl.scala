@@ -298,6 +298,75 @@ object SampleWdl {
     override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
+  object WorkflowOutputsWithFiles extends SampleWdl {
+    // ASCII art from http://www.chris.com/ascii/joan/www.geocities.com/SoHo/7373/flag.html with pipes
+    // replaced by exclamation points to keep stripMargin from removing the flagpole.
+    override def wdlSource(runtime: String = "") =
+      """
+        task A {
+          command {
+            echo "Enfin un peu de francais pour contrer ce raz-de-marée anglais !" > out
+            echo "Jacques Chirac fait du jetski sur la Seine en costume traditionnel russe" > out2
+          }
+          output {
+            File out = "out"
+            File out2 = "out2"
+          }
+        }
+        task B {
+          command {
+             echo "Je contre avec un bonnet peruvien et tire une carte chance" > out
+             echo "Kamoulox !" > out2
+          }
+          output {
+             Array[File] outs = ["out", "out2"]
+          }
+        }
+        task C {
+          command {
+            cat > out <<END
+            (_)
+             !_________________________________________
+             !*  *  *  *  * |##########################|
+             ! *  *  *  *  *|                          |
+             !*  *  *  *  * |##########################|
+             ! *  *  *  *  *|                          |
+             !*  *  *  *  * |##########################|
+             ! *  *  *  *  *|                          |
+             !*  *  *  *  * |##########################|
+             !~~~~~~~~~~~~~~~                          |
+             !#########################################|
+             !                                         |
+             !#########################################|
+             !                                         |
+             !###################################JGS###|
+             !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+             !
+             !
+             !
+             !
+             !
+             !
+             !
+            END
+          }
+          output {
+            File out = "out"
+          }
+        }
+        workflow wfoutputs {
+          call A
+          call B
+          call C
+          output {
+            A.*
+            B.outs
+          }
+        }
+      """.stripMargin
+    override lazy val rawInputs = Map.empty[String, String]
+  }
+
   object NestedScatterWdl extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
@@ -1072,6 +1141,7 @@ object SampleWdl {
       |  command {
       |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
       |  }
+      |  RUNTIME
       |  output {
       |    Array[String] A_out = read_lines(stdout())
       |  }
@@ -1082,6 +1152,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(len('${B_in}'))"
       |  }
+      |  RUNTIME
       |  output {
       |    Int B_out = read_int(stdout())
       |  }
@@ -1092,6 +1163,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(${C_in}*100)"
       |  }
+      |  RUNTIME
       |  output {
       |    Int C_out = read_int(stdout())
       |  }
@@ -1102,6 +1174,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(${sep = '+' D_in})"
       |  }
+      |  RUNTIME
       |  output {
       |    Int D_out = read_int(stdout())
       |  }
@@ -1111,6 +1184,7 @@ object SampleWdl {
       |  command {
       |    python -c "print(9)"
       |  }
+      |  RUNTIME
       |  output {
       |    Int E_out = read_int(stdout())
       |  }
@@ -1129,7 +1203,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -1150,7 +1224,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -1667,5 +1741,34 @@ object SampleWdl {
         |}
       """.stripMargin
     override val rawInputs = Map.empty[String, String]
+  }
+
+  /**
+    * Inputs referencing other inputs and outputs referencing other outputs.
+    */
+  object ReferencingPreviousInputsAndOutputs extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """task golden_pie {
+        |  Float pi = 3.1415926
+        |  Float tau = pi + pi
+        |
+        |  command {
+        |    echo 1.6180339887
+        |    echo ${tau} 1>&2
+        |  }
+        |
+        |  output {
+        |    Float Au = read_float(stdout())
+        |    Float doubleAu = Au + Au
+        |    Float tauValue = read_float(stderr())
+        |    Float goldenPie = Au * pi
+        |  }
+        |}
+        |
+        |workflow wf {
+        |  call golden_pie
+        |}
+      """.stripMargin
+    override val rawInputs = Map.empty[FullyQualifiedName, Any]
   }
 }

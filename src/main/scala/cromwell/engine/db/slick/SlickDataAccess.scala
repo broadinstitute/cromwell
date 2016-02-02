@@ -7,6 +7,7 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import cromwell.engine.finalcall.FinalCall
 import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values.WdlValue
@@ -18,7 +19,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
-import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import cromwell.engine.workflow._
 import cromwell.engine.{SymbolHash, CallOutput, WorkflowOutputs}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
@@ -185,8 +186,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                               backend: Backend): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => CallKey(call, None)
+      case call: Call => BackendCallKey(call, None)
       case scatter: Scatter => ScatterKey(scatter, None)
+      case finalCall: FinalCall => FinalCallKey(finalCall)
     }
 
     val action = for {
@@ -444,7 +446,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
-                                          callKey: CallKey,
+                                          callKey: BackendCallKey,
                                           backendInfo: CallBackendInfo): Future[Unit] = {
     require(backendInfo != null, "backend info is null")
 
@@ -560,7 +562,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     * Updates the existing input symbols to replace expressions with real values.
     * @return The number of rows updated - as a Future.
     */
-  override def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int] = {
+  override def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs): Future[Int] = {
     type ProjectionFunction = SlickDataAccess.this.dataAccess.Symbols => (Rep[String], Rep[Option[Clob]])
     val projectionFn: ProjectionFunction = (s: SlickDataAccess.this.dataAccess.Symbols) => (s.wdlType, s.wdlValue)
 

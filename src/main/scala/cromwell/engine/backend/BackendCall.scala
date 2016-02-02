@@ -1,16 +1,14 @@
 package cromwell.engine.backend
 
 import akka.event.LoggingAdapter
-import cromwell.engine
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
+import cromwell.engine.Hashing._
+import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
+import cromwell.engine.workflow.BackendCallKey
+import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
+import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
-import cromwell.engine.workflow.CallKey
-import cromwell.engine.{ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
-import cromwell.engine.CallOutputs
-import cromwell.logging.WorkflowLogger
-import cromwell.engine.Hashing._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -62,12 +60,17 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
 
 final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, events, returnCode, hash, resultsClonedFrom)
+  override val result = SuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }
 
 final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = FailedExecution(throwable, returnCode)
+}
+
+case object AbortedExecutionHandle extends ExecutionHandle {
+  override def isDone: Boolean = true
+  override def result: ExecutionResult = AbortedExecution
 }
 
 trait BackendCall {
@@ -76,7 +79,7 @@ trait BackendCall {
    * of a BackendCall object that the 'call' would be within the workflow
    */
   def workflowDescriptor: WorkflowDescriptor
-  def key: CallKey
+  def key: BackendCallKey
   def call = key.scope
 
   /**
@@ -85,15 +88,15 @@ trait BackendCall {
   def backend: Backend
 
   /**
-   * Inputs to the call.  For example, if a call's task specifies a command like this:
-   *
-   * command {
-   *   File some_dir
-   *   ls ${some_dir}
-   * }
-   *
-   * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
-   */
+    * Inputs to the call.  For example, if a call's task specifies a command like this:
+    *
+    * File some_dir
+    * command {
+    *   ls ${some_dir}
+    * }
+    *
+    * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
+    */
   def locallyQualifiedInputs: CallInputs
 
   /**
@@ -106,7 +109,10 @@ trait BackendCall {
    * expression `read_lines(my_file_var)` would have to call lookupFunction()("my_file_var")
    * during expression evaluation
    */
-  def lookupFunction: String => WdlValue = WdlExpression.standardLookupFunction(locallyQualifiedInputs, key.scope.task.declarations, engineFunctions)
+  def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = {
+    val currentlyKnownValues = locallyQualifiedInputs ++ evaluatedValues
+    WdlExpression.standardLookupFunction(currentlyKnownValues, key.scope.task.declarations, engineFunctions)
+  }
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
@@ -123,7 +129,13 @@ trait BackendCall {
 
   def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
 
-  val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, backend.backendType)
+  /**
+    * Return CallLogs which contains the stdout/stderr of the particular call
+    */
+  def stdoutStderr: CallLogs
+
+  @throws[IllegalArgumentException]
+  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, backend.backendType)
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {
@@ -148,7 +160,7 @@ trait BackendCall {
       call.task.commandTemplateString,
       orderedInputs map { case (k, v) => s"$k=${v.computeHash(workflowDescriptor.fileHasher).value}" } mkString "\n",
       orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
-      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.expression.toWdlString}" } mkString "\n"
+      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.requiredExpression.toWdlString}" } mkString "\n"
     ).mkString("\n---\n").md5Sum
 
     ExecutionHash(overallHash, dockerHash)

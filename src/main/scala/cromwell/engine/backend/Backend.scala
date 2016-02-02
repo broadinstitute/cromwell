@@ -1,25 +1,27 @@
 package cromwell.engine.backend
 
 import akka.actor.ActorSystem
+import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
-import cromwell.engine.{CallInputs, CallOutputs}
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import wdl4s._
-import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
+import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{HostInputs, CallOutputs}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
+import wdl4s._
+import wdl4s.values.WdlValue
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.language.postfixOps
+import scala.util.{Success, Try}
 
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
@@ -53,6 +55,18 @@ object Backend {
 
 trait JobKey
 
+final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
+  def toPair = name -> value
+}
+
+object AttemptedLookupResult {
+  implicit class AugmentedAttemptedLookupSequence(s: Seq[AttemptedLookupResult]) {
+    def toLookupMap: Map[String, WdlValue] = s collect {
+      case AttemptedLookupResult(name, Success(value)) => (name, value)
+    } toMap
+  }
+}
+
 /**
  * Trait to be implemented by concrete backends.
  */
@@ -75,7 +89,7 @@ trait Backend {
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(callKey: CallKey,
+  def adjustInputPaths(callKey: BackendCallKey,
                        runtimeAttributes: CromwellRuntimeAttributes,
                        inputs: CallInputs,
                        workflowDescriptor: WorkflowDescriptor): CallInputs
@@ -99,9 +113,9 @@ trait Backend {
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
   def bindCall(workflowDescriptor: WorkflowDescriptor,
-               key: CallKey,
-               locallyQualifiedInputs: CallInputs,
-               abortRegistrationFunction: AbortRegistrationFunction): BackendCall
+               key: BackendCallKey,
+               locallyQualifiedInputs: CallInputs = Map.empty[String, WdlValue],
+               abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
 
   def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext
 
@@ -113,9 +127,9 @@ trait Backend {
   def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
-   * Return CallStandardOutput which contains the stdout/stderr of the particular call
+   * Return CallLogs which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(descriptor: WorkflowDescriptor, callName: String, index: ExecutionIndex): CallLogs
+  def stdoutStderr(backendCall: BackendCall): CallLogs
 
   def backendType: BackendType
 
@@ -144,4 +158,6 @@ trait Backend {
   )
 
   lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
+
+  def pollBackoff: ExponentialBackOff
 }

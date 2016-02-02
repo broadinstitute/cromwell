@@ -1,5 +1,6 @@
 package cromwell.engine.workflow
 
+import cromwell.engine.finalcall.FinalCall
 import wdl4s._
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
@@ -17,7 +18,8 @@ sealed trait ExecutionStoreKey {
 
 trait OutputKey extends ExecutionStoreKey
 
-case class CallKey(scope: Call, index: Option[Int]) extends OutputKey
+trait CallKey extends OutputKey
+case class BackendCallKey(scope: Call, index: Option[Int]) extends CallKey
 case class CollectorKey(scope: Call) extends OutputKey {
   override val index: Option[Int] = None
 }
@@ -37,7 +39,7 @@ case class ScatterKey(scope: Scatter, index: Option[Int]) extends ExecutionStore
   private def explode(scope: Scope, count: Int): Seq[ExecutionStoreKey] = {
     scope match {
       case call: Call =>
-        val shards = (0 until count) map { i => CallKey(call, Option(i)) }
+        val shards = (0 until count) map { i => BackendCallKey(call, Option(i)) }
         shards :+ CollectorKey(call)
       case scatter: Scatter =>
         throw new UnsupportedOperationException("Nested Scatters are not supported (yet).")
@@ -45,4 +47,8 @@ case class ScatterKey(scope: Scatter, index: Option[Int]) extends ExecutionStore
         throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
     }
   }
+}
+
+case class FinalCallKey(scope: FinalCall) extends CallKey {
+  override val index = None
 }

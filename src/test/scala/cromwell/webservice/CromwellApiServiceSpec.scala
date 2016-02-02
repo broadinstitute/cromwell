@@ -7,6 +7,7 @@ import akka.pattern.pipe
 import cromwell.engine.{CallOutput, SymbolHash}
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlInteger, WdlValue}
+import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
 import cromwell.engine.workflow.WorkflowManagerActor._
@@ -145,7 +146,7 @@ class MockWorkflowManagerActor extends Actor  {
         head match {
           case ("BadKey", _) =>
             // The exception text is rendered as the body, so there must be exception text or Spray will 500 (!)
-            throw new IllegalArgumentException("aw snap")
+            throw new IllegalArgumentException("Unrecognized query keys: BadKey")
           case ("status", _) =>
             WorkflowQueryResponse(
               Seq(
@@ -238,8 +239,12 @@ object CromwellApiServiceSpec {
 }
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
-  override def actorRefFactory = system
-  override val workflowManager = system.actorOf(Props(new MockWorkflowManagerActor()))
+  import spray.httpx.SprayJsonSupport._
+  import spray.httpx.unmarshalling._
+
+  val testWorkflowManagerSystem = new TestWorkflowManagerSystem
+  override def actorRefFactory = testWorkflowManagerSystem.actorSystem
+  override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
@@ -259,6 +264,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(StatusCodes.BadRequest) {
           status
         }
+        assertResult(
+          """{
+             |  "status": "fail",
+             |  "message": "Invalid workflow ID: 'foobar'."
+             |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
       }
   }
 
@@ -270,7 +283,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           s"""{
               |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
               |  "status": "Running"
-              |}""".stripMargin) {
+              |}""".stripMargin
+        ) {
           responseAs[String]
         }
         assertResult(StatusCodes.OK) {
@@ -286,6 +300,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(StatusCodes.NotFound) {
           status
         }
+        assertResult(
+          s"""{
+              |  "status": "error",
+              |  "message": "Workflow '${MockWorkflowManagerActor.unknownId}' not found."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
       }
   }
 
@@ -296,6 +318,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(StatusCodes.BadRequest) {
           status
         }
+        assertResult(
+          """{
+              |  "status": "fail",
+              |  "message": "Invalid workflow ID: 'foobar'."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
       }
   }
 
@@ -305,6 +335,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     check {
       assertResult(StatusCodes.Forbidden) {
         status
+      }
+      assertResult(
+        s"""{
+            |  "status": "fail",
+            |  "message": "Workflow ID '${MockWorkflowManagerActor.abortedWorkflowId}' is in terminal state 'Aborted' and cannot be aborted."
+            |}""".stripMargin
+      ) {
+        responseAs[String]
       }
     }
   }
@@ -352,7 +390,17 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           status
         }
         assertResult(true) {
-          responseAs[String].contains("contains bad inputs JSON")
+          val fields: Map[String, JsValue] = responseAs[Map[String, JsValue]]
+          fields.get("status").isDefined &&
+          fields.get("status").get.asInstanceOf[JsString].value.equals("fail") &&
+          fields.get("message").isDefined &&
+          fields.get("message").get.asInstanceOf[JsString].value.contains("failed to process inputs")
+          fields.get("errors").isDefined &&
+            (fields.get("errors").get match {
+            case array: JsArray if array.elements.length == 1 =>
+              array.elements.head.asInstanceOf[JsString].value.contains("contains bad inputs JSON")
+            case _ => false
+          })
         }
       }
   }
@@ -365,7 +413,17 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           status
         }
         assertResult(true) {
-          responseAs[String].contains("contains bad options JSON")
+          val fields: Map[String, JsValue] = responseAs[Map[String, JsValue]]
+          fields.get("status").isDefined &&
+            fields.get("status").get.asInstanceOf[JsString].value.equals("fail") &&
+            fields.get("message").isDefined &&
+            fields.get("message").get.asInstanceOf[JsString].value.contains("failed to process inputs")
+          fields.get("errors").isDefined &&
+            (fields.get("errors").get match {
+              case array: JsArray if array.elements.length == 1 =>
+                array.elements.head.asInstanceOf[JsString].value.contains("contains bad options JSON")
+              case _ => false
+            })
         }
       }
   }
@@ -379,7 +437,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(
           s"""{
-              |  "valid": true
+              |  "status": "success",
+              |  "message": "Validation succeeded."
               |}""".stripMargin) {
           responseAs[String]
         }
@@ -398,8 +457,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(
           s"""{
-              |  "valid": false,
-              |  "error": "The following errors occurred while processing your inputs:\\n\\nRequired workflow input 'hello.hello.addressee' not specified."
+              |  "status": "fail",
+              |  "message": "Workflow input processing failed.",
+              |  "errors": ["Required workflow input 'hello.hello.addressee' not specified."]
               |}""".stripMargin) {
           responseAs[String]
         }
@@ -418,8 +478,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(
           s"""{
-              |  "valid": false,
-              |  "error": "ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "
+              |  "status": "fail",
+              |  "message": "ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "
               |}""".stripMargin) {
           responseAs[String]
         }
@@ -438,8 +498,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(
           s"""{
-              |  "valid": false,
-              |  "error": "Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"
+              |  "status": "fail",
+              |  "message": "Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"
               |}""".stripMargin) {
           responseAs[String]
         }
@@ -477,6 +537,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       assertResult(StatusCodes.NotFound) {
         status
       }
+      assertResult(
+        s"""{
+            |  "status": "error",
+            |  "message": "Workflow '$unknownId' not found."
+            |}""".stripMargin
+      ) {
+        responseAs[String]
+      }
     }
   }
 
@@ -507,6 +575,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(StatusCodes.NotFound) {
           status
         }
+        assertResult(
+          s"""{
+              |  "status": "error",
+              |  "message": "Workflow '$unknownId' not found."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
       }
   }
 
@@ -517,6 +593,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(StatusCodes.NotFound) {
           status
         }
+        assertResult(
+          s"""{
+              |  "status": "error",
+              |  "message": "Call bogus_workflow.bogus_call not found for workflow '$submittedWorkflowId'."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
       }
   }
 
@@ -526,6 +610,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "Invalid workflow ID: 'foobar'."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
         }
       }
   }
@@ -587,11 +679,20 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 404 if the workflow ID is not found" in {
-    Get(s"/workflows/$version/${UUID.randomUUID().toString}/logs/three_step.wc") ~>
+    val randomID = {UUID.randomUUID().toString}
+    Get(s"/workflows/$version/$randomID/logs/three_step.wc") ~>
       callStdoutStderrRoute ~>
       check {
         assertResult(StatusCodes.NotFound) {
           status
+        }
+        assertResult(
+          s"""{
+              |  "status": "error",
+              |  "message": "Workflow '$randomID' not found."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
         }
       }
   }
@@ -603,6 +704,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(StatusCodes.NotFound) {
           status
         }
+        assertResult(
+          s"""{
+              |  "status": "error",
+              |  "message": "Call three_step.wcBADBAD not found for workflow '$submittedWorkflowId'."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
       }
   }
 
@@ -612,6 +721,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "Invalid workflow ID: 'foobar'."
+              |}""".stripMargin
+        ) {
+          responseAs[String]
         }
       }
   }
@@ -679,6 +796,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(StatusCodes.BadRequest) {
           status
+        }
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "Unrecognized query keys: BadKey"
+              |}""".stripMargin
+        ) {
+          responseAs[String]
         }
       }
   }

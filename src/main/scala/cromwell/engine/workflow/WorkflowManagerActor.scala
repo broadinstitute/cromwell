@@ -3,25 +3,26 @@ package cromwell.engine.workflow
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.{Logging, LoggingReceive}
-import akka.pattern.{pipe, ask}
+import akka.pattern.{ask, pipe}
 import cromwell.engine
-import cromwell.engine.EnhancedFullyQualifiedName
-import wdl4s._
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
+import cromwell.engine.EnhancedFullyQualifiedName
 import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.server.CromwellServer
 import cromwell.util.WriteOnceStore
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
-
+import wdl4s._
+import wdl4s.values.WdlFile
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
@@ -67,6 +68,25 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   type WorkflowActorRef = ActorRef
 
   private val workflowStore = new WriteOnceStore[WorkflowId, WorkflowActorRef]
+
+  if (getAbortJobsOnTerminate) {
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        log.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
+        workflowStore.toMap.foreach{case (id, actor)=>
+          CromwellServer.workflowManagerActor ! WorkflowManagerActor.WorkflowAbort(id)
+        }
+        var numRemaining = -1
+        while(numRemaining != 0) {
+          Thread.sleep(1000)
+          val result = globalDataAccess.getWorkflowsByState(Seq(WorkflowRunning, WorkflowAborting))
+          numRemaining = Await.result(result,Duration.Inf).size
+          log.info(s"$tag: Waiting for all workflows to abort ($numRemaining remaining).")
+        }
+        log.info(s"$tag: All workflows aborted.")
+      }
+    })
+  }
 
   override def preStart() {
     restartIncompleteWorkflows()
@@ -161,12 +181,17 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
   }
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
+    def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
+      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
+    def backendCallFromKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
+      backend.bindCall(descriptor, callKey(descriptor, callName, key))
     for {
         _ <- assertWorkflowExistence(workflowId)
         descriptor <- globalDataAccess.getWorkflow(workflowId)
+        _ <- assertCallExistence(workflowId, callFqn)
         callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
-        callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
+        callStandardOutput <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)).map(_.stdoutStderr))
       } yield callStandardOutput
   }
 
@@ -177,7 +202,9 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
         val callsToPaths = for {
           (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          callStandardOutput = backend.stdoutStderr(descriptor, callName, key.index)
+          callKey = BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index)
+          backendCall = backend.bindCall(descriptor, callKey)
+          callStandardOutput = backend.stdoutStderr(backendCall)
         } yield key.fqn -> callStandardOutput
 
         callsToPaths groupBy { _._1 } mapValues { v => v map { _._2 } }
@@ -299,6 +326,7 @@ class WorkflowManagerActor(backend: Backend) extends Actor with CromwellActor {
 
   private def callCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]): Future[Int] = {
     for {
+      _ <- assertWorkflowExistence(id)
       cachingParameters <- CallCachingParameters.from(id, callName, parameters)
       updateCount <- globalDataAccess.updateCallCaching(cachingParameters)
     } yield updateCount

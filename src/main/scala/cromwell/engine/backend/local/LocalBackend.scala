@@ -5,18 +5,19 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
 import better.files._
-import wdl4s._
+import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
-import cromwell.engine.backend._
+import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.engine.workflow.CallKey
-import cromwell.engine.backend.BackendType
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
+import wdl4s._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
@@ -114,12 +115,25 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   import LocalBackend._
 
+  /**
+    * Exponential Backoff Builder to be used when polling for call status.
+    */
+  final private lazy val pollBackoffBuilder = new Builder()
+    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
+    .setMaxElapsedTimeMillis(Int.MaxValue)
+    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
+    .setMultiplier(1.1D)
+
+  override def pollBackoff = pollBackoffBuilder.build()
+
   override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        key: CallKey,
+                        key: BackendCallKey,
                         locallyQualifiedInputs: CallInputs,
-                        abortRegistrationFunction: AbortRegistrationFunction): BackendCall = {
+                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
     LocalBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
+
+  def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = workflowLoggerWithCall(backendCall)
@@ -183,7 +197,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
 
     // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
-    backendCall.callAbortRegistrationFunction.register(AbortFunction(() => process.destroy()))
+    backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(() => process.destroy())))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
@@ -209,7 +223,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
       def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => backendCall.hash map { h => SuccessfulExecution(outputs, Seq.empty, rc, h) }
+          case Success(outputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             FailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future

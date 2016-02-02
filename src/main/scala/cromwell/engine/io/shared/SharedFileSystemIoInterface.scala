@@ -2,6 +2,7 @@ package cromwell.engine.io.shared
 
 import java.nio.file.{Files, Paths}
 
+import cromwell.engine.PathString
 import cromwell.engine.io.IoInterface
 
 import scala.language.postfixOps
@@ -13,8 +14,8 @@ object SharedFileSystemIoInterface {
 
 class SharedFileSystemIoInterface private() extends IoInterface {
 
+  import PathString._
   import better.files._
-  import cromwell.util.PathUtil._
 
   override def readFile(path: String): String = Paths.get(path).contentAsString
 

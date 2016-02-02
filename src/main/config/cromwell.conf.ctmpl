@@ -13,6 +13,14 @@ backend {
   }
 }
 
+workflow-options {
+  // These workflow options will be encrypted when stored in the database
+  encrypted-fields: ["refresh_token"]
+
+  // AES-256 key to use to encrypt the values in `encrypted-fields`
+  base64-encryption-key: "{{.Data.workflow_options_encryption_key}}"
+}
+
 docker {
   dockerAccount = "{{.Data.docker_account}}"
   dockerToken = "{{.Data.docker_token}}"

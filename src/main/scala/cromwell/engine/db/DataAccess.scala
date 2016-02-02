@@ -6,7 +6,7 @@ import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey}
+import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 
 import scala.concurrent.Future
@@ -35,7 +35,7 @@ trait DataAccess {
 
   def getExecutionBackendInfo(workflowId: WorkflowId, call: Call): Future[CallBackendInfo]
 
-  def updateExecutionBackendInfo(workflowId: WorkflowId, callKey: CallKey, backendInfo: CallBackendInfo): Future[Unit]
+  def updateExecutionBackendInfo(workflowId: WorkflowId, callKey: BackendCallKey, backendInfo: CallBackendInfo): Future[Unit]
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit]
 
@@ -60,7 +60,7 @@ trait DataAccess {
   def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, workflowOutputFqns: Seq[ReportableSymbol]): Future[Unit]
 
   /** Updates the existing input symbols to replace expressions with real values **/
-  def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int]
+  def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs): Future[Int]
 
   def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit]
 

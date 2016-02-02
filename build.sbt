@@ -3,7 +3,7 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.16"
+version := "0.17"
 
 organization := "org.broadinstitute"
 
@@ -11,7 +11,7 @@ scalaVersion := "2.11.7"
 
 val lenthallV = "0.15"
 
-val wdl4sV = "0.1"
+val wdl4sV = "0.2"
 
 val sprayV = "1.3.2"
 
@@ -61,6 +61,7 @@ libraryDependencies ++= Seq(
   "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
   "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
+  "com.google.cloud.bigdataoss" % "gcsio" % "1.4.3",
   "mysql" % "mysql-connector-java" % "5.1.36",
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
   "com.github.pathikrit" %% "better-files" % "2.13.0",

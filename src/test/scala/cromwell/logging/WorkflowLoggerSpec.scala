@@ -5,12 +5,17 @@ import java.util.UUID
 import cromwell.CromwellTestkitSpec
 import wdl4s.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId, WorkflowSourceFiles}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
-class WorkflowLoggerSpec extends FlatSpec with Matchers {
+class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
+
+  override protected def afterAll() = {
+    testWorkflowManagerSystem.shutdownTestActorSystem()
+    super.afterAll()
+  }
 
   val descriptor = WorkflowDescriptor(
     WorkflowId(UUID.fromString("fc6cfad9-65e9-4eb7-853f-7e08c1c8cf8e")),
@@ -24,9 +29,9 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers {
   val backendCall = LocalBackendCall(
     backend,
     descriptor,
-    CallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
+    BackendCallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None),
     Map.empty[String, WdlValue],
-    AbortRegistrationFunction(_ => ())
+    callAbortRegistrationFunction = None
   )
 
   "WorkflowLogger" should "create a valid tag" in {

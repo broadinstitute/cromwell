@@ -8,7 +8,7 @@ import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput, JesParameter
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{JesCallBackendInfo, JesId, JesStatus}
-import cromwell.engine.workflow.CallKey
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.google.GoogleScopes
 import org.joda.time.DateTime
@@ -52,7 +52,7 @@ object Run  {
       logger.info(s"Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
 
       val logging = new Logging()
-      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.JesLog}")
+      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.jesLogFilename(pipeline.key)}")
       rpr.setLogging(logging)
 
       // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
@@ -102,7 +102,7 @@ object Run  {
   private case class EventStartTime(name: String, timestamp: DateTime)
 
   def getEventList(op: Operation): Seq[ExecutionEventEntry] = {
-    val starterEvents = eventIfExists("createTime", op, "chilling out, maxing") ++ eventIfExists("startTime", op, "relaxing all cool")
+    val starterEvents = eventIfExists("createTime", op, "waiting for quota") ++ eventIfExists("startTime", op, "initializing VM")
 
     val eventsList: Seq[EventStartTime] = if (op.getMetadata.containsKey("events")) {
       op.getMetadata.get("events").asInstanceOf[java.util.ArrayList[AnyRef]].asScala map { x =>
@@ -157,12 +157,12 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
 
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
-      globalDataAccess.updateExecutionBackendInfo(workflowId, CallKey(call, pipeline.key.index), newBackendInfo)
+      globalDataAccess.updateExecutionBackendInfo(workflowId, BackendCallKey(call, pipeline.key.index), newBackendInfo)
 
-      // If this has transitioned to a running or complete state from a state this is not running or complete,
+      // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.
       if (currentStatus.isRunningOrComplete && (previousStatus.isEmpty || !previousStatus.get.isRunningOrComplete)) {
-        backendCall.callAbortRegistrationFunction.register(AbortFunction(() => abort()))
+        backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(() => abort())))
       }
     }
 

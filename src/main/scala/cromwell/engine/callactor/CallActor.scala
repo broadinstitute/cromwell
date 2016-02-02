@@ -1,24 +1,23 @@
-package cromwell.engine
+package cromwell.engine.callactor
 
 import akka.actor.FSM.NullFunction
-import akka.actor.{Actor, Cancellable, LoggingFSM, Props}
+import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
-import wdl4s._
-import wdl4s.values.WdlValue
-import cromwell.engine.CallActor.{CallActorData, CallActorState}
-import cromwell.engine.CallExecutionActor.CallExecutionActorMessage
+import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.{CallKey, WorkflowActor}
+import cromwell.engine.callactor.CallActor.{CallActorState, CallActorData}
+import cromwell.engine.callexecution.CallExecutionActor
+import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
+import cromwell.engine.workflow.{FinalCallKey, BackendCallKey, CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
+import wdl4s.{CallInputs, Scope}
+import wdl4s.values.WdlValue
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
-import scala.util.{Try, Success, Failure}
 
 
 object CallActor {
@@ -30,11 +29,11 @@ object CallActor {
   case object Start extends StartMode { override val executionMessage = CallExecutionActor.Execute }
   final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
   final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode {
-    override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall, backendCall)
+    override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall)
   }
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
-  final case class ExecutionFinished(call: Call, executionResult: ExecutionResult) extends CallActorMessage
+  final case class ExecutionFinished(call: Scope, executionResult: ExecutionResult) extends CallActorMessage
 
   sealed trait CallActorState
   case object CallNotStarted extends CallActorState
@@ -75,13 +74,16 @@ object CallActor {
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
 
-  def props(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
-    Props(new CallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
+  def props(key: BackendCallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
+    Props(new BackendCallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
+  def props(key: FinalCallKey) = Props(new FinalCallActor(key))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor)
-  extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
+trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
+  def key: CallKey
+  def workflowDescriptor: WorkflowDescriptor
+  protected def callExecutionActor: ActorRef
 
   import CallActor._
 
@@ -114,9 +116,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
       context.parent ! WorkflowActor.CallStarted(key)
-      val backendCall = backend.bindCall(workflowDescriptor, key, locallyQualifiedInputs, AbortRegistrationFunction(registerAbortFunction))
-      val executionActorName = s"CallExecutionActor-${workflowDescriptor.id}-${call.unqualifiedName}"
-      context.actorOf(CallExecutionActor.props(backendCall), executionActorName) ! startMode.executionMessage
+      callExecutionActor ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
@@ -182,7 +182,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     }
   }
 
-  private def handleFinished(call: Call, executionResult: ExecutionResult): State = {
+  private def handleFinished(call: Scope, executionResult: ExecutionResult): State = {
 
     def createBackoff: Option[ExponentialBackOff] = Option(
       new ExponentialBackOff.Builder()
@@ -194,8 +194,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     )
 
     val message = executionResult match {
-      case SuccessfulExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
+      case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
         WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+      case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case FailedExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)
@@ -215,7 +216,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, backend: Backe
     context.stop(self)
   }
 
-  private def registerAbortFunction(abortFunction: AbortFunction): Unit = {
+  protected def registerAbortFunction(abortFunction: AbortFunction): Unit = {
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }
 }

@@ -2,9 +2,9 @@ package cromwell.util
 
 import java.io.{PrintWriter, StringWriter}
 
+import cromwell.engine.CromwellFatalException
 import cromwell.logging.WorkflowLogger
 
-import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -28,33 +28,42 @@ object TryUtil {
     possibleFailures.collect { case failure: Failure[T] => stringifyFailure(failure) }
 
   private def defaultSuccessFunction(a: Any): Boolean = true
+  private def defaultIsFatal(t: Throwable): Boolean = false
+  private def defaultIsTransient(t: Throwable): Boolean = false
+
 
   /**
-   * Runs a block of code (`fn`) `retries` number of times until it succeeds.
-   * It will wait `pollingInterval` amount of time between retry attempts and
-   * The `pollingBackOffFactor` is for exponentially backing off the `pollingInterval`
-   * on subsequent retries.  The `pollingInterval` shall not exceed `maxPollingInterval`
-   *
-   * Returns a Try[T] where T is the return value of `fn`, the function to be retried.
-   * If the return value is Success[T] then at least one retry succeeded.
-   *
-   * The isSuccess function is optional but if provided, then isSuccess(fn) must be true
-   * or it will trigger another retry.  if isSuccess is omitted, the only way the fn can
-   * fail is if it throws an exception.
-   *
-   * Use `retryLimit` value of None indicates to retry indefinitely.
-   */
+    * Runs a block of code (`fn`) `retries` number of times until it succeeds.
+    * It will use an InitializedBackoff instance to handle backoff timings and wait
+    * between each retry.
+    *
+    * Returns a Try[T] where T is the return value of `fn`, the function to be retried.
+    * If the return value is Success[T] then at least one retry succeeded.
+    *
+    * The isSuccess function is optional but if provided, then isSuccess(fn) must be true
+    * or it will trigger another retry.  if isSuccess is omitted, the only way the fn can
+    * fail is if it throws an exception.
+    *
+    * The isFatal function is optional but if provided, then a failure f for which
+    * isFatal(f) returns true would terminate the retry loop, even if the retry limit has not been reached.
+    *
+    * The isTransient function is optional but if provided, then a failure f for which
+    * isTransient(f) returns true would not count against the retry limit.
+    *
+    * Note that if the retry limit is reached, the last failure is wrapped into a CromwellFatalException.
+    *
+    * Use `retryLimit` value of None indicates to retry indefinitely.
+    */
   @annotation.tailrec
   def retryBlock[T](fn: Option[T] => T,
+                    backoff: Backoff,
                     isSuccess: T => Boolean = defaultSuccessFunction _,
                     retryLimit: Option[Int],
-                    pollingInterval: Duration,
-                    pollingBackOffFactor: Double,
-                    maxPollingInterval: Duration,
                     logger: WorkflowLogger,
                     failMessage: Option[String] = None,
-                    priorValue: Option[T] = None): Try[T] = {
-
+                    priorValue: Option[T] = None,
+                    isFatal: (Throwable) => Boolean = defaultIsFatal _,
+                    isTransient: (Throwable) => Boolean = defaultIsTransient _): Try[T] = {
     def logFailures(attempt: Try[T]): Unit = {
       attempt recover {
         case t: Throwable => logger.warn(t.getMessage, t)
@@ -63,28 +72,36 @@ object TryUtil {
 
     Try { fn(priorValue) } match {
       case Success(x) if isSuccess(x) => Success(x)
+      case Failure(f) if isFatal(f) => Failure(new CromwellFatalException(f))
       case value if (retryLimit.isDefined && retryLimit.get > 1) || retryLimit.isEmpty =>
         logFailures(value)
-        val retryCountMessage = if (retryLimit.getOrElse(0) > 0) s" (${retryLimit.getOrElse(0) - 1} more retries) " else ""
+
+        val transient = isTransient(value.failed.get)
+        val newLimit = if (transient) retryLimit else retryLimit.map(_ - 1)
+        val retryCountMessage = {
+          val transientMessage = if (transient) " - This error is transient and does not count against the retry limit." else ""
+          if (retryLimit.getOrElse(0) > 0 || transient) s" (${newLimit.getOrElse(0)} more retries)$transientMessage" else ""
+        }
+        val pollingInterval = backoff.backoffMillis
         val retryMessage = s"Retrying in $pollingInterval$retryCountMessage..."
         failMessage foreach { m => logger.warn(s"$m.  $retryMessage") }
 
-        Thread.sleep(pollingInterval.toMillis)
+        Thread.sleep(pollingInterval)
 
         retryBlock(
           fn,
+          backoff.next,
           isSuccess,
-          retryLimit.map(_ - 1),
-          Duration(Math.min((pollingInterval.toMillis * pollingBackOffFactor).toLong, maxPollingInterval.toMillis), "milliseconds"),
-          pollingBackOffFactor,
-          maxPollingInterval,
+          newLimit,
           logger,
           failMessage,
           value.toOption
         )
       case f =>
         logFailures(f)
-        f
+        f recoverWith {
+          case e => Failure(new CromwellFatalException(e))
+        }
     }
   }
 

@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
+[![Join the chat at https://gitter.im/broadinstitute/cromwell](https://badges.gitter.im/broadinstitute/cromwell.svg)](https://gitter.im/broadinstitute/cromwell?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 
 Cromwell
 ========
@@ -8,17 +10,19 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc start-->
 
-* [Mailing List](#mailing-list)
+* [How To Reach Us](#how-to-reach-us)
+  * [Gitter](#gitter)
+  * [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
 * [Command Line Usage](#command-line-usage)
+  * [run](#run)
+  * [server](#server)
+  * [parse](#parse)
   * [validate](#validate)
   * [inputs](#inputs)
-  * [run](#run)
-  * [parse](#parse)
   * [highlight](#highlight)
-  * [server](#server)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
   * [Database](#database)
@@ -47,6 +51,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
+  * [POST /api/workflows/:version/validate](#post-apiworkflowsversionvalidate)
   * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
@@ -58,14 +63,19 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
   * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
+  * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
   * [Generating and Hosting ScalaDoc](#generating-and-hosting-scaladoc)
 
 <!---toc end-->
 
-# Mailing List
+# How To Reach Us
 
+## Gitter
+There is a [gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
+
+## Mailing List
 The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstitute.org.
 
 If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.
@@ -116,75 +126,35 @@ server
 
 parse <WDL file>
 
+  This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
+  
   Compares a WDL file against the grammar and prints out an
   abstract syntax tree if it is valid, and a syntax error
   otherwise.  Note that higher-level AST checks are not done
   via this sub-command and the 'validate' subcommand should
   be used for full validation
 
-validate <WDL file>
-
+validate <WDL file>  
   Performs full validation of the WDL file including syntax
   and semantic checking
 
 inputs <WDL file>
 
+  This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
+  
   Print a JSON skeleton file of the inputs needed for this
   workflow.  Fill in the values in this JSON document and
   pass it in to the 'run' subcommand.
 
 highlight <WDL file> <html|console>
 
+  This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
+  
   Reformats and colorizes/tags a WDL file. The second
   parameter is the output type.  "html" will output the WDL
   file with <span> tags around elements.  "console" mode
   will output colorized text to the terminal
 ```
-
-## validate
-
-Given a WDL file, this runs the full syntax checker over the file and resolves imports in the process.  If any syntax errors are found, they are printed out.  Otherwise the program exits.
-
-Error if a `call` references a task that doesn't exist:
-
-```
-$ java -jar cromwell.jar validate 2.wdl
-ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
-
-  call BADps
-       ^
-
-```
-
-Error if namespace and task have the same name:
-
-```
-$ java -jar cromwell.jar validate 5.wdl
-ERROR: Task and namespace have the same name:
-
-Task defined here (line 3, col 6):
-
-task ps {
-     ^
-
-Import statement defined here (line 1, col 20):
-
-import "ps.wdl" as ps
-                   ^
-```
-
-## inputs
-
-Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
-
-```
-$ java -jar cromwell.jar inputs 3step.wdl
-{
-  "three_step.cgrep.pattern": "String"
-}
-```
-
-This inputs document is used as input to the `run` subcommand.
 
 ## run
 
@@ -218,16 +188,6 @@ Only a few workflow options are available currently and are all to be used with 
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
-```
-
-Where `wf_options.json` would contain:
-
-```
-{
-  "jes_gcs_root": "gs://my-bucket/workflows",
-  "google_project": "my_google_project",
-  "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
-}
 ```
 
 The fourth, optional parameter to the 'run' subcommand is a path where the workflow metadata will be written.  By default, no workflow metadata will be written.
@@ -271,7 +231,13 @@ $ cat my_wf.metadata.json
 }
 ```
 
+## server
+
+Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
+
 ## parse
+
+This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
 
 Given a WDL file input, this does grammar level syntax checks and prints out the resulting abstract syntax tree.
 
@@ -288,7 +254,56 @@ $ echo "workflow wf {}" | java -jar cromwell.jar parse /dev/stdin
 )
 ```
 
+## validate
+
+Given a WDL file, this runs the full syntax checker over the file and resolves imports in the process.  If any syntax errors are found, they are printed out.  Otherwise the program exits.
+
+Error if a `call` references a task that doesn't exist:
+
+```
+$ java -jar cromwell.jar validate 2.wdl
+ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
+
+  call BADps
+       ^
+
+```
+
+Error if namespace and task have the same name:
+
+```
+$ java -jar cromwell.jar validate 5.wdl
+ERROR: Task and namespace have the same name:
+
+Task defined here (line 3, col 6):
+
+task ps {
+     ^
+
+Import statement defined here (line 1, col 20):
+
+import "ps.wdl" as ps
+                   ^
+```
+
+## inputs
+
+This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
+
+Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
+
+```
+$ java -jar cromwell.jar inputs 3step.wdl
+{
+  "three_step.cgrep.pattern": "String"
+}
+```
+
+This inputs document is used as input to the `run` subcommand.
+
 ## highlight
+
+This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
 
 Formats a WDL file and semantically tags it.  This takes a second parameter (`html` or `console`) which determines what the output format will be.
 
@@ -327,10 +342,6 @@ $ java -jar cromwell.jar highlight test.wdl html
   <span class="keyword">call</span> <span class="name">abc</span>
 }
 ```
-
-## server
-
-Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
 # Getting Started with WDL
 
@@ -385,17 +396,12 @@ database {
   config = main.mysql
 
   main {
-    hsqldb {
-      db.url = "jdbc:hsqldb:mem:${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
-      db.driver = "org.hsqldb.jdbcDriver"
-      driver = "slick.driver.HsqldbDriver$"
-      slick.createSchema = true
-    }
     mysql {
       db.url = "jdbc:mysql://localhost:3306/cromwell"
       db.user = "root"
       db.password = ""
       db.driver = "com.mysql.jdbc.Driver"
+      db.connectionTimeout = 5000 // NOTE: The default 1000ms is often too short for production mysql use
       driver = "slick.driver.MySQLDriver$"
     }
   }
@@ -954,7 +960,6 @@ Example workflow options file:
 
 ```json
 {
-  "default_backend": "jes",
   "jes_gcs_root": "gs://my-bucket/workflows",
   "google_project": "my_google_project",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x"
@@ -963,9 +968,9 @@ Example workflow options file:
 
 Valid keys and their meanings:
 
-* **default_backend** - Backend to use to run this workflow.  Accepts values `jes`, `local`, or `sge`.
 * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
 * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+* **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
 * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
 * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
 * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
@@ -1170,6 +1175,74 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 
 --f3fd038395644de596c460257626edd7--
 ```
+
+## POST /api/workflows/:version/validate
+
+This endpoint allows WDL to be validated in the context of a running Cromwell server and a given inputs file.
+
+
+Validation includes checking that the WDL is syntactically correct, that the runtime attributes are correct and (if supplied) that
+the inputs file satisfies the WDL file's input requirements.
+
+* `wdlSource` - *Required* Contains the WDL file to submit for execution.
+* `workflowInputs` - *Optional* JSON file containing the inputs.
+
+cURL:
+```
+$ curl -v "localhost:8000/api/workflows/v1/validate" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+```
+
+HTTPie:
+
+```
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+```
+
+Request:
+```
+POST /api/workflows/v1/validate HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 463
+Content-Type: application/x-www-form-urlencoded; charset=utf-8
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+wdlSource=...wdlInputs=...
+```
+
+Response (successful validation):
+```
+HTTP/1.1 200 OK
+Content-Length: 63
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 21 Jan 2016 16:57:39 GMT
+Server: spray-can/1.3.2
+
+{
+    "message": "Validation succeeded.",
+    "status": "success"
+}
+```
+
+Response (failed validation example):
+```
+HTTP/1.1 400 Bad Request
+Content-Length: 159
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 21 Jan 2016 16:56:32 GMT
+Server: spray-can/1.3.2
+
+{
+    "errors": [
+        "Missing required keys in runtime configuration for backend 'JES': docker"
+    ],
+    "message": "RuntimeAttribute is not valid.",
+    "status": "fail"
+}
+```
+
 
 ## GET /api/workflows/:version/query
 
@@ -1704,6 +1777,60 @@ Server: spray-can/1.3.3
 }
 
 ```
+
+## Error handling
+Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:
+
+```
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "Error response schema",
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": [ "fail", "error"]
+    },
+    "message": {
+      "type": "string"
+    },
+    "errors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  },
+  "required": ["status", "message"]
+}
+```
+
+The `status` field can take two values:
+> "fail" means that the request was invalid and/or data validation failed. "fail" status is most likely returned with a 4xx HTTP Status code.
+e.g.
+
+```
+{
+  "status": "fail",
+  "message": "Workflow input processing failed.",
+  "errors": [
+    "Required workflow input 'helloworld.input' not specified."
+  ]
+}
+```
+
+> "error" means that an error occurred while processing the request. "error" status is most likely returned with a 5xx HTTP Status code.
+e.g.
+
+```
+{
+  "status": "error",
+  "message": "Connection to the database failed."
+}
+```
+
+The `message` field contains a short description of the error.
+
+The `errors` field is optional and may contain additional information about why the request failed.
 
 # Developer
 

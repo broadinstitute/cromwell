@@ -1,10 +1,15 @@
 package cromwell
 
-import wdl4s._
+import java.nio.file.{Path, Paths}
+
+import cromwell.engine.io.gcs.GcsFileSystem
 import org.joda.time.DateTime
-import wdl4s.values.{WdlValue, WdlFile}
+import org.slf4j.Logger
+import wdl4s._
+import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.language.implicitConversions
+import scala.util.{Failure, Try}
 import scalaz.ValidationNel
 
 package object engine {
@@ -34,10 +39,11 @@ package object engine {
   type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]
   type FullyQualifiedName = String
   type LocallyQualifiedName = String
-  type CallInputs = Map[String, WdlValue]
   case class CallOutput(wdlValue: WdlValue, hash: Option[SymbolHash])
   type CallOutputs = Map[LocallyQualifiedName, CallOutput]
   type HostInputs = Map[String, WdlValue]
+
+  class CromwellFatalException(exception: Throwable) extends Exception(exception)
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)
@@ -50,6 +56,23 @@ package object engine {
   implicit class EnhancedCallOutputMap[A](val m: Map[A, CallOutput]) extends AnyVal {
     def mapToValues: Map[A, WdlValue] = m map {
       case (k, CallOutput(wdlValue, hash)) => (k, wdlValue)
+    }
+  }
+
+  object PathString {
+    implicit class UriString(val str: String) extends AnyVal {
+      def isGcsUrl: Boolean = str.startsWith("gs://")
+
+      def isUriWithProtocol: Boolean = "^[a-z]+://".r.findFirstIn(str).nonEmpty
+
+      def toPath(workflowLogger: Logger, gcsFileSystem: Try[GcsFileSystem] = Failure(new Throwable("No GCS Filesystem"))): Path = {
+        str match {
+          case path if path.isGcsUrl && gcsFileSystem.isSuccess => gcsFileSystem.get.getPath(str)
+          case path if path.isGcsUrl => throw new Throwable(s"Unable to parse GCS path $path: ${gcsFileSystem.failed.get.getMessage}")
+          case path if !path.isUriWithProtocol => Paths.get(path)
+          case path => throw new Throwable(s"Unable to parse $path")
+        }
+      }
     }
   }
 }

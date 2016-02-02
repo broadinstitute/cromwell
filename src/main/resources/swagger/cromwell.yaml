@@ -105,7 +105,7 @@ paths:
           in: formData
         - name: workflowInputs
           description: WDL JSON
-          required: true
+          required: false
           type: file
           in: formData
       tags:
@@ -597,12 +597,12 @@ definitions:
     required:
       - valid
     properties:
-      valid:
-        type: boolean
-        description: The validation of the workflow
-      error:
+      status:
         type: string
-        description: The validation error of the workflow
+        description: The validation status of the workflow
+      message:
+        type: string
+        description: Details about the validation
   WorkflowSubmitResponse:
     description: ''
     required:

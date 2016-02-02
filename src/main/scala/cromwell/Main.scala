@@ -3,8 +3,9 @@ package cromwell
 import java.io.{File => JFile}
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.{Actor, ActorRef, Props, Status}
+import akka.actor.{Actor, Props, Status}
 import better.files._
+import cromwell.util.TerminalUtil
 import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wdl4s.{AstTools, _}
 import cromwell.engine.WorkflowSourceFiles
@@ -17,9 +18,10 @@ import org.slf4j.LoggerFactory
 import spray.json._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{Future, Await, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import Main.deprecationNotice
 
 object Actions extends Enumeration {
   val Parse, Validate, Highlight, Run, Inputs, Server = Value
@@ -43,7 +45,7 @@ object Main extends App {
    * Also now passing args to runAction instead of the constructor, as even sbt seemed to have issues with the args
    * array becoming null in "new Main(args)" when used with: sbt 'run run ...'
    */
-  new Main().runAction(args)
+  sys.exit(new Main().runAction(args))
 
   /**
     * If a cromwell server is going to be run, makes adjustments to the default logback configuration.
@@ -55,62 +57,76 @@ object Main extends App {
     * @param args The command line arguments.
     */
   private def setupServerLogging(args: Array[String]): Unit = {
-    args.headOption.map(_.capitalize) match {
-      case Some("Server") => sys.props.getOrElseUpdate("LOG_MODE", "STANDARD")
+    getAction(args) match {
+      case Some(Actions.Server) => sys.props.getOrElseUpdate("LOG_MODE", "STANDARD")
       case _ =>
     }
+  }
+
+  private def getAction(args: Seq[String]): Option[Actions.Value] = for {
+    arg <- args.headOption
+    argCapitalized = arg.capitalize
+    action <- Actions.values find (_.toString == argCapitalized)
+  } yield action
+
+  def deprecationNotice(): Unit = {
+    Console.err.println(TerminalUtil.highlight(1, "This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool"))
   }
 }
 
 /** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
-private class PromiseWorkflowActor(promise: Promise[Any], runner: ActorRef) extends Actor {
-  runner ! RunWorkflow
-
+private class PromiseActor(promise: Promise[Any]) extends Actor {
   override def receive = {
-    case Status.Failure(f) => promise.tryFailure(f)
-    case success => promise.trySuccess(success)
+    case Status.Failure(f) =>
+      promise.tryFailure(f)
+      context.stop(self)
+    case success =>
+      promise.trySuccess(success)
+      context.stop(self)
   }
 }
 
-
-class Main private[cromwell](enableTermination: Boolean, managerSystem: () => WorkflowManagerSystem) {
+class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   private[cromwell] val initLoggingReturnCode = initLogging()
 
   lazy val Log = LoggerFactory.getLogger("cromwell")
   Monitor.start()
 
-  def this() = this(enableTermination = true, managerSystem = () => new WorkflowManagerSystem {})
+  def this() = this(managerSystem = new WorkflowManagerSystem {})
 
   // CromwellServer still doesn't clean up... so => Any
-  def runAction(args: Seq[String]): Any = {
-    getAction(args.headOption) match {
+  def runAction(args: Seq[String]): Int = {
+    Main.getAction(args) match {
       case Some(x) if x == Actions.Validate => validate(args.tail)
       case Some(x) if x == Actions.Highlight => highlight(args.tail)
       case Some(x) if x == Actions.Inputs => inputs(args.tail)
       case Some(x) if x == Actions.Run => run(args.tail)
       case Some(x) if x == Actions.Parse => parse(args.tail)
-      case Some(x) if x == Actions.Server => CromwellServer
+      case Some(x) if x == Actions.Server => runServer(args.tail)
       case _ => usageAndExit()
     }
   }
 
   def validate(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 1) {
-      loadWdl(args.head) { _ => exit(0) }
+      loadWdl(args.head) { _ => 0 }
     }
   }
 
   def highlight(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 2 && Seq("html", "console").contains(args(1))) {
       loadWdl(args.head) { namespace =>
         val formatter = new SyntaxFormatter(if (args(1) == "html") HtmlSyntaxHighlighter else AnsiSyntaxHighlighter)
         println(formatter.format(namespace))
-        exit(0)
+        0
       }
     }
   }
 
   def inputs(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 1) {
       loadWdl(args.head) { namespace =>
         import wdl4s.types.WdlTypeJsonFormatter._
@@ -118,9 +134,13 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
           case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
           case _ => println("WDL does not have a local workflow")
         }
-        exit(0)
+        0
       }
     }
+  }
+
+  def runServer(args: Seq[String]): Int = {
+    continueIf(args.isEmpty)(waitAndExit(CromwellServer.run(), CromwellServer))
   }
 
   /* Begin .run() method and utilities */
@@ -147,7 +167,7 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         case Success(workflowSourceFiles) => runWorkflow(workflowSourceFiles, metadataPath)
         case Failure(ex) =>
           Console.err.println(ex.getMessage)
-          exit(1)
+          1
       }
     }
   }
@@ -176,23 +196,27 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   }
 
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
-    val workflowManagerSystem = managerSystem()
+    val workflowManagerSystem = managerSystem
     val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     val promise = Promise[Any]()
-    workflowManagerSystem.actorSystem.actorOf(Props(classOf[PromiseWorkflowActor], promise, runner))
-    val futureResult = promise.future
+    val promiseActor = workflowManagerSystem.actorSystem.actorOf(Props(classOf[PromiseActor], promise))
+    runner.tell(RunWorkflow, promiseActor)
+    waitAndExit(promise.future, workflowManagerSystem)
+  }
+
+  private[this] def waitAndExit(futureResult: Future[Any], workflowManagerSystem: WorkflowManagerSystem): Int = {
     Await.ready(futureResult, Duration.Inf)
 
-    if (enableTermination) workflowManagerSystem.actorSystem.shutdown()
+    workflowManagerSystem.shutdownActorSystem()
 
     futureResult.value.get match {
-      case Success(_) => exit(0)
+      case Success(_) => 0
       case Failure(e) =>
         Console.err.println(e.getMessage)
-        exit(1)
+        1
     }
   }
 
@@ -258,9 +282,10 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
   }
 
   def parse(args: Seq[String]): Int = {
+    deprecationNotice()
     continueIf(args.length == 1) {
       println(AstTools.getAst(new JFile(args.head)).toPrettyString)
-      exit(0)
+      0
     }
   }
 
@@ -289,6 +314,8 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |
         |parse <WDL file>
         |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
+        |
         |  Compares a WDL file against the grammar and prints out an
         |  abstract syntax tree if it is valid, and a syntax error
         |  otherwise.  Note that higher-level AST checks are not done
@@ -297,10 +324,14 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |
         |validate <WDL file>
         |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
+        |
         |  Performs full validation of the WDL file including syntax
         |  and semantic checking
         |
         |inputs <WDL file>
+        |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
         |
         |  Print a JSON skeleton file of the inputs needed for this
         |  workflow.  Fill in the values in this JSON document and
@@ -308,13 +339,15 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
         |
         |highlight <WDL file> <html|console>
         |
+        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
+        |
         |  Reformats and colorizes/tags a WDL file. The second
         |  parameter is the output type.  "html" will output the WDL
         |  file with <span> tags around elements.  "console" mode
         |  will output colorized text to the terminal
         |
       """.stripMargin)
-    exit(-1)
+    -1
   }
 
   private[this] def initLogging(): Int = {
@@ -337,33 +370,18 @@ class Main private[cromwell](enableTermination: Boolean, managerSystem: () => Wo
       case e: Throwable =>
         Console.err.println(s"Could not create log directory: $logRoot")
         e.printStackTrace()
-        exit(1)
+        1
     }
   }
 
   private[this] def continueIf(valid: => Boolean)(block: => Int): Int = if (valid) block else usageAndExit()
-
-  private[this] def getAction(firstArg: Option[String]): Option[Actions.Value] = for {
-    arg <- firstArg
-    argCapitalized = arg.capitalize
-    a <- Actions.values find (_.toString == argCapitalized)
-  } yield a
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Int): Int = {
     Try(WdlNamespace.load(new JFile(path))) match {
       case Success(namespace) => f(namespace)
       case Failure(t) =>
         println(t.getMessage)
-        exit(1)
+        1
     }
-  }
-
-  private[this] def exit(returnCode: Int): Int = {
-    if (enableTermination) {
-      // $COVERAGE-OFF$Exit not allowed during tests
-      sys.exit(returnCode)
-      // $COVERAGE-ON$
-    }
-    returnCode
   }
 }

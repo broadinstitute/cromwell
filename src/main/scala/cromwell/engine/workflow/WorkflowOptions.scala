@@ -100,13 +100,13 @@ case class WorkflowOptions(jsObject: JsObject) {
   def get(key: String): Try[String] = jsObject.fields.get(key) match {
     case Some(jsStr: JsString) => Success(jsStr.value)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
-    case Some(jsVal: JsValue) => Failure(new Throwable(s"Unsupported value as JsValue: $jsVal"))
+    case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
     case None => Failure(new Throwable(s"Field not found: $key"))
   }
 
   def getBoolean(key: String): Try[Boolean] = jsObject.fields.get(key) match {
     case Some(jsBool: JsBoolean) => Success(jsBool.value)
-    case Some(jsVal: JsValue) => Failure(new Throwable(s"Unsupported JsValue as JsBoolean: $jsVal"))
+    case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported JsValue as JsBoolean: $jsVal"))
     case None => Failure(new Throwable(s"Field not found: $key"))
   }
 

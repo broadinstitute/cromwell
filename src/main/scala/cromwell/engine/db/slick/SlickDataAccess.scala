@@ -7,6 +7,7 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import cromwell.backend.model.ExecutionHash
 import wdl4s._
 import wdl4s.CallInputs
 import wdl4s.types.{WdlPrimitiveType, WdlType}

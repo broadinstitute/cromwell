@@ -21,7 +21,6 @@ package object engine {
   final case class AbortRegistrationFunction(register: AbortFunction=>Unit)
 
   final case class ExecutionEventEntry(description: String, startTime: DateTime, endTime: DateTime)
-  final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
 
   type ErrorOr[+A] = ValidationNel[String, A]
 

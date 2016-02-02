@@ -11,15 +11,15 @@ import cromwell.util.SampleWdl
 import scala.language.postfixOps
 
 class CallCachingWorkflowSpec extends CromwellTestkitSpec {
-  def cacheHitMessageForCall(name: String) = s"Call Caching: Cache hit. Using UUID\\(.{8}\\):$name\\.*"
-
+  val cacheHitMessageForCall = s"Call Caching: Cache hit."
+  val salt = UUID.randomUUID().toString
   val expectedOutputs = Map(
     "file_passing.a.out" -> WdlFile("out"),
     "file_passing.a.out_interpolation" -> WdlFile("out"),
     "file_passing.a.contents" -> WdlString("foo bar baz"),
-    "file_passing.b.out" -> WdlFile("out"),
-    "file_passing.b.out_interpolation" -> WdlFile("out"),
-    "file_passing.b.contents" -> WdlString("foo bar baz")
+    "file_passing.a.out" -> WdlFile("out"),
+    "file_passing.a.out_interpolation" -> WdlFile("out"),
+    "file_passing.a.contents" -> WdlString("foo bar baz")
   )
 
   "A workflow which is run twice" should {
@@ -33,56 +33,52 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
         * Altogether there are THREE call cache hits to the exact same call
         */
 
-      val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 1),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 1),
         expectedOutputs = expectedOutputs
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 2),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 2),
         expectedOutputs = expectedOutputs
       )
     }
 
     "NOT use cached calls on the second run if read_from_cache workflow option is false" in {
-      val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 0),
         workflowOptions = """{"read_from_cache": false}""",
         expectedOutputs = expectedOutputs
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 0),
         workflowOptions = """{"read_from_cache": false}""",
         expectedOutputs = expectedOutputs
       )
     }
 
     "NOT use cached calls on the second run if write_to_cache workflow option is false" in {
-      val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 0),
         workflowOptions = """{"write_to_cache": false}""",
         expectedOutputs = expectedOutputs
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 0),
         workflowOptions = """{"write_to_cache": false}""",
         expectedOutputs = expectedOutputs
       )
     }
 
     "use cached calls on the second run (docker)" taggedAs DockerTest in {
-      val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 1),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 1),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"
@@ -92,7 +88,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 2),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 2),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"
@@ -117,7 +113,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       runWdlAndAssertOutputs(
         sampleWdl = new SampleWdl.ScatterWdl,
         // occurences = 20 because B, C, E are scattered 6 ways and A, D are not scattered
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("[ABCDE]"), occurrences = 20),
+        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall, occurrences = 20),
         expectedOutputs = Map(
           "w.E.E_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WdlInteger(_))),
           "w.C.C_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WdlInteger(_))),

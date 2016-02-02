@@ -3,14 +3,17 @@ package cromwell.engine
 import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
+import akka.pattern.ask
 import com.google.api.client.util.ExponentialBackOff
-import cromwell.backend.BackendActor.Prepare
+import cromwell.backend.BackendActor.{ComputeHash, Prepare}
 import cromwell.backend.config.BackendConfiguration
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
@@ -26,22 +29,35 @@ import scala.util.{Failure, Success}
 object CallActor {
 
   sealed trait CallActorMessage
+
   case object Initialize extends CallActorMessage
+
   sealed trait StartMode extends CallActorMessage
+
   case object Start extends StartMode
 
   //  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
   //TODO: [caching] Need to re-use this for caching
-    final case class UseCachedCall(cachedCall: Call) extends StartMode
+  final case class UseCachedCall(cachedCall: Call) extends StartMode
+
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
+
   case object AbortCall extends CallActorMessage
+
   final case class ExecutionFinished(call: Call, executionResult: cromwell.engine.backend.ExecutionResult) extends CallActorMessage
+
   sealed trait CallActorState
+
   case object CallNotStarted extends CallActorState
+
   case object CallRunningAbortUnavailable extends CallActorState
+
   case object CallRunningAbortAvailable extends CallActorState
+
   case object CallRunningAbortRequested extends CallActorState
+
   case object CallAborting extends CallActorState
+
   case object CallDone extends CallActorState
 
   /** The `WorkflowActor` will drop `TerminalCallMessage`s that it is unable to immediately process.  This message
@@ -122,9 +138,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       //Right now, the start mode is not differentiated between.. ie. same flow for all the modes, cached or not
       context.parent ! WorkflowActor.CallStarted(key)
       val backend: ActorRef = createBackendActor()
-        //We have backend here. Check if we can use cached results.
+      //We have backend here. Check if we can use cached results.
       useCachedIfPossible(backend)
-//      subscribe(self, backend)
+      //      subscribe(self, backend)
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
@@ -183,7 +199,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       stay()
     case Event(TaskFinalStatus(Status.Succeeded, result: SuccessfulTaskResult), _) =>
       val callOps: Map[String, CallOutput] = result.outputs.map(output => output._1 -> CallOutput(output._2, None))
-      val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
+      val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(result.executionHash.overallHash, None))
       self ! ExecutionFinished(call, successResult)
       stay()
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
@@ -290,48 +306,37 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}", locallyQualifiedInputs, callObj.task.outputs, runtimeAttributes)
   }
 
-  private def useCachedIfPossible(backend: ActorRef): Future[Any] = Future{
+  private def useCachedIfPossible(backend: ActorRef): Future[Any] = Future {
     if (workflowDescriptor.readFromCache) {
-      //TODO: Get hash from the backend
-      //TODO: Can be a for comprehension?
-      backendCall.hash map { hash =>
-        globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
-          case Success(executions) if executions.nonEmpty =>
-            val cachedExecution = executions.head
-            globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete {
-              case Success(workflowDesc) =>
-                globalDataAccess.getOutputs(workflowDesc.id, ExecutionDatabaseKey(call.fullyQualifiedName, None)) onComplete {
-                  case Success(symbolStoreEntry: Traversable[SymbolStoreEntry]) =>
-                    val callOutputs = SymbolStoreEntry.toCallOutputs(symbolStoreEntry)
-                    //TODO: Request new execution hash here? Or reuse the one we already got
-                    val successfulResult = SuccessfulExecution(callOutputs, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None))
-                    self ! ExecutionFinished(call, successfulResult)
-                    true
-                  case Failure(ex) =>
-                    log.error(s"Failed to get cached outputs for this WF ${workflowDesc.id}", ex)
-                    subscribe(self, backend)
-                }
-              case Failure(ex) =>
-                log.error(s"Failed to retrieve WorkflowDesc corresponding to cached executionId ${cachedExecution.executionId}. Defaulting to normal execution!", ex)
-                subscribe(self, backend)
-            }
-          case Success(_) =>
-            log.info(s"Call Caching: cache miss")
-            subscribe(self, backend)
-          case Failure(ex) =>
-            log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
-            subscribe(self, backend)
+      val cachedExecution = for {
+        hash <- (backend ? ComputeHash).mapTo[String]
+        cache <- globalDataAccess.getExecutionsWithResuableResultsByHash(hash).mapTo[Traversable[Execution]]
+        cacheWorkflowId <- globalDataAccess.getWorkflow(cache.head.workflowExecutionId).mapTo[WorkflowDescriptor]
+        cacheTaskOutputs <- globalDataAccess.getOutputs(cacheWorkflowId.id, ExecutionDatabaseKey(cache.head.callFqn, None)).mapTo[Traversable[SymbolStoreEntry]]
+        callOutputs = SymbolStoreEntry.toCallOutputs(cacheTaskOutputs)
+      } yield callOutputs
+
+      cachedExecution onComplete {
+        case Success(callOutputs) => {
+          //TODO: Request new execution hash here? Or reuse the one we already got
+          log.info(s"Call Caching: Cache hit.")
+          val successfulResult = SuccessfulExecution(callOutputs, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None)) //TODO: Should not pass executionHash here since it's already in cache.
+          self ! ExecutionFinished(call, successfulResult)
+          true
         }
-      } recover { case e =>
-        log.error(s"Failed to calculate hash for call '${key.tag}'.", e)
-        val failedExecution = FailedExecution(e)
-        handleFinished(call, failedExecution)
-        //        context.parent ! WorkflowActor.CallFailed(callKey)
-        //        scheduleTransition(WorkflowFailed)
+        case Failure(ex) => {
+          ex match {
+            case uoe: UnsupportedOperationException =>
+              log.info(s"Call Caching: hash was not found in caching.")
+              subscribe(self, backend)
+            case ex: Exception =>
+              log.error(s"Call Caching: Failed to look up executions that matched hash. Falling back to normal execution.", ex)
+              subscribe(self, backend)
+          }
+        }
       }
-    }
-    else {
-      log.info(s"Call caching 'readFromCache' is turned off, starting call")
+    } else {
+      log.info(s"Call caching 'readFromCache' is turned off, starting call.")
       subscribe(self, backend)
     }
   }

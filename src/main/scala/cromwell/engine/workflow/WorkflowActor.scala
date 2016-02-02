@@ -5,6 +5,7 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
+import cromwell.backend.model.ExecutionHash
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType

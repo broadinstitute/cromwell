@@ -1,9 +1,10 @@
 package cromwell.engine.backend
 
 import akka.event.LoggingAdapter
+import cromwell.backend.model.ExecutionHash
 import cromwell.engine.Hashing._
 import cromwell.engine.workflow.CallKey
-import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
+import cromwell.engine.{CallOutputs, ExecutionEventEntry, WorkflowDescriptor}
 import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions

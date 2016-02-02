@@ -1,5 +1,6 @@
 package cromwell.engine
 
+import cromwell.backend.model.ExecutionHash
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.BackendCall

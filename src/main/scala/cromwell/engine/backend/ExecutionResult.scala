@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
+import cromwell.backend.model.ExecutionHash
 import cromwell.engine.ExecutionEventEntry
-import cromwell.engine.ExecutionHash
 import cromwell.engine.CallOutputs
 
 /**

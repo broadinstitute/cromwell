@@ -19,6 +19,7 @@ app:
   image: {{ $cromwell_image }}
   {{ $cromwell_dns }}
   log_driver: "{{ $env_log_driver }}"
+  restart: always
   environment:
     JAVA_OPTS: {{ $env_java_opts }}
   {{ $cromwell_volumes }}
@@ -32,6 +33,7 @@ proxy:
     - "80:80"
     - "443:443"
   {{ $proxy_volumes }}
+  restart: always
   environment:
     CALLBACK_URI: {{ $env_callback_uri }}
     LOG_LEVEL: {{ $env_log_level }}

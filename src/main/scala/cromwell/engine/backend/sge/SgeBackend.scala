@@ -7,8 +7,8 @@ import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
+import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.SgeCallBackendInfo
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
@@ -21,6 +21,12 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
+
+object SgeBackend {
+  object InfoKeys {
+    val JobNumber = "SGE_JOB_NUMBER"
+  }
+}
 
 case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = SgeBackendCall
@@ -93,8 +99,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int])
                                (implicit ec: ExecutionContext): Future[Unit] = {
-    val backendInfo = SgeCallBackendInfo(sgeJobId)
-    globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index), backendInfo)
+    globalDataAccess.updateExecutionInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index), InfoKeys.JobNumber, Option(sgeJobId.toString))
   }
 
   /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like
@@ -207,4 +212,6 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     }
     executionResult map { (_,  jobReturnCode) }
   }
+
+  override def executionInfoKeys: List[String] = List(InfoKeys.JobNumber)
 }

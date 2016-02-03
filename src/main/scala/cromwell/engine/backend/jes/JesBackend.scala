@@ -10,16 +10,16 @@ import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
-import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine.ExecutionStatus._
 import cromwell.engine.Hashing._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.db.DataAccess.globalDataAccess
+import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.db.slick.Execution
+import cromwell.engine.db.slick.{Execution, ExecutionAndExecutionInfo}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
@@ -28,12 +28,13 @@ import cromwell.logging.WorkflowLogger
 import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
-import wdl4s.{Call, CallInputs, Scatter, UnsatisfiedInputsException, _}
+import wdl4s.{Call, CallInputs, UnsatisfiedInputsException, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+
 
 object JesBackend {
   /*
@@ -68,6 +69,16 @@ object JesBackend {
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesInput(ExtraConfigParamName, gcsPath, Paths.get(""), "LITERAL")
 
+  // Only executions in Running state with a recorded operation ID are resumable.
+  private val IsResumable: ExecutionAndExecutionInfo => Boolean = ei => {
+    ei.execution.status.toExecutionStatus == ExecutionStatus.Running &&
+      ei.executionInfo.key == "JesBackend.InfoKeys.JesRunId" && ei.executionInfo.value.isDefined
+  }
+
+  case class JesJobKey(jesRunId: String) extends JobKey
+
+  private val BuildJobKey: ExecutionAndExecutionInfo => JobKey = ei => JesJobKey(ei.executionInfo.value.get)
+
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
     extends JesBackend(CromwellBackend.backend().actorSystem) {
@@ -76,6 +87,7 @@ object JesBackend {
 
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
+   *
    * @param gcsPath The input path
    * @return A path which is unique per input path
    */
@@ -85,6 +97,7 @@ object JesBackend {
 
   /**
    * Takes a possibly relative path and returns an absolute path, possibly under the JesCromwellRoot.
+   *
    * @param path The input path
    * @return A path which absolute
    */
@@ -153,9 +166,23 @@ object JesBackend {
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
-}
 
-final case class JesJobKey(operationId: String) extends JobKey
+  def callGcsPath(descriptor: WorkflowDescriptor, callKey: BackendCallKey): String = {
+    val shardPath = callKey.index map { i => s"/shard-$i" } getOrElse ""
+    val workflowPath = workflowGcsPath(descriptor)
+    s"$workflowPath/call-${callKey.scope.unqualifiedName}$shardPath"
+  }
+
+  def workflowGcsPath(descriptor: WorkflowDescriptor): String = {
+    val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
+    s"$bucket/${descriptor.namespace.workflow.unqualifiedName}/${descriptor.id}"
+  }
+
+  object InfoKeys {
+    val JesRunId = "JES_RUN_ID"
+    val JesStatus = "JES_STATUS"
+  }
+}
 
 /**
  * Representing a running JES execution, instances of this class are never Done and it is never okay to
@@ -320,7 +347,7 @@ case class JesBackend(actorSystem: ActorSystem)
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(backendCall, runIdForResumption = None)
 
   def resume(backendCall: BackendCall, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.operationId }
+    val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.jesRunId }
     executeOrResume(backendCall, runIdForResumption = runId)
   }
 
@@ -657,6 +684,7 @@ case class JesBackend(actorSystem: ActorSystem)
    * resuming the CallActors for these calls.
    */
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
+    import cromwell.engine.backend.jes.JesBackend.EnhancedExecution
 
     lazy val tag = s"Workflow ${restartableWorkflow.id.shortString}:"
 
@@ -692,7 +720,7 @@ case class JesBackend(actorSystem: ActorSystem)
             case (_, xs) if xs.size > 1 => xs filter isRunningCollector } flatten
 
           for {
-            _ <- globalDataAccess.resetNonResumableJesExecutions(restartableWorkflow.id)
+            _ <- globalDataAccess.resetNonResumableExecutions(restartableWorkflow.id, IsResumable)
             _ <- globalDataAccess.setStatus(restartableWorkflow.id, runningCollectors map { _.toKey }, ExecutionStatus.Starting)
           } yield ()
         }
@@ -726,7 +754,9 @@ case class JesBackend(actorSystem: ActorSystem)
     else None
   }
 
-  override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = {
-    globalDataAccess.findResumableJesExecutions(id)
+  override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
+    globalDataAccess.findResumableExecutions(id, IsResumable, BuildJobKey)
   }
+
+  override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)
 }

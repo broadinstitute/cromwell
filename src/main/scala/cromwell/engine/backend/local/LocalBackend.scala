@@ -8,6 +8,7 @@ import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
 import cromwell.engine._
+import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -25,6 +26,12 @@ import scala.util.{Failure, Success, Try}
 object LocalBackend {
 
   val ContainerRoot = "/root"
+  val CallPrefix = "call"
+  val ShardPrefix = "shard"
+
+  object InfoKeys {
+    val Pid = "PID"
+  }
 
   /**
    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
@@ -207,4 +214,6 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       }
     }
   }
+
+  override def executionInfoKeys: List[String] = List(InfoKeys.Pid)
 }

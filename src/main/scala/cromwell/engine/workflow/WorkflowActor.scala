@@ -50,9 +50,15 @@ object WorkflowActor {
   final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
   final case class PerformTransition(toState: WorkflowState) extends WorkflowActorMessage
-  final case class PersistenceCompleted(callKey: ExecutionStoreKey,
+  sealed trait PersistenceMessage extends WorkflowActorMessage {
+    def callKey: ExecutionStoreKey
+    def executionStatus: ExecutionStatus
+  }
+
+  final case class PersistenceSucceeded(callKey: ExecutionStoreKey,
                                         executionStatus: ExecutionStatus,
-                                        outputs: Option[CallOutputs] = None) extends WorkflowActorMessage
+                                        outputs: Option[CallOutputs] = None) extends PersistenceMessage
+  final case class PersistenceFailed(callKey: ExecutionStoreKey, executionStatus: ExecutionStatus) extends PersistenceMessage
   /** Used for exploded scatters which create many shards in one shot. */
   final case class PersistencesCompleted(callKeys: Traversable[ExecutionStoreKey],
                                          executionStatus: ExecutionStatus) extends WorkflowActorMessage
@@ -400,6 +406,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       case e =>
         logger.error(s"Completion work failed for call ${callKey.tag}! " + e.getMessage, e)
         scheduleTransition(WorkflowFailed)
+        self ! PersistenceFailed(callKey, ExecutionStatus.Done)
     }
 
     val updatedData = data.addPersisting(callKey, ExecutionStatus.Done)
@@ -461,7 +468,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message: CallStartMessage, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
-    case Event(PersistenceCompleted(callKey, ExecutionStatus.Done, callOutputs), data) =>
+    case Event(PersistenceSucceeded(callKey, ExecutionStatus.Done, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Done
       callOutputs foreach updateSymbolCache(callKey)
       logger.debug(s"In state WorkflowRunning: Got PersistenceCompleted message for Done call ${callKey.tag}")
@@ -527,7 +534,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       stay() using updatedData
-    case Event(PersistenceCompleted(callKey, ExecutionStatus.Done, callOutputs), data) =>
+    case Event(PersistenceSucceeded(callKey, ExecutionStatus.Done, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Done
       callOutputs foreach updateSymbolCache(callKey)
       logger.debug(s"In state WorkflowAborting: Got PersistenceCompleted message for Done call ${callKey.tag}")
@@ -552,6 +559,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     context.system.scheduler.scheduleOnce(ResendInterval, self, message)
   }
 
+  private def removePendingCallKeyPersistence(data: WorkflowData, message: PersistenceMessage): FSM.State[WorkflowState, WorkflowData] = {
+    val updatedData = data.removePersisting(message.callKey, message.executionStatus)
+    stay using updatedData
+  }
+
   whenUnhandled {
     case Event(AbortWorkflow, _) =>
       context.children foreach { _ ! CallActor.AbortCall }
@@ -569,10 +581,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       // Running and Aborting have explicit handlers for Running and no pending writes, so either we are not in those
       // states or the specified key is no longer Running and/or has pending writes.
       stay()
-    case Event(PersistenceCompleted(callKey, status, _), data) =>
-      logger.debug(s"Got whenUnhandled PersistenceCompleted(${callKey.tag}): $status")
-      val updatedData = data.removePersisting(callKey, status)
-      stay using updatedData
+    case Event(m: PersistenceMessage, data) =>
+      logger.debug(s"Got whenUnhandled message: $m")
+      removePendingCallKeyPersistence(data, m)
     case Event(PersistencesCompleted(callKeys, status), data) =>
       val stringKeys = callKeys map { _.tag } mkString ", "
       logger.debug(s"Got whenUnhandled PersistencesCompleted($stringKeys)")
@@ -624,7 +635,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     val persistFuture = globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode, hash, resultsClonedFrom))
     persistFuture onComplete {
-      case Success(_) => self ! PersistenceCompleted(storeKey, executionStatus, callOutputs)
+      case Success(_) => self ! PersistenceSucceeded(storeKey, executionStatus, callOutputs)
       case Failure(t) =>
         logger.error(s"Error persisting status of call ${storeKey.tag} to $executionStatus", t)
         scheduleTransition(WorkflowFailed)

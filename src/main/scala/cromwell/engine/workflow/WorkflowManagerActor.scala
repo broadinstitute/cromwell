@@ -321,8 +321,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
         callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
-        grouped = backendKeys.groupBy(_.key.attempt).toSeq.sortBy(_._1).map(_._2.map(_.stdoutStderr))
-      } yield grouped
+      } yield backendKeys.groupBy(_.key.index).values.toSeq.sortBy(_.head.key.index) map { _.sortBy(_.key.attempt).map(_.stdoutStderr) }
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
@@ -338,7 +337,8 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
           callStandardOutput = backend.stdoutStderr(backendCall)
         } yield key -> callStandardOutput
 
-        callsToPaths groupBy { _._1.fqn } mapValues { v => v.groupBy(_._1.attempt).toSeq.sortBy(_._1).map(_._2.map(_._2)) }
+        /* Some FP "magic" to transform the pairs of (key, logs) into the final result: grouped by FQNS, ordered by shards, and then ordered by attempts */
+        callsToPaths groupBy { _._1.fqn } mapValues { key => key.groupBy(_._1.index).values.toSeq.sortBy(_.head._1.index) map { _.sortBy(_._1.attempt).map(_._2) }  }
       }
     }
 

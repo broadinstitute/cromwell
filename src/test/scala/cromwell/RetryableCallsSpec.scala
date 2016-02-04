@@ -14,11 +14,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
   val customizedLocalBackend = new LocalBackend(system) {
-    var nbCall = 0
     override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-      backendCall.call.task.name match {
-        case "ps" if nbCall < 1 =>
-          nbCall += 1
+      backendCall.key.scope.taskFqn match {
+        case "do_scatter" if backendCall.key.index.contains(0) && backendCall.key.attempt == 1 =>
           RetryableExecutionHandle(new PreemptedException("Retryable failure")).future
         case _ => super.execute(backendCall)
       }
@@ -31,8 +29,8 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(customizedLocalBackend), self, "Test Workflow metadata with Retried Calls")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
-        EventFilter.info(pattern = s"starting calls: three_step.ps", occurrences = 2).intercept {
-          messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.ThreeStep.asWorkflowSources())).id
+        EventFilter.info(pattern = s"persisting status of do_scatter:0:2 to Starting", occurrences = 1).intercept {
+          messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.PrepareScatterGatherWdl.asWorkflowSources())).id
         }
       }
 
@@ -48,37 +46,39 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
       metadata.outputs shouldBe defined
       metadata.outputs.get should have size 3
       metadata.calls should have size 3
-      metadata.calls.get("three_step.ps") shouldBe defined
-      metadata.calls("three_step.ps") should have size 2
+      metadata.calls.get("sc_test.do_scatter") shouldBe defined
+      metadata.calls("sc_test.do_scatter") should have size 5
 
-      metadata.calls("three_step.ps").head.executionStatus shouldBe "Preempted"
-      metadata.calls("three_step.ps").head.attempt shouldBe 1
-      metadata.calls("three_step.ps").head.stdout shouldBe defined
-      metadata.calls("three_step.ps").head.stdout.get.value should not include "attempt"
-      metadata.calls("three_step.ps").head.stderr shouldBe defined
-      metadata.calls("three_step.ps").head.stderr.get.value should not include "attempt"
-      metadata.calls("three_step.ps").head.outputs.get should have size 0
-      metadata.calls("three_step.ps")(1).executionStatus shouldBe "Done"
-      metadata.calls("three_step.ps")(1).attempt shouldBe 2
-      metadata.calls("three_step.ps")(1).stdout shouldBe defined
-      metadata.calls("three_step.ps")(1).stdout.get.value should include ("attempt")
-      metadata.calls("three_step.ps")(1).stderr shouldBe defined
-      metadata.calls("three_step.ps")(1).stderr.get.value should include ("attempt")
-      metadata.calls("three_step.ps")(1).outputs shouldBe defined
-      metadata.calls("three_step.ps")(1).outputs.get should not be empty
+      metadata.calls("sc_test.do_scatter").head.executionStatus shouldBe "Preempted"
+      metadata.calls("sc_test.do_scatter").head.shardIndex shouldBe 0
+      metadata.calls("sc_test.do_scatter").head.attempt shouldBe 1
+      metadata.calls("sc_test.do_scatter").head.stdout shouldBe defined
+      metadata.calls("sc_test.do_scatter").head.stdout.get.value should not include "attempt"
+      metadata.calls("sc_test.do_scatter").head.stderr shouldBe defined
+      metadata.calls("sc_test.do_scatter").head.stderr.get.value should not include "attempt"
+      metadata.calls("sc_test.do_scatter").head.outputs.get should have size 0
+      metadata.calls("sc_test.do_scatter")(1).executionStatus shouldBe "Done"
+      metadata.calls("sc_test.do_scatter")(1).shardIndex shouldBe 0
+      metadata.calls("sc_test.do_scatter")(1).attempt shouldBe 2
+      metadata.calls("sc_test.do_scatter")(1).stdout shouldBe defined
+      metadata.calls("sc_test.do_scatter")(1).stdout.get.value should include ("attempt")
+      metadata.calls("sc_test.do_scatter")(1).stderr shouldBe defined
+      metadata.calls("sc_test.do_scatter")(1).stderr.get.value should include ("attempt")
+      metadata.calls("sc_test.do_scatter")(1).outputs shouldBe defined
+      metadata.calls("sc_test.do_scatter")(1).outputs.get should not be empty
 
       val wfStdouterr = messageAndWait[WorkflowManagerWorkflowStdoutStderrSuccess](WorkflowStdoutStderr(workflowId))
       wfStdouterr should not be null
       wfStdouterr.logs should have size 3
-      wfStdouterr.logs("three_step.ps") should have size 2
-      wfStdouterr.logs("three_step.ps").head.stdout.value should not include "attempt"
-      wfStdouterr.logs("three_step.ps").head.stderr.value should not include "attempt"
-      wfStdouterr.logs("three_step.ps")(1).stdout.value should include ("attempt")
-      wfStdouterr.logs("three_step.ps")(1).stderr.value should include ("attempt")
+      wfStdouterr.logs("sc_test.do_scatter") should have size 5
+      wfStdouterr.logs("sc_test.do_scatter").head.stdout.value should not include "attempt"
+      wfStdouterr.logs("sc_test.do_scatter").head.stderr.value should not include "attempt"
+      wfStdouterr.logs("sc_test.do_scatter")(1).stdout.value should include ("attempt")
+      wfStdouterr.logs("sc_test.do_scatter")(1).stderr.value should include ("attempt")
 
-      val callStdouterr = messageAndWait[WorkflowManagerCallStdoutStderrSuccess](CallStdoutStderr(workflowId, "three_step.ps"))
+      val callStdouterr = messageAndWait[WorkflowManagerCallStdoutStderrSuccess](CallStdoutStderr(workflowId, "sc_test.do_scatter"))
       callStdouterr should not be null
-      callStdouterr.logs should have size 2
+      callStdouterr.logs should have size 5
       callStdouterr.logs.head.stdout.value should not include "attempt"
       callStdouterr.logs.head.stderr.value should not include "attempt"
       callStdouterr.logs(1).stdout.value should include ("attempt")

@@ -1,12 +1,12 @@
 package cromwell.engine.workflow
 
-import wdl4s._
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.{CallAttempt, ExecutionEventEntry, SymbolStoreEntry, EnhancedFullyQualifiedName}
-import cromwell.engine.backend.{CallMetadata, CallLogs}
+import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
+import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry}
 import org.joda.time.DateTime
+import wdl4s._
 
 import scala.language.postfixOps
 
@@ -46,8 +46,8 @@ object CallMetadataBuilder {
   // Case class to homogenize the datatypes for each supported backend.
   case class BackendValues(name: String, jobId: Option[String] = None, status: Option[String] = None)
 
-  private def findLastAttempt(executionMap: ExecutionMap, callFqn: String) = {
-    executionMap.keys.filter(_.fqn == callFqn).map(_.attempt).max
+  private def findLastAttempt(executionMap: ExecutionMap, callFqn: String, index: ExecutionIndex) = {
+    executionMap.keys.filter(k => k.fqn == callFqn && k.index == index).map(_.attempt).max
   }
 
   /**
@@ -92,7 +92,7 @@ object CallMetadataBuilder {
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
       val outputsNoCollectors = filterCollectorSymbols(callOutputs)
-      val outputsByKey = outputsNoCollectors.groupBy(o => ExecutionDatabaseKey(o.scope, o.key.index, findLastAttempt(executionMap, o.scope)))
+      val outputsByKey = outputsNoCollectors.groupBy(o => ExecutionDatabaseKey(o.scope, o.key.index, findLastAttempt(executionMap, o.scope, o.key.index)))
       for {
         (key, outputs) <- outputsByKey
         baseMetadata = executionMap.get(key).get
@@ -138,10 +138,10 @@ object CallMetadataBuilder {
 
       for {
         (fqn, seqOfSeqOfStreams) <- standardStreamsMap.toTraversable
-        // Increment all attempts because they're one-based
-        (logsForAttempt, attempt) <- seqOfSeqOfStreams.zipWithIndex map { case (l, a) => (l, a + 1) }
-        (streams, rawIndex) <- logsForAttempt.zipWithIndex
-        key = ExecutionDatabaseKey(fqn, indexForFqn(fqn, rawIndex), attempt)
+        (logsForAttempt, index) <- seqOfSeqOfStreams.zipWithIndex
+        // Increment all attempt indices because attempts are one-based
+        (streams, attempt) <- logsForAttempt.zipWithIndex map { case (l, a) => (l, a + 1) }
+        key = ExecutionDatabaseKey(fqn, indexForFqn(fqn, index), attempt)
         baseMetadata = executionMap.get(key).get
       } yield key -> baseMetadata.copy(streams = Option(streams))
     }.toMap
@@ -150,8 +150,8 @@ object CallMetadataBuilder {
   private def filterCollectorSymbols(symbols: Traversable[SymbolStoreEntry]): Traversable[SymbolStoreEntry] = {
     // Squash duplicate ExecutionDatabaseKeys.
     val databaseKeys = symbols map { s => ExecutionDatabaseKey(s.scope, s.key.index) } toSet
-    // Look for FQNs with more than one ExecutionDatabaseKey per FQN.
-    val fqnsWithCollectors = databaseKeys.groupBy(_.fqn).collect({ case (fqn, keys) if keys.size > 1 => fqn }).toSet
+    // Look for FQNs with at least one ExecutionStoreKey with defined index.
+    val fqnsWithCollectors = databaseKeys.groupBy(_.fqn).collect({ case (fqn, keys) if keys.exists(_.index.isDefined) => fqn }).toSet
     // We know which FQNs with None indexes correspond to collectors, so filter matching symbols.
     symbols.filterNot { s => s.key.index.isEmpty && fqnsWithCollectors.contains(s.scope) }
   }
@@ -210,10 +210,10 @@ object CallMetadataBuilder {
         attempt = metadata.execution.attempt)
     }
 
-    // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index.
+    // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index ans within an index by attempt.
     for {
       (key, fqnGroupedMetadatas) <- executionMap.values.groupBy(_.key.fqn)
-      fqnGroupedAndSortedMetadatas = fqnGroupedMetadatas.toSeq.sortBy(_.key.index)
+      fqnGroupedAndSortedMetadatas = fqnGroupedMetadatas.toSeq.sortBy(md => (md.key.index, md.key.attempt))
     } yield key.fqn -> (fqnGroupedAndSortedMetadatas map constructCallMetadata)
   }
 }

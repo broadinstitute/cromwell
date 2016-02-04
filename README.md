@@ -39,8 +39,8 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Runtime Attributes](#runtime-attributes)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
-  * [defaultDisks](#defaultdisks)
-  * [defaultZones](#defaultzones)
+  * [disks](#disks)
+  * [zones](#zones)
   * [docker](#docker)
   * [failOnStderr](#failonstderr)
   * [memory](#memory)
@@ -786,8 +786,8 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    defaultZones: "US_Metro MX_Metro"
-    defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+    zones: "US_Metro MX_Metro"
+    disks: "Disk1 3 SSD, Disk2 500 HDD"
   }
 }
 workflow jes_workflow {
@@ -801,8 +801,8 @@ This table lists the currently available runtime attributes for cromwell:
 | -------------------- |:-----:|:-----:|:-----:|
 | continueOnReturnCode |   x   |   x   |   x   |
 | cpu                  |       |   x   |       |
-| defaultDisks         |       |   x   |       |
-| defaultZones         |       |   x   |       |
+| disks                |       |   x   |       |
+| zones                |       |   x   |       |
 | docker               |   x   |   x   |   x   |
 | failOnStderr         |   x   |   x   |   x   |
 | memory               |       |   x   |       |
@@ -848,7 +848,7 @@ runtime {
 
 Defaults to "1".
 
-## defaultDisks
+## disks
 
 Passed to JES: "Disks to attach."
 
@@ -864,7 +864,7 @@ The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the 
 
 ```
 runtime {
-  defaultDisks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
+  disks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
 }
 ```
 
@@ -872,13 +872,13 @@ To change the size of the local disk, set the type of the disk named "local-disk
 
 ```
 runtime {
-  defaultDisks: "local-disk 11 SSD"
+  disks: "local-disk 11 SSD"
 }
 ```
 
 Defaults to "local-disk LOCAL".
 
-## defaultZones
+## zones
 
 Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
 
@@ -886,7 +886,7 @@ The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  defaultZones: "US_Metro MX_Metro"
+  zones: "US_Metro MX_Metro"
 }
 ```
 
@@ -1186,6 +1186,9 @@ the inputs file satisfies the WDL file's input requirements.
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
 * `workflowInputs` - *Optional* JSON file containing the inputs.
+* `workflowOptions` - *Optional* JSON file containing the workflow options. The options file is validated structurally
+and can supply default runtime attributes for tasks in the source file.
+
 
 cURL:
 ```

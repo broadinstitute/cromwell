@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.backend.CromwellBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import cromwell.util.TryUtil
 import wdl4s._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.{APIResponse, WorkflowJsonSupport, WorkflowValidateResponse}
@@ -11,11 +12,10 @@ import cromwell.webservice.WorkflowJsonSupport._
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 import spray.json._
-import ValidateActor.EnhancedCall
 
 import scala.concurrent.Future
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 object ValidateActor {
   private val tag = "ValidateActor"
@@ -23,16 +23,12 @@ object ValidateActor {
   sealed trait ValidateActorMessage
   case object ValidateWorkflow extends ValidateActorMessage
 
-  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson]): Props = {
-    Props(new ValidateActor(wdlSource, wdlJson))
-  }
-
-  implicit class EnhancedCall(val call: Call) extends AnyVal {
-    def toRuntimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, CromwellBackend.backend().backendType)
+  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson], workflowOptions: Option[WdlJson]): Props = {
+    Props(new ValidateActor(wdlSource, wdlJson, workflowOptions))
   }
 }
 
-class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson])
+class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[String])
   extends Actor with LazyLogging {
 
   import ValidateActor.{ValidateWorkflow, tag}
@@ -56,12 +52,20 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson])
     }
   }
 
+  private def validateRuntimeOptions(call: Call,  workflowOptions: Option[String]): Try[CromwellRuntimeAttributes] = {
+    workflowOptions match {
+      case Some(wo) =>
+        WorkflowOptions.fromJsonString(wo) map { options => CromwellRuntimeAttributes(call.task.runtimeAttributes, options, CromwellBackend.backend().backendType) }
+      case None => Try(CromwellRuntimeAttributes(call.task.runtimeAttributes, CromwellBackend.backend.backendType))
+    }
+  }
+
   private def validateWorkflow(sentBy: ActorRef): Unit = {
     logger.info(s"$tag for $sentBy")
     val futureValidation: Future[Unit] = for {
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
       validatedInputs <- validateInputs(namespaceWithWorkflow, workflowInputs)
-      runtime = namespaceWithWorkflow.workflow.calls foreach { _.toRuntimeAttributes }
+      validatedRuntimeOptions <- Future.fromTry(TryUtil.sequence(namespaceWithWorkflow.workflow.calls map { call => validateRuntimeOptions(call, workflowOptions) }))
     } yield ()
 
     // Now validate that this Future completed successfully:

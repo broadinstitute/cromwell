@@ -2,11 +2,16 @@ package cromwell.engine.backend
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.engine.backend.runtimeattributes.{AttributeMap, CromwellRuntimeAttributes, ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
+import cromwell.engine.workflow.WorkflowOptions
 import wdl4s.NamespaceWithWorkflow
 import cromwell.engine.backend.CromwellRuntimeAttributeSpec._
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
 
+import scala.util.{Failure, Success}
+
 object CromwellRuntimeAttributeSpec {
+  val DockerValuePlaceholder = "DOCKERVALUEPLACEHOLDER"
+  val WdlValueForDockerAttribute = "ubuntu:latest"
   val WorkflowWithRuntime =
     """
       |task ps {
@@ -17,7 +22,7 @@ object CromwellRuntimeAttributeSpec {
       |    File procs = stdout()
       |  }
       |  runtime {
-      |    docker: "ubuntu:latest"
+      |    docker: "DOCKERVALUEPLACEHOLDER"
       |  }
       |}
       |
@@ -31,7 +36,7 @@ object CromwellRuntimeAttributeSpec {
       |    Int count = read_int(stdout())
       |  }
       |  runtime {
-      |    docker: "ubuntu:latest"
+      |    docker: "DOCKERVALUEPLACEHOLDER"
       |  }
       |}
       |
@@ -44,7 +49,7 @@ object CromwellRuntimeAttributeSpec {
       |    Int count = read_int(stdout())
       |  }
       |  runtime {
-      |     docker: "ubuntu:latest"
+      |     docker: "DOCKERVALUEPLACEHOLDER"
       |  }
       |}
       |
@@ -58,7 +63,7 @@ object CromwellRuntimeAttributeSpec {
       |  }
       |}
       |
-    """.stripMargin
+    """.stripMargin.replace(DockerValuePlaceholder, WdlValueForDockerAttribute)
 
   val WorkflowWithoutRuntime =
     """
@@ -73,6 +78,34 @@ object CromwellRuntimeAttributeSpec {
       |}
       |
       |workflow hello {
+      |  call hello
+      |}
+    """.stripMargin
+
+  val ManyTaskWorkflowWithoutRuntime =
+    """
+      |task hello {
+      |  String addressee
+      |  command {
+      |    echo "and I say Hello, hello hello!"
+      |  }
+      |  output {
+      |    String salutation = read_string(stdout())
+      |  }
+      |}
+      |
+      |task goodbye {
+      |  String addressee
+      |  command {
+      |    echo "You say Goodbye"
+      |  }
+      |  output {
+      |    String salutation = read_string(stdout())
+      |  }
+      |}
+      |
+      |workflow hello {
+      |  call goodbye
       |  call hello
       |}
     """.stripMargin
@@ -182,8 +215,8 @@ object CromwellRuntimeAttributeSpec {
       |    docker: "ubuntu:latest"
       |    memory: "4G"
       |    cpu: "3"
-      |    defaultZones: "US_Metro US_Backwater"
-      |    defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+      |    zones: "US_Metro US_Backwater"
+      |    disks: "Disk1 3 SSD, Disk2 500 HDD"
       |  }
       |}
       |
@@ -216,7 +249,7 @@ object CromwellRuntimeAttributeSpec {
       |  }
       |  runtime {
       |    docker: "ubuntu:latest"
-      |    defaultDisks: "local-disk 123 HDD"
+      |    disks: "local-disk 123 HDD"
       |  }
       |}
       |
@@ -265,7 +298,7 @@ object CromwellRuntimeAttributeSpec {
       |  }
       |  runtime {
       |    docker: "ubuntu:latest"
-      |    defaultDisks: "Disk1 123 LOCAL"
+      |    disks: "Disk1 123 LOCAL"
       |  }
       |}
       |
@@ -282,7 +315,7 @@ object CromwellRuntimeAttributeSpec {
       |  }
       |  runtime {
       |    docker: "ubuntu:latest"
-      |    defaultDisks: "Disk1 123.0 SSD"
+      |    disks: "Disk1 123.0 SSD"
       |  }
       |}
       |
@@ -299,12 +332,22 @@ object CromwellRuntimeAttributeSpec {
       |  }
       |  runtime {
       |    docker: "ubuntu:latest"
-      |    defaultDisks: "Disk1 123 SDD"
+      |    disks: "Disk1 123 SDD"
       |  }
       |}
       |
       |workflow great_googly_moogly {
       |  call messed_up_disk
+      |}
+    """.stripMargin
+
+  val DefaultRuntimeAttributesOptionsDockerValue = "python:2.7"
+  val DefaultRuntimeAttributesOptionsFile =
+    s"""
+      |{
+      |  "defaultRuntimeOptions": {
+      |    "docker": "$DefaultRuntimeAttributesOptionsDockerValue"
+      |  }
       |}
     """.stripMargin
 
@@ -317,6 +360,10 @@ object CromwellRuntimeAttributeSpec {
 
     def toCromwellRuntimeAttributes(backendType: BackendType) = {
       namespace.workflow.calls map { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }
+    }
+
+    def toCromwellRuntimeAttributes(options: WorkflowOptions) = {
+      namespace.workflow.calls map { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, options, BackendType.LOCAL) }
     }
   }
 }
@@ -407,10 +454,10 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val secondDisk = new Disk().setName("Disk2").setSizeGb(500L).setType("PERSISTENT_HDD").setAutoDelete(true)
 
     val expectedDisks = Vector(firstDisk, secondDisk, CromwellRuntimeAttributes.LocalizationDisk)
-    attributes.defaultDisks should contain theSameElementsAs expectedDisks
+    attributes.disks should contain theSameElementsAs expectedDisks
 
     val expectedZones = Vector("US_Metro", "US_Backwater")
-    attributes.defaultZones foreach { z => expectedZones should contain (z) }
+    attributes.zones foreach { z => expectedZones should contain (z) }
 
     attributes.memoryGB shouldBe 4
   }
@@ -424,8 +471,8 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val googlyCall = calls(callIndex)
     val attributes = CromwellRuntimeAttributes(googlyCall.task.runtimeAttributes, BackendType.LOCAL)
     attributes.cpu shouldBe CromwellRuntimeAttributes.Defaults.Cpu
-    attributes.defaultDisks foreach { d => CromwellRuntimeAttributes.Defaults.Disk should contain (d) }
-    attributes.defaultZones foreach { z => CromwellRuntimeAttributes.Defaults.Zones should contain (z) }
+    attributes.disks foreach { d => CromwellRuntimeAttributes.Defaults.Disk should contain (d) }
+    attributes.zones foreach { z => CromwellRuntimeAttributes.Defaults.Zones should contain (z) }
     attributes.memoryGB shouldBe CromwellRuntimeAttributes.Defaults.Memory
   }
 
@@ -440,15 +487,15 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     attributes.cpu shouldBe CromwellRuntimeAttributes.Defaults.Cpu
 
     val localHddDisk = new Disk().setName("local-disk").setSizeGb(123L).setType("PERSISTENT_HDD").setAutoDelete(true)
-    attributes.defaultDisks should contain theSameElementsAs Vector(localHddDisk)
-    attributes.defaultZones should contain theSameElementsAs CromwellRuntimeAttributes.Defaults.Zones
+    attributes.disks should contain theSameElementsAs Vector(localHddDisk)
+    attributes.zones should contain theSameElementsAs CromwellRuntimeAttributes.Defaults.Zones
     attributes.memoryGB shouldBe CromwellRuntimeAttributes.Defaults.Memory
   }
 
   "WDL file with Googly config" should "issue warnings on the local backend" in {
     val namespace = NamespaceWithWorkflow.load(WorkflowWithFullGooglyConfig)
     val attributeMap = AttributeMap(namespace.workflow.calls.head.task.runtimeAttributes.attrs)
-    val expectedString = "Found unsupported keys for backend 'LOCAL': cpu, defaultDisks, defaultZones, memory"
+    val expectedString = "Found unsupported keys for backend 'LOCAL': cpu, disks, memory, zones"
     attributeMap.unsupportedKeys(BackendType.LOCAL).head shouldBe expectedString
   }
 
@@ -506,5 +553,29 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     }
 
     ex.getMessage should include("Disk TYPE SDD should be one of LOCAL, SSD, HDD")
+  }
+
+  "Default RuntimeAttributes" should "be accessible for all tasks" in {
+    val namespaceWithoutRuntime = NamespaceWithWorkflow.load(ManyTaskWorkflowWithoutRuntime)
+    WorkflowOptions.fromJsonString(DefaultRuntimeAttributesOptionsFile) match {
+      case Success(options) => namespaceWithoutRuntime.toCromwellRuntimeAttributes(options) foreach { attributes =>
+        assert(attributes.docker.isDefined)
+        assert(attributes.docker.get.equals(DefaultRuntimeAttributesOptionsDockerValue))
+      }
+      case Failure(e: Throwable) => fail(s"Couldn't parse $DefaultRuntimeAttributesOptionsFile as JSON.", e)
+      case _ => fail(s"Couldn't parse $DefaultRuntimeAttributesOptionsFile as JSON.")
+    }
+  }
+
+  "Default RuntimeAttributes" should "NOT override WDL values" in {
+    val namespaceWithoutRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime)
+    WorkflowOptions.fromJsonString(DefaultRuntimeAttributesOptionsFile) match {
+      case Success(options) => namespaceWithoutRuntime.toCromwellRuntimeAttributes(options) foreach { attributes =>
+        assert(attributes.docker.isDefined)
+        assert(attributes.docker.get.equals(WdlValueForDockerAttribute))
+      }
+      case Failure(e: Throwable) => fail(s"Couldn't parse $DefaultRuntimeAttributesOptionsFile as JSON.", e)
+      case _ => fail(s"Couldn't parse $DefaultRuntimeAttributesOptionsFile as JSON.")
+    }
   }
 }

@@ -3,6 +3,8 @@ package cromwell.engine.backend.runtimeattributes
 import com.google.api.services.genomics.model.Disk
 import cromwell.engine.backend.BackendType
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
+import cromwell.engine.workflow.WorkflowOptions
+import cromwell.logging.WorkflowLogger
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.parser.MemorySize
@@ -13,26 +15,44 @@ import scalaz.Scalaz._
 import scalaz._
 
 case class CromwellRuntimeAttributes(docker: Option[String],
-                                     defaultZones: Seq[String],
+                                     zones: Seq[String],
                                      failOnStderr: Boolean,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      cpu: Long,
                                      preemptible: Boolean,
-                                     defaultDisks: Seq[Disk],
+                                     disks: Seq[Disk],
                                      memoryGB: Double)
 
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
 
-  def apply(wdlRuntimeAttributes: RuntimeAttributes, backendType: BackendType): CromwellRuntimeAttributes = {
-    val attributeMap = AttributeMap(wdlRuntimeAttributes.attrs)
-    /**
-     *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
-     *  the keys are known to be supported on at least one backend other than this.
-     */
-    attributeMap.unsupportedKeys(backendType) foreach log.warn
+  def apply(wdlRuntimeAttributes: RuntimeAttributes, backendType: BackendType): CromwellRuntimeAttributes =
+    fromAttributeMap(AttributeMap(wdlRuntimeAttributes.attrs), backendType)
 
-    val attributeMapNel = validateAttributeMap(attributeMap, backendType)
+  def apply(wdlRuntimeAttributes: RuntimeAttributes, workflowOptions: WorkflowOptions, backendType: BackendType) = {
+    val attributesMap = AttributeMap(wdlRuntimeAttributes.attrs)
+
+    val withDefaults = new AttributeMapTrait {
+      override def keys = attributesMap.keys ++ workflowOptions.getDefaultRuntimeOptionKeys
+      override def unsupportedKeys(bt: BackendType): Seq[String] = attributesMap.unsupportedKeys(bt)
+      override def getSeq(key: RuntimeKey): Option[Seq[String]] = attributesMap.getSeq(key)
+      override def get(key: RuntimeKey): Option[String] = attributesMap.get(key) match {
+        case Some(x) => Some(x)
+        case None => workflowOptions.getDefaultRuntimeOption(key.key).toOption
+      }
+    }
+
+    fromAttributeMap(withDefaults, backendType)
+  }
+
+  private def fromAttributeMap(attributeMap: AttributeMapTrait, backendType: BackendType): CromwellRuntimeAttributes = {
+    /**
+      *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
+      *  the keys are known to be supported on at least one backend other than this.
+      */
+    attributeMap.unsupportedKeys(backendType).foreach(unsupportedKeyMessage => log.info(unsupportedKeyMessage))
+
+    val attributeMapNel = validateRequiredKeys(attributeMap, backendType)
     val runtimeAttributeNel = validateRuntimeAttributes(attributeMap)
     val validatedRuntimeAttributes = (attributeMapNel |@| runtimeAttributeNel) { (_, r) => r }
 
@@ -60,14 +80,14 @@ object CromwellRuntimeAttributes {
     val Zones = Vector("us-central1-a")
   }
 
-  private def validateRuntimeAttributes(attributeMap: AttributeMap): ValidationNel[String, CromwellRuntimeAttributes] = {
+  private def validateRuntimeAttributes(attributeMap: AttributeMapTrait): ValidationNel[String, CromwellRuntimeAttributes] = {
     val docker = attributeMap.get(DOCKER)
-    val zones = attributeMap.get(DEFAULT_ZONES) map { _.split("\\s+").toVector } getOrElse Defaults.Zones
+    val zones = attributeMap.get(ZONES) map { _.split("\\s+").toVector } getOrElse Defaults.Zones
     val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
     val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.getSeq(CONTINUE_ON_RETURN_CODE))
     val cpu = validateCpu(attributeMap.get(CPU))
     val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
-    val disks = validateLocalDisks(attributeMap.get(DEFAULT_DISKS))
+    val disks = validateLocalDisks(attributeMap.get(DISKS))
     val memory = validateMemory(attributeMap.get(MEMORY))
 
     (failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
@@ -155,25 +175,14 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateAttributeMap(attributeMap: AttributeMap,
-                                   backendType: BackendType): ValidationNel[String, Unit] = {
-    val requiredKeysNel = validateRequiredKeys(attributeMap, backendType)
-    val unknownKeysNel = validateUnknownKeys(attributeMap, backendType)
-    /*
-      Combining either the two FailureNELs and their respective error message or "combining" the two
-      SuccessNELs and their units. The latter is really a side effect to carry the success forward
-     */
-    (requiredKeysNel |@| unknownKeysNel) { (_, _) }
-  }
-
-  private def validateRequiredKeys(attributeMap: AttributeMap,
+  private def validateRequiredKeys(attributeMap: AttributeMapTrait,
                                    backendType: BackendType): ValidationNel[String, Unit] = {
     val requiredKeys = for {
       key <- RuntimeKey.values().toSet
       if key.isMandatory(backendType)
     } yield key.key
 
-    val missingRequiredKeys = requiredKeys -- attributeMap.attrs.keySet
+    val missingRequiredKeys = requiredKeys -- attributeMap.keys
     if (missingRequiredKeys.isEmpty) ().successNel
     else {
       val missingKeyString = missingRequiredKeys.toSeq.sorted.mkString(", ")
@@ -181,17 +190,11 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateUnknownKeys(attributeMap: AttributeMap,
-                                  backendType: BackendType): ValidationNel[String, Unit] = {
+  private def unknownKeys(attributeMap: AttributeMapTrait,
+                                  backendType: BackendType): Set[String] = {
     val knownKeys = RuntimeKey.values map { _.key }
     // Finding keys unknown to any backend is an error.
-    val unknownKeys = attributeMap.attrs.keySet -- knownKeys
-
-    if (unknownKeys.isEmpty) ().successNel
-    else {
-      val unknownKeyString = unknownKeys.toSeq.sorted.mkString(", ")
-      s"Unknown keys found in runtime configuration: $unknownKeyString".failureNel
-    }
+    attributeMap.keys -- knownKeys
   }
 
   private def validateBoolean(value: String): ValidationNel[String, Boolean] = {

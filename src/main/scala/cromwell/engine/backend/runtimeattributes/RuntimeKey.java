@@ -10,8 +10,8 @@ import static cromwell.engine.backend.BackendType.SGE;
 public enum RuntimeKey {
     CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE),
     CPU("cpu", JES),
-    DEFAULT_DISKS("defaultDisks", JES),
-    DEFAULT_ZONES("defaultZones", JES),
+    DISKS("disks", JES),
+    ZONES("zones", JES),
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
     FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE),
     MEMORY("memory", JES),

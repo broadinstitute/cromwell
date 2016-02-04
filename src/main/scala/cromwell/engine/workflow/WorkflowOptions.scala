@@ -5,6 +5,8 @@ import cromwell.util.{EncryptedBytes, SecretKey, Aes256Cbc}
 import scala.collection.JavaConverters._
 import spray.json._
 import scala.util.{Try, Success, Failure}
+import scalaz._
+import scalaz.Validation._
 
 /**
  * WorkflowOptions is constructed with a String -> String map (usually as a JsObject).
@@ -44,6 +46,7 @@ object WorkflowOptions {
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toSeq
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
+  private lazy val defaultRuntimeOptionKey: String = "defaultRuntimeOptions"
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
@@ -69,10 +72,11 @@ object WorkflowOptions {
   }
 
   def fromJsonObject(jsObject: JsObject): Try[WorkflowOptions] = {
-    val encrypted = jsObject.fields map {
+    val encrypted: Map[String, Try[JsValue]] = jsObject.fields map {
       case (k, v: JsString) if EncryptedFields.contains(k) => k -> encryptField(v)
       case (k, v: JsString) => k -> Success(v)
       case (k, v: JsBoolean) => k -> Success(v)
+      case (k, v: JsObject) if defaultRuntimeOptionKey.equals(k) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v) => k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
     }
@@ -90,6 +94,13 @@ object WorkflowOptions {
   }
 
   def fromMap(m: Map[String, String]) = fromJsonObject(JsObject(m map { case (k, v) => k -> JsString(v)}))
+
+  private def get(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
+    case Some(jsStr: JsString) => Success(jsStr.value)
+    case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
+    case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
+    case None => Failure(new Throwable(s"Field not found: $key"))
+  }
 }
 
 case class WorkflowOptions(jsObject: JsObject) {
@@ -97,17 +108,24 @@ case class WorkflowOptions(jsObject: JsObject) {
 
   def toMap = jsObject.fields
 
-  def get(key: String): Try[String] = jsObject.fields.get(key) match {
-    case Some(jsStr: JsString) => Success(jsStr.value)
-    case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
-    case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new Throwable(s"Field not found: $key"))
-  }
+  def get(key: String): Try[String] = WorkflowOptions.get(key, jsObject)
 
   def getBoolean(key: String): Try[Boolean] = jsObject.fields.get(key) match {
     case Some(jsBool: JsBoolean) => Success(jsBool.value)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported JsValue as JsBoolean: $jsVal"))
-    case None => Failure(new Throwable(s"Field not found: $key"))
+    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+  }
+
+  def getDefaultRuntimeOption(key: String): Try[String] = jsObject.fields.get(defaultRuntimeOptionKey) match {
+    case Some(jsObj: JsObject) => WorkflowOptions.get(key, jsObj)
+    case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
+    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+  }
+
+  def getDefaultRuntimeOptionKeys: Iterable[String] = jsObject.fields.get(defaultRuntimeOptionKey) match {
+    case Some(jsObj: JsObject) => jsObj.fields.keys
+    case _ => List.empty[String]
+
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {
@@ -134,3 +152,5 @@ case class WorkflowOptions(jsObject: JsObject) {
     JsObject(revoked).prettyPrint
   }
 }
+
+case class OptionNotFoundException(message: String) extends Exception(message)

@@ -1140,18 +1140,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     // In the `startRunnableCalls` context, record the call as Starting and initiate persistence.
     // The restart scenario assumes a restartable/resumable call is already in Running.
     executionStore += callKey -> ExecutionStatus.Starting
-    persistStatus(callKey, ExecutionStatus.Starting) andThen {
-      case _ => callKey match {
-        case backendCallKey: BackendCallKey =>
-          fetchLocallyQualifiedInputs(backendCallKey) match {
-            case Success(callInputs) => sendStartMessage(backendCallKey, callInputs)
-            case Failure(t) =>
-              logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
-              scheduleTransition(WorkflowFailed)
-          }
-        case finalCallKey: FinalCallKey =>
-          self ! InitialStartCall(finalCallKey, CallActor.Start)
-      }
+    persistStatus(callKey, ExecutionStatus.Starting)
+
+    callKey match {
+      case backendCallKey: BackendCallKey =>
+        fetchLocallyQualifiedInputs(backendCallKey) match {
+          case Success(callInputs) => sendStartMessage(backendCallKey, callInputs)
+          case Failure(t) =>
+            logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
+            scheduleTransition(WorkflowFailed)
+        }
+      case finalCallKey: FinalCallKey =>
+        self ! InitialStartCall(finalCallKey, CallActor.Start)
     }
     Success(ExecutionStartResult(Set(StartEntry(callKey, ExecutionStatus.Starting))))
   }

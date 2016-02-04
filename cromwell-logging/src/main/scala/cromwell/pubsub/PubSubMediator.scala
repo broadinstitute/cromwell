@@ -31,7 +31,7 @@ trait PubSubMediator{
     * @param system
     * @tparam T
     */
-  def publish[T](topic:T , payload:Any)(implicit system:ActorSystem):Unit = {
+  def publish[T](topic: T, payload: Any)(implicit system:ActorSystem):Unit = {
     system.eventStream.publish(topic , payload)
   }
 
@@ -43,7 +43,7 @@ trait PubSubMediator{
     * @param topic optional topic that needs to be unsubscribe
     * @tparam T
     */
-  def unsubscribe[T](actorRef:ActorRef , topic:Option[T] = None)(implicit system: ActorSystem): Unit = {
+  def unsubscribe[T](actorRef:ActorRef, topic: Option[T] = None)(implicit system: ActorSystem): Unit = {
     topic match {
       case Some(x) => system.eventStream.unsubscribe(actorRef , classOf[(T , Any)])
       case None => system.eventStream.unsubscribe(actorRef)
@@ -64,5 +64,5 @@ class Subscriber(f:(WorkflowEvent , Any) => Option[Unit]) extends Actor {
 }
 
 object Subscriber{
-  def props(f:(WorkflowEvent , Any) => Option[Unit]) : Props = Props(classOf[Subscriber] , f)
+  def props(f:(WorkflowEvent , Any) => Option[Unit]): Props = Props(classOf[Subscriber] , f)
 }

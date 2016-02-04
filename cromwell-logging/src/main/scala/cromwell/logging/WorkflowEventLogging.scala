@@ -13,16 +13,16 @@ import scala.language.postfixOps
   * of LogWrapper.
   */
 trait LogWrapper {
-  def debug(message:String)
-  def debug(message:String, t:Throwable)
+  def debug(message: String)
+  def debug(message: String, t: Throwable)
   def warn(message:String)
-  def warn(message:String, t:Throwable)
-  def error(message:String)
-  def error(message:String, t:Throwable)
-  def trace(message:String)
-  def trace(message:String, t:Throwable)
-  def info(message:String)
-  def info(message:String, t:Throwable)
+  def warn(message: String, t: Throwable)
+  def error(message: String)
+  def error(message: String, t: Throwable)
+  def trace(message: String)
+  def trace(message: String, t: Throwable)
+  def info(message: String)
+  def info(message: String, t: Throwable)
 }
 
 /**
@@ -40,28 +40,28 @@ case object WorkflowExecutionEvent extends WorkflowEvent
 trait LogWorkflowEvent extends LogWrapper {
   def eventLogger():Logger = LoggerFactory.getLogger("cromwell.logging.LogWorkflowEvent")
 
-  override def info(message:String) = eventLogger().info(message)
-  override def info(message:String , t:Throwable) = {
+  override def info(message: String) = eventLogger().info(message)
+  override def info(message: String, t: Throwable) = {
     eventLogger().info(message, t)
   }
 
-  override def debug(message:String) = eventLogger().debug(message)
-  override def debug(message:String , t:Throwable) = {
+  override def debug(message: String) = eventLogger().debug(message)
+  override def debug(message: String, t:Throwable) = {
     eventLogger().debug(message, t)
   }
 
-  override def warn(message:String) = eventLogger().warn(message)
-  override def warn(message:String , t:Throwable) = {
+  override def warn(message: String) = eventLogger().warn(message)
+  override def warn(message: String, t:Throwable) = {
     eventLogger().warn(message, t)
   }
 
-  override def error(message:String) = eventLogger().error(message)
-  override def error(message:String , t:Throwable) = {
+  override def error(message: String) = eventLogger().error(message)
+  override def error(message: String, t:Throwable) = {
     eventLogger().error(message, t)
   }
 
-  override def trace(message:String) = eventLogger().trace(message)
-  override def trace(message:String , t:Throwable) = {
+  override def trace(message: String) = eventLogger().trace(message)
+  override def trace(message: String, t: Throwable) = {
     eventLogger().trace(message, t)
   }
 

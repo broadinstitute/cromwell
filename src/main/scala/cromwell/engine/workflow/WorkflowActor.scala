@@ -512,7 +512,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       if (isWorkflowDone) scheduleTransition(WorkflowSucceeded)
       val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Done)
       stay using finalData
-    case Event(PersistenceCompleted(callKey, ExecutionStatus.Preempted, callOutputs), data) =>
+    case Event(PersistenceSucceeded(callKey, ExecutionStatus.Preempted, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Preempted
       val updatedData = startRunnableCalls(data)
       val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Preempted)

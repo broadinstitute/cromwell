@@ -34,30 +34,15 @@ class JesBackendCallSpec extends FlatSpec with Matchers with Mockito {
     wdWithInvalidWfOptions.workflowLogger returns logger
 
     val runtimeAttributesWith4Attempts = mock[CromwellRuntimeAttributes]
-    runtimeAttributesWith4Attempts.preemptible returns Some(4)
+    runtimeAttributesWith4Attempts.preemptible returns 4
 
     val runtimeAttributesWithoutAttempt = mock[CromwellRuntimeAttributes]
-    runtimeAttributesWithoutAttempt.preemptible returns None
+    runtimeAttributesWithoutAttempt.preemptible returns 0
 
     val backendCallWithRuntimeAttributes = new JesBackendCall(jesBackendWith3Attempts, wdWith2AttemptsWfOptions, mock[BackendCallKey], mock[CallInputs], None) {
       override lazy val runtimeAttributes = runtimeAttributesWith4Attempts
     }
     backendCallWithRuntimeAttributes.maxPreemption shouldBe 4
-
-    val backendCallWithWfOptions = new JesBackendCall(jesBackendWith3Attempts, wdWith2AttemptsWfOptions, mock[BackendCallKey], mock[CallInputs], None) {
-      override lazy val runtimeAttributes = runtimeAttributesWithoutAttempt
-    }
-    backendCallWithWfOptions.maxPreemption shouldBe 2
-
-    val backendCallWithInvalidWfOptions = new JesBackendCall(jesBackendWith3Attempts, wdWithInvalidWfOptions, mock[BackendCallKey], mock[CallInputs], None) {
-      override lazy val runtimeAttributes = runtimeAttributesWithoutAttempt
-    }
-    backendCallWithInvalidWfOptions.maxPreemption shouldBe 3
-
-    val backendCallWithJesConf = new JesBackendCall(jesBackendWith3Attempts, wdWithoutWfOptions, mock[BackendCallKey], mock[CallInputs], None) {
-      override lazy val runtimeAttributes = runtimeAttributesWithoutAttempt
-    }
-    backendCallWithJesConf.maxPreemption shouldBe 3
   }
 
   "JesBackendCall" should "return preemptible = true only in the correct cases" in {

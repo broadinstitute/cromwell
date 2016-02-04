@@ -58,10 +58,9 @@ object JesBackend {
   val AuthFilePathOptionKey = "auth_bucket"
   val WriteToCacheOptionKey = "write_to_cache"
   val ReadFromCacheOptionKey = "read_from_cache"
-  val MaxPreemptionTriesOptionKey = "preemptible"
   val OptionKeys = Set(
     GoogleCloudStorage.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
-    AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey, MaxPreemptionTriesOptionKey
+    AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
   )
 
   lazy val monitoringScriptLocalPath = localFilePathFromRelativePath(JesMonitoringScript)

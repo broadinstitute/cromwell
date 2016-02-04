@@ -1,9 +1,8 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCode, CromwellRuntimeAttributes}
-import cromwell.util.SampleWdl.ContinueOnReturnCode
-import org.scalatest.{Matchers, FlatSpec}
+import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
+import org.scalatest.{FlatSpec, Matchers}
 
 class JesRuntimeInfoSpec extends FlatSpec with Matchers {
 
@@ -11,13 +10,13 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
     val disks: List[Disk] = List(new Disk())
     val zones: List[String] = List("central-1")
     val attributes = new CromwellRuntimeAttributes(docker = Some("docker"),
-      defaultZones = zones,
+      zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
       cpu = 2L,
-      // This value is irrelevant at this point as the decision of creating a pre-emptible VM or not has been done before creating the runtime info
-      preemptible = None,
-      defaultDisks = disks,
+      // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
+      preemptible = 1,
+      disks = disks,
       memoryGB = 4D)
 
     val runtimeInfo = PreemptibleJesRuntimeInfo("command", attributes)
@@ -34,13 +33,13 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
     val disks: List[Disk] = List(new Disk())
     val zones: List[String] = List("central-1")
     val attributes = new CromwellRuntimeAttributes(docker = Some("docker"),
-      defaultZones = zones,
+      zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
       cpu = 2L,
-      // This value is irrelevant at this point as the decision of creating a pre-emptible VM or not has been done before creating the runtime info
-      preemptible = Some(1),
-      defaultDisks = disks,
+      // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
+      preemptible = 3,
+      disks = disks,
       memoryGB = 4D)
 
     val runtimeInfo = NonPreemptibleJesRuntimeInfo("command", attributes)

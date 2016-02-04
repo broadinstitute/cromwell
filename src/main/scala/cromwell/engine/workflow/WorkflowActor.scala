@@ -235,8 +235,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
 
-  val workflowLogger = context.actorOf(WorkflowEventLogging.props(), "BusinessLogging")
-  workflowLogger ! SubscribeToLogging
+  val workflowEventLogging = context.actorOf(WorkflowEventLogging.props(), "WorkflowEventLogging")
+  workflowEventLogging ! SubscribeToLogging(workflow.id.toString)
 
   startWith(WorkflowSubmitted, WorkflowData())
   WorkflowCounter.increment()
@@ -491,7 +491,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case WorkflowSubmitted -> WorkflowRunning =>
       stateData.startMode.get.start(this)
       publishWorkflowEvent()
-    case WorkflowRunning -> _ => publishWorkflowEvent()
+    case _ -> _ => publishWorkflowEvent()
   }
 
   when(WorkflowAborting) {
@@ -530,13 +530,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     import org.json4s._
     import org.json4s.native.Serialization.{write}
 
-    logger.info(s"--------> publishWorkflowEvent ")
     implicit val formats = DefaultFormats + FieldSerializer[WorkflowExecution]()
     implicit val actorSystem = context.system
 
     for {
-      status <- globalDataAccess.getWorkflowExecution(workflow.id)
-    } yield PubSubMediator.publish(WorkflowExecutionEvent, write(status))
+      workflowExecutionModel <- globalDataAccess.getWorkflowExecution(workflow.id)
+    } yield PubSubMediator.publish(WorkflowExecutionEvent, write(workflowExecutionModel))
 
   }
 

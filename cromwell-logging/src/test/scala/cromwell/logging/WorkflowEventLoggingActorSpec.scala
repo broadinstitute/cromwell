@@ -8,7 +8,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 /**
   * Created by himanshu on 1/21/16.
   */
-class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) with WordSpecLike with Matchers with BeforeAndAfterAll  {
+class WorkflowEventLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) with WordSpecLike with Matchers with BeforeAndAfterAll  {
 
   var logMessage = "message"
   var subscribed  = false
@@ -44,7 +44,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
   "BusinessLogging Actor " must {
     "subscribe a subscriber to " in {
       val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with MockPubSubMediator)
-      actor ! SubscribeToLogging
+      actor ! SubscribeToLogging("10")
       assert(subscribed == true)
     }
   }
@@ -52,8 +52,8 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
   "BusinessLogging Actor " must {
     "ubsubscribe a subscriber to " in {
       val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with MockPubSubMediator)
-      actor ! SubscribeToLogging
-      actor ! UnSubscribeToLogging
+      actor ! SubscribeToLogging("10")
+      actor ! UnSubscribeToLogging("10")
       assert(subscribed == false)
     }
   }
@@ -61,7 +61,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
   "BusinessLogging Actor " must {
     "subscribe a subscriber and pubsubmediator publish message " in {
       val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with PubSubMediator)
-      actor ! SubscribeToLogging
+      actor ! SubscribeToLogging("10")
       PubSubMediator.publish(WorkflowExecutionEvent,"workflowevent")
       Thread.sleep(1000L)
       assert(logMessage == "workflowevent")
@@ -72,7 +72,7 @@ class BusinessLoggingActorSpec(_system:ActorSystem) extends TestKit(_system) wit
     "subscribe a subscriber and pubsubmediator publish null message " in {
       logMessage = "message"
       val actor = TestActorRef(new WorkflowEventLogging() with MockLogWorkflowEvent with PubSubMediator)
-      actor ! SubscribeToLogging
+      actor ! SubscribeToLogging("10")
       PubSubMediator.publish(null,"workflowevent")
       Thread.sleep(1000L)
       assert(logMessage == "message")

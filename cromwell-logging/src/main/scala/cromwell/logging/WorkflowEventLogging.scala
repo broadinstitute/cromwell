@@ -82,30 +82,30 @@ trait LogWorkflowEvent extends LogWrapper {
 }
 
 sealed trait EventLoggingMessage
-case object SubscribeToLogging extends EventLoggingMessage
-case object UnSubscribeToLogging extends EventLoggingMessage
+case class SubscribeToLogging(id: String) extends EventLoggingMessage
+case class UnSubscribeToLogging(id: String) extends EventLoggingMessage
 
 /**
   * Specific logging implementation which is interested in listening
   * workflow event that could further categorize into workflow execution event
   * and call execution event.
   */
-class WorkflowEventLogging() extends Actor with ActorLogging {
+private class WorkflowEventLogging() extends Actor with ActorLogging {
   this:LogWorkflowEvent with PubSubMediator=>
 
   implicit val timeout = Timeout(10 seconds)
   implicit val actorSystem = context.system
 
   def actorRefFactory: ActorContext = context
-  val subscriber = actorSystem.actorOf(Subscriber.props[WorkflowEvent](onWorkflowEvent()), s"BusinessLogging_${this.hashCode()}")
+  val subscriber = actorSystem.actorOf(Subscriber.props(onWorkflowEvent()), s"BusinessLogging_${this.hashCode()}")
 
   override def receive:Receive = {
-    case SubscribeToLogging =>
+    case SubscribeToLogging(id) =>
       subscribe[WorkflowEvent](subscriber)
-      log.info(s"received subscription message")
-    case UnSubscribeToLogging =>
+      log.info(s"received subscription message from subscriber id: $id")
+    case UnSubscribeToLogging(id) =>
       unsubscribe[WorkflowEvent](subscriber)
-      log.info(s"received un subscription message")
+      log.info(s"received un subscription message from subscriber id: $id")
   }
 }
 

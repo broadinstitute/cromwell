@@ -221,9 +221,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
 
   private def processFailedExecutionResult(result: ExecutionResult): FailedExecution = {
     result match {
-      case res if res.isInstanceOf[FailureTaskResult] => new FailedExecution(res.asInstanceOf[FailureTaskResult].exception)
-      case res if res.isInstanceOf[FailureResult] => new FailedExecution(res.asInstanceOf[FailureResult].exception)
-      case unknown@_ => new FailedExecution(new IllegalStateException(s"Unhandled failure result. Result received: $unknown."))
+      case res: FailureTaskResult => new FailedExecution(res.exception)
+      case res: FailureResult => new FailedExecution(res.exception)
+      case unknown => new FailedExecution(new IllegalStateException(s"Unhandled failure result. Result received: $unknown."))
     }
   }
 
@@ -302,7 +302,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     // Need Declarations, CallInputs, command template sequence
     val cmdTemplateSeq = callObj.task.commandTemplate
     val declarations = callObj.task.declarations
-    val runtimeAttributes = callObj.task.runtimeAttributes.attrs.map { case (k, v) => (k, v.head) }
+    val runtimeAttributes = callObj.task.runtimeAttributes.attrs.mapValues(p => p.head)
     TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}", locallyQualifiedInputs, callObj.task.outputs, runtimeAttributes)
   }
 

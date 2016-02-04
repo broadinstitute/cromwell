@@ -648,9 +648,6 @@ backend {
 
     // Root URL for the API
     endpointUrl = "https://genomics.googleapis.com/"
-    
-    // Maximum number of times a call should be executed using a preemptible VM
-    preemptible = 0
 
     // Polling for completion backs-off gradually for slower-running jobs.
     // This is the maximum polling interval (in seconds):
@@ -927,7 +924,7 @@ Passed to JES: "If applicable, preemptible machines may be used for the run."
 
 Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
 eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.
-Note: If specified, this attribute overrides [workflow options](#workflow-options) and/or [JES configuration](#google-jes-backend).
+Note: If specified, this attribute overrides [workflow options](#workflow-options).
 
 ```
 runtime {

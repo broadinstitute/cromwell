@@ -3,48 +3,13 @@ package cromwell.engine.backend.jes
 import java.net.URL
 
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
+import cromwell.engine.workflow.BackendCallKey
 import org.scalatest.{FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
-import spray.json._
 import wdl4s.CallInputs
 
 class JesBackendCallSpec extends FlatSpec with Matchers with Mockito {
-  "JesBackendCall" should "compute correctly the maximum number of preemption attempts" in {
-    val logger: Logger = LoggerFactory.getLogger("JesBackendCallSpec logger")
-    val project = "project"
-    val bucket = "gs://bucket"
-    val endpoint =  new URL("http://endpoint")
-
-    val jesBackendWith3Attempts = mock[JesBackend]
-    jesBackendWith3Attempts.jesConf returns JesAttributes(project, bucket, endpoint, 3, 600)
-
-    val wdWithoutWfOptions = mock[WorkflowDescriptor]
-    wdWithoutWfOptions.workflowOptions returns WorkflowOptions("{}".parseJson.asJsObject)
-    wdWithoutWfOptions.workflowLogger returns logger
-
-    val wdWith2AttemptsWfOptions = mock[WorkflowDescriptor]
-    wdWith2AttemptsWfOptions.workflowOptions returns WorkflowOptions("""{ "preemptible": 2 }""".parseJson.asJsObject)
-    wdWith2AttemptsWfOptions.workflowLogger returns logger
-
-    val wdWithInvalidWfOptions = mock[WorkflowDescriptor]
-    wdWithInvalidWfOptions.workflowOptions returns WorkflowOptions("""{ "preemptible": "invalid" }""".parseJson.asJsObject)
-    wdWithInvalidWfOptions.workflowLogger returns logger
-
-    val runtimeAttributesWith4Attempts = mock[CromwellRuntimeAttributes]
-    runtimeAttributesWith4Attempts.preemptible returns 4
-
-    val runtimeAttributesWithoutAttempt = mock[CromwellRuntimeAttributes]
-    runtimeAttributesWithoutAttempt.preemptible returns 0
-
-    val backendCallWithRuntimeAttributes = new JesBackendCall(jesBackendWith3Attempts, wdWith2AttemptsWfOptions, mock[BackendCallKey], mock[CallInputs], None) {
-      override lazy val runtimeAttributes = runtimeAttributesWith4Attempts
-    }
-    backendCallWithRuntimeAttributes.maxPreemption shouldBe 4
-  }
-
   "JesBackendCall" should "return preemptible = true only in the correct cases" in {
     val logger: Logger = LoggerFactory.getLogger("JesBackendCallSpec logger")
     val project = "project"

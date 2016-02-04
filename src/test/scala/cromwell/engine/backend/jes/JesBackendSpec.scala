@@ -43,7 +43,6 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       project = anyString,
       executionBucket = anyString,
       endpointUrl = anyURL,
-      maxPreemptionAttempts = 0,
       maxPollingInterval = 600) {
     }
     override def jesUserConnection(workflow: WorkflowDescriptor) = null

@@ -41,7 +41,6 @@ class InvalidRuntimeAttributesSpec extends CromwellTestkitSpec with BeforeAndAft
           project = anyString,
           executionBucket = anyString,
           endpointUrl = anyURL,
-          maxPreemptionAttempts = 1,
           maxPollingInterval = 600) {
         }
 

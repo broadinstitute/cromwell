@@ -11,7 +11,7 @@ import scala.language.postfixOps
 import scalaz.Scalaz._
 import scalaz._
 
-case class JesAttributes(project: String, executionBucket: String, endpointUrl: URL, maxPreemptionAttempts: Int, maxPollingInterval: Int)
+case class JesAttributes(project: String, executionBucket: String, endpointUrl: URL, maxPollingInterval: Int)
 
 object JesAttributes {
 
@@ -19,8 +19,7 @@ object JesAttributes {
     "project",
     "baseExecutionBucket",
     "endpointUrl",
-    "maximumPollingInterval",
-    "preemptible"
+    "maximumPollingInterval"
   )
 
   private val context = "Jes"
@@ -36,10 +35,9 @@ object JesAttributes {
     val executionBucket: ValidationNel[String, String] = jesConf.validateString("baseExecutionBucket")
     val endpointUrl: ValidationNel[String, URL] = jesConf.validateURL("endpointUrl")
     val maxPollingInterval: Int = jesConf.getIntOption("maximumPollingInterval").getOrElse(600)
-    val maximumPreemptionAttempts: Int = jesConf.getIntOption("preemptible").getOrElse(0)
 
     (project |@| executionBucket |@| endpointUrl) {
-      JesAttributes(_, _, _, maximumPreemptionAttempts, maxPollingInterval)
+      JesAttributes(_, _, _, maxPollingInterval)
     } match {
       case Success(r) => r
       case Failure(f) =>

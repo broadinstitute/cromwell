@@ -26,7 +26,6 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     fullAttributes.endpointUrl.toString shouldBe new URL("http://myEndpoint").toString
     fullAttributes.project shouldBe "myProject"
     fullAttributes.executionBucket shouldBe "gs://myBucket"
-    fullAttributes.maxPreemptionAttempts shouldBe 3
     fullAttributes.maxPollingInterval shouldBe 600
 
     val noPreemptibleConfig = ConfigFactory.parseString(configString.replace("[PREEMPTIBLE]", ""))
@@ -35,7 +34,6 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     noPreemptibleAttributes.endpointUrl.toString shouldBe new URL("http://myEndpoint").toString
     noPreemptibleAttributes.project shouldBe "myProject"
     noPreemptibleAttributes.executionBucket shouldBe "gs://myBucket"
-    noPreemptibleAttributes.maxPreemptionAttempts shouldBe 0
     noPreemptibleAttributes.maxPollingInterval shouldBe 600
   }
 

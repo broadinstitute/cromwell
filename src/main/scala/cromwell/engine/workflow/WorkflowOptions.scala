@@ -97,6 +97,7 @@ object WorkflowOptions {
 
   private def get(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
     case Some(jsStr: JsString) => Success(jsStr.value)
+    case Some(jsNum: JsNumber) => Success(jsNum.value.toString)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
     case None => Failure(new Throwable(s"Field not found: $key"))

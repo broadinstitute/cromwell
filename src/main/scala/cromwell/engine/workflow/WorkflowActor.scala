@@ -488,9 +488,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   when(WorkflowAborted) { FSM.NullFunction }
 
   onTransition {
-    case WorkflowSubmitted -> WorkflowRunning =>
-      stateData.startMode.get.start(this)
-      publishWorkflowEvent()
+    case WorkflowSubmitted -> WorkflowRunning => stateData.startMode.get.start(this)
+  }
+
+  onTransition {
     case _ -> _ => publishWorkflowEvent()
   }
 

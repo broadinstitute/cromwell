@@ -24,7 +24,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-
 object CallActor {
 
   sealed trait CallActorMessage
@@ -285,7 +284,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     val backendName: String = callObj.task.runtimeAttributes.attrs.get("backendName").headOption.map(_.head).getOrElse("")
     val backendConfig = BackendConfiguration.apply()
     val defaultBackendCfgEntry = backendConfig.getDefaultBackend()
-    val backendCfgEntry = backendConfig.getAllBackendConfigurations().filter(_.name.equals(backendName)).headOption
+    val backendCfgEntry = backendConfig.getAllBackendConfigurations().find(_.name.equals(backendName))
       .getOrElse(defaultBackendCfgEntry)
     val task = buildTaskDescriptor(callObj)
     DefaultBackendFactory.getBackend(backendCfgEntry.initClass, actorSystem, task)
@@ -298,6 +297,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     */
   private def buildTaskDescriptor(callObj: Call): TaskDescriptor = {
     val name = callObj.fullyQualifiedName
+    log.info(s"Creating Task Descriptor for task: $name.")
     val user = System.getProperty("user.name")
     // Need Declarations, CallInputs, command template sequence
     val cmdTemplateSeq = callObj.task.commandTemplate
@@ -330,7 +330,6 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
 
     cachedExecution onComplete {
       case Success(callOutputs) => {
-        //TODO: Request new execution hash here? Or reuse the one we already got
         log.info(s"Call Caching: Cache hit.")
         val successfulResult = SuccessfulExecution(callOutputs, Seq.empty, 0,
           new ExecutionHash(this.hashCode().toString, None)) //TODO: Should not pass executionHash here since it's already in cache.

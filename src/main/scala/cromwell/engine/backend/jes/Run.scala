@@ -15,6 +15,7 @@ import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -156,9 +157,17 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
       val prevStateName = previousStatus map { _.toString } getOrElse "-"
       logger.info(s"Status change from $prevStateName to $currentStatus")
 
+      /*
+      TODO: Not sure we're supposed to be directly talking to the database.
+      This doesn't even wait for the future to complete. Pretty sure this should be a message to the workflow actor,
+      that then contacts the database to change the state. For now, updating this end run to the database to pass in the
+      default, global execution context.
+       */
+
       // Update the database state:
       val newBackendInfo = JesCallBackendInfo(Option(JesId(runId)), Option(JesStatus(currentStatus.toString)))
-      globalDataAccess.updateExecutionBackendInfo(workflowId, BackendCallKey(call, pipeline.key.index), newBackendInfo)
+      globalDataAccess.updateExecutionBackendInfo(
+        workflowId, BackendCallKey(call, pipeline.key.index), newBackendInfo)(ExecutionContext.global)
 
       // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.

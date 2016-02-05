@@ -3,13 +3,12 @@ package cromwell.engine
 import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
-import akka.pattern.ask
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.backend.BackendActor.{ComputeHash, Prepare}
 import cromwell.backend.config.BackendConfiguration
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
+import cromwell.caching.caching.Md5sum
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
-import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -20,8 +19,8 @@ import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.values.WdlValue
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -112,6 +111,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   implicit val ec = actorSystem.dispatcher
 
   val call = key.scope
+  val backend: ActorRef = createBackendActor()
   val akkaLogger = Logging(context.system, classOf[CallActor])
   val logger = WorkflowLogger(
     "CallActor",
@@ -137,11 +137,10 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       // handle those immediately.
       //Right now, the start mode is not differentiated between.. ie. same flow for all the modes, cached or not
       context.parent ! WorkflowActor.CallStarted(key)
-      val backend: ActorRef = createBackendActor()
       //We have backend here. Check if we can use cached results.
-      useCachedIfPossible(backend)
+      checkForCacheOption(backend)
       //      subscribe(self, backend)
-      goto(CallRunningAbortUnavailable)
+    case Event(md5sum: Md5sum, _) => useCacheIfPossible(backend, md5sum)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
 
@@ -286,7 +285,8 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     val backendName: String = callObj.task.runtimeAttributes.attrs.get("backendName").headOption.map(_.head).getOrElse("")
     val backendConfig = BackendConfiguration.apply()
     val defaultBackendCfgEntry = backendConfig.getDefaultBackend()
-    val backendCfgEntry = backendConfig.getAllBackendConfigurations().filter(_.name.equals(backendName)).headOption.getOrElse(defaultBackendCfgEntry)
+    val backendCfgEntry = backendConfig.getAllBackendConfigurations().filter(_.name.equals(backendName)).headOption
+      .getOrElse(defaultBackendCfgEntry)
     val task = buildTaskDescriptor(callObj)
     DefaultBackendFactory.getBackend(backendCfgEntry.initClass, actorSystem, task)
   }
@@ -303,41 +303,50 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     val cmdTemplateSeq = callObj.task.commandTemplate
     val declarations = callObj.task.declarations
     val runtimeAttributes = callObj.task.runtimeAttributes.attrs.mapValues(p => p.head)
-    TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}", locallyQualifiedInputs, callObj.task.outputs, runtimeAttributes)
+    TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}",
+      locallyQualifiedInputs, callObj.task.outputs, runtimeAttributes)
   }
 
-  private def useCachedIfPossible(backend: ActorRef): Future[Any] = Future {
+  private def checkForCacheOption(backend: ActorRef): State = {
     if (workflowDescriptor.readFromCache) {
-      val cachedExecution = for {
-        hash <- (backend ? ComputeHash).mapTo[String]
-        cache <- globalDataAccess.getExecutionsWithResuableResultsByHash(hash).mapTo[Traversable[Execution]]
-        cacheWorkflowId <- globalDataAccess.getWorkflow(cache.head.workflowExecutionId).mapTo[WorkflowDescriptor]
-        cacheTaskOutputs <- globalDataAccess.getOutputs(cacheWorkflowId.id, ExecutionDatabaseKey(cache.head.callFqn, None)).mapTo[Traversable[SymbolStoreEntry]]
-        callOutputs = SymbolStoreEntry.toCallOutputs(cacheTaskOutputs)
-      } yield callOutputs
-
-      cachedExecution onComplete {
-        case Success(callOutputs) => {
-          //TODO: Request new execution hash here? Or reuse the one we already got
-          log.info(s"Call Caching: Cache hit.")
-          val successfulResult = SuccessfulExecution(callOutputs, Seq.empty, 0, new ExecutionHash(this.hashCode().toString, None)) //TODO: Should not pass executionHash here since it's already in cache.
-          self ! ExecutionFinished(call, successfulResult)
-          true
-        }
-        case Failure(ex) => {
-          ex match {
-            case uoe: UnsupportedOperationException =>
-              log.info(s"Call Caching: hash was not found in caching.")
-              subscribe(self, backend)
-            case ex: Exception =>
-              log.error(s"Call Caching: Failed to look up executions that matched hash. Falling back to normal execution.", ex)
-              subscribe(self, backend)
-          }
-        }
-      }
+      log.info(s"Call caching 'readFromCache' is turned on, trying to get results from cache.")
+      backend ! ComputeHash
+      stay()
     } else {
       log.info(s"Call caching 'readFromCache' is turned off, starting call.")
       subscribe(self, backend)
+      goto(CallRunningAbortUnavailable)
     }
+  }
+
+  private def useCacheIfPossible(backend: ActorRef, hash: Md5sum): State = {
+    val cachedExecution = for {
+      cache <- globalDataAccess.getExecutionsWithResuableResultsByHash(hash).mapTo[Traversable[Execution]]
+      cacheWorkflowId <- globalDataAccess.getWorkflow(cache.head.workflowExecutionId).mapTo[WorkflowDescriptor]
+      cacheTaskOutputs <- globalDataAccess.getOutputs(
+        cacheWorkflowId.id, ExecutionDatabaseKey(cache.head.callFqn, None)).mapTo[Traversable[SymbolStoreEntry]]
+      callOutputs = SymbolStoreEntry.toCallOutputs(cacheTaskOutputs)
+    } yield callOutputs
+
+    cachedExecution onComplete {
+      case Success(callOutputs) => {
+        //TODO: Request new execution hash here? Or reuse the one we already got
+        log.info(s"Call Caching: Cache hit.")
+        val successfulResult = SuccessfulExecution(callOutputs, Seq.empty, 0,
+          new ExecutionHash(this.hashCode().toString, None)) //TODO: Should not pass executionHash here since it's already in cache.
+        self ! ExecutionFinished(call, successfulResult)
+      }
+      case Failure(ex) => {
+        ex match {
+          case uoe: UnsupportedOperationException =>
+            log.info(s"Call Caching: hash was not found in caching.")
+            subscribe(self, backend)
+          case ex: Exception =>
+            log.error(s"Call Caching: Failed to look up executions that matched hash. Falling back to normal execution.", ex)
+            subscribe(self, backend)
+        }
+      }
+    }
+    goto(CallRunningAbortUnavailable)
   }
 }

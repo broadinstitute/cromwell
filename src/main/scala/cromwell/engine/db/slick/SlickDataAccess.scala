@@ -1,6 +1,7 @@
 package cromwell.engine.db.slick
 
 import java.sql.{Clob, Timestamp}
+import java.util.concurrent.Executors
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
@@ -21,9 +22,9 @@ import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, Work
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
+import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values.WdlValue
-import wdl4s.{CallInputs, _}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -157,9 +158,33 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def close(): Unit = database.close()
 
+  /**
+    * Create a special execution context, a fixed thread pool, to run each of our composite database actions. Running
+    * each composite action as a runnable within the pool will ensure that-- at most-- the same number of actions are
+    * running as there are available connections. Thus there should never be a connection deadlock, as outlined in
+    * - https://github.com/slick/slick/issues/1274
+    * - https://groups.google.com/d/msg/scalaquery/5MCUnwaJ7U0/NLLMotX9BQAJ
+    *
+    * Custom future thread pool based on:
+    * - http://stackoverflow.com/questions/15285284/how-to-configure-a-fine-tuned-thread-pool-for-futures#comment23278672_15285441
+    *
+    * Database config parameter defaults based on: (expand the `forConfig` scaladoc for a full list of values)
+    * - http://slick.typesafe.com/doc/3.1.0/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(path:String,config:com.typesafe.config.Config,driver:java.sql.Driver,classLoader:ClassLoader):JdbcBackend.this.Database
+    *
+    * Reuses the error reporter from the original executionContext.
+    */
+  private val actionExecutionContext: ExecutionContext = {
+    val dbNumThreads = databaseConfig.getIntOr("db.numThreads", 20)
+    val dbMaximumPoolSize = databaseConfig.getIntOr("db.maxConnections", dbNumThreads * 5)
+    val actionThreadPoolSize = databaseConfig.getIntOr("actionThreadPoolSize", dbNumThreads) min dbMaximumPoolSize
+    ExecutionContext.fromExecutor(
+      Executors.newFixedThreadPool(actionThreadPoolSize), executionContext.reportFailure)
+  }
+
   // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {
-    database.run(action.transactionally)
+    //database.run(action.transactionally) <-- https://github.com/slick/slick/issues/1274
+    Future(Await.result(database.run(action.transactionally), Duration.Inf))(actionExecutionContext)
   }
 
   /**

@@ -7,24 +7,23 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.engine.finalcall.FinalCall
-import wdl4s._
-import wdl4s.types.{WdlPrimitiveType, WdlType}
-import wdl4s.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine._
 import cromwell.engine.backend.jes.{JesBackend, JesJobKey}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{Backend, WorkflowQueryResult}
 import cromwell.engine.db._
+import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow._
-import cromwell.engine.{SymbolHash, CallOutput, WorkflowOutputs}
+import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
+import wdl4s.types.{WdlPrimitiveType, WdlType}
+import wdl4s.values.WdlValue
+import wdl4s.{CallInputs, _}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -36,22 +35,7 @@ object SlickDataAccess {
   val IoOutput = "OUTPUT"
 
   lazy val rootConfig = ConfigFactory.load()
-  /*
-   VERY TEMPORARY!
-   Turns out, Slick has a way to load databases from configs: DatabaseConfig
-   http://slick.typesafe.com/doc/3.0.0/database.html?highlight=databaseconfig#databaseconfig
-
-   To switch over to this config format, we need to rename:
-
-     1. Property name "driver" renamed to "db.driver"
-     2. Property name "slick.driver" renamed to "driver"
-     3. Property value with the slick driver needs to append "$"
-
-   To make sure the code continues to run during this switch, the application.conf's have been updated ahead of time
-   with the temporary "databaseSlickDriverConfigSwitch" configuration.
-  */
-  private lazy val rootDatabaseConfig = rootConfig.getConfig(
-    if (rootConfig.hasPath("databaseSlickDriverConfigSwitch")) "databaseSlickDriverConfigSwitch" else "database")
+  private lazy val rootDatabaseConfig = rootConfig.getConfig("database")
   private lazy val databaseConfigName = rootDatabaseConfig.getStringOption("config")
   lazy val defaultDatabaseConfig = databaseConfigName.map(getDatabaseConfig).getOrElse(rootDatabaseConfig)
 
@@ -153,8 +137,10 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     // generate unique schema instances that don't conflict.
     //
     // Otherwise, create one DataAccess and hold on to the reference.
-    if (this.databaseConfig.getBooleanOr("slick.createSchema")) {
-      Await.result(database.run(dataAccess.schema.create), Duration.Inf)
+    if (this.databaseConfig.getBooleanOr("slick.createSchema", default = true)) {
+      val schemaManager = SchemaManager.fromConfig(this.databaseConfig)
+      val future = schemaManager.updateSchema(dataAccess.driver, dataAccess.schema, database)
+      Await.result(future, Duration.Inf)
     }
   }
 
@@ -169,7 +155,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     case o => wdlType.fromWdlString(dbValue)
   }
 
-  override def shutdown() = database.shutdown
+  override def close(): Unit = database.close()
 
   // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {

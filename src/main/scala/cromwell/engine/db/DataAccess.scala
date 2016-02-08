@@ -1,13 +1,12 @@
 package cromwell.engine.db
 
-import cromwell.engine.WorkflowOutputs
-import wdl4s._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine._
 import cromwell.engine.backend.{Backend, JobKey}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
+import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import wdl4s.{CallInputs, _}
 
 import scala.concurrent.Future
 
@@ -15,7 +14,7 @@ object DataAccess {
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
 }
 
-trait DataAccess {
+trait DataAccess extends AutoCloseable {
   /**
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
    * `backend`.  Or perhaps defer this?
@@ -81,10 +80,6 @@ trait DataAccess {
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]]
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit]
-
-  /** Shutdown. NOTE: Should (internally or explicitly) use AsyncExecutor.shutdownExecutor.
-    * TODO this is only called from a test. */
-  def shutdown(): Future[Unit]
 
   def getExecutions(id: WorkflowId): Future[Traversable[Execution]]
 

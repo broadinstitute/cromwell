@@ -3,7 +3,9 @@ package cromwell.engine.db.slick
 import java.sql.SQLException
 import java.util.UUID
 
+import better.files._
 import com.google.api.client.util.ExponentialBackOff
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.IntegrationTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.Hashing._
@@ -11,12 +13,10 @@ import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{Backend, BackendType, CallLogs}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
+import cromwell.engine.db.{DiffResultFilter, _}
 import cromwell.engine.io.IoInterface
-import cromwell.engine.workflow.{CallKey, ScatterKey, WorkflowOptions}
-import cromwell.engine.{CallOutput, CallOutputs, _}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey, WorkflowOptions}
-import cromwell.engine.backend.BackendType
+import cromwell.engine.{CallOutputs, _}
 import cromwell.util.SampleWdl
 import cromwell.webservice
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
@@ -29,9 +29,9 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.SpanSugar._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlString}
+import wdl4s.{CallInputs, _}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -92,6 +92,35 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
   }
 
+  "SlickDataAccess" should "have the same liquibase and slick schema" in {
+    for {
+      liquibaseDataAccess <- dataAccessForSchemaManager("liquibase").autoClosed
+      slickDataAccess <- dataAccessForSchemaManager("slick").autoClosed
+    } {
+      val diffResult = LiquibaseSchemaManager.compare(
+        slickDataAccess.dataAccess.driver, slickDataAccess.database,
+        liquibaseDataAccess.dataAccess.driver, liquibaseDataAccess.database)
+
+      import DiffResultFilter._
+      val filteredDiffResult = diffResult.filterLiquibaseObjects.filterChangedObjects(StandardTypeFilters)
+
+      filteredDiffResult.getChangedObjects should be(empty)
+      filteredDiffResult.getMissingObjects should be(empty)
+      filteredDiffResult.getUnexpectedObjects should be(empty)
+    }
+  }
+
+  def dataAccessForSchemaManager(schemaManager: String): SlickDataAccess = {
+    val databaseConfig = ConfigFactory.parseString(
+      s"""
+         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+         |db.driver = "org.hsqldb.jdbcDriver"
+         |driver = "slick.driver.HsqldbDriver$$"
+         |schema.manager = $schemaManager
+         |""".stripMargin)
+    new SlickDataAccess(databaseConfig)
+  }
+
   // Tests against main database used for command line
   "SlickDataAccess (main.hsqldb)" should behave like databaseWithConfig("main.hsqldb", testRequired = true)
 
@@ -148,12 +177,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
           case _ => Future.successful(())
         }
       } yield ()).futureValue
-    }
-
-    it should "setup via liquibase if necessary" taggedAs IntegrationTest in {
-      assume(canConnect || testRequired)
-      if (testDatabase.useLiquibase)
-        testDatabase.setupLiquibase()
     }
 
     it should "create and retrieve the workflow for just reading" taggedAs IntegrationTest in {
@@ -991,9 +1014,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
-    it should "shutdown the database" taggedAs IntegrationTest in {
+    it should "close the database" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
-      dataAccess.shutdown().futureValue
+      dataAccess.close()
     }
   }
 

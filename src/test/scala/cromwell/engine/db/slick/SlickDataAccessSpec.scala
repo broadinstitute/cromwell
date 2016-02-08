@@ -97,7 +97,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         liquibaseDataAccess.dataAccess.driver, liquibaseDataAccess.database)
 
       import DiffResultFilter._
-      val filteredDiffResult = diffResult.filterLiquibaseObjects.filterChangedObjects(StandardTypeFilters)
+      val diffFilters = StandardTypeFilters :+ UniqueIndexFilter
+      val filteredDiffResult = diffResult.filterLiquibaseObjects.filterChangedObjects(diffFilters)
 
       filteredDiffResult.getChangedObjects should be(empty)
       filteredDiffResult.getMissingObjects should be(empty)

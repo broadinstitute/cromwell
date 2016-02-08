@@ -30,9 +30,9 @@ case class WorkflowLogger(caller: String,
                           akkaLogger: Option[LoggingAdapter] = None,
                           otherLoggers: Seq[Logger] = Seq.empty[Logger],
                           callTag: Option[String] = None) {
-  val workflowFileLogger = descriptor.workflowLogger
+  lazy val workflowFileLogger = descriptor.workflowLogger
 
-  val tag: String = {
+  lazy val tag: String = {
     val subtag = callTag.map(c => s":$c").getOrElse("")
     s"$caller [UUID(${descriptor.shortId})$subtag]"
   }

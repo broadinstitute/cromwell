@@ -9,7 +9,7 @@ organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
-val lenthallV = "0.15"
+val lenthallV = "0.16-2b7fff7-SNAPSHOT"
 
 val wdl4sV = "0.2"
 

@@ -3,7 +3,7 @@ package cromwell.engine.backend
 import com.google.api.services.genomics.model.Disk
 import cromwell.engine.backend.runtimeattributes.{AttributeMap, CromwellRuntimeAttributes, ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.engine.workflow.WorkflowOptions
-import wdl4s.NamespaceWithWorkflow
+import wdl4s.{RuntimeAttributes, NamespaceWithWorkflow}
 import cromwell.engine.backend.CromwellRuntimeAttributeSpec._
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
 
@@ -577,5 +577,20 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
       case Failure(e: Throwable) => fail(s"Couldn't parse $DefaultRuntimeAttributesOptionsFile as JSON.", e)
       case _ => fail(s"Couldn't parse $DefaultRuntimeAttributesOptionsFile as JSON.")
     }
+  }
+
+  "Preemptible attribute" should "be overriden by workflow options when necessary" in {
+    import spray.json._
+
+    val twoAttemptsWfOptions = WorkflowOptions("""{ "defaultRuntimeOptions": { "preemptible": 2 } }""".parseJson.asJsObject)
+    val noAttemptWfOptions = WorkflowOptions("""{}""".parseJson.asJsObject)
+
+    val runtimeAttributesWith4Attempts = RuntimeAttributes(Map("preemptible" -> Seq("4"), "docker" -> Seq("ubuntu:latest")))
+    val runtimeAttributesWithoutAttempt = RuntimeAttributes(Map("docker" -> Seq("ubuntu:latest")))
+
+    CromwellRuntimeAttributes(runtimeAttributesWith4Attempts, twoAttemptsWfOptions, BackendType.JES).preemptible shouldBe 4
+    CromwellRuntimeAttributes(runtimeAttributesWithoutAttempt, twoAttemptsWfOptions, BackendType.JES).preemptible shouldBe 2
+    CromwellRuntimeAttributes(runtimeAttributesWith4Attempts, noAttemptWfOptions, BackendType.JES).preemptible shouldBe 4
+    CromwellRuntimeAttributes(runtimeAttributesWithoutAttempt, noAttemptWfOptions, BackendType.JES).preemptible shouldBe 0
   }
 }

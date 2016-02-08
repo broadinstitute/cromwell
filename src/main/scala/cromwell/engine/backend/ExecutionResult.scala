@@ -21,8 +21,13 @@ final case class SuccessfulBackendCallExecution(outputs: CallOutputs, executionE
  */
 case object AbortedExecution extends ExecutionResult
 
-/**
- * Failed execution, possibly having a return code.
- */
-final case class FailedExecution(e: Throwable, returnCode: Option[Int] = None) extends ExecutionResult
+sealed trait FailedExecution extends ExecutionResult {
+  def e: Throwable
+  def returnCode: Option[Int]
+}
 
+/**
+  * Failed execution, possibly having a return code.
+  */
+final case class NonRetryableExecution(e: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends FailedExecution
+final case class RetryableExecution(e: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends FailedExecution

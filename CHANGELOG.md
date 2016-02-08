@@ -21,3 +21,5 @@ update DATABASECHANGELOG
   where FILENAME like '%src/main/migrations/%'
 ```
 
+* Added Preemptible VMs support for JES. This has impacts on the API Endpoint responses as a Call/Shard can now be attempted multiple times. Each attempt will have its own entry.
+

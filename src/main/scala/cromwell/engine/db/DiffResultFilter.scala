@@ -27,6 +27,29 @@ object DiffResultFilter {
   val StandardTypeFilters: Seq[DiffFilter] =
     Seq(isTypeSimilar("CLOB", "VARCHAR"), isTypeSimilar("TINYINT", "BOOLEAN"))
 
+
+  /**
+    * Removes all unique index differences.
+    *
+    * When searching for unique indexes, liquibase seems to get confused in locating the unique indexes within the
+    * database objects. This leads to false positive differences. The error messages look like:
+    *
+    * [info] - should have the same liquibase and slick schema *** FAILED ***
+    * [info]   {SYS_IDX_10267 on SGE_JOB(EXECUTION_ID)=liquibase.diff.ObjectDifferences@4ad0de69,
+    * SYS_IDX_UK_JJ_EXECUTION_UUID_10194 unique  on JES_JOB(EXECUTION_ID)=liquibase.diff.ObjectDifferences@56873b89,
+    * SYS_IDX_10259 on LOCAL_JOB(EXECUTION_ID)=liquibase.diff.ObjectDifferences@62e10bdf, SYS_IDX_10224 on
+    * WORKFLOW_EXECUTION_AUX(WORKFLOW_EXECUTION_ID)=liquibase.diff.ObjectDifferences@2a0b9461} was not empty
+    * (SlickDataAccessSpec.scala)
+    *
+    * When diving down into the `ObjectDifferences`, each is an instance of either:
+    *
+    * - unique changed from 'true' to 'false'
+    * - unique changed from 'false' to 'true'
+    */
+  val UniqueIndexFilter: DiffFilter = { (_, _, databaseObject, difference) =>
+    difference.getField == "unique" && databaseObject.isInstanceOf[Index]
+  }
+
   /**
     * Filters diff results using an object filter and changed object filters. Filters that return false are removed.
     *

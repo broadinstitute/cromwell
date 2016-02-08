@@ -118,6 +118,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       call.returnCode should be(Option(0))
       call.stdout shouldNot be(empty)
       call.stderr shouldNot be(empty)
+      call.attempt shouldBe 1
     }
   }
 
@@ -185,6 +186,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       call.returnCode.get shouldNot be(0)
       call.stdout shouldNot be(empty)
       call.stderr shouldNot be(empty)
+      call.attempt shouldBe 1
     }
   }
 }

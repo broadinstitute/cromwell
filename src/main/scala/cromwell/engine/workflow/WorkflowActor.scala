@@ -757,9 +757,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       (upstream forall { _.nonEmpty }) && dependenciesResolved
     }
 
+    lazy val nonFinalCallsComplete = executionStore forall {
+      case (key: FinalCallKey, _) => true
+      case (_, x: ExecutionStatus) if x.isTerminal => true
+      case _ => false
+    }
+
     def isRunnable(entry: ExecutionStoreEntry) = {
-      val (key, status) = entry
-      status == ExecutionStatus.NotStarted && arePrerequisitesDone(key)
+      entry match {
+        case (key: FinalCallKey, ExecutionStatus.NotStarted) => nonFinalCallsComplete
+        case (key, ExecutionStatus.NotStarted) => arePrerequisitesDone(key)
+        case _ => false
+      }
     }
 
     val runnableEntries = executionStore filter isRunnable

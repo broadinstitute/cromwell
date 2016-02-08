@@ -301,7 +301,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
   private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
     descriptor.namespace.resolve(callFqn) match {
       case Some(c: Call) => Success(c.unqualifiedName)
-      case _ => Failure(new UnsupportedOperationException("Expected a fully qualified name to have at least two parts"))
+      case _ => Failure(new UnsupportedOperationException(s"Expected a fully qualified name to have at least two parts but got $callFqn"))
     }
   }
 

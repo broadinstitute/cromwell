@@ -71,7 +71,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val handle = mock[JesPendingExecutionHandle]
     handle.backendCall returns backendCall
 
-    val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("13: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
     executionResult.isInstanceOf[RetryableExecutionHandle] shouldBe true
     val retryableHandle = executionResult.asInstanceOf[RetryableExecutionHandle]
     retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
@@ -80,15 +80,15 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
 
     backendCall.maxPreemption returns 2
 
-    val executionResult2 = Await.result(jesBackend.executionResult(new Failed(10, Some("13: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    val executionResult2 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
     executionResult2.isInstanceOf[RetryableExecutionHandle] shouldBe true
     val retryableHandle2 = executionResult2.asInstanceOf[RetryableExecutionHandle]
     retryableHandle2.throwable.isInstanceOf[PreemptedException] shouldBe true
     val preemptedException2 = retryableHandle2.throwable.asInstanceOf[PreemptedException]
     preemptedException2.getMessage should include ("will be re-started with another pre-emptible VM")
 
-    Await.result(jesBackend.executionResult(new Failed(10, Some("14: Other type of error."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
-    Await.result(jesBackend.executionResult(new Failed(11, Some("13: Wrong errorCode."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("15: Other type of error."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(11, Some("14: Wrong errorCode."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(new Failed(10, Some("Weird error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(new Failed(10, Some("UnparsableInt: Even weirder error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(new Failed(10, None, Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true

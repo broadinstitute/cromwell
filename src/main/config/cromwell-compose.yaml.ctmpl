@@ -32,6 +32,7 @@ proxy:
   ports:
     - "80:80"
     - "443:443"
+    - "127.0.0.1:8888:8888"
   {{ $proxy_volumes }}
   restart: always
   environment:

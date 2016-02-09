@@ -31,7 +31,7 @@ object Task {
     val name = taskNameTerminal.sourceString
     val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, wdlSyntaxErrorFormatter))
     val commandAsts = ast.findAsts(AstNodeName.Command)
-    val runtimeAttributes = RuntimeAttributes(ast)
+    val runtimeAttributes = RuntimeAttributes(ast, declarations)
     val meta = wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
     val parameterMeta = wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
     val outputs = ast.findAsts(AstNodeName.Output) map { TaskOutput(_, wdlSyntaxErrorFormatter) }
@@ -169,7 +169,7 @@ object Task {
     }
   }
 
-  def empty: Task = new Task("taskName", Seq.empty, Seq.empty, RuntimeAttributes(Map.empty[String, Seq[String]]), Map.empty, Map.empty, Seq.empty, null)
+  def empty: Task = new Task("taskName", Seq.empty, Seq.empty, RuntimeAttributes(Map.empty[String, WdlExpression]), Map.empty, Map.empty, Seq.empty, null)
 }
 
 /**
@@ -217,7 +217,6 @@ case class Task(name: String,
    * pieces and they lookup var1 and var2 in that map.
    *
    * The command that's returned from Command.instantiate() is:
-   *
    *
    * {{{sh script.sh foo -o bar}}}
    *

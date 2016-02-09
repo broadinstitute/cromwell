@@ -314,11 +314,14 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
     def backendCallFromKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
       backend.bindCall(descriptor, callKey(descriptor, callName, key))
+
+    // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
+    import cromwell.engine.finalcall.FinalCall._
     for {
         _ <- assertWorkflowExistence(workflowId)
         descriptor <- globalDataAccess.getWorkflow(workflowId)
         _ <- assertCallExistence(workflowId, callFqn)
-        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
+        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn)) if !callFqn.isFinalCall
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
       } yield backendKeys.groupBy(_.key.index).values.toSeq.sortBy(_.head.key.index) map { _.sortBy(_.key.attempt).map(_.stdoutStderr) }
@@ -326,10 +329,12 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
     def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
+      // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
+      import cromwell.engine.finalcall.FinalCall._
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
-          (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
+          (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
           callKey = BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
           // TODO There should be an easier way than going as far as backend.bindCall just to retrieve stdout/err path

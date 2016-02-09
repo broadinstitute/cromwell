@@ -2252,4 +2252,68 @@ object SampleWdl {
       "w.x.a" -> 5
     )
   }
+
+  object WorkflowFailSlow extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+task shouldCompleteFast {
+        |    Int a
+        |    command {
+        |        echo "The number was: ${a}"
+        |    }
+        |    output {
+        |        Int echo = a
+        |    }
+        |}
+        |
+        |task shouldCompleteSlow {
+        |    Int a
+        |    command {
+        |        echo "The number was: ${a}"
+        |        sleep 0.2
+        |    }
+        |    output {
+        |        Int echo = a
+        |    }
+        |}
+        |
+        |task failMeSlowly {
+        |    Int a
+        |    command {
+        |        echo "The number was: ${a}"
+        |        sleep 0.2
+        |        ./NOOOOOO
+        |    }
+        |    output {
+        |        Int echo = a
+        |    }
+        |}
+        |
+        |task shouldNeverRun {
+        |    Int a
+        |    Int b
+        |    command {
+        |        echo "You can't fight in here - this is the war room ${a + b}"
+        |    }
+        |    output {
+        |        Int echo = a
+        |    }
+        |}
+        |
+        |workflow wf {
+        |    call shouldCompleteFast as A { input: a = 5 }
+        |    call shouldCompleteFast as B { input: a = 5 }
+        |
+        |    call failMeSlowly as ohNOOOOOOOO { input: a = A.echo }
+        |    call shouldCompleteSlow as C { input: a = B.echo }
+        |
+        |    call shouldNeverRun as D { input: a = ohNOOOOOOOO.echo, b = C.echo }
+        |    call shouldCompleteSlow as E { input: a = C.echo }
+        |}
+      """.stripMargin
+
+    val rawInputs = Map(
+      "w.x.a" -> 5
+    )
+  }
 }

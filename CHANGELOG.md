@@ -20,6 +20,8 @@ update DATABASECHANGELOG
     FILENAME = substr(FILENAME, instr(FILENAME, "src/main/migrations/") + length("src/main/migrations/"))
   where FILENAME like '%src/main/migrations/%'
 ```
-
 * Added Preemptible VMs support for JES. This has impacts on the API Endpoint responses as a Call/Shard can now be attempted multiple times. Each attempt will have its own entry.
+* Added custom thread pool to workaround Slick [deadlocks](https://github.com/slick/slick/issues/1274). The thread pool
+size defaults to the Slick configuration value `db.numThreads`, but may be increased up to Slick's
+`db.maxConnections`, via a new property `actionThreadPoolSize`.
 

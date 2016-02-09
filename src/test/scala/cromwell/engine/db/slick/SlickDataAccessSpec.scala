@@ -87,7 +87,32 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
   }
 
-  "SlickDataAccess" should "have the same liquibase and slick schema" in {
+  "SlickDataAccess" should "not deadlock" in {
+    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
+    val databaseConfig = ConfigFactory.parseString(
+      s"""
+         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+         |db.driver = "org.hsqldb.jdbcDriver"
+         |db.numThreads = 2
+         |driver = "slick.driver.HsqldbDriver$$"
+         |""".stripMargin)
+
+    for {
+      dataAccess <- new SlickDataAccess(databaseConfig).autoClosed
+    } {
+      val futures = 1 to 20 map { _ =>
+        val workflowId = WorkflowId.randomId()
+        val workflowInfo = WorkflowDescriptor(workflowId, testSources)
+        for {
+          _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+          _ <- dataAccess.getWorkflow(workflowInfo.id) map (_.id should be(workflowId))
+        } yield ()
+      }
+      Future.sequence(futures).futureValue(Timeout(10.seconds))
+    }
+  }
+
+  it should "have the same liquibase and slick schema" in {
     for {
       liquibaseDataAccess <- dataAccessForSchemaManager("liquibase").autoClosed
       slickDataAccess <- dataAccessForSchemaManager("slick").autoClosed

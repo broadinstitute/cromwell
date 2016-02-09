@@ -91,7 +91,8 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       logger.error(s"Failed to update database status: $status, rc: $rc because $e")
   }
 
-  private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]): Future[Unit] = {
+  private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int])
+                               (implicit ec: ExecutionContext): Future[Unit] = {
     val backendInfo = SgeCallBackendInfo(sgeJobId)
     globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index), backendInfo)
   }

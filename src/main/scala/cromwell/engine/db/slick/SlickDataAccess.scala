@@ -1,6 +1,7 @@
 package cromwell.engine.db.slick
 
 import java.sql.{Clob, Timestamp}
+import java.util.concurrent.{ExecutorService, Executors}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
@@ -21,9 +22,9 @@ import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, Work
 import lenthall.config.ScalaConfig._
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
+import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values.WdlValue
-import wdl4s.{CallInputs, _}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -109,9 +110,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", configWithUniqueSchema)
   val dataAccess = new DataAccessComponent(slickConfig.driver)
 
-  // NOTE: Used for slick flatMap. May switch to custom ExecutionContext the future
-  private implicit val executionContext = ExecutionContext.global
-
   // Allows creation of a Database, plus implicits for running transactions
   import dataAccess.driver.api._
 
@@ -155,11 +153,39 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     case o => wdlType.fromWdlString(dbValue)
   }
 
-  override def close(): Unit = database.close()
+  /**
+    * Create a special execution context, a fixed thread pool, to run each of our composite database actions. Running
+    * each composite action as a runnable within the pool will ensure that-- at most-- the same number of actions are
+    * running as there are available connections. Thus there should never be a connection deadlock, as outlined in
+    * - https://github.com/slick/slick/issues/1274
+    * - https://groups.google.com/d/msg/scalaquery/5MCUnwaJ7U0/NLLMotX9BQAJ
+    *
+    * Custom future thread pool based on:
+    * - http://stackoverflow.com/questions/15285284/how-to-configure-a-fine-tuned-thread-pool-for-futures#comment23278672_15285441
+    *
+    * Database config parameter defaults based on: (expand the `forConfig` scaladoc for a full list of values)
+    * - http://slick.typesafe.com/doc/3.1.0/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(path:String,config:com.typesafe.config.Config,driver:java.sql.Driver,classLoader:ClassLoader):JdbcBackend.this.Database
+    *
+    * Reuses the error reporter from the database's executionContext.
+    */
+  private val actionThreadPool: ExecutorService = {
+    val dbNumThreads = databaseConfig.getIntOr("db.numThreads", 20)
+    val dbMaximumPoolSize = databaseConfig.getIntOr("db.maxConnections", dbNumThreads * 5)
+    val actionThreadPoolSize = databaseConfig.getIntOr("actionThreadPoolSize", dbNumThreads) min dbMaximumPoolSize
+    Executors.newFixedThreadPool(actionThreadPoolSize)
+  }
+  private val actionExecutionContext: ExecutionContext = ExecutionContext.fromExecutor(
+    actionThreadPool, database.executor.executionContext.reportFailure)
+
+  override def close(): Unit = {
+    actionThreadPool.shutdown()
+    database.close()
+  }
 
   // Run action with an outer transaction
   private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {
-    database.run(action.transactionally)
+    //database.run(action.transactionally) <-- https://github.com/slick/slick/issues/1274
+    Future(Await.result(database.run(action.transactionally), Duration.Inf))(actionExecutionContext)
   }
 
   /**
@@ -169,7 +195,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   override def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                               workflowInputs: Traversable[SymbolStoreEntry],
                               scopes: Traversable[Scope],
-                              backend: Backend): Future[Unit] = {
+                              backend: Backend)(implicit ec: ExecutionContext): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
       case call: Call => BackendCallKey(call, None)
@@ -229,11 +255,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
   private def toScopeActions(workflowExecution: WorkflowExecution, backend: Backend,
-                            keys: Traversable[ExecutionStoreKey]): Seq[DBIO[Unit]] = {
+                            keys: Traversable[ExecutionStoreKey])(implicit ec: ExecutionContext): Seq[DBIO[Unit]] = {
     keys.toSeq map toScopeAction(workflowExecution, backend)
   }
 
-  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend): Future[Unit] = {
+  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
+                          (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- DBIO.sequence(toScopeActions(workflowExecution, backend, keys))
@@ -244,7 +271,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
   private def toScopeAction(workflowExecution: WorkflowExecution, backend: Backend)
-                           (key: ExecutionStoreKey): DBIO[Unit] = {
+                           (key: ExecutionStoreKey)(implicit ec: ExecutionContext): DBIO[Unit] = {
     for {
     // Insert an execution row
       executionInsert <- dataAccess.executionsAutoInc +=
@@ -280,7 +307,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     } yield ()
   }
 
-  override def getWorkflowState(workflowId: WorkflowId): Future[Option[WorkflowState]] = {
+  override def getWorkflowState(workflowId: WorkflowId)
+                               (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
     val action = for {
       maybeWorkflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.id.toString).result.headOption
@@ -290,7 +318,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getExecutionStatuses(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
+  override def getExecutionStatuses(workflowId: WorkflowId)
+                                   (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
     val action = for {
     // NOTE: For now, intentionally causes query to error out instead of returning an Map.empty
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
@@ -309,7 +338,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
+  override def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName)
+                                   (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(
         workflowId.toString).result.head
@@ -325,7 +355,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Option[CallStatus]] = {
+  override def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                                 (implicit ec: ExecutionContext): Future[Option[CallStatus]] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
 
@@ -337,7 +368,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getWorkflow(workflowExecutionId: Int): Future[WorkflowDescriptor] = {
+  override def getWorkflow(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowDescriptor] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByPrimaryKey(workflowExecutionId).result.head
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
@@ -350,7 +381,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getWorkflow(workflowId: WorkflowId): Future[WorkflowDescriptor] = {
+  override def getWorkflow(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowDescriptor] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
@@ -363,7 +394,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getWorkflowsByState(states: Traversable[WorkflowState]): Future[Traversable[WorkflowDescriptor]] = {
+  override def getWorkflowsByState(states: Traversable[WorkflowState])
+                                  (implicit ec: ExecutionContext): Future[Traversable[WorkflowDescriptor]] = {
     val action = for {
       workflowExecutionResults <- dataAccess.workflowExecutionsByStatuses(states.map(_.toString)).result
 
@@ -390,7 +422,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit] = {
+  override def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
+                                  (implicit ec: ExecutionContext): Future[Unit] = {
     val query = dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).extract
     val endDate = if (workflowState.isTerminal) Option(new Date().toTimestamp) else None
 
@@ -402,7 +435,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getExecutionBackendInfo(workflowId: WorkflowId, call: Call, attempt: Int): Future[CallBackendInfo] = {
+  override def getExecutionBackendInfo(workflowId: WorkflowId, call: Call, attempt: Int)
+                                      (implicit ec: ExecutionContext): Future[CallBackendInfo] = {
     val action = for {
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndAttempt(
         (workflowId.toString, call.fullyQualifiedName, attempt)).result.head
@@ -435,7 +469,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def updateExecutionBackendInfo(workflowId: WorkflowId,
                                           callKey: BackendCallKey,
-                                          backendInfo: CallBackendInfo): Future[Unit] = {
+                                          backendInfo: CallBackendInfo)(implicit ec: ExecutionContext): Future[Unit] = {
     require(backendInfo != null, "backend info is null")
 
     import ExecutionIndex._
@@ -487,25 +521,29 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     )
   }
 
-  override def getAllSymbolStoreEntries(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+  override def getAllSymbolStoreEntries(workflowId: WorkflowId)
+                                       (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.allSymbols(workflowId.toString).result
     runTransaction(action) map toSymbolStoreEntries
   }
 
   /** Get all inputs for the scope of this key. */
-  override def getInputs(workflowId: WorkflowId, call: Call): Future[Traversable[SymbolStoreEntry]] = {
+  override def getInputs(workflowId: WorkflowId, call: Call)
+                        (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     require(call != null, "call cannot be null")
     getSymbols(workflowId, IoInput, Option(call.fullyQualifiedName))
   }
 
   /** Get all outputs for the scope of this key. */
-  override def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey): Future[Traversable[SymbolStoreEntry]] = {
+  override def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                         (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     require(key != null, "key cannot be null")
     getSymbols(workflowId, IoOutput, Option(key.fqn), key.index)
   }
 
   /** Returns all NON SHARDS outputs for this workflowId */
-  override def getWorkflowOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+  override def getWorkflowOutputs(workflowId: WorkflowId)
+                                 (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsForWorkflowOutput(workflowId.toString).result
     runTransaction(action) map toSymbolStoreEntries
   }
@@ -513,7 +551,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   private def getSymbols(workflowId: WorkflowId,
                          ioValue: IoValue,
                          callFqnOption: Option[FullyQualifiedName] = None,
-                         callIndexOption: Option[Int] = None): Future[Traversable[SymbolStoreEntry]] = {
+                         callIndexOption: Option[Int] = None)
+                        (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(
       workflowId.toString, ioValue, callFqnOption, callIndexOption
     ).result
@@ -522,7 +561,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs, reportableResults: Seq[ReportableSymbol]): Future[Unit] = {
+  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+                          reportableResults: Seq[ReportableSymbol])
+                         (implicit ec: ExecutionContext): Future[Unit] = {
     val reportableResultNames = reportableResults map { _.fullyQualifiedName }
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
@@ -550,7 +591,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     * Updates the existing input symbols to replace expressions with real values.
     * @return The number of rows updated - as a Future.
     */
-  override def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs): Future[Int] = {
+  override def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs)
+                               (implicit ec: ExecutionContext): Future[Int] = {
     type ProjectionFunction = SlickDataAccess.this.dataAccess.Symbols => (Rep[String], Rep[Option[Clob]])
     val projectionFn: ProjectionFunction = (s: SlickDataAccess.this.dataAccess.Symbols) => (s.wdlType, s.wdlValue)
 
@@ -567,7 +609,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(allInputUpdatesAction) map { _.sum }
   }
 
-  override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int, events: Seq[ExecutionEventEntry]): Future[Unit] = {
+  override def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int,
+                                  events: Seq[ExecutionEventEntry])(implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       execution <- shardIndex match {
         case Some(idx) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(workflowId.toString, callFqn, idx, attempt).result.head
@@ -585,14 +628,16 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]] = {
+  override def getAllExecutionEvents(workflowId: WorkflowId)(implicit ec: ExecutionContext):
+  Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]] = {
     // The database query gives us a Seq[(CallFqn, ExecutionEvent)]. We want a Map[CallFqn -> ExecutionEventEntry].
     // So let's do some functional programming!
     val action = dataAccess.executionEventsByWorkflowExecutionUuid(workflowId.toString).result
     runTransaction(action) map toExecutionEvents
   }
 
-  private def toExecutionEvents(events: Traversable[((String, Int, Int), ExecutionEvent)]): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
+  private def toExecutionEvents(events: Traversable[((String, Int, Int), ExecutionEvent)])
+                               (implicit ec: ExecutionContext): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
       // First: Group all the entries together by name
       val grouped: Map[ExecutionDatabaseKey, Seq[((String, Int, Int), ExecutionEvent)]] = events.toSeq groupBy { case ((fqn: String, idx: Int, attempt: Int), event: ExecutionEvent) => ExecutionDatabaseKey(fqn, idx.toIndex, attempt) }
       // Second: Transform the values. The value no longer needs the String since that's now part of the Map, and
@@ -606,7 +651,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
-                              callStatus: CallStatus): DBIO[Unit] = {
+                              callStatus: CallStatus)(implicit ec: ExecutionContext): DBIO[Unit] = {
     // Describes a function from an input `Executions` to a projection of fields to be updated.
     type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (
       Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]], Rep[Option[String]], Rep[Option[String]], Rep[Option[Int]])
@@ -643,53 +688,60 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   override def setStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
-                         callStatus: CallStatus): Future[Unit] = {
+                         callStatus: CallStatus)(implicit ec: ExecutionContext): Future[Unit] = {
     if (scopeKeys.isEmpty) Future.successful(()) else runTransaction(setStatusAction(workflowId, scopeKeys, callStatus))
   }
 
-  override def getExecutions(id: WorkflowId): Future[Traversable[Execution]] = {
+  override def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
     val action = dataAccess.executionsByWorkflowExecutionUuid(id.toString).result
 
     runTransaction(action)
   }
 
-  override def getExecutionsForRestart(id: WorkflowId): Future[Traversable[Execution]] = {
+  override def getExecutionsForRestart(id: WorkflowId)
+                                      (implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
     val action = dataAccess.executionsForRestartByWorkflowExecutionUuid(id.toString).result
 
     runTransaction(action)
   }
 
-  override def getExecutionsWithResuableResultsByHash(hash: String): Future[Traversable[Execution]] = {
+  override def getExecutionsWithResuableResultsByHash(hash: String)
+                                                     (implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
     val action = dataAccess.executionsWithReusableResultsByExecutionHash(hash).result
 
     runTransaction(action)
   }
 
-  override def getWorkflowExecution(workflowId: WorkflowId): Future[WorkflowExecution] = {
+  override def getWorkflowExecution(workflowId: WorkflowId)
+                                   (implicit ec: ExecutionContext): Future[WorkflowExecution] = {
     val action = dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.headOption
 
     runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"Workflow $workflowId not found.")) }
   }
 
-  override def getWorkflowExecutionAux(id: WorkflowId): Future[WorkflowExecutionAux] = {
+  override def getWorkflowExecutionAux(id: WorkflowId)
+                                      (implicit ec: ExecutionContext): Future[WorkflowExecutionAux] = {
     val action = dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(id.toString).result.headOption
 
     runTransaction(action) map { _.getOrElse(throw new NoSuchElementException(s"No workflow execution aux found for ID '$id'.")) }
   }
 
-  override def getAllInputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+  override def getAllInputs(workflowId: WorkflowId)
+                           (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoInput).result
 
     runTransaction(action) map toSymbolStoreEntries
   }
 
-  override def getAllOutputs(workflowId: WorkflowId): Future[Traversable[SymbolStoreEntry]] = {
+  override def getAllOutputs(workflowId: WorkflowId)
+                            (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsByWorkflowExecutionUuidAndIo(workflowId.toString, IoOutput).result
 
     runTransaction(action) map toSymbolStoreEntries
   }
 
-  override def jesJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJob]] = {
+  override def jesJobInfo(id: WorkflowId)
+                         (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JesJob]] = {
     val action = for {
       executionAndJob <- dataAccess.jesJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
@@ -701,7 +753,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     }
   }
 
-  override def localJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, LocalJob]] = {
+  override def localJobInfo(id: WorkflowId)
+                           (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, LocalJob]] = {
     val action = for {
       executionAndJob <- dataAccess.localJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
@@ -713,7 +766,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     }
   }
 
-  override def sgeJobInfo(id: WorkflowId): Future[Map[ExecutionDatabaseKey, SgeJob]] = {
+  override def sgeJobInfo(id: WorkflowId)
+                         (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, SgeJob]] = {
     val action = for {
       executionAndJob <- dataAccess.sgeJobsWithExecutionsByWorkflowExecutionUuid(id.toString).result
     } yield executionAndJob
@@ -725,7 +779,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     }
   }
 
-  override def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String): Future[Unit] = {
+  override def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String)
+                                    (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.id.toString).result.head
       count <- dataAccess.workflowOptionsFromWorkflowId(workflowExecution.workflowExecutionId.get).update(workflowOptionsJson.toClob)
@@ -735,7 +790,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def resetNonResumableJesExecutions(workflowId: WorkflowId): Future[Unit] = {
+  override def resetNonResumableJesExecutions(workflowId: WorkflowId)
+                                             (implicit ec: ExecutionContext): Future[Unit] = {
     // These executions have no corresponding recorded operation ID and are therefore not resumable.
     def collectNonResumableDatabaseKeys(executionsAndJobs: Seq[(Execution, JesJob)]): Seq[ExecutionDatabaseKey] = {
       executionsAndJobs collect {
@@ -753,7 +809,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def findResumableJesExecutions(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, JesJobKey]] = {
+  override def findResumableJesExecutions(workflowId: WorkflowId)(implicit ec: ExecutionContext):
+  Future[Map[ExecutionDatabaseKey, JesJobKey]] = {
     // These executions have a corresponding recorded operation ID and should therefore be resumable.
     def collectResumableKeyPairs(executionsAndJobs: Traversable[(Execution, JesJob)]): Traversable[(ExecutionDatabaseKey, JesJobKey)] = {
       executionsAndJobs collect {
@@ -770,7 +827,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action) map { _.toMap }
   }
 
-  override def queryWorkflows(queryParameters: WorkflowQueryParameters): Future[WorkflowQueryResponse] = {
+  override def queryWorkflows(queryParameters: WorkflowQueryParameters)
+                             (implicit ec: ExecutionContext): Future[WorkflowQueryResponse] = {
     val action = dataAccess.queryWorkflowExecutions(queryParameters).result
     runTransaction(action) map { workflows =>
       WorkflowQueryResponse(workflows map { workflow =>
@@ -784,7 +842,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     }
   }
 
-  override def updateCallCaching(parameters: CallCachingParameters): Future[Int] = {
+  override def updateCallCaching(parameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int] = {
     // Figure out which of the three possible queries to use based on whether a call has been specified and
     // if so whether an index has been specified.
     val executionQuery: (Int) => Query[dataAccess.Executions, Execution, Seq] = {

@@ -107,4 +107,35 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
       MemorySize.parse(string).get shouldEqual memorySize
     }
   }
+
+  it should "parse a unit from its suffix" in {
+    val memTable = Table(
+      ("memorySize", "string"),
+      (MemoryUnit.Bytes, "B"),
+      (MemoryUnit.KB, "K"),
+      (MemoryUnit.KB, "KB"),
+      (MemoryUnit.MB, "M"),
+      (MemoryUnit.MB, "MB"),
+      (MemoryUnit.GB, "G"),
+      (MemoryUnit.GB, "GB"),
+      (MemoryUnit.TB, "T"),
+      (MemoryUnit.TB, "TB"),
+      (MemoryUnit.KiB, "Ki"),
+      (MemoryUnit.KiB, "KiB"),
+      (MemoryUnit.MiB, "Mi"),
+      (MemoryUnit.MiB, "MiB"),
+      (MemoryUnit.GiB, "Gi"),
+      (MemoryUnit.GiB, "GiB"),
+      (MemoryUnit.TiB, "Ti"),
+      (MemoryUnit.TiB, "TiB")
+    )
+
+    forAll(memTable) { (unit, suffix) =>
+      MemoryUnit.fromSuffix(suffix) shouldEqual unit
+    }
+
+    an[IllegalArgumentException] should be thrownBy {
+      MemoryUnit.fromSuffix("Unknown suffix")
+    }
+  }
 }

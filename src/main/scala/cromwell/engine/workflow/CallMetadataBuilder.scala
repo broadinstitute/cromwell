@@ -200,7 +200,8 @@ object CallMetadataBuilder {
         stdout = metadata.streams map { _.stdout },
         stderr = metadata.streams map { _.stderr },
         backendLogs = metadata.streams flatMap { _.backendLogs },
-        executionEvents = metadata.executionEvents)
+        executionEvents = metadata.executionEvents,
+        attempt = 0)
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index.

@@ -13,7 +13,7 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.{CallKey, BackendCallKey, WorkflowActor}
+import cromwell.engine.workflow.{BackendCallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import wdl4s._
@@ -76,12 +76,12 @@ object CallActor {
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
 
-  def props(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
+  def props(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(key, locallyQualifiedInputs, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
+class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
   extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
 
   import CallActor._
@@ -234,8 +234,8 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     )
 
     val message = executionResult match {
-      case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
-        WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+      case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash) =>
+        WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case NonRetryableExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
@@ -280,7 +280,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     *
     * @return
     */
-  private def buildTaskDescriptor(callObj: Call): TaskDescriptor = {
+  private def buildTaskDescriptor(callObj: Call = call): TaskDescriptor = {
     val name = callObj.fullyQualifiedName
     log.info(s"Creating Task Descriptor for task: $name.")
     val user = System.getProperty("user.name")

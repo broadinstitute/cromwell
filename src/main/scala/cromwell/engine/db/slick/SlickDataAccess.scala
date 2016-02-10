@@ -15,9 +15,9 @@ import wdl4s.values.WdlValue
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, WorkflowQueryResult}
+import cromwell.engine.backend.WorkflowQueryResult
 import cromwell.engine.db._
-import cromwell.engine.workflow.{CallKey, ExecutionStoreKey, OutputKey, ScatterKey}
+import cromwell.engine.workflow._
 import cromwell.engine.{SymbolHash, CallOutput, WorkflowOutputs}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
@@ -184,7 +184,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                               scopes: Traversable[Scope]): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => CallKey(call, None)
+      case call: Call => BackendCallKey(call, None)
       case scatter: Scatter => ScatterKey(scatter, None)
     }
 
@@ -521,6 +521,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   /**
     * Updates the existing input symbols to replace expressions with real values.
+ *
     * @return The number of rows updated - as a Future.
     */
   override def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int] = {

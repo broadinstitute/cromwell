@@ -5,7 +5,7 @@ import akka.event.Logging
 import akka.util.Timeout
 import cromwell.engine
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, CallLogs}
+import cromwell.engine.backend.CallLogs
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
@@ -139,7 +139,9 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
       error(e) {
         case _: WorkflowNotFoundException => workflowNotFound(id)
         case _: CallNotFoundException => callNotFound(callFqn, id)
-        case _: Backend.StdoutStderrException => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
+          //TODO: Pending on Issue #430
+//        case _: StdoutStderrException =>
+//          RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e)) //"Backend.StdoutStderrException => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))"
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 

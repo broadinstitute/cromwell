@@ -190,14 +190,14 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
     case Event(CallOutputs(workflowId, callName), _) =>
       reply(workflowId, callName, callOutputs(workflowId, callName), WorkflowManagerCallOutputsSuccess, WorkflowManagerCallOutputsFailure)
       stay()
-    case Event(CallStdoutStderr(workflowId, callName), _) =>
-      //TODO: callStdoutStderr not yet implemented to get the info from the db
+      //TODO: Issue 430 : callStdoutStderr not yet implemented to get the info from the db
+    case Event(CallStdoutStderr(workflowId, callName), _) => throw new NotImplementedError("Please fix issue #430 :D")
 //      val flatLogs = callStdoutStderr(workflowId, callName)
 //      reply(workflowId, callName, flatLogs, WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
       stay()
-    case Event(WorkflowStdoutStderr(id), _) =>
-      val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
-      reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
+    case Event(WorkflowStdoutStderr(id), _) => throw new NotImplementedError("Please fix issue #430 :D")
+//      val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
+//      reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
       stay()
     case Event(WorkflowMetadata(id), _) =>
       reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)

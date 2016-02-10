@@ -1,7 +1,6 @@
 package cromwell.engine.finalcall
 
 import cromwell.engine._
-import cromwell.engine.backend.ExecutionHandle
 import cromwell.engine.workflow.ExecutionStoreKey
 import wdl4s.Scope
 
@@ -22,17 +21,18 @@ object FinalCall {
 
 /** Scope representing a "final call" that is inserted after all other workflow executions. */
   //TODO: Does it break if we extend from the Call. Copying files should be a function of the backends I think.
+  // Either way..currently this flow is broken
 trait FinalCall extends wdl4s.Call {
   def workflow: WorkflowDescriptor
-  def poll(implicit ec: ExecutionContext, executionHandle: ExecutionHandle): Future[ExecutionHandle]
-  def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def poll(implicit ec: ExecutionContext, executionHandle: Any): Future[Any]
+  def execute(implicit ec: ExecutionContext): Future[Any]
 
-  def prerequisiteCallNames: Set[LocallyQualifiedName] = throw new UnsupportedOperationException("prerequisiteCallNames not supported for FinalCalls")
+  override def prerequisiteCallNames: Set[LocallyQualifiedName] = throw new UnsupportedOperationException("prerequisiteCallNames not supported for FinalCalls")
 
   /**
     * This is handled as a special case by the WorkflowActor. We don't have to list the specially here.
     */
-  def prerequisiteScopes: Set[Scope] = Set.empty
+  override def prerequisiteScopes: Set[Scope] = Set.empty
 
-  val parent: Option[Scope] = Option(this.rootWorkflow)
+  override val parent: Option[Scope] = Option(this.rootWorkflow)
 }

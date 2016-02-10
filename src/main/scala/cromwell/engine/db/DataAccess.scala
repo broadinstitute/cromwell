@@ -67,7 +67,7 @@ trait DataAccess {
   def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus): Future[Unit] = {
-    setStatus(workflowId, keys, CallStatus(executionStatus, None, None, None))
+    setStatus(workflowId, keys, CallStatus(executionStatus, None, None))
   }
 
   def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus): Future[Unit]

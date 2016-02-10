@@ -2,6 +2,9 @@ package cromwell
 
 import java.nio.file.{Path, Paths}
 
+import cromwell.engine.ExecutionStatus._
+import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.db.slick.Execution
 import cromwell.engine.io.gcs.GcsFileSystem
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.joda.time.DateTime
@@ -59,6 +62,19 @@ package object engine {
     def mapToValues: Map[A, WdlValue] = m map {
       case (k, CallOutput(wdlValue, hash)) => (k, wdlValue)
     }
+  }
+
+  implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
+    import cromwell.engine.ExecutionIndex._
+
+    def isShard = execution.index.toIndex.isShard
+    def isScatter = execution.callFqn.contains(Scatter.FQNIdentifier)
+    def isCollector(keys: Traversable[Execution]): Boolean = {
+      !execution.isShard &&
+        (keys exists { e => (e.callFqn == execution.callFqn) && e.isShard })
+    }
+    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+    def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
 
   object PathString {

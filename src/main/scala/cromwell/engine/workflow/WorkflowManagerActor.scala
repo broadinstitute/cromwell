@@ -387,15 +387,12 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       // so the .get on the Option is safe.
       workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callStandardStreamsMap <- workflowStdoutStderr(id)
-      executions <- globalDataAccess.getExecutions(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
-      jesJobs <- globalDataAccess.jesJobInfo(id)
-      localJobs <- globalDataAccess.localJobInfo(id)
-      sgeJobs <- globalDataAccess.sgeJobInfo(id)
+      infosByExecution <- globalDataAccess.infosByExecution(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
 
-      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, executionEvents, jesJobs ++ localJobs ++ sgeJobs)
+      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata

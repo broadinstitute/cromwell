@@ -147,18 +147,18 @@ object WorkflowActor {
 
     override def start(actor: WorkflowActor) = {
 
-      def filterResumableCallKeys(resumableExecutionsAndJobIds: Map[ExecutionDatabaseKey, JobKey]): Traversable[BackendCallKey] = {
+      def filterResumableCallKeys(resumableExecutionsAndJobIds: Traversable[ExecutionKeyToJobKey]): Traversable[BackendCallKey] = {
         actor.executionStore.keys.collect {
-          case callKey: BackendCallKey if resumableExecutionsAndJobIds.contains(callKey.toDatabaseKey) => callKey }
+          case callKey: BackendCallKey if resumableExecutionsAndJobIds.exists(_.executionKey == callKey.toDatabaseKey) => callKey }
       }
 
       val resumptionWork = for {
         resumableExecutionsAndJobIds <- actor.backend.findResumableExecutions(actor.workflow.id)
         resumableCallKeys = filterResumableCallKeys(resumableExecutionsAndJobIds)
         // Construct a pairing of resumable CallKeys with backend-specific job ids.
-        resumableCallKeysAndJobIds = resumableCallKeys map { callKey => callKey -> resumableExecutionsAndJobIds.get(callKey.toDatabaseKey).get }
+        resumableCallKeysAndJobIds = resumableCallKeys map { callKey => callKey -> resumableExecutionsAndJobIds.find(_.executionKey == callKey.toDatabaseKey).get }
 
-        _ = resumableCallKeysAndJobIds foreach { case (callKey, jobKey) => actor.self ! RestartCall(callKey, CallActor.Resume(jobKey)) }
+        _ = resumableCallKeysAndJobIds foreach { case (callKey, ej) => actor.self ! RestartCall(callKey, CallActor.Resume(ej.jobKey)) }
         _ = actor.self ! StartRunnableCalls
       } yield ()
 

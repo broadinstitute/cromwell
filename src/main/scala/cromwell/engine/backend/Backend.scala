@@ -10,6 +10,7 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.sge.SgeBackend
+import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{CallKey, WorkflowOptions}
@@ -141,7 +142,7 @@ trait Backend {
   private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
 
   /** Default implementation assumes backends do not support resume, returns an empty Map. */
-  def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = Future.successful(Map.empty)
+  def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = Future.successful(List.empty)
 
   def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
     backendClassString,
@@ -159,4 +160,6 @@ trait Backend {
   lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
 
   def pollBackoff: ExponentialBackOff
+
+  def executionInfoKeys: List[String]
 }

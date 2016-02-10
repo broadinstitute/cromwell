@@ -13,7 +13,7 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.{CallKey, WorkflowActor}
+import cromwell.engine.workflow.{BackendCallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import wdl4s._
@@ -25,37 +25,22 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object CallActor {
-
   sealed trait CallActorMessage
-
   case object Initialize extends CallActorMessage
-
   sealed trait StartMode extends CallActorMessage
-
   case object Start extends StartMode
-
   //  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
   //TODO: [caching] Need to re-use this for caching
   final case class UseCachedCall(cachedCall: Call) extends StartMode
-
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
-
   case object AbortCall extends CallActorMessage
-
   final case class ExecutionFinished(call: Call, executionResult: cromwell.engine.backend.ExecutionResult) extends CallActorMessage
-
   sealed trait CallActorState
-
   case object CallNotStarted extends CallActorState
-
   case object CallRunningAbortUnavailable extends CallActorState
-
   case object CallRunningAbortAvailable extends CallActorState
-
   case object CallRunningAbortRequested extends CallActorState
-
   case object CallAborting extends CallActorState
-
   case object CallDone extends CallActorState
 
   /** The `WorkflowActor` will drop `TerminalCallMessage`s that it is unable to immediately process.  This message
@@ -91,12 +76,12 @@ object CallActor {
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
 
-  def props(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
+  def props(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(key, locallyQualifiedInputs, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
+class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
   extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
 
   import CallActor._
@@ -188,7 +173,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     case Event(TaskStatus(Status.Canceled), _) =>
       val errMsg = "Received a canceled or failed status without an execution result."
       logger.error(errMsg)
-      val failureHandle = new FailedExecution(new IllegalStateException(errMsg))
+      val failureHandle = new NonRetryableExecution(new IllegalStateException(errMsg))
       self ! ExecutionFinished(call, failureHandle)
       stay()
     case Event(TaskFinalStatus(Status.Failed, result: ExecutionResult), _) =>
@@ -197,7 +182,7 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
       stay()
     case Event(TaskFinalStatus(Status.Succeeded, result: SuccessfulTaskResult), _) =>
       val callOps: Map[String, CallOutput] = result.outputs.map(output => output._1 -> CallOutput(output._2, None))
-      val successResult = SuccessfulExecution(callOps, Seq.empty, 0, new ExecutionHash(result.executionHash.overallHash, None))
+      val successResult = SuccessfulBackendCallExecution(callOps, Seq.empty, 0, new ExecutionHash(result.executionHash.overallHash, None))
       self ! ExecutionFinished(call, successResult)
       stay()
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
@@ -219,9 +204,9 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
 
   private def processFailedExecutionResult(result: ExecutionResult): FailedExecution = {
     result match {
-      case res: FailureTaskResult => new FailedExecution(res.exception)
-      case res: FailureResult => new FailedExecution(res.exception)
-      case unknown => new FailedExecution(new IllegalStateException(s"Unhandled failure result. Result received: $unknown."))
+      case res: FailureTaskResult => new NonRetryableExecution(res.exception)
+      case res: FailureResult => new NonRetryableExecution(res.exception)
+      case unknown => new NonRetryableExecution(new IllegalStateException(s"Unhandled failure result. Result received: $unknown."))
     }
   }
 
@@ -249,10 +234,10 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
     )
 
     val message = executionResult match {
-      case SuccessfulExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
+      case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
         WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
       case AbortedExecution => WorkflowActor.CallAborted(key)
-      case FailedExecution(e, returnCode) =>
+      case NonRetryableExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)
         WorkflowActor.CallFailed(key, returnCode, e.getMessage)
     }

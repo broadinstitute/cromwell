@@ -18,11 +18,18 @@ trait WorkflowManagerSystem {
   protected def newActorSystem(): ActorSystem = ActorSystem(systemName)
   implicit final val actorSystem = newActorSystem()
   WorkflowManagerSystem.setActorSystem(actorSystem)
+
+  //TODO: Is this being used anywhere?
   def backendType: String = {
     val x = ConfigFactory.load.getConfig("backend").getString("backend")
     println(s"BackendType = $x")
     x
   }
+
+  def shutdownActorSystem(): Unit = {
+    actorSystem.shutdown()
+  }
+
   //  lazy val backend: Backend = CromwellBackend.initBackend(backendType, actorSystem)
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
   lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(), "WorkflowManagerActor")

@@ -7,11 +7,11 @@ import com.typesafe.config.ConfigFactory
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
+import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.workflow.WorkflowActor.Start
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.{EnhancedFullyQualifiedName, _}
 import cromwell.webservice.CromwellApiHandler._
@@ -20,6 +20,7 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
+import wdl4s.values.WdlSingleFile
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -50,7 +51,7 @@ object WorkflowManagerActor {
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
-  def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
+  def props(): Props = Props(new WorkflowManagerActor())
 
   // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
   // as much work as can reasonably be handled.
@@ -84,7 +85,7 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
+class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
   private val logger = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
 
@@ -190,8 +191,9 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       reply(workflowId, callName, callOutputs(workflowId, callName), WorkflowManagerCallOutputsSuccess, WorkflowManagerCallOutputsFailure)
       stay()
     case Event(CallStdoutStderr(workflowId, callName), _) =>
-      val flatLogs = callStdoutStderr(workflowId, callName) map { _.flatten }
-      reply(workflowId, callName, flatLogs, WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
+      //TODO: callStdoutStderr not yet implemented to get the info from the db
+//      val flatLogs = callStdoutStderr(workflowId, callName)
+//      reply(workflowId, callName, flatLogs, WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
       stay()
     case Event(WorkflowStdoutStderr(id), _) =>
       val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
@@ -416,7 +418,8 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
         // Return the original state data if the workflow failed submission.
         stateData
       case Success(a) =>
-        a.actor ! (if (isRestart) Restart else Start(replyTo))
+        //TODO: Support restart / resume (Issue #437)
+        a.actor ! /*(if (isRestart) Restart else*/ Start(replyTo)
         a.data
     }
   }

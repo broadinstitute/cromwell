@@ -1,6 +1,5 @@
 package cromwell.engine.workflow
 
-import cromwell.engine.finalcall.FinalCall
 import wdl4s._
 import cromwell.engine.{WorkflowDescriptor, ExecutionStatus}
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore

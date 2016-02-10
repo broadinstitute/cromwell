@@ -6,12 +6,13 @@ import cromwell.engine.backend.CromwellBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.util.TryUtil
 import wdl4s._
+import cromwell.webservice.APIResponse
 import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.webservice.{APIResponse, WorkflowJsonSupport, WorkflowValidateResponse}
-import cromwell.webservice.WorkflowJsonSupport._
 import spray.http.StatusCodes
-import spray.httpx.SprayJsonSupport._
 import spray.json._
+import wdl4s._
+import spray.httpx.SprayJsonSupport._
+import cromwell.webservice.WorkflowJsonSupport._
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -32,7 +33,6 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
   extends Actor with LazyLogging {
 
   import ValidateActor.{ValidateWorkflow, tag}
-  import WorkflowJsonSupport._
   import context.dispatcher
 
   override def receive = {
@@ -52,20 +52,14 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     }
   }
 
-  private def validateRuntimeOptions(call: Call,  workflowOptions: Option[String]): Try[CromwellRuntimeAttributes] = {
-    workflowOptions match {
-      case Some(wo) =>
-        WorkflowOptions.fromJsonString(wo) map { options => CromwellRuntimeAttributes(call.task.runtimeAttributes, options, CromwellBackend.backend().backendType) }
-      case None => Try(CromwellRuntimeAttributes(call.task.runtimeAttributes, CromwellBackend.backend.backendType))
-    }
-  }
-
   private def validateWorkflow(sentBy: ActorRef): Unit = {
     logger.info(s"$tag for $sentBy")
     val futureValidation: Future[Unit] = for {
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
       validatedInputs <- validateInputs(namespaceWithWorkflow, workflowInputs)
-      validatedRuntimeOptions <- Future.fromTry(TryUtil.sequence(namespaceWithWorkflow.workflow.calls map { call => validateRuntimeOptions(call, workflowOptions) }))
+      validatedRuntimeOptions <- Future.fromTry(TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
+        call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes, CromwellBackend.backend.backendType)
+      }))
     } yield ()
 
     // Now validate that this Future completed successfully:

@@ -92,7 +92,8 @@ case class WorkflowDescriptor(id: WorkflowId,
   }
 
   lazy val workflowRootPath = wfContext.root.toPath(gcsFilesystem)
-  def workflowRootPathWithBaseRoot(rootPath: String): Path = WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
+  def workflowRootPathWithBaseRoot(rootPath: String): Path =
+    WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
 
   def copyWorkflowOutputs(implicit executionContext: ExecutionContext): Future[Unit] = {
     // Try to copy outputs to final destination
@@ -197,7 +198,7 @@ object WorkflowDescriptor {
     val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
 
     (namespace |@| options) { (_, _) } flatMap { case (nam, opt) =>
-      val runtimeAttributes = validateRuntimeAttributes(id, nam, opt, backend.backendType)
+      val runtimeAttributes = validateRuntimeAttributes(id, nam, backend.backendType)
       val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
       (runtimeAttributes |@| rawInputs) { (_, _) } flatMap { case (_, raw) =>
         buildWorkflowDescriptor(id, sourceFiles, nam, raw, opt, backend, conf)
@@ -238,8 +239,8 @@ object WorkflowDescriptor {
     }
   }
 
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, workflowOptions: WorkflowOptions, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, workflowOptions, backendType) }) match {
+  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
+    Try(namespace.workflow.calls.map(_.task.runtimeAttributes) foreach { r => CromwellRuntimeAttributes.validateKeys(r, backendType) }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }

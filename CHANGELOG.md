@@ -25,3 +25,13 @@ update DATABASECHANGELOG
 size defaults to the Slick configuration value `db.numThreads`, but may be increased up to Slick's
 `db.maxConnections`, via a new property `actionThreadPoolSize`.
 
+* Allow for runtime attribute values to be interpreted as full expressions.  For example:
+```
+task example {
+  String ubuntu_tag
+  command { ... }
+  runtime {
+    docker: "ubuntu:" + ubuntu_tag
+  }
+}
+```

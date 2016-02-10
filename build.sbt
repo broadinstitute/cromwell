@@ -11,7 +11,7 @@ scalaVersion := "2.11.7"
 
 val lenthallV = "0.16-2b7fff7-SNAPSHOT"
 
-val wdl4sV = "0.2"
+val wdl4sV = "0.3-e1d8072-SNAPSHOT"
 
 val sprayV = "1.3.2"
 

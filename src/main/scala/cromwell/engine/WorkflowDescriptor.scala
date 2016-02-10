@@ -1,14 +1,16 @@
 package cromwell.engine
 
-import java.nio.file.{Path, Paths}
+import java.nio.file._
 
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.logging.WorkflowLogger
+import cromwell.util.{TryUtil, SimpleExponentialBackoff}
 import wdl4s._
-import wdl4s.values.WdlFile
+import wdl4s.values.{WdlSingleFile, WdlFile}
 import cromwell.engine.backend.{DefaultWorkflowEngineFunctions, BackendType, Backend}
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.io.gcs.GoogleCloudStorage
@@ -18,9 +20,13 @@ import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json.{JsObject, _}
+import cromwell.engine.db.DataAccess.globalDataAccess
 
+import scala.concurrent._
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
+import scala.language.postfixOps
 
 case class WorkflowDescriptor(id: WorkflowId,
                               sourceFiles: WorkflowSourceFiles,
@@ -41,8 +47,13 @@ case class WorkflowDescriptor(id: WorkflowId,
   val name = namespace.workflow.unqualifiedName
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   val props = sys.props
+  private val relativeWorkflowRootPath = s"$name/$id"
+  private val log = WorkflowLogger("WorkflowDescriptor", this)
+  val workflowOutputsPath = workflowOptions.get("outputs_path") recover { case e: IllegalArgumentException =>
+    log.warn("outputs_path expected to be of type String", e)
+    throw e
+  }
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
-
   private lazy val optionCacheWriting = workflowOptions.getBoolean("write_to_cache") getOrElse configCallCaching
   private lazy val optionCacheReading = workflowOptions.getBoolean("read_from_cache") getOrElse configCallCaching
 
@@ -73,7 +84,6 @@ case class WorkflowDescriptor(id: WorkflowId,
 
   private def copyOutputFiles(destDirectory: String)(implicit executionContext: ExecutionContext): Future[Unit] = {
     import PathString._
-    val logger = backend.workflowLogger(this)
 
     def copyFile(file: WdlFile): Try[Unit] = {
       val src = file.valueString.toPath(gcsFilesystem)
@@ -82,7 +92,7 @@ case class WorkflowDescriptor(id: WorkflowId,
       val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeFilePath)
 
       def copy(): Unit = {
-        logger.info(s"Trying to copy output file $src to $dest")
+        log.info(s"Trying to copy output file $src to $dest")
         Files.createDirectories(dest.getParent)
         Files.copy(src, dest)
       }
@@ -91,11 +101,11 @@ case class WorkflowDescriptor(id: WorkflowId,
         fn = (retries: Option[Unit]) => copy(),
         retryLimit = Option(5),
         backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
-        logger = logger,
+        logger = log,
         failMessage = Option(s"Failed to copy file $src to $dest"),
         isFatal = (t: Throwable) => t.isInstanceOf[FileAlreadyExistsException]
       ) recover {
-        case _: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
+        case _: FileAlreadyExistsException => log.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
       }
     }
 

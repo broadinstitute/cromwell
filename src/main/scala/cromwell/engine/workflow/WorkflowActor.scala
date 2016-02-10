@@ -6,6 +6,8 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.backend.model.ExecutionHash
+import cromwell.engine.finalcall.{FinalCall, CopyWorkflowOutputsCall}
+import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure, WorkflowActorSubmitSuccess}
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
@@ -405,7 +407,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     val completionWork = for {
       _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, events)
-      _ <- globalDataAccess.insertCalls(workflow.id, Seq(keyClone), backend)
+      _ <- globalDataAccess.insertCalls(workflow.id, Seq(keyClone))
       _ = persistStatusThenAck(callKey, retryStatus, currentSender, message, callOutputs = None, returnCode = returnCode)
     } yield ()
 
@@ -697,24 +699,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     persistStatus(storeKey, executionStatus, callOutputs, returnCode, hash, resultsClonedFrom) map { _ => CallActor.Ack(message) } pipeTo recipient
   }
 
-  private def startActor(callKey: CallKey, locallyQualifiedInputs: CallInputs, callActorMessage: CallActorMessage = CallActor.Start): Unit = {
-    if (locallyQualifiedInputs.nonEmpty) {
-      val inputs = locallyQualifiedInputs map { case(lqn, value) => s"  $lqn -> $value" } mkString "\n"
-      logger.info(s"inputs for call '${callKey.tag}':\n$inputs")
-    } else {
-      logger.info(s"no inputs for call '${callKey.tag}'")
-    }
-
-    val callActorName = s"CallActor-${workflow.id}-${callKey.tag}"
-    val callActorProps = callKey match {
-      case backendCallKey: BackendCallKey => CallActor.props(backendCallKey, locallyQualifiedInputs, workflow)
-      case finalCallKey: FinalCallKey => CallActor.props(finalCallKey)
-    }
-    val callActor = context.actorOf(callActorProps, callActorName)
-    callActor ! callActorMessage
-    logger.info(s"created call actor for ${callKey.tag}.")
-  }
-
+  //TODO: Shouldn't this be coming from the wdl bindings?
+  type CallInputs = Map[String, WdlValue]
   private def tryStartingRunnableCalls(): Try[ExecutionStartResult] = {
 
     def upstreamEntries(entry: ExecutionStoreKey, prerequisiteScope: Scope): Seq[ExecutionStoreEntry] = {
@@ -798,6 +784,24 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     }
   }
 
+  private def startActor(callKey: CallKey, locallyQualifiedInputs: CallInputs, callActorMessage: CallActorMessage = CallActor.Start): Unit = {
+    if (locallyQualifiedInputs.nonEmpty) {
+      val inputs = locallyQualifiedInputs map { case(lqn, value) => s"  $lqn -> $value" } mkString "\n"
+      logger.info(s"inputs for call '${callKey.tag}':\n$inputs")
+    } else {
+      logger.info(s"no inputs for call '${callKey.tag}'")
+    }
+
+    val callActorName = s"CallActor-${workflow.id}-${callKey.tag}"
+    val callActorProps = callKey match {
+      case backendCallKey: BackendCallKey => CallActor.props(backendCallKey, locallyQualifiedInputs, workflow)
+      case finalCallKey: FinalCallKey => CallActor.props(finalCallKey, locallyQualifiedInputs, workflow)
+    }
+    val callActor = context.actorOf(callActorProps, callActorName)
+    callActor ! callActorMessage
+    logger.info(s"created call actor for ${callKey.tag}.")
+  }
+
   private def lookupNamespace(name: String): Try[WdlNamespace] = {
     workflow.namespace.namespaces find { _.importedAs.contains(name) } match {
       case Some(x) => Success(x)
@@ -828,7 +832,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   }
 
   private def lookupDeclaration(workflow: Workflow)(name: String): Try[WdlValue] = {
-    workflow.scopedDeclarations find { _.name == name } match {
+    workflow.declarations find { _.name == name } match {
       case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
       case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$name'"))
     }
@@ -1084,8 +1088,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     fetchLocallyQualifiedInputs(callKey) match {
       case Success(callInputs) =>
-        val actor = startActor(callKey, callInputs)
-        actor ! CallActor.Initialize
+        startActor(callKey, callInputs, CallActor.Initialize)
+//        actor ! CallActor.Initialize
       case Failure(t) =>
         logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
         scheduleTransition(WorkflowFailed)

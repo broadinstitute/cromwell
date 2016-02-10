@@ -61,7 +61,7 @@ trait DataAccess {
   /** Updates the existing input symbols to replace expressions with real values **/
   def updateCallInputs(workflowId: WorkflowId, key: CallKey, callInputs: CallInputs): Future[Int]
 
-  def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], events: Seq[ExecutionEventEntry]): Future[Unit]
+  def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int, events: Seq[ExecutionEventEntry]): Future[Unit]
 
   /** Gets a mapping from call FQN to an execution event entry list */
   def getAllExecutionEvents(workflowId: WorkflowId): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]

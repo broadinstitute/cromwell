@@ -1,8 +1,8 @@
 package cromwell.engine.workflow
 
-import wdl4s._
-import cromwell.engine.{WorkflowDescriptor, ExecutionStatus}
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
+import cromwell.engine.{ExecutionStatus, WorkflowDescriptor}
+import wdl4s._
 
 import scala.language.postfixOps
 
@@ -48,6 +48,7 @@ case class ScatterKey(scope: Scatter, index: Option[Int], attempt: Int = 1) exte
 
   /**
    * Creates a sub-ExecutionStore with Starting entries for each of the scoped children.
+ *
    * @param count Number of ways to scatter the children.
    * @return ExecutionStore of scattered children.
    */
@@ -71,7 +72,7 @@ case class ScatterKey(scope: Scatter, index: Option[Int], attempt: Int = 1) exte
   def retryClone = this.copy(attempt = this.attempt + 1)
 }
 
-case class FinalCallKey(scope: FinalCall, attempt: Int = 1) extends CallKey {
+case class FinalCallKey(scope: Call, attempt: Int = 1) extends CallKey {
   override val index = None
   def retryClone = this.copy(attempt = this.attempt + 1)
 }

@@ -1,5 +1,7 @@
 package cromwell
 
+import java.nio.file.{Path, Paths}
+
 import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlValue}
@@ -9,7 +11,9 @@ import scalaz.ValidationNel
 
 package object engine {
 
-  class WorkflowContext(val root: String)
+  class WorkflowContext(val root: String) {
+    def path: Path = Paths.get(root)
+  }
   class CallContext(override val root: String, val stdout: String, val stderr: String) extends WorkflowContext(root)
 
   /**

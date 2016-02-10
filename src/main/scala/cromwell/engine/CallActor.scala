@@ -13,7 +13,7 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.workflow.{BackendCallKey, WorkflowActor}
+import cromwell.engine.workflow.{CallKey, BackendCallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import wdl4s._
@@ -76,12 +76,12 @@ object CallActor {
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
 
-  def props(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
+  def props(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor): Props =
     Props(new CallActor(key, locallyQualifiedInputs, workflowDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
+class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescriptor: WorkflowDescriptor)
   extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
 
   import CallActor._

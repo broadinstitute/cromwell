@@ -7,10 +7,13 @@ import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 import spray.json._
 import wdl4s._
+import spray.httpx.SprayJsonSupport._
+import cromwell.webservice.WorkflowJsonSupport._
 
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
+
 
 object ValidateActor {
   private val tag = "ValidateActor"

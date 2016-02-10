@@ -1,6 +1,5 @@
 package cromwell.webservice
 
-import cromwell.engine.CallAttempt
 import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
 import org.joda.time.DateTime
 import spray.json._

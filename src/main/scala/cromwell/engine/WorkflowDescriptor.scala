@@ -11,7 +11,7 @@ import cromwell.logging.WorkflowLogger
 import cromwell.util.{TryUtil, SimpleExponentialBackoff}
 import wdl4s._
 import wdl4s.values.{WdlSingleFile, WdlFile}
-import cromwell.engine.backend.{DefaultWorkflowEngineFunctions, BackendType, Backend}
+import cromwell.engine.backend.DefaultWorkflowEngineFunctions
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
@@ -74,8 +74,8 @@ case class WorkflowDescriptor(id: WorkflowId,
     case _ => NOPLogger.NOP_LOGGER
   }
 
-  lazy val workflowRootPath = wfContext.root.toPath(gcsFilesystem)
-  def workflowRootPathWithBaseRoot(rootPath: String): Path = WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
+  lazy val workflowRootPath = wfContext.path
+  def workflowRootPathWithBaseRoot(rootPath: String): Path = Paths.get(WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id))
 
   def copyWorkflowOutputs(implicit executionContext: ExecutionContext): Future[Unit] = {
     // Try to copy outputs to final destination
@@ -83,13 +83,12 @@ case class WorkflowDescriptor(id: WorkflowId,
   }
 
   private def copyOutputFiles(destDirectory: String)(implicit executionContext: ExecutionContext): Future[Unit] = {
-    import PathString._
 
     def copyFile(file: WdlFile): Try[Unit] = {
-      val src = file.valueString.toPath(gcsFilesystem)
-      val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath
+      val src = Paths.get(file.valueString)
+      val wfPath = wfContext.path.toAbsolutePath
       val relativeFilePath = Paths.get(relativeWorkflowRootPath).resolve(src.subpath(wfPath.getNameCount, src.getNameCount))
-      val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeFilePath)
+      val dest = Paths.get(destDirectory).resolve(relativeFilePath)
 
       def copy(): Unit = {
         log.info(s"Trying to copy output file $src to $dest")
@@ -181,6 +180,8 @@ object WorkflowDescriptor {
       case scalaz.Failure(f) => f.toList.mkString("\n").failureNel
     }
   }
+
+  private def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFiles,

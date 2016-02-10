@@ -24,6 +24,7 @@ update DATABASECHANGELOG
 * Added custom thread pool to workaround Slick [deadlocks](https://github.com/slick/slick/issues/1274). The thread pool
 size defaults to the Slick configuration value `db.numThreads`, but may be increased up to Slick's
 `db.maxConnections`, via a new property `actionThreadPoolSize`.
+* Added support for [size](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#float-sizefile-string) WDL standard library function.
 
 * Allow for runtime attribute values to be interpreted as full expressions.  For example:
 ```

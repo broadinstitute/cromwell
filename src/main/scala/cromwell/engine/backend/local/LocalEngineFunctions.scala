@@ -13,10 +13,8 @@ class LocalWorkflowEngineFunctions(interface: IoInterface, context: WorkflowCont
 class LocalCallEngineFunctions(interface: IoInterface, context: CallContext) extends LocalWorkflowEngineFunctions(interface ,context) with CallEngineFunctions {
   import PathString._
 
-  override def fileContentsToString(path: String) = {
-    if (!Paths.get(path).isAbsolute && !path.isUriWithProtocol)
-      interface.readFile(Paths.get(context.root).resolve(path).toString)
-    else interface.readFile(path)
+  override def adjustFilePath(path: String) = {
+    if (!Paths.get(path).isAbsolute && !path.isUriWithProtocol) Paths.get(context.root).resolve(path).toString else path
   }
 
   override def stdout(params: Seq[Try[WdlValue]]) = stdout(context)

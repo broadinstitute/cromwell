@@ -212,6 +212,8 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
     outputStream.toByteArray
   }
 
+  override def size(path: String): Long = objectSize(GcsPath(path)).longValue()
+
   def objectSize(gcsPath: GcsPath): BigInteger = {
     val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
     val storageObject: StorageObject = getObject.execute()

@@ -46,4 +46,6 @@ class SharedFileSystemIoInterface private() extends IoInterface {
   }
 
   override def hash(path: String) = new File(Paths.get(path)).md5
+
+  override def size(path: String) = new File(Paths.get(path)).size
 }

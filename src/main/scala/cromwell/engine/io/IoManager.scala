@@ -33,4 +33,6 @@ class IoManager(interfaces: Seq[IoInterface]) extends IoInterface {
   override def copy(from: String, to: String): Unit = withInterface(from, _.copy(from, to))
 
   override def hash(path: String): String = withInterface(path, _.hash(path))
+
+  override def size(path: String): Long = withInterface(path, _.size(path))
 }

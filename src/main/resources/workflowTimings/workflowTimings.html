@@ -7,6 +7,14 @@
 <script type="text/javascript">
 
     google.setOnLoadCallback(drawChart);
+    function addDataTableRow(dataTable, callName, callPartName, startDate, endDate) {
+        if (startDate <= endDate) {
+            dataTable.addRow([callName, callPartName, startDate, endDate]);
+        } else {
+            console.error("Unable to add '" + callName + "'s entry: '" + callPartName + "' because start-time '" + startDate + "'' is greater than end-time '" + endDate + "'");
+        }
+    }
+
     function drawChart() {
         $.getJSON("./metadata", function( data ) {
 
@@ -69,7 +77,7 @@
                                 finalEventEnd = endDate
                             }
                             // NB: See the column definitions above.
-                            dataTable.addRow([thisCallName, description, startDate, endDate]);
+                            addDataTableRow(dataTable, thisCallName, description, startDate, endDate);
                         }
 
                         if (callList[callIndex].hasOwnProperty("start")) {
@@ -86,19 +94,19 @@
                         }
 
                         if (firstEventStart == null || finalEventEnd == null) {
-                            dataTable.addRow([thisCallName, callList[callIndex].executionStatus, callStart, callEnd]);
+                            addDataTableRow(dataTable, thisCallName, callList[callIndex].executionStatus, callStart, callEnd);
                         } else {
-                            if (callStart < firstEventStart) dataTable.addRow([thisCallName, "cromwell starting overhead", callStart, firstEventStart]);
-                            if (callEnd > finalEventEnd) dataTable.addRow([thisCallName, "cromwell final overhead", finalEventEnd, callEnd]);
+                            if (callStart < firstEventStart) addDataTableRow(dataTable, thisCallName, "cromwell starting overhead", callStart, firstEventStart);
+                            if (callEnd > finalEventEnd) addDataTableRow(dataTable, thisCallName, "cromwell final overhead", finalEventEnd, callEnd);
                         }
                     } else if (callList[callIndex].executionStatus == "Running") {
                         executionCallsCount++;
                         var endDate = workflowEnd;
                         if(endDate == null) {
-                            dataTable.addRow([thisCallName, "Running", new Date(callList[callIndex].start), new Date(Date.now())]);
+                            addDataTableRow(dataTable, thisCallName, "Running", new Date(callList[callIndex].start), new Date(Date.now()));
                         }
                         else {
-                            dataTable.addRow([thisCallName, "Still running when workflow ended", new Date(callList[callIndex].start), endDate]);
+                            addDataTableRow(dataTable, thisCallName, "Still running when workflow ended", new Date(callList[callIndex].start), endDate);
                         }
                     }
                 }

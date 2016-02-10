@@ -12,8 +12,16 @@ object AttributeMap {
   }
 }
 
-case class AttributeMap(attrs: Map[String, Seq[String]]) {
-  def get(key: RuntimeKey): Option[String] = attrs.get(key.key).flatMap(_.headOption)
+trait AttributeMapTrait {
+  def keys: Set[String]
+  def get(key: RuntimeKey): Option[String]
+  def getSeq(key: RuntimeKey): Option[Seq[String]]
+  def unsupportedKeys(backendType: BackendType): Seq[String]
+}
+
+case class AttributeMap(attrs: Map[String, Seq[String]]) extends AttributeMapTrait {
+  def keys = attrs.keySet
+  def get(key: RuntimeKey): Option[String] = getSeq(key).flatMap(_.headOption)
   def getSeq(key: RuntimeKey): Option[Seq[String]] = attrs.get(key.key)
 
   def unsupportedKeys(backendType: BackendType): Seq[String] = {

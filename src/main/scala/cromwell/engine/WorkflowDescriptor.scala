@@ -63,6 +63,59 @@ case class WorkflowDescriptor(id: WorkflowId,
     case _ => NOPLogger.NOP_LOGGER
   }
 
+  lazy val workflowRootPath = wfContext.root.toPath(gcsFilesystem)
+  def workflowRootPathWithBaseRoot(rootPath: String): Path = WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
+
+  def copyWorkflowOutputs(implicit executionContext: ExecutionContext): Future[Unit] = {
+    // Try to copy outputs to final destination
+    workflowOutputsPath map copyOutputFiles getOrElse Future.successful(())
+  }
+
+  private def copyOutputFiles(destDirectory: String)(implicit executionContext: ExecutionContext): Future[Unit] = {
+    import PathString._
+    val logger = backend.workflowLogger(this)
+
+    def copyFile(file: WdlFile): Try[Unit] = {
+      val src = file.valueString.toPath(gcsFilesystem)
+      val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath
+      val relativeFilePath = Paths.get(relativeWorkflowRootPath).resolve(src.subpath(wfPath.getNameCount, src.getNameCount))
+      val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeFilePath)
+
+      def copy(): Unit = {
+        logger.info(s"Trying to copy output file $src to $dest")
+        Files.createDirectories(dest.getParent)
+        Files.copy(src, dest)
+      }
+
+      TryUtil.retryBlock(
+        fn = (retries: Option[Unit]) => copy(),
+        retryLimit = Option(5),
+        backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
+        logger = logger,
+        failMessage = Option(s"Failed to copy file $src to $dest"),
+        isFatal = (t: Throwable) => t.isInstanceOf[FileAlreadyExistsException]
+      ) recover {
+        case _: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
+      }
+    }
+
+    def processOutputs(outputs: Traversable[SymbolStoreEntry]): Unit = {
+      // All outputs should have wdl values at this point, if they don't there's nothing we can do here
+      val copies = TryUtil.sequence(outputs map { o => Try(o.wdlValue.get) } toSeq) match {
+        case Success(wdlValues) => wdlValues flatMap { _ collectAsSeq { case f: WdlSingleFile => f } } map copyFile
+        case Failure(e) => throw new Throwable(s"Unable to resolve the following workflow outputs for workflow $id: ${e.getMessage}")
+      }
+
+      // Throw an exception if one or more of the copies failed.
+      TryUtil.sequence(copies) match {
+        case Success(_) => ()
+        case Failure(e) => throw new Throwable(s"Output copy failed for the following files:\n ${e.getMessage}")
+      }
+    }
+
+    globalDataAccess.getWorkflowOutputs(id) map processOutputs
+  }
+
   private def makeFileLogger(root: Path, name: String, level: Level): Logger = {
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
     val encoder = new PatternLayoutEncoder()

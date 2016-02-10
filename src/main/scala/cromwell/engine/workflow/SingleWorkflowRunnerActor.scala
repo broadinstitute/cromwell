@@ -2,15 +2,14 @@ package cromwell.engine.workflow
 
 import java.nio.file.Path
 
-import akka.actor.FSM.Transition
+import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import better.files._
 import cromwell.engine
-import wdl4s.FullyQualifiedName
-import cromwell.engine._
+import cromwell.engine.{CallOutput, _}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.CallOutput
+import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.{WdlValueJsonFormatter, WorkflowMetadataResponse}
 import spray.json._
 
@@ -54,6 +53,8 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                      metadataOutputPath: Option[Path],
                                      workflowManager: ActorRef) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
 
+  import SingleWorkflowRunnerActor._
+
   val tag = "SingleWorkflowRunnerActor"
 
   startWith(NotStarted, RunnerData())
@@ -76,36 +77,30 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   }
 
   when (RunningWorkflow) {
-    case Event(id: WorkflowId, data) =>
+    case Event(WorkflowManagerSubmitSuccess(id), data) =>
       log.info(s"$tag: workflow ID UUID($id)")
       workflowManager ! SubscribeToWorkflow(id)
-      stay using data.copy(id = Option(id))
+      stay() using data.copy(id = Option(id))
     case Event(Transition(_, _, WorkflowSucceeded), data) =>
       workflowManager ! WorkflowOutputs(data.id.get)
       goto(RequestingOutputs) using data.copy(terminalState = Option(WorkflowSucceeded))
-    case Event(Transition(_, _, state: WorkflowState), data) if state.isTerminal =>
-      // A terminal state that is not `WorkflowSucceeded` is a failure.
-      val updatedData = data.copy(terminalState = Option(state)).addFailure(s"Workflow ${data.id.get} transitioned to state $state")
+    case Event(Transition(_, _, WorkflowFailed), data) =>
+      val updatedData = data.copy(terminalState = Option(WorkflowFailed)).addFailure(s"Workflow ${data.id.get} transitioned to state Failed")
       // If there's an output path specified then request metadata, otherwise issue a reply to the original sender.
       val nextState = if (metadataOutputPath.isDefined) requestMetadata else issueReply
       nextState using updatedData
-    case Event(Transition(_, _, state), _) =>
-      log.info(s"$tag: transitioning to $state")
-      stay()
   }
 
   when (RequestingOutputs) {
-    // Can't use the WorkflowOutputs type alias here since the @unchecked needs to be added to suppress
-    // compile time warnings.
-    case Event(outputs: Map[FullyQualifiedName@unchecked, CallOutput@unchecked], data) =>
+    case Event(WorkflowManagerWorkflowOutputsSuccess(id, outputs), data) =>
       // Outputs go to stdout
       outputOutputs(outputs)
       if (metadataOutputPath.isDefined) requestMetadata else issueReply
   }
   
   when (RequestingMetadata) {
-    case Event(response: WorkflowMetadataResponse, data) =>
-      val updatedData = outputMetadata(response) match {
+    case Event(r: WorkflowManagerWorkflowMetadataSuccess, data) =>
+      val updatedData = outputMetadata(r.response) match {
         case Success(_) => data
         case Failure(e) => data.addFailure(e)
       }
@@ -122,10 +117,19 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
       stay()
   }
 
+  private def failAndFinish(e: Throwable): State = {
+    log.error(e, s"$tag received Failure message: ${e.getMessage}")
+    issueReply using stateData.addFailure(e)
+  }
+
   whenUnhandled {
-    case Event(Status.Failure(e), data) =>
-      log.error(e, s"$tag received Failure message: " + e.getMessage)
-      issueReply using data.addFailure(e)
+    // Handle failures for all WorkflowManagerFailureResponses generically.
+    case Event(r: WorkflowManagerFailureResponse, data) => failAndFinish(r.failure)
+    case Event(Failure(e), data) => failAndFinish(e)
+    case Event(Status.Failure(e), data) => failAndFinish(e)
+    case Event((CurrentState(_, _) | Transition(_, _, _)), _) =>
+      // ignore uninteresting current state and transition messages
+      stay()
     case Event(m, _) =>
       log.warning(s"$tag: received unexpected message: $m")
       stay()

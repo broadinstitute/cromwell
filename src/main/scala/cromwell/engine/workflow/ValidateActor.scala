@@ -4,7 +4,8 @@ import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.LazyLogging
 import wdl4s._
 import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.webservice.{WorkflowJsonSupport, WorkflowValidateResponse}
+import cromwell.webservice.{APIResponse, WorkflowJsonSupport, WorkflowValidateResponse}
+import cromwell.webservice.WorkflowJsonSupport._
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 import spray.json._
@@ -20,17 +21,16 @@ object ValidateActor {
   sealed trait ValidateActorMessage
   case object ValidateWorkflow extends ValidateActorMessage
 
-  def props(wdlSource: WdlSource, wdlJson: WdlJson): Props = {
-    Props(new ValidateActor(wdlSource, wdlJson))
+  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson], workflowOptions: Option[WdlJson]): Props = {
+    Props(new ValidateActor(wdlSource, wdlJson, workflowOptions))
   }
 
   //TODO: [gaurav] Check what and how is this being used
   implicit class EnhancedCall(val call: Call) extends AnyVal {
     def toRuntimeAttributes = call.task.runtimeAttributes
   }
-}
 
-class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
+class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[String])
   extends Actor with LazyLogging {
 
   import ValidateActor.{ValidateWorkflow, tag}
@@ -47,7 +47,7 @@ class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
     logger.info(s"$tag for $sentBy")
     val futureValidation: Future[Unit] = for {
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
-      inputs <- Future(wdlJson.parseJson).map(_.asJsObject.fields)
+      inputs <- Future(workflowInputs.get.parseJson).map(_.asJsObject.fields)
       coercedInputs <- Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
       runtime = namespaceWithWorkflow.workflow.calls foreach { _.toRuntimeAttributes }
     } yield () // Validate that the future run and return `Success[Unit]` aka (), or `Failure[Exception]`
@@ -57,14 +57,14 @@ class ValidateActor(wdlSource: WdlSource, wdlJson: WdlJson)
         logger.info(s"$tag success $sentBy")
         sentBy ! RequestComplete(
           StatusCodes.OK,
-          WorkflowValidateResponse(valid = true, error = None))
+          APIResponse.success("Validation succeeded."))
 
       case Failure(ex) =>
         val messageOrBlank = Option(ex.getMessage).mkString
         logger.info(s"$tag error $sentBy: $messageOrBlank")
         sentBy ! RequestComplete(
           StatusCodes.BadRequest,
-          WorkflowValidateResponse(valid = false, error = Option(messageOrBlank)))
+          APIResponse.fail(ex))
     }
   }
 }

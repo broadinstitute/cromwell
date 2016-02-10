@@ -45,6 +45,6 @@ trait ExecutionEventComponent {
         execution <- executionEvent.execution
         workflowExecution <- execution.workflowExecution
         if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-      } yield ((execution.callFqn, execution.index), executionEvent)
+      } yield ((execution.callFqn, execution.index, execution.attempt), executionEvent)
   )
 }

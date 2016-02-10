@@ -237,9 +237,9 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
       case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
         WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
       case AbortedExecution => WorkflowActor.CallAborted(key)
-      case NonRetryableExecution(e, returnCode) =>
+      case NonRetryableExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
-        WorkflowActor.CallFailed(key, returnCode, e.getMessage)
+        WorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
     }
 
     context.parent ! message
@@ -316,7 +316,7 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
     cachedExecution onComplete {
       case Success(callOutputs) => {
         log.info(s"Call Caching: Cache hit.")
-        val successfulResult = SuccessfulExecution(callOutputs, Seq.empty, 0,
+        val successfulResult = SuccessfulBackendCallExecution(callOutputs, Seq.empty, 0,
           new ExecutionHash(this.hashCode().toString, None)) //TODO: Should not pass executionHash here since it's already in cache.
         self ! ExecutionFinished(call, successfulResult)
       }

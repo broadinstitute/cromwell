@@ -3,9 +3,51 @@
 
 # Scala binding API for WDL
 
-This repository provides scala tools to parse a [WDL](https://github.com/broadinstitute/wdl) file and transform it into a scala object hierarchy. 
+This repository provides scala tools to parse a [WDL](https://github.com/broadinstitute/wdl) file and transform it into a scala object hierarchy.
+
+## Installation
+
+wdl4s is hosted on The Broad Institute's [Artifactory Repository]()
+
+```
+resolvers ++= Seq(
+  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
+  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
+)
+```
+
+Add to `libraryDependencies` with:
+
+```
+"org.broadinstitute" %% "wdl4s" % "0.3",
+```
+
+Or add a snapshot release in the format `<version>-<git-hash8>-SNAPSHOT`:
+
+```
+"org.broadinstitute" %% "wdl4s" % "0.3-e1d8072-SNAPSHOT",
+```
+
+
+To use Squants in your Maven project add the following dependency
+
+```xml
+<dependency>
+    <groupId>org.broadinstitute</groupId>
+    <artifactId>wdl4s_2.11</artifactId>
+    <version>0.3</version>
+</dependency>
+```
+
+## Scaladoc
+
+* [0.3](http://broadinstitute.github.io/wdl4s/0.3)
+
+## Usage
 
 The main entry point into the parser is the `WdlNamespace` object.  A [WDL](https://github.com/broadinstitute/wdl) file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
+
+Namespaces have within them 
 
 ```scala
 import java.io.File

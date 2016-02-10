@@ -182,7 +182,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       val outputName = "whereami.whereami.pwd"
       val salutation = outputs.get(outputName).get
       val actualOutput = salutation.asInstanceOf[CallOutput].wdlValue.asInstanceOf[WdlString].value.trim
-      actualOutput should endWith("/call-whereami")
+      actualOutput should endWith("/whereami.whereami")
     }
 
     "build metadata correctly" in {

@@ -22,7 +22,7 @@ object FinalCall {
 /** Scope representing a "final call" that is inserted after all other workflow executions. */
   //TODO: Does it break if we extend from the Call. Copying files should be a function of the backends I think.
   // Either way..currently this flow is broken
-trait FinalCall extends wdl4s.Call {
+trait FinalCall extends Scope {
   def workflow: WorkflowDescriptor
   def poll(implicit ec: ExecutionContext, executionHandle: Any): Future[Any]
   def execute(implicit ec: ExecutionContext): Future[Any]

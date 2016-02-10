@@ -298,12 +298,13 @@ class CallActor(key: CallKey, locallyQualifiedInputs: CallInputs, workflowDescri
   private def buildTaskDescriptor(callObj: Call): TaskDescriptor = {
     val name = callObj.fullyQualifiedName
     log.info(s"Creating Task Descriptor for task: $name.")
+    val index = key.index
     val user = System.getProperty("user.name")
     // Need Declarations, CallInputs, command template sequence
     val cmdTemplateSeq = callObj.task.commandTemplate
     val declarations = callObj.task.declarations
     val runtimeAttributes = callObj.task.runtimeAttributes.attrs.mapValues(p => p.head)
-    TaskDescriptor(name, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}",
+    TaskDescriptor(name, index, user, cmdTemplateSeq, declarations, s"${workflowDescriptor.name}-${workflowDescriptor.id}",
       locallyQualifiedInputs, callObj.task.outputs, runtimeAttributes)
   }
 

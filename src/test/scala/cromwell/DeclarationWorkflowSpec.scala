@@ -5,7 +5,6 @@ import cromwell.CromwellSpec.DockerTest
 import wdl4s.types.{WdlStringType, WdlFileType}
 import wdl4s.{WorkflowInput, NamespaceWithWorkflow}
 import wdl4s.values.{WdlInteger, WdlString}
-import cromwell.engine.backend.BackendType
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

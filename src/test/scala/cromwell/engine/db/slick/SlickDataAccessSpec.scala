@@ -11,7 +11,7 @@ import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.backend.{Backend, BackendType, CallLogs}
+import cromwell.engine.backend.{ScriptReturnCode, Backend, BackendType, CallLogs}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{CallStatus, DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.io.IoInterface
@@ -566,7 +566,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
             status.returnCode should be(None)
           }
           _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, Option(0))), localBackend)
-          _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(0), None, None))
+          _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(ScriptReturnCode(0)), None, None))
           _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
             result.size should be(2)
             //Previous call status should not have changed

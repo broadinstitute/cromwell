@@ -181,6 +181,7 @@ object JesBackend {
   object InfoKeys {
     val JesRunId = "JES_RUN_ID"
     val JesStatus = "JES_STATUS"
+    val JesReturnCode = "JES_RETURN_CODE"
   }
 }
 

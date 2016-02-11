@@ -17,7 +17,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.Hashing._
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, BackendCall, JobKey}
+import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -44,10 +44,10 @@ object WorkflowActor {
   sealed trait TerminalCallMessage extends CallMessage
   sealed trait CallFailed extends TerminalCallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
-  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: ScriptReturnCode, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
-  case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: Throwable) extends CallFailed
-  case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends CallFailed
+  case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[ReturnCode], failure: Throwable) extends CallFailed
+  case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[ReturnCode], failure: String) extends CallFailed
   case object Terminate extends WorkflowActorMessage
   final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
@@ -393,7 +393,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   private def handleCallRetried(callKey: OutputKey,
                                   retryStatus: ExecutionStatus,
-                                  returnCode: Option[Int],
+                                  returnCode: Option[ReturnCode],
                                   failure: Throwable,
                                   message: CallFailedRetryable,
                                   data: WorkflowData,
@@ -421,7 +421,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def handleCallCompleted(callKey: OutputKey,
                                   callOutputs: CallOutputs,
                                   executionEvents: Seq[ExecutionEventEntry],
-                                  returnCode: Int,
+                                  returnCode: ScriptReturnCode,
                                   message: TerminalCallMessage,
                                   hash: Option[ExecutionHash],
                                   resultsClonedFrom: Option[BackendCall],
@@ -614,7 +614,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       // This case is common to WorkflowRunning and WorkflowAborting.
       log.debug(s"Got ScatterCompleted($scatterKey)")
       executionStore += scatterKey -> ExecutionStatus.Done
-      persistStatus(scatterKey, ExecutionStatus.Done, callOutputs = None, returnCode = Option(0))
+      persistStatus(scatterKey, ExecutionStatus.Done, callOutputs = None, returnCode = None)
       val updatedData = data.addPersisting(scatterKey, ExecutionStatus.Done)
       stay() using updatedData
     case Event(callMessage: CallMessage, _) =>
@@ -668,7 +668,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def persistStatus(storeKey: ExecutionStoreKey,
                             executionStatus: ExecutionStatus,
                             callOutputs: Option[CallOutputs] = None,
-                            returnCode: Option[Int] = None,
+                            returnCode: Option[ReturnCode] = None,
                             hash: Option[ExecutionHash] = None,
                             resultsClonedFrom: Option[BackendCall] = None): Future[Unit] = {
 
@@ -689,7 +689,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
                                    recipient: ActorRef,
                                    message: TerminalCallMessage,
                                    callOutputs: Option[CallOutputs] = None,
-                                   returnCode: Option[Int] = None,
+                                   returnCode: Option[ReturnCode] = None,
                                    hash: Option[ExecutionHash] = None,
                                    resultsClonedFrom: Option[BackendCall] = None): Unit = {
 
@@ -1068,7 +1068,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         self ! CallFailedNonRetryable(collector, Seq.empty, None, e.getMessage)
       case Success(outputs) =>
         logger.info(s"Collection complete for Scattered Call ${collector.tag}.")
-        self ! CallCompleted(collector, outputs, Seq.empty, 0, hash = None, resultsClonedFrom = None)
+        self ! CallCompleted(collector, outputs, Seq.empty, ScriptReturnCode(0), hash = None, resultsClonedFrom = None)
     }
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))

@@ -181,6 +181,7 @@ object JesBackend {
   object InfoKeys {
     val JesRunId = "JES_RUN_ID"
     val JesStatus = "JES_STATUS"
+    val JesReturnCode = "JES_RETURN_CODE"
   }
 }
 
@@ -360,7 +361,7 @@ case class JesBackend(actorSystem: ActorSystem)
           FailedExecutionHandle(ex).future
         case Success(_) => postProcess(backendCall) match {
           case Success(outputs) => backendCall.hash map { h =>
-            SuccessfulExecutionHandle(outputs, Seq.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
+            SuccessfulExecutionHandle(outputs, Seq.empty[ExecutionEventEntry], ScriptReturnCode(backendCall.downloadRcFile.get.stripLineEnd.toInt), h, Option(cachedCall)) }
           case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
             // TODO: What can we return here to retry this operation?
             // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
@@ -568,7 +569,7 @@ case class JesBackend(actorSystem: ActorSystem)
       status match {
         case Run.Success(events) if backendCall.runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"), returnCode.toOption).future
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"), returnCode.toOption map ScriptReturnCode).future
         case Run.Success(events) if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
@@ -577,7 +578,7 @@ case class JesBackend(actorSystem: ActorSystem)
         case Run.Success(events) if returnCode.isFailure =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
         case Run.Success(events) if !continueOnReturnCode.continueFor(returnCode.get) =>
-          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
+          FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption map ScriptReturnCode).future
         case Run.Success(events) =>
           backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
         case Run.Failed(errorCode, errorMessage, events) => handleFailure(backendCall, errorCode, errorMessage, events, log)
@@ -620,7 +621,7 @@ case class JesBackend(actorSystem: ActorSystem)
                             hash: ExecutionHash,
                             executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, returnCode, hash)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, ScriptReturnCode(returnCode), hash)
       case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
@@ -657,16 +658,16 @@ case class JesBackend(actorSystem: ActorSystem)
           s"""$preemptedMsg The call will be re-started with another pre-emptible VM (max pre-emptible attempts number is $max).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
-        RetryableExecutionHandle(e, Option(errorCode), events).future
+        RetryableExecutionHandle(e, Option(BackendReturnCode(errorCode)), events).future
       } else {
         val e = new PreemptedException(
           s"""$preemptedMsg The maximum number of pre-emptible attempts ($max) has been reached. The call will be restarted with a non-pre-emptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
-        RetryableExecutionHandle(e, Option(errorCode), events).future
+        RetryableExecutionHandle(e, Option(BackendReturnCode(errorCode)), events).future
       }
     } else {
       val e = new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
-      FailedExecutionHandle(e, Option(errorCode), events).future
+      FailedExecutionHandle(e, Option(BackendReturnCode(errorCode)), events).future
     }
   }
 

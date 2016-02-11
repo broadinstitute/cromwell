@@ -196,7 +196,7 @@ trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellA
     val message = executionResult match {
       case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
         WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
-      case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
+      case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, ScriptReturnCode(0), None, None)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case RetryableExecution(e, returnCode, events) =>
         logger.error("Failing call with retryable Failure: " + e.getMessage, e)

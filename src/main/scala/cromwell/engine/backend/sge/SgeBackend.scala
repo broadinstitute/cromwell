@@ -199,14 +199,14 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       case (r, _) if !continueOnReturnCode.continueFor(r) =>
         val message = s"SGE job failed because of return code: $r"
         logger.error(message)
-        NonRetryableExecution(new Exception(message), Option(r)).future
+        NonRetryableExecution(new Exception(message), Option(r) map ScriptReturnCode).future
       case (_, stderrLength) if stderrLength > 0 && backendCall.runtimeAttributes.failOnStderr =>
         val message = s"SGE job failed because there were $stderrLength bytes on standard error"
         logger.error(message)
-        NonRetryableExecution(new Exception(message), Option(0)).future
+        NonRetryableExecution(new Exception(message), None).future
       case (r, _) =>
         postProcess(backendCall) match {
-          case Success(callOutputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(callOutputs, Seq.empty, r, h) }
+          case Success(callOutputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(callOutputs, Seq.empty, ScriptReturnCode(r), h) }
           case Failure(e) => NonRetryableExecution(e).future
         }
     }

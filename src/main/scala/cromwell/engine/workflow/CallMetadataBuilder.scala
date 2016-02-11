@@ -29,7 +29,8 @@ object CallMetadataBuilder {
                                            backend: Option[String] = None,
                                            jobId: Option[String] = None,
                                            backendStatus: Option[String] = None,
-                                           executionEvents: Seq[ExecutionEventEntry] = Seq.empty)
+                                           executionEvents: Seq[ExecutionEventEntry] = Seq.empty,
+                                           runtimeAttributes: Map[String, String] = Map.empty)
 
   // Types used in interim steps of the construction of the call metadata.
   // Map from an `ExecutionDatabaseKey` to the interim `AssembledCallMetadata` format.
@@ -117,6 +118,17 @@ object CallMetadataBuilder {
     }
 
   /**
+    * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
+    */
+  private def buildRuntimeAttributesTranformer(runtimeAttributesMap: Map[ExecutionDatabaseKey, Map[String, String]]): ExecutionMapTransformer =
+    executionMap => {
+      for {
+        (key, attrs) <- runtimeAttributesMap
+        baseMetadata = executionMap.get(key).get
+      } yield key -> baseMetadata.copy(runtimeAttributes = attrs)
+    }
+
+  /**
    * Function to build a transformer that adds job data to the entries in the input `ExecutionMap`.
    */
   private def buildExecutionInfoTransformer(executionsAndInfos: Traversable[ExecutionInfosByExecution]): ExecutionMapTransformer =
@@ -172,7 +184,8 @@ object CallMetadataBuilder {
             standardStreamsMap: Map[FullyQualifiedName, Seq[Seq[CallLogs]]],
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
-            executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
+            executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
+            runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
 
     val executionKeys = infosByExecution map { x => ExecutionDatabaseKey(x.execution.callFqn, x.execution.index.toIndex, x.execution.attempt) }
 
@@ -183,7 +196,8 @@ object CallMetadataBuilder {
       buildOutputsTransformer(callOutputs),
       buildExecutionEventsTransformer(executionEvents),
       buildExecutionInfoTransformer(infosByExecution),
-      buildStreamsTransformer(standardStreamsMap)
+      buildStreamsTransformer(standardStreamsMap),
+      buildRuntimeAttributesTranformer(runtimeAttributes)
     )
 
     // Fold a zero ExecutionMap across this Seq of functions.
@@ -214,7 +228,8 @@ object CallMetadataBuilder {
         stderr = metadata.streams map { _.stderr },
         backendLogs = metadata.streams flatMap { _.backendLogs },
         executionEvents = metadata.executionEvents,
-        attempt = metadata.execution.attempt)
+        attempt = metadata.execution.attempt,
+        runtimeAttributes = metadata.runtimeAttributes)
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index ans within an index by attempt.

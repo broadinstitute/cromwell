@@ -9,7 +9,8 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
   it should "create Preemptible Runtime Info" in {
     val disks: List[Disk] = List(new Disk())
     val zones: List[String] = List("central-1")
-    val attributes = new CromwellRuntimeAttributes(docker = Some("docker"),
+    val attributes = new CromwellRuntimeAttributes(attributes = Map.empty,
+      docker = Some("docker"),
       zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
@@ -32,7 +33,8 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
   it should "create NonPreemptible Runtime Info" in {
     val disks: List[Disk] = List(new Disk())
     val zones: List[String] = List("central-1")
-    val attributes = new CromwellRuntimeAttributes(docker = Some("docker"),
+    val attributes = new CromwellRuntimeAttributes(attributes = Map.empty,
+      docker = Some("docker"),
       zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),

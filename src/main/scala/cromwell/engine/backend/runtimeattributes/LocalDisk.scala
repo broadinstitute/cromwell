@@ -1,5 +1,7 @@
 package cromwell.engine.backend.runtimeattributes
 
+import spray.json._
+
 import scala.util.Try
 import scalaz._
 import scalaz.Scalaz._

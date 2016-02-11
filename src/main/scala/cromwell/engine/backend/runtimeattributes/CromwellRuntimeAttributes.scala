@@ -9,7 +9,7 @@ import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.parser.MemoryUnit
-import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
+import wdl4s.types._
 import wdl4s.values._
 
 import scala.language.postfixOps
@@ -17,7 +17,8 @@ import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
-case class CromwellRuntimeAttributes(docker: Option[String],
+case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
+                                     docker: Option[String],
                                      zones: Seq[String],
                                      failOnStderr: Boolean,
                                      continueOnReturnCode: ContinueOnReturnCode,
@@ -30,11 +31,14 @@ object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
 
   def apply(wdlRuntimeAttributes: RuntimeAttributes, backendCall: BackendCall, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
+    val supportedKeys = backendCall.backend.backendType.supportedKeys map { _.key }
+
     val attributes = for {
-      keys <- validateKeys(wdlRuntimeAttributes, backendCall.backend.backendType)
       attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(backendCall.lookupFunction(backendCall.locallyQualifiedInputs), backendCall.engineFunctions))
       attributesWithDefaults <- Try(getAttributesWithDefaults(attributesFromTask, workflowOptions))
-      validatedAttributes <- validateRuntimeAttributes(attributesWithDefaults)
+      _ <- validateKeys(attributesWithDefaults.keySet, backendCall.backend.backendType)
+      supportedAttributes = attributesWithDefaults.filterKeys(k => supportedKeys.contains(k))
+      validatedAttributes <- validateRuntimeAttributes(supportedAttributes)
     } yield validatedAttributes
 
 
@@ -51,14 +55,17 @@ object CromwellRuntimeAttributes {
     defaultAttributes ++ taskAttributes
   }
 
-  def validateKeys(wdlRuntimeAttributes: RuntimeAttributes, backendType: BackendType): Try[RuntimeAttributes] = {
+  def validateKeys(keys: Set[String], backendType: BackendType): Try[Set[String]] = {
     /**
       *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
       *  the keys are known to be supported on at least one backend other than this.
       */
-    unsupportedKeys(wdlRuntimeAttributes.attrs.keys, backendType) foreach log.warn
-    validateRequiredKeys(wdlRuntimeAttributes.attrs, backendType) match {
-      case scalaz.Success(x) => scala.util.Success(wdlRuntimeAttributes)
+    val unsupported = unsupportedKeys(keys, backendType)
+    logMessageForUnsupportedKeys(unsupported, backendType) foreach log.warn
+
+    // Return only supported keys
+    validateRequiredKeys(keys, backendType) match {
+      case scalaz.Success(x) => scala.util.Success(keys)
       case scalaz.Failure(e) => scala.util.Failure(new IllegalArgumentException() with ThrowableWithErrors {
         val message = "RuntimeAttributes are invalid."
         val errors = e
@@ -66,18 +73,28 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  def unsupportedKeys(keys: Iterable[String], backendType: BackendType): Option[String] = {
-    val supportedKeys = backendType.supportedKeys map { _.key }
-    val unsupportedKeys = keys.toSet -- supportedKeys
-
+  def logMessageForUnsupportedKeys(unsupportedKeys: Set[String], backendType: BackendType) = {
     if (unsupportedKeys.isEmpty) None
     else Option(s"Found unsupported keys for backend '$backendType': " + unsupportedKeys.toSeq.sorted.mkString(", "))
+  }
+
+  def unsupportedKeys(keys: Iterable[String], backendType: BackendType): Set[String] = {
+    val supportedKeys = backendType.supportedKeys map { _.key }
+    keys.toSet -- supportedKeys
   }
 
   val LocalDiskName = "local-disk"
   val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD, sizeGb=10)
 
-  private val keys = Set("cpu", "disks", "docker", "zones", "continueOnReturnCode", "failOnStderr", "preemptible", "memory")
+  private case class ValidKeyType(key: String, validTypes: Set[WdlType])
+  private val keys = Set(ValidKeyType("cpu", Set(WdlIntegerType)),
+                        ValidKeyType("disks", Set(WdlStringType, WdlArrayType(WdlStringType))),
+                        ValidKeyType("docker", Set(WdlStringType)),
+                        ValidKeyType("zones", Set(WdlStringType, WdlArrayType(WdlStringType))),
+                        ValidKeyType("continueOnReturnCode", Set(WdlBooleanType, WdlArrayType(WdlIntegerType))),
+                        ValidKeyType("failOnStderr", Set(WdlBooleanType)),
+                        ValidKeyType("preemptible", Set(WdlIntegerType)),
+                        ValidKeyType("memory", Set(WdlStringType)))
 
   private val defaultValues = Map(
     "cpu" -> WdlInteger(1),
@@ -90,11 +107,18 @@ object CromwellRuntimeAttributes {
   )
 
   private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
+    def fromWorkflowOptions(k: ValidKeyType) = {
+      val value = workflowOptions.getDefaultRuntimeOption(k.key).get
+      val coercedValue = k.validTypes map { _.coerceRawValue(value) } find { _.isSuccess } map { _.get } getOrElse {
+        log.warn(s"Could not coerce $value for runtime attribute ${k.key} to any of the supported target types: ${k.validTypes.mkString(",")}. Using default value instead.")
+        defaultValues.get(k.key).get
+      }
+      coercedValue
+    }
+
     keys.collect({
-      case k if workflowOptions.getDefaultRuntimeOption(k).isSuccess =>
-        k -> WdlString(workflowOptions.getDefaultRuntimeOption(k).get)
-      case k if defaultValues.contains(k) =>
-        k -> defaultValues.get(k).get
+      case k if workflowOptions.getDefaultRuntimeOption(k.key).isSuccess => k.key -> fromWorkflowOptions(k)
+      case k if defaultValues.contains(k.key) => k.key -> defaultValues.get(k.key).get
     }).toMap
   }
 
@@ -119,7 +143,7 @@ object CromwellRuntimeAttributes {
     }
 
     (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
-      new CromwellRuntimeAttributes(_, _, _, _, _, _, _, _)
+      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _)
     } match {
       case Success(x) => scala.util.Success(x)
       case Failure(nel) => scala.util.Failure(new IllegalArgumentException(nel.list.mkString("\n")))
@@ -202,14 +226,14 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateRequiredKeys(attributeMap: Map[String, WdlExpression],
+  private def validateRequiredKeys(keySet: Set[String],
                                    backendType: BackendType): ErrorOr[Unit] = {
     val requiredKeys = for {
       key <- RuntimeKey.values().toSet
       if key.isMandatory(backendType)
     } yield key.key
 
-    val missingRequiredKeys = requiredKeys -- attributeMap.keySet
+    val missingRequiredKeys = requiredKeys -- keySet
     if (missingRequiredKeys.isEmpty) ().successNel
     else {
       val missingKeyString = missingRequiredKeys.toSeq.sorted.mkString(", ")

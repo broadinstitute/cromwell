@@ -1,12 +1,13 @@
 package cromwell.engine.db
 
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{BackendCall, Backend, JobKey}
+import cromwell.engine.backend.{Backend, BackendCall, JobKey}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
 import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -59,6 +60,10 @@ trait DataAccess extends AutoCloseable {
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
                 (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+
+  def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
+
+  def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]]
 
   /** Get all inputs for the scope of this call. */
   def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]

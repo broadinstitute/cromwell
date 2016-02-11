@@ -18,4 +18,5 @@ case class CallMetadata(inputs: Map[String, WdlValue],
                         stderr: Option[WdlFile],
                         backendLogs: Option[Map[String, WdlFile]],
                         executionEvents: Seq[ExecutionEventEntry],
-                        attempt: Int)
+                        attempt: Int,
+                        runtimeAttributes: Map[String, String])

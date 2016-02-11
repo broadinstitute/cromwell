@@ -240,7 +240,7 @@ object WorkflowDescriptor {
   }
 
   private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls.map(_.task.runtimeAttributes) foreach { r => CromwellRuntimeAttributes.validateKeys(r, backendType) }) match {
+    Try(namespace.workflow.calls.map(_.task.runtimeAttributes) foreach { r => CromwellRuntimeAttributes.validateKeys(r.attrs.keySet, backendType) }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }

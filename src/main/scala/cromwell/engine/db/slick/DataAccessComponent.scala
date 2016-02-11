@@ -9,7 +9,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with SymbolComponent
   with ExecutionComponent
   with ExecutionInfoComponent
-  with ExecutionEventComponent {
+  with ExecutionEventComponent
+  with RuntimeAttributeComponent {
 
   import driver.api._
 
@@ -19,5 +20,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       symbols.schema ++
       executions.schema ++
       executionInfos.schema ++
-      executionEvents.schema
+      executionEvents.schema ++
+      runtimeAttributes.schema
 }

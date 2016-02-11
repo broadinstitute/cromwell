@@ -2222,6 +2222,7 @@ object SampleWdl {
         |  String c = b + "MB"
         |  command { ps }
         |  runtime {
+        |    docker: "ubuntu:latest"
         |    memory: c
         |  }
         |}

@@ -2,17 +2,23 @@ package cromwell.engine.backend
 
 import java.util.UUID
 
+import akka.testkit.TestActorRef
 import com.google.api.services.genomics.model.Disk
+import cromwell.{CromwellSpec, CromwellTestkitSpec}
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes, _}
-import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowId}
+import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowMetadata, WorkflowStatus, SubmitWorkflow}
+import cromwell.engine.workflow.{WorkflowManagerActor, BackendCallKey}
+import cromwell.engine.{WorkflowSucceeded, WorkflowContext, WorkflowDescriptor, WorkflowId}
 import cromwell.util.SampleWdl
+import cromwell.webservice.CromwellApiHandler.{WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerStatusSuccess, WorkflowManagerSubmitSuccess}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
+import wdl4s.types.{WdlIntegerType, WdlArrayType}
+import wdl4s.values.{WdlString, WdlBoolean, WdlInteger, WdlArray}
 
 class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   val workflowManagerSystem = new TestWorkflowManagerSystem
@@ -114,7 +120,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
   }
 
   it should "properly return the 'cpu', 'disks', 'zones', and 'memory' attributes for a task run on JES (2)" in {
-    val attributes = runtimeAttributes(SampleWdl.WorkflowWithLocalDiskGooglyConfig, "googly_task", localBackend)
+    val attributes = runtimeAttributes(SampleWdl.WorkflowWithLocalDiskGooglyConfig, "googly_task", jesBackend)
     val defaults = CromwellRuntimeAttributes.defaults
     attributes.cpu shouldBe defaults.cpu
     attributes.disks shouldEqual Vector(
@@ -137,7 +143,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.WorkflowWithFullGooglyConfig.asWorkflowSources())
     val call = descriptor.namespace.workflow.callByName("googly_task").get
     val unsupported = CromwellRuntimeAttributes.unsupportedKeys(call.task.runtimeAttributes.attrs.keys, BackendType.LOCAL)
-    unsupported shouldEqual Some("Found unsupported keys for backend 'LOCAL': cpu, disks, memory, zones")
+    unsupported shouldEqual Set("disks", "cpu", "zones", "memory")
   }
 
   it should "reject a task with an invalid 'memory' attribute" in {
@@ -188,7 +194,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
   }
 
   it should "allow runtime attributes to be expressions that reference task inputs (2)" in {
-    val attributes = runtimeAttributes(SampleWdl.WorkflowWithRuntimeAttributeExpressions2, "x", localBackend)
+    val attributes = runtimeAttributes(SampleWdl.WorkflowWithRuntimeAttributeExpressions2, "x", jesBackend)
     attributes.memoryGB shouldEqual 5
   }
 
@@ -203,7 +209,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
       """.stripMargin
 
     Seq("x", "y", "z") foreach { taskName =>
-      val attributes = runtimeAttributes(SampleWdl.WorkflowWithThreeTasksAndNoRuntime, taskName, localBackend, workflowOptions)
+      val attributes = runtimeAttributes(SampleWdl.WorkflowWithThreeTasksAndNoRuntime, taskName, jesBackend, workflowOptions)
       attributes.memoryGB shouldEqual 5
       attributes.docker shouldEqual Some("ubuntu:latest")
     }
@@ -249,5 +255,41 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     runtimeAttributes(SampleWdl.WorkflowWithStaticRuntime, "cgrep", jesBackend, twoAttemptsWfOptions).preemptible shouldEqual 2
     runtimeAttributes(SampleWdl.WorkflowWithFourPreemptibleRetries, "x", jesBackend).preemptible shouldEqual 4
     runtimeAttributes(SampleWdl.WorkflowWithStaticRuntime, "cgrep", jesBackend).preemptible shouldEqual 0
+  }
+
+  it should "contain only supported keys in the attributes map and coerce values to supported WdlTypes" in {
+    val fullWfOptions =
+      """
+        |{
+        |  "defaultRuntimeOptions": {
+        |    "continueOnReturnCode": [0, 1, 2, 3],
+        |    "failOnStderr": true,
+        |    "zones": "us-central1-a",
+        |    "disks": "local-disk 10 SSD",
+        |    "memory": "5000000 KB",
+        |    "preemptible": 2,
+        |    "cpu": 3
+        |  }
+        |}
+      """.stripMargin
+
+    val expectedJesKeys = Set("docker", "continueOnReturnCode", "failOnStderr", "zones", "disks", "memory", "preemptible", "cpu")
+    val expectedLocalKeys = Set("docker", "continueOnReturnCode", "failOnStderr")
+
+    val jesRA = runtimeAttributes(SampleWdl.WorkflowWithStaticRuntime, "cgrep", jesBackend, fullWfOptions).attributes
+    jesRA.keySet should contain theSameElementsAs expectedJesKeys
+    jesRA("continueOnReturnCode").valueString shouldBe WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2, 3).map(WdlInteger(_))).valueString
+    jesRA("failOnStderr").valueString shouldBe WdlBoolean(true).valueString
+    jesRA("zones").valueString shouldBe WdlString("us-central1-a").valueString
+    jesRA("memory").valueString shouldBe WdlString("5000000 KB").valueString
+    jesRA("preemptible").valueString shouldBe WdlInteger(2).valueString
+    jesRA("cpu").valueString shouldBe WdlInteger(3).valueString
+    jesRA("docker").valueString shouldBe WdlString("ubuntu:latest").valueString
+
+    val localRA = runtimeAttributes(SampleWdl.WorkflowWithStaticRuntime, "cgrep", localBackend, fullWfOptions).attributes
+    localRA.keySet should contain theSameElementsAs expectedLocalKeys
+    localRA("docker").valueString shouldBe WdlString("ubuntu:latest").valueString
+    localRA("continueOnReturnCode").valueString shouldBe WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2, 3).map(WdlInteger(_))).valueString
+    localRA("failOnStderr").valueString shouldBe WdlBoolean(true).valueString
   }
 }

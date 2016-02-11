@@ -668,11 +668,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
                             executionStatus: ExecutionStatus,
                             callOutputs: Option[CallOutputs] = None,
                             returnCode: Option[Int] = None,
-                            hash: Option[ExecutionHash] = None): Future[Unit] = {
+                            hash: Option[ExecutionHash] = None,
+                            resultsClonedFrom: Option[db.WorkflowAndExecution] = None): Future[Unit] = {
 
     logger.info(s"persisting status of ${storeKey.tag} to $executionStatus.")
 
-    val persistFuture = globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode, hash))
+    val persistFuture = globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode, hash, resultsClonedFrom))
     persistFuture onComplete {
       case Success(_) => self ! PersistenceSucceeded(storeKey, executionStatus, callOutputs)
       case Failure(t) =>
@@ -828,7 +829,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   }
 
   private def lookupDeclaration(workflow: Workflow)(name: String): Try[WdlValue] = {
-    workflow.declarations find { _.name == name } match {
+    workflow.scopedDeclarations find { _.name == name } match {
       case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
       case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$name'"))
     }

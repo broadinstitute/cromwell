@@ -13,6 +13,8 @@ val lenthallV = "0.15"
 
 val wdl4sV = "0.2"
 
+val cromwellBackendV = "0.1-f73b1bf-SNAPSHOT"
+
 val sprayV = "1.3.2"
 
 val DowngradedSprayV = "1.3.1"
@@ -38,6 +40,7 @@ libraryDependencies ++= Seq(
   "org.aspectj" % "aspectjweaver" % "1.8.6",
   "org.broadinstitute" %% "lenthall" % lenthallV,
   "org.broadinstitute" %% "wdl4s" % wdl4sV,
+  "org.broadinstitute" %% "cromwell-backend" % cromwellBackendV,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
   "org.joda" % "joda-convert" % "1.8.1",
   "org.webjars" % "swagger-ui" % "2.1.1",

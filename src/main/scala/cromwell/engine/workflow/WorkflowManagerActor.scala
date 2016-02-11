@@ -325,18 +325,25 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
     //    } yield callStandardOutput
   }
 
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[CallLogs]]] = {
-    val mockCallLog = CallLogs(new WdlSingleFile("Dummy CallOut"), new WdlSingleFile("Dummy CallError"), None)
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[CallLogs]]] = {
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
+
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
+      // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
+      import cromwell.engine.finalcall.FinalCall._
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
-          (key, status) <- sortedMap if hasLogs(statusMap.keys)(key)
+          (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
           callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          callStandardOutput = mockCallLog //backend.stdoutStderr(descriptor, callName, key.index)
-        } yield key.fqn -> callStandardOutput
+          // FIXME super hacky and only works on shared fs
+          call = descriptor.namespace.resolve(callName)
+          if call.isDefined && call.get.isInstanceOf[Call]
+          callKey = BackendCallKey(call.get.asInstanceOf[Call], key.index, key.attempt)
+          callStandardOutput = callKey.callStdoutStderr(descriptor)
+        } yield key -> callStandardOutput
 
-        callsToPaths groupBy { _._1 } mapValues { v => v map { _._2 } }
+        /* Some FP "magic" to transform the pairs of (key, logs) into the final result: grouped by FQNS, ordered by shards, and then ordered by attempts */
+        callsToPaths groupBy { _._1.fqn } mapValues { key => key.groupBy(_._1.index).values.toSeq.sortBy(_.head._1.index) map { _.sortBy(_._1.attempt).map(_._2) }  }
       }
     }
 
@@ -381,13 +388,12 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
       // so the .get on the Option is safe.
       workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callStandardStreamsMap <- workflowStdoutStderr(id)
-      executions <- globalDataAccess.getExecutions(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
-      localJobs <- globalDataAccess.localJobInfo(id)
+      infosByExecution <- globalDataAccess.infosByExecution(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
 
-      callMetadata = CallMetadataBuilder.build(executions, callStandardStreamsMap, callInputs, callOutputs, executionEvents, localJobs)
+      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata

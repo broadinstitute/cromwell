@@ -16,12 +16,13 @@ case class Execution(workflowExecutionId: Int,
                      rc: Option[Int] = None,
                      startDt: Option[Timestamp] = None,
                      endDt: Option[Timestamp] = None,
+                     backendType: String,
                      allowsResultReuse: Boolean = true,
                      dockerImageHash: Option[String] = None,
                      resultsClonedFrom: Option[Int] = None,
                      overallHash: Option[String] = None,
-                     executionId: Option[Int] = None,
-                     attempt: Int = 1)
+                     attempt: Int = 1,
+                     executionId: Option[Int] = None)
 
 trait ExecutionComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
@@ -37,13 +38,14 @@ trait ExecutionComponent {
     def rc = column[Option[Int]]("RC")
     def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
+    def backendType = column[String]("BACKEND_TYPE")
     def allowsResultReuse = column[Boolean]("ALLOWS_RESULT_REUSE", Default(true))
     def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
     def resultsClonedFrom = column[Option[Int]]("RESULTS_CLONED_FROM")
     def executionHash = column[Option[String]]("EXECUTION_HASH")
     def attempt = column[Int]("ATTEMPT")
 
-    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, allowsResultReuse, dockerImageHash, resultsClonedFrom, executionHash, executionId.?, attempt) <>
+    override def * = (workflowExecutionId, callFqn, index, status, rc, startDt, endDt, backendType, allowsResultReuse, dockerImageHash, resultsClonedFrom, executionHash, attempt, executionId.?) <>
       (Execution.tupled, Execution.unapply)
 
     def workflowExecution = foreignKey(

@@ -3,9 +3,11 @@ package cromwell.engine
 import cromwell.backend.model.ExecutionHash
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine.db.slick.{Execution, WorkflowExecution}
 
 package object db {
-  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[ExecutionHash]) {
+  case class WorkflowAndExecution(workflow: WorkflowExecution, execution: Execution)
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[WorkflowAndExecution]) {
     def isTerminal: Boolean = executionStatus.isTerminal
     def isStarting: Boolean = executionStatus == ExecutionStatus.Starting
   }

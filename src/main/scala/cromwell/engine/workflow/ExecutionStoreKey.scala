@@ -1,9 +1,14 @@
 package cromwell.engine.workflow
 
+import java.nio.file.Paths
+
+import com.typesafe.config.ConfigFactory
+import cromwell.engine.backend.CallLogs
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
 import cromwell.engine.{ExecutionStatus, WorkflowDescriptor}
 import wdl4s._
+import wdl4s.values.WdlFile
 
 import scala.language.postfixOps
 
@@ -27,17 +32,28 @@ object BackendCallKey{
   private val CallPrefix = "call"
   private val ShardPrefix = "shard"
   private val AttemptPrefix = "attempt"
+  lazy val BaseRoot = ConfigFactory.load().getString("backend.shared-filesystem.root")
+  lazy val BaseRootPath = Paths.get(BaseRoot)
 }
 case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int = 1) extends CallKey {
   import BackendCallKey._
 
   def retryClone = this.copy(attempt = this.attempt + 1)
 
-  def callRootPathWithBaseRoot(descriptor: WorkflowDescriptor, baseRoot: String) = {
+  def callRootPath(descriptor: WorkflowDescriptor) = {
     val call = s"$CallPrefix-${scope.unqualifiedName}"
     val shard = index map { s => s"$ShardPrefix-$s" } getOrElse ""
     val retry = if (attempt > 1) s"$AttemptPrefix-$attempt" else ""
-    descriptor.workflowRootPathWithBaseRoot(baseRoot).resolve(call).resolve(shard).resolve(retry)
+
+    descriptor.workflowRootPathWithBaseRoot(BaseRoot).resolve(call).resolve(shard).resolve(retry)
+  }
+
+  // FIXME hacky and only works on shared fs (whence the code was cribbed)
+  def callStdoutStderr(descriptor: WorkflowDescriptor): CallLogs = {
+    CallLogs(
+      stdout = WdlFile(BaseRootPath.resolve("stdout").toAbsolutePath.toString),
+      stderr = WdlFile(BaseRootPath.resolve("stderr").toAbsolutePath.toString)
+    )
   }
 }
 case class CollectorKey(scope: Call, attempt: Int = 1) extends OutputKey {

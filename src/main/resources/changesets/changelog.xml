@@ -29,4 +29,5 @@
     <include file="changesets/sync_not_null_constraints.xml" relativeToChangelogFile="true" />
     <include file="changesets/sge_job_execution_unique_key.xml" relativeToChangelogFile="true" />
     <include file="changesets/add_attempt_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/execution_backend_info.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

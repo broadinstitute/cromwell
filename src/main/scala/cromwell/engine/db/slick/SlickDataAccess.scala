@@ -621,7 +621,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val dockerHash = callStatus.hash flatMap { _.dockerHash }
     val scriptRC = callStatus.returnCode flatMap { _.asScriptReturnCode }
     val backendRCAction = callStatus.returnCode flatMap { _.asBackendReturnCode } map { code =>
-      (executionId: Int) =>  dataAccess.executionInfosAutoInc.insertOrUpdate(new ExecutionInfo(executionId, "ReturnCode", Option(code.toString)))
+      (executionId: Int) =>  dataAccess.executionInfosAutoInc += new ExecutionInfo(executionId, "ReturnCode", Option(code.toString))
     } getOrElse { (executionId: Int) => DBIO.successful(0) }
 
     // If this call represents a call caching hit, find the execution ID for the call from which results were cloned and

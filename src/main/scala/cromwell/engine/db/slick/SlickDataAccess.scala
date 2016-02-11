@@ -10,7 +10,7 @@ import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.backend.{Backend, JobKey, WorkflowQueryResult}
+import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
@@ -324,7 +324,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
       executionStatuses = executionKeyAndStatusResults map { execution =>
         (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt),
-         CallStatus(execution.status.toExecutionStatus, execution.rc, execution.overallHash map { ExecutionHash(_, execution.dockerImageHash )}, None)) }
+         CallStatus(execution.status.toExecutionStatus, execution.rc  map ScriptReturnCode, execution.overallHash map { ExecutionHash(_, execution.dockerImageHash )}, None)) }
 
     } yield executionStatuses.toMap
 
@@ -341,7 +341,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         (workflowExecutionResult.workflowExecutionId.get, fqn)).result
 
       executionStatuses = executionKeyAndStatusResults map { execution =>
-        (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt), CallStatus(execution.status.toExecutionStatus, execution.rc,
+        (ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt), CallStatus(execution.status.toExecutionStatus, execution.rc map ScriptReturnCode,
           execution.overallHash map { ExecutionHash(_, execution.dockerImageHash) }, None)) }
     } yield executionStatuses.toMap
 
@@ -356,7 +356,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       executionStatuses <- dataAccess.executionStatusesAndReturnCodesByWorkflowExecutionIdAndCallKey(
         (workflowExecutionResult.workflowExecutionId.get, key.fqn, key.index.fromIndex, key.attempt)).result
 
-      maybeStatus = executionStatuses.headOption map { case (status, rc, hash, dockerHash) => CallStatus(status.toExecutionStatus, rc, hash map { ExecutionHash(_, dockerHash )}, None) }
+      maybeStatus = executionStatuses.headOption map { case (status, rc, hash, dockerHash) => CallStatus(status.toExecutionStatus, rc map ScriptReturnCode, hash map { ExecutionHash(_, dockerHash )}, None) }
     } yield maybeStatus
     runTransaction(action)
   }
@@ -617,10 +617,18 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       e => (e.status, e.endDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom)
 
     val maybeDate = if (callStatus.isStarting || callStatus.isTerminal) Option(new Date().toTimestamp) else None
+    val overallHash = callStatus.hash map { _.overallHash }
+    val dockerHash = callStatus.hash flatMap { _.dockerHash }
+    val scriptRC = callStatus.returnCode flatMap { _.asScriptReturnCode }
+    val backendRCAction = callStatus.returnCode flatMap { _.asBackendReturnCode } map { code =>
+      (executionId: Int) =>  dataAccess.executionInfosAutoInc.insertOrUpdate(new ExecutionInfo(executionId, "ReturnCode", Option(code.toString)))
+    } getOrElse { (executionId: Int) => DBIO.successful(0) }
 
     // If this call represents a call caching hit, find the execution ID for the call from which results were cloned and
     // wrap that in an `Option`.
     // If this wasn't a call caching hit just return `DBIO.successful(None)`, `None` lifted into `DBIO`.
+    /* FIXME: We shouldn't need to look again for the execution that this call is using as a cache,
+       since the reason we found out that we can call cache is by finding this execution in the first place */
     val findResultsClonedFromId = callStatus.resultsClonedFrom map { backendCall =>
       for {
         workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(backendCall.workflowDescriptor.id.toString).result.head
@@ -633,9 +641,10 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
       clonedFromId <- findResultsClonedFromId
-      overallHash = callStatus.hash map { _.overallHash }
-      dockerHash = callStatus.hash flatMap { _.dockerHash }
-      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode, overallHash, dockerHash, clonedFromId))
+      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, scriptRC, overallHash, dockerHash, clonedFromId))
+      execIds <- executions.map(_.executionId).result
+      backendActions = execIds map backendRCAction
+      _ <- DBIO.sequence(backendActions)
       scopeSize = scopeKeys.size
       _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
     } yield ()

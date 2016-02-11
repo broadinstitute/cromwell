@@ -190,7 +190,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
       def processSuccess(rc: Int) = {
         postProcess(backendCall) match {
-          case Success(outputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
+          case Success(outputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, ScriptReturnCode(rc), h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             NonRetryableExecution(new Throwable("Failed post processing of outputs" + message, e)).future
@@ -209,7 +209,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       returnCode match {
         case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-        case Success(badReturnCode) => NonRetryableExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
+        case Success(badReturnCode) => NonRetryableExecution(new Exception(badReturnCodeMessage), Option(ScriptReturnCode(badReturnCode))).future
         case Failure(e) => NonRetryableExecution(new Throwable(badReturnCodeMessage, e)).future
       }
     }

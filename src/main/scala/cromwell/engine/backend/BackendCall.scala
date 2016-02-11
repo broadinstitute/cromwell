@@ -54,21 +54,37 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
+sealed trait ReturnCode {
+  def code: Int
+
+  def asScriptReturnCode = this match {
+    case script: ScriptReturnCode => Option(code)
+    case _ => None
+  }
+
+  def asBackendReturnCode = this match {
+    case script: BackendReturnCode => Option(code)
+    case _ => None
+  }
+}
+case class ScriptReturnCode(code: Int) extends ReturnCode
+case class BackendReturnCode(code: Int) extends ReturnCode
+
 final case class CompletedExecutionHandle(override val result: ExecutionResult) extends ExecutionHandle {
   override val isDone = true
 }
 
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: ScriptReturnCode, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }
 
-final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends ExecutionHandle {
+final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[ReturnCode] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends ExecutionHandle {
   override val isDone = true
   override val result = new NonRetryableExecution(throwable, returnCode, events)
 }
 
-final case class RetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends ExecutionHandle {
+final case class RetryableExecutionHandle(throwable: Throwable, returnCode: Option[ReturnCode] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends ExecutionHandle {
   override val isDone = true
   override val result = new RetryableExecution(throwable, returnCode, events)
 }

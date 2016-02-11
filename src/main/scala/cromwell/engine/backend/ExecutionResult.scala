@@ -14,7 +14,7 @@ case object SuccessfulFinalCallExecution extends ExecutionResult
 /**
  * A successful execution with resolved outputs.
  */
-final case class SuccessfulBackendCallExecution(outputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionResult
+final case class SuccessfulBackendCallExecution(outputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: ScriptReturnCode, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionResult
 
 /**
  * A user-requested abort of the command.
@@ -23,11 +23,11 @@ case object AbortedExecution extends ExecutionResult
 
 sealed trait FailedExecution extends ExecutionResult {
   def e: Throwable
-  def returnCode: Option[Int]
+  def returnCode: Option[ReturnCode]
 }
 
 /**
   * Failed execution, possibly having a return code.
   */
-final case class NonRetryableExecution(e: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends FailedExecution
-final case class RetryableExecution(e: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends FailedExecution
+final case class NonRetryableExecution(e: Throwable, returnCode: Option[ReturnCode] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends FailedExecution
+final case class RetryableExecution(e: Throwable, returnCode: Option[ReturnCode] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends FailedExecution

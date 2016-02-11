@@ -2,10 +2,10 @@ package cromwell.engine
 
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.BackendCall
+import cromwell.engine.backend.{ReturnCode, BackendCall}
 
 package object db {
-  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) {
+  case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[ReturnCode], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) {
     def isTerminal: Boolean = executionStatus.isTerminal
     def isStarting: Boolean = executionStatus == ExecutionStatus.Starting
   }

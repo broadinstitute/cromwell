@@ -196,7 +196,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                               backend: Backend)(implicit ec: ExecutionContext): Future[Unit] = {
 
     val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => BackendCallKey(call, None)
+      case call: Call => BackendCallKey(call, None, 1)
       case scatter: Scatter => ScatterKey(scatter, None)
       case finalCall: FinalCall => FinalCallKey(finalCall)
     }

@@ -35,7 +35,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val inputs = coercedInputs collect { case (k, v) if s"${call.fullyQualifiedName}\\.[a-zA-Z0-9_-]+".r.findFirstMatchIn(k).isDefined =>
       k.replace(s"${call.fullyQualifiedName}.", "") -> v
     }
-    backend.bindCall(descriptor, BackendCallKey(call, None), inputs).runtimeAttributes
+    backend.bindCall(descriptor, BackendCallKey(call, None, 1), inputs).runtimeAttributes
   }
 
   it should "have reasonable defaults" in {

@@ -77,7 +77,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
           for {
             _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
-            _ <- globalDataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
+            _ <- globalDataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()
         }
       )

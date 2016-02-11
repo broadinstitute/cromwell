@@ -28,7 +28,7 @@ object BackendCallKey{
   private val ShardPrefix = "shard"
   private val AttemptPrefix = "attempt"
 }
-case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int = 1) extends CallKey {
+case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int) extends CallKey {
   import BackendCallKey._
 
   def retryClone = this.copy(attempt = this.attempt + 1)
@@ -60,7 +60,7 @@ case class ScatterKey(scope: Scatter, index: Option[Int], attempt: Int = 1) exte
   private def explode(scope: Scope, count: Int): Seq[ExecutionStoreKey] = {
     scope match {
       case call: Call =>
-        val shards = (0 until count) map { i => BackendCallKey(call, Option(i)) }
+        val shards = (0 until count) map { i => BackendCallKey(call, Option(i), 1) }
         shards :+ CollectorKey(call)
       case scatter: Scatter =>
         throw new UnsupportedOperationException("Nested Scatters are not supported (yet).")

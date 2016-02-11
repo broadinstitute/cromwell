@@ -162,7 +162,7 @@ object JesBackend {
 
   implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
     import cromwell.engine.ExecutionIndex._
-    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }

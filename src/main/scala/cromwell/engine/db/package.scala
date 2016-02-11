@@ -11,7 +11,7 @@ package object db {
   }
 
   // Uniquely identify an entry in the execution table
-  case class ExecutionDatabaseKey(fqn: FullyQualifiedName, index: ExecutionIndex, attempt: Int = 1) {
+  case class ExecutionDatabaseKey(fqn: FullyQualifiedName, index: ExecutionIndex, attempt: Int) {
     def isCollector(keys: Traversable[ExecutionDatabaseKey]): Boolean = {
       index.isEmpty &&
         (keys exists { e =>

@@ -968,11 +968,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
           // Final calls are not part of the workflow namespace, handle these differently from other keys.
           k.fqn.storeKey(workflow)
         } else {
-          (workflow.namespace.resolve(k.fqn), k.index) match {
-            case (Some(c: Call), Some(i)) => BackendCallKey(c, Option(i))
-            case (Some(c: Call), None) if isInScatterBlock(c) => CollectorKey(c)
-            case (Some(c: Call), None) => BackendCallKey(c, None)
-            case (Some(s: Scatter), None) => ScatterKey(s, None)
+          (workflow.namespace.resolve(k.fqn), k.index, k.attempt) match {
+            case (Some(c: Call), Some(i), a) => BackendCallKey(c, Option(i), a)
+            case (Some(c: Call), None, _) if isInScatterBlock(c) => CollectorKey(c)
+            case (Some(c: Call), None, a) => BackendCallKey(c, None, a)
+            case (Some(s: Scatter), None, _) => ScatterKey(s, None)
             case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
           }
         }

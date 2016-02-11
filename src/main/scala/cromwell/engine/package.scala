@@ -73,7 +73,7 @@ package object engine {
       !execution.isShard &&
         (keys exists { e => (e.callFqn == execution.callFqn) && e.isShard })
     }
-    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
 

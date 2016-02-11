@@ -65,9 +65,9 @@
     </changeSet>
 
     <changeSet id="drop_job_tables" author="mcovarr">
-        <dropTable tableName="jes_job" />
-        <dropTable tableName="sge_job" />
-        <dropTable tableName="local_job" />
+        <dropTable tableName="JES_JOB" />
+        <dropTable tableName="SGE_JOB" />
+        <dropTable tableName="LOCAL_JOB" />
     </changeSet>
 
     <changeSet id="execution_info_uniqueness_constraint" author="mcovarr">

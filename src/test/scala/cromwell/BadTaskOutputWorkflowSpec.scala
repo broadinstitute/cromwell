@@ -12,7 +12,7 @@ class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec {
     "fail and result in a failed workflow" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.BadTaskOutputWdl,
-        EventFilter.info(pattern = s"starting calls: badExample.bad", occurrences = 1),
+        EventFilter.info(pattern = s"transitioning from Running to Failed.", occurrences = 1),
         expectedOutputs = Map(),
         terminalState = WorkflowFailed
       )
@@ -20,11 +20,11 @@ class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec {
 
     "fail properly in a unknown Docker environment" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.HelloWorld,
+        sampleWdl = SampleWdl.BadTaskOutputWdl,
         eventFilter = EventFilter.info(pattern = s"transitioning from Running to Failed.", occurrences = 1),
         runtime = """
                     |runtime {
-                    |  docker: "/fauxbuntu:nosuchversion"
+                    |  docker: "ubuntu:latest"
                     |}
                   """.stripMargin,
         expectedOutputs = Map(),

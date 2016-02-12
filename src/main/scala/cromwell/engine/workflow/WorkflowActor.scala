@@ -1166,7 +1166,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     Try(backendCall.runtimeAttributes) map { _ => startCall } recover {
       case f =>
         logger.error(f.getMessage)
-        self ! CheckForWorkflowComplete
+        self ! CallFailedToInitialize(callKey)
     }
   }
 

@@ -89,7 +89,7 @@
             we could change to writing the execution rows as calls become runnable, at which point the not-null
             constraint might be re-imposed.
         </comment>
-        <dropNotNullConstraint tableName="EXECUTION" columnName="BACKEND_TYPE"/>
+        <dropNotNullConstraint tableName="EXECUTION" columnName="BACKEND_TYPE" columnDataType="VARCHAR(255)"/>
     </changeSet>
 
 </databaseChangeLog>

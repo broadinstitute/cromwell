@@ -126,7 +126,11 @@ object WorkflowActor {
       // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
       // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
       actor.initializeWorkflow match {
-        case Success(inputs) => actor.createWorkflow(inputs)
+        case Success(inputs) =>
+          actor.createWorkflow(inputs) recover { case e =>
+              actor.logger.error(s"Failed to create workflow ${actor.workflow.id.id}", e)
+              actor.scheduleTransition(WorkflowFailed)
+          }
         case Failure(ex) => Future.failed(ex)
       }
     }
@@ -1068,6 +1072,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     generateCollectorOutput(collector, shards) match {
       case Failure(e) =>
+        logger.error("Failed to generate collector output", e)
         self ! CallFailedNonRetryable(collector, Seq.empty, None, e.getMessage)
       case Success(outputs) =>
         logger.info(s"Collection complete for Scattered Call ${collector.tag}.")

@@ -240,6 +240,8 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
       case NonRetryableExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
         WorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
+      case RetryableExecution(e, rc, events) => WorkflowActor.CallFailedRetryable(key, events, rc, e)
+      case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None)
     }
 
     context.parent ! message

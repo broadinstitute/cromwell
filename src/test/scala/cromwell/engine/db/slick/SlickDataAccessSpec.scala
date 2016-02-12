@@ -3,49 +3,48 @@ package cromwell.engine.db.slick
 import java.sql.SQLException
 import java.util.UUID
 
+import better.files._
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.IntegrationTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.{CallOutput, CallOutputs}
-import wdl4s._
-import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlString}
-import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine._
-import cromwell.engine.backend.{Backend, CallLogs}
-import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, LocalCallBackendInfo}
 import cromwell.engine.Hashing._
-import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.backend.{Backend, BackendType, CallLogs}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{CallStatus, DiffResultFilter, ExecutionDatabaseKey}
-import cromwell.engine.io.IoInterface
-import cromwell.engine.workflow.{BackendCallKey, CallKey, ScatterKey, WorkflowOptions}
-import cromwell.engine.backend.BackendType
+import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
+import cromwell.engine.{CallOutput, _}
 import cromwell.util.SampleWdl
 import cromwell.webservice
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
-import cromwell.webservice.{WorkflowQueryKey, WorkflowQueryParameters}
 import org.joda.time.DateTime
 import org.scalactic.StringNormalizations._
+import org.scalatest.PartialFunctionValues._
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.time.SpanSugar._
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.PartialFunctionValues._
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import wdl4s._
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlString}
+
 import scala.concurrent.{ExecutionContext, Future}
-import Hashing._
 
 object SlickDataAccessSpec {
   val AllowFalse = Seq(webservice.QueryParameter("allow", "false"))
   val AllowTrue = Seq(webservice.QueryParameter("allow", "true"))
 }
 
-class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
+class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll {
 
   import TableDrivenPropertyChecks._
 
   val workflowManagerSystem = new TestWorkflowManagerSystem
+
+  override protected def afterAll() = {
+    workflowManagerSystem.shutdownTestActorSystem()
+    super.afterAll()
+  }
 
   implicit val ec = ExecutionContext.global
 
@@ -56,6 +55,61 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   implicit val hasher = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources).fileHasher
 
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
+
+  "SlickDataAccess" should "not deadlock" in {
+    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
+    val databaseConfig = ConfigFactory.parseString(
+      s"""
+         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+         |db.driver = "org.hsqldb.jdbcDriver"
+         |db.numThreads = 2
+         |driver = "slick.driver.HsqldbDriver$$"
+         |""".stripMargin)
+
+    for {
+      dataAccess <- new SlickDataAccess(databaseConfig).autoClosed
+    } {
+      val futures = 1 to 20 map { _ =>
+        val workflowId = WorkflowId.randomId()
+        val workflowInfo = WorkflowDescriptor(workflowId, testSources)
+        for {
+          _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
+          _ <- dataAccess.getWorkflow(workflowInfo.id) map (_.id should be(workflowId))
+        } yield ()
+      }
+      Future.sequence(futures).futureValue(Timeout(10.seconds))
+    }
+  }
+
+  it should "have the same liquibase and slick schema" in {
+    for {
+      liquibaseDataAccess <- dataAccessForSchemaManager("liquibase").autoClosed
+      slickDataAccess <- dataAccessForSchemaManager("slick").autoClosed
+    } {
+      val diffResult = LiquibaseSchemaManager.compare(
+        slickDataAccess.dataAccess.driver, slickDataAccess.database,
+        liquibaseDataAccess.dataAccess.driver, liquibaseDataAccess.database)
+
+      import DiffResultFilter._
+      val diffFilters = StandardTypeFilters :+ UniqueIndexFilter
+      val filteredDiffResult = diffResult.filterLiquibaseObjects.filterChangedObjects(diffFilters)
+
+      filteredDiffResult.getChangedObjects should be(empty)
+      filteredDiffResult.getMissingObjects should be(empty)
+      filteredDiffResult.getUnexpectedObjects should be(empty)
+    }
+  }
+
+  def dataAccessForSchemaManager(schemaManager: String): SlickDataAccess = {
+    val databaseConfig = ConfigFactory.parseString(
+      s"""
+         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+         |db.driver = "org.hsqldb.jdbcDriver"
+         |driver = "slick.driver.HsqldbDriver$$"
+         |schema.manager = $schemaManager
+         |""".stripMargin)
+    new SlickDataAccess(databaseConfig)
+  }
 
   // Tests against main database used for command line
   "SlickDataAccess (main.hsqldb)" should behave like databaseWithConfig("main.hsqldb", testRequired = true)
@@ -69,13 +123,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
   def databaseWithConfig(path: => String, testRequired: => Boolean): Unit = {
 
     lazy val testDatabase = new TestSlickDatabase(path)
-    lazy val canConnect = testRequired || testDatabase.isValidConnection.futureValue
+    lazy val canConnect = testRequired || testDatabase.isValidConnection.futureValue(Timeout(10.seconds))
     lazy val dataAccess = testDatabase.slickDataAccess
 
     /**
-     *  Assert that the specified workflow has the appropriate number of calls in appropriately terminal states per
-     *  the `ExpectedTerminal` function.  This function maps from an FQN + index pair to a Boolean expectation.
-     */
+      *  Assert that the specified workflow has the appropriate number of calls in appropriately terminal states per
+      *  the `ExpectedTerminal` function.  This function maps from an FQN + index pair to a Boolean expectation.
+      */
     type ExpectedTerminal = (FullyQualifiedName, Int) => Boolean
     def assertTerminalExecution(id: WorkflowId, expectedCount: Int, expectedTerminal: ExpectedTerminal): Future[Unit] = {
       for {
@@ -93,7 +147,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     val testWdlStringShard = WdlString("testStringValueShard")
     val testWdlStringShardHash = testWdlStringShard.computeHash
 
-    it should "(if hsqldb) have transaction isolation mvcc" in {
+    it should "(if hsqldb) have transaction isolation mvcc" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       import dataAccess.dataAccess.driver.api._
 
@@ -115,13 +169,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "setup via liquibase if necessary" in {
-      assume(canConnect || testRequired)
-      if (testDatabase.useLiquibase)
-        testDatabase.setupLiquibase()
-    }
-
-    it should "create and retrieve the workflow for just reading" in {
+    it should "create and retrieve the workflow for just reading" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -141,7 +189,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "create and query a workflow" in {
+    it should "create and query a workflow" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources)
       val workflow2Info = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), test2Sources)
@@ -213,7 +261,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       }
     }
 
-    it should "support call caching configuration for specified calls in a regular workflow" in {
+    it should "support call caching configuration for specified calls in a regular workflow" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.ThreeStep.asWorkflowSources())
 
@@ -237,13 +285,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "support call caching configuration for specified calls in a scattered workflow" in {
+    it should "support call caching configuration for specified calls in a scattered workflow" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.SimpleScatterWdl.asWorkflowSources())
 
       (for {
-        // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
-        // scatter explodes below so filter that out.
+      // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
+      // scatter explodes below so filter that out.
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.unqualifiedName == "inside_scatter"))
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
@@ -279,7 +327,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "support call caching configuration for all calls in a regular workflow" in {
+    it should "support call caching configuration for all calls in a regular workflow" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
 
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.ThreeStep.asWorkflowSources())
@@ -297,13 +345,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "support call caching configuration for all calls in a scattered workflow" in {
+    it should "support call caching configuration for all calls in a scattered workflow" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
 
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.SimpleScatterWdl.asWorkflowSources())
       (for {
-        // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
-        // scatter explodes below so filter that out.
+      // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
+      // scatter explodes below so filter that out.
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.unqualifiedName == "inside_scatter"))
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
@@ -320,11 +368,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
     }
 
 
-    it should "query a single execution status" in {
+    it should "query a single execution status" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val callFqn = "fully.qualified.name"
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
@@ -338,7 +386,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "create and retrieve 3step.wdl with a 10,000 char pattern" in {
+    it should "create and retrieve 3step.wdl with a 10,000 char pattern" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val sampleWdl = SampleWdl.ThreeStepLargeJson
@@ -359,7 +407,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "fail when saving a workflow twice" in {
+    it should "fail when saving a workflow twice" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -370,7 +418,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 
-    it should "fail when updating a non-existent workflow state" in {
+    it should "fail when updating a non-existent workflow state" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
 
@@ -379,7 +427,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
-    it should "update and get a workflow state" in {
+    it should "update and get a workflow state" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -400,7 +448,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "get workflow state" in {
+    it should "get workflow state" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -447,12 +495,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
 
       val callAlias = if (useAlias) Some("call.alias") else None
 
-      it should s"get $spec" in {
+      it should s"get $spec" taggedAs IntegrationTest in {
         assume(canConnect || testRequired)
         val workflowId = WorkflowId(UUID.randomUUID())
         val workflowInfo = WorkflowDescriptor(workflowId, testSources)
 
-        val task = new Task("taskName", Nil, Nil, Nil, null)
+        val task = Task.empty
         val call =
           if (setCallParent) {
             val workflow = new Workflow("workflow.name", Nil, Nil)
@@ -484,7 +532,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
             status.executionStatus should be(if (updateStatus) ExecutionStatus.Running else ExecutionStatus.NotStarted)
             status.returnCode should be(None)
           }
-          _ <- dataAccess.insertCalls(workflowId, Seq(CallKey(call, Option(0))))
+          _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, Option(0))))
           _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(0), None, None))
           _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
             result.size should be(2)
@@ -505,14 +553,14 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       }
     }
 
-    it should "insert a call in execution table" in {
+    it should "insert a call in execution table" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
-      val callKey = CallKey(call, None)
+      val callKey = BackendCallKey(call, None)
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
@@ -529,12 +577,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "fail to get an non-existent execution status" in {
+    it should "fail to get an non-existent execution status" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       dataAccess.getExecutionStatuses(WorkflowId(UUID.randomUUID())).failed.futureValue should be(a[NoSuchElementException])
     }
 
-    it should "get a symbol input" in {
+    it should "get a symbol input" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolFqn = "symbol.fully.qualified.scope"
@@ -542,7 +590,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(testWdlString), Option(testWdlStringHash))
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       (for {
@@ -565,7 +613,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "get a symbol input that has a very long WDL value field" in {
+    it should "get a symbol input that has a very long WDL value field" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val wdlArray = new WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("test"), WdlString("*" * 10000)))
       val callFqn = "call.fully.qualified.scope"
@@ -574,7 +622,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowDescriptor = WorkflowDescriptor(workflowId, testSources)
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray), wdlArray.getHash(workflowDescriptor))
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       (for {
@@ -597,7 +645,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "fail to get inputs for a null call" in {
+    it should "fail to get inputs for a null call" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId: WorkflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -609,21 +657,20 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
-    it should "set and get an output" in {
+    it should "set and get an output" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
-      val workflowOutputList = Seq(ReportableSymbol("call.fully.qualified.scope.symbol", WdlArrayType(WdlStringType)))
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.size should be(1) //getOutputs on a workflowId does NOT return shards outputs
 
@@ -639,13 +686,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "set and get shard statuses" in {
+    it should "set and get shard statuses" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn1 = "call.fully.qualified.scope$s1"
       val callFqn2 = "call.fully.qualified.scope$s2"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call1 = new Call(None, callFqn1, task, Set.empty[FullyQualifiedName], Map.empty, None)
       val shardIndex1 = Option(0)
       val pid1 = Option("123")
@@ -654,11 +701,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val pid2 = Option("987")
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call1, shardIndex1)), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call2, shardIndex2)), localBackend)
-        _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call1, shardIndex1), InfoKeys.Pid, pid1)
-        _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call2, shardIndex2), InfoKeys.Pid, pid2)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call1, shardIndex1)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call2, shardIndex2)))
+        _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call1, shardIndex1), "PID", pid1)
+        _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call2, shardIndex2), "PID", pid2)
         _ <- dataAccess.getExecutionInfos(workflowId, call1, 1) map {
           case infos => assertResult(pid1) { infos.head.value.get }
         }
@@ -668,20 +715,20 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "set and get an output by call" in {
+    it should "set and get an output by call" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
         callOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.head.key.index should be(None)
           results.head.wdlValue.get should be(testWdlString)
@@ -706,7 +753,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "fail to get outputs for a null call" in {
+    it should "fail to get outputs for a null call" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -718,29 +765,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
-    it should "fail to create workflow for an unknown backend" in {
-      assume(canConnect || testRequired)
-      val callFqn = "call.fully.qualified.scope"
-      val workflowId = WorkflowId(UUID.randomUUID())
-      val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
-      val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
-
-      dataAccess.createWorkflow(workflowInfo, Nil, Seq(call)).failed.futureValue should be(an[IllegalArgumentException])
-    }
-
-    it should "fail to create workflow for a null backend" in {
-      assume(canConnect || testRequired)
-      val callFqn = "call.fully.qualified.scope"
-      val workflowId = WorkflowId(UUID.randomUUID())
-      val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
-      val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
-
-      dataAccess.createWorkflow(workflowInfo, Nil, Seq(call)).failed.futureValue should be(an[IllegalArgumentException])
-    }
-
-    it should "set and get the same symbol with IO as input then output" in {
+    it should "set and get the same symbol with IO as input then output" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
@@ -749,13 +774,13 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
       val entry = new SymbolStoreEntry(key, WdlStringType, Option(testWdlString), Option(testWdlStringHash))
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
@@ -773,69 +798,69 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield ()).futureValue
     }
 
-    it should "fail when setting an existing symbol output" in {
+    it should "fail when setting an existing symbol output" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
       val symbolFqn = callFqn + "." + symbolLqn
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(), Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         // Second attempt should fail
-        _ <- dataAccess.setOutputs(workflowId, CallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 
-    it should "set and get a backend info" in {
+    it should "set and get a backend info" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
       val pid = Option("123")
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
-        _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, None), InfoKeys.Pid, pid)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call))
+        _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, None), "PID", pid)
         _ <- dataAccess.getExecutionInfos(workflowId, call, 1) map { info =>
           info should have size 1
-          info.head.key should equal(InfoKeys.Pid)
+          info.head.key should equal("PID")
           info.head.value should equal(pid)
         }
       } yield ()).futureValue
     }
 
     // Queries use `.head` a lot. There was a bug that pulled the backend info by fqn, but for any workflow.
-    it should "set and get a backend info for same call on two workflows" in {
+    it should "set and get a backend info for same call on two workflows" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
       val workflowId1 = WorkflowId(UUID.randomUUID())
       val workflowId2 = WorkflowId(UUID.randomUUID())
       val workflowInfo1 = WorkflowDescriptor(workflowId1, testSources)
       val workflowInfo2 = WorkflowDescriptor(workflowId2, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
       val pid1 = Option("123")
       val pid2 = Option("321")
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo1, Nil, Seq(call), localBackend)
-        _ <- dataAccess.createWorkflow(workflowInfo2, Nil, Seq(call), localBackend)
-        _ <- dataAccess.updateExecutionInfo(workflowId1, BackendCallKey(call, None), InfoKeys.Pid, pid1)
-        _ <- dataAccess.updateExecutionInfo(workflowId2, BackendCallKey(call, None), InfoKeys.Pid, pid2)
+        _ <- dataAccess.createWorkflow(workflowInfo1, Nil, Seq(call))
+        _ <- dataAccess.createWorkflow(workflowInfo2, Nil, Seq(call))
+        _ <- dataAccess.updateExecutionInfo(workflowId1, BackendCallKey(call, None), "PID", pid1)
+        _ <- dataAccess.updateExecutionInfo(workflowId2, BackendCallKey(call, None), "PID", pid2)
         _ <- dataAccess.getExecutionInfos(workflowId1, call, 1) map { info =>
           info should have size 1
-          info.head.key should equal(InfoKeys.Pid)
+          info.head.key should equal("PID")
           info.head.value should equal(pid1)
         }
         _ <- dataAccess.getExecutionInfos(workflowId2, call, 1) map { info =>
           info should have size 1
-          info.head.key should equal(InfoKeys.Pid)
+          info.head.key should equal("PID")
           info.head.value should equal(pid2)
         }
       } yield ()).futureValue
@@ -846,7 +871,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       val callFqn = "call.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       // Assert a singular `Execution` in `executions`, and that the dates of the `Execution` are defined
@@ -874,71 +899,92 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures {
       } yield()).futureValue
     }
 
-    it should "set and get execution events" in {
+    it should "set and get execution events" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
 
       // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
       val shardedCall = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
       val shardIndex = Some(0)
-      val backendInfo = new LocalCallBackendInfo(Option(123))
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call))
-        _ <- dataAccess.insertCalls(workflowId, Seq(CallKey(shardedCall, shardIndex)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, None, 2)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 2)))
 
         now = DateTime.now
         mainEventSeq = Seq(
           ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
+          ExecutionEventEntry("o-genki desuka", now.minusHours(4), now.minusHours(2)),
+          ExecutionEventEntry("oopsPreempted", now.minusHours(5), now))
+        mainEventSeqAttempt2 = Seq(
+          ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
           ExecutionEventEntry("cheerio", now.minusHours(5), now))
         shardEventSeq = Seq(
+          ExecutionEventEntry("konnichiwa", now.minusHours(4), now.minusHours(2)),
+          ExecutionEventEntry("preempted again!", now.minusHours(1), now))
+        shardEventSeqAttempt2 = Seq(
           ExecutionEventEntry("konnichiwa", now.minusHours(7), now.minusHours(5)),
           ExecutionEventEntry("o-genki desuka", now.minusHours(5), now.minusHours(2)),
           ExecutionEventEntry("sayounara", now.minusHours(2), now))
 
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, attempt = 0, mainEventSeq)
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, attempt = 0, shardEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, 1, mainEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, 2, mainEventSeqAttempt2)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, 1, shardEventSeq)
+        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, 2, shardEventSeqAttempt2)
 
         _ <- dataAccess.getAllExecutionEvents(workflowId) map { retrievedEvents =>
           val mainExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, None)
-          retrievedEvents valueAt mainExecutionDatabaseKey should have size 2
+          retrievedEvents valueAt mainExecutionDatabaseKey should have size 3
           mainEventSeq foreach { event =>
             retrievedEvents valueAt mainExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
           }
 
+          val mainExecutionDatabaseKeyAttempt2 = ExecutionDatabaseKey(call.fullyQualifiedName, None, 2)
+          retrievedEvents valueAt mainExecutionDatabaseKeyAttempt2 should have size 2
+          mainEventSeqAttempt2 foreach { event =>
+            retrievedEvents valueAt mainExecutionDatabaseKeyAttempt2 exists { executionEventsCloseEnough(_, event) } should be (true)
+          }
+
           val shardExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex)
-          retrievedEvents valueAt shardExecutionDatabaseKey should have size 3
+          retrievedEvents valueAt shardExecutionDatabaseKey should have size 2
           shardEventSeq foreach { event =>
             retrievedEvents valueAt shardExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
+          }
+
+          val shardExecutionDatabaseKeyAttempt2 = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex, 2)
+          retrievedEvents valueAt shardExecutionDatabaseKeyAttempt2 should have size 3
+          shardEventSeqAttempt2 foreach { event =>
+            retrievedEvents valueAt shardExecutionDatabaseKeyAttempt2 exists { executionEventsCloseEnough(_, event) } should be (true)
           }
         }
       } yield ()).futureValue
     }
 
-    it should "reject a set of execution events without a valid execution to link to" in {
+    it should "reject a set of execution events without a valid execution to link to" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
 
       // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
-      val task = new Task("taskName", Nil, Nil, Nil, null)
+      val task = Task.empty
       val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
-      val backendInfo = new LocalCallBackendInfo(Option(123))
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call))
-        _ <- dataAccess.setExecutionEvents(WorkflowId(UUID.randomUUID()), call.fullyQualifiedName, None, attempt = 0, Seq(
+        _ <- dataAccess.setExecutionEvents(WorkflowId(UUID.randomUUID()), call.fullyQualifiedName, None, 1, Seq(
           ExecutionEventEntry("hello", DateTime.now.minusHours(7), DateTime.now.minusHours(5)),
           ExecutionEventEntry("cheerio", DateTime.now.minusHours(5), DateTime.now)))
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
-    it should "shutdown the database" in {
+    it should "close the database" taggedAs IntegrationTest in {
       assume(canConnect || testRequired)
-      dataAccess.shutdown().futureValue
+      dataAccess.close()
     }
   }
 

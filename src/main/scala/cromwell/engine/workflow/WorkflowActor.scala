@@ -1087,7 +1087,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       case backendCallKey: BackendCallKey =>
         fetchLocallyQualifiedInputs(backendCallKey) match {
           case Success(callInputs) =>
-            startActor(callKey, callInputs, CallActor.Initialize)
+            startActor(callKey, callInputs, CallActor.Start)
           case Failure(t) =>
             logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
             scheduleTransition(WorkflowFailed)

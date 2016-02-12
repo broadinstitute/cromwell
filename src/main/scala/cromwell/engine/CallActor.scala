@@ -26,7 +26,6 @@ import scala.util.{Failure, Success}
 
 object CallActor {
   sealed trait CallActorMessage
-  case object Initialize extends CallActorMessage
   sealed trait StartMode extends CallActorMessage
   case object Start extends StartMode
   //  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
@@ -113,17 +112,13 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
   }
 
   when(CallNotStarted) {
-    //    case Event(_@Initialize, _) =>
-    //      sendStartMessage()
-    //      stay()
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
       //Right now, the start mode is not differentiated between.. ie. same flow for all the modes, cached or not
       context.parent ! WorkflowActor.CallStarted(key)
-      //We have backend here. Check if we can use cached results.
+      // We have backend here. Check if we can use cached results.
       checkForCacheOption(backend)
-      //      subscribe(self, backend)
     case Event(md5sum: Md5sum, _) => useCacheIfPossible(backend, md5sum)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }

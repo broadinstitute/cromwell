@@ -46,7 +46,7 @@ object CallCachingParameters {
   private [webservice] def validateCallName(callName: Option[String]): ErrorOr[Option[ExecutionDatabaseKey]] = {
     import Patterns.CallFullyQualifiedName
     callName map {
-      case CallFullyQualifiedName(fqn, index) => Option(ExecutionDatabaseKey(fqn, Option(index) map { _.toInt })).successNel
+      case CallFullyQualifiedName(fqn, index) => Option(ExecutionDatabaseKey(fqn, Option(index) map { _.toInt }, 1)).successNel
       case name => s"Specified call does not parse as a fully qualified name with optional index: $name".failureNel
     } getOrElse None.successNel
   }

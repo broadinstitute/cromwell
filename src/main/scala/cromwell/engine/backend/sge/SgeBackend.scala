@@ -99,7 +99,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int])
                                (implicit ec: ExecutionContext): Future[Unit] = {
-    globalDataAccess.updateExecutionInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index), InfoKeys.JobNumber, Option(sgeJobId.toString))
+    globalDataAccess.updateExecutionInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index, call.key.attempt), InfoKeys.JobNumber, Option(sgeJobId.toString))
   }
 
   /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like

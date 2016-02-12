@@ -77,7 +77,7 @@ object CallMetadataBuilder {
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
       val inputsNoCollectors = filterCollectorSymbols(callInputs)
-      val inputsByKey = inputsNoCollectors.groupBy(i => ExecutionDatabaseKey(i.scope, i.key.index))
+      val inputsByKey = inputsNoCollectors.groupBy(i => ExecutionDatabaseKey(i.scope, i.key.index, 1))
 
       for {
         (inputKey, inputs) <- inputsByKey
@@ -157,7 +157,7 @@ object CallMetadataBuilder {
   /** Remove symbols corresponding to collectors. */
   private def filterCollectorSymbols(symbols: Traversable[SymbolStoreEntry]): Traversable[SymbolStoreEntry] = {
     // Squash duplicate ExecutionDatabaseKeys.
-    val databaseKeys = symbols map { s => ExecutionDatabaseKey(s.scope, s.key.index) } toSet
+    val databaseKeys = symbols map { s => ExecutionDatabaseKey(s.scope, s.key.index, 1) } toSet
     // Look for FQNs with at least one ExecutionStoreKey with defined index.
     val fqnsWithCollectors = databaseKeys.groupBy(_.fqn).collect({ case (fqn, keys) if keys.exists(_.index.isDefined) => fqn }).toSet
     // We know which FQNs with None indexes correspond to collectors, so filter matching symbols.
@@ -174,7 +174,7 @@ object CallMetadataBuilder {
             callOutputs: Traversable[SymbolStoreEntry],
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
 
-    val executionKeys = infosByExecution map { x => ExecutionDatabaseKey(x.execution.callFqn, x.execution.index.toIndex) }
+    val executionKeys = infosByExecution map { x => ExecutionDatabaseKey(x.execution.callFqn, x.execution.index.toIndex, x.execution.attempt) }
 
     // Define a sequence of ExecutionMap transformer functions.
     val executionMapTransformers = Seq(

@@ -36,6 +36,7 @@ trait ExecutionInfoComponent {
     (executionId: Rep[Int], key: Rep[String]) => for {
       executionInfo <- executionInfos
       if executionInfo.key === key
+      if executionInfo.executionId === executionId
     } yield executionInfo.value)
 
   val executionsAndExecutionInfosByWorkflowId = Compiled(

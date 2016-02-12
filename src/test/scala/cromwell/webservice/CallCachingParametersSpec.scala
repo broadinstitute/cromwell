@@ -26,7 +26,7 @@ class CallCachingParametersSpec extends CromwellTestkitSpec {
     "be accepted if not indexed" in {
       CallNames foreach { name =>
         CallCachingParameters.validateCallName(Option(name)) match {
-          case Success(k) => k shouldEqual Some(ExecutionDatabaseKey(name, None))
+          case Success(k) => k shouldEqual Some(ExecutionDatabaseKey(name, None, 1))
           case Failure(x) => fail("Unexpected failure: " + x.list.mkString(", "))
         }
       }
@@ -35,7 +35,7 @@ class CallCachingParametersSpec extends CromwellTestkitSpec {
     "be accepted if indexed" in {
       CallNames foreach { name =>
         CallCachingParameters.validateCallName(Option(name + ".0")) match {
-          case Success(k) => k shouldEqual Some(ExecutionDatabaseKey(name, Some(0)))
+          case Success(k) => k shouldEqual Some(ExecutionDatabaseKey(name, Some(0), 1))
           case Failure(x) => fail("Unexpected failure: " + x.list.mkString(", "))
         }
       }

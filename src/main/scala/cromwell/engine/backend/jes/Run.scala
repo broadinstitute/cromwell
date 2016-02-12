@@ -165,8 +165,8 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
 
       // Update the database state:
       // TODO the database API should probably be returning DBIOs so callers can compose and wrap with a transaction.
-      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index), JesBackend.InfoKeys.JesRunId, Option(runId))(ExecutionContext.global)
-      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index), JesBackend.InfoKeys.JesStatus, Option(currentStatus.toString))(ExecutionContext.global)
+      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index, pipeline.key.attempt), JesBackend.InfoKeys.JesRunId, Option(runId))(ExecutionContext.global)
+      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index, pipeline.key.attempt), JesBackend.InfoKeys.JesStatus, Option(currentStatus.toString))(ExecutionContext.global)
 
       // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.

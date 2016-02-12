@@ -261,7 +261,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
   }
 
   private def assertCallExistence(id: WorkflowId, callFqn: FullyQualifiedName): Future[Any] = {
-    globalDataAccess.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None)) map {
+    globalDataAccess.getExecutionStatus(id, ExecutionDatabaseKey(callFqn, None, 1)) map {
       case None => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
       case _ =>
     }
@@ -292,7 +292,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
-      outputs <- globalDataAccess.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None))
+      outputs <- globalDataAccess.getOutputs(workflowId, ExecutionDatabaseKey(callFqn, None, 1))
     } yield {
       SymbolStoreEntry.toCallOutputs(outputs)
     }

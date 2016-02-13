@@ -66,6 +66,11 @@ libraryDependencies ++= Seq(
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
   "com.github.pathikrit" %% "better-files" % "2.13.0",
   "org.liquibase" % "liquibase-core" % "3.4.2",
+
+  // This is to stop liquibase from being so noisy by default
+  // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
+  "com.mattbertolini" % "liquibase-slf4j" % "2.0.0",
+
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,

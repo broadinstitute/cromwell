@@ -379,7 +379,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           fields.get("status").isDefined &&
           fields.get("status").get.asInstanceOf[JsString].value.equals("fail") &&
           fields.get("message").isDefined &&
-          fields.get("message").get.asInstanceOf[JsString].value.contains("failed to process inputs")
+          fields.get("message").get.asInstanceOf[JsString].value.contains("Workflow input processing failed.") &&
           fields.get("errors").isDefined &&
             (fields.get("errors").get match {
             case array: JsArray if array.elements.length == 1 =>

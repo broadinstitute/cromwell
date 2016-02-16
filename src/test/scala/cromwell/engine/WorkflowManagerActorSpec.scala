@@ -11,7 +11,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowMetadata, WorkflowStatus, WorkflowStdoutStderr, _}
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.webservice.CromwellApiHandler._
@@ -77,7 +77,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
           for {
             _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
-            _ <- globalDataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
+            _ <- globalDataAccess.updateStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()
         }
       )

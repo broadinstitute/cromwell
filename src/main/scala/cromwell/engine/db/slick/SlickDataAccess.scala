@@ -10,7 +10,7 @@ import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.backend.{Backend, JobKey, WorkflowQueryResult}
+import cromwell.engine.backend.{BackendCall, Backend, JobKey, WorkflowQueryResult}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
@@ -604,24 +604,55 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       } }
   }
 
-  private def setStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
-                              callStatus: CallStatus)(implicit ec: ExecutionContext): DBIO[Unit] = {
-    // Describes a function from an input `Executions` to a projection of fields to be updated.
-    type ProjectionFunction = SlickDataAccess.this.dataAccess.Executions => (
-      Rep[String], Rep[Option[Timestamp]], Rep[Option[Int]], Rep[Option[String]], Rep[Option[String]], Rep[Option[Int]])
-    // If the call status is Starting, target the start date for update, otherwise target the end date.  The end date
-    // is only set to a non-None value if the status is terminal.
-    val projectionFn: ProjectionFunction = if (callStatus.isStarting)
-      e => (e.status, e.startDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom)
-    else
-      e => (e.status, e.endDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom)
+  private def executionsForStatusUpdate(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext) = for {
+    workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+    executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
+  } yield executions
 
-    val maybeDate = if (callStatus.isStarting || callStatus.isTerminal) Option(new Date().toTimestamp) else None
+  private def assertUpdateCount(updates: Int, expected: Int) = require(updates == expected, s"Execution update count $updates did not match scopes size $expected")
 
-    // If this call represents a call caching hit, find the execution ID for the call from which results were cloned and
-    // wrap that in an `Option`.
-    // If this wasn't a call caching hit just return `DBIO.successful(None)`, `None` lifted into `DBIO`.
-    val findResultsClonedFromId = callStatus.resultsClonedFrom map { backendCall =>
+  def setStartingStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext): Future[Unit] = {
+    if (scopeKeys.isEmpty) Future.successful(()) else runTransaction(setStartingStatusAction(workflowId, scopeKeys))
+  }
+
+  def setStartingStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext) = {
+    for {
+      executions <- executionsForStatusUpdate(workflowId, scopeKeys)
+      count <- executions.map(e => (e.status, e.startDt)).update((ExecutionStatus.Starting.toString, Option(new Date().toTimestamp)))
+      _ = assertUpdateCount(count, scopeKeys.size)
+    } yield ()
+  }
+
+  def updateStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey], status: ExecutionStatus)(implicit ec: ExecutionContext): Future[Unit] = {
+    if (scopeKeys.isEmpty) Future.successful(()) else runTransaction(updateStatusAction(workflowId, scopeKeys, status))
+  }
+
+  def updateStatusAction(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey], status: ExecutionStatus)(implicit ec: ExecutionContext) = {
+    require(!status.isTerminal && !(status == Starting))
+
+    for {
+      executions <- executionsForStatusUpdate(workflowId, scopeKeys)
+      count <- executions.map(_.status).update(status.toString)
+      _ = assertUpdateCount(count, scopeKeys.size)
+    } yield ()
+  }
+
+  def setTerminalStatus(workflowId: WorkflowId, scopeKey: ExecutionDatabaseKey, status: ExecutionStatus,
+                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash],
+                        resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext): Future[Unit] = {
+    runTransaction(setTerminalStatusAction(workflowId, scopeKey, status, scriptReturnCode, hash, resultsClonedFrom))
+  }
+
+  def setTerminalStatusAction(workflowId: WorkflowId, scopeKey: ExecutionDatabaseKey, status: ExecutionStatus,
+                              scriptReturnCode: Option[Int], hash: Option[ExecutionHash],
+                              resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext) = {
+    require(status.isTerminal)
+
+    val overallHash = hash map { _.overallHash }
+    val dockerHash = hash flatMap { _.dockerHash }
+    val projection = { e: SlickDataAccess.this.dataAccess.Executions => (e.status, e.endDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom) }
+
+    val findResultsClonedFromId = resultsClonedFrom map { backendCall =>
       for {
         workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(backendCall.workflowDescriptor.id.toString).result.head
         execution <- dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndexAndAttempt(
@@ -630,20 +661,11 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     } getOrElse DBIO.successful(None)
 
     for {
-      workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-      executions = dataAccess.executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionResult.workflowExecutionId.get, scopeKeys)
+      executions <- executionsForStatusUpdate(workflowId, List(scopeKey))
       clonedFromId <- findResultsClonedFromId
-      overallHash = callStatus.hash map { _.overallHash }
-      dockerHash = callStatus.hash flatMap { _.dockerHash }
-      count <- executions.map(projectionFn).update((callStatus.executionStatus.toString, maybeDate, callStatus.returnCode, overallHash, dockerHash, clonedFromId))
-      scopeSize = scopeKeys.size
-      _ = require(count == scopeSize, s"Execution update count $count did not match scopes size $scopeSize")
+      count <- executions.map(projection).update((status.toString, Option(new Date().toTimestamp), scriptReturnCode, overallHash, dockerHash, clonedFromId))
+      _ = assertUpdateCount(count, 1)
     } yield ()
-  }
-
-  override def setStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey],
-                         callStatus: CallStatus)(implicit ec: ExecutionContext): Future[Unit] = {
-    if (scopeKeys.isEmpty) Future.successful(()) else runTransaction(setStatusAction(workflowId, scopeKeys, callStatus))
   }
 
   override def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
@@ -704,30 +726,30 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def resetNonResumableExecutions(workflowId: WorkflowId, isResumable: ExecutionAndExecutionInfo => Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def resetNonResumableExecutions(workflowId: WorkflowId, isResumable: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result
-      executionsAndInfos = tuples map ExecutionAndExecutionInfo.tupled
+      executionsAndInfos = tuples groupBy { _._1 } mapValues { _ map { _._2 } }
 
-      nonResumableDatabaseKeys = executionsAndInfos filterNot isResumable map { _.execution.toKey }
-      _ <- setStatusAction(workflowId, nonResumableDatabaseKeys, CallStatus(ExecutionStatus.NotStarted, None, None, None))
+      nonResumableDatabaseKeys = (executionsAndInfos filterNot Function.tupled(isResumable)).keys map { _.toKey }
+      _ <- updateStatusAction(workflowId, nonResumableDatabaseKeys, ExecutionStatus.NotStarted)
     } yield ()
 
     runTransaction(action)
   }
 
   override def findResumableExecutions(workflowId: WorkflowId,
-                                       isResumable: ExecutionAndExecutionInfo => Boolean,
-                                       jobKeyBuilder: ExecutionAndExecutionInfo => JobKey)
+                                       isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
+                                       jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => JobKey)
                                       (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
     val action = for {
       tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result
-      executionsAndInfos = tuples map ExecutionAndExecutionInfo.tupled
+      executionsAndInfos = tuples groupBy { _._1 } mapValues { _ map { _._2 } }
 
-      resumablePairs = executionsAndInfos collect { case ei if isResumable(ei) => ei.execution.toKey -> jobKeyBuilder(ei) }
+      resumablePairs = executionsAndInfos collect { case (e, ei) if Function.tupled(isResumable)(e, ei) => e.toKey -> Function.tupled(jobKeyBuilder)(e, ei) }
     } yield resumablePairs
 
-    runTransaction(action) map { _ map { x => ExecutionKeyToJobKey(x._1, x._2) } }
+    runTransaction(action) map { _ map { case (e, j) => ExecutionKeyToJobKey(e, j) } toTraversable }
   }
 
   override def queryWorkflows(queryParameters: WorkflowQueryParameters)

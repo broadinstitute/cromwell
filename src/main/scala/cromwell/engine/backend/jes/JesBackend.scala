@@ -19,7 +19,7 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.db.slick.{Execution, ExecutionAndExecutionInfo}
+import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
@@ -70,14 +70,16 @@ object JesBackend {
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesInput(ExtraConfigParamName, gcsPath, Paths.get(""), "LITERAL")
 
   // Only executions in Running state with a recorded operation ID are resumable.
-  private val IsResumable: ExecutionAndExecutionInfo => Boolean = ei => {
-    ei.execution.status.toExecutionStatus == ExecutionStatus.Running &&
-      ei.executionInfo.key == "JesBackend.InfoKeys.JesRunId" && ei.executionInfo.value.isDefined
+  private val IsResumable: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    e.status.toExecutionStatus == ExecutionStatus.Running &&
+      eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isDefined)
   }
 
   case class JesJobKey(jesRunId: String) extends JobKey
 
-  private val BuildJobKey: ExecutionAndExecutionInfo => JobKey = ei => JesJobKey(ei.executionInfo.value.get)
+  private val BuildJobKey: (Execution, Seq[ExecutionInfo]) => JobKey = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    JesJobKey(eis.find(_.key == JesBackend.InfoKeys.JesRunId).get.value.get)
+  }
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
@@ -657,16 +659,16 @@ case class JesBackend(actorSystem: ActorSystem)
           s"""$preemptedMsg The call will be re-started with another pre-emptible VM (max pre-emptible attempts number is $max).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
-        RetryableExecutionHandle(e, Option(errorCode), events).future
+        RetryableExecutionHandle(e, None, events).future
       } else {
         val e = new PreemptedException(
           s"""$preemptedMsg The maximum number of pre-emptible attempts ($max) has been reached. The call will be restarted with a non-pre-emptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
-        RetryableExecutionHandle(e, Option(errorCode), events).future
+        RetryableExecutionHandle(e, None, events).future
       }
     } else {
       val e = new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
-      FailedExecutionHandle(e, Option(errorCode), events).future
+      FailedExecutionHandle(e, None, events).future
     }
   }
 
@@ -721,7 +723,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
           for {
             _ <- globalDataAccess.resetNonResumableExecutions(restartableWorkflow.id, IsResumable)
-            _ <- globalDataAccess.setStatus(restartableWorkflow.id, runningCollectors map { _.toKey }, ExecutionStatus.Starting)
+            _ <- globalDataAccess.setStartingStatus(restartableWorkflow.id, runningCollectors map { _.toKey })
           } yield ()
         }
       }

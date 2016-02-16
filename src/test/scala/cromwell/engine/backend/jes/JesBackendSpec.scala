@@ -10,7 +10,7 @@ import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.backend.{AbortedExecutionHandle, BackendType, FailedExecutionHandle, RetryableExecutionHandle}
+import cromwell.engine.backend.{AbortedExecutionHandle, FailedExecutionHandle, RetryableExecutionHandle}
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{PreemptedException, WorkflowContext, WorkflowDescriptor, WorkflowId}
@@ -20,7 +20,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values._
-import wdl4s.{Call, CallInputs, RuntimeAttributes, Task}
+import wdl4s.{Call, CallInputs, Task}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -65,16 +65,24 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val backendCall = mock[JesBackendCall]
     backendCall.call returns call
     backendCall.key returns backendCallKey
-    backendCall.preemptible returns true
+    backendCall.preemptible returns false
     backendCall.maxPreemption returns 1
     backendCall.workflowDescriptor returns wd
     val handle = mock[JesPendingExecutionHandle]
     handle.backendCall returns backendCall
 
+    val executionResult0 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    executionResult0.isInstanceOf[FailedExecutionHandle] shouldBe true
+    val failedHandle0 = executionResult0.asInstanceOf[FailedExecutionHandle]
+    failedHandle0.returnCode shouldBe None
+
+    backendCall.preemptible returns true
+
     val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
     executionResult.isInstanceOf[RetryableExecutionHandle] shouldBe true
     val retryableHandle = executionResult.asInstanceOf[RetryableExecutionHandle]
     retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
+    retryableHandle.returnCode shouldBe None
     val preemptedException = retryableHandle.throwable.asInstanceOf[PreemptedException]
     preemptedException.getMessage should include ("will be restarted with a non-pre-emptible VM")
 
@@ -84,6 +92,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     executionResult2.isInstanceOf[RetryableExecutionHandle] shouldBe true
     val retryableHandle2 = executionResult2.asInstanceOf[RetryableExecutionHandle]
     retryableHandle2.throwable.isInstanceOf[PreemptedException] shouldBe true
+    retryableHandle2.returnCode shouldBe None
     val preemptedException2 = retryableHandle2.throwable.asInstanceOf[PreemptedException]
     preemptedException2.getMessage should include ("will be re-started with another pre-emptible VM")
 

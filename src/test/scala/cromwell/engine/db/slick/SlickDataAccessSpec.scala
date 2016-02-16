@@ -13,7 +13,7 @@ import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend.{Backend, BackendType, CallLogs}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
-import cromwell.engine.db.{CallStatus, DiffResultFilter, ExecutionDatabaseKey}
+import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey, WorkflowOptions}
 import cromwell.engine.{CallOutput, CallOutputs, _}
@@ -302,7 +302,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls, localBackend)
         // Unknown workflow
         _ <- assertCallCachingFailure(WorkflowId(UUID.randomUUID()), callName = Option("three_step.ps"), "Workflow not found")
-        _ <- dataAccess.setStatus(workflowInfo.id, Seq(ExecutionDatabaseKey("three_step.ps", None, 1)), ExecutionStatus.Done)
+        _ <- dataAccess.setTerminalStatus(workflowInfo.id, ExecutionDatabaseKey("three_step.ps", None, 1), ExecutionStatus.Done, None, None, None)
         executions <- dataAccess.getExecutions(workflowInfo.id)
         _ = executions should have size 3
         _ = executions foreach { _.allowsResultReuse shouldBe true }
@@ -549,7 +549,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
         def optionallyUpdateExecutionStatus() =
           if (updateStatus)
-            dataAccess.setStatus(workflowId, Seq(callKey), CallStatus(ExecutionStatus.Running, None, None, None))
+            dataAccess.updateStatus(workflowId, Seq(callKey), ExecutionStatus.Running)
           else
             Future.successful(())
 
@@ -566,7 +566,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
             status.returnCode should be(None)
           }
           _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, Option(0), 1)), localBackend)
-          _ <- dataAccess.setStatus(workflowId, Seq(shardKey), CallStatus(ExecutionStatus.Done, Option(0), None, None))
+          _ <- dataAccess.setTerminalStatus(workflowId, shardKey, ExecutionStatus.Done, Option(0), None, None)
           _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
             result.size should be(2)
             //Previous call status should not have changed
@@ -943,15 +943,15 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
-        callKeys = Seq(ExecutionDatabaseKey(callFqn, None, 1))
+        callKey = ExecutionDatabaseKey(callFqn, None, 1)
 
-        _ <- dataAccess.setStatus(workflowId, callKeys, ExecutionStatus.NotStarted)
+        _ <- dataAccess.updateStatus(workflowId, List(callKey), ExecutionStatus.NotStarted)
         _ <- dataAccess.getExecutions(workflowId) map assertDates(startDefined = false, endDefined = false)
 
-        _ <- dataAccess.setStatus(workflowId, callKeys, ExecutionStatus.Starting)
+        _ <- dataAccess.setStartingStatus(workflowId, List(callKey))
         _ <- dataAccess.getExecutions(workflowId) map assertDates(startDefined = true, endDefined = false)
 
-        _ <- dataAccess.setStatus(workflowId, callKeys, ExecutionStatus.Done)
+        _ <- dataAccess.setTerminalStatus(workflowId, callKey, ExecutionStatus.Done, None, None, None)
         _ <- dataAccess.getExecutions(workflowId) map assertDates(startDefined = true, endDefined = true)
       } yield()).futureValue
     }

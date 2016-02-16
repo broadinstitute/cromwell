@@ -5,28 +5,26 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine.ExecutionIndex._
+import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
+import cromwell.engine.Hashing._
+import cromwell.engine.backend.{Backend, BackendCall}
 import cromwell.engine.callactor.CallActor
+import cromwell.engine.callactor.CallActor.CallActorMessage
+import cromwell.engine.db.DataAccess._
+import cromwell.engine.db.slick.Execution
+import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.finalcall.{CopyWorkflowOutputsCall, FinalCall}
+import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure, WorkflowActorSubmitSuccess}
+import cromwell.engine.{CallOutput, CallOutputs, EnhancedFullyQualifiedName, HostInputs, _}
+import cromwell.instrumentation.Instrumentation.Monitor
+import cromwell.logging.WorkflowLogger
+import cromwell.util.TerminalUtil
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
-import CallActor.CallActorMessage
-import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus._
-import cromwell.engine.Hashing._
-import cromwell.engine._
-import cromwell.engine.backend.{Backend, BackendCall, JobKey}
-import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.Execution
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.engine.workflow.WorkflowActor._
-import cromwell.instrumentation.Instrumentation.Monitor
-import cromwell.engine.{CallOutput, HostInputs, CallOutputs, EnhancedFullyQualifiedName}
-import cromwell.logging.WorkflowLogger
-import cromwell.util.TerminalUtil
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -688,7 +686,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     logger.info(s"persisting status of ${storeKey.tag} to $executionStatus.")
 
-    val persistFuture = globalDataAccess.setStatus(workflow.id, Seq(storeKey.toDatabaseKey), CallStatus(executionStatus, returnCode, hash, resultsClonedFrom))
+    val persistFuture = executionStatus match {
+      case ExecutionStatus.Starting => globalDataAccess.setStartingStatus(workflow.id, List(storeKey.toDatabaseKey))
+      case terminal if terminal.isTerminal => globalDataAccess.setTerminalStatus(workflow.id, storeKey.toDatabaseKey, terminal, returnCode, hash, resultsClonedFrom)
+      case other => globalDataAccess.updateStatus(workflow.id, List(storeKey.toDatabaseKey), other)
+    }
+
     persistFuture onComplete {
       case Success(_) => self ! PersistenceSucceeded(storeKey, executionStatus, callOutputs)
       case Failure(t) =>

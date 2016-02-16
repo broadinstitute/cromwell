@@ -1,7 +1,7 @@
 package cromwell.engine.db
 
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, JobKey}
+import cromwell.engine.backend.{BackendCall, Backend, JobKey}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
@@ -78,13 +78,15 @@ trait DataAccess extends AutoCloseable {
   def getAllExecutionEvents(workflowId: WorkflowId)
                            (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]
 
-  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], executionStatus: ExecutionStatus)
-               (implicit ec: ExecutionContext): Future[Unit] = {
-    setStatus(workflowId, keys, CallStatus(executionStatus, None, None, None))
-  }
+  /** Set the status of one or several calls to starting and update the start date. */
+  def setStartingStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext): Future[Unit]
 
-  def setStatus(workflowId: WorkflowId, keys: Traversable[ExecutionDatabaseKey], callStatus: CallStatus)
-               (implicit ec: ExecutionContext): Future[Unit]
+  /** Simply set the status of one of several calls. Status cannot be Starting or a Terminal status. */
+  def updateStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey], status: ExecutionStatus)(implicit ec: ExecutionContext): Future[Unit]
+
+  /** Set the status of a Call to a terminal status, and update associated information (return code, hash, cache). */
+  def setTerminalStatus(workflowId: WorkflowId, scopeKeys: ExecutionDatabaseKey, status: ExecutionStatus,
+                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext): Future[Unit]
 
   def getExecutionStatuses(workflowId: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]]
@@ -113,11 +115,11 @@ trait DataAccess extends AutoCloseable {
 
   def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String)(implicit ec: ExecutionContext): Future[Unit]
 
-  def resetNonResumableExecutions(workflowId: WorkflowId, isResumable: ExecutionAndExecutionInfo => Boolean)(implicit ec: ExecutionContext): Future[Unit]
+  def resetNonResumableExecutions(workflowId: WorkflowId, isResumable: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit]
 
   def findResumableExecutions(workflowId: WorkflowId,
-                              isResumable: ExecutionAndExecutionInfo => Boolean,
-                              jobKeyBuilder: ExecutionAndExecutionInfo => JobKey)
+                              isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
+                              jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => JobKey)
                              (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]]
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)

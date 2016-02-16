@@ -291,7 +291,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           rc = None,
           startDt = None,
           endDt = None,
-          backendType = "Local",
+          backendType = Option("Local"),
           attempt = key.attempt)
 
       // Add the empty execution info rows using the execution as the FK.

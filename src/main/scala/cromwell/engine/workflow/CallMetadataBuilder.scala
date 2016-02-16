@@ -117,7 +117,7 @@ object CallMetadataBuilder {
         if !e.isScatter && !e.isCollector(allExecutions)
         baseMetadata = executionMap.get(e.toKey).get
         backendValues = BackendValues.extract(ei)
-      } yield e.toKey -> baseMetadata.copy(backend = Option(e.backendType), jobId = backendValues.jobId, backendStatus = backendValues.status)
+      } yield e.toKey -> baseMetadata.copy(backend = e.backendType, jobId = backendValues.jobId, backendStatus = backendValues.status)
     }.toMap
 
   /**

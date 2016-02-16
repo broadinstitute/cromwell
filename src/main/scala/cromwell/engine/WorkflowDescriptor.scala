@@ -7,26 +7,26 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.logging.WorkflowLogger
-import cromwell.util.{TryUtil, SimpleExponentialBackoff}
-import wdl4s._
-import wdl4s.values.{WdlSingleFile, WdlFile}
 import cromwell.engine.backend.DefaultWorkflowEngineFunctions
-import cromwell.engine.io.{IoInterface, IoManager}
+import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
+import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.workflow.WorkflowOptions
+import cromwell.logging.WorkflowLogger
+import cromwell.util.{SimpleExponentialBackoff, TryUtil}
 import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json.{JsObject, _}
-import cromwell.engine.db.DataAccess.globalDataAccess
+import wdl4s._
+import wdl4s.values.{WdlFile, WdlSingleFile}
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
-import scala.language.postfixOps
 
 case class WorkflowDescriptor(id: WorkflowId,
                               sourceFiles: WorkflowSourceFiles,
@@ -160,10 +160,12 @@ object WorkflowDescriptor {
     validateWorkflowDescriptor(id, sourceFiles, conf) match {
       case scalaz.Success(w) => w
       case scalaz.Failure(f) =>
-        throw new IllegalArgumentException(s"""Workflow $id failed to process inputs:\n${f.toList.mkString("\n")}""")
+        throw new IllegalArgumentException() with ThrowableWithErrors {
+          val message = s"Workflow input processing failed."
+          val errors = f
+        }
     }
   }
-
   private def validateWorkflowDescriptor(id: WorkflowId,
                                          sourceFiles: WorkflowSourceFiles,
                                          conf: Config): ErrorOr[WorkflowDescriptor] = {

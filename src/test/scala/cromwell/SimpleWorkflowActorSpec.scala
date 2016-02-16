@@ -1,15 +1,14 @@
+
 package cromwell
 
 import java.util.UUID
 
 import akka.testkit._
-import wdl4s._
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
-import org.scalatest.Ignore
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -35,7 +34,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
         within(TestExecutionTimeout) {
           waitForPattern("transitioning from Submitted to Running") {
             waitForPattern("transitioning from Running to Succeeded") {
-              fsm ! Start
+              fsm ! Start()
             }
           }
         }
@@ -62,7 +61,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
             waitForPattern("persisting status of goodbye to Running.") {
               waitForPattern("persisting status of goodbye to Failed.") {
                 val fsm = buildWorkflowFSMRef(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson)
-                fsm ! Start
+                fsm ! Start()
               }
             }
           }
@@ -74,7 +73,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
       within(TestExecutionTimeout) {
         val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
         waitForPattern("transitioning from Running to Failed") {
-          fsm ! Start
+          fsm ! Start()
         }
       }
     }

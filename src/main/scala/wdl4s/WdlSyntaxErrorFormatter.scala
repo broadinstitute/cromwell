@@ -45,6 +45,18 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
+  // TODO: these next two methods won't be called by the parser because there are no lists in the WDL grammar that
+  // cause these to be triggered.  Currently the parser is passing in 'null' for the value of 'last' and when that
+  // changes, these errors can be made more helpful.
+
+  def missingListItems(method: String, required: Int, found: Int, last: Terminal): String = {
+    s"ERROR: $method requires $required items, but only found $found"
+  }
+
+  def missingTerminator(method: String, terminal: TerminalIdentifier, last: Terminal): String = {
+    s"ERROR: $method requires a terminator after each element"
+  }
+
   def tooManyWorkflows(workflowAsts: java.util.List[Ast]): String = {
     val otherWorkflows = workflowAsts.asScala.map({ ast =>
       val name: Terminal = ast.getAttribute("name").asInstanceOf[Terminal]

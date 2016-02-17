@@ -121,7 +121,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None, None, None))
+      globalDataAccess.updateStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
     }
 
     for {

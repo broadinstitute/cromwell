@@ -13,7 +13,7 @@ val lenthallV = "0.15"
 
 val wdl4sV = "0.2"
 
-val cromwellBackendV = "0.1-a255107-SNAPSHOT"
+val cromwellBackendV = "0.1-2affc66-SNAPSHOT"
 
 val sprayV = "1.3.2"
 

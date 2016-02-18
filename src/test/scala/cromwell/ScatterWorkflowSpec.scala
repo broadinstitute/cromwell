@@ -54,7 +54,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow with scatter blocks and File inputs/outputs" should {
-    "run properly" taggedAs DockerTest in {
+    "run properly" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.PrepareScatterGatherWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: sc_test.do_prepare", occurrences = 1),

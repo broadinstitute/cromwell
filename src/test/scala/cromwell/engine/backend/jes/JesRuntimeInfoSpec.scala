@@ -1,14 +1,13 @@
 package cromwell.engine.backend.jes
 
-import com.google.api.services.genomics.model.Disk
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
+import cromwell.engine.backend.runtimeattributes._
 import org.scalatest.{FlatSpec, Matchers}
 
 class JesRuntimeInfoSpec extends FlatSpec with Matchers {
+  val disks: List[JesAttachedDisk] = List(new JesWorkingDisk(DiskType.SSD, 10))
+  val zones: List[String] = List("central-1")
 
   it should "create Preemptible Runtime Info" in {
-    val disks: List[Disk] = List(new Disk())
-    val zones: List[String] = List("central-1")
     val attributes = new CromwellRuntimeAttributes(attributes = Map.empty,
       docker = Some("docker"),
       zones = zones,
@@ -22,17 +21,15 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
 
     val runtimeInfo = PreemptibleJesRuntimeInfo("command", attributes)
     runtimeInfo.resources.getPreemptible shouldBe true
-    runtimeInfo.resources.getCpu shouldBe 2L
-    runtimeInfo.resources.getRamGb shouldBe 4D
-    runtimeInfo.resources.getDisks should contain theSameElementsAs disks
+    runtimeInfo.resources.getMinimumCpuCores shouldBe 2
+    runtimeInfo.resources.getMinimumRamGb shouldBe 4D
+    runtimeInfo.resources.getDisks should contain theSameElementsAs disks.map(_.toGoogleDisk)
     runtimeInfo.resources.getZones should contain theSameElementsAs zones
     runtimeInfo.docker.getCmd shouldBe "command"
-    runtimeInfo.docker.getImage shouldBe "docker"
+    runtimeInfo.docker.getImageName shouldBe "docker"
   }
 
   it should "create NonPreemptible Runtime Info" in {
-    val disks: List[Disk] = List(new Disk())
-    val zones: List[String] = List("central-1")
     val attributes = new CromwellRuntimeAttributes(attributes = Map.empty,
       docker = Some("docker"),
       zones = zones,
@@ -46,12 +43,12 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
 
     val runtimeInfo = NonPreemptibleJesRuntimeInfo("command", attributes)
     runtimeInfo.resources.getPreemptible shouldBe false
-    runtimeInfo.resources.getCpu shouldBe 2L
-    runtimeInfo.resources.getRamGb shouldBe 4D
-    runtimeInfo.resources.getDisks should contain theSameElementsAs disks
+    runtimeInfo.resources.getMinimumCpuCores shouldBe 2
+    runtimeInfo.resources.getMinimumRamGb shouldBe 4D
+    runtimeInfo.resources.getDisks should contain theSameElementsAs disks.map(_.toGoogleDisk)
     runtimeInfo.resources.getZones should contain theSameElementsAs zones
     runtimeInfo.docker.getCmd shouldBe "command"
-    runtimeInfo.docker.getImage shouldBe "docker"
+    runtimeInfo.docker.getImageName shouldBe "docker"
   }
 
 }

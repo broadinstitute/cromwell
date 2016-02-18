@@ -1,7 +1,7 @@
 package cromwell.engine.backend.runtimeattributes
 
-import com.google.api.services.genomics.model.Disk
 import cromwell.engine.ErrorOr
+import cromwell.engine.backend.jes.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
 import cromwell.engine.backend.{BackendCall, BackendType}
 import cromwell.engine.workflow.WorkflowOptions
@@ -24,7 +24,7 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      cpu: Long,
                                      preemptible: Int,
-                                     disks: Seq[Disk],
+                                     disks: Seq[JesAttachedDisk],
                                      memoryGB: Double)
 
 object CromwellRuntimeAttributes {
@@ -40,7 +40,6 @@ object CromwellRuntimeAttributes {
       supportedAttributes = attributesWithDefaults.filterKeys(k => supportedKeys.contains(k))
       validatedAttributes <- validateRuntimeAttributes(supportedAttributes)
     } yield validatedAttributes
-
 
     attributes.get
   }
@@ -83,8 +82,8 @@ object CromwellRuntimeAttributes {
     keys.toSet -- supportedKeys
   }
 
-  val LocalDiskName = "local-disk"
-  val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD, sizeGb=10)
+  val DefaultJesWorkingDiskString = s"${JesWorkingDisk.Name} 10 SSD"
+  val DefaultJesWorkingDisk = JesAttachedDisk.parse(DefaultJesWorkingDiskString).get
 
   private case class ValidKeyType(key: String, validTypes: Set[WdlType])
   private val keys = Set(ValidKeyType("cpu", Set(WdlIntegerType)),
@@ -98,7 +97,7 @@ object CromwellRuntimeAttributes {
 
   private val defaultValues = Map(
     "cpu" -> WdlInteger(1),
-    "disks" -> WdlString(LocalizationDisk.toString),
+    "disks" -> WdlString(DefaultJesWorkingDiskString),
     "zones" -> WdlString("us-central1-a"),
     "continueOnReturnCode" -> WdlInteger(0),
     "failOnStderr" -> WdlBoolean.False,
@@ -201,27 +200,28 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateLocalDisks(value: Option[WdlValue]): ErrorOr[Seq[Disk]] = {
+  private def validateLocalDisks(value: Option[WdlValue]): ErrorOr[Seq[JesAttachedDisk]] = {
     val nels = value match {
       case Some(WdlString(s)) => s.split(",\\s*").toSeq.map(validateLocalDisk)
       case Some(WdlArray(wdlType, seq)) if wdlType.memberType == WdlStringType =>
         seq.map(_.valueString).map(validateLocalDisk)
       case Some(_) =>
-        Seq(s"Expecting ${DISKS.key} runtime attribute to be a comma separated String or Array[String]".failureNel[Disk])
+        Seq(s"Expecting ${DISKS.key} runtime attribute to be a comma separated String or Array[String]".failureNel[JesAttachedDisk])
       case None => defaults.disks.map(_.successNel)
     }
 
-    val emptyDiskNel = Vector.empty[Disk].successNel[String]
+    val emptyDiskNel = Vector.empty[JesAttachedDisk].successNel[String]
     val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) { (a, v) => a :+ v })
+
     disksNel map {
-      case disks if disks.exists(_.getName == LocalDiskName) => disks
-      case disks => disks :+ LocalizationDisk.toDisk
+      case disks if disks.exists(_.name == JesWorkingDisk.Name) => disks
+      case disks => disks :+ DefaultJesWorkingDisk
     }
   }
 
-  private def validateLocalDisk(disk: String): ErrorOr[Disk] = {
-    LocalDisk.parse(disk) match {
-      case scala.util.Success(localDisk) => localDisk.toDisk.successNel
+  private def validateLocalDisk(disk: String): ErrorOr[JesAttachedDisk] = {
+    JesAttachedDisk.parse(disk) match {
+      case scala.util.Success(localDisk) => localDisk.successNel
       case scala.util.Failure(ex) => ex.getMessage.failureNel
     }
   }
@@ -241,13 +241,6 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateBoolean(value: WdlValue): ErrorOr[Boolean] = {
-    WdlBooleanType.coerceRawValue(value) match {
-      case scala.util.Success(WdlBoolean(b)) => b.successNel
-      case _ => s"Could not coerce $value into an boolean".failureNel
-    }
-  }
-
   private def validateInt(value: WdlValue): ErrorOr[Int] = {
     WdlIntegerType.coerceRawValue(value) match {
       case scala.util.Success(WdlInteger(i)) => i.intValue.successNel
@@ -261,7 +254,4 @@ object CromwellRuntimeAttributes {
       if key.supports(backendType)
     } yield key
   }
-
-  val DefaultReturnCodeNel = Set.empty[Int].successNel[String]
-  val MemoryAndUnitPattern = """(\d+)\s*(\w+)""".r
 }

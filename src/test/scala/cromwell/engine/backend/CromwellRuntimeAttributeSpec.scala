@@ -1,24 +1,20 @@
 package cromwell.engine.backend
 
+import java.nio.file.Paths
 import java.util.UUID
 
-import akka.testkit.TestActorRef
-import com.google.api.services.genomics.model.Disk
-import cromwell.{CromwellSpec, CromwellTestkitSpec}
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.backend.jes.JesBackend
+import cromwell.engine.backend.jes.{JesAttachedDisk, JesBackend, JesEmptyMountedDisk, JesWorkingDisk}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes, _}
-import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowMetadata, WorkflowStatus, SubmitWorkflow}
-import cromwell.engine.workflow.{WorkflowManagerActor, BackendCallKey}
-import cromwell.engine.{WorkflowSucceeded, WorkflowContext, WorkflowDescriptor, WorkflowId}
+import cromwell.engine.workflow.BackendCallKey
+import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowId}
 import cromwell.util.SampleWdl
-import cromwell.webservice.CromwellApiHandler.{WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerStatusSuccess, WorkflowManagerSubmitSuccess}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
-import wdl4s.types.{WdlIntegerType, WdlArrayType}
-import wdl4s.values.{WdlString, WdlBoolean, WdlInteger, WdlArray}
+import wdl4s.types.{WdlArrayType, WdlIntegerType}
+import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
   val workflowManagerSystem = new TestWorkflowManagerSystem
@@ -49,7 +45,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     defaults.docker shouldEqual None
     defaults.memoryGB shouldEqual 2
     defaults.zones shouldEqual Seq("us-central1-a")
-    defaults.disks shouldEqual Seq(LocalDisk.parse("local-disk 10 SSD").map(_.toDisk).get)
+    defaults.disks shouldEqual Seq(JesAttachedDisk.parse("local-disk 10 SSD").get)
     defaults.cpu shouldEqual 1
     defaults.continueOnReturnCode shouldEqual ContinueOnReturnCodeSet(Set(0))
     defaults.failOnStderr shouldEqual false
@@ -111,9 +107,9 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val attributes = runtimeAttributes(SampleWdl.WorkflowWithFullGooglyConfig, "googly_task", jesBackend)
     attributes.cpu shouldBe 3
     attributes.disks shouldEqual Vector(
-      new Disk().setName("Disk1").setSizeGb(3L).setType("PERSISTENT_SSD").setAutoDelete(true),
-      new Disk().setName("Disk2").setSizeGb(500L).setType("PERSISTENT_HDD").setAutoDelete(true),
-      CromwellRuntimeAttributes.LocalizationDisk.toDisk
+      JesEmptyMountedDisk(DiskType.SSD, 3, Paths.get("/mnt/some-dir")),
+      JesEmptyMountedDisk(DiskType.HDD, 500, Paths.get("/tmp/mnt")),
+      CromwellRuntimeAttributes.DefaultJesWorkingDisk
     )
     attributes.zones shouldEqual Vector("US_Metro", "US_Backwater")
     attributes.memoryGB shouldBe 4
@@ -124,7 +120,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val defaults = CromwellRuntimeAttributes.defaults
     attributes.cpu shouldBe defaults.cpu
     attributes.disks shouldEqual Vector(
-      new Disk().setName("local-disk").setSizeGb(123L).setType("PERSISTENT_HDD").setAutoDelete(true)
+      JesWorkingDisk(DiskType.HDD, 123)
     )
     attributes.zones shouldEqual defaults.zones
     attributes.memoryGB shouldBe defaults.memoryGB
@@ -165,7 +161,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
       runtimeAttributes(SampleWdl.WorkflowWithMessedUpLocalDisk, "messed_up_disk", jesBackend)
     }
     ex.getMessage should include(
-      "'Disk1 123 LOCAL' should be in form 'NAME SIZE TYPE', with SIZE blank for LOCAL, otherwise SIZE in GB"
+      "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'"
     )
   }
 
@@ -173,7 +169,9 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val ex = intercept[IllegalArgumentException] {
       runtimeAttributes(SampleWdl.WorkflowWithMessedUpDiskSize, "messed_up_disk", jesBackend)
     }
-    ex.getMessage should include("123.0 not convertible to a Long")
+    ex.getMessage should include(
+      "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'"
+    )
   }
 
   it should "reject a task with an invalid 'disks' parameter (3)" in {
@@ -187,8 +185,8 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val attributes = runtimeAttributes(SampleWdl.WorkflowWithRuntimeAttributeExpressions, "test", jesBackend)
     attributes.memoryGB shouldEqual 7
     attributes.disks shouldEqual Vector(
-      new Disk().setName("Disk1").setSizeGb(9L).setType("PERSISTENT_SSD").setAutoDelete(true),
-      CromwellRuntimeAttributes.LocalizationDisk.toDisk
+      JesEmptyMountedDisk(DiskType.SSD, 9, Paths.get("/mnt")),
+      CromwellRuntimeAttributes.DefaultJesWorkingDisk
     )
     attributes.docker shouldEqual Some("ubuntu:latest")
   }

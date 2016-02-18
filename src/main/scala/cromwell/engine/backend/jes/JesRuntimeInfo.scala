@@ -1,27 +1,27 @@
 package cromwell.engine.backend.jes
 
-import com.google.api.services.genomics.model.{DockerExecutor, Resources}
+import com.google.api.services.genomics.model.{DockerExecutor, PipelineResources}
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 
 import scala.collection.JavaConverters._
 
 sealed trait JesRuntimeInfo {
-  def resources: Resources
+  def resources: PipelineResources
   def docker: DockerExecutor
 }
 
 trait JesRuntimeInfoBuilder {
   def buildDockerExecutor(commandLine: String, dockerImage: String): DockerExecutor = {
     val docker = new DockerExecutor()
-    docker.setImage(dockerImage).setCmd(commandLine)
+    docker.setImageName(dockerImage).setCmd(commandLine)
   }
 
-  def buildResources(runtimeAttributes: CromwellRuntimeAttributes): Resources = {
-    new Resources()
-      .setRamGb(runtimeAttributes.memoryGB)
-      .setCpu(runtimeAttributes.cpu)
+  def buildResources(runtimeAttributes: CromwellRuntimeAttributes): PipelineResources = {
+    new PipelineResources()
+      .setMinimumRamGb(runtimeAttributes.memoryGB)
+      .setMinimumCpuCores(runtimeAttributes.cpu.toInt)
       .setZones(runtimeAttributes.zones.asJava)
-      .setDisks(runtimeAttributes.disks.asJava)
+      .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
   }
 }
 
@@ -48,5 +48,5 @@ object PreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
   }
 }
 
-case class NonPreemptibleJesRuntimeInfo(resources: Resources, docker: DockerExecutor) extends JesRuntimeInfo
-case class PreemptibleJesRuntimeInfo(resources: Resources, docker: DockerExecutor) extends JesRuntimeInfo
+case class NonPreemptibleJesRuntimeInfo(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
+case class PreemptibleJesRuntimeInfo(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo

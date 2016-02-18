@@ -104,7 +104,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = workflowLoggerWithCall(backendCall)
-    instantiateCommand(backendCall) match {
+    backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)

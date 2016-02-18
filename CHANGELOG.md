@@ -76,3 +76,14 @@ task example {
   }
 }
 ```
+* Bug fix: Tasks that changed directory would fail on JES because their return code file was written to the new directory instead of an absolute path
+* Bug fix: Using `write_*` functions in a Task's command (e.g. `./my_script --file=${write_file(my_array)}`) will now work with JES
+* Changing format of the 'disks' runtime attribute slightly to allow for mounting disks at specific mountpoints
+```
+task disk_test {
+  command { ... }
+  runtime {
+    disks: "local-disk 20 SSD, /mnt/mnt1 200 HDD"
+  }
+}
+```

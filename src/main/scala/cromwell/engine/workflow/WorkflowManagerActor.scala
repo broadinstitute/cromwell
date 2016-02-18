@@ -20,7 +20,6 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
-import wdl4s.values.WdlSingleFile
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -190,14 +189,13 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
     case Event(CallOutputs(workflowId, callName), _) =>
       reply(workflowId, callName, callOutputs(workflowId, callName), WorkflowManagerCallOutputsSuccess, WorkflowManagerCallOutputsFailure)
       stay()
-      //TODO: Issue 430 : callStdoutStderr not yet implemented to get the info from the db
-    case Event(CallStdoutStderr(workflowId, callName), _) => throw new NotImplementedError("Please fix issue #430 :D")
-//      val flatLogs = callStdoutStderr(workflowId, callName)
-//      reply(workflowId, callName, flatLogs, WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
+    case Event(CallStdoutStderr(workflowId, callName), _) =>
+      val flatLogs = callStdoutStderr(workflowId, callName) map { _.flatten }
+      reply(workflowId, callName, flatLogs, WorkflowManagerCallStdoutStderrSuccess, WorkflowManagerCallStdoutStderrFailure)
       stay()
-    case Event(WorkflowStdoutStderr(id), _) => throw new NotImplementedError("Please fix issue #430 :D")
-//      val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
-//      reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
+    case Event(WorkflowStdoutStderr(id), _) =>
+      val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
+      reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
       stay()
     case Event(WorkflowMetadata(id), _) =>
       reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
@@ -311,40 +309,45 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
     !key.fqn.isScatter && !key.isCollector(entries)
   }
 
+  private def callLogs(workflowId: WorkflowId, callFqn: FullyQualifiedName): Future[Seq[Seq[CallLogs]]] = {
+    def logsForKey(key: ExecutionDatabaseKey): Future[(ExecutionDatabaseKey, CallLogs)] = {
+      globalDataAccess.getStandardStreamSymbols(workflowId, key) map { key -> _ }
+    }
 
-  //TODO: Need to implement this. Currently just throwing an exception to see if and how the code reaches here.
-  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Any] = {
-    val mockCallLog = CallLogs(new WdlSingleFile("Dummy CallOut"), new WdlSingleFile("Dummy CallError"), None)
-    Future{mockCallLog}
-    //    for {
-    //      _ <- assertWorkflowExistence(workflowId)
-    //      descriptor <- globalDataAccess.getWorkflow(workflowId)
-    //      callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn))
-    //      callLogKeys <- getCallLogKeys(workflowId, callFqn)
-    //      callStandardOutput <- Future.successful(callLogKeys map { key => backend.stdoutStderr(descriptor, callName, key.index) })
-    //    } yield callStandardOutput
+    def sortByIndexThenAttempt(callLogs: Seq[(ExecutionDatabaseKey, CallLogs)]): Seq[Seq[CallLogs]] = {
+      callLogs.groupBy({ case (key, _) => key.index }).values.toSeq.sortBy(_.head._1.index) map { _.sortBy({ case (key, _) => key.attempt }).map(_._2) }
+    }
+
+    for {
+      callLogKeys <- getCallLogKeys(workflowId, callFqn)
+      callLogs <- Future.sequence(callLogKeys map logsForKey)
+    } yield sortByIndexThenAttempt(callLogs)
+  }
+
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Seq[Seq[CallLogs]]] = {
+    // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
+    import cromwell.engine.finalcall.FinalCall._
+    for {
+      _ <- assertWorkflowExistence(workflowId)
+      descriptor <- globalDataAccess.getWorkflow(workflowId)
+      _ <- assertCallExistence(workflowId, callFqn)
+      // TODO why does the final call check happen so late?
+      _ <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn)) if !callFqn.isFinalCall
+      logs <- callLogs(workflowId, callFqn)
+    } yield logs
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
-
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
+    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
       // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
       import cromwell.engine.finalcall.FinalCall._
-      Try {
-        val sortedMap = statusMap.toSeq.sortBy(_._1.index)
-        val callsToPaths = for {
-          (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
-          callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          // FIXME super hacky and only works on shared fs
-          call = descriptor.namespace.resolve(callName)
-          if call.isDefined && call.get.isInstanceOf[Call]
-          callKey = BackendCallKey(call.get.asInstanceOf[Call], key.index, key.attempt)
-          callStandardOutput = callKey.callStdoutStderr(descriptor)
-        } yield key -> callStandardOutput
+      val sortedMap = statusMap.toSeq.sortBy(_._1.index)
+      val callNames = for {
+        (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
+      } yield key.fqn
 
-        /* Some FP "magic" to transform the pairs of (key, logs) into the final result: grouped by FQNS, ordered by shards, and then ordered by attempts */
-        callsToPaths groupBy { _._1.fqn } mapValues { key => key.groupBy(_._1.index).values.toSeq.sortBy(_.head._1.index) map { _.sortBy(_._1.attempt).map(_._2) }  }
-      }
+      val futureLogs = Future.sequence(callNames map { key => callStdoutStderr(workflowId, key) map { key -> _ }})
+      futureLogs map { _.toMap }
     }
 
     for {
@@ -352,7 +355,7 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
       descriptor <- globalDataAccess.getWorkflow(workflowId)
       callToStatusMap <- globalDataAccess.getExecutionStatuses(workflowId)
       statusMap = callToStatusMap mapValues { _.executionStatus }
-      callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, statusMap))
+      callToLogsMap <- logMapFromStatusMap(descriptor, statusMap)
     } yield callToLogsMap
   }
 
@@ -389,7 +392,7 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
       workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
       callStandardStreamsMap <- workflowStdoutStderr(id)
       callInputs <- globalDataAccess.getAllInputs(id)
-      callOutputs <- globalDataAccess.getAllOutputs(id)
+      callOutputs <- globalDataAccess.getOutputs(id)
       infosByExecution <- globalDataAccess.infosByExecution(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
 

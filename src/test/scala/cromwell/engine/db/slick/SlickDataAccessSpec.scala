@@ -669,8 +669,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.size should be(1) //getOutputs on a workflowId does NOT return shards outputs
 
@@ -727,8 +727,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0)), Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
         callOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.head.key.index should be(None)
           results.head.wdlValue.get should be(testWdlString)
@@ -780,7 +780,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None), Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None)) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
@@ -811,9 +811,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(), Nil)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         // Second attempt should fail
-        _ <- dataAccess.setOutputs(workflowId, BackendCallKey(call, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+        _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None), Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 

@@ -5,8 +5,8 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.backend.model.ExecutionHash
-import cromwell.engine.CallActor.CallActorMessage
+import cromwell.caching.ExecutionHash
+import cromwell.engine.CallActor.{FailedStandardStreamPersist, SuccessfulStandardStreamPersist, CallActorMessage}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.Hashing._
@@ -49,6 +49,7 @@ object WorkflowActor {
   final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
   final case class PerformTransition(toState: WorkflowState) extends WorkflowActorMessage
+  final case class PersistStandardStreamSymbols(key: BackendCallKey, stdout: String, stderr: String) extends WorkflowActorMessage
   sealed trait PersistenceMessage extends WorkflowActorMessage {
     def callKey: ExecutionStoreKey
     def executionStatus: ExecutionStatus
@@ -433,7 +434,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
-      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
+      _ <- globalDataAccess.setOutputs(workflow.id, callKey.toDatabaseKey, callOutputs, callKey.scope.rootWorkflow.outputs)
       _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, executionEvents)
       _ = persistStatusThenAck(callKey, ExecutionStatus.Done, currentSender, message, Option(callOutputs), Option(returnCode), hash)
     } yield()
@@ -514,12 +515,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       val updatedData = startRunnableCalls(data)
       if (isWorkflowDone) scheduleTransition(WorkflowSucceeded)
       val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Done)
-      stay using finalData
+      stay() using finalData
     case Event(PersistenceSucceeded(callKey, ExecutionStatus.Preempted, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Preempted
       val updatedData = startRunnableCalls(data)
       val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Preempted)
-      stay using finalData
+      stay() using finalData
+    case Event(PersistStandardStreamSymbols(key, stdout, stderr), _) =>
+      val sndr = sender()
+      globalDataAccess.writeStandardStreamSymbols(workflow.id, key.toDatabaseKey, stdout, stderr) onComplete {
+        case Success(_) => sndr ! SuccessfulStandardStreamPersist
+        case Failure(e) => sndr ! FailedStandardStreamPersist(e)
+      }
+      stay()
   }
 
   private def startBackendCallWithMessage(message: CallStartMessage, backendCallKey: BackendCallKey, callInputs: Map[String, WdlValue]) = {

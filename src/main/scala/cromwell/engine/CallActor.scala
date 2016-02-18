@@ -4,10 +4,9 @@ import akka.actor.FSM.NullFunction
 import akka.actor._
 import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
-import cromwell.backend.BackendActor.{ComputeHash, Prepare}
+import cromwell.backend.BackendActor.{FailedComputeHashResult, SuccessfulComputeHashResult, ComputeHash, Prepare}
 import cromwell.backend.config.BackendConfiguration
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
-import cromwell.caching.caching.Md5sum
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
@@ -119,7 +118,11 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
       context.parent ! WorkflowActor.CallStarted(key)
       // We have backend here. Check if we can use cached results.
       checkForCacheOption(backend)
-    case Event(md5sum: Md5sum, _) => useCacheIfPossible(backend, md5sum)
+    case Event(SuccessfulComputeHashResult(hash), _) => useCacheIfPossible(backend, hash)
+    case Event(FailedComputeHashResult(e), _) =>
+      val failureHandle = new NonRetryableExecution(new IllegalStateException("Error computing hash", e))
+      self ! ExecutionFinished(call, failureHandle)
+      stay()
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
   }
 
@@ -302,10 +305,11 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
     }
   }
 
-  private def useCacheIfPossible(backend: ActorRef, hash: Md5sum): State = {
+  private def useCacheIfPossible(backend: ActorRef, hash: ExecutionHash): State = {
     import cromwell.engine.ExecutionIndex._
+
     val cachedExecution = for {
-      cache <- globalDataAccess.getExecutionsWithResuableResultsByHash(hash).mapTo[Traversable[Execution]]
+      cache <- globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash).mapTo[Traversable[Execution]]
       cacheWorkflowId <- globalDataAccess.getWorkflow(cache.head.workflowExecutionId).mapTo[WorkflowDescriptor]
       cacheTaskOutputs <- globalDataAccess.getOutputs(
         cacheWorkflowId.id, ExecutionDatabaseKey(cache.head.callFqn, cache.head.index.toIndex)).mapTo[Traversable[SymbolStoreEntry]]

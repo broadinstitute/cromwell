@@ -9,6 +9,7 @@ import cromwell.engine.{PreemptedException, WorkflowId, WorkflowSucceeded}
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import org.specs2.mock.Mockito
+import wdl4s.values.{WdlValue, WdlArray}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -66,6 +67,10 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
       metadata.calls("sc_test.do_scatter")(1).stderr.get.value should include ("attempt")
       metadata.calls("sc_test.do_scatter")(1).outputs shouldBe defined
       metadata.calls("sc_test.do_scatter")(1).outputs.get should not be empty
+
+      // Check that only successful shards (and not preempted ones) are collected
+      val gatherInputs: Seq[WdlValue] = metadata.calls("sc_test.do_gather").head.inputs("input_files").asInstanceOf[WdlArray].value
+      gatherInputs.size shouldBe 4
 
       val wfStdouterr = messageAndWait[WorkflowManagerWorkflowStdoutStderrSuccess](WorkflowStdoutStderr(workflowId))
       wfStdouterr should not be null

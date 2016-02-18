@@ -75,6 +75,14 @@ object JesBackend {
       eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isDefined)
   }
 
+  /** In this context transient means that a job is Running but doesn't have a Jes Run ID yet.
+    * This could happen if a call starts Running but Cromwell is stopped before the request to JES has been made
+    * (or the ID persisted to the DB) .*/
+  private val IsTransient: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    e.status.toExecutionStatus == ExecutionStatus.Running &&
+      eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isEmpty)
+  }
+
   case class JesJobKey(jesRunId: String) extends JobKey
 
   private val BuildJobKey: (Execution, Seq[ExecutionInfo]) => JobKey = (e: Execution, eis: Seq[ExecutionInfo]) => {
@@ -722,7 +730,7 @@ case class JesBackend(actorSystem: ActorSystem)
             case (_, xs) if xs.size > 1 => xs filter isRunningCollector } flatten
 
           for {
-            _ <- globalDataAccess.resetNonResumableExecutions(restartableWorkflow.id, IsResumable)
+            _ <- globalDataAccess.resetTransientExecutions(restartableWorkflow.id, IsTransient)
             _ <- globalDataAccess.setStartingStatus(restartableWorkflow.id, runningCollectors map { _.toKey })
           } yield ()
         }

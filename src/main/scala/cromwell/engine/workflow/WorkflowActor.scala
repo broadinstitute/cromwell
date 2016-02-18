@@ -87,36 +87,18 @@ object WorkflowActor {
   sealed trait CallStartMessage extends WorkflowActorMessage {
     def callKey: CallKey
     def startMode: CallActor.StartMode
-    def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData
   }
 
   /** Represents starting a call for the first time, as opposed to a restart. */
   final case class InitialStartCall(override val callKey: CallKey,
-                                    override val startMode: CallActor.StartMode) extends CallStartMessage {
-
-    // Nothing to do here, startRunnableCalls will have already done this work.
-    override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
-  }
+                                    override val startMode: CallActor.StartMode) extends CallStartMessage
 
   /** This signifies using an existing previously run call to fulfill the results of the callKey. */
   final case class UseCachedCall(override val callKey: BackendCallKey,
-                                 override val startMode: CallActor.UseCachedCall) extends CallStartMessage {
-
-    // Nothing to do here, startRunnableCalls will have already done this work.
-    override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = data
-  }
+                                 override val startMode: CallActor.UseCachedCall) extends CallStartMessage
 
   /** Represents restarting a call for backends which support restart. */
-  final case class RestartCall(override val callKey: CallKey, override val startMode: CallActor.StartMode) extends CallStartMessage {
-    override def handleStatusPersist(actor: WorkflowActor, data: WorkflowData)(implicit logger: WorkflowLogger): WorkflowData = {
-      actor.executionStore += callKey -> ExecutionStatus.Starting
-      // The assumption for restart is that the call will have been found in state Running.  Explicitly
-      // re-writing the Starting status causes the new start date to be persisted, which is desirable to
-      // provide a realistic elapsed execution time.
-      actor.persistStatus(callKey, ExecutionStatus.Starting)
-      data.addPersisting(callKey, ExecutionStatus.Starting)
-    }
-  }
+  final case class RestartCall(override val callKey: CallKey, override val startMode: CallActor.StartMode) extends CallStartMessage
 
   sealed trait StartMode {
     def runInitialization(actor: WorkflowActor): Future[Unit]
@@ -489,9 +471,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
       stay() using updatedData
     case Event(message: CallStartMessage, data) if !data.isPending(message.callKey) =>
-      val updatedData = message.handleStatusPersist(this, data)
       startCallWithMessage(message)
-      stay() using updatedData
+      stay()
     case Event(message: CallStartMessage, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()

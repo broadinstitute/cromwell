@@ -115,7 +115,7 @@ trait DataAccess extends AutoCloseable {
 
   def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String)(implicit ec: ExecutionContext): Future[Unit]
 
-  def resetNonResumableExecutions(workflowId: WorkflowId, isResumable: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit]
+  def resetTransientExecutions(workflowId: WorkflowId, isTransient: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit]
 
   def findResumableExecutions(workflowId: WorkflowId,
                               isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,

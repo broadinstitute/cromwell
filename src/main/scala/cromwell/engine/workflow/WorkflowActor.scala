@@ -1089,7 +1089,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def processRunnableCollector(collector: CollectorKey): Try[ExecutionStartResult] = {
     executionStore += collector -> ExecutionStatus.Starting
     persistStatus(collector, ExecutionStatus.Starting)
-    val shards: Iterable[BackendCallKey] = findShardEntries(collector) collect { case (k: BackendCallKey, _) => k }
+    val shards: Iterable[BackendCallKey] = findShardEntries(collector) collect { case (k: BackendCallKey, v) if v == ExecutionStatus.Done => k }
 
     generateCollectorOutput(collector, shards) match {
       case Failure(e) =>

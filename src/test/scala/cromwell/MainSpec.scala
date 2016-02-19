@@ -131,66 +131,6 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       result.returnCode should be(-1)
     }
   }
-
-  it should "init logging" in {
-    modifyingSysProps("LOG_ROOT", "LOG_MODE", "LOG_LEVEL") {
-      sys.props -= "LOG_ROOT" -= "LOG_MODE" -= "LOG_LEVEL"
-      val result = traceMain(_.initLoggingReturnCode)
-      val restoredProps = sys.props
-      restoredProps("LOG_ROOT") should be(File(".").fullPath)
-      restoredProps("LOG_MODE") should be("PRETTY")
-      restoredProps("LOG_LEVEL") should be("INFO")
-      result.out should be(empty)
-      result.err should be(empty)
-      result.returnCode should be(0)
-    }
-  }
-
-  it should "init logging and create the directory" in {
-    modifyingSysProps("LOG_ROOT") {
-      val tempDir = File.newTempDir("log_root_as_dir.")
-      val logDir = tempDir / "log_dir"
-      logDir.toJava shouldNot exist
-      sys.props += "LOG_ROOT" -> logDir.fullPath
-      val result = traceMain(_.initLoggingReturnCode)
-      result.out should be(empty)
-      result.err should be("WARNING: The LOG_ROOT parameter is currently ignored.\n")
-      result.returnCode should be(0)
-      logDir.toJava should exist
-      tempDir.delete(ignoreIOExceptions = true)
-    }
-  }
-
-  it should "init logging if the LOG_ROOT is an existing directory" in {
-    modifyingSysProps("LOG_ROOT") {
-      val tempDir = File.newTempDir("log_root_as_dir.")
-      val logDir = tempDir / "log_dir"
-      logDir.createDirectories()
-      tempDir.toJava should exist
-      sys.props += "LOG_ROOT" -> tempDir.fullPath
-      val result = traceMain(_.initLoggingReturnCode)
-      result.out should be(empty)
-      result.err should be("WARNING: The LOG_ROOT parameter is currently ignored.\n")
-      result.returnCode should be(0)
-      tempDir.toJava should exist
-      tempDir.delete(ignoreIOExceptions = true)
-    }
-  }
-
-  it should "fail to init logging if the LOG_ROOT is an existing file" in {
-    modifyingSysProps("LOG_ROOT") {
-      val tempFile = File.newTemp("log_root_as_file.", ".tmp")
-      tempFile.toJava should exist
-      sys.props += "LOG_ROOT" -> tempFile.fullPath
-      val result = traceMain(_.initLoggingReturnCode)
-      result.out should be(empty)
-      result.err shouldNot be("WARNING: The LOG_ROOT parameter is currently ignored.\n")
-      result.returnCode should be(1)
-      tempFile.toJava should exist
-      tempFile.delete(ignoreIOExceptions = true)
-    }
-  }
-
 }
 
 object MainSpec {
@@ -417,45 +357,4 @@ object MainSpec {
   }
 
   val UsageSnippet = "java -jar cromwell.jar <action> <parameters>"
-
-  val HighlightedWdlHtml =
-    """<span class="keyword">task</span> <span class="name">ps</span> {
-      |  <span class="section">command</span> {
-      |    <span class="command">ps</span>
-      |  }
-      |  <span class="section">output</span> {
-      |    <span class="type">File</span> <span class="variable">procs</span> = <span class="function">stdout</span>()
-      |  }
-      |}
-      |
-      |<span class="keyword">task</span> <span class="name">cgrep</span> {
-      |  <span class="type">String</span> <span class="variable">pattern</span>
-      |  <span class="type">File</span> <span class="variable">in_file</span>
-      |  <span class="section">command</span> {
-      |    <span class="command">grep '${pattern}' ${in_file} | wc -l</span>
-      |  }
-      |  <span class="section">output</span> {
-      |    <span class="type">Int</span> <span class="variable">count</span> = <span class="function">read_int</span>(<span class="function">stdout</span>())
-      |  }
-      |}
-      |
-      |<span class="keyword">task</span> <span class="name">wc</span> {
-      |  <span class="type">File</span> <span class="variable">in_file</span>
-      |  <span class="section">command</span> {
-      |    <span class="command">cat ${in_file} | wc -l</span>
-      |  }
-      |  <span class="section">output</span> {
-      |    <span class="type">Int</span> <span class="variable">count</span> = <span class="function">read_int</span>(<span class="function">stdout</span>())
-      |  }
-      |}
-      |
-      |<span class="keyword">workflow</span> <span class="name">three_step</span> {
-      |  <span class="keyword">call</span> <span class="name">ps</span>
-      |  <span class="keyword">call</span> <span class="name">cgrep</span> {
-      |    input: in_file=ps.procs
-      |  }
-      |  <span class="keyword">call</span> <span class="name">wc</span> {
-      |    input: in_file=ps.procs
-      |  }
-      |}""".stripMargin
 }

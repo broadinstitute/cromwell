@@ -22,6 +22,8 @@ task disk_test {
   }
 ]
 ```
+* Added workflow options to copy the call logs and/or the workflow logs to a `call_logs_dir` or a `workflow_log_dir`,
+respectively.
 
 ## 0.18
 

@@ -53,7 +53,7 @@ object JesBackend {
   val OptionKeys = Set(
     GoogleCloudStorage.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
     AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
-  )
+  ) ++ WorkflowDescriptor.OptionKeys
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesLiteralInput(ExtraConfigParamName, gcsPath)
 

@@ -2,6 +2,7 @@ package cromwell.engine.backend
 
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
+import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -32,7 +33,8 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
 }
 
 final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
-                                        key: FinalCallKey) extends JobDescriptor[FinalCallKey] {
+                                        key: FinalCallKey,
+                                        workflowMetadataResponse: WorkflowMetadataResponse) extends JobDescriptor[FinalCallKey] {
 
   override val locallyQualifiedInputs = Map.empty[String, WdlValue]
 }

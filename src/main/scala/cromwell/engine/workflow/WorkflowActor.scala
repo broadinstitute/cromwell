@@ -13,7 +13,7 @@ import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.engine.finalcall.{CopyWorkflowOutputsCall, FinalCall}
+import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure, WorkflowActorSubmitSuccess}
 import cromwell.engine.{CallOutput, CallOutputs, EnhancedFullyQualifiedName, HostInputs, _}
@@ -240,10 +240,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
-    // Currently assumes there is at most one possible final call, a `CopyWorkflowOutputsCall`.
-    val finalCall = workflow.workflowOutputsPath.toOption map { _ => CopyWorkflowOutputsCall(workflow) }
+    val finalCalls = FinalCall.createFinalCalls(workflow)
     globalDataAccess.createWorkflow(
-      workflow, symbolStoreEntries, workflow.namespace.workflow.children ++ finalCall, backend)
+      workflow, symbolStoreEntries, workflow.namespace.workflow.children ++ finalCalls, backend)
   }
 
   // This is passed as an implicit parameter to methods of classes in the companion object.
@@ -740,7 +739,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
 
     val callActorName = s"CallActor-${workflow.id}-${callKey.tag}"
-    val callActorProps = callKey match {
+    val futureCallActorProps = callKey match {
       case backendCallKey: BackendCallKey =>
         // PBE This awful `workflow.copy` bit was inspired by the RetryableCallsSpec that passes a tweaked version
         // of the local backend down through WMA.  But it turns out that WorkflowDescriptor.apply doesn't use WMA's
@@ -750,12 +749,22 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         // sense than using backends on individual workflows.  When we get real pluggable backends that test can
         // just set its special backend cleanly in config, and all this awfulness can go away.
         val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
-        CallActor.props(descriptor)
-      case finalCallKey: FinalCallKey => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey))
+        Future.successful(CallActor.props(descriptor))
+      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id, backend) map {
+        metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
+      }
     }
-    val callActor = context.actorOf(callActorProps, callActorName)
-    callActor ! callActorMessage
-    logger.info(s"created call actor for ${callKey.tag}.")
+
+    futureCallActorProps onComplete {
+      case Success(callActorProps) =>
+        val callActor = context.actorOf(callActorProps, callActorName)
+        callActor ! callActorMessage
+        logger.info(s"created call actor for ${callKey.tag}.")
+      case Failure(throwable) =>
+        logger.error(s"failed to create call actor for ${callKey.tag}.", throwable)
+        self ! CallFailedToInitialize(callKey,
+          s"failed to create call actor for ${callKey.tag}: ${throwable.getMessage}")
+    }
   }
 
   /**
@@ -1287,5 +1296,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     WorkflowCounter.decrement()
     WorkflowDurationTimer.record(System.nanoTime() - startTime)
     context.stop(self)
+  }
+
+  override def postStop() = {
+    super.postStop()
+    /*
+    NOTE: Due to the actor lifecycle, this may erase any older log files in the event of an actor restart
+    as `Actor.preRestart` calls `Actor.postStop`.
+     */
+    workflow.maybeDeleteWorkflowLog()
   }
 }

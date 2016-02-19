@@ -9,6 +9,7 @@ import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, Finish, 
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.{CromwellActor, CromwellFatalException}
 import cromwell.logging.WorkflowLogger
+import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.Scope
 
 import scala.concurrent.Future
@@ -29,7 +30,9 @@ object CallExecutionActor {
   final case class UseCachedCall(cachedBackendCall: BackendCall) extends ExecutionMode
 
   def props(backendCall: BackendCall): Props = Props(new BackendCallExecutionActor(backendCall))
-  def props(finalCall: FinalCall): Props = Props(new FinalCallExecutionActor(finalCall))
+  def props(finalCall: FinalCall, workflowMetadataResponse: WorkflowMetadataResponse): Props = {
+    Props(new FinalCallExecutionActor(finalCall, workflowMetadataResponse))
+  }
 }
 
 trait CallExecutionActor extends Actor with CromwellActor {

@@ -2,6 +2,7 @@ package cromwell.engine
 
 import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 
+import better.files._
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
@@ -10,19 +11,19 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
-import cromwell.engine.db.DataAccess._
 import cromwell.engine.io.gcs.{GcsFileSystem, GoogleCloudStorage}
 import cromwell.engine.io.shared.SharedFileSystemIoInterface
 import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{SimpleExponentialBackoff, TryUtil}
+import cromwell.webservice.WorkflowMetadataResponse
 import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json.{JsObject, _}
 import wdl4s._
-import wdl4s.values._
+import wdl4s.values.{WdlFile, WdlSingleFile, WdlValue, _}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -35,6 +36,7 @@ import scalaz.Validation.FlatMap._
 case class WorkflowDescriptor(id: WorkflowId,
                               sourceFiles: WorkflowSourceFiles,
                               workflowOptions: WorkflowOptions,
+                              workflowLogOptions: Option[WorkflowLogOptions],
                               rawInputs: Map[String, JsValue],
                               namespace: NamespaceWithWorkflow,
                               coercedInputs: WorkflowCoercedInputs,
@@ -52,17 +54,43 @@ case class WorkflowDescriptor(id: WorkflowId,
   val shortId = id.toString.split("-")(0)
   val name = namespace.workflow.unqualifiedName
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
-  private val props = sys.props
   private val relativeWorkflowRootPath = s"$name/$id"
   private val log = WorkflowLogger("WorkflowDescriptor", this)
-  val workflowOutputsPath = workflowOptions.get("outputs_path") recover { case e: IllegalArgumentException =>
-    log.warn("outputs_path expected to be of type String", e)
+  val workflowLogDir = workflowOptions.get(WorkflowLogDirOptionKey) recover { case e: IllegalArgumentException =>
+    log.warn(s"$WorkflowLogDirOptionKey expected to be of type String", e)
+    throw e
+  }
+  val workflowOutputsPath = workflowOptions.get(WorkflowOutputsOptionKey) recover { case e: IllegalArgumentException =>
+    log.warn(s"$WorkflowOutputsOptionKey expected to be of type String", e)
+    throw e
+  }
+  val callLogsDir = workflowOptions.get(CallLogsDirOptionKey) recover { case e: IllegalArgumentException =>
+    log.warn(s"$CallLogsDirOptionKey expected to be of type String", e)
     throw e
   }
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
 
+
+  /*
+  TODO: Consider: Change all GCS file systems to resolve their paths relative to another path, NOT to the filesystem
+  There appears to be a feature here where if one specifies something like
+    NioGcsPath("gs://mybucket/root/folder").resolve("/foo").resolve("/bar")
+
+  This will eliminate the /foo and return
+    NioGcsPath("gs://mybucket/root/folder/bar")
+
+  Pretty sure there's no need for all these separate filesystem instances, and this could be cleaned up with unit tests
+  to ensure expected behavior. The NioGcsPaths could easily retain pointers to their parent paths, even when relative.
+   */
+
   // GCS FS with the workflow working directory as root
   lazy val gcsFilesystem = Try(GcsFileSystem(gcsInterface, wfContext.root))
+
+  // GCS FS with the workflow log directory as root
+  val gcsWorkflowLogFileSystem = for {
+    root <- workflowLogDir
+    fs <- Try(GcsFileSystem(gcsInterface, root))
+  } yield fs
 
   // GCS FS with the workflow outputs directory as root
   val gcsOutputsFilesystem = for {
@@ -70,6 +98,11 @@ case class WorkflowDescriptor(id: WorkflowId,
     fs <- Try(GcsFileSystem(gcsInterface, root))
   } yield fs
 
+  // GCS FS with the call logs directory as root
+  val gcsCallLogsFileSystem = for {
+    root <- callLogsDir
+    fs <- Try(GcsFileSystem(gcsInterface, root))
+  } yield fs
 
   private lazy val optionCacheWriting = workflowOptions getBoolean "write_to_cache" getOrElse configCallCaching
   private lazy val optionCacheReading = workflowOptions getBoolean "read_from_cache" getOrElse configCallCaching
@@ -82,89 +115,144 @@ case class WorkflowDescriptor(id: WorkflowId,
   lazy val writeToCache = configCallCaching && optionCacheWriting
   lazy val readFromCache = configCallCaching && optionCacheReading
 
-  lazy val workflowLogger = props.get("LOG_MODE") match {
-    case Some(x) if x.toUpperCase.contains("SERVER") => makeFileLogger(
-      Paths.get(props.getOrElse("LOG_ROOT", ".")),
-      s"workflow.$id.log",
-      Level.toLevel(props.getOrElse("LOG_LEVEL", "debug"))
-    )
-    case _ => NOPLogger.NOP_LOGGER
+  lazy val workflowLogName = s"workflow.$id.log"
+  lazy val workflowLogPath = workflowLogOptions.map(_.dir.createDirectories() / workflowLogName).map(_.path)
+  lazy val workflowLogger = workflowLogPath match {
+    case Some(path) => makeFileLogger(path, workflowLogName, Level.toLevel(sys.props.getOrElse("LOG_LEVEL", "debug")))
+    case None => NOPLogger.NOP_LOGGER
+  }
+
+  def maybeDeleteWorkflowLog(): Unit = {
+    for {
+      opt <- workflowLogOptions if opt.temporary
+      log <- workflowLogPath
+    } yield log.delete(ignoreIOExceptions = true)
   }
 
   lazy val workflowRootPath = wfContext.root.toPath(gcsFilesystem)
-  def workflowRootPathWithBaseRoot(rootPath: String): Path =
+  def workflowRootPathWithBaseRoot(rootPath: String): Path = {
     WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
-
-  def copyWorkflowOutputs(implicit executionContext: ExecutionContext): Future[Unit] = {
-    // Try to copy outputs to final destination
-    workflowOutputsPath map copyOutputFiles getOrElse Future.successful(())
   }
 
-  private def copyOutputFiles(destDirectory: String)(implicit executionContext: ExecutionContext): Future[Unit] = {
-    import PathString._
+  def copyWorkflowOutputs(workflowMetadataResponse: WorkflowMetadataResponse)
+                         (implicit executionContext: ExecutionContext): Future[Unit] = {
+    // Try to copy outputs to final destination
+    workflowOutputsPath map copyWorkflowOutputsTo(workflowMetadataResponse) getOrElse Future.successful(())
+  }
+
+  private def copyWorkflowOutputsTo(workflowMetadataResponse: WorkflowMetadataResponse)(destDirectory: String)
+                             (implicit executionContext: ExecutionContext): Future[Unit] = {
+    Future(copyWdlFilesTo(destDirectory, gcsOutputsFilesystem, workflowMetadataResponse.outputs.toSeq.flatMap(_.values)))
+  }
+
+  def copyCallLogs(workflowMetadataResponse: WorkflowMetadataResponse)
+                  (implicit executionContext: ExecutionContext): Future[Unit] = {
+    callLogsDir map copyCallLogsTo(workflowMetadataResponse) getOrElse Future.successful(())
+  }
+
+  private def copyCallLogsTo(workflowMetadataResponse: WorkflowMetadataResponse)(destDirectory: String)
+                            (implicit executionContext: ExecutionContext): Future[Unit] = {
+    Future {
+      val callLogs = for {
+        callMetadatas <- workflowMetadataResponse.calls.values
+        callMetadata <- callMetadatas
+        callLog <- callMetadata.stdout.toSeq ++ callMetadata.stderr.toSeq ++
+          callMetadata.backendLogs.toSeq.flatMap(_.values)
+      } yield callLog
+      copyWdlFilesTo(destDirectory, gcsCallLogsFileSystem, callLogs)
+    }
+  }
+
+  def copyWorkflowLog()(implicit executionContext: ExecutionContext): Future[Unit] = {
+    (workflowLogDir, workflowLogPath) match {
+      case (Success(dir), Some(path)) =>
+        val logger = backend.workflowLogger(this)
+        val dest = dir.toPath(gcsWorkflowLogFileSystem).resolve(workflowLogName).path
+        Future.fromTry(copyFile(logger, dest, path))
+      case _ => Future.successful(())
+    }
+  }
+
+  private def copyWdlFilesTo(destDirectory: String, destFileSystem: Try[GcsFileSystem],
+                             wdlValues: Traversable[WdlValue]): Unit = {
     val logger = backend.workflowLogger(this)
 
-    def copyFile(file: WdlFile): Try[Unit] = {
-      val src = file.valueString.toPath(gcsFilesystem)
-      val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath
-      val relativeFilePath = Paths.get(relativeWorkflowRootPath).resolve(src.subpath(wfPath.getNameCount, src.getNameCount))
-      val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeFilePath)
+    // All outputs should have wdl values at this point, if they don't there's nothing we can do here
+    val copies = for {
+      wdlValue <- wdlValues
+      wdlFile <- wdlValue collectAsSeq { case f: WdlSingleFile => f }
+    } yield copyWdlFile(logger, destDirectory, destFileSystem, wdlFile)
 
-      def copy(): Unit = {
-        logger.info(s"Trying to copy output file $src to $dest")
-        Files.createDirectories(dest.getParent)
-        Files.copy(src, dest)
-      }
-
-      TryUtil.retryBlock(
-        fn = (retries: Option[Unit]) => copy(),
-        retryLimit = Option(5),
-        backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
-        logger = logger,
-        failMessage = Option(s"Failed to copy file $src to $dest"),
-        isFatal = (t: Throwable) => t.isInstanceOf[FileAlreadyExistsException]
-      ) recover {
-        case _: FileAlreadyExistsException => logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
-      }
+    // Throw an exception if one or more of the copies failed.
+    TryUtil.sequence(copies.toSeq) match {
+      case Success(_) => ()
+      case Failure(e) => throw new Exception(s"Copy failed for the following files:\n ${e.getMessage}", e)
     }
-
-    def processOutputs(outputs: Traversable[SymbolStoreEntry]): Unit = {
-      // All outputs should have wdl values at this point, if they don't there's nothing we can do here
-      val copies = TryUtil.sequence(outputs map { o => Try(o.wdlValue.get) } toSeq) match {
-        case Success(wdlValues) => wdlValues flatMap { _ collectAsSeq { case f: WdlSingleFile => f } } map copyFile
-        case Failure(e) => throw new Throwable(s"Unable to resolve the following workflow outputs for workflow $id: ${e.getMessage}")
-      }
-
-      // Throw an exception if one or more of the copies failed.
-      TryUtil.sequence(copies) match {
-        case Success(_) => ()
-        case Failure(e) => throw new Throwable(s"Output copy failed for the following files:\n ${e.getMessage}")
-      }
-    }
-
-    globalDataAccess.getWorkflowOutputs(id) map processOutputs
   }
 
-  private def makeFileLogger(root: Path, name: String, level: Level): Logger = {
+  def copyWdlFile(logger: WorkflowLogger, destDirectory: String, destFileSystem: Try[GcsFileSystem],
+                  file: WdlFile): Try[Unit] = {
+    import PathString._
+    val src = file.valueString.toPath(gcsFilesystem)
+    val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath
+    val srcSubPath = src.subpath(wfPath.getNameCount, src.getNameCount)
+    val dest = destDirectory
+      .toPath(destFileSystem)
+      .toAbsolutePath
+      .resolve(relativeWorkflowRootPath)
+      // UnixPath.resolve(NioGcsPath) seems to be returning a null pointer. TODO: Add a test to confirm
+      .resolve(srcSubPath.toString)
+    copyFile(logger, dest, src)
+  }
+
+  def copyFile(logger: WorkflowLogger, dest: Path, src: Path): Try[Unit] = {
+    def copy(): Unit = {
+      logger.info(s"Trying to copy output file $src to $dest")
+      Files.createDirectories(dest.getParent)
+      Files.copy(src, dest)
+    }
+
+    TryUtil.retryBlock(
+      fn = (retries: Option[Unit]) => copy(),
+      retryLimit = Option(5),
+      backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
+      logger = logger,
+      failMessage = Option(s"Failed to copy file $src to $dest"),
+      isFatal = (t: Throwable) => t.isInstanceOf[FileAlreadyExistsException]
+    ) recover {
+      case _: FileAlreadyExistsException =>
+        logger.info(s"Tried to copy the same file multiple times. Skipping subsequent copies for $src")
+    }
+  }
+
+  private def makeFileLogger(path: Path, name: String, level: Level): Logger = {
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
-    val encoder = new PatternLayoutEncoder()
-    encoder.setPattern("%date %-5level - %msg%n")
-    encoder.setContext(ctx)
-    encoder.start()
 
-    val path = root.resolve(name).toAbsolutePath.toString
-    val appender = new FileAppender[ILoggingEvent]()
-    appender.setFile(path)
-    appender.setEncoder(encoder)
-    appender.setName(name)
-    appender.setContext(ctx)
-    appender.start()
+    /*
+    WorkflowDescriptor.copy() is currently invoked by WorkflowActor.startActor().
+    This causes this block of code to be executed twice.
+     */
+    Option(ctx.exists(name)) match {
+      case Some(existingLogger) => existingLogger
+      case None =>
+        val encoder = new PatternLayoutEncoder()
+        encoder.setPattern("%date %-5level - %msg%n")
+        encoder.setContext(ctx)
+        encoder.start()
 
-    val fileLogger = ctx.getLogger(name)
-    fileLogger.addAppender(appender)
-    fileLogger.setAdditive(false)
-    fileLogger.setLevel(level)
-    fileLogger
+        val appender = new FileAppender[ILoggingEvent]()
+        appender.setFile(path.fullPath)
+        appender.setEncoder(encoder)
+        appender.setName(name)
+        appender.setContext(ctx)
+        appender.start()
+
+        val fileLogger = ctx.getLogger(name)
+        fileLogger.addAppender(appender)
+        fileLogger.setAdditive(false)
+        fileLogger.setLevel(level)
+        fileLogger
+    }
   }
 
   private def logWriteDisabled() = workflowLogger.warn(writeDisabled)
@@ -178,6 +266,11 @@ case class WorkflowDescriptor(id: WorkflowId,
 }
 
 object WorkflowDescriptor {
+
+  val WorkflowLogDirOptionKey = "workflow_log_dir"
+  val WorkflowOutputsOptionKey = "outputs_path"
+  val CallLogsDirOptionKey = "call_logs_dir"
+  val OptionKeys: Set[String] = Set(WorkflowLogDirOptionKey, WorkflowOutputsOptionKey, CallLogsDirOptionKey)
 
   def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 
@@ -233,8 +326,8 @@ object WorkflowDescriptor {
     val validatedDescriptor = for {
       c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
       d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
-    } yield WorkflowDescriptor(id, sourceFiles, options, rawInputs, namespace, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
-      gcsInterface, ioManager, wfContext, engineFunctions)
+    } yield WorkflowDescriptor(id, sourceFiles, options, workflowLogOptions(conf), rawInputs, namespace, c, d, backend,
+      configCallCaching(conf), lookupDockerHash(conf), gcsInterface, ioManager, wfContext, engineFunctions)
     validatedDescriptor.validation
   }
 
@@ -320,4 +413,14 @@ object WorkflowDescriptor {
       value <- config.getBooleanOption(key)
     } yield value) getOrElse default
   }
+
+  private def workflowLogOptions(conf: Config): Option[WorkflowLogOptions] = {
+    for {
+      workflowConfig <- conf.getConfigOption("workflow-options")
+      dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
+      temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
+    } yield WorkflowLogOptions(Paths.get(dir), temporary)
+  }
 }
+
+case class WorkflowLogOptions(dir: Path, temporary: Boolean)

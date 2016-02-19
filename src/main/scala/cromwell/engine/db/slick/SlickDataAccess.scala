@@ -726,13 +726,13 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def resetNonResumableExecutions(workflowId: WorkflowId, isResumable: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def resetTransientExecutions(workflowId: WorkflowId, isResetable: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result
       executionsAndInfos = tuples groupBy { _._1 } mapValues { _ map { _._2 } }
 
-      nonResumableDatabaseKeys = (executionsAndInfos filterNot Function.tupled(isResumable)).keys map { _.toKey }
-      _ <- updateStatusAction(workflowId, nonResumableDatabaseKeys, ExecutionStatus.NotStarted)
+      transientDatabaseKeys = (executionsAndInfos filter Function.tupled(isResetable)).keys map { _.toKey }
+      _ <- updateStatusAction(workflowId, transientDatabaseKeys, ExecutionStatus.NotStarted)
     } yield ()
 
     runTransaction(action)
@@ -746,7 +746,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result
       executionsAndInfos = tuples groupBy { _._1 } mapValues { _ map { _._2 } }
 
-      resumablePairs = executionsAndInfos collect { case (e, ei) if Function.tupled(isResumable)(e, ei) => e.toKey -> Function.tupled(jobKeyBuilder)(e, ei) }
+      resumablePairs = executionsAndInfos collect { case (e, ei) if isResumable(e, ei) => e.toKey -> jobKeyBuilder(e, ei) }
     } yield resumablePairs
 
     runTransaction(action) map { _ map { case (e, j) => ExecutionKeyToJobKey(e, j) } toTraversable }

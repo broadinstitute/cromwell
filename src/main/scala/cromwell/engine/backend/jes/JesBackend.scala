@@ -361,27 +361,57 @@ case class JesBackend(actorSystem: ActorSystem)
     executeOrResume(backendCall, runIdForResumption = runId)
   }
 
-  def useCachedCall(cachedCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
-    val log = workflowLoggerWithCall(backendCall)
-    authenticateAsUser(backendCall.workflowDescriptor) { interface =>
-      Try(interface.copy(cachedCall.callGcsPath.toString, backendCall.callGcsPath.toString)) match {
-        case Failure(ex) =>
-          log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to ${backendCall.callGcsPath}", ex)
-          FailedExecutionHandle(ex).future
-        case Success(_) => postProcess(backendCall) match {
-          case Success(outputs) => backendCall.hash map { h =>
-            SuccessfulExecutionHandle(outputs, Seq.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
-          case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
-            // TODO: What can we return here to retry this operation?
-            // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
-            val error = "Socket timeout occurred in evaluating one or more of the output expressions"
-            log.error(error, ex)
-            FailedExecutionHandle(new Throwable(error, ex)).future
-          case Failure(ex) => FailedExecutionHandle(ex).future
-        }
+  def useCachedCall(cachedCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    import better.files._
+
+    def renameCallSpecificFiles = {
+      val namesBuilder = List(
+        JesBackendCall.jesLogStdoutFilename _,
+        JesBackendCall.jesLogStderrFilename _,
+        JesBackendCall.jesLogFilename _,
+        JesBackendCall.jesReturnCodeFilename _
+      )
+
+      /* Paths of the files in the cached call. */
+      val cachedPaths = namesBuilder map { _(cachedCall.key) } map backendCall.callGcsPath.resolve
+      /* Expected names of the files in the current call.
+       * They might be different if the cached call doesn't have the same name / shard
+       * as the current call, because this information is part of the filename (TODO should it ?).
+       */
+      val backendNames = namesBuilder map { _(backendCall.key) }
+
+      (cachedPaths zip backendNames) map {
+        case (cachedPath, backendName) => cachedPath.renameTo(backendName)
       }
     }
-  } flatten
+
+    def copyingWork(gcs: GoogleCloudStorage): Try[Unit] = for {
+        _ <- Try(gcs.copy(cachedCall.callGcsPath.toString, backendCall.callGcsPath.toString))
+        _ <- Try(renameCallSpecificFiles)
+    } yield ()
+
+    Future {
+      val log = workflowLoggerWithCall(backendCall)
+      authenticateAsUser(backendCall.workflowDescriptor) { interface =>
+        copyingWork(interface) match {
+          case Failure(ex) =>
+            log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to ${backendCall.callGcsPath}", ex)
+            FailedExecutionHandle(ex).future
+          case Success(_) => postProcess(backendCall) match {
+            case Success(outputs) => backendCall.hash map { h =>
+              SuccessfulExecutionHandle(outputs, List.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
+            case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
+              // TODO: What can we return here to retry this operation?
+              // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
+              val error = "Socket timeout occurred in evaluating one or more of the output expressions"
+              log.error(error, ex)
+              FailedExecutionHandle(new Exception(error, ex)).future
+            case Failure(ex) => FailedExecutionHandle(ex).future
+          }
+        }
+      }
+    } flatten
+  }
 
   /**
    * Creates a set of JES inputs for a backend call.

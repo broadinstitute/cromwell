@@ -123,7 +123,12 @@ class GcsFileSystemProvider private (gcs: Try[GoogleCloudStorage], executionCont
     new GcsFileAttributes(path).asInstanceOf[A]
   }
 
-  override def move(source: Path, target: Path, options: CopyOption*): Unit = throw new NotImplementedError()
+  override def move(source: Path, target: Path, options: CopyOption*): Unit = {
+    (source, target) match {
+      case (s: NioGcsPath, d: NioGcsPath) => googleCloudStorage.move(s, d)
+      case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
+    }
+  }
   override def checkAccess(path: Path, modes: AccessMode*): Unit = {checkExists(path)}
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
   override def getFileSystem(uri: URI): FileSystem = throw new UnsupportedOperationException()

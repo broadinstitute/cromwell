@@ -1469,6 +1469,7 @@ object SampleWdl {
         |
         |  command {
         |    # ${salt}
+        |    echo "Something"
         |    cat ${in} > ${out_name}
         |  }
         |  RUNTIME
@@ -1476,6 +1477,7 @@ object SampleWdl {
         |    File out = "out"
         |    File out_interpolation = "${out_name}"
         |    String contents = read_string("${out_name}")
+        |    Array[String] stdoutContent = read_lines(stdout())
         |  }
         |}
         |

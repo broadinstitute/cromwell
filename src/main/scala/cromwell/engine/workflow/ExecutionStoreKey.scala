@@ -23,11 +23,12 @@ sealed trait OutputKey extends ExecutionStoreKey
 
 sealed trait CallKey extends OutputKey
 
-object BackendCallKey{
+object BackendCallKey {
   private val CallPrefix = "call"
   private val ShardPrefix = "shard"
   private val AttemptPrefix = "attempt"
 }
+
 case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int) extends CallKey {
   import BackendCallKey._
 

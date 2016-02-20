@@ -269,7 +269,7 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
     val backendCfgEntry = backendConfig.getAllBackendConfigurations().find(_.name == backendName)
       .getOrElse(defaultBackendCfgEntry)
     val task = buildTaskDescriptor(callObj)
-    DefaultBackendFactory.getBackend(backendCfgEntry.initClass, actorSystem, task)
+    DefaultBackendFactory.getBackendActorFor(backendCfgEntry.initClass, actorSystem, task)
   }
 
   /**
@@ -304,6 +304,7 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
 
   private def useCacheIfPossible(backend: ActorRef, hash: Md5sum): State = {
     import cromwell.engine.ExecutionIndex._
+    //TODO: There's just too many DB calls going on around here. Needs to be refactored [design/implementation]
     val cachedExecution = for {
       cache <- globalDataAccess.getExecutionsWithResuableResultsByHash(hash).mapTo[Traversable[Execution]]
       cacheWorkflowId <- globalDataAccess.getWorkflow(cache.head.workflowExecutionId).mapTo[WorkflowDescriptor]

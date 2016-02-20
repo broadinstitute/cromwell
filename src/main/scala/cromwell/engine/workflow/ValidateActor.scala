@@ -153,14 +153,18 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
       }
     }
 
-    val x = for {
+    // This will combine the Successfully validated backends with the list `willExecute`
+    val aggregatedValidatedBackends = for {
       backendEntry <- validatedBackends.map(_.keysIterator.toList)
       aggregatedBackendSeq = backendEntry flatMap (backend => willExecute.:+(backend)) toSeq
     } yield (aggregatedBackendSeq)
 
+    //This `promise` is here because the above for comprehension may not combine the two lists
+    // i.e. the successful `mayExecute` and `willExecute` if the former is empty. As such, we need to
+    //modify the value of that future to just return the `willExecute` list
     val promise = Promise[Seq[BackendConfigurationEntry]]()
 
-    x onComplete {
+    aggregatedValidatedBackends onComplete {
       case Success(listOfBackends) =>
         if (listOfBackends.isEmpty) promise.complete(Try(willExecute)) else promise.complete(Try(listOfBackends))
       case Failure(reason) =>

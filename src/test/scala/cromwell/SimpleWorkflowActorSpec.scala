@@ -4,6 +4,7 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
+import com.typesafe.config.ConfigFactory
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -19,7 +20,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: String):
   TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
     TestFSMRef(new WorkflowActor(descriptor))
   }
 

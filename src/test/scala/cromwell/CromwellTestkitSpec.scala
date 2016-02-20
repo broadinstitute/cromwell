@@ -55,7 +55,7 @@ object CromwellTestkitSpec {
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-    override val backendType = "local"
+
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
@@ -135,7 +135,7 @@ object CromwellTestkitSpec {
     private implicit def timeout: Timeout = 30 seconds
 
     def submit(sources: WorkflowSourceFiles): WorkflowId = {
-      val submitMessage = WorkflowManagerActor.SubmitWorkflow(sources)
+      val submitMessage = WorkflowManagerActor.ValidateAndSubmitWorkflow(sources)
       Await.result(manager.ask(submitMessage), Duration.Inf).asInstanceOf[WorkflowManagerSubmitSuccess].id
     }
 
@@ -214,7 +214,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
 
   def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String, uuid: UUID): WorkflowDescriptor = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    WorkflowDescriptor(WorkflowId(uuid), workflowSources)
+    WorkflowDescriptor(WorkflowId(uuid), workflowSources, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
   }
 
   private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {

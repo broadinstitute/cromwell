@@ -104,15 +104,14 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowSubmit(source) => workflowManager ! WorkflowManagerActor.SubmitWorkflow(source)
+    case ApiHandlerWorkflowSubmit(source) => workflowManager ! WorkflowManagerActor.ValidateAndSubmitWorkflow(source)
     case WorkflowManagerSubmitSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
-    case WorkflowManagerSubmitFailure(e) =>
-      error(e) {
-        case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
+    case WorkflowManagerSubmitFailure(exception) =>
+      exception match {
+        case reason: IllegalStateException => context.parent ! RequestComplete(StatusCodes.BadRequest, APIResponse.fail(exception))
+        case _ => context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(exception))
       }
-
     case ApiHandlerWorkflowOutputs(id) => workflowManager ! WorkflowManagerActor.WorkflowOutputs(id)
     case WorkflowManagerWorkflowOutputsSuccess(id, outputs) =>
       context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputs.mapToValues))

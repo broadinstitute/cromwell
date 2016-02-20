@@ -19,13 +19,6 @@ trait WorkflowManagerSystem {
   implicit final val actorSystem = newActorSystem()
   WorkflowManagerSystem.setActorSystem(actorSystem)
 
-  //TODO: Is this being used anywhere?
-  def backendType: String = {
-    val x = ConfigFactory.load.getConfig("backend").getString("backend")
-    println(s"BackendType = $x")
-    x
-  }
-
   def shutdownActorSystem(): Unit = {
     actorSystem.shutdown()
   }

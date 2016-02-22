@@ -155,6 +155,11 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
     }
   }
 
+  def move(from: NioGcsPath, to: NioGcsPath): Unit = {
+    val storageObject = client.objects.get(from.bucket, from.objectName).execute
+    client.objects.rewrite(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+  }
+
   //TODO: improve to honor pattern ?
   def glob(path: String, pattern: String): Seq[String] = listContents(path).toSeq
 

@@ -20,13 +20,17 @@ git.gitUncommittedChanges := true
 
 versionWithGit
 
-assemblyJarName in assembly := "wdltool" + git.baseVersion.value + ".jar"
+assemblyJarName in assembly := "wdltool-" + git.baseVersion.value + ".jar"
 
 logLevel in assembly := Level.Info
 
+resolvers ++= Seq(
+  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
+  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
+)
 
 libraryDependencies ++= Seq(
-  "org.broadinstitute" %% "wdl4s" % "0.1",
+  "org.broadinstitute" %% "wdl4s" % "0.3-5c8eef7-SNAPSHOT",
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "2.2.5" % Test
 )

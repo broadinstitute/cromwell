@@ -28,10 +28,10 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
 
     "succeed and return correct metadata" in {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(customizedLocalBackend), self, "Test Workflow metadata with Retried Calls")
-
+      val noCallCaching = """{ "read-from-cache": false }"""
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         EventFilter.info(pattern = s"persisting status of do_scatter:0:2 to Starting", occurrences = 1).intercept {
-          messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.PrepareScatterGatherWdl.asWorkflowSources())).id
+          messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.PrepareScatterGatherWdl.asWorkflowSources(workflowOptions = noCallCaching))).id
         }
       }
 

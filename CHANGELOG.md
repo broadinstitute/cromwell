@@ -60,3 +60,18 @@ task example {
   }
 }
 ```
+* Added "preemptible" field in Call metadata. This only appears if the backend is JES.
+```
+{
+  "workflowName": "hello",
+  "calls": {
+    "hello.hello": [
+      {
+        ...,
+        "preemptible": "true"
+        ... 
+      }
+    ]
+  }
+}
+```

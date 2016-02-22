@@ -12,6 +12,7 @@ import org.joda.time.DateTime
 import wdl4s._
 
 import scala.language.postfixOps
+import scala.util.Try
 
 /**
  * Builds call metadata suitable for return as part of a workflow metadata request.
@@ -213,6 +214,9 @@ object CallMetadataBuilder {
         entry <- outputs
       } yield entry.key.name -> entry.wdlValue.get
 
+      val attempt = metadata.execution.attempt
+      val preemptible = metadata.runtimeAttributes.get("preemptible") flatMap { x => Try(x.toInt).toOption } map { _ >= attempt }
+
       CallMetadata(
         inputs = inputsMap,
         executionStatus = metadata.execution.status,
@@ -228,8 +232,9 @@ object CallMetadataBuilder {
         stderr = metadata.streams map { _.stderr },
         backendLogs = metadata.streams flatMap { _.backendLogs },
         executionEvents = metadata.executionEvents,
-        attempt = metadata.execution.attempt,
-        runtimeAttributes = metadata.runtimeAttributes)
+        attempt,
+        runtimeAttributes = metadata.runtimeAttributes,
+        preemptible)
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index ans within an index by attempt.

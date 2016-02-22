@@ -124,6 +124,47 @@ object SampleWdl {
     val OutputKey = "goodbye.goodbye.out"
   }
 
+  object EmptyString extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task hello {
+        |  command {
+        |    echo "Hello!"
+        |  }
+        |  output {
+        |    String empty = ""
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |task goodbye {
+        |  String emptyInputString
+        |  command {
+        |    echo "${emptyInputString}"
+        |  }
+        |  output {
+        |    String empty = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow hello {
+        |  call hello
+        |  call goodbye {input: emptyInputString=hello.empty }
+        |  output {
+        |   hello.empty
+        |   goodbye.empty
+        |  }
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    val rawInputs = Map.empty[String, Any]
+    val outputMap = Map(
+      "hello.hello.empty" -> WdlString(""),
+      "hello.goodbye.empty" -> WdlString("")
+    )
+  }
+
+
   object EmptyWorkflow extends SampleWdl {
     override def wdlSource(runtime: String = "") = "workflow empty_workflow {}"
 

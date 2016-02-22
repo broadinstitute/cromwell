@@ -50,6 +50,7 @@ object SlickDataAccess {
 
   implicit class StringToClob(val str: String) extends AnyVal {
     def toClob: Clob = new SerialClob(str.toCharArray)
+    def toNonEmptyClob: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
   }
 
   implicit class ConfigWithUniqueSchema(val config: Config) extends AnyVal {
@@ -237,6 +238,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                              symbolStoreEntries: Traversable[SymbolStoreEntry]): Seq[Symbol] = {
     symbolStoreEntries.toSeq map { symbol =>
       val reportableResult = rootWorkflowScope.outputs exists { _.fullyQualifiedName == symbol.key.fqn }
+      val value = symbol.wdlValue map wdlValueToDbValue flatMap { _.toNonEmptyClob }
       new Symbol(
         workflowExecution.workflowExecutionId.get,
         symbol.key.scope,
@@ -245,7 +247,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         if (symbol.key.input) IoInput else IoOutput,
         reportableResult,
         symbol.wdlType.toWdlString,
-        symbol.wdlValue.map(v => wdlValueToDbValue(v).toClob),
+        value,
         symbol.symbolHash map { _.value }
       )
     }
@@ -461,6 +463,10 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   private def toSymbolStoreEntry(symbolResult: Symbol) = {
     val wdlType = WdlType.fromWdlString(symbolResult.wdlType)
+    val value = symbolResult.wdlValue map { v =>
+      dbEntryToWdlValue(v.toRawString, wdlType)
+    } orElse Option(dbEntryToWdlValue("", wdlType))
+
     new SymbolStoreEntry(
       new SymbolStoreKey(
         symbolResult.scope,
@@ -469,7 +475,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         input = symbolResult.io == IoInput // input = true, if db contains "INPUT"
       ),
       wdlType,
-      symbolResult.wdlValue map { v => dbEntryToWdlValue(v.toRawString, wdlType) },
+      value,
       symbolResult.symbolHash map SymbolHash
     )
   }
@@ -523,6 +529,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
         case (symbolLocallyQualifiedName, CallOutput(wdlValue, hash)) =>
           val reportableSymbol = key.index.fromIndex == -1 && reportableResultNames.contains(key.scope.fullyQualifiedName + "." + symbolLocallyQualifiedName)
+          val value = wdlValueToDbValue(wdlValue).toNonEmptyClob
           new Symbol(
             workflowExecution.workflowExecutionId.get,
             key.scope.fullyQualifiedName,
@@ -531,7 +538,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
             IoOutput,
             reportableSymbol,
             wdlValue.wdlType.toWdlString,
-            Option(wdlValueToDbValue(wdlValue).toClob),
+            value,
             hash.value.map(_.value)
           )
       }

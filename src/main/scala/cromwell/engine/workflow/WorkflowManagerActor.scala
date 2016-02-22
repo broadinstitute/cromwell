@@ -391,8 +391,9 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       callOutputs <- globalDataAccess.getAllOutputs(id)
       infosByExecution <- globalDataAccess.infosByExecution(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
+      runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
 
-      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents)
+      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents, runtimeAttributes)
       workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
 
     } yield workflowMetadata

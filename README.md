@@ -1604,6 +1604,10 @@ Content-Length: 8286
         "inputs": {
           "input_file": "/home/jdoe/cromwell/11.txt"
         },
+        "runtimeAttributes": {
+            "failOnStderr": "true",
+            "continueOnReturnCode": "0"
+        },
         "returnCode": 0,
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
@@ -1619,6 +1623,10 @@ Content-Length: 8286
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stdout",
         "shardIndex": 0,
         "outputs": {},
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
         "inputs": {
           "input_file": "f"
         },
@@ -1636,6 +1644,10 @@ Content-Length: 8286
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt"
         },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
         "inputs": {
           "input_file": "f"
         },
@@ -1652,6 +1664,10 @@ Content-Length: 8286
         "shardIndex": 1,
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
         },
         "inputs": {
           "input_file": "f"
@@ -1671,6 +1687,10 @@ Content-Length: 8286
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt"
         },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
         "inputs": {
           "input_file": "f"
         },
@@ -1688,6 +1708,10 @@ Content-Length: 8286
         "shardIndex": 3,
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
         },
         "inputs": {
           "input_file": "f"
@@ -1708,6 +1732,10 @@ Content-Length: 8286
         "shardIndex": -1,
         "outputs": {
           "sum": 12
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
         },
         "inputs": {
           "input_files": [

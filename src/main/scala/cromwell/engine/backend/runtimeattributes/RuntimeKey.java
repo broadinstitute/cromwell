@@ -8,7 +8,7 @@ import static cromwell.engine.backend.BackendType.SGE;
  * Backend runtime keys and the backends which are known to support them.
  */
 public enum RuntimeKey {
-    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE),
+    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES),
     CPU("cpu", JES),
     DISKS("disks", JES),
     ZONES("zones", JES),

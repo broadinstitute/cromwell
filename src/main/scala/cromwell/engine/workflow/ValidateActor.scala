@@ -58,7 +58,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
       validatedInputs <- validateInputs(namespaceWithWorkflow, workflowInputs)
       validatedRuntimeOptions <- Future.fromTry(TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
-        call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes, CromwellBackend.backend.backendType)
+        call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, CromwellBackend.backend.backendType)
       }))
     } yield ()
 

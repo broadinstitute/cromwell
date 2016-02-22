@@ -36,3 +36,27 @@ task example {
   }
 }
 ```
+* Add runtime attributes in Call metadata :
+```
+{
+  "workflowName": "hello",
+  "calls": {
+    "hello.hello": [
+      {
+        ...,
+        "runtimeAttributes": {
+                  "preemptible": "0",
+                  "failOnStderr": "false",
+                  "disks": "local-disk 10 SSD",
+                  "continueOnReturnCode": "0",
+                  "docker": "ubuntu:latest",
+                  "cpu": "1",
+                  "zones": "us-central1-a",
+                  "memory": "2GB"
+                },
+        ... 
+      }
+    ]
+  }
+}
+```

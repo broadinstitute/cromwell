@@ -6,7 +6,7 @@ import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.Hashing._
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.{CallMetadata, Backend}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -201,6 +201,44 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       }
 
       (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)
+    }
+
+    "show (only supported) runtime attributes in metadata" in {
+
+      val backendInstance = Backend.from(CromwellSpec.Config, system)
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test Workflow metadata construction")
+
+      val fullWfOptions =
+        """
+          |{
+          |  "defaultRuntimeOptions": {
+          |    "continueOnReturnCode": [0, 1, 2, 3],
+          |    "failOnStderr": true,
+          |    "zones": "us-central1-a",
+          |    "disks": "local-disk 10 SSD",
+          |    "memory": "5000000 KB",
+          |    "preemptible": 2,
+          |    "cpu": 3
+          |  }
+          |}
+        """.stripMargin
+
+      val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
+        messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.WorkflowWithStaticRuntime.asWorkflowSources(runtime = "", workflowOptions = fullWfOptions))).id
+      }
+
+      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
+      status shouldEqual WorkflowSucceeded
+
+      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(workflowId)).response
+      metadata should not be null
+
+      metadata.status shouldBe WorkflowSucceeded.toString
+      val cgrep: CallMetadata = metadata.calls("two_step.cgrep").head
+      cgrep.runtimeAttributes.size shouldBe 3
+      cgrep.runtimeAttributes("continueOnReturnCode") shouldBe "[0, 1, 2, 3]"
+      cgrep.runtimeAttributes("failOnStderr") shouldBe "true"
+      cgrep.runtimeAttributes("docker") shouldBe "ubuntu:latest"
     }
   }
 }

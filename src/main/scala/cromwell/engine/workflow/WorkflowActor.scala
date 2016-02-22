@@ -1147,9 +1147,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       }
     }
 
-    Try(backendCall.runtimeAttributes) map { _ => startCall } recover {
+    Try(backendCall.runtimeAttributes) map { attrs =>
+      globalDataAccess.setRuntimeAttributes(workflow.id, backendCall.key.toDatabaseKey, attrs.attributes) onComplete {
+        case Success(_) => startCall
+        case Failure(f) =>
+          logger.error("Could not persist runtime attributes", f)
+          self ! CallFailedToInitialize(callKey)
+      }
+    } recover {
       case f =>
-        logger.error(f.getMessage)
+        logger.error(f.getMessage, f)
         self ! CallFailedToInitialize(callKey)
     }
   }

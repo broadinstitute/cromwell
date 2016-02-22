@@ -10,7 +10,7 @@ import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.backend.{BackendCall, Backend, JobKey, WorkflowQueryResult}
+import cromwell.engine.backend.{Backend, BackendCall, JobKey, WorkflowQueryResult}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
@@ -22,7 +22,7 @@ import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
-import wdl4s.values.WdlValue
+import wdl4s.values.{WdlString, WdlValue}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -227,6 +227,31 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       _ <- DBIO.sequence(toScopeActions(workflowExecutionInsert, backend, scopeKeys))
 
     } yield ()
+
+    runTransaction(action)
+  }
+
+  override def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit] = {
+    def toRuntimeAttrInsert(executionId: Int, name: String, value: String) = dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, name, value)
+
+    val action = for {
+      execution <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(id.toString, key.fqn, key.index.fromIndex, key.attempt).result.head
+      inserts = attributes map {
+        case (k, v) => toRuntimeAttrInsert(execution.executionId.get, k, v.valueString)
+      }
+      _ <- DBIO.sequence(inserts)
+    } yield ()
+
+    runTransaction(action)
+  }
+
+  override def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]] = {
+    val action = for {
+      runtimeAttributes <- dataAccess.runtimeAttributesByWorkflowUUID(id.toString).result
+      runtimeMap = runtimeAttributes map {
+        case (e: Execution, v) => e.toKey -> v
+      } groupBy { _._1 } mapValues { _ groupBy { _._2.name } mapValues { _.head match { case (_, attr) => attr.value } } }
+    } yield runtimeMap
 
     runTransaction(action)
   }

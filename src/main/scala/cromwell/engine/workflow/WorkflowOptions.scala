@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import com.typesafe.config.{ConfigException, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import cromwell.util.{Aes256Cbc, EncryptedBytes, SecretKey}
 import spray.json._
 
@@ -95,9 +95,21 @@ object WorkflowOptions {
 
   def fromMap(m: Map[String, String]) = fromJsonObject(JsObject(m map { case (k, v) => k -> JsString(v)}))
 
+  private def getAsJson(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
+    case Some(jsStr: JsString) => Success(jsStr)
+    case Some(jsNum: JsNumber) => Success(jsNum)
+    case Some(jsArray: JsArray) => Success(jsArray)
+    case Some(jsBool: JsBoolean) => Success(jsBool)
+    case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj) map JsString.apply
+    case Some(jsObj: JsObject) => Success(jsObj)
+    case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
+    case None => Failure(new Throwable(s"Field not found: $key"))
+  }
+
   private def get(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
     case Some(jsStr: JsString) => Success(jsStr.value)
     case Some(jsNum: JsNumber) => Success(jsNum.value.toString)
+    case Some(jsBool: JsBoolean) => Success(jsBool.value.toString)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
     case None => Failure(new Throwable(s"Field not found: $key"))
@@ -117,8 +129,8 @@ case class WorkflowOptions(jsObject: JsObject) {
     case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }
 
-  def getDefaultRuntimeOption(key: String): Try[String] = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => WorkflowOptions.get(key, jsObj)
+  def getDefaultRuntimeOption(key: String): Try[JsValue] = jsObject.fields.get(defaultRuntimeOptionKey) match {
+    case Some(jsObj: JsObject) => WorkflowOptions.getAsJson(key, jsObj)
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
     case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }

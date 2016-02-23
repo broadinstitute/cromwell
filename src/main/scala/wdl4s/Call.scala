@@ -99,9 +99,12 @@ case class Call(alias: Option[String],
 
   /**
    * Instantiate the abstract command line corresponding to this call using the specified inputs.
+    *
    */
-  def instantiateCommandLine(inputs: CallInputs, functions: WdlFunctions[WdlValue]): Try[String] =
-    task.instantiateCommand(inputs, functions)
+  def instantiateCommandLine(inputs: CallInputs,
+                             functions: WdlFunctions[WdlValue],
+                             valueMapper: WdlValue => WdlValue = (v) => v): Try[String] =
+    task.instantiateCommand(inputs, functions, valueMapper)
 
   /**
     * @return Seq[ScopedDeclaration] which are scoped to this Call

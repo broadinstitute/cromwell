@@ -5,5 +5,8 @@ import wdl4s.values.WdlValue
 import wdl4s.Declaration
 
 trait CommandPart {
-  def instantiate(declarations: Seq[Declaration], parameters: Map[String, WdlValue], functions: WdlFunctions[WdlValue]): String
+  def instantiate(declarations: Seq[Declaration],
+                  parameters: Map[String, WdlValue],
+                  functions: WdlFunctions[WdlValue],
+                  valueMapper: WdlValue => WdlValue = (v) => v): String
 }

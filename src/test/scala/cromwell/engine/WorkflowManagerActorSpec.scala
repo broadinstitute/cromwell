@@ -3,6 +3,7 @@ package cromwell.engine
 import java.util.UUID
 
 import akka.testkit.{EventFilter, TestActorRef, _}
+import cromwell.CromwellSpec.DockerTest
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.Hashing._
@@ -203,7 +204,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)
     }
 
-    "show (only supported) runtime attributes in metadata" in {
+    "show (only supported) runtime attributes in metadata" taggedAs DockerTest in {
 
       val backendInstance = Backend.from(CromwellSpec.Config, system)
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test Workflow metadata construction")

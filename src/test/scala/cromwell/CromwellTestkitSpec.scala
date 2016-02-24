@@ -302,9 +302,11 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
         val standardStreams = wma.callStdoutStderr(workflowId, fqn)
         stdout foreach { souts =>
+          System.err.println(s"souts is $souts")
           souts shouldEqual (standardStreams map { s => File(s.stdout.value).contentAsString })
         }
         stderr foreach { serrs =>
+          System.err.println(s"serrs is $serrs")
           serrs shouldEqual (standardStreams map { s => File(s.stderr.value).contentAsString })
         }
       }

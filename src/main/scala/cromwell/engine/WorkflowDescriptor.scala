@@ -169,6 +169,8 @@ case class WorkflowDescriptor(id: WorkflowId,
 
   private def logWriteDisabled() = workflowLogger.warn(writeDisabled)
   private def logReadDisabled() = workflowLogger.warn(readDisabled)
+
+  override def toString = s"WorkflowDescriptor(${id.id.toString})"
 }
 
 object WorkflowDescriptor {

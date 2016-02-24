@@ -29,6 +29,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.SpanSugar._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.specs2.mock.Mockito
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlString}
 import wdl4s.{CallInputs, _}
@@ -40,7 +41,7 @@ object SlickDataAccessSpec {
   val AllowTrue = Seq(webservice.QueryParameter("allow", "true"))
 }
 
-class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll {
+class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
 
   import TableDrivenPropertyChecks._
 
@@ -218,6 +219,32 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
           workflowResult.id should be(workflowId)
           workflowResult.sourceFiles.wdlSource should be("workflow test {}")
           workflowResult.sourceFiles.inputsJson should be("{}")
+        }
+      } yield ()).futureValue
+    }
+
+    it should "store and retrieve an empty String as a WdlValue" taggedAs IntegrationTest in {
+      assume(canConnect || testRequired)
+      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowInfo = WorkflowDescriptor(workflowId, testSources)
+      val call = mock[Call]
+      call.fullyQualifiedName returns "wf.a"
+      val outputKey = BackendCallKey(call, None, 1)
+      val dbKey = ExecutionDatabaseKey(outputKey.scope.fullyQualifiedName, outputKey.index, outputKey.attempt)
+      val outputs: CallOutputs = Map("wf.a.empty" -> CallOutput(WdlString(""), None))
+
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        _ <- dataAccess.setOutputs(workflowId, outputKey, outputs, Seq.empty)
+        _ <- dataAccess.getOutputs(workflowId, dbKey) map { results =>
+          results shouldNot be(empty)
+
+          val workflowOutput = results.headOption
+          workflowOutput shouldNot be(empty)
+          val workflowResult = workflowOutput.get
+          workflowResult.wdlValue shouldNot be(empty)
+          val wdlValue = workflowResult.wdlValue
+          wdlValue.get.valueString shouldBe ""
         }
       } yield ()).futureValue
     }
@@ -740,10 +767,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call1, shardIndex1, 1), InfoKeys.Pid, pid1)
         _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call2, shardIndex2, 1), InfoKeys.Pid, pid2)
         _ <- dataAccess.getExecutionInfos(workflowId, call1, 1) map {
-          case infos => assertResult(pid1) { infos.head.value.get }
+          case infos => assertResult(pid1.get) { infos.head.value.get }
         }
         _ <- dataAccess.getExecutionInfos(workflowId, call2, 1) map {
-          case infos => assertResult(pid2) { infos.head.value.get }
+          case infos => assertResult(pid2.get) { infos.head.value.get }
         }
       } yield ()).futureValue
     }
@@ -807,7 +834,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       dataAccess.createWorkflow(workflowInfo, Nil, Seq(call),
-        UnknownBackend).failed.futureValue should be(an[IllegalArgumentException])
+        UnknownBackend).failed.futureValue should be(an[Exception])
     }
 
     it should "fail to create workflow for a null backend" taggedAs IntegrationTest in {
@@ -819,7 +846,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 
       dataAccess.createWorkflow(workflowInfo, Nil, Seq(call),
-        null).failed.futureValue should be(an[IllegalArgumentException])
+        null).failed.futureValue should be(a[NullPointerException])
     }
 
     it should "set and get the same symbol with IO as input then output" taggedAs IntegrationTest in {

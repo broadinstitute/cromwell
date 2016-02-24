@@ -2,6 +2,7 @@ package cromwell.util
 
 import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
+import java.util.UUID
 
 import cromwell.engine.WorkflowSourceFiles
 import spray.json._
@@ -1302,7 +1303,7 @@ object SampleWdl {
     override lazy val rawInputs = Map.empty[String, String]
   }
 
-  object PrepareScatterGatherWdl extends SampleWdl {
+  case class PrepareScatterGatherWdl(salt: String = UUID.randomUUID().toString) extends SampleWdl {
     override def wdlSource(runtime: String = "") = {
       """
         |#
@@ -1322,8 +1323,10 @@ object SampleWdl {
         |}
         |# count the number of words in the input file, writing the count to an output file overkill in this case, but simulates a real scatter-gather that would just return an Int (map)
         |task do_scatter {
+        |    String salt
         |    File input_file
         |    command {
+        |        # ${salt}
         |        wc -w ${input_file} > output.txt
         |    }
         |    output {
@@ -1363,7 +1366,8 @@ object SampleWdl {
            |text file is 11
            |""".stripMargin
 
-    override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).getAbsolutePath)
+    override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).getAbsolutePath,
+    "sc_test.do_scatter.salt" -> salt)
   }
 
   object FileClobber extends SampleWdl {

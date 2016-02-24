@@ -993,9 +993,9 @@ Call Caching allows Cromwell to detect when a job has been run in the past so it
 
 Cromwell's call cache is maintained in its database.  For best mileage with call caching, configure Cromwell to [point to a MySQL database](#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
 
-**Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read-from-cache` is enabled (see below):
+**Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read_from_cache` is enabled (see below):
 
-* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming `read-from-cache` is enabled (see below)
+* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming `read_from_cache` is enabled (see below)
 * If there was a cache hit, outputs are **copied** from the cached job to the new job's output directory
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.

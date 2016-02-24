@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import cromwell.engine.CallAttempt
+import cromwell.engine.{FailureEventEntry, QualifiedFailureEventEntry}
 import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
 import org.joda.time.DateTime
 import spray.json._
@@ -31,11 +31,17 @@ case class WorkflowMetadataResponse(id: String,
                                     end: Option[DateTime],
                                     inputs: JsObject,
                                     outputs: Option[Map[String, WdlValue]],
-                                    calls: Map[String, Seq[CallMetadata]])
+                                    calls: Map[String, Seq[CallMetadata]],
+                                    failures: Option[Seq[FailureEventEntry]])
 
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
 
 final case class CallCachingResponse(updateCount: Int)
+
+case class WorkflowFailuresResponse(id: String,
+                                    workflowName: String,
+                                    status: String,
+                                    failures: Seq[QualifiedFailureEventEntry])
 
 object APIResponse {
   private def constructFailureResponse(status: String, ex: Throwable) ={

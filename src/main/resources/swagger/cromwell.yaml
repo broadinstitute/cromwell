@@ -677,7 +677,14 @@ definitions:
         description: Map of output keys to output values
       calls:
         type: object
+        schema:
+          $ref: '#/definitions/CallMetadata'
         description: Map of call fully qualified names to lists of call metadata
+      failures:
+        type: object
+        schema:
+          $ref: '#/definitions/FailureMessage'
+        description: If the workflow failed, a set of recorded failure messages which were not relevant to any individual call.
   CallMetadata:
     description: 'Call level metadata'
     required:
@@ -707,6 +714,11 @@ definitions:
       jobId:
         type: string
         description: Backend-specific job ID
+      failures:
+        type: object
+        schema:
+          $ref: '#/definitions/FailureMessage'
+        description: If the call failed, the set of recorded failure messages for the call.
       returnCode:
         type: int
         description: Call execution return code
@@ -719,6 +731,18 @@ definitions:
       backendLogs:
         type: object
         description: Paths to backend specific logs for this call
+  FailureMessage:
+    description: 'Failure messages'
+    required:
+      - failure
+      - timestamp
+    properties:
+      failure:
+        type: string
+        description: The failure message
+      timestamp:
+        type: date-time
+        description: The time at which this failure occurred
   WorkflowQueryResponse:
     description: Response to a workflow query
     required:

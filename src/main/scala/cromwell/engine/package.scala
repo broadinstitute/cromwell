@@ -29,6 +29,10 @@ package object engine {
   final case class AbortRegistrationFunction(register: AbortFunction=>Unit)
 
   final case class ExecutionEventEntry(description: String, startTime: DateTime, endTime: DateTime)
+  final case class QualifiedFailureEventEntry(workflowId: String, execution: Option[ExecutionDatabaseKey], failure: String, timestamp: DateTime) {
+    def dequalify = FailureEventEntry(failure, timestamp)
+  }
+  final case class FailureEventEntry(failure: String, timestamp: DateTime)
   final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 

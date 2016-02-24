@@ -359,11 +359,13 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
   private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
                                     workflowExecutionAux: WorkflowExecutionAux,
                                     workflowOutputs: engine.WorkflowOutputs,
-                                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]]): WorkflowMetadataResponse = {
+                                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]],
+                                    workflowFailures: Seq[FailureEventEntry]): WorkflowMetadataResponse = {
 
     val startDate = new DateTime(workflowExecution.startDt)
     val endDate = workflowExecution.endDt map { new DateTime(_) }
     val workflowInputs = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream).mkString.parseJson.asInstanceOf[JsObject]
+    val failures = if (workflowFailures.isEmpty) None else Option(workflowFailures)
 
     WorkflowMetadataResponse(
       id = workflowExecution.workflowExecutionUuid.toString,
@@ -376,7 +378,8 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       end = endDate,
       inputs = workflowInputs,
       outputs = Option(workflowOutputs) map { _.mapToValues },
-      calls = callMetadata)
+      calls = callMetadata,
+      failures)
   }
 
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
@@ -393,10 +396,20 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
       runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
 
-      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents, runtimeAttributes)
-      workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata)
+      failures <- globalDataAccess.getFailureEvents(id)
+      wfFailures = failures collect { case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp) }
+      callFailures = callFailuresMap(failures)
+
+      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents, runtimeAttributes, callFailures)
+      workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata, wfFailures)
 
     } yield workflowMetadata
+  }
+
+  private def callFailuresMap(failureEvents: Seq[QualifiedFailureEventEntry]): Map[ExecutionDatabaseKey, Seq[FailureEventEntry]] = {
+    failureEvents filter { _.execution.isDefined } groupBy { _.execution } map {
+      case (key, qualifiedEntries: Seq[QualifiedFailureEventEntry]) => key.get -> (qualifiedEntries map { _.dequalify })
+    }
   }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a

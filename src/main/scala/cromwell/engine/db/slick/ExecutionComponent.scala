@@ -62,7 +62,13 @@ trait ExecutionComponent {
   protected val executions = TableQuery[Executions]
 
   val executionsAutoInc = executions returning executions.
-    map(_.executionId) into ((a, id) => a.copy(executionId = Some(id)))
+    map(_.executionId) into ((a, id) => a.copy(executionId = Option(id)))
+
+  val executionsByExecutionId = Compiled(
+    (executionId: Rep[Int]) => for {
+      execution <- executions
+      if execution.executionId === executionId
+    } yield execution)
 
   val executionCallFqnsAndStatusesByWorkflowExecutionId = Compiled(
     (workflowExecutionId: Rep[Int]) => for {

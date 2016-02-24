@@ -1646,6 +1646,16 @@ Content-Length: 8286
 }
 ```
 
+The `call` and `workflow` may optionally contain failures shaped like this:
+```
+"failures": [
+  {
+    "failure": "The failure message",
+    "timestamp": "2016-02-25T10:49:02.066-05:00"
+  }
+]
+```
+
 ## POST /api/workflows/:version/:id/abort
 
 cURL:

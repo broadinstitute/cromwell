@@ -18,11 +18,12 @@ import cromwell.engine.workflow._
 import cromwell.engine.{CallOutput, SymbolHash, WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
+import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
-import wdl4s.values.{WdlString, WdlValue}
+import wdl4s.values.WdlValue
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -89,6 +90,8 @@ object SlickDataAccess {
   }
 
   lazy val log = LoggerFactory.getLogger("slick")
+
+  val FailureEventMaxMessageLength = 1024
 }
 
 /**
@@ -634,6 +637,61 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           new DateTime(event.startTime.getTime),
           new DateTime(event.endTime.getTime))
       } }
+  }
+
+  override def addCallFailureEvent(workflowId: WorkflowId, executionKey: ExecutionDatabaseKey,
+                                           failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+      execution <- executionKey match {
+        case ExecutionDatabaseKey(callFqn, Some(index), attempt) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(workflowId.toString, callFqn, index, attempt).result.head
+        case ExecutionDatabaseKey(callFqn, None, attempt) => dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndAttempt(workflowId.toString, callFqn, attempt).result.head
+      }
+
+      _ <- dataAccess.failureEventsAutoInc +=
+        new FailureEvent(
+          workflowExecution.workflowExecutionId.get,
+          Option(execution.executionId.get),
+          StringUtils.abbreviate(failure.failure, FailureEventMaxMessageLength),
+          new Timestamp(failure.timestamp.getMillis))
+    } yield ()
+
+    runTransaction(action)
+  }
+
+  override def addWorkflowFailureEvent(workflowId: WorkflowId, failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = for {
+      workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
+
+      _ <- dataAccess.failureEventsAutoInc +=
+        new FailureEvent(
+          workflowExecution.workflowExecutionId.get,
+          None,
+          StringUtils.abbreviate(failure.failure, FailureEventMaxMessageLength),
+          new Timestamp(failure.timestamp.getMillis))
+    } yield ()
+
+    runTransaction(action)
+  }
+
+  private def toFailureEntries(failures: Traversable[(String, FailureEvent)])(implicit ec: ExecutionContext): Seq[DBIO[QualifiedFailureEventEntry]] = {
+    (failures map { case (workflowId, failure) =>
+      val failureMessage = failure.failure
+      val failureTimestamp = new DateTime(failure.timestamp.getTime)
+      failure.executionId match {
+        case None => DBIO.successful(QualifiedFailureEventEntry(workflowId, None, failureMessage, failureTimestamp))
+        case Some(executionId) =>
+          for {
+            execution <- dataAccess.executionsByExecutionId(executionId).result.head
+            executionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
+          } yield QualifiedFailureEventEntry(workflowId, Option(executionDatabaseKey), failureMessage, failureTimestamp)
+      }
+    }).toSeq
+  }
+
+  def getFailureEvents(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Seq[QualifiedFailureEventEntry]] = {
+    val action = dataAccess.failuresByWorkflowExecutionUuid(workflowId.toString).result
+    runTransaction(action flatMap { f => DBIO.sequence(toFailureEntries(f)) })
   }
 
   private def executionsForStatusUpdate(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext) = for {

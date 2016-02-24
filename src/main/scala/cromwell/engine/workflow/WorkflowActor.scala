@@ -21,6 +21,7 @@ import cromwell.engine.{CallOutput, CallOutputs, EnhancedFullyQualifiedName, Hos
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
+import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
@@ -42,13 +43,12 @@ object WorkflowActor {
   }
   case class CallStarted(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
-  sealed trait CallFailed extends TerminalCallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
   case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
-  case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: Throwable) extends CallFailed
-  case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends CallFailed
-  case class CallFailedToInitialize(callKey: ExecutionStoreKey) extends CallFailed
+  case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: Throwable) extends TerminalCallMessage
+  case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends TerminalCallMessage
+  case class CallFailedToInitialize(callKey: ExecutionStoreKey, reason: String) extends TerminalCallMessage
   case object Terminate extends WorkflowActorMessage
   final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
@@ -237,8 +237,6 @@ object WorkflowActor {
 
 case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
-
-  lazy implicit val hasher = workflow.fileHasher
 
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)
@@ -452,6 +450,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
   }
 
+  private def addCallFailureEvent(executionKey: ExecutionDatabaseKey, failureMessage: String): Unit = {
+    logger.error(failureMessage)
+    globalDataAccess.addCallFailureEvent(workflow.id, executionKey, FailureEventEntry(failureMessage, DateTime.now))
+  }
+
   when(WorkflowRunning) {
     case Event(StartRunnableCalls, data) =>
       val updatedData = startRunnableCalls(data)
@@ -480,14 +483,16 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       val updatedData = data.addPersisting(callKey, status)
       stay() using updatedData
     case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) && !data.isPending(callKey) =>
+      addCallFailureEvent(callKey.toDatabaseKey, failure.getMessage)
       // Note: Currently Retryable == Preempted. If another reason than preemption arises that requires retrying at this level, this will need to be updated
       handleCallFailedRetryable(callKey, ExecutionStatus.Preempted, returnCode, failure, message, data, events)
     case Event(message @ CallFailedNonRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
+      addCallFailureEvent(callKey.toDatabaseKey, failure)
       stay() using updatedData
-    case Event(message @ CallFailedToInitialize(callKey), data) =>
-      logger.warn(s"Call failed to initialize: ${callKey.tag}")
+    case Event(message @ CallFailedToInitialize(callKey, reason), data) =>
+      addCallFailureEvent(callKey.toDatabaseKey, "Call failed to initialize: $reason")
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = None)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       stay() using updatedData
@@ -566,7 +571,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       case backendCallKey: BackendCallKey => fetchLocallyQualifiedInputs(backendCallKey) match {
         case Success(callInputs) => startBackendCallWithMessage(message, backendCallKey, callInputs)
         case Failure(t) =>
-          self ! CallFailedToInitialize(callKey)
+          self ! CallFailedToInitialize(callKey, s"Failed to fetch locally qualified inputs: ${t.getMessage}")
       }
       case finalCallKey: FinalCallKey => startActor(finalCallKey, Map.empty, message.startMode)
     }
@@ -831,7 +836,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       case (acc, (_, Success(x))) =>
         acc plus x
       case (acc, (key, Failure(e))) =>
-        self ! CallFailedToInitialize(key)
+        self ! CallFailedToInitialize(key, s"Failed to start call: ${e.getMessage}")
         acc
     }
 
@@ -1167,7 +1172,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         }
       } recover { case e =>
         log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
-        self ! CallFailedToInitialize(callKey)
+        self ! CallFailedToInitialize(callKey, s"Failed to calculate hash for call '${backendCall.key.tag}': ${e.getMessage}")
       }
     }
 
@@ -1185,12 +1190,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         case Success(_) => startCall
         case Failure(f) =>
           logger.error("Could not persist runtime attributes", f)
-          self ! CallFailedToInitialize(callKey)
+          self ! CallFailedToInitialize(callKey, s"Could not persist runtime attributes: ${f.getMessage}")
       }
     } recover {
       case f =>
         logger.error(f.getMessage, f)
-        self ! CallFailedToInitialize(callKey)
+        self ! CallFailedToInitialize(callKey, f.getMessage)
     }
   }
 

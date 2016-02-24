@@ -7,11 +7,13 @@ import com.google.api.client.util.ExponentialBackOff
 import cromwell.backend.BackendActor.{FailedComputeHashResult, SuccessfulComputeHashResult, ComputeHash, Prepare}
 import cromwell.backend.config.BackendConfiguration
 import cromwell.backend.{BackendActor, DefaultBackendFactory}
+import cromwell.caching.ExecutionHash
 import cromwell.engine.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
+import cromwell.engine.workflow.WorkflowActor.PersistStandardStreamSymbols
 import cromwell.engine.workflow.{BackendCallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
@@ -48,6 +50,10 @@ object CallActor {
 
   /** Message to self to retry sending the `callMessage` to the `WorkflowActor` in the absence of an `Ack`. */
   final case class Retry(callMessage: WorkflowActor.CallMessage) extends CallActorMessage
+
+  sealed trait StandardStreamPersistenceMessage extends CallActorMessage
+  case object SuccessfulStandardStreamPersist extends StandardStreamPersistenceMessage
+  final case class FailedStandardStreamPersist(error: Throwable) extends StandardStreamPersistenceMessage
 
   /** FSM data class with an optional abort function and exponential backoff. */
   case class CallActorData(abortFunction: Option[AbortFunction] = None,
@@ -161,26 +167,31 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
 
   import cromwell.backend.model._
 
+  def fail(e: Throwable, rc: Option[Int] = None): State = {
+    val failureHandle = NonRetryableExecution(e, rc)
+    self ! ExecutionFinished(call, failureHandle)
+    stay()
+  }
+
   whenUnhandled {
     case Event(Subscribed, _) =>
       sender ! Prepare
       stay()
-    case Event(TaskStatus(Status.Created), _) =>
-      sender ! cromwell.backend.BackendActor.Execute
+    case Event(CreatedTaskStatus(stdout, stderr), _) =>
+      context.parent ! PersistStandardStreamSymbols(key, stdout, stderr)
       stay()
-    case Event(TaskStatus(Status.Canceled), _) =>
-      val errMsg = "Received a canceled or failed status without an execution result."
-      logger.error(errMsg)
-      val failureHandle = new NonRetryableExecution(new IllegalStateException(errMsg))
-      self ! ExecutionFinished(call, failureHandle)
+    case Event(SuccessfulStandardStreamPersist, _) =>
+      backend ! cromwell.backend.BackendActor.Execute
       stay()
-    case Event(TaskFinalStatus(Status.Failed, result: ExecutionResult), _) =>
-      val failureHandle = processFailedExecutionResult(result)
-      self ! ExecutionFinished(call, failureHandle)
-      stay()
-    case Event(TaskFinalStatus(Status.Succeeded, result: SuccessfulTaskResult), _) =>
-      val callOps: Map[String, CallOutput] = result.outputs.map(output => output._1 -> CallOutput(output._2, None))
-      val successResult = SuccessfulBackendCallExecution(callOps, Seq.empty, 0, new ExecutionHash(result.executionHash.overallHash, None))
+    case Event(FailedStandardStreamPersist(e), _) => fail(e)
+    case Event(FailedWithoutReturnCodeTaskStatus(e), _) => fail(e, None)
+    case Event(FailedWithReturnCodeTaskStatus(e, rc), _) => fail(e, Option(rc))
+    case Event(CanceledTaskStatus, _) =>
+      val message = "Received a canceled status without an execution result."
+      fail(new IllegalStateException(message))
+    case Event(SucceededTaskStatus(outputs, rc, hash), _) =>
+      val callOps: Map[String, CallOutput] = outputs.mapValues(CallOutput(_, None))
+      val successResult = SuccessfulBackendCallExecution(callOps, Seq.empty, rc, hash)
       self ! ExecutionFinished(call, successResult)
       stay()
     case Event(ExecutionFinished(finishedCall, executionResult), _) => handleFinished(finishedCall, executionResult)
@@ -198,14 +209,6 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
     case Event(e, _) =>
       logger.error(s"received unhandled event $e while in state $stateName")
       stay()
-  }
-
-  private def processFailedExecutionResult(result: ExecutionResult): FailedExecution = {
-    result match {
-      case res: FailureTaskResult => new NonRetryableExecution(res.exception)
-      case res: FailureResult => new NonRetryableExecution(res.exception)
-      case unknown => new NonRetryableExecution(new IllegalStateException(s"Unhandled failure result. Result received: $unknown."))
-    }
   }
 
   private def tryAbort(data: CallActorData): CallActor.this.State = {
@@ -255,6 +258,7 @@ class CallActor(key: BackendCallKey, locallyQualifiedInputs: CallInputs, workflo
     context.stop(self)
   }
 
+  // FIXME this is unused, that doesn't seem right
   private def registerAbortFunction(abortFunction: AbortFunction): Unit = {
     self ! CallActor.RegisterCallAbortFunction(abortFunction)
   }

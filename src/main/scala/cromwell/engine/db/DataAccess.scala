@@ -1,11 +1,12 @@
 package cromwell.engine.db
 
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
+import cromwell.engine.backend.CallLogs
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
+import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
 import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import wdl4s.values.WdlFile
 import wdl4s.{CallInputs, _}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -14,9 +15,15 @@ import scala.language.postfixOps
 object DataAccess {
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
   case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: JobKey)
+
+  val IsStandardStream: SymbolStoreEntry => Boolean = s => s.key.fqn.endsWith(".$stdout") || s.key.fqn.endsWith(".$stderr")
+
+  val StdoutSuffix = ".$stdout"
+  val StderrSuffix = ".$stderr"
 }
 
 trait DataAccess extends AutoCloseable {
+  import DataAccess._
 
   def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                      workflowInputs: Traversable[SymbolStoreEntry],
@@ -47,19 +54,50 @@ trait DataAccess extends AutoCloseable {
   /** Returns all outputs for this workflowId */
   def getWorkflowOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
-  def getAllOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+  protected def getAllOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+
+  def getOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    getAllOutputs(workflowId)(ec) map { _ filterNot IsStandardStream }
+  }
 
   def getAllInputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
-  /** Get all outputs for the scope of this call. */
+  /** Get all output symbols for the scope of this call including standard stream symbols. */
+  protected def getAllOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                             (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+
+  /** Get all "real" outputs for the scope of this call (i.e. exclude standard stream symbols). */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
-                (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+                (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    getAllOutputs(workflowId, key)(ec) map { _ filterNot IsStandardStream }
+  }
+
+  /** Get the standard stream symbols for the scope of this call. */
+  def getStandardStreamSymbols(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                              (implicit ec: ExecutionContext): Future[CallLogs] = {
+
+    // Folds stdout and stderr symbols into an accumulator CallLogs object.
+    def foldLogs(acc: CallLogs, symbol: SymbolStoreEntry): CallLogs = {
+      symbol match {
+        case s if s.key.name.endsWith(StdoutSuffix) => acc.copy(stdout = s.wdlValue.get.asInstanceOf[WdlFile])
+        case s if s.key.name.endsWith(StderrSuffix) => acc.copy(stderr = s.wdlValue.get.asInstanceOf[WdlFile])
+        case s => acc
+      }
+    }
+
+    // Initial "zero" value of a CallLogs with blank stdout and stderr.
+    val zeroLogs = CallLogs(stdout = WdlFile(""), stderr = WdlFile(""))
+
+    getAllOutputs(workflowId, key)(ec) map { symbols =>
+      symbols.foldLeft(zeroLogs) { case (acc, symbol) => foldLogs(acc, symbol) }
+    }
+  }
 
   /** Get all inputs for the scope of this call. */
   def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: WorkflowOutputs,
                  workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit]
 
   /** Updates the existing input symbols to replace expressions with real values **/
@@ -121,4 +159,11 @@ trait DataAccess extends AutoCloseable {
   def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int]
 
   def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
+
+  def writeStandardStreamSymbols(id: WorkflowId, key: ExecutionDatabaseKey, stdout: String, stderr: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    // Write the magical $stdout and $stderr symbols.
+    val outputs = Map(StdoutSuffix -> stdout, StderrSuffix -> stderr) map {
+      case (suffix, value) => key.fqn + suffix -> CallOutput(WdlFile(value), None) }
+    setOutputs(id, key, outputs, Seq.empty)
+  }
 }

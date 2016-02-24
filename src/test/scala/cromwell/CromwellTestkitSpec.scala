@@ -1,5 +1,6 @@
 package cromwell
 
+import java.nio.file.Paths
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -302,10 +303,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
         val standardStreams = wma.callStdoutStderr(workflowId, fqn)
         stdout foreach { souts =>
-          souts shouldEqual (standardStreams map { s => File(s.stdout.value).contentAsString })
+          souts shouldEqual (standardStreams map { s => val v = s.stdout.value; System.err.println(s"stdout is $v, is directory? ${Paths.get(v).toFile.isDirectory}"); File(s.stdout.value).contentAsString })
         }
         stderr foreach { serrs =>
-          serrs shouldEqual (standardStreams map { s => File(s.stderr.value).contentAsString })
+          serrs shouldEqual (standardStreams map { s => val v = s.stderr.value; System.err.println(s"stderr is $v, is directory? ${Paths.get(v).toFile.isDirectory}"); File(s.stderr.value).contentAsString })
         }
       }
     }

@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import cromwell.backend.model.ExecutionHash
+import cromwell.caching.ExecutionHash
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.db.slick.{Execution, WorkflowExecution}

@@ -8,7 +8,7 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.backend.model.ExecutionHash
+import cromwell.caching.ExecutionHash
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.WorkflowQueryResult
@@ -487,8 +487,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Get all outputs for the scope of this key. */
-  override def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
-                         (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+  override protected def getAllOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                                      (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    import DataAccess._
     require(key != null, "key cannot be null")
     getSymbols(workflowId, IoOutput, Option(key.fqn), key.index)
   }
@@ -513,7 +514,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  override def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: WorkflowOutputs,
                           reportableResults: Seq[ReportableSymbol])
                          (implicit ec: ExecutionContext): Future[Unit] = {
     val reportableResultNames = reportableResults map { _.fullyQualifiedName }
@@ -521,10 +522,10 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
         case (symbolLocallyQualifiedName, CallOutput(wdlValue, hash)) =>
-          val reportableSymbol = key.index.fromIndex == -1 && reportableResultNames.contains(key.scope.fullyQualifiedName + "." + symbolLocallyQualifiedName)
+          val reportableSymbol = key.index.fromIndex == -1 && reportableResultNames.contains(key.fqn + "." + symbolLocallyQualifiedName)
           new Symbol(
             workflowExecution.workflowExecutionId.get,
-            key.scope.fullyQualifiedName,
+            key.fqn,
             symbolLocallyQualifiedName,
             key.index.fromIndex,
             IoOutput,

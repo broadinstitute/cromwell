@@ -4,6 +4,7 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.ConfigFactory
+import cromwell.backend.config.BackendConfigurationEntry
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
@@ -11,6 +12,7 @@ import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
+import cromwell.engine.workflow.ValidateActor.{ValidationFailure, ValidateActorMessage, ValidationSuccess, GetExecutableBackends}
 import cromwell.engine.workflow.WorkflowActor.Start
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.{EnhancedFullyQualifiedName, _}
@@ -35,7 +37,7 @@ object WorkflowManagerActor {
 
   sealed trait WorkflowManagerActorMessage
 
-  case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
+  case class ValidateAndSubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
   case class WorkflowActorSubmitSuccess(replyTo: Option[ActorRef], id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowActorSubmitFailure(replyTo: Option[ActorRef], failure: Throwable) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
@@ -49,6 +51,7 @@ object WorkflowManagerActor {
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
+  private final case class UpdateWorkflowManagerState(data: WorkflowManagerData) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
   def props(): Props = Props(new WorkflowManagerActor())
@@ -166,9 +169,22 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
   startWith(Running, WorkflowManagerData(workflows = Map.empty))
 
   when (Running) {
-    case Event(SubmitWorkflow(source), _) =>
-      val updatedData = submitWorkflow(source, replyTo = Option(sender), id = None)
-      stay() using updatedData
+    case Event(ValidateAndSubmitWorkflow(source), _) =>
+      import akka.pattern.ask
+      val requester = sender()
+      val validateActor = context.actorOf(ValidateActor.props(source))
+      val validationResFut = (validateActor ? GetExecutableBackends).mapTo[ValidateActorMessage]
+      validationResFut onComplete {
+        case Success(validationSuccess: ValidationSuccess) =>
+          val updatedData = submitWorkflow(validationSuccess.namespaceWithWorkflow ,
+            validationSuccess.coercedInputs, validationSuccess.workflowOptions, validationSuccess.backends, replyTo = Option(requester), id = None, validationSuccess.workflowSources)
+          self ! UpdateWorkflowManagerState(updatedData)
+        case Success(validationFailure: ValidationFailure) =>
+          self ! WorkflowActorSubmitFailure(Option(requester), new IllegalStateException(s"Failed to validate Workflow. Msg: ${validationFailure.reason.getMessage}", validationFailure.reason))
+        case Failure(reason) => self ! WorkflowActorSubmitFailure(Option(requester), reason)
+        case unexpected => self ! WorkflowActorSubmitFailure(Option(requester), new IllegalStateException(s"Something went wrong with the validation process!"))
+      }
+      stay()
     case Event(WorkflowActorSubmitSuccess(replyTo, id), _) =>
       replyTo foreach { _ ! WorkflowManagerSubmitSuccess(id) }
       stay()
@@ -241,6 +257,9 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(UpdateWorkflowManagerState(data), _) =>
+      logger.info(s"Updating WorkflowManager state. New Data: $data")
+      stay() using data
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
   }
@@ -402,20 +421,23 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
     */
-  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): WorkflowManagerData = {
+  def submitWorkflow(namespaceWithWf: NamespaceWithWorkflow,
+                     coercedInputs: Option[WorkflowCoercedInputs],
+                     wfOptions: Option[WdlJson],
+                     executableBackends: Seq[BackendConfigurationEntry],
+                     replyTo: Option[ActorRef], id: Option[WorkflowId],
+                     workflowSources: Option[WorkflowSourceFiles] = None): WorkflowManagerData = {
     val workflowId: WorkflowId = id.getOrElse(WorkflowId.randomId())
     logger.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
-    val isRestart = id.isDefined
 
     case class ActorAndStateData(actor: WorkflowActorRef, data: WorkflowManagerData)
 
     val actorAndData = for {
-      descriptor <- Try(WorkflowDescriptor(workflowId, source))
+      descriptor <- Try(WorkflowDescriptor(workflowId, workflowSources, namespaceWithWf, coercedInputs, wfOptions))
       actor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
       _ = actor ! SubscribeTransitionCallBack(self)
       data = stateData.add(workflowId -> actor)
     } yield ActorAndStateData(actor, data)
-
     actorAndData match {
       case Failure(e) =>
         val messageOrBlank = Option(e.getMessage).mkString
@@ -430,9 +452,11 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
     }
   }
 
+  //FIXME: Restart is not yet supported..the following will not work.
   private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): WorkflowManagerData = {
     logger.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
-    submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
+//    submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
+    submitWorkflow(restartableWorkflow.namespace, Option(restartableWorkflow.coercedInputs), None, Seq(), None, Option(restartableWorkflow.id) )
   }
 
   private def restartIncompleteWorkflows(): Unit = {

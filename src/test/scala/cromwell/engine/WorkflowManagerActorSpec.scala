@@ -3,6 +3,7 @@ package cromwell.engine
 import java.util.UUID
 
 import akka.testkit.{EventFilter, TestActorRef, _}
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
@@ -33,7 +34,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test the WorkflowManagerActor")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
-        messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(HelloWorld.asWorkflowSources())).id
+        messageAndWait[WorkflowManagerSubmitSuccess](ValidateAndSubmitWorkflow(HelloWorld.asWorkflowSources())).id
       }
 
       val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
@@ -65,7 +66,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(), ConfigFactory.load())
           val worldSymbolHash = worldWdlString.getHash(descriptor)
           val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST
@@ -99,8 +100,8 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
     "Handle coercion failures gracefully" in {
       within(TestExecutionTimeout) {
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test WorkflowManagerActor coercion failures")
-        waitForErrorWithException("Workflow failed submission") {
-          val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(Incr.asWorkflowSources())).failure
+        waitForErrorWithException("Failed to validate Workflow") {
+          val e = messageAndWait[WorkflowManagerSubmitFailure](ValidateAndSubmitWorkflow(Incr.asWorkflowSources())).failure
           e.getMessage should include("Could not coerce value for 'incr.incr.val' into: WdlIntegerType")
         }
       }
@@ -108,7 +109,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
 
     "error when running a workflowless WDL" in {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test a workflowless submission")
-      val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources())).failure
+      val e = messageAndWait[WorkflowManagerSubmitFailure](ValidateAndSubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources())).failure
       e.getMessage should include("Namespace does not have a local workflow to run")
     }
 
@@ -158,7 +159,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test Workflow metadata construction")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
-        messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources())).id
+        messageAndWait[WorkflowManagerSubmitSuccess](ValidateAndSubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources())).id
       }
 
       val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state

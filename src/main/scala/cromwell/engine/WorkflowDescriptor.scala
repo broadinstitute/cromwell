@@ -7,6 +7,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.backend.Backend
 import cromwell.engine.backend.DefaultWorkflowEngineFunctions
 import cromwell.engine.db.DataAccess.globalDataAccess
 import cromwell.engine.io.gcs.GoogleCloudStorage
@@ -29,15 +30,13 @@ import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 
 case class WorkflowDescriptor(id: WorkflowId,
-                              sourceFiles: WorkflowSourceFiles,
+                              sourceFiles: Option[WorkflowSourceFiles],
                               workflowOptions: WorkflowOptions,
-                              rawInputs: Map[String, JsValue],
                               namespace: NamespaceWithWorkflow,
                               coercedInputs: WorkflowCoercedInputs,
                               declarations: WorkflowCoercedInputs,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
-                              gcsInterface: Try[GoogleCloudStorage],
                               ioManager: IoInterface,
                               wfContext: WorkflowContext,
                               engineFunctions: WorkflowEngineFunctions) {
@@ -152,113 +151,48 @@ case class WorkflowDescriptor(id: WorkflowId,
 }
 
 object WorkflowDescriptor {
-  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles): WorkflowDescriptor = {
-    WorkflowDescriptor(id, sourceFiles, ConfigFactory.load)
-  }
-
+  //TODO: This constructor is there because of dependencies in SlickDataAccess. Should use just one construction (i.e. the second one), where it is assumed the WF passed validations
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, conf: Config): WorkflowDescriptor = {
-    validateWorkflowDescriptor(id, sourceFiles, conf) match {
-      case scalaz.Success(w) => w
-      case scalaz.Failure(f) =>
-        throw new IllegalArgumentException() with ThrowableWithErrors {
-          val message = s"Workflow input processing failed."
-          val errors = f
-        }
-    }
+    val namespace = NamespaceWithWorkflow.load(sourceFiles.wdlSource)
+    val inputs = sourceFiles.inputsJson.parseJson.asJsObject.fields
+    val coercedInputs = namespace.coerceRawInputs(inputs).getOrElse(throw new IllegalArgumentException(s"Failed to coerce inoputs for WF $id"))
+    WorkflowDescriptor(id, Option(sourceFiles), namespace, Option(coercedInputs), Option(sourceFiles.workflowOptionsJson), conf)
   }
-  private def validateWorkflowDescriptor(id: WorkflowId,
-                                         sourceFiles: WorkflowSourceFiles,
-                                         conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val namespace = validateNamespace(id, sourceFiles.wdlSource)
-    val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
-    val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson)
 
-    val runtimeAttributes = for {
-      n <- namespace.disjunction
-    } yield validateRuntimeAttributes(id, n)
-
-    (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } match {
-      case scalaz.Success((n, r, o, a)) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, conf)
-      case scalaz.Failure(f) => f.toList.mkString("\n").failureNel
-    }
+  def apply(id: WorkflowId,
+            sourceFiles: Option[WorkflowSourceFiles],
+            namespaceWithWorkflow: NamespaceWithWorkflow,
+            coercedInputs: Option[WorkflowCoercedInputs],
+            workflowOptionsJson: Option[WorkflowOptionsJson],
+            conf: Config = ConfigFactory.load()): WorkflowDescriptor = {
+    val wfContext = new WorkflowContext(id.toString)
+    val ioManager = new IoManager(Seq(Option(SharedFileSystemIoInterface.instance)).flatten)
+    val engineFunctions = new DefaultWorkflowEngineFunctions(ioManager, wfContext)
+    val wfOptions = validateWorkflowOptions(id, workflowOptionsJson.getOrElse("{}"))
+    val decl = validateDeclarations(id, namespaceWithWorkflow, coercedInputs.get, engineFunctions)
+    new WorkflowDescriptor(id, sourceFiles, wfOptions, namespaceWithWorkflow, coercedInputs.get, decl, configCallCaching(conf), lookupDockerHash(conf),ioManager, wfContext, engineFunctions)
   }
 
   private def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 
-  private def buildWorkflowDescriptor(id: WorkflowId,
-                                      sourceFiles: WorkflowSourceFiles,
-                                      namespace: NamespaceWithWorkflow,
-                                      rawInputs: Map[String, JsValue],
-                                      options: WorkflowOptions,
-                                      conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
-    val ioManager = new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
-    val wfContext = new WorkflowContext(id.toString)
-    val engineFunctions = new DefaultWorkflowEngineFunctions(ioManager, wfContext)
-
-    val validatedDescriptor = for {
-      c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
-      d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
-    } yield WorkflowDescriptor(id, sourceFiles, options, rawInputs, namespace, c, d, configCallCaching(conf), lookupDockerHash(conf),
-      gcsInterface, ioManager, wfContext, engineFunctions)
-    validatedDescriptor.validation
-  }
-
-  private def validateNamespace(id: WorkflowId, source: WdlSource): ErrorOr[NamespaceWithWorkflow] = {
-    try {
-      NamespaceWithWorkflow.load(source).successNel
-    } catch {
-      case e: Exception => s"Workflow $id unable to load namespace: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls foreach { x => x.task.runtimeAttributes }) match {
-      case scala.util.Success(_) => ().successNel
-      case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateWorkflowOptions(id: WorkflowId,
-                                      optionsJson: WorkflowOptionsJson): ErrorOr[WorkflowOptions] = {
-    WorkflowOptions.fromJsonString(optionsJson) match {
-      case Success(o) => validateBackendOptions(id, o)
-      case Failure(e) => s"Workflow $id contains bad options JSON: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateRawInputs(id: WorkflowId, json: WdlJson): ErrorOr[Map[String, JsValue]] = {
-    Try(json.parseJson) match {
-      case Success(JsObject(inputs)) => inputs.successNel
-      case _ => s"Workflow $id contains bad inputs JSON: $json".failureNel
-    }
-  }
-
-  private def validateCoercedInputs(id: WorkflowId,
-                                    rawInputs: Map[String, JsValue],
-                                    namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
-    namespace.coerceRawInputs(rawInputs) match {
-      case Success(r) => r.successNel
-      case Failure(e) => e.getMessage.failureNel
-    }
-  }
-
-  private def validateBackendOptions(id: WorkflowId, options: WorkflowOptions): ErrorOr[WorkflowOptions] = {
-    try {
-      options.successNel
-    } catch {
-      case e: Exception => s"Workflow $id has invalid options: ${e.getMessage}".failureNel
-    }
-  }
-
+  //TODO: Move it to the ValidateActor part, can't move now since this has engine functions (i.e. Backend) dependency.
   private def validateDeclarations(id: WorkflowId,
                                    namespace: NamespaceWithWorkflow,
-                                   options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
-                                   engineFunctions: WorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {
+                                   engineFunctions: WorkflowEngineFunctions): WorkflowCoercedInputs = {
     namespace.staticDeclarationsRecursive(coercedInputs, engineFunctions) match {
-      case Success(d) => d.successNel
-      case Failure(e) => s"Workflow $id has invalid declarations: ${e.getMessage}".failureNel
+      case Success(d) => d
+      case Failure(e) => throw new IllegalStateException(s"Workflow $id has invalid declarations: ${e.getMessage}")
+    }
+  }
+
+  //TODO: Same as above, should be a part of individual backends
+  private def validateWorkflowOptions(id: WorkflowId,
+                                      optionsJson: WorkflowOptionsJson): WorkflowOptions = {
+    WorkflowOptions.fromJsonString(optionsJson) match {
+      case Success(o) => o
+      case Failure(e) =>
+        throw new IllegalArgumentException(s"Workflow $id contains bad options JSON: ${e.getMessage}", e)
     }
   }
 

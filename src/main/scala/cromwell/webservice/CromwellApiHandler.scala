@@ -104,7 +104,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowSubmit(source) => workflowManager ! WorkflowManagerActor.SubmitWorkflow(source)
+    case ApiHandlerWorkflowSubmit(source) => workflowManager ! WorkflowManagerActor.ValidateAndSubmitWorkflow(source)
     case WorkflowManagerSubmitSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
     case WorkflowManagerSubmitFailure(e) =>

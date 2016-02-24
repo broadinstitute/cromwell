@@ -60,7 +60,10 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers {
     }
 
     (allCombinations -- writeCacheOnCombinations) foreach {
-      case (config, writeToCache, readFromCache) => makeWorkflowDescriptor(config, writeToCache, readFromCache).writeToCache shouldBe false
+      case (config, writeToCache, readFromCache) => {
+        val x = makeWorkflowDescriptor(config, writeToCache, readFromCache)
+        x.writeToCache shouldBe false
+      }
     }
 
     (allCombinations -- readCacheOnCombinations) foreach {

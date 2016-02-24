@@ -72,7 +72,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   when (NotStarted) {
     case Event(RunWorkflow, data) =>
       log.info(s"$tag: launching workflow")
-      workflowManager ! SubmitWorkflow(source)
+      workflowManager ! ValidateAndSubmitWorkflow(source)
       goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
   }
 

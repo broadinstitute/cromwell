@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendValidationActor.{FailedValidationResult, ValidationResult, Validate}
 import cromwell.backend.DefaultBackendFactory
 import cromwell.backend.config.{BackendConfiguration, BackendConfigurationEntry}
-import cromwell.engine.CromwellActor
+import cromwell.engine.{WorkflowSourceFiles, CromwellActor}
 import cromwell.webservice.APIResponse
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
@@ -15,25 +15,27 @@ import wdl4s._
 import spray.httpx.SprayJsonSupport._
 import cromwell.webservice.WorkflowJsonSupport._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Promise, Await, Future}
+import scala.concurrent.{Promise, Future}
 import scala.language.postfixOps
 import scala.util.{Try, Failure, Success}
 
-
+//TODO: `WorkflowSourceFiles` should not exist here in this file!
 object ValidateActor {
   private val tag = "ValidateActor"
 
-  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson], workflowOptions: Option[WdlJson]): Props = {
-    Props(new ValidateActor(wdlSource, wdlJson, workflowOptions))
-  }
+  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson], workflowOptions: Option[WdlJson]): Props = Props(new ValidateActor(wdlSource, wdlJson, workflowOptions))
+
+  def props(workflowSources: WorkflowSourceFiles): Props = Props(new ValidateActor(workflowSources.wdlSource, Option(workflowSources.inputsJson), Option(workflowSources.workflowOptionsJson)))
 
   sealed trait ValidateActorMessage
 
-  //TODO: [gaurav] Check what and how is this being used
-  implicit class EnhancedCall(val call: Call) extends AnyVal {
-    def toRuntimeAttributes = call.task.runtimeAttributes
-  }
+  case class ValidationSuccess(namespaceWithWorkflow: NamespaceWithWorkflow,
+                               coercedInputs: Option[WorkflowCoercedInputs],
+                               workflowOptions: Option[WdlJson],
+                               backends: Seq[BackendConfigurationEntry],
+                               workflowSources: Option[WorkflowSourceFiles] = None) extends ValidateActorMessage
+
+  case class ValidationFailure(reason: Throwable) extends ValidateActorMessage
 
   case object ValidateWorkflow extends ValidateActorMessage
 
@@ -49,49 +51,62 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
 
   override def receive = {
     case ValidateWorkflow =>
-      validateWorkflow(sender())
-    // NOTE: self shuts down when the parent PerRequest shuts down
-    case GetExecutableBackends =>
-      val requster = sender()
+      val requester = sender()
+
       val futureValidatedBackends: Future[Seq[BackendConfigurationEntry]] = for {
         namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
         inputs <- Future(workflowInputs.get.parseJson).map(_.asJsObject.fields)
         coercedInputs <- Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
         validatedBackends <- executableBackendsForWf(namespaceWithWorkflow, Option(coercedInputs), workflowOptions)
-      } yield (validatedBackends)
+      } yield validatedBackends
 
-      val x = Await.result(futureValidatedBackends, Duration.Inf)
+      futureValidatedBackends onComplete {
+        case Success(validatedBacends) if validatedBacends.nonEmpty =>
+          logger.info(s"$tag success $requester")
+          requester ! RequestComplete(
+            StatusCodes.OK,
+            APIResponse.success("Validation succeeded."))
 
-      futureValidatedBackends pipeTo requster
-  }
+        case Success(_) =>
+          val msg = "No backend available that can accept this workflow!"
+          logger.info(msg)
+          requester ! RequestComplete(
+            StatusCodes.BadRequest,
+            APIResponse.fail(new IllegalStateException(msg)))
 
-  //TODO: This should be removed / deprecated?
-  private def validateWorkflow(sentBy: ActorRef): Unit = {
-    logger.info(s"$tag for $sentBy")
-    val futureValidation: Future[Unit] = for {
-      namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
-      inputs <- Future(workflowInputs.get.parseJson).map(_.asJsObject.fields)
-      coercedInputs <- Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
-      runtime = namespaceWithWorkflow.workflow.calls foreach {
-        _.toRuntimeAttributes
+        case Failure(ex) =>
+          val messageOrBlank = Option(ex.getMessage).mkString
+          logger.info(s"$tag error $requester: $messageOrBlank")
+          requester ! RequestComplete(
+            StatusCodes.BadRequest,
+            APIResponse.fail(ex))
       }
-    } yield () // Validate that the future run and return `Success[Unit]` aka (), or `Failure[Exception]`
 
-    futureValidation onComplete {
-      case Success(_) =>
-        logger.info(s"$tag success $sentBy")
-        sentBy ! RequestComplete(
-          StatusCodes.OK,
-          APIResponse.success("Validation succeeded."))
+    case GetExecutableBackends =>
+      val requster = sender()
+      val futureValidationOutcome: Future[ValidationSuccess] = for {
+        namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
+        coercedInputs <- buildCoercedInputs(namespaceWithWorkflow, workflowInputs)
+        validatedBackends <- executableBackendsForWf(namespaceWithWorkflow, Option(coercedInputs), workflowOptions)
+      } yield ValidationSuccess(namespaceWithWorkflow,
+        Option(coercedInputs),
+        workflowOptions,
+        validatedBackends,
+        Option(WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))))
 
-      case Failure(ex) =>
-        val messageOrBlank = Option(ex.getMessage).mkString
-        logger.info(s"$tag error $sentBy: $messageOrBlank")
-        sentBy ! RequestComplete(
-          StatusCodes.BadRequest,
-          APIResponse.fail(ex))
-    }
+      futureValidationOutcome onComplete {
+        case Success(validationOutcome: ValidationSuccess) =>
+          requster ! validationOutcome
+        case Failure(reason) =>
+          requster ! ValidationFailure(reason)
+      }
   }
+
+  private def buildCoercedInputs(namespaceWithWorkflow: NamespaceWithWorkflow, rawInputs: Option[WdlJson]): Future[WorkflowCoercedInputs] = {
+    val inputs = workflowInputs.get.parseJson.asJsObject.fields
+    Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
+  }
+
 
   /**
     * This method will validate the workflow with all the available backends. The WF fails
@@ -116,7 +131,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     // The `willExecute` list contains backends that don't have a validation class, and will accept this workflow
     val (mayExecute, willExecute) = listOfPluggedBackends.partition(_.validationClass.isDefined)
 
-    if (!willExecute.isEmpty) logger.info(s"Backends with no validation requirements: $willExecute")
+    if (willExecute.nonEmpty) logger.info(s"Backends with no validation requirements: $willExecute")
 
     val backendEntryValidatorActorPair: Map[BackendConfigurationEntry, ActorRef] = mayExecute map { entry =>
       entry -> DefaultBackendFactory.getBackendActorFor(entry.validationClass.get, context.system, namespace, wfInputs, wfOptionsJson)
@@ -148,7 +163,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
       _.filter(_._2.isInstanceOf[FailedValidationResult])
     } foreach {
       _.foreach {
-        case (k, v: FailedValidationResult) => logger.info(s"Backend [${k.name} failed validation. Errors: ${v.errors}")
+        case (k, v: FailedValidationResult) => logger.error(s"Backend [${k.name} failed validation. Errors: ${v.errors}")
         case oops => logger.error(s"Oops! This is embarrasingly unexpected! [$oops]")
       }
     }
@@ -157,7 +172,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     val aggregatedValidatedBackends = for {
       backendEntry <- validatedBackends.map(_.keysIterator.toList)
       aggregatedBackendSeq = backendEntry flatMap (backend => willExecute.:+(backend)) toSeq
-    } yield (aggregatedBackendSeq)
+    } yield aggregatedBackendSeq
 
     //This `promise` is here because the above for comprehension may not combine the two lists
     // i.e. the successful `mayExecute` and `willExecute` if the former is empty. As such, we need to
@@ -165,11 +180,16 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     val promise = Promise[Seq[BackendConfigurationEntry]]()
 
     aggregatedValidatedBackends onComplete {
-      case Success(listOfBackends) =>
-        if (listOfBackends.isEmpty) promise.complete(Try(willExecute)) else promise.complete(Try(listOfBackends))
+      case Success(seqOfBackends) =>
+        if (seqOfBackends.nonEmpty)
+          promise.complete(Try(seqOfBackends))
+        else if (willExecute.isEmpty)
+          promise.complete(Try(willExecute))
+        else throw new IllegalStateException("Failed to validate this workflow against any of the available backends!")
       case Failure(reason) =>
-        logger.error(s"Something went wrong while getting validated backends! Msg: ${reason.getMessage}", reason)
-        promise.complete(Try(Seq()))
+        val msg = s"Something went wrong while getting validated backends! Msg: ${reason.getMessage}"
+        logger.error(msg, reason)
+        throw new IllegalStateException(msg, reason)
     }
     promise.future
   }

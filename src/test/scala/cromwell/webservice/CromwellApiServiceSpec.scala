@@ -3,6 +3,7 @@ package cromwell.webservice
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
@@ -12,6 +13,8 @@ import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
 import org.joda.time.DateTime
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.yaml.snakeyaml.Yaml
@@ -51,7 +54,7 @@ class MockWorkflowManagerActor extends Actor  {
   val fileHash = file.computeHash
 
   def receive = {
-    case SubmitWorkflow(sources) =>
+    case ValidateAndSubmitWorkflow(sources) =>
       val id = MockWorkflowManagerActor.submittedWorkflowId
       /*
         id will always succeed, but WorkflowDescriptor might not. If all of this works we
@@ -59,7 +62,7 @@ class MockWorkflowManagerActor extends Actor  {
         WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
         from WorkflowDescriptor's validation
        */
-      val message = Try(WorkflowDescriptor(id, sources)) match {
+      val message = Try(WorkflowDescriptor(id, sources, ConfigFactory.load())) match {
         case Success(w) => WorkflowManagerSubmitSuccess(w.id)
         case Failure(e) => WorkflowManagerSubmitFailure(e)
       }
@@ -224,6 +227,7 @@ object CromwellApiServiceSpec {
   val MalformedWdl : String = "foobar bad wdl!"
 }
 
+@RunWith(classOf[JUnitRunner])
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   import spray.httpx.SprayJsonSupport._
 

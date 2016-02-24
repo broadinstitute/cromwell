@@ -212,9 +212,9 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
       _ <- dataAccess.workflowExecutionAuxesAutoInc += new WorkflowExecutionAux(
         workflowExecutionInsert.workflowExecutionId.get,
-        workflowDescriptor.sourceFiles.wdlSource.toClob,
-        workflowDescriptor.sourceFiles.inputsJson.toClob,
-        workflowDescriptor.sourceFiles.workflowOptionsJson.toClob
+        workflowDescriptor.sourceFiles.get.wdlSource.toClob,
+        workflowDescriptor.sourceFiles.get.inputsJson.toClob,
+        workflowDescriptor.sourceFiles.get.workflowOptionsJson.toClob
       )
 
       symbolInsert <- dataAccess.symbolsAutoInc ++= toInputSymbols(workflowExecutionInsert, workflowDescriptor.namespace.workflow, workflowInputs)
@@ -366,7 +366,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
       workflowDescriptor = WorkflowDescriptor(
         WorkflowId(UUID.fromString(workflowExecutionResult.workflowExecutionUuid)),
-        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString),
+        rootConfig
       )
     } yield workflowDescriptor
 
@@ -379,7 +380,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
       workflowDescriptor = WorkflowDescriptor(
         workflowId,
-        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString),
+        rootConfig
       )
     } yield workflowDescriptor
 
@@ -403,7 +405,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                 workflowExecutionAux.wdlSource.toRawString,
                 workflowExecutionAux.jsonInputs.toRawString,
                 workflowExecutionAux.workflowOptions.toRawString
-              )
+              ),
+              rootConfig
             )
           }
         }

@@ -215,6 +215,10 @@ object WorkflowActor {
   val AkkaTimeout = 5 seconds
 
   type ExecutionStore = Map[ExecutionStoreKey, ExecutionStatus]
+  implicit class EnhancedStore(val es: ExecutionStore) extends AnyVal {
+    // An entry is Done if one of its attempts is Done
+    def isDone(e: ExecutionStoreEntry) = es exists { case (k, s) => k.scope == e._1.scope && k.index == e._1.index && s == ExecutionStatus.Done }
+  }
   type ExecutionStoreEntry = (ExecutionStoreKey, ExecutionStatus)
   case class SymbolCacheKey(scopeName: String, input: Boolean)
   type SymbolCache = Map[SymbolCacheKey, Traversable[SymbolStoreEntry]]
@@ -224,11 +228,6 @@ object WorkflowActor {
   def isExecutionStateFinished(es: ExecutionStatus): Boolean = TerminalStates contains es
 
   def isTerminal(status: ExecutionStatus): Boolean = TerminalStates contains status
-  /* A Preempted call automatically spawns a clone of itself which becomes a new dependency for downstream calls.
-   * This ensure that if Call A depends on Call B, and Call B gets preempted, Call A will only become runnable when/if Call B's clone terminates.
-   * Hence Preempted Calls can safely be considered Done.
-   */
-  def isDone(entry: ExecutionStoreEntry): Boolean = entry._2 == ExecutionStatus.Done || entry._2 == ExecutionStatus.Preempted
   def isShard(key: BackendCallKey): Boolean = key.index.isDefined
 
   val WorkflowCounter = Monitor.minMaxCounter("workflows-running")
@@ -376,34 +375,41 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       stay() using data.copy(startMode = Option(startMode))
   }
 
-  private def handleCallRetried(callKey: OutputKey,
-                                  retryStatus: ExecutionStatus,
-                                  returnCode: Option[Int],
-                                  failure: Throwable,
-                                  message: CallFailedRetryable,
-                                  data: WorkflowData,
-                                  events: Seq[ExecutionEventEntry]) = {
-    val currentSender = sender()
+  private def retryCall(callKey: ExecutionStoreKey,
+                        data: WorkflowData) = {
+
     val keyClone = callKey.retryClone
-    executionStore += keyClone -> ExecutionStatus.NotStarted
 
-    val completionWork = for {
-      _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, events)
-      _ <- globalDataAccess.insertCalls(workflow.id, Seq(keyClone), backend)
-    } yield ()
+    val insertCopy = globalDataAccess.insertCalls(workflow.id, List(keyClone), backend)
 
-    completionWork onComplete {
-      case Failure(e) =>
-        logger.error(s"Preemption work failed for call ${callKey.tag}! " + e.getMessage, e)
-        currentSender ! CallActor.Ack(message)
-        self ! CheckForWorkflowComplete
-      case Success(_) =>
-        self ! PersistStatus(callKey, retryStatus, None, returnCode, None, None, currentSender, message)
+    insertCopy map { _ => PersistenceSucceeded(keyClone, ExecutionStatus.NotStarted) } recover {
+      case e =>
+        logger.error(s"Failed to clone ${callKey.tag} for retry attempt.", e)
+        CheckForWorkflowComplete
+    } pipeTo self
+
+    data.addPersisting(keyClone, ExecutionStatus.NotStarted)
+  }
+
+  private def handleCallFailedRetryable(callKey: OutputKey,
+                                        retryStatus: ExecutionStatus,
+                                        returnCode: Option[Int],
+                                        failure: Throwable,
+                                        message: CallFailedRetryable,
+                                        data: WorkflowData,
+                                        events: Seq[ExecutionEventEntry]) = {
+    val currentSender = sender()
+    val persistEvents = globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, events)
+
+    persistEvents.failed.foreach {
+      case e => logger.error(s"Failed to persist execution events for ${callKey.tag}.", e)
     }
 
-    val updatedData = data.addProcessing(callKey)
+    persistStatusThenAck(callKey, retryStatus, currentSender, message, None, returnCode, None, None)
+    val updatedData = data.addPersisting(callKey, retryStatus)
     stay() using updatedData
   }
+
 
   private def handleCallCompleted(callKey: OutputKey,
                                   callOutputs: CallOutputs,
@@ -421,8 +427,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     } yield ()
 
     completionWork onComplete {
-      case Failure(e)=>
-        logger.error(s"Completion work failed for call ${callKey.tag}! " + e.getMessage, e)
+      case Failure(e) =>
+        logger.error(s"Completion work failed for call ${callKey.tag}.", e)
         currentSender ! CallActor.Ack(message)
         self ! CallFailedNonRetryable(callKey, executionEvents, Option(returnCode), e.getMessage)
       case Success(_) =>
@@ -467,15 +473,15 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, _, _, _, _, _), _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
-    case Event(message @ PersistStatus(callKey, status, callOutputs, returnCode, hash, resultsClonedFrom, sender, terminalCallMessage), data) =>
+    case Event(message @ PersistStatus(callKey, status, callOutputs, returnCode, hash, resultsClonedFrom, sender, terminalCallMessage), data) if !data.isPending(callKey) =>
       // This does not check the state of the FSM data, as this message can only be sent from the WA when and only when a Call status can be set to Success with 100% confidence
       // It also does not Ack to the sender as it can only be sent by the WA itself
-      persistStatusThenAck(callKey, status, sender, terminalCallMessage, callOutputs, returnCode = returnCode, hash = hash, resultsClonedFrom= resultsClonedFrom)
-      val updatedData = data.addPersisting(callKey, status).removeProcessing(callKey)
+      persistStatusThenAck(callKey, status, sender, terminalCallMessage, callOutputs, returnCode = returnCode, hash = hash, resultsClonedFrom = resultsClonedFrom)
+      val updatedData = data.addPersisting(callKey, status)
       stay() using updatedData
-    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) && !data.isPending(callKey) =>
       // Note: Currently Retryable == Preempted. If another reason than preemption arises that requires retrying at this level, this will need to be updated
-      handleCallRetried(callKey, ExecutionStatus.Preempted, returnCode, failure, message, data, events)
+      handleCallFailedRetryable(callKey, ExecutionStatus.Preempted, returnCode, failure, message, data, events)
     case Event(message @ CallFailedNonRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
@@ -505,20 +511,23 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       callOutputs foreach updateSymbolCache(callKey)
       logger.debug(s"In state WorkflowRunning: Got PersistenceCompleted message for Done call ${callKey.tag}")
       val updatedData = startRunnableCalls(data)
-      val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Done)
+      val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Done).removeProcessing(callKey)
       self ! CheckForWorkflowComplete
       stay using finalData
     case Event(PersistenceSucceeded(callKey, ExecutionStatus.Preempted, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Preempted
-      val updatedData = startRunnableCalls(data)
-      val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Preempted)
-      self ! CheckForWorkflowComplete
-      stay using finalData
+      val updatedData = retryCall(callKey, data).removePersisting(callKey, ExecutionStatus.Preempted).removeProcessing(callKey)
+      stay using updatedData
     case Event(PersistenceSucceeded(callKey, ExecutionStatus.Failed, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Failed
-      val finalData = data.removePersisting(callKey, ExecutionStatus.Failed)
+      val finalData = data.removePersisting(callKey, ExecutionStatus.Failed).removeProcessing(callKey)
       self ! CheckForWorkflowComplete
       stay using finalData
+    case Event(PersistenceSucceeded(callKey, ExecutionStatus.NotStarted, callOutputs), data) =>
+      executionStore += callKey -> ExecutionStatus.NotStarted
+      val updatedData = startRunnableCalls(data).removePersisting(callKey, ExecutionStatus.NotStarted).removeProcessing(callKey)
+      self ! CheckForWorkflowComplete
+      stay using updatedData
     case Event(CheckForWorkflowComplete, data) =>
       checkForWorkflowComplete(data)
       stay()
@@ -773,7 +782,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         case _ => Nil
       }
       val dependencies = upstream.flatten ++ downstream
-      val dependenciesResolved = dependencies forall isDone
+      val dependenciesResolved = executionStore.filter(dependencies) forall executionStore.isDone
 
       /**
        * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
@@ -1054,7 +1063,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
   }
 
-  private def isWorkflowDone: Boolean = executionStore forall isDone
+  private def isWorkflowDone: Boolean = executionStore forall executionStore.isDone
 
   private def isWorkflowAborted: Boolean = executionStore.values forall { state => isTerminal(state) || state == ExecutionStatus.NotStarted }
 

@@ -115,7 +115,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
             requestContext =>
               perRequest(
                 requestContext,
-                ValidateActor.props(wdlSource, workflowInputs, workflowOptions),
+                ValidateActor.props(WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))),
                 ValidateActor.ValidateWorkflow)
           }
         }

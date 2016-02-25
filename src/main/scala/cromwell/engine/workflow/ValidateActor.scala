@@ -19,28 +19,21 @@ import scala.concurrent.{Promise, Future}
 import scala.language.postfixOps
 import scala.util.{Try, Failure, Success}
 
-//TODO: `WorkflowSourceFiles` should not exist here in this file!
 object ValidateActor {
   private val tag = "ValidateActor"
-
-  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson], workflowOptions: Option[WdlJson]): Props = Props(new ValidateActor(wdlSource, wdlJson, workflowOptions))
 
   def props(workflowSources: WorkflowSourceFiles): Props = Props(new ValidateActor(workflowSources.wdlSource, Option(workflowSources.inputsJson), Option(workflowSources.workflowOptionsJson)))
 
   sealed trait ValidateActorMessage
-
+  //TODO: `WorkflowSourceFiles` should not exist here in this file! It's only here because some of the things were breaking in WF Desc if we don't have access to this
   case class ValidationSuccess(namespaceWithWorkflow: NamespaceWithWorkflow,
                                coercedInputs: Option[WorkflowCoercedInputs],
                                workflowOptions: Option[WdlJson],
                                backends: Seq[BackendConfigurationEntry],
                                workflowSources: Option[WorkflowSourceFiles] = None) extends ValidateActorMessage
-
   case class ValidationFailure(reason: Throwable) extends ValidateActorMessage
-
   case object ValidateWorkflow extends ValidateActorMessage
-
-  case object GetExecutableBackends extends ValidateActorMessage
-
+  case object RequestValidation extends ValidateActorMessage
 }
 
 class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[String])
@@ -50,6 +43,9 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
   import context.dispatcher
 
   override def receive = {
+    //TODO: <b> Deprecate this. <b> It's currently being used only for the endpoint. IMO, the responsibility for returning a status code
+    // should be a part of the client. This class should only return a validation result, and the callee should convert that to a
+    // status code or anything that it wants
     case ValidateWorkflow =>
       val requester = sender()
 
@@ -82,7 +78,11 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
             APIResponse.fail(ex))
       }
 
-    case GetExecutableBackends =>
+      //This message initiates the Validation of the workflow. It will:
+      // 1.) Try to build a NamespaceWithWorkflow object
+      // 2.) Try to coerce the inputs
+      // 3.) Find Backends that can accept this worklfow (fails this hurdle if there is no backend found)
+    case RequestValidation =>
       val requster = sender()
       val futureValidationOutcome: Future[ValidationSuccess] = for {
         namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
@@ -106,7 +106,6 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     val inputs = workflowInputs.get.parseJson.asJsObject.fields
     Future.fromTry(namespaceWithWorkflow.coerceRawInputs(inputs))
   }
-
 
   /**
     * This method will validate the workflow with all the available backends. The WF fails
@@ -183,7 +182,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
       case Success(seqOfBackends) =>
         if (seqOfBackends.nonEmpty)
           promise.complete(Try(seqOfBackends))
-        else if (willExecute.isEmpty)
+        else if (willExecute.nonEmpty)
           promise.complete(Try(willExecute))
         else throw new IllegalStateException("Failed to validate this workflow against any of the available backends!")
       case Failure(reason) =>

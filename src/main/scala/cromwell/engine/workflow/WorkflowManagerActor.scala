@@ -12,7 +12,7 @@ import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.ValidateActor.{ValidationFailure, ValidateActorMessage, ValidationSuccess, GetExecutableBackends}
+import cromwell.engine.workflow.ValidateActor.{ValidationFailure, ValidateActorMessage, ValidationSuccess, RequestValidation}
 import cromwell.engine.workflow.WorkflowActor.Start
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.{EnhancedFullyQualifiedName, _}
@@ -173,7 +173,7 @@ class WorkflowManagerActor() extends LoggingFSM[WorkflowManagerState, WorkflowMa
       import akka.pattern.ask
       val requester = sender()
       val validateActor = context.actorOf(ValidateActor.props(source))
-      val validationResFut = (validateActor ? GetExecutableBackends).mapTo[ValidateActorMessage]
+      val validationResFut = (validateActor ? RequestValidation).mapTo[ValidateActorMessage]
       validationResFut onComplete {
         case Success(validationSuccess: ValidationSuccess) =>
           val updatedData = submitWorkflow(validationSuccess.namespaceWithWorkflow ,

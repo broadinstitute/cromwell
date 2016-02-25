@@ -100,7 +100,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
     "Handle coercion failures gracefully" in {
       within(TestExecutionTimeout) {
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test WorkflowManagerActor coercion failures")
-        waitForErrorWithException("Failed to validate Workflow") {
+        waitForErrorWithException("Workflow failed submission") {
           val e = messageAndWait[WorkflowManagerSubmitFailure](ValidateAndSubmitWorkflow(Incr.asWorkflowSources())).failure
           e.getMessage should include("Could not coerce value for 'incr.incr.val' into: WdlIntegerType")
         }

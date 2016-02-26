@@ -1,5 +1,7 @@
 package wdl4s.types
 
+import wdl4s.values.WdlValue
+
 case object WdlAnyType extends WdlType {
   val toWdlString: String = s"Any"
 
@@ -38,6 +40,7 @@ case object WdlAnyType extends WdlType {
    * should fail at this stage.
    */
   override protected def coercion = {
+    case wdlValue: WdlValue => wdlValue
     case any: Any =>
       /* This does throw an exception if it couldn't coerce (.get is intentional) */
       WdlType.wdlTypeCoercionOrder.map(_.coerceRawValue(any)).find(_.isSuccess).getOrElse(

@@ -195,36 +195,41 @@ case class Task(name: String,
   import Task._
 
   /**
-   * Given a map of task-local parameter names and WdlValues, create a command String.
-   *
-   * Instantiating a command line is the process of taking a command in this form:
-   *
-   * {{{
-   *   sh script.sh ${var1} -o ${var2}
-   * }}}
-   *
-   * This command is stored as a `Seq[CommandPart]` in the `Command` class (e.g. [sh script.sh, ${var1}, -o, ${var2}]).
-   * Then, given a map of variable -> value:
-   *
-   * {{{
-   * {
-   *   "var1": "foo",
-   *   "var2": "bar"
-   * }
-   * }}}
-   *
-   * It calls instantiate() on each part, and passes this map. The ParameterCommandPart are the ${var1} and ${var2}
-   * pieces and they lookup var1 and var2 in that map.
-   *
-   * The command that's returned from Command.instantiate() is:
-   *
-   * {{{sh script.sh foo -o bar}}}
-   *
-   * @param parameters Parameter values
-   * @return String instantiation of the command
-   */
-  def instantiateCommand(parameters: CallInputs, functions: WdlFunctions[WdlValue]): Try[String] = {
-    Try(normalize(commandTemplate.map(_.instantiate(declarations, parameters, functions)).mkString("")))
+    * Given a map of task-local parameter names and WdlValues, create a command String.
+    *
+    * Instantiating a command line is the process of taking a command in this form:
+    *
+    * {{{
+    *   sh script.sh ${var1} -o ${var2}
+    * }}}
+    *
+    * This command is stored as a `Seq[CommandPart]` in the `Command` class (e.g. [sh script.sh, ${var1}, -o, ${var2}]).
+    * Then, given a map of variable -> value:
+    *
+    * {{{
+    * {
+    *   "var1": "foo",
+    *   "var2": "bar"
+    * }
+    * }}}
+    *
+    * It calls instantiate() on each part, and passes this map. The ParameterCommandPart are the ${var1} and ${var2}
+    * pieces and they lookup var1 and var2 in that map.
+    *
+    * The command that's returned from Command.instantiate() is:
+    *
+    * {{{sh script.sh foo -o bar}}}
+    *
+    * @param parameters Map[String, WdlValue] of inputs to this call, keys should be declarations
+    * @param functions Implementation of the WDL standard library functions to evaluate functions in expressions
+    * @param valueMapper Optional WdlValue => WdlValue function that is called on the result of each expression
+    *                    evaluation (i.e. evaluation of ${...} blocks).
+    * @return String instantiation of the command
+    */
+  def instantiateCommand(parameters: CallInputs,
+                         functions: WdlFunctions[WdlValue],
+                         valueMapper: WdlValue => WdlValue = (v) => v): Try[String] = {
+    Try(normalize(commandTemplate.map(_.instantiate(declarations, parameters, functions, valueMapper)).mkString("")))
   }
 
   def commandTemplateString: String = normalize(commandTemplate.map(_.toString).mkString)

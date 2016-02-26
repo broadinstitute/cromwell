@@ -29,7 +29,10 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
   def attributesToString: String = if (attributes.nonEmpty) attributes.map({case (k,v) => s"$k=${WdlString(v).toWdlString}"}).mkString(" ") + " " else ""
   override def toString: String = "${" + s"$attributesToString${expression.toWdlString}" + "}"
 
-  override def instantiate(declarations: Seq[Declaration], parameters: Map[String, WdlValue], functions: WdlFunctions[WdlValue]): String = {
+  override def instantiate(declarations: Seq[Declaration],
+                           parameters: Map[String, WdlValue],
+                           functions: WdlFunctions[WdlValue],
+                           valueMapper: WdlValue => WdlValue = (v) => v): String = {
     val value = expression.evaluate(WdlExpression.standardLookupFunction(parameters, declarations, functions), functions) match {
       case Success(v) => v
       case Failure(f) => f match {
@@ -43,7 +46,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
       }
     }
 
-    value match {
+    valueMapper(value) match {
       case b: WdlBoolean if attributes.contains("true") && attributes.contains("false") => if (b.value) attributes.get("true").head else attributes.get("false").head
       case p: WdlPrimitive => p.valueString
       case a: WdlArray if attributes.contains("sep") => a.value.map(_.valueString).mkString(attributes.get("sep").head)

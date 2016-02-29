@@ -672,12 +672,16 @@ case class JesBackend(actorSystem: ActorSystem)
     errorMessage.substring(0, errorMessage.indexOf(':')).toInt
   }
 
-  private def preempted(errorCode: Int, errorMessage: Option[String], backendCall: BackendCall, logger: WorkflowLogger): Boolean = try {
-    errorCode == 10 && errorMessage.isDefined && extractErrorCodeFromErrorMessage(errorMessage.get) == 14 && backendCall.preemptible
-  } catch {
-    case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
-      logger.warn(s"Unable to parse JES error code from error message: ${errorMessage.get}, assuming this was not a preempted VM.")
-      false
+  private def preempted(errorCode: Int, errorMessage: Option[String], backendCall: BackendCall, logger: WorkflowLogger): Boolean = {
+    def isPreemptionCode(code: Int) = code == 13 || code == 14
+
+    try {
+      errorCode == 10 && errorMessage.isDefined && isPreemptionCode(extractErrorCodeFromErrorMessage(errorMessage.get)) && backendCall.preemptible
+    } catch {
+      case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
+        logger.warn(s"Unable to parse JES error code from error message: ${errorMessage.get}, assuming this was not a preempted VM.")
+        false
+    }
   }
 
   private def handleFailure(backendCall: BackendCall, errorCode: Int, errorMessage: Option[String], events: Seq[ExecutionEventEntry], logger: WorkflowLogger) = {

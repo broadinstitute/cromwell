@@ -2,6 +2,7 @@
 
 ## 0.18
 
+* The deprecated parse, validate, inputs and highlight functionality from the command line tool has been removed in favor of wdltool (https://github.com/broadinstitute/wdltool) 
 * Workflow options can now include a `defaultRuntimeOptions` section, so that the same runtime attribute is not needed in every single WDL task. E.g.:
 ```
 {

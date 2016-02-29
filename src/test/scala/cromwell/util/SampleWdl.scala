@@ -172,18 +172,6 @@ object SampleWdl {
     val rawInputs = Map.empty[String, Any]
   }
 
-  object EmptyTask extends SampleWdl {
-    override def wdlSource(runtime: String = "") = "task empty_task { command { : } }"
-
-    val rawInputs = Map.empty[String, Any]
-  }
-
-  object EmptyInvalid extends SampleWdl {
-    override def wdlSource(runtime: String = "") = "{}"
-
-    val rawInputs = Map.empty[String, Any]
-  }
-
   object Incr extends SampleWdl {
     override def wdlSource(runtime: String = "") =
     """

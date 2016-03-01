@@ -3,3 +3,4 @@ log
 target
 .artifactory
 project
+.DS_Store

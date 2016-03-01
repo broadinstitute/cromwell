@@ -1,0 +1,31 @@
+{
+  "PairedEndSingleSampleWorkflow.haplotype_scatter_count" : 10,
+  "PairedEndSingleSampleWorkflow.break_bands_at_multiples_of" : 100000,
+  "comment_on_reference_files": "Take note of the .64 extensions on the reference files, issues between 32 and 64 bit OS",
+  "PairedEndSingleSampleWorkflow.sample_name": "NA12878",
+  "PairedEndSingleSampleWorkflow.flowcell_unmapped_bams": [
+    "gs://cloud-cromwell-tyburn-test-files/test-files/dsde-data-na12878-public/H06HDADXX130110.1.ATCACGAT.20k_reads.bam",
+    "gs://cloud-cromwell-tyburn-test-files/test-files/dsde-data-na12878-public/H06HDADXX130110.2.ATCACGAT.20k_reads.bam",
+    "gs://cloud-cromwell-tyburn-test-files/test-files/dsde-data-na12878-public/H06JUADXX130110.1.ATCACGAT.20k_reads.bam"
+  ],
+  "PairedEndSingleSampleWorkflow.fingerprint_genotypes_file": "gs://cloud-cromwell-tyburn-test-files/test-files/dsde-data-na12878-public/NA12878.reference.fingerprint.vcf",
+  "PairedEndSingleSampleWorkflow.unmapped_bam_suffix": ".bam",
+  "PairedEndSingleSampleWorkflow.contamination_sites_vcf": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/WholeGenomeShotgunContam.vcf",
+  "PairedEndSingleSampleWorkflow.contamination_sites_vcf_index": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/WholeGenomeShotgunContam.vcf.idx",
+  "PairedEndSingleSampleWorkflow.calling_interval_list": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/wgs_calling_regions.v1.interval_list",
+  "PairedEndSingleSampleWorkflow.ref_dict": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.dict",
+  "PairedEndSingleSampleWorkflow.ref_fasta": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta",
+  "PairedEndSingleSampleWorkflow.ref_fasta_index": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta.fai",
+  "PairedEndSingleSampleWorkflow.ref_sa": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta.64.sa",
+  "PairedEndSingleSampleWorkflow.ref_amb": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta.64.amb",
+  "PairedEndSingleSampleWorkflow.ref_bwt": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta.64.bwt",
+  "PairedEndSingleSampleWorkflow.ref_ann": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta.64.ann",
+  "PairedEndSingleSampleWorkflow.ref_pac": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.fasta.64.pac",
+  "PairedEndSingleSampleWorkflow.known_snps_sites_vcf": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Mills_and_1000G_gold_standard.indels.b37.sites.vcf",
+  "PairedEndSingleSampleWorkflow.known_snps_sites_vcf_index": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Mills_and_1000G_gold_standard.indels.b37.sites.vcf.idx",
+  "PairedEndSingleSampleWorkflow.known_indels_sites_vcf_index": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.known_indels_20120518.vcf.idx",
+  "PairedEndSingleSampleWorkflow.known_indels_sites_vcf": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.known_indels_20120518.vcf",
+  "PairedEndSingleSampleWorkflow.dbSNP_vcf": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.dbsnp138.vcf",
+  "PairedEndSingleSampleWorkflow.dbSNP_vcf_index": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.dbsnp138.vcf.idx",
+  "PairedEndSingleSampleWorkflow.haplotype_database_file": "gs://cloud-cromwell-tyburn-test-files/test-files/broad-gitc-reference/hg19/Homo_sapiens_assembly19.haplotype_database.txt"
+}

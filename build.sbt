@@ -3,7 +3,7 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.18"
+version := "0.19"
 
 organization := "org.broadinstitute"
 

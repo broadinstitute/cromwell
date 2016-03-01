@@ -7,7 +7,7 @@ import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
 import better.files.File
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.CallLogs
@@ -219,8 +219,8 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     WorkflowDescriptor(WorkflowId(uuid), workflowSources)
   }
 
-  private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String) = {
-    TestActorRef(new WorkflowManagerActor(new LocalBackend(system)))
+  private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String, config: Config) = {
+    TestActorRef(new WorkflowManagerActor(new LocalBackend(system), config))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily
@@ -241,8 +241,9 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   def runWdl(sampleWdl: SampleWdl,
              eventFilter: EventFilter,
              runtime: String = "",
-             terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext): WorkflowOutputs = {
-    val wma = buildWorkflowManagerActor(sampleWdl, runtime)
+             terminalState: WorkflowState = WorkflowSucceeded,
+             config: Config = WorkflowManagerActor.defaultConfig)(implicit ec: ExecutionContext): WorkflowOutputs = {
+    val wma = buildWorkflowManagerActor(sampleWdl, runtime, config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     eventFilter.intercept {
       within(timeoutDuration) {
@@ -259,8 +260,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                              runtime: String = "",
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
-                             terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext): WorkflowId = {
-    val workflowManager = buildWorkflowManagerActor(sampleWdl, runtime)
+                             terminalState: WorkflowState = WorkflowSucceeded,
+                             config: Config = WorkflowManagerActor.defaultConfig)
+                            (implicit ec: ExecutionContext): WorkflowId = {
+    val workflowManager = buildWorkflowManagerActor(sampleWdl, runtime, config)
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
     eventFilter.intercept {
       within(timeoutDuration) {
@@ -347,8 +350,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                                   index: ExecutionIndex,
                                   runtime: String = "",
                                   stdout: Option[Seq[String]] = None,
-                                  stderr: Option[Seq[String]] = None)(implicit ec: ExecutionContext) = {
-    val actor = buildWorkflowManagerActor(sampleWdl, runtime)
+                                  stderr: Option[Seq[String]] = None,
+                                  config: Config = WorkflowManagerActor.defaultConfig)
+                                 (implicit ec: ExecutionContext) = {
+    val actor = buildWorkflowManagerActor(sampleWdl, runtime, config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     runSingleCallWdlWithWorkflowManagerActor(actor, sources, eventFilter, fqn, index, stdout, stderr)
   }
@@ -358,8 +363,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                                           runtime: String = "",
                                           stdout: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
                                           stderr: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
-                                          terminalState: WorkflowState = WorkflowSucceeded)(implicit ec: ExecutionContext) = {
-    val actor = buildWorkflowManagerActor(sampleWdl, runtime)
+                                          terminalState: WorkflowState = WorkflowSucceeded,
+                                          config: Config = WorkflowManagerActor.defaultConfig)
+                                         (implicit ec: ExecutionContext) = {
+    val actor = buildWorkflowManagerActor(sampleWdl, runtime, config)
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     runWdlWithWorkflowManagerActor(actor, workflowSources, eventFilter, stdout, stderr, Map.empty, terminalState)
   }

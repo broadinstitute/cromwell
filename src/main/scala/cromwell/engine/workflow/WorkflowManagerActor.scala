@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
@@ -72,6 +72,8 @@ object WorkflowManagerActor {
       workflowId map remove getOrElse this
     }
   }
+
+  lazy val defaultConfig = ConfigFactory.load
 }
 
 /**
@@ -81,7 +83,11 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
+class WorkflowManagerActor(backend: Backend, config: Config)
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
+
+  def this(backend: Backend) = this(backend, WorkflowManagerActor.defaultConfig)
+
   private val logger = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
 
@@ -95,7 +101,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
   private def addShutdownHook(): Unit = {
     // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
     val abortJobsOnTerminate =
-      ConfigFactory.load.getConfig("backend").getBooleanOr("abortJobsOnTerminate", default = false)
+      config.getConfig("backend").getBooleanOr("abortJobsOnTerminate", default = false)
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {
@@ -350,7 +356,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
     case class ActorAndStateData(actor: WorkflowActorRef, data: WorkflowManagerData)
 
     val actorAndData = for {
-      descriptor <- Try(WorkflowDescriptor(workflowId, source))
+      descriptor <- Try(WorkflowDescriptor(workflowId, source, config))
       actor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
       _ = actor ! SubscribeTransitionCallBack(self)
       data = stateData.add(workflowId -> actor)

@@ -3,10 +3,13 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
-import wdl4s.types.{WdlIntegerType, WdlStringType, WdlArrayType}
-import wdl4s.values.{WdlInteger, WdlFile, WdlArray, WdlString}
+import com.typesafe.config.ConfigFactory
+import cromwell.CallCachingWorkflowSpec._
 import cromwell.CromwellSpec.DockerTest
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.util.SampleWdl
+import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
 import scala.language.postfixOps
 
@@ -39,12 +42,14 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 1),
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 2),
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
     }
 
@@ -54,13 +59,15 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
         workflowOptions = """{"read_from_cache": false}""",
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
         workflowOptions = """{"read_from_cache": false}""",
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
     }
 
@@ -70,13 +77,15 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
         workflowOptions = """{"write_to_cache": false}""",
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 0),
         workflowOptions = """{"write_to_cache": false}""",
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
     }
 
@@ -90,7 +99,8 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
             |  docker: "ubuntu:latest"
             |}
           """.stripMargin,
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
@@ -100,7 +110,8 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
             |  docker: "ubuntu:latest"
             |}
           """.stripMargin,
-        expectedOutputs = expectedOutputs
+        expectedOutputs = expectedOutputs,
+        config = callCachingConfig
       )
     }
 
@@ -114,7 +125,8 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
           "w.A.A_out" -> WdlArray(WdlArrayType(WdlStringType), Seq("jeff", "chris", "miguel", "thibault", "khalid", "scott").map(WdlString)),
           "w.D.D_out" -> WdlInteger(34),
           "w.B.B_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WdlInteger(_)))
-        )
+        ),
+        config = callCachingConfig
       )
       runWdlAndAssertOutputs(
         sampleWdl = new SampleWdl.ScatterWdl,
@@ -126,8 +138,20 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
           "w.A.A_out" -> WdlArray(WdlArrayType(WdlStringType), Seq("jeff", "chris", "miguel", "thibault", "khalid", "scott").map(WdlString)),
           "w.D.D_out" -> WdlInteger(34),
           "w.B.B_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WdlInteger(_)))
-        )
+        ),
+        config = callCachingConfig
       )
     }
   }
+}
+
+object CallCachingWorkflowSpec {
+  val callCachingConfig = ConfigFactory.parseString(
+    s"""
+       |call-caching {
+       |  enabled = true
+       |  lookup-docker-hash = true
+       |}
+     """.stripMargin)
+    .withFallback(WorkflowManagerActor.defaultConfig)
 }

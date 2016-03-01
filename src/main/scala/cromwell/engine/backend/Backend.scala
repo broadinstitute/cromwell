@@ -81,16 +81,6 @@ trait Backend {
   def rootPath(workflowOptions: WorkflowOptions): String
 
   /**
-    * Attempt to evaluate all the ${...} tags in a command and return a String representation
-    * of the command.  This could fail for a variety of reasons related to expression evaluation
-    * which is why it returns a Try[String]
-    */
-  def instantiateCommand(backendCall: BackendCall): Try[String] = {
-    val backendInputs = adjustInputPaths(backendCall)
-    backendCall.call.instantiateCommandLine(backendInputs, backendCall.engineFunctions)
-  }
-
-  /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */

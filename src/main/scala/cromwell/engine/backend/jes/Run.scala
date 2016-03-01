@@ -1,9 +1,9 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.client.util.ArrayMap
-import com.google.api.services.genomics.model.{CancelOperationRequest, Logging, RunPipelineRequest, ServiceAccount, _}
+import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput, JesParameter}
+import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
@@ -42,21 +42,19 @@ object Run  {
     }
 
     def runPipeline: String = {
+      val rpargs = new RunPipelineArgs().setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
 
-      val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
+      rpargs.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
+      logger.info(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")
 
-      rpr.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i }).toRunMap)
-      logger.info(s"Inputs:\n${stringifyMap(rpr.getInputs.asScala.toMap)}")
+      rpargs.setOutputs(pipeline.jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
+      logger.info(s"Outputs:\n${stringifyMap(rpargs.getOutputs.asScala.toMap)}")
 
-      rpr.setOutputs(pipeline.jesParameters.collect({ case i: JesOutput => i }).toRunMap)
-      logger.info(s"Outputs:\n${stringifyMap(rpr.getOutputs.asScala.toMap)}")
+      val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setPipelineArgs(rpargs)
 
-      val logging = new Logging()
+      val logging = new LoggingOptions()
       logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.jesLogFilename(pipeline.key)}")
-      rpr.setLogging(logging)
-
-      // Currently, some resources (specifically disk) need to be specified both at pipeline creation and pipeline run time
-      rpr.setResources(pipeline.runtimeInfo.resources)
+      rpargs.setLogging(logging)
 
       val runId = pipeline.genomicsService.pipelines().run(rpr).execute().getName
       logger.info(s"JES Run ID is $runId")
@@ -71,10 +69,6 @@ object Run  {
   }
 
   private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
-
-  implicit class RunJesParameters(val params: Seq[JesParameter]) extends AnyVal {
-    def toRunMap = params.map(p => p.name -> p.gcs).toMap.asJava
-  }
 
   implicit class RunOperationExtension(val operation: Operation) extends AnyVal {
     def hasStarted = operation.getMetadata.asScala.get("startTime") isDefined

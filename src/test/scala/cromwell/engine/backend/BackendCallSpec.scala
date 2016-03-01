@@ -21,7 +21,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
   "BackendCall hash function" should {
     "not change very often - if it changes, make sure it is for a good reason" in {
       val actual = backendCall.hash.futureValue.overallHash
-      val expected = "f91d97758ef2a97e9a4af15ad61bf1e8"
+      val expected = "9eb5cdfbb16dcccb0ca413a5a101ca7c"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
 
@@ -33,7 +33,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val backendCall = backend.bindCall(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs, abortRegistrationFunction = None)
 
       val actual = backendCall.hash.futureValue.overallHash
-      val expected = "711b81df90e257420ff571ac05bfdabf"
+      val expected = "09eb4d544ecbd3740838c9798109a6d0"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
   }

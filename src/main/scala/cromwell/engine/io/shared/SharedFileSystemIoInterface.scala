@@ -1,6 +1,6 @@
 package cromwell.engine.io.shared
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 
 import cromwell.engine.PathString
 import cromwell.engine.io.IoInterface
@@ -26,12 +26,6 @@ class SharedFileSystemIoInterface private() extends IoInterface {
   } toIterable
 
   override def exists(path: String): Boolean = Paths.get(path).exists
-
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
-    val file = Files.createTempFile(Paths.get(path), prefix, suffix)
-    file.write(content)
-    file.fullPath
-  }
 
   override def glob(path: String, pattern: String): Seq[String] = {
     Paths.get(path).glob(s"**/$pattern") map { _.path.fullPath } toSeq

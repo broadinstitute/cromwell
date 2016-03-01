@@ -6,10 +6,10 @@ import java.util.UUID
 
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
+import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import cromwell.engine.backend.runtimeattributes.{DiskType, CromwellRuntimeAttributes}
 import cromwell.engine.backend.{AbortedExecutionHandle, FailedExecutionHandle, RetryableExecutionHandle}
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
@@ -29,6 +29,7 @@ import scala.util.{Success, Try}
 class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
   val actorSystem = testWorkflowManagerSystem.actorSystem
+  val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
 
   override protected def afterAll() = {
     testWorkflowManagerSystem.shutdownTestActorSystem()
@@ -196,7 +197,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     jesBackend.getGcsAuthInformation(workflowDescriptor) shouldBe Some(GcsLocalizing(clientSecrets, "myRefreshToken"))
   }
 
-  it should "generate correct JesInputs from a WdlMap" in {
+  it should "generate correct JesFileInputs from a WdlMap" in {
     val inputs = Map(
       "stringToFileMap" -> WdlMap(WdlMapType(WdlStringType, WdlFileType), Map(
         WdlString("stringTofile1") -> WdlFile("gs://path/to/stringTofile1"),
@@ -215,52 +216,61 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
         WdlString("stringToString2") -> WdlString("path/to/stringToString2")
       ))
     )
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
     val backendCall = mock[JesBackendCall]
     backendCall.locallyQualifiedInputs returns inputs
+    backendCall.workingDisk returns workingDisk
+    backendCall.call returns descriptor.namespace.workflow.findCallByName("whereami").get
     val jesInputs = jesBackend.generateJesInputs(backendCall)
     jesInputs should have size 8
-    jesInputs should contain(JesInput("stringToFileMap-0", "gs://path/to/stringTofile1", Paths.get("/cromwell_root/path/to/stringTofile1")))
-    jesInputs should contain(JesInput("stringToFileMap-1", "gs://path/to/stringTofile2", Paths.get("/cromwell_root/path/to/stringTofile2")))
-    jesInputs should contain(JesInput("fileToStringMap-0", "gs://path/to/fileToString1", Paths.get("/cromwell_root/path/to/fileToString1")))
-    jesInputs should contain(JesInput("fileToStringMap-1", "gs://path/to/fileToString2", Paths.get("/cromwell_root/path/to/fileToString2")))
-    jesInputs should contain(JesInput("fileToFileMap-0", "gs://path/to/fileToFile1Key", Paths.get("/cromwell_root/path/to/fileToFile1Key")))
-    jesInputs should contain(JesInput("fileToFileMap-1", "gs://path/to/fileToFile1Value", Paths.get("/cromwell_root/path/to/fileToFile1Value")))
-    jesInputs should contain(JesInput("fileToFileMap-2", "gs://path/to/fileToFile2Key", Paths.get("/cromwell_root/path/to/fileToFile2Key")))
-    jesInputs should contain(JesInput("fileToFileMap-3", "gs://path/to/fileToFile2Value", Paths.get("/cromwell_root/path/to/fileToFile2Value")))
+    jesInputs should contain(JesFileInput("stringToFileMap-0", "gs://path/to/stringTofile1", Paths.get("path/to/stringTofile1"), workingDisk))
+    jesInputs should contain(JesFileInput("stringToFileMap-1", "gs://path/to/stringTofile2", Paths.get("path/to/stringTofile2"), workingDisk))
+    jesInputs should contain(JesFileInput("fileToStringMap-0", "gs://path/to/fileToString1", Paths.get("path/to/fileToString1"), workingDisk))
+    jesInputs should contain(JesFileInput("fileToStringMap-1", "gs://path/to/fileToString2", Paths.get("path/to/fileToString2"), workingDisk))
+    jesInputs should contain(JesFileInput("fileToFileMap-0", "gs://path/to/fileToFile1Key", Paths.get("path/to/fileToFile1Key"), workingDisk))
+    jesInputs should contain(JesFileInput("fileToFileMap-1", "gs://path/to/fileToFile1Value", Paths.get("path/to/fileToFile1Value"), workingDisk))
+    jesInputs should contain(JesFileInput("fileToFileMap-2", "gs://path/to/fileToFile2Key", Paths.get("path/to/fileToFile2Key"), workingDisk))
+    jesInputs should contain(JesFileInput("fileToFileMap-3", "gs://path/to/fileToFile2Value", Paths.get("path/to/fileToFile2Value"), workingDisk))
   }
 
-  it should "generate correct JesInputs from a WdlArray" in {
+  it should "generate correct JesFileInputs from a WdlArray" in {
     val inputs = Map(
       "fileArray" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("gs://path/to/file1"), WdlFile("gs://path/to/file2")))
     )
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
     val backendCall = mock[JesBackendCall]
     backendCall.locallyQualifiedInputs returns inputs
+    backendCall.workingDisk returns workingDisk
+    backendCall.call returns descriptor.namespace.workflow.findCallByName("whereami").get
     val jesInputs = jesBackend.generateJesInputs(backendCall)
     jesInputs should have size 2
-    jesInputs should contain(JesInput("fileArray-0", "gs://path/to/file1", Paths.get("/cromwell_root/path/to/file1")))
-    jesInputs should contain(JesInput("fileArray-1", "gs://path/to/file2", Paths.get("/cromwell_root/path/to/file2")))
+    jesInputs should contain(JesFileInput("fileArray-0", "gs://path/to/file1", Paths.get("path/to/file1"), workingDisk))
+    jesInputs should contain(JesFileInput("fileArray-1", "gs://path/to/file2", Paths.get("path/to/file2"), workingDisk))
   }
 
-  it should "generate correct JesInputs from a WdlFile" in {
+  it should "generate correct JesFileInputs from a WdlFile" in {
     val inputs = Map(
       "file1" -> WdlFile("gs://path/to/file1"),
       "file2" -> WdlFile("gs://path/to/file2")
     )
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
     val backendCall = mock[JesBackendCall]
     backendCall.locallyQualifiedInputs returns inputs
+    backendCall.workingDisk returns workingDisk
+    backendCall.call returns descriptor.namespace.workflow.findCallByName("whereami").get
     val jesInputs = jesBackend.generateJesInputs(backendCall)
     jesInputs should have size 2
-    jesInputs should contain(JesInput("file1-0", "gs://path/to/file1", Paths.get("/cromwell_root/path/to/file1")))
-    jesInputs should contain(JesInput("file2-0", "gs://path/to/file2", Paths.get("/cromwell_root/path/to/file2")))
+    jesInputs should contain(JesFileInput("file1-0", "gs://path/to/file1", Paths.get("path/to/file1"), workingDisk))
+    jesInputs should contain(JesFileInput("file2-0", "gs://path/to/file2", Paths.get("path/to/file2"), workingDisk))
   }
 
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Seq(
-      JesOutput("/cromwell_root/path/to/file1", "gs://path/to/file1", Paths.get("/cromwell_root/path/to/file1")),
-      JesOutput("/cromwell_root/path/to/file2", "gs://path/to/file2", Paths.get("/cromwell_root/path/to/file2")),
-      JesOutput("/cromwell_root/path/to/file3", "gs://path/to/file3", Paths.get("/cromwell_root/path/to/file3")),
-      JesOutput("/cromwell_root/path/to/file4", "gs://path/to/file4", Paths.get("/cromwell_root/path/to/file4")),
-      JesOutput("/cromwell_root/path/to/file5", "gs://path/to/file5", Paths.get("/cromwell_root/path/to/file5"))
+      JesFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1", Paths.get("/cromwell_root/path/to/file1"), workingDisk),
+      JesFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2", Paths.get("/cromwell_root/path/to/file2"), workingDisk),
+      JesFileOutput("/cromwell_root/path/to/file3", "gs://path/to/file3", Paths.get("/cromwell_root/path/to/file3"), workingDisk),
+      JesFileOutput("/cromwell_root/path/to/file4", "gs://path/to/file4", Paths.get("/cromwell_root/path/to/file4"), workingDisk),
+      JesFileOutput("/cromwell_root/path/to/file5", "gs://path/to/file5", Paths.get("/cromwell_root/path/to/file5"), workingDisk)
     )
     val outputValues = Seq(
       WdlFile("/cromwell_root/path/to/file1"),
@@ -280,13 +290,14 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     )
   }
 
-  it should "create a JesInput for the monitoring script, if specified" in {
+  it should "create a JesFileInput for the monitoring script, if specified" in {
     val backendCall = mock[JesBackendCall]
     val wd = mock[WorkflowDescriptor]
     backendCall.workflowDescriptor returns wd
+    backendCall.workingDisk returns workingDisk
 
     wd.workflowOptions returns WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get
-    jesBackend.monitoringIO(backendCall) shouldBe Some(JesInput("monitoring", "gs://path/to/script", Paths.get("/cromwell_root/monitoring.sh"),"REFERENCE"))
+    jesBackend.monitoringIO(backendCall) shouldBe Some(JesFileInput("monitoring-in", "gs://path/to/script", Paths.get("monitoring.sh"), workingDisk))
 
     wd.workflowOptions returns WorkflowOptions.fromJsonString("""{}""").get
     jesBackend.monitoringIO(backendCall) shouldBe None

@@ -23,6 +23,8 @@ val slickV = "3.1.1"
 
 val googleClientApiV = "1.20.0"
 
+val googleGenomicsVersion = "v1alpha2-rev7-1.19.1"
+
 val kamonV = "0.5.2"
 
 resolvers ++= Seq(
@@ -62,6 +64,7 @@ libraryDependencies ++= Seq(
   "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
   "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
   "com.google.cloud.bigdataoss" % "gcsio" % "1.4.3",
+  "com.google.apis" % "google-api-services-genomics" % googleGenomicsVersion,
   "mysql" % "mysql-connector-java" % "5.1.36",
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
   "com.github.pathikrit" %% "better-files" % "2.13.0",

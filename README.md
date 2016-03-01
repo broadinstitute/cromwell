@@ -637,7 +637,7 @@ task jes_task {
     memory: "4G"
     cpu: "3"
     zones: "US_Metro MX_Metro"
-    disks: "Disk1 3 SSD, Disk2 500 HDD"
+    disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
 workflow jes_workflow {
@@ -722,29 +722,31 @@ Passed to JES: "Disks to attach."
 
 The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
 
-1. Disk name
-2. Disk size in GB (not applicable for LOCAL)
-3. Disk type
+1. Mount point (absolute path), or `local-disk` to reference the mount point where JES will localize files and the task's current working directory will be
+2. Disk size in GB (ignored for disk type LOCAL)
+3. Disk type.  One of: "LOCAL", "SSD", or "HDD" ([documentation](https://cloud.google.com/compute/docs/disks/#overview))
 
-The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google. All disks are set to auto-delete after the job completes.
+All tasks launched on JES *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
 
-... more to come ...
+The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
 
-```
-runtime {
-  disks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
-}
-```
-
-To change the size of the local disk, set the type of the disk named "local-disk" to a persistent type, and specify the size in GB.
+**Example 1: Changing the Localization Disk**
 
 ```
 runtime {
-  disks: "local-disk 11 SSD"
+  disks: "local-disk 100 SSD"
 }
 ```
 
-Defaults to "local-disk LOCAL".
+**Example 2: Mounting an Additional Two Disks**
+
+```
+runtime {
+  disks: "/mnt/my_mnt 3 SSD, /mnt/my_mnt2 500 HDD"
+}
+```
+
+Since no `local-disk` entry is specified, Cromwell will automatically add `local-disk 10 SSD` to this list.
 
 ## zones
 

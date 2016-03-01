@@ -2066,7 +2066,7 @@ object SampleWdl {
         |    memory: "4G"
         |    cpu: "3"
         |    zones: "US_Metro US_Backwater"
-        |    disks: "Disk1 3 SSD, Disk2 500 HDD"
+        |    disks: "/mnt/some-dir 3 SSD, /tmp/mnt 500 HDD"
         |  }
         |}
         |
@@ -2168,7 +2168,7 @@ object SampleWdl {
         |  }
         |  runtime {
         |    docker: "ubuntu:latest"
-        |    disks: "Disk1 123 LOCAL"
+        |    disks: "bad_mount 123 LOCAL"
         |  }
         |}
         |
@@ -2189,7 +2189,7 @@ object SampleWdl {
         |  }
         |  runtime {
         |    docker: "ubuntu:latest"
-        |    disks: "Disk1 123.0 SSD"
+        |    disks: "/mnt 123.0 SSD"
         |  }
         |}
         |
@@ -2210,7 +2210,7 @@ object SampleWdl {
         |  }
         |  runtime {
         |    docker: "ubuntu:latest"
-        |    disks: "Disk1 123 SDD"
+        |    disks: "/mnt 123 SDD"
         |  }
         |}
         |
@@ -2233,7 +2233,7 @@ object SampleWdl {
         |  command { ps }
         |  runtime {
         |    docker: "ubuntu:" + tag
-        |    disks: "Disk1 " + disk_gb + " SSD"
+        |    disks: "/mnt " + disk_gb + " SSD"
         |    memory: memory_gb + " GB"
         |  }
         |}
@@ -2351,5 +2351,31 @@ task shouldCompleteFast {
     val rawInputs = Map(
       "w.x.a" -> 5
     )
+  }
+
+  object WriteLinesWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task a2f {
+        |  Array[String] strings
+        |
+        |  command {
+        |    cat ${write_lines(strings)}
+        |  }
+        |
+        |  output {
+        |    Array[String] out = read_lines(stdout())
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow write_lines {
+        |  call a2f {
+        |    input: strings=["a","b","c","d"]
+        |  }
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    override val rawInputs: WorkflowRawInputs = Map.empty[FullyQualifiedName, Any]
   }
 }

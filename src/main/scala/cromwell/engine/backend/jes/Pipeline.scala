@@ -1,7 +1,8 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.Genomics
-import com.google.api.services.genomics.model.CreatePipelineRequest
+import com.google.api.services.genomics.model
+import com.google.api.services.genomics.model.{Disk, PipelineParameter}
 import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
@@ -33,17 +34,26 @@ object Pipeline {
 
     val gcsPath = workflow.callDir(key)
 
-    val cpr = new CreatePipelineRequest
-    cpr.setProjectId(projectId)
-    cpr.setDocker(runtimeInfo.docker)
-    cpr.setResources(runtimeInfo.resources)
-    cpr.setName(workflow.name)
+    val p = new model.Pipeline
+    p.setProjectId(projectId)
+    p.setDocker(runtimeInfo.docker)
+    p.setResources(runtimeInfo.resources)
+    p.setName(workflow.name)
+    p.setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
+    p.setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
-    cpr.setParameters(jesParameters.map(_.toGoogleParameter).toVector.asJava)
+    def createPipeline = jesConnection.genomics.pipelines().create(p).execute().getPipelineId
 
-    def createPipeline = jesConnection.genomics.pipelines().create(cpr).execute().getPipelineId
+    def pipelineParameterString(p: PipelineParameter): String = {
+      s"  ${p.getName} -> disk:${p.getLocalCopy.getDisk} relpath:${p.getLocalCopy.getPath}"
+    }
+    def diskString(d: Disk): String = {
+      s"  ${d.getName} -> ${d.getMountPoint} (${d.getSizeGb}GB ${d.getType})"
+    }
+    logger.info(s"Inputs:\n${p.getInputParameters.asScala.map(pipelineParameterString).mkString("\n")}")
+    logger.info(s"Outputs:\n${p.getOutputParameters.asScala.map(pipelineParameterString).mkString("\n")}")
+    logger.info(s"Mounts:\n${runtimeInfo.resources.getDisks.asScala.map(diskString).mkString("\n")}")
 
-    logger.info(s"Pipeline parameters are:\n${cpr.getParameters.asScala.map(s => s"  $s").mkString("\n")}")
     val pipelineId = if (runIdForResumption.isDefined) None else Option(createPipeline)
 
     logger.info(s"Pipeline ID is ${pipelineId.getOrElse("(none)")}")

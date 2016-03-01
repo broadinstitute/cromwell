@@ -2,7 +2,6 @@ package cromwell.engine.io.gcs
 
 import java.io._
 import java.math.BigInteger
-import java.util.UUID
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -11,6 +10,7 @@ import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
+import cromwell.engine.Hashing._
 import cromwell.engine.PathString
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.WorkflowOptions
@@ -56,7 +56,6 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
 
   def isValidPath(path: String) = path.isGcsUrl
 
-
   def readFile(path: String): String = {
     new String(downloadObject(path), "UTF-8")
   }
@@ -101,12 +100,6 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
   }
 
   def writeFile(path: String, content: String): Unit = uploadObject(path, content)
-
-  def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
-    val fullPath = s"$path/$prefix${UUID.randomUUID()}$suffix"
-    writeFile(fullPath, content)
-    path
-  }
 
   /**
     * Copy file from one GCS path to another

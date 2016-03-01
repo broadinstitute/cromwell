@@ -11,6 +11,7 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 /**
  * Represents a Call that is intended to be run on a specific Backend.
@@ -97,6 +98,13 @@ trait BackendCall {
   lazy val callRootPath = callRootPathWithBaseRoot(backend.rootPath(workflowDescriptor.workflowOptions))
 
   /**
+    * Attempt to evaluate all the ${...} tags in a command and return a String representation
+    * of the command.  This could fail for a variety of reasons related to expression evaluation
+    * which is why it returns a Try[String]
+    */
+  def instantiateCommand: Try[String]
+
+  /**
     * Inputs to the call.  For example, if a call's task specifies a command like this:
     *
     * File some_dir
@@ -160,7 +168,7 @@ trait BackendCall {
       }),
       ("cpu", runtimeAttributes.cpu.toString),
       ("preemptible", runtimeAttributes.preemptible.toString),
-      ("disks", runtimeAttributes.disks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
+      ("disks", runtimeAttributes.disks.sortWith((l, r) => l.name > r.name).map(_.toString).mkString(",")),
       ("memoryGB", runtimeAttributes.memoryGB.toString)
     )
 

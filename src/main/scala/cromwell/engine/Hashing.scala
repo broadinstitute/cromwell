@@ -14,6 +14,7 @@ object Hashing {
 
   implicit class HashableString(val value: String) extends AnyVal with Hashable {
     def md5Sum: String = DigestUtils.md5Hex(value)
+    def md5SumShort: String = value.md5Sum.substring(0, 8)
   }
 
   implicit class HashableWdlValue(val wdlValue: WdlValue) extends AnyVal {

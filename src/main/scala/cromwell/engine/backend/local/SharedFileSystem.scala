@@ -165,6 +165,31 @@ trait SharedFileSystem {
     Success(descriptor.actualInputs)
   }
 
+  def toDockerPath(path: WdlValue): WdlValue = path match {
+    case file: WdlFile => WdlFile(toDockerPath(Paths.get(path.valueString)).toAbsolutePath.toString)
+    case v => v
+  }
+
+  private def toDockerPath(path: Path): Path = {
+    path.toAbsolutePath match {
+      case p if p.startsWith(LocalBackend.ContainerRoot) => p
+      case p =>
+        /** For example:
+          *
+          * p = /abs/path/to/cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
+          * localExecutionRoot = /abs/path/to/cromwell-executions
+          * subpath = three-step/f00ba4/call-ps/stdout.txt
+          *
+          * return value = /root/three-step/f00ba4/call-ps/stdout.txt
+          *
+          * TODO: this assumes that p.startsWith(localExecutionRoot)
+          */
+        val localExecutionRoot = Paths.get(CromwellExecutionRoot).toAbsolutePath
+        val subpath = p.subpath(localExecutionRoot.getNameCount, p.getNameCount)
+        Paths.get(LocalBackend.ContainerRoot).resolve(subpath)
+    }
+  }
+
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
@@ -176,14 +201,6 @@ trait SharedFileSystem {
     import PathString._
 
     val strategies = if (backendCall.runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
-
-    def toDockerPath(path: Path): Path = {
-      // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
-      // Container path should look like /root/f00ba4/call-ps/stdout.txt
-      val fullPath = path.toFile.getAbsolutePath
-      val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutionRoot) + CromwellExecutionRoot.length)
-      Paths.get(WdlFile.appendPathsWithSlashSeparators(LocalBackend.ContainerRoot, pathUnderCromwellExecutions))
-    }
 
     /**
      * Transform an original input path to a path in the call directory.

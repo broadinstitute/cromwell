@@ -5,8 +5,10 @@ import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor}
 import wdl4s.CallInputs
+import wdl4s.values.WdlValue
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 case class LocalBackendCall(backend: LocalBackend,
                             workflowDescriptor: WorkflowDescriptor,
@@ -26,6 +28,15 @@ case class LocalBackendCall(backend: LocalBackend,
   val engineFunctions = new LocalCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
   callRootPath.toFile.mkdirs
+
+  def instantiateCommand: Try[String] = {
+    val backendInputs = backend.adjustInputPaths(this)
+    val pathTransformFunction: WdlValue => WdlValue = runtimeAttributes.docker match {
+      case Some(_) => backend.toDockerPath
+      case None => (v: WdlValue) => v
+    }
+    call.instantiateCommandLine(backendInputs, engineFunctions, pathTransformFunction)
+  }
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 

@@ -29,9 +29,6 @@ object JesBackendCall {
   def jesLogStdoutFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stdout.log"
   def jesLogStderrFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stderr.log"
   def jesReturnCodeFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-rc.txt"
-
-  private def jesOutput(callGcsPath: String, filename: String): JesOutput =
-    JesOutput(filename, s"$callGcsPath/$filename", localFilePathFromRelativePath(filename))
 }
 
 class JesBackendCall(val backend: JesBackend,
@@ -44,7 +41,10 @@ class JesBackendCall(val backend: JesBackend,
   import JesBackend._
   import JesBackendCall._
 
-  def jesCommandLine = s"/bin/bash ${cmdInput.local}"
+  // TODO: Assuming that runtimeAttributes.disks always has a 'local-disk'
+  lazy val workingDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
+
+  def jesCommandLine = s"/bin/bash ${cmdInput.containerPath.toAbsolutePath.toString}"
 
   lazy val callGcsPath = key.callRootPathWithBaseRoot(workflowDescriptor, backend.rootPath(workflowDescriptor.workflowOptions))
   //TODO: Switch to NioGcsPath
@@ -62,13 +62,17 @@ class JesBackendCall(val backend: JesBackend,
 
   lazy val engineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
-  lazy val rcJesOutput = jesOutput(callGcsPath.toString, returnCodeFilename)
-  lazy val cmdInput = JesInput(ExecParamName, gcsExecPath.toString, localFilePathFromRelativePath(JesExecScript))
-  lazy val diskInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, Paths.get(JesCromwellRoot))
+  lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath, Paths.get(returnCodeFilename), workingDisk)
+  lazy val cmdInput = JesFileInput(ExecParamName, gcsExecPath.toString, Paths.get(JesExecScript), workingDisk)
 
-  def standardParameters = Seq(rcJesOutput, diskInput)
+  def standardParameters = Seq(rcJesOutput)
 
   def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(returnCodeGcsPath)) }
+
+  def instantiateCommand: Try[String] = {
+    val backendInputs = backend.adjustInputPaths(this)
+    call.instantiateCommandLine(backendInputs, engineFunctions, JesBackend.gcsPathToLocal)
+  }
 
   /**
     * Determines the maximum number of times a call can be started with a Preemptible VM.

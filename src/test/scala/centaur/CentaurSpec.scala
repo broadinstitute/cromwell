@@ -15,10 +15,17 @@ class CentaurSpec extends FlatSpec with Matchers with ParallelTestExecution {
     basePath.toFile.listFiles.toList collect { case x if x.isDirectory => x.toPath } map WorkflowRequest.apply
   }
 
-  // FIXME: These will run sequentially which is not going to be ideal as the N increases. Need to parallelize
-  testCases(CentaurConfig.testCasePath) foreach { case w =>
+
+  testCases(CentaurConfig.successfulTestCasePath) foreach { case w =>
     w.name should "successfully run" in {
       TestFormulas.runSuccessfulWorkflow(w).run.get
+      Thread.sleep(1000)
+    }
+  }
+
+  testCases(CentaurConfig.failingTestCasePath) foreach { case w =>
+    w.name should "fail" in {
+      TestFormulas.runFailingWorkflow(w).run.get
       Thread.sleep(1000)
     }
   }

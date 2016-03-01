@@ -13,7 +13,8 @@ object CentaurConfig {
   lazy val cromwellUrl = new URL(conf.getString("centaur.cromwellUrl"))
   lazy val sendReceiveTimeout = conf.getDuration("centaur.sendReceiveTimeout").toScala
   lazy val maxWorkflowLength = conf.getDuration("centaur.maxWorkflowLength").toScala
-  lazy val testCasePath = Paths.get(conf.getString("centaur.testCasePath"))
+  lazy val successfulTestCasePath = Paths.get(conf.getString("centaur.successfulTestCasePath"))
+  lazy val failingTestCasePath = Paths.get(conf.getString("centaur.failingTestCasePath"))
 
   implicit class EnhancedJavaDuration(val javaDuration: java.time.Duration) extends AnyVal {
     def toScala: FiniteDuration = FiniteDuration(javaDuration.toNanos, TimeUnit.NANOSECONDS)

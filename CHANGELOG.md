@@ -13,6 +13,15 @@ task disk_test {
   }
 }
 ```
+* Metadata now contains a list of failures for calls and workflows. This is an optional element of both `call` and `workflow` and is shaped thus:
+```
+"failures": [
+  {
+    "failure": "The failure message",
+    "timestamp": "2016-02-25T10:49:02.066-05:00"
+  }
+]
+```
 
 ## 0.18
 

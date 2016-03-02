@@ -187,6 +187,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       call.stdout shouldNot be(empty)
       call.stderr shouldNot be(empty)
       call.attempt shouldBe 1
+      call.failures shouldNot be(empty)
     }
   }
 }

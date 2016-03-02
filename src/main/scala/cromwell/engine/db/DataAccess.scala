@@ -83,6 +83,16 @@ trait DataAccess extends AutoCloseable {
   def getAllExecutionEvents(workflowId: WorkflowId)
                            (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]
 
+  /** Add a new failure event for a call into the database. */
+  def addCallFailureEvent(workflowId: WorkflowId, executionKey: ExecutionDatabaseKey,
+                          failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit]
+
+  /** Add a new failure event for a workflow into the database. */
+  def addWorkflowFailureEvent(workflowId: WorkflowId, failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit]
+
+  /** Retrieve all recorded failures for a Workflow */
+  def getFailureEvents(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Seq[QualifiedFailureEventEntry]]
+
   /** Set the status of one or several calls to starting and update the start date. */
   def setStartingStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext): Future[Unit]
 

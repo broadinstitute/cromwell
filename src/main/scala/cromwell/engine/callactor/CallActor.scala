@@ -9,11 +9,11 @@ import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
-import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey, WorkflowActor}
+import cromwell.engine.workflow.{CallKey, FinalCallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
+import wdl4s.Scope
 import wdl4s.values.WdlValue
-import wdl4s.{CallInputs, Scope}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -74,15 +74,16 @@ object CallActor {
 
   val CallCounter = Monitor.minMaxCounter("calls-running")
 
-  def props(key: BackendCallKey, locallyQualifiedInputs: CallInputs, backend: Backend, workflowDescriptor: WorkflowDescriptor): Props =
-    Props(new BackendCallActor(key, locallyQualifiedInputs, backend, workflowDescriptor))
-  def props(key: FinalCallKey) = Props(new FinalCallActor(key))
+  def props(backendCallDescriptor: BackendCallJobDescriptor): Props = Props(new BackendCallActor(backendCallDescriptor))
+  def props(finalCallDescriptor: FinalCallJobDescriptor) = Props(new FinalCallActor(finalCallDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
-trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
-  def key: CallKey
-  def workflowDescriptor: WorkflowDescriptor
+// FIXME It feels like I shouldn't need to restate the type bounds of JobDescriptor's CallKey type variable.
+trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
+  def jobDescriptor: D
+  def key = jobDescriptor.key
+  def workflowDescriptor = jobDescriptor.workflowDescriptor
   protected def callExecutionActor: ActorRef
 
   import CallActor._
@@ -95,7 +96,7 @@ trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellA
   implicit val ec = context.system.dispatcher
 
   val call = key.scope
-  val akkaLogger = Logging(context.system, classOf[CallActor])
+  val akkaLogger = Logging(context.system, classOf[CallActor[D]])
   val logger = WorkflowLogger(
     "CallActor",
     workflowDescriptor,

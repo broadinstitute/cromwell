@@ -11,9 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 case class LocalBackendCall(backend: LocalBackend,
-                            workflowDescriptor: WorkflowDescriptor,
-                            key: BackendCallKey,
-                            locallyQualifiedInputs: CallInputs,
+                            jobDescriptor: BackendCallJobDescriptor,
                             callAbortRegistrationFunction: Option[AbortRegistrationFunction]) extends BackendCall with LocalFileSystemBackendCall {
   val dockerContainerExecutionDir = workflowDescriptor.workflowRootPathWithBaseRoot(LocalBackend.ContainerRoot)
   lazy val containerCallRoot = runtimeAttributes.docker match {
@@ -25,7 +23,7 @@ case class LocalBackendCall(backend: LocalBackend,
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script")
   private val callContext = new CallContext(callRootPath.fullPath, stdout.fullPath, stderr.fullPath)
-  val engineFunctions = new LocalCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+  val callEngineFunctions = new LocalCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
   callRootPath.toFile.mkdirs
 
@@ -35,7 +33,7 @@ case class LocalBackendCall(backend: LocalBackend,
       case Some(_) => backend.toDockerPath
       case None => (v: WdlValue) => v
     }
-    call.instantiateCommandLine(backendInputs, engineFunctions, pathTransformFunction)
+    call.instantiateCommandLine(backendInputs, callEngineFunctions, pathTransformFunction)
   }
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)

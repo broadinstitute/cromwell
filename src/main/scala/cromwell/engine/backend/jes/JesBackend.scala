@@ -330,11 +330,9 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def stdoutStderr(backendCall: BackendCall): CallLogs = backendCall.stdoutStderr
 
-  override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        key: BackendCallKey,
-                        locallyQualifiedInputs: CallInputs,
+  override def bindCall(jobDescriptor: BackendCallJobDescriptor,
                         abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-    new JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
+    new JesBackendCall(this, jobDescriptor, abortRegistrationFunction)
   }
 
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
@@ -445,7 +443,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
     val evaluatedExpressionMap = writeFunctionAsts map { ast =>
       val expression = WdlExpression(ast)
-      val value = expression.evaluate(backendCall.lookupFunction(Map.empty), backendCall.engineFunctions)
+      val value = expression.evaluate(backendCall.lookupFunction(Map.empty), backendCall.callEngineFunctions)
       expression.toWdlString.md5SumShort -> value
     } toMap
 
@@ -651,7 +649,7 @@ case class JesBackend(actorSystem: ActorSystem)
     * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
     * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
     */
-    wdlValue <- taskOutput.requiredExpression.evaluate(customLookupFunction(backendCall, currentList.toLookupMap), backendCall.engineFunctions)
+    wdlValue <- taskOutput.requiredExpression.evaluate(customLookupFunction(backendCall, currentList.toLookupMap), backendCall.callEngineFunctions)
     coercedValue <- taskOutput.wdlType.coerceRawValue(wdlValue)
     value = wdlValueToGcsPath(generateJesOutputs(backendCall))(coercedValue)
   } yield value

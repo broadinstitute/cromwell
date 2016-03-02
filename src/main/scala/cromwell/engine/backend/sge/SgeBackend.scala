@@ -48,11 +48,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   override def pollBackoff = pollBackoffBuilder.build()
 
-  override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                        key: BackendCallKey,
-                        locallyQualifiedInputs: CallInputs,
+  override def bindCall(jobDescriptor: BackendCallJobDescriptor,
                         abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-    SgeBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
+    SgeBackendCall(this, jobDescriptor, abortRegistrationFunction)
   }
 
   def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)

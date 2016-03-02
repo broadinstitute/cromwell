@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, CallLogs, CallMetadata}
+import cromwell.engine.backend.{BackendCallJobDescriptor, Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
@@ -310,10 +310,13 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
   }
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Seq[Seq[CallLogs]]] = {
+
     def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
       BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
-    def backendCallFromKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
-      backend.bindCall(descriptor, callKey(descriptor, callName, key))
+
+    def backendCallFromKey(workflow: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) = {
+      backend.bindCall(BackendCallJobDescriptor(workflow, callKey(workflow, callName, key)))
+    }
 
     // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
     import cromwell.engine.finalcall.FinalCall._
@@ -328,17 +331,17 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
-    def logMapFromStatusMap(descriptor: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
+    def logMapFromStatusMap(workflow: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
       // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
       import cromwell.engine.finalcall.FinalCall._
       Try {
         val sortedMap = statusMap.toSeq.sortBy(_._1.index)
         val callsToPaths = for {
           (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
-          callName = assertCallFqnWellFormed(descriptor, key.fqn).get
-          callKey = BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
+          callName = assertCallFqnWellFormed(workflow, key.fqn).get
+          callKey = BackendCallKey(workflow.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
           // TODO There should be an easier way than going as far as backend.bindCall just to retrieve stdout/err path
-          backendCall = backend.bindCall(descriptor, callKey)
+          backendCall = backend.bindCall(BackendCallJobDescriptor(workflow, callKey))
           callStandardOutput = backend.stdoutStderr(backendCall)
         } yield key -> callStandardOutput
 

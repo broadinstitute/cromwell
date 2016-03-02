@@ -34,7 +34,7 @@ object CromwellRuntimeAttributes {
     val supportedKeys = backendCall.backend.backendType.supportedKeys map { _.key }
 
     val attributes = for {
-      attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(backendCall.lookupFunction(backendCall.locallyQualifiedInputs), backendCall.engineFunctions))
+      attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(backendCall.lookupFunction(backendCall.locallyQualifiedInputs), backendCall.callEngineFunctions))
       attributesWithDefaults <- Try(getAttributesWithDefaults(attributesFromTask, workflowOptions))
       _ <- validateKeys(attributesWithDefaults.keySet, backendCall.backend.backendType)
       supportedAttributes = attributesWithDefaults.filterKeys(k => supportedKeys.contains(k))

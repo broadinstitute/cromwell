@@ -11,7 +11,7 @@ import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
-import cromwell.engine.backend.{AbortedExecutionHandle, FailedExecutionHandle, RetryableExecutionHandle}
+import cromwell.engine.backend.{AbortedExecutionHandle, BackendCallJobDescriptor, FailedExecutionHandle, RetryableExecutionHandle}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
@@ -263,7 +263,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     backendCall.callGcsPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute=true)(mock[GcsFileSystem])
     backendCall.lookupFunction(inputs) returns lookup
     backendCall.runtimeAttributes returns runtimeAttributes
-    backendCall.engineFunctions returns functions
+    backendCall.callEngineFunctions returns functions
     backendCall
   }
 
@@ -375,7 +375,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root"))
 
     val call = wd.namespace.workflow.findCallByName("hello").get
-    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, None, 1))
+    val backendCall = jesBackend.bindCall(BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1)))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log")
@@ -393,7 +393,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root"))
     val call = wd.namespace.workflow.findCallByName("B").get
-    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, Some(2), 1))
+    val backendCall = jesBackend.bindCall(BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1)))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stdout.log")

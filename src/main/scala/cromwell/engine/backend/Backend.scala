@@ -104,9 +104,7 @@ trait Backend {
   /**
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
-  def bindCall(workflowDescriptor: WorkflowDescriptor,
-               key: BackendCallKey,
-               locallyQualifiedInputs: CallInputs = Map.empty[String, WdlValue],
+  def bindCall(jobDescriptor: BackendCallJobDescriptor,
                abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
 
   def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions

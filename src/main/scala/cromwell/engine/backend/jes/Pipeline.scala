@@ -45,7 +45,11 @@ object Pipeline {
     def createPipeline = jesConnection.genomics.pipelines().create(p).execute().getPipelineId
 
     def pipelineParameterString(p: PipelineParameter): String = {
-      s"  ${p.getName} -> disk:${p.getLocalCopy.getDisk} relpath:${p.getLocalCopy.getPath}"
+      val description = Option(p.getLocalCopy) match {
+        case Some(localCopy) => s"disk:${localCopy.getDisk} relpath:${localCopy.getPath}"
+        case None => s"(literal value)"
+      }
+      s"  ${p.getName} -> $description"
     }
     def diskString(d: Disk): String = {
       s"  ${d.getName} -> ${d.getMountPoint} (${d.getSizeGb}GB ${d.getType})"

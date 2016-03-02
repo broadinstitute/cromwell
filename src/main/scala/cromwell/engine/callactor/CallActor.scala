@@ -7,6 +7,7 @@ import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
+import cromwell.engine.callactor.completion.{CallRetriedActor, CallCompleteActor}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey, WorkflowActor}
@@ -193,24 +194,42 @@ trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellA
         .build()
     )
 
-    val message = executionResult match {
+    executionResult match {
       case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
-        WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+        val completionActor = CallCompleteActor.props(
+          workflowDescriptor.id,
+          key,
+          outputs,
+          executionEvents,
+          returnCode,
+          if (workflowDescriptor.writeToCache) Option(hash) else None,
+          resultsClonedFrom,
+          context.parent, logger
+        )
+        context.actorOf(completionActor)
       case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
+        context.parent ! WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
       case AbortedExecution => WorkflowActor.CallAborted(key)
       case RetryableExecution(e, returnCode, events) =>
         logger.error("Failing call with retryable Failure: " + e.getMessage, e)
-        WorkflowActor.CallFailedRetryable(key, events, returnCode, e)
+        val retryActor = CallRetriedActor.props(
+          workflowDescriptor.id,
+          key,
+          events,
+          returnCode,
+          context.parent,
+          logger
+        )
+        context.actorOf(retryActor)
       case NonRetryableExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
         WorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
     }
 
-    context.parent ! message
+
     // The WorkflowActor will drop TerminalCallMessages that it is unable to immediately process.
     // Retry sending this message to the WorkflowActor until it is Acked.
-    val updatedData = stateData.copy(backoff = createBackoff).copyWithRetry(this, message)
-    stay using updatedData
+    stay
   }
 
   private def shutDown(): Unit = {

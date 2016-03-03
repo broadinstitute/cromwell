@@ -7,8 +7,8 @@ import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
+import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -29,6 +29,10 @@ object LocalBackend {
   val CallPrefix = "call"
   val ShardPrefix = "shard"
 
+  object InfoKeys {
+    val Pid = "PID"
+  }
+
   /**
    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
    */
@@ -36,43 +40,6 @@ object LocalBackend {
     def writeWithNewline(string: String): Unit = {
       writer.write(string)
       writer.write("\n")
-    }
-  }
-
-  /**
-   * {{{cromwell-executions + workflow.name + workflow.id = cromwell-executions/three-step/0f00-ba4}}}
-   */
-  def hostExecutionPath(workflow: WorkflowDescriptor): Path =
-    hostExecutionPath(workflow.name, workflow.id)
-
-  def hostExecutionPath(workflowName: String, workflowUuid: WorkflowId): Path =
-    Paths.get(SharedFileSystem.CromwellExecutionRoot, workflowName, workflowUuid.id.toString)
-
-  def hostCallPath(workflow: WorkflowDescriptor, callName: String, callIndex: ExecutionIndex): Path = {
-    hostCallPath(workflow.name, workflow.id, callName, callIndex)
-  }
-
-  def hostCallPath(workflowName: String, workflowUuid: WorkflowId, callName: String, callIndex: ExecutionIndex): Path =  {
-    val rootCallPath = hostExecutionPath(workflowName, workflowUuid).resolve(s"$CallPrefix-$callName")
-    callIndex match {
-      case Some(index) => rootCallPath.resolve(s"$ShardPrefix-$index")
-      case None => rootCallPath
-    }
-  }
-
-  /**
-   * Root workflow execution path for container.
-   */
-  def containerExecutionPath(workflow: WorkflowDescriptor): Path = Paths.get(ContainerRoot, workflow.id.toString)
-
-  /**
-   * Root Call execution path for container.
-   */
-  def containerCallPath(workflow: WorkflowDescriptor, callName: String, callIndex: ExecutionIndex): Path = {
-    val rootCallPath = containerExecutionPath(workflow).resolve(s"$CallPrefix-$callName")
-    callIndex match {
-      case Some(index) => rootCallPath.resolve(s"$ShardPrefix-$index")
-      case None => rootCallPath
     }
   }
 
@@ -86,7 +53,7 @@ object LocalBackend {
     *
     * This function will at least detect this case and log some WARN messages.
     */
-  def detectDockerMachinePossibleMisusage = {
+  def detectDockerMachinePossibleMisusage() = {
     val backendConf = ConfigFactory.load.getConfig("backend")
     val sharedFileSystemConf = backendConf.getConfig("shared-filesystem")
     val cromwellExecutionRoot = Paths.get(sharedFileSystemConf.getString("root")).toAbsolutePath.toString
@@ -103,7 +70,7 @@ object LocalBackend {
     }
   }
 
-  detectDockerMachinePossibleMisusage
+  detectDockerMachinePossibleMisusage()
 }
 
 
@@ -113,7 +80,7 @@ object LocalBackend {
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = LocalBackendCall
 
-  import LocalBackend._
+  override def adjustInputPaths(backendCall: BackendCall) = adjustSharedInputPaths(backendCall)
 
   /**
     * Exponential Backoff Builder to be used when polling for call status.
@@ -142,7 +109,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
         runSubprocess(backendCall)
-      case Failure(ex) => FailedExecution(ex).future
+      case Failure(ex) => NonRetryableExecution(ex).future
     }
   }).flatten map CompletedExecutionHandle
 
@@ -154,7 +121,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
     def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
       val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      globalDataAccess.setStatus(workflowId, callFqnsNeedingUpdate, CallStatus(ExecutionStatus.NotStarted, None, None, None))
+      globalDataAccess.updateStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
     }
 
     for {
@@ -184,7 +151,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
   private def buildDockerRunCommand(backendCall: BackendCall, image: String): String = {
-    val callPath = containerCallPath(backendCall.workflowDescriptor, backendCall.call.unqualifiedName, backendCall.key.index)
+    val callPath = backendCall.containerCallRoot
     s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
   }
 
@@ -217,7 +184,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     )
 
     if (backendCall.runtimeAttributes.failOnStderr && stderrFileLength > 0) {
-      FailedExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
+      NonRetryableExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
         s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
 
@@ -226,7 +193,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
           case Success(outputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
-            FailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future
+            NonRetryableExecution(new Throwable("Failed post processing of outputs" + message, e)).future
         }
       }
 
@@ -242,9 +209,11 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       returnCode match {
         case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-        case Success(badReturnCode) => FailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
-        case Failure(e) => FailedExecution(new Throwable(badReturnCodeMessage, e)).future
+        case Success(badReturnCode) => NonRetryableExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
+        case Failure(e) => NonRetryableExecution(new Throwable(badReturnCodeMessage, e)).future
       }
     }
   }
+
+  override def executionInfoKeys: List[String] = List(InfoKeys.Pid)
 }

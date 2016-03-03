@@ -51,9 +51,16 @@
                 for (var callIndex in callList)
                 {
                     var index = callList[callIndex]["shardIndex"];
+                    var attempt = callList[callIndex]["attempt"];
+                    var callStatus = callList[callIndex].executionStatus;
+
+                    // add the index of the shard if there is one
+                    var thisCallName = (index == -1 ? callName : callName + "." + index);
+
+                    // add the retry number, unless this was a successfuly first attempt (for brevity)
+                    thisCallName = ( callStatus == "Done" && attempt == 1 ? thisCallName : thisCallName + ".retry-" + attempt)
 
                     // Remove the workflow name
-                    var thisCallName = (index == -1 ? callName : callName + "." + index);
                     thisCallName = thisCallName.replace(new RegExp("^" + workflowName + "\\."), "");
 
                     var executionEvents = callList[callIndex].executionEvents;
@@ -61,7 +68,7 @@
                     var firstEventStart = null;
                     var finalEventEnd = null;
 
-                    if(callList[callIndex].executionStatus == "Done" || callList[callIndex].executionStatus == "Failed") {
+                    if(callStatus == "Done" || callStatus == "Failed" || callStatus == "Preempted") {
                         executionCallsCount++;
                         for (var executionEventIndex in executionEvents) {
                             var executionEvent = callList[callIndex].executionEvents[executionEventIndex];

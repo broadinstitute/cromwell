@@ -5,11 +5,9 @@ import java.util.UUID
 import cromwell.CromwellTestkitSpec
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId}
+import cromwell.engine.{WorkflowDescriptor, WorkflowId}
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 
 class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
@@ -18,12 +16,12 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
   val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()
   val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
   val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-  val backendCall = backend.bindCall(descriptor, BackendCallKey(call, None), descriptor.actualInputs, abortRegistrationFunction = None)
+  val backendCall = backend.bindCall(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs, abortRegistrationFunction = None)
 
   "BackendCall hash function" should {
     "not change very often - if it changes, make sure it is for a good reason" in {
       val actual = backendCall.hash.futureValue.overallHash
-      val expected = "fe71298bb881a586178dca7c92fa945f"
+      val expected = "f91d97758ef2a97e9a4af15ad61bf1e8"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
 
@@ -32,10 +30,10 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources( s"""runtime { docker: "$nameAndDigest" } """)
       val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-      val backendCall = backend.bindCall(descriptor, BackendCallKey(call, None), descriptor.actualInputs, abortRegistrationFunction = None)
+      val backendCall = backend.bindCall(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs, abortRegistrationFunction = None)
 
       val actual = backendCall.hash.futureValue.overallHash
-      val expected = "ca6ee457780b78290785f112c3a3acb4"
+      val expected = "711b81df90e257420ff571ac05bfdabf"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
   }

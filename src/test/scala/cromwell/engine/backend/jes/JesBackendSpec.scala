@@ -6,21 +6,24 @@ import java.util.UUID
 
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.BackendType
 import cromwell.engine.backend.jes.JesBackend.{JesInput, JesOutput}
+import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.io.gcs.{GoogleConfiguration, Refresh, ServiceAccountMode, SimpleClientSecrets}
-import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.workflow.WorkflowOptions
-import cromwell.engine.{WorkflowDescriptor, WorkflowId}
+import cromwell.engine.backend.{AbortedExecutionHandle, FailedExecutionHandle, RetryableExecutionHandle}
+import cromwell.engine.io.gcs._
+import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
+import cromwell.engine.{PreemptedException, WorkflowContext, WorkflowDescriptor, WorkflowId}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values._
-import wdl4s.{CallInputs, RuntimeAttributes}
+import wdl4s.{Call, CallInputs, Task}
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
 import scala.util.{Success, Try}
 
 class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll {
@@ -39,14 +42,70 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     override lazy val jesConf = new JesAttributes(
       project = anyString,
       executionBucket = anyString,
-      endpointUrl = anyURL) {
+      endpointUrl = anyURL,
+      maxPollingInterval = 600) {
     }
     override def jesUserConnection(workflow: WorkflowDescriptor) = null
     override lazy val jesCromwellInterface = null
     override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
   }
 
-  it should "consider 403 as a fatal exception" in {
+  "executionResult" should "handle Failure Status" in {
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    val logger: Logger = LoggerFactory.getLogger("JesBackendSPecLogger")
+    val wd = mock[WorkflowDescriptor]
+    wd.workflowLogger returns logger
+    val task = mock[Task]
+    task.outputs returns Seq.empty
+    val call = mock[Call]
+    call.task returns task
+    val backendCallKey = mock[BackendCallKey]
+    backendCallKey.attempt returns 1
+    val backendCall = mock[JesBackendCall]
+    backendCall.call returns call
+    backendCall.key returns backendCallKey
+    backendCall.preemptible returns false
+    backendCall.maxPreemption returns 1
+    backendCall.workflowDescriptor returns wd
+    val handle = mock[JesPendingExecutionHandle]
+    handle.backendCall returns backendCall
+
+    val executionResult0 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    executionResult0.isInstanceOf[FailedExecutionHandle] shouldBe true
+    val failedHandle0 = executionResult0.asInstanceOf[FailedExecutionHandle]
+    failedHandle0.returnCode shouldBe None
+
+    backendCall.preemptible returns true
+
+    val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    executionResult.isInstanceOf[RetryableExecutionHandle] shouldBe true
+    val retryableHandle = executionResult.asInstanceOf[RetryableExecutionHandle]
+    retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
+    retryableHandle.returnCode shouldBe None
+    val preemptedException = retryableHandle.throwable.asInstanceOf[PreemptedException]
+    preemptedException.getMessage should include ("will be restarted with a non-pre-emptible VM")
+
+    backendCall.maxPreemption returns 2
+
+    val executionResult2 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    executionResult2.isInstanceOf[RetryableExecutionHandle] shouldBe true
+    val retryableHandle2 = executionResult2.asInstanceOf[RetryableExecutionHandle]
+    retryableHandle2.throwable.isInstanceOf[PreemptedException] shouldBe true
+    retryableHandle2.returnCode shouldBe None
+    val preemptedException2 = retryableHandle2.throwable.asInstanceOf[PreemptedException]
+    preemptedException2.getMessage should include ("will be re-started with another pre-emptible VM")
+
+    Await.result(jesBackend.executionResult(new Failed(10, Some("15: Other type of error."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(11, Some("14: Wrong errorCode."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("Weird error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("UnparsableInt: Even weirder error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, None, Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("Operation canceled at"), Seq.empty), handle), 2.seconds) shouldBe AbortedExecutionHandle
+
+  }
+
+  "JesBackend" should "consider 403 as a fatal exception" in {
     val transport = new MockHttpTransport() {
       override def buildRequest(method: String, url: String) = {
         new MockLowLevelHttpRequest() {
@@ -80,7 +139,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val localFileVal = WdlFile("/blah/abc")
     val gcsFileKey = "gcsf"
     val gcsFileVal = WdlFile("gs://blah/abc")
-    val emptyRuntimeAttributes = CromwellRuntimeAttributes(RuntimeAttributes(Map.empty[String, Seq[String]]), BackendType.LOCAL)
+    val emptyRuntimeAttributes = CromwellRuntimeAttributes.defaults
 
     val inputs: CallInputs = collection.immutable.HashMap(
       stringKey -> stringVal,
@@ -88,7 +147,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       gcsFileKey -> gcsFileVal
     )
 
-    val mappedInputs: CallInputs  = new JesBackend(actorSystem).adjustInputPaths(ignoredCall, emptyRuntimeAttributes, inputs, mock[WorkflowDescriptor])
+    val mockedBackendCall = mock[JesBackendCall]
+    mockedBackendCall.locallyQualifiedInputs returns inputs
+    val mappedInputs: CallInputs  = new JesBackend(actorSystem).adjustInputPaths(mockedBackendCall)
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -235,9 +296,10 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), SampleWdl.HelloWorld.asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
-    ))
+    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root"))
+
     val call = wd.namespace.workflow.findCallByName("hello").get
-    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, None))
+    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, None, 1))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log")
@@ -253,9 +315,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), new SampleWdl.ScatterWdl().asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
-    ))
+    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root"))
     val call = wd.namespace.workflow.findCallByName("B").get
-    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, Some(2)))
+    val backendCall = jesBackend.bindCall(wd, BackendCallKey(call, Some(2), 1))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stdout.log")

@@ -7,8 +7,8 @@ import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
+import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.SgeCallBackendInfo
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
@@ -22,12 +22,20 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
+object SgeBackend {
+  object InfoKeys {
+    val JobNumber = "SGE_JOB_NUMBER"
+  }
+}
+
 case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = SgeBackendCall
 
   import LocalBackend.WriteWithNewline
 
   override def backendType = BackendType.SGE
+
+  override def adjustInputPaths(backendCall: BackendCall) = adjustSharedInputPaths(backendCall)
 
   /**
     * Exponential Backoff Builder to be used when polling for call status.
@@ -56,9 +64,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
         logger.info(s"`$instantiatedCommand`")
         writeScript(backendCall, instantiatedCommand)
         launchQsub(backendCall) match {
-          case (qsubReturnCode, _) if qsubReturnCode != 0 => FailedExecution(
+          case (qsubReturnCode, _) if qsubReturnCode != 0 => NonRetryableExecution(
             new Throwable(s"Error: qsub exited with return code: $qsubReturnCode")).future
-          case (_, None) => FailedExecution(new Throwable(s"Could not parse Job ID from qsub output")).future
+          case (_, None) => NonRetryableExecution(new Throwable(s"Could not parse Job ID from qsub output")).future
           case (_, Some(sgeJobId)) =>
             val updateDatabaseWithRunningInfo = updateSgeJobTable(backendCall, "Running", None, Option(sgeJobId))
             pollForSgeJobCompletionThenPostProcess(backendCall, sgeJobId) map { case (executionResult, jobRc) =>
@@ -72,13 +80,14 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
               executionResult
             }
         }
-      case Failure(ex) => FailedExecution(ex).future
+      case Failure(ex) => NonRetryableExecution(ex).future
     }
   }).flatten map CompletedExecutionHandle
 
   private def statusString(result: ExecutionResult): String = (result match {
       case AbortedExecution => ExecutionStatus.Aborted
-      case FailedExecution(_, _) => ExecutionStatus.Failed
+      case NonRetryableExecution(_, _, _) => ExecutionStatus.Failed
+      case RetryableExecution(_, _, _) => ExecutionStatus.Failed
       case SuccessfulBackendCallExecution(_, _, _, _, _) => ExecutionStatus.Done
       case SuccessfulFinalCallExecution => ExecutionStatus.Done
     }).toString
@@ -88,9 +97,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       logger.error(s"Failed to update database status: $status, rc: $rc because $e")
   }
 
-  private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int]): Future[Unit] = {
-    val backendInfo = SgeCallBackendInfo(sgeJobId)
-    globalDataAccess.updateExecutionBackendInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index), backendInfo)
+  private def updateSgeJobTable(call: BackendCall, status: String, rc: Option[Int], sgeJobId: Option[Int])
+                               (implicit ec: ExecutionContext): Future[Unit] = {
+    globalDataAccess.updateExecutionInfo(call.workflowDescriptor.id, BackendCallKey(call.call, call.key.index, call.key.attempt), InfoKeys.JobNumber, Option(sgeJobId.toString))
   }
 
   /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like
@@ -190,17 +199,19 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       case (r, _) if !continueOnReturnCode.continueFor(r) =>
         val message = s"SGE job failed because of return code: $r"
         logger.error(message)
-        FailedExecution(new Exception(message), Option(r)).future
+        NonRetryableExecution(new Exception(message), Option(r)).future
       case (_, stderrLength) if stderrLength > 0 && backendCall.runtimeAttributes.failOnStderr =>
         val message = s"SGE job failed because there were $stderrLength bytes on standard error"
         logger.error(message)
-        FailedExecution(new Exception(message), Option(0)).future
+        NonRetryableExecution(new Exception(message), Option(0)).future
       case (r, _) =>
         postProcess(backendCall) match {
           case Success(callOutputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(callOutputs, Seq.empty, r, h) }
-          case Failure(e) => FailedExecution(e).future
+          case Failure(e) => NonRetryableExecution(e).future
         }
     }
     executionResult map { (_,  jobReturnCode) }
   }
+
+  override def executionInfoKeys: List[String] = List(InfoKeys.JobNumber)
 }

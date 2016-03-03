@@ -6,14 +6,14 @@ import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.callactor.CallActor.{CallActorState, CallActorData}
+import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
-import cromwell.engine.workflow.{FinalCallKey, BackendCallKey, CallKey, WorkflowActor}
+import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
-import wdl4s.{CallInputs, Scope}
 import wdl4s.values.WdlValue
+import wdl4s.{CallInputs, Scope}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -198,9 +198,12 @@ trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellA
         WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
       case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
       case AbortedExecution => WorkflowActor.CallAborted(key)
-      case FailedExecution(e, returnCode) =>
+      case RetryableExecution(e, returnCode, events) =>
+        logger.error("Failing call with retryable Failure: " + e.getMessage, e)
+        WorkflowActor.CallFailedRetryable(key, events, returnCode, e)
+      case NonRetryableExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
-        WorkflowActor.CallFailed(key, returnCode, e.getMessage)
+        WorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
     }
 
     context.parent ! message

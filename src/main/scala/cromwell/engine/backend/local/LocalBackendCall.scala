@@ -1,14 +1,11 @@
 package cromwell.engine.backend.local
 
 import better.files._
-import com.google.api.client.util.ExponentialBackOff
-import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor}
 import wdl4s.CallInputs
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 case class LocalBackendCall(backend: LocalBackend,
@@ -16,11 +13,9 @@ case class LocalBackendCall(backend: LocalBackend,
                             key: BackendCallKey,
                             locallyQualifiedInputs: CallInputs,
                             callAbortRegistrationFunction: Option[AbortRegistrationFunction]) extends BackendCall with LocalFileSystemBackendCall {
-  val workflowRootPath = LocalBackend.hostExecutionPath(workflowDescriptor)
-  val callRootPath = LocalBackend.hostCallPath(workflowDescriptor, call.unqualifiedName, key.index)
-  val dockerContainerExecutionDir = LocalBackend.containerExecutionPath(workflowDescriptor)
+  val dockerContainerExecutionDir = workflowDescriptor.workflowRootPathWithBaseRoot(LocalBackend.ContainerRoot)
   lazy val containerCallRoot = runtimeAttributes.docker match {
-    case Some(docker) => LocalBackend.containerCallPath(workflowDescriptor, call.unqualifiedName, key.index)
+    case Some(docker) => callRootPathWithBaseRoot(LocalBackend.ContainerRoot)
     case None => callRootPath
   }
   val returnCode = callRootPath.resolve("rc")

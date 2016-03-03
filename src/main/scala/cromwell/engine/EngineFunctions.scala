@@ -1,7 +1,6 @@
 package cromwell.engine
 
 import cromwell.engine.io.IoInterface
-import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values._
 
 import scala.language.postfixOps

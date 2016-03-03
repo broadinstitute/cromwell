@@ -26,4 +26,9 @@
     <include file="changesets/workflow_execution_aux_not_null.xml" relativeToChangelogFile="true" />
     <include file="changesets/call_result_caching.xml" relativeToChangelogFile="true" />
     <include file="changesets/events_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sync_not_null_constraints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sge_job_execution_unique_key.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_attempt_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/execution_backend_info.xml" relativeToChangelogFile="true" />
+    <include file="changesets/runtime_attributes_table.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

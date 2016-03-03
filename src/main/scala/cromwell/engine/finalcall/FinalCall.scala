@@ -29,12 +29,9 @@ trait FinalCall extends Scope {
   def prerequisiteCallNames: Set[LocallyQualifiedName] = throw new UnsupportedOperationException("prerequisiteCallNames not supported for FinalCalls")
 
   /**
-    * Note: This implementation makes final calls dependent on all "real" scopes in the workflow.  For a system with
-    * at most one final call this should be fine, but if there are > 1 final calls should they all be made runnable
-    * at the same time (consuming multiple slots in the thread pool with potentially time consuming work) or run
-    * serially?  This implementation starts all FinalCalls at the same time.
+    * This is handled as a special case by the WorkflowActor. We don't have to list the specially here.
     */
-  def prerequisiteScopes: Set[Scope] = rootWorkflow.children.toSet
+  def prerequisiteScopes: Set[Scope] = Set.empty
 
   val parent: Option[Scope] = Option(this.rootWorkflow)
 }

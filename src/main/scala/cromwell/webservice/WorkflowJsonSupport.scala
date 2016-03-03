@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import WdlFileJsonFormatter._
 import WdlValueJsonFormatter._
-import cromwell.engine.{WorkflowSourceFiles, ExecutionEventEntry}
+import cromwell.engine.{CallAttempt, WorkflowSourceFiles, ExecutionEventEntry}
 import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, CallLogs}
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -17,6 +17,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowOutputResponseProtocol = jsonFormat2(WorkflowOutputResponse)
   implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
   implicit val callLogsResponseProtocol = jsonFormat3(CallLogs)
+  implicit val callAttempt = jsonFormat2(CallAttempt)
   implicit val callStdoutStderrResponse = jsonFormat2(CallStdoutStderrResponse)
   implicit val workflowSourceData = jsonFormat3(WorkflowSourceFiles)
   implicit val errorResponse = jsonFormat3(FailureResponse)
@@ -32,7 +33,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
   implicit val executionEventProtocol = jsonFormat3(ExecutionEventEntry)
-  implicit val callMetadataProtocol = jsonFormat14(CallMetadata)
+  implicit val callMetadataProtocol = jsonFormat17(CallMetadata)
   implicit val workflowMetadataResponse = jsonFormat9(WorkflowMetadataResponse)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)

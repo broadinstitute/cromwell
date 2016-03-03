@@ -2,9 +2,12 @@ package cromwell
 
 import java.nio.file.{Path, Paths}
 
+import cromwell.engine.ExecutionStatus._
+import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.db.slick.Execution
 import cromwell.engine.io.gcs.GcsFileSystem
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.joda.time.DateTime
-import org.slf4j.Logger
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlValue}
 
@@ -27,6 +30,7 @@ package object engine {
 
   final case class ExecutionEventEntry(description: String, startTime: DateTime, endTime: DateTime)
   final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
+  final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 
   type ErrorOr[+A] = ValidationNel[String, A]
 
@@ -44,6 +48,7 @@ package object engine {
   type HostInputs = Map[String, WdlValue]
 
   class CromwellFatalException(exception: Throwable) extends Exception(exception)
+  class PreemptedException(msg: String) extends Exception(msg)
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def isScatter = fqn.contains(Scatter.FQNIdentifier)
@@ -59,16 +64,29 @@ package object engine {
     }
   }
 
+  implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
+    import cromwell.engine.ExecutionIndex._
+
+    def isShard = execution.index.toIndex.isShard
+    def isScatter = execution.callFqn.contains(Scatter.FQNIdentifier)
+    def isCollector(keys: Traversable[Execution]): Boolean = {
+      !execution.isShard &&
+        (keys exists { e => (e.callFqn == execution.callFqn) && e.isShard })
+    }
+    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
+    def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
+  }
+
   object PathString {
     implicit class UriString(val str: String) extends AnyVal {
       def isGcsUrl: Boolean = str.startsWith("gs://")
 
       def isUriWithProtocol: Boolean = "^[a-z]+://".r.findFirstIn(str).nonEmpty
 
-      def toPath(workflowLogger: Logger, gcsFileSystem: Try[GcsFileSystem] = Failure(new Throwable("No GCS Filesystem"))): Path = {
+      def toPath(gcsFileSystem: Try[GcsFileSystem] = Failure(new Throwable("No GCS Filesystem"))): Path = {
         str match {
           case path if path.isGcsUrl && gcsFileSystem.isSuccess => gcsFileSystem.get.getPath(str)
-          case path if path.isGcsUrl => throw new Throwable(s"Unable to parse GCS path $path: ${gcsFileSystem.failed.get.getMessage}")
+          case path if path.isGcsUrl => throw new Throwable(s"Unable to parse GCS path $path: ${gcsFileSystem.failed.get.getMessage}\n${ExceptionUtils.getStackTrace(gcsFileSystem.failed.get)}")
           case path if !path.isUriWithProtocol => Paths.get(path)
           case path => throw new Throwable(s"Unable to parse $path")
         }

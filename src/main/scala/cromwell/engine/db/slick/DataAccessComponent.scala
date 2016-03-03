@@ -8,10 +8,9 @@ class DataAccessComponent(val driver: JdbcProfile)
   with WorkflowExecutionAuxComponent
   with SymbolComponent
   with ExecutionComponent
-  with JesJobComponent
-  with LocalJobComponent
-  with SgeJobComponent
-  with ExecutionEventComponent {
+  with ExecutionInfoComponent
+  with ExecutionEventComponent
+  with RuntimeAttributeComponent {
 
   import driver.api._
 
@@ -20,8 +19,7 @@ class DataAccessComponent(val driver: JdbcProfile)
       workflowExecutionAuxes.schema ++
       symbols.schema ++
       executions.schema ++
-      localJobs.schema ++
-      jesJobs.schema ++
-      sgeJobs.schema ++
-      executionEvents.schema
+      executionInfos.schema ++
+      executionEvents.schema ++
+      runtimeAttributes.schema
 }

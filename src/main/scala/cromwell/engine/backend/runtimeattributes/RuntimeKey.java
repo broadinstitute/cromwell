@@ -8,10 +8,10 @@ import static cromwell.engine.backend.BackendType.SGE;
  * Backend runtime keys and the backends which are known to support them.
  */
 public enum RuntimeKey {
-    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE),
+    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES),
     CPU("cpu", JES),
-    DEFAULT_DISKS("defaultDisks", JES),
-    DEFAULT_ZONES("defaultZones", JES),
+    DISKS("disks", JES),
+    ZONES("zones", JES),
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
     FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE),
     MEMORY("memory", JES),
@@ -58,6 +58,12 @@ public enum RuntimeKey {
         return false;
     }
 
+    public static RuntimeKey from(String str) {
+        for (RuntimeKey k : RuntimeKey.values()) {
+            if (str.equalsIgnoreCase(k.key)) return k;
+        }
+        throw new UnsupportedOperationException("Runtime key " + str + " is not valid");
+    }
     /**
      * Returns true if the specified key is mandatory or optional on this backend.
      */

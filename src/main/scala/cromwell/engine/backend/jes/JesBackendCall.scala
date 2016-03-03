@@ -3,7 +3,6 @@ package cromwell.engine.backend.jes
 import java.nio.file.Paths
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.jes.JesBackend._
@@ -12,11 +11,10 @@ import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor, _}
+import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor}
 import wdl4s._
 import wdl4s.values.WdlFile
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -48,28 +46,38 @@ class JesBackendCall(val backend: JesBackend,
 
   def jesCommandLine = s"/bin/bash ${cmdInput.local}"
 
-  val callGcsPath = JesBackend.callGcsPath(workflowDescriptor, key)
-  val callDir = GcsPath(callGcsPath)
-  val gcsExecPath = GcsPath(callGcsPath + "/" + JesExecScript)
-  val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile
+  lazy val callGcsPath = key.callRootPathWithBaseRoot(workflowDescriptor, backend.rootPath(workflowDescriptor.workflowOptions))
+  //TODO: Switch to NioGcsPath
+  lazy val callDir = GcsPath(callGcsPath.toString)
+  lazy val gcsExecPath = GcsPath(callGcsPath + "/" + JesExecScript)
+  lazy val defaultMonitoringOutputPath = callGcsPath + "/" + JesMonitoringLogFile
 
-  val returnCodeFilename = jesReturnCodeFilename(key)
-  val jesStdoutGcsPath = s"$callGcsPath/${jesLogStdoutFilename(key)}"
-  val jesStderrGcsPath = s"$callGcsPath/${jesLogStderrFilename(key)}"
-  val jesLogGcsPath = s"$callGcsPath/${jesLogFilename(key)}"
-  val returnCodeGcsPath = s"$callGcsPath/$returnCodeFilename"
+  lazy val returnCodeFilename = jesReturnCodeFilename(key)
+  lazy val jesStdoutGcsPath = s"$callGcsPath/${jesLogStdoutFilename(key)}"
+  lazy val jesStderrGcsPath = s"$callGcsPath/${jesLogStderrFilename(key)}"
+  lazy val jesLogGcsPath = s"$callGcsPath/${jesLogFilename(key)}"
+  lazy val returnCodeGcsPath = s"$callGcsPath/$returnCodeFilename"
 
-  private val callContext = new CallContext(callGcsPath, jesStdoutGcsPath, jesStderrGcsPath)
+  private lazy val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
 
-  val engineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+  lazy val engineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
-  lazy val rcJesOutput = jesOutput(callGcsPath, returnCodeFilename)
+  lazy val rcJesOutput = jesOutput(callGcsPath.toString, returnCodeFilename)
   lazy val cmdInput = JesInput(ExecParamName, gcsExecPath.toString, localFilePathFromRelativePath(JesExecScript))
   lazy val diskInput = JesInput(WorkingDiskParamName, LocalWorkingDiskValue, Paths.get(JesCromwellRoot))
 
   def standardParameters = Seq(rcJesOutput, diskInput)
 
   def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(returnCodeGcsPath)) }
+
+  /**
+    * Determines the maximum number of times a call can be started with a Preemptible VM.
+    * TODO: Use configuration as a way to set this globally.
+    * Currently workflow options act as default for runtime attributes, configuration could do the same for workflow options.
+    */
+  lazy val maxPreemption = runtimeAttributes.preemptible
+
+  lazy val preemptible = key.attempt <= maxPreemption
 
   /**
    * Determine the output directory for the files matching a particular glob.

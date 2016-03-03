@@ -6,15 +6,11 @@ import java.nio.file.{Files, Path, Paths}
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.Hashing._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId, _}
-import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, WorkflowId}
-import cromwell.engine._
+import cromwell.engine.workflow.WorkflowOptions
+import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, _}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -113,9 +109,7 @@ trait SharedFileSystem {
     }
   } flatten
 
-  def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = {
-    new WorkflowContext(LocalBackend.hostExecutionPath(name, workflowId).toString)
-  }
+  def rootPath(workflowOptions: WorkflowOptions) = CromwellExecutionRoot
 
   def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions = {
     new LocalWorkflowEngineFunctions(ioInterface, workflowContext)
@@ -155,15 +149,7 @@ trait SharedFileSystem {
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
   def sharedFileSystemStdoutStderr(backendCall: BackendCall): CallLogs = {
-    val descriptor = backendCall.workflowDescriptor
-    val key = backendCall.key
-    val dir = LocalBackend.hostCallPath(
-      descriptor.namespace.workflow.unqualifiedName,
-      descriptor.id,
-      key.scope.unqualifiedName,
-      key.index
-    )
-
+    val dir = backendCall.callRootPath
     CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)
@@ -174,7 +160,7 @@ trait SharedFileSystem {
    * Creates host execution directory.
    */
   def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[HostInputs] = {
-    val hostExecutionDirectory = LocalBackend.hostExecutionPath(descriptor).toFile
+    val hostExecutionDirectory = descriptor.workflowRootPath.toFile
     hostExecutionDirectory.mkdirs()
     Success(descriptor.actualInputs)
   }
@@ -186,23 +172,17 @@ trait SharedFileSystem {
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def adjustInputPaths(callKey: BackendCallKey,
-                       runtimeAttributes: CromwellRuntimeAttributes,
-                       inputs: CallInputs,
-                       workflowDescriptor: WorkflowDescriptor): CallInputs = {
+  def adjustSharedInputPaths(backendCall: BackendCall): CallInputs = {
     import PathString._
 
-    val strategies = if (runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
+    val strategies = if (backendCall.runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 
     def toDockerPath(path: Path): Path = {
       // Host path would look like cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
       // Container path should look like /root/f00ba4/call-ps/stdout.txt
       val fullPath = path.toFile.getAbsolutePath
-      // Strip out everything before cromwell-executions.
       val pathUnderCromwellExecutions = fullPath.substring(fullPath.indexOf(CromwellExecutionRoot) + CromwellExecutionRoot.length)
-      // Strip out the workflow name (the first component under cromwell-executions).
-      val pathWithWorkflowName = Paths.get(pathUnderCromwellExecutions)
-      Paths.get(WdlFile.appendPathsWithSlashSeparators("/root", pathWithWorkflowName.subpath(1, pathWithWorkflowName.getNameCount).toString))
+      Paths.get(WdlFile.appendPathsWithSlashSeparators(LocalBackend.ContainerRoot, pathUnderCromwellExecutions))
     }
 
     /**
@@ -210,7 +190,7 @@ trait SharedFileSystem {
      * The new path matches the original path, it only "moves" the root to be the call directory.
      */
     def toCallPath(path: String): Path = {
-      val callDirectory = LocalBackend.hostCallPath(workflowDescriptor, callKey.scope.unqualifiedName, callKey.index)
+      val callDirectory = backendCall.callRootPath
       // Concatenate call directory with absolute input path
       val localInputPath = if(path.isGcsUrl) {
         val gcsPath = GcsPath(path)
@@ -222,9 +202,9 @@ trait SharedFileSystem {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    val postProcessor: Option[Path => Path] = runtimeAttributes.docker map { _ => toDockerPath _ }
-    val localizeFunction = localizeWdlValue(workflowDescriptor, toCallPath, strategies.toStream, postProcessor) _
-    val localizedValues = inputs.toSeq map {
+    val postProcessor: Option[Path => Path] = backendCall.runtimeAttributes.docker map { _ => toDockerPath _ }
+    val localizeFunction = localizeWdlValue(backendCall.workflowDescriptor, toCallPath, strategies.toStream, postProcessor) _
+    val localizedValues = backendCall.locallyQualifiedInputs.toSeq map {
       case (name, value) => localizeFunction(value) map { name -> _ }
     }
 

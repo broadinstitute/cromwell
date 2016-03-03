@@ -3,28 +3,27 @@ package cromwell.engine
 import java.util.UUID
 
 import akka.testkit.{EventFilter, TestActorRef, _}
+import cromwell.CromwellSpec.DockerTest
 import cromwell.CromwellTestkitSpec._
-import cromwell.engine.workflow.WorkflowManagerActor._
-import wdl4s._
-import wdl4s.command.CommandPart
-import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlInteger, WdlString}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
+import cromwell.engine.Hashing._
+import cromwell.engine.backend.{CallMetadata, Backend}
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{Backend, CallLogs}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
-import cromwell.webservice.WorkflowMetadataResponse
-import cromwell.{engine, CromwellSpec, CromwellTestkitSpec}
+import cromwell.webservice.CromwellApiHandler._
+import cromwell.{CromwellSpec, CromwellTestkitSpec}
+import wdl4s._
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlInteger, WdlString}
 
 import scala.concurrent.duration.{Duration, _}
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
-import Hashing._
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec {
   val backendInstance = Backend.from(CromwellSpec.Config, system)
@@ -38,28 +37,26 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test the WorkflowManagerActor")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
-        messageAndWait[WorkflowId](SubmitWorkflow(HelloWorld.asWorkflowSources()))
+        messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(HelloWorld.asWorkflowSources())).id
       }
 
-      val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
+      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
       status shouldEqual WorkflowSucceeded
 
-      val workflowOutputs = messageAndWait[engine.WorkflowOutputs](WorkflowOutputs(workflowId))
+      val workflowOutputs = messageAndWait[WorkflowManagerWorkflowOutputsSuccess](WorkflowOutputs(workflowId)).outputs
 
       val actualWorkflowOutputs = workflowOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualWorkflowOutputs shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
 
-      val callOutputs = messageAndWait[engine.CallOutputs](CallOutputs(workflowId, "hello.hello"))
+      val callOutputs = messageAndWait[WorkflowManagerCallOutputsSuccess](CallOutputs(workflowId, "hello.hello")).outputs
       val actualCallOutputs = callOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
       actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
-
     }
 
     "Not try to restart any workflows when there are no workflows in restartable states" in {
       waitForPattern("Found no workflows to restart.") {
         TestActorRef(WorkflowManagerActor.props(backendInstance), self, "No workflows")
       }
-
     }
 
     "Try to restart workflows when there are workflows in restartable states" in {
@@ -69,8 +66,6 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       val ids = workflows.keys.map(_.toString).toSeq.sorted
       val key = SymbolStoreKey("hello.hello", "addressee", None, input = true)
       val worldWdlString = WdlString("world")
-
-      import ExecutionContext.Implicits.global
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
@@ -83,7 +78,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
           for {
             _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
-            _ <- globalDataAccess.setStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None)), status)
+            _ <- globalDataAccess.updateStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()
         }
       )
@@ -109,74 +104,48 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       within(TestExecutionTimeout) {
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test WorkflowManagerActor coercion failures")
         waitForErrorWithException("Workflow failed submission") {
-          Try {
-            messageAndWait[WorkflowId](SubmitWorkflow(Incr.asWorkflowSources()))
-          } match {
-            case Success(_) => fail("Expected submission to fail with uncoercable inputs")
-            case Failure(e) =>
-              e.getMessage contains  "\nThe following errors occurred while processing your inputs:\n\nCould not coerce value for 'incr.incr.val' into: WdlIntegerType"
-          }
+          val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(Incr.asWorkflowSources())).failure
+          e.getMessage should include("Could not coerce value for 'incr.incr.val' into: WdlIntegerType")
         }
       }
-
     }
 
     "error when running a workflowless WDL" in {
-
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test a workflowless submission")
-      Try(messageAndWait[WorkflowId](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources()))) match {
-        case Success(_) => fail("Expected submission to fail due to no runnable workflows")
-        case Failure(e) => e.getMessage contains  "Namespace does not have a local workflow to run"
-      }
-
+      val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources())).failure
+      e.getMessage should include("Namespace does not have a local workflow to run")
     }
 
     "error when asked for outputs of a nonexistent workflow" in {
-
       within(TestExecutionTimeout) {
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance),
           self, "Test WorkflowManagerActor output lookup failure")
         val id = WorkflowId(UUID.randomUUID())
-        Try {
-          messageAndWait[engine.WorkflowOutputs](WorkflowOutputs(id))
-        } match {
-          case Success(_) => fail("Expected lookup to fail with unknown workflow")
-          case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"
-        }
 
+        val e = messageAndWait[WorkflowManagerWorkflowOutputsFailure](WorkflowOutputs(id)).failure
+        e.getMessage shouldBe s"Workflow '$id' not found"
       }
     }
 
     "error when asked for call logs of a nonexistent workflow" in {
-
       within(TestExecutionTimeout) {
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance),
           self, "Test WorkflowManagerActor call log lookup failure")
         val id = WorkflowId.randomId()
-        Try {
-          messageAndWait[CallLogs](CallStdoutStderr(id, "foo.bar"))
-        } match {
-          case Success(_) => fail("Expected lookup to fail with unknown workflow")
-          case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"
-        }
+        val e = messageAndWait[WorkflowManagerCallStdoutStderrFailure](CallStdoutStderr(id, "foo.bar")).failure
+        e.getMessage shouldBe s"Workflow '$id' not found"
       }
     }
 
 
     "error when asked for logs of a nonexistent workflow" in {
-
       within(TestExecutionTimeout) {
         implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance),
           self, "Test WorkflowManagerActor log lookup failure")
         val id = WorkflowId.randomId()
-        Try {
-          messageAndWait[Map[LocallyQualifiedName, CallLogs]](WorkflowStdoutStderr(id))
-        } match {
-          case Success(_) => fail("Expected lookup to fail with unknown workflow")
-          case Failure(e) => e.getMessage shouldBe s"Workflow '$id' not found"
-        }
+        val e = messageAndWait[WorkflowManagerWorkflowStdoutStderrFailure](WorkflowStdoutStderr(id)).failure
+        e.getMessage shouldBe s"Workflow '$id' not found"
       }
-
     }
 
     "run workflows in the correct directory" in {
@@ -193,13 +162,13 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test Workflow metadata construction")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
-        messageAndWait[WorkflowId](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources()))
+        messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources())).id
       }
 
-      val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId)).get
+      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
       status shouldEqual WorkflowSucceeded
 
-      val metadata = messageAndWait[WorkflowMetadataResponse](WorkflowMetadata(workflowId))
+      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(workflowId)).response
       metadata should not be null
 
       metadata.status shouldBe WorkflowSucceeded.toString
@@ -229,9 +198,48 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
         call.backend.get shouldEqual "Local"
         call.backendStatus should not be defined
         call.executionStatus shouldBe "Done"
+        call.attempt shouldBe 1
       }
 
       (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)
+    }
+
+    "show (only supported) runtime attributes in metadata" taggedAs DockerTest in {
+
+      val backendInstance = Backend.from(CromwellSpec.Config, system)
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(backendInstance), self, "Test Workflow metadata construction")
+
+      val fullWfOptions =
+        """
+          |{
+          |  "defaultRuntimeOptions": {
+          |    "continueOnReturnCode": [0, 1, 2, 3],
+          |    "failOnStderr": true,
+          |    "zones": "us-central1-a",
+          |    "disks": "local-disk 10 SSD",
+          |    "memory": "5000000 KB",
+          |    "preemptible": 2,
+          |    "cpu": 3
+          |  }
+          |}
+        """.stripMargin
+
+      val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
+        messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.WorkflowWithStaticRuntime.asWorkflowSources(runtime = "", workflowOptions = fullWfOptions))).id
+      }
+
+      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
+      status shouldEqual WorkflowSucceeded
+
+      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(workflowId)).response
+      metadata should not be null
+
+      metadata.status shouldBe WorkflowSucceeded.toString
+      val cgrep: CallMetadata = metadata.calls("two_step.cgrep").head
+      cgrep.runtimeAttributes.size shouldBe 3
+      cgrep.runtimeAttributes("continueOnReturnCode") shouldBe "[0, 1, 2, 3]"
+      cgrep.runtimeAttributes("failOnStderr") shouldBe "true"
+      cgrep.runtimeAttributes("docker") shouldBe "ubuntu:latest"
     }
   }
 }

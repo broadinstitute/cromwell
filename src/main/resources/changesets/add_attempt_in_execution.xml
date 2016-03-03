@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="tjeandet" id="add-attempt-in-execution">
+        <addColumn
+                tableName="EXECUTION">
+            <column name="ATTEMPT" type="INT" />
+        </addColumn>
+
+        <addNotNullConstraint
+                tableName="EXECUTION" columnName="ATTEMPT"
+                columnDataType="INT" defaultNullValue="1"/>
+
+        <comment>
+            Change unique constraint for Execution Table to include ATTEMPT column.  For MySQL this requires
+            first dropping the foreign key constraint, which we then restore after adding back the enhanced
+            unique constraint.
+        </comment>
+
+        <dropForeignKeyConstraint baseTableName="EXECUTION" constraintName="FK_EXECUTION_WORKFLOW" />
+
+        <dropUniqueConstraint
+                tableName="EXECUTION"
+                constraintName="UK_WORKFLOW_CALL_INDEX" />
+
+        <addUniqueConstraint
+                tableName="EXECUTION"
+                columnNames="WORKFLOW_EXECUTION_ID, CALL_FQN, IDX, ATTEMPT"
+                constraintName="UK_WORKFLOW_CALL_INDEX_ATTEMPT"/>
+
+        <addForeignKeyConstraint constraintName="FK_EXECUTION_WORKFLOW"
+                                 baseTableName="EXECUTION" baseColumnNames="WORKFLOW_EXECUTION_ID"
+                                 referencedTableName="WORKFLOW_EXECUTION"
+                                 referencedColumnNames="WORKFLOW_EXECUTION_ID"/>
+
+    </changeSet>
+
+</databaseChangeLog>

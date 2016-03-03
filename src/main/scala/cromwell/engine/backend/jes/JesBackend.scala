@@ -10,16 +10,16 @@ import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.Parameter
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
-import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine.ExecutionStatus._
 import cromwell.engine.Hashing._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.db.DataAccess.globalDataAccess
+import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.db.slick.Execution
+import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
@@ -28,12 +28,13 @@ import cromwell.logging.WorkflowLogger
 import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
-import wdl4s.{Call, CallInputs, Scatter, UnsatisfiedInputsException, _}
+import wdl4s.{Call, CallInputs, UnsatisfiedInputsException, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+
 
 object JesBackend {
   /*
@@ -68,14 +69,35 @@ object JesBackend {
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesInput(ExtraConfigParamName, gcsPath, Paths.get(""), "LITERAL")
 
+  // Only executions in Running state with a recorded operation ID are resumable.
+  private val IsResumable: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    e.status.toExecutionStatus == ExecutionStatus.Running &&
+      eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isDefined)
+  }
+
+  /** In this context transient means that a job is Running but doesn't have a Jes Run ID yet.
+    * This could happen if a call starts Running but Cromwell is stopped before the request to JES has been made
+    * (or the ID persisted to the DB) .*/
+  private val IsTransient: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    e.status.toExecutionStatus == ExecutionStatus.Running &&
+      eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isEmpty)
+  }
+
+  case class JesJobKey(jesRunId: String) extends JobKey
+
+  private val BuildJobKey: (Execution, Seq[ExecutionInfo]) => JobKey = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    JesJobKey(eis.find(_.key == JesBackend.InfoKeys.JesRunId).get.value.get)
+  }
+
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
     extends JesBackend(CromwellBackend.backend().actorSystem) {
-    def callDir(key: BackendCallKey) = callGcsPath(descriptor, key)
+    def callDir(key: BackendCallKey) = key.callRootPathWithBaseRoot(descriptor, rootPath(descriptor.workflowOptions))
   }
 
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
+   *
    * @param gcsPath The input path
    * @return A path which is unique per input path
    */
@@ -85,6 +107,7 @@ object JesBackend {
 
   /**
    * Takes a possibly relative path and returns an absolute path, possibly under the JesCromwellRoot.
+   *
    * @param path The input path
    * @return A path which absolute
    */
@@ -149,7 +172,7 @@ object JesBackend {
 
   implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
     import cromwell.engine.ExecutionIndex._
-    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex)
+    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
     def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
@@ -164,9 +187,12 @@ object JesBackend {
     val bucket = descriptor.workflowOptions.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
     s"$bucket/${descriptor.namespace.workflow.unqualifiedName}/${descriptor.id}"
   }
-}
 
-final case class JesJobKey(operationId: String) extends JobKey
+  object InfoKeys {
+    val JesRunId = "JES_RUN_ID"
+    val JesStatus = "JES_STATUS"
+  }
+}
 
 /**
  * Representing a running JES execution, instances of this class are never Done and it is never okay to
@@ -177,10 +203,8 @@ case class JesPendingExecutionHandle(backendCall: JesBackendCall,
                                      run: Run,
                                      previousStatus: Option[RunStatus]) extends ExecutionHandle {
   override val isDone = false
-
-  override def result = FailedExecution(new IllegalStateException)
+  override val result = NonRetryableExecution(new IllegalStateException("JesPendingExecutionHandle cannot yield a result"))
 }
-
 
 case class JesBackend(actorSystem: ActorSystem)
   extends Backend
@@ -200,12 +224,11 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def pollBackoff = pollBackoffBuilder.build()
 
+  override def rootPath(options: WorkflowOptions) = options.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
+
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
-  override def adjustInputPaths(callKey: BackendCallKey,
-                                runtimeAttributes: CromwellRuntimeAttributes,
-                                inputs: CallInputs,
-                                workflowDescriptor: WorkflowDescriptor): CallInputs = inputs mapValues gcsPathToLocal
+  override def adjustInputPaths(backendCall: BackendCall): CallInputs = backendCall.locallyQualifiedInputs mapValues gcsPathToLocal
 
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
@@ -315,12 +338,6 @@ case class JesBackend(actorSystem: ActorSystem)
     new JesBackendCall(this, workflowDescriptor, key, locallyQualifiedInputs, abortRegistrationFunction)
   }
 
-  override def workflowContext(workflowOptions: WorkflowOptions, workflowId: WorkflowId, name: String): WorkflowContext = {
-    val bucket = workflowOptions.getOrElse(GcsRootOptionKey, jesConf.executionBucket)
-    val workflowPath = s"$bucket/$name/$workflowId"
-    new WorkflowContext(workflowPath)
-  }
-
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = workflowLoggerWithCall(backendCall)
     log.info(s"Call GCS path: ${backendCall.callGcsPath}")
@@ -340,31 +357,61 @@ case class JesBackend(actorSystem: ActorSystem)
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(backendCall, runIdForResumption = None)
 
   def resume(backendCall: BackendCall, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.operationId }
+    val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.jesRunId }
     executeOrResume(backendCall, runIdForResumption = runId)
   }
 
-  def useCachedCall(cachedCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
-    val log = workflowLoggerWithCall(backendCall)
-    authenticateAsUser(backendCall.workflowDescriptor) { interface =>
-      Try(interface.copy(cachedCall.callGcsPath, backendCall.callGcsPath)) match {
-        case Failure(ex) =>
-          log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to ${backendCall.callGcsPath}", ex)
-          FailedExecutionHandle(ex).future
-        case Success(_) => postProcess(backendCall) match {
-          case Success(outputs) => backendCall.hash map { h =>
-            SuccessfulExecutionHandle(outputs, Seq.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
-          case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
-            // TODO: What can we return here to retry this operation?
-            // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
-            val error = "Socket timeout occurred in evaluating one or more of the output expressions"
-            log.error(error, ex)
-            FailedExecutionHandle(new Throwable(error, ex)).future
-          case Failure(ex) => FailedExecutionHandle(ex).future
-        }
+  def useCachedCall(cachedCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    import better.files._
+
+    def renameCallSpecificFiles = {
+      val namesBuilder = List(
+        JesBackendCall.jesLogStdoutFilename _,
+        JesBackendCall.jesLogStderrFilename _,
+        JesBackendCall.jesLogFilename _,
+        JesBackendCall.jesReturnCodeFilename _
+      )
+
+      /* Paths of the files in the cached call. */
+      val cachedPaths = namesBuilder map { _(cachedCall.key) } map backendCall.callGcsPath.resolve
+      /* Expected names of the files in the current call.
+       * They might be different if the cached call doesn't have the same name / shard
+       * as the current call, because this information is part of the filename (TODO should it ?).
+       */
+      val backendNames = namesBuilder map { _(backendCall.key) }
+
+      (cachedPaths zip backendNames) map {
+        case (cachedPath, backendName) => cachedPath.renameTo(backendName)
       }
     }
-  } flatten
+
+    def copyingWork(gcs: GoogleCloudStorage): Try[Unit] = for {
+        _ <- Try(gcs.copy(cachedCall.callGcsPath.toString, backendCall.callGcsPath.toString))
+        _ <- Try(renameCallSpecificFiles)
+    } yield ()
+
+    Future {
+      val log = workflowLoggerWithCall(backendCall)
+      authenticateAsUser(backendCall.workflowDescriptor) { interface =>
+        copyingWork(interface) match {
+          case Failure(ex) =>
+            log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to ${backendCall.callGcsPath}", ex)
+            FailedExecutionHandle(ex).future
+          case Success(_) => postProcess(backendCall) match {
+            case Success(outputs) => backendCall.hash map { h =>
+              SuccessfulExecutionHandle(outputs, List.empty[ExecutionEventEntry], backendCall.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCall)) }
+            case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
+              // TODO: What can we return here to retry this operation?
+              // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
+              val error = "Socket timeout occurred in evaluating one or more of the output expressions"
+              log.error(error, ex)
+              FailedExecutionHandle(new Exception(error, ex)).future
+            case Failure(ex) => FailedExecutionHandle(ex).future
+          }
+        }
+      }
+    } flatten
+  }
 
   /**
    * Creates a set of JES inputs for a backend call.
@@ -453,13 +500,15 @@ case class JesBackend(actorSystem: ActorSystem)
         backendCall.key,
         backendCall.runtimeAttributes,
         jesParameters,
+        backendCall.preemptible,
         googleProject(backendCall.workflowDescriptor),
         connection,
         runIdForResumption
       ).run
 
-      val log = workflowLogger(backendCall.workflowDescriptor)
-      withRetry(attemptToCreateJesRun, log, s"${workflowLoggerWithCall(backendCall).tag} Exception occurred while creating JES Run")
+      val log = workflowLoggerWithCall(backendCall)
+      if (backendCall.preemptible) log.info("Starting call with pre-emptible VM")
+      withRetry(attemptToCreateJesRun, log, "Exception occurred while creating JES Run")
     }
 
   /**
@@ -571,13 +620,7 @@ case class JesBackend(actorSystem: ActorSystem)
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
         case Run.Success(events) =>
           backendCall.hash map { h => handleSuccess(outputMappings, backendCall.workflowDescriptor, events, returnCode.get, h, handle) }
-        case Run.Failed(errorCode, errorMessage) =>
-          if (errorMessage contains "Operation canceled at") {
-            AbortedExecutionHandle.future
-          } else {
-            val e = new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: $errorMessage")
-            FailedExecutionHandle(e, Option(errorCode)).future
-          }
+        case Run.Failed(errorCode, errorMessage, events) => handleFailure(backendCall, errorCode, errorMessage, events, log)
       }
     } catch {
       case e: Exception =>
@@ -625,6 +668,52 @@ case class JesBackend(actorSystem: ActorSystem)
     }
   }
 
+  private def extractErrorCodeFromErrorMessage(errorMessage: String): Int = {
+    errorMessage.substring(0, errorMessage.indexOf(':')).toInt
+  }
+
+  private def preempted(errorCode: Int, errorMessage: Option[String], backendCall: BackendCall, logger: WorkflowLogger): Boolean = {
+    def isPreemptionCode(code: Int) = code == 13 || code == 14
+
+    try {
+      errorCode == 10 && errorMessage.isDefined && isPreemptionCode(extractErrorCodeFromErrorMessage(errorMessage.get)) && backendCall.preemptible
+    } catch {
+      case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
+        logger.warn(s"Unable to parse JES error code from error message: ${errorMessage.get}, assuming this was not a preempted VM.")
+        false
+    }
+  }
+
+  private def handleFailure(backendCall: BackendCall, errorCode: Int, errorMessage: Option[String], events: Seq[ExecutionEventEntry], logger: WorkflowLogger) = {
+    import lenthall.numeric.IntegerUtil._
+
+    val taskName = s"${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName}"
+    val attempt = backendCall.key.attempt
+
+    if (errorMessage.exists(_.contains("Operation canceled at")))  {
+      AbortedExecutionHandle.future
+    } else if (preempted(errorCode, errorMessage, backendCall, logger)) {
+      val preemptedMsg = s"Task $taskName was preempted for the ${attempt.toOrdinal} time."
+      val max = backendCall.maxPreemption
+
+      if (attempt < max) {
+        val e = new PreemptedException(
+          s"""$preemptedMsg The call will be re-started with another pre-emptible VM (max pre-emptible attempts number is $max).
+             |Error code $errorCode. Message: $errorMessage""".stripMargin
+        )
+        RetryableExecutionHandle(e, None, events).future
+      } else {
+        val e = new PreemptedException(
+          s"""$preemptedMsg The maximum number of pre-emptible attempts ($max) has been reached. The call will be restarted with a non-pre-emptible VM.
+             |Error code $errorCode. Message: $errorMessage)""".stripMargin)
+        RetryableExecutionHandle(e, None, events).future
+      }
+    } else {
+      val e = new Throwable(s"Task ${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
+      FailedExecutionHandle(e, None, events).future
+    }
+  }
+
   /**
    * <ul>
    *   <li>Any execution in Failed should fail the restart.</li>
@@ -639,6 +728,7 @@ case class JesBackend(actorSystem: ActorSystem)
    * resuming the CallActors for these calls.
    */
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
+    import cromwell.engine.backend.jes.JesBackend.EnhancedExecution
 
     lazy val tag = s"Workflow ${restartableWorkflow.id.shortString}:"
 
@@ -674,8 +764,8 @@ case class JesBackend(actorSystem: ActorSystem)
             case (_, xs) if xs.size > 1 => xs filter isRunningCollector } flatten
 
           for {
-            _ <- globalDataAccess.resetNonResumableJesExecutions(restartableWorkflow.id)
-            _ <- globalDataAccess.setStatus(restartableWorkflow.id, runningCollectors map { _.toKey }, ExecutionStatus.Starting)
+            _ <- globalDataAccess.resetTransientExecutions(restartableWorkflow.id, IsTransient)
+            _ <- globalDataAccess.setStartingStatus(restartableWorkflow.id, runningCollectors map { _.toKey })
           } yield ()
         }
       }
@@ -693,7 +783,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
   def gcsAuthFilePath(descriptor: WorkflowDescriptor): String = {
     // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
-    val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse workflowGcsPath(descriptor)
+    val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse descriptor.workflowRootPath.toString
     s"$bucket/${descriptor.id}_auth.json"
   }
 
@@ -708,7 +798,9 @@ case class JesBackend(actorSystem: ActorSystem)
     else None
   }
 
-  override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, JobKey]] = {
-    globalDataAccess.findResumableJesExecutions(id)
+  override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
+    globalDataAccess.findResumableExecutions(id, IsResumable, BuildJobKey)
   }
+
+  override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)
 }

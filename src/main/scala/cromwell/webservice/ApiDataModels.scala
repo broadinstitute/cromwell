@@ -1,5 +1,6 @@
 package cromwell.webservice
 
+import cromwell.engine.CallAttempt
 import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
 import org.joda.time.DateTime
 import spray.json._
@@ -20,7 +21,7 @@ case class WorkflowAbortResponse(id: String, status: String)
 
 case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQualifiedName, WdlValue])
 
-case class CallStdoutStderrResponse(id: String, logs: Map[String, Seq[CallLogs]])
+case class CallStdoutStderrResponse(id: String, logs: Map[FullyQualifiedName, Seq[CallLogs]])
 
 case class WorkflowMetadataResponse(id: String,
                                     workflowName: String,

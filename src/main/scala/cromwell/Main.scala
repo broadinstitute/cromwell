@@ -21,10 +21,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{Future, Await, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import Main.deprecationNotice
 
 object Actions extends Enumeration {
-  val Parse, Validate, Highlight, Run, Inputs, Server = Value
+  val Run, Server = Value
 }
 
 object Main extends App {
@@ -68,10 +67,6 @@ object Main extends App {
     argCapitalized = arg.capitalize
     action <- Actions.values find (_.toString == argCapitalized)
   } yield action
-
-  def deprecationNotice(): Unit = {
-    Console.err.println(TerminalUtil.highlight(1, "This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool"))
-  }
 }
 
 /** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
@@ -97,45 +92,9 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   // CromwellServer still doesn't clean up... so => Any
   def runAction(args: Seq[String]): Int = {
     Main.getAction(args) match {
-      case Some(x) if x == Actions.Validate => validate(args.tail)
-      case Some(x) if x == Actions.Highlight => highlight(args.tail)
-      case Some(x) if x == Actions.Inputs => inputs(args.tail)
       case Some(x) if x == Actions.Run => run(args.tail)
-      case Some(x) if x == Actions.Parse => parse(args.tail)
       case Some(x) if x == Actions.Server => runServer(args.tail)
       case _ => usageAndExit()
-    }
-  }
-
-  def validate(args: Seq[String]): Int = {
-    deprecationNotice()
-    continueIf(args.length == 1) {
-      loadWdl(args.head) { _ => 0 }
-    }
-  }
-
-  def highlight(args: Seq[String]): Int = {
-    deprecationNotice()
-    continueIf(args.length == 2 && Seq("html", "console").contains(args(1))) {
-      loadWdl(args.head) { namespace =>
-        val formatter = new SyntaxFormatter(if (args(1) == "html") HtmlSyntaxHighlighter else AnsiSyntaxHighlighter)
-        println(formatter.format(namespace))
-        0
-      }
-    }
-  }
-
-  def inputs(args: Seq[String]): Int = {
-    deprecationNotice()
-    continueIf(args.length == 1) {
-      loadWdl(args.head) { namespace =>
-        import wdl4s.types.WdlTypeJsonFormatter._
-        namespace match {
-          case x: NamespaceWithWorkflow => println(x.workflow.inputs.toJson.prettyPrint)
-          case _ => println("WDL does not have a local workflow")
-        }
-        0
-      }
     }
   }
 
@@ -281,14 +240,6 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
     WorkflowOptions.fromJsonObject(workflowOptions.parseJson.asInstanceOf[JsObject]).map(_.asPrettyJson)
   }
 
-  def parse(args: Seq[String]): Int = {
-    deprecationNotice()
-    continueIf(args.length == 1) {
-      println(AstTools.getAst(new JFile(args.head)).toPrettyString)
-      0
-    }
-  }
-
   def usageAndExit(): Int = {
     println(
       """
@@ -311,41 +262,6 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
         |
         |  Starts a web server on port 8000.  See the web server
         |  documentation for more details about the API endpoints.
-        |
-        |parse <WDL file>
-        |
-        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
-        |
-        |  Compares a WDL file against the grammar and prints out an
-        |  abstract syntax tree if it is valid, and a syntax error
-        |  otherwise.  Note that higher-level AST checks are not done
-        |  via this sub-command and the 'validate' subcommand should
-        |  be used for full validation
-        |
-        |validate <WDL file>
-        |
-        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
-        |
-        |  Performs full validation of the WDL file including syntax
-        |  and semantic checking
-        |
-        |inputs <WDL file>
-        |
-        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
-        |
-        |  Print a JSON skeleton file of the inputs needed for this
-        |  workflow.  Fill in the values in this JSON document and
-        |  pass it in to the 'run' subcommand.
-        |
-        |highlight <WDL file> <html|console>
-        |
-        |  This functionality is deprecated. Please use wdltool: https://github.com/broadinstitute/wdltool
-        |
-        |  Reformats and colorizes/tags a WDL file. The second
-        |  parameter is the output type.  "html" will output the WDL
-        |  file with <span> tags around elements.  "console" mode
-        |  will output colorized text to the terminal
-        |
       """.stripMargin)
     -1
   }

@@ -1,17 +1,21 @@
 package cromwell.engine
 
 import cromwell.engine.io.IoInterface
-import wdl4s.TsvSerializable
 import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.parser.MemoryUnit
 import wdl4s.types._
 import wdl4s.values._
+import wdl4s.{MemorySize, TsvSerializable}
 
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
   def interface: IoInterface
-  override def fileContentsToString(path: String): String = interface.readFile(path)
+
+  override final def fileContentsToString(path: String): String = interface.readFile(adjustFilePath(path))
+
+  def adjustFilePath(path: String): String = path
 
   private def writeContent(baseName: String, content: String): Try[WdlFile] = {
     Try(WdlFile(interface.writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
@@ -99,6 +103,23 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
       tsvSerialized <- downcast.tsvSerialize
       file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
     } yield file
+  }
+
+  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
+    def toUnit(wdlValue: Try[WdlValue]) = wdlValue flatMap { unit => Try(MemoryUnit.fromSuffix(unit.valueString)) }
+
+    def fileSize(wdlValue: Try[WdlValue], convertTo: Try[MemoryUnit] = Success(MemoryUnit.Bytes)) = {
+      for {
+        value <- wdlValue
+        unit <- convertTo
+      } yield MemorySize(interface.size(adjustFilePath(value.valueString)).toDouble, MemoryUnit.Bytes).to(unit).amount
+    }
+
+    params match {
+      case oneArg if params.length == 1 => fileSize(params.head) map WdlFloat.apply
+      case twoArgs if params.length == 2 => fileSize(params.head, toUnit(params(1))) map WdlFloat.apply
+      case _ => Failure(new UnsupportedOperationException(s"Expected one or two parameters but got ${params.length} instead."))
+    }
   }
 
   override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])

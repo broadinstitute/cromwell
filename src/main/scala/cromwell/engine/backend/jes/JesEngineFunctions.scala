@@ -10,10 +10,7 @@ import scala.util.Try
 class JesWorkflowEngineFunctions(interface: IoInterface, context: WorkflowContext) extends WorkflowEngineFunctions(interface, context) {
   override def globPath(glob: String) = s"${context.root}/glob-${glob.md5Sum}/"
 
-  override def fileContentsToString(path: String) = {
-      if (!path.isGcsUrl) interface.readFile(s"${context.root}/$path")
-      else interface.readFile(path)
-  }
+  override def adjustFilePath(path: String) = if (!path.isGcsUrl) s"${context.root}/$path" else path
 }
 
 class JesCallEngineFunctions(interface: IoInterface, context: CallContext) extends JesWorkflowEngineFunctions(interface, context) with CallEngineFunctions {

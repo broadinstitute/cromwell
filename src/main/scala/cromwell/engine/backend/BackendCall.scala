@@ -63,9 +63,14 @@ final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[Exe
   override val result = SuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }
 
-final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
+final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends ExecutionHandle {
   override val isDone = true
-  override val result = FailedExecution(throwable, returnCode)
+  override val result = new NonRetryableExecution(throwable, returnCode, events)
+}
+
+final case class RetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends ExecutionHandle {
+  override val isDone = true
+  override val result = new RetryableExecution(throwable, returnCode, events)
 }
 
 case object AbortedExecutionHandle extends ExecutionHandle {
@@ -86,6 +91,10 @@ trait BackendCall {
    * Backend which will be used to execute the Call
    */
   def backend: Backend
+
+  def callRootPathWithBaseRoot(baseRoot: String) = key.callRootPathWithBaseRoot(workflowDescriptor, baseRoot)
+
+  lazy val callRootPath = callRootPathWithBaseRoot(backend.rootPath(workflowDescriptor.workflowOptions))
 
   /**
     * Inputs to the call.  For example, if a call's task specifies a command like this:
@@ -135,7 +144,7 @@ trait BackendCall {
   def stdoutStderr: CallLogs
 
   @throws[IllegalArgumentException]
-  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, backend.backendType)
+  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, this, Option(workflowDescriptor.workflowOptions))
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {
@@ -143,7 +152,7 @@ trait BackendCall {
     val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
     val orderedRuntime = Seq(
       ("docker", dockerHash getOrElse ""),
-      ("defaultZones", runtimeAttributes.defaultZones.sorted.mkString(",")),
+      ("zones", runtimeAttributes.zones.sorted.mkString(",")),
       ("failOnStderr", runtimeAttributes.failOnStderr.toString),
       ("continueOnReturnCode", runtimeAttributes.continueOnReturnCode match {
         case ContinueOnReturnCodeFlag(bool) => bool.toString
@@ -151,7 +160,7 @@ trait BackendCall {
       }),
       ("cpu", runtimeAttributes.cpu.toString),
       ("preemptible", runtimeAttributes.preemptible.toString),
-      ("defaultDisks", runtimeAttributes.defaultDisks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
+      ("disks", runtimeAttributes.disks.sortWith((l, r) => l.getName > r.getName).map(d => s"${d.getName} ${d.size} ${d.getType}").mkString(",")),
       ("memoryGB", runtimeAttributes.memoryGB.toString)
     )
 

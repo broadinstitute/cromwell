@@ -17,9 +17,11 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
     "file_passing.a.out" -> WdlFile("out"),
     "file_passing.a.out_interpolation" -> WdlFile("out"),
     "file_passing.a.contents" -> WdlString("foo bar baz"),
+    "file_passing.a.stdoutContent" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("Something"))),
     "file_passing.b.out" -> WdlFile("out"),
     "file_passing.b.out_interpolation" -> WdlFile("out"),
-    "file_passing.b.contents" -> WdlString("foo bar baz")
+    "file_passing.b.contents" -> WdlString("foo bar baz"),
+    "file_passing.b.stdoutContent" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("Something")))
   )
 
   "A workflow which is run twice" should {

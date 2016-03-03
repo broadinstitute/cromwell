@@ -3,15 +3,15 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.17"
+version := "0.18"
 
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
 
-val lenthallV = "0.15"
+val lenthallV = "0.16"
 
-val wdl4sV = "0.2"
+val wdl4sV = "0.3"
 
 val sprayV = "1.3.2"
 
@@ -19,7 +19,7 @@ val DowngradedSprayV = "1.3.1"
 
 val akkaV = "2.3.12"
 
-val slickV = "3.1.0"
+val slickV = "3.1.1"
 
 val googleClientApiV = "1.20.0"
 
@@ -65,11 +65,16 @@ libraryDependencies ++= Seq(
   "mysql" % "mysql-connector-java" % "5.1.36",
   "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
   "com.github.pathikrit" %% "better-files" % "2.13.0",
+  "org.liquibase" % "liquibase-core" % "3.4.2",
+
+  // This is to stop liquibase from being so noisy by default
+  // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
+  "com.mattbertolini" % "liquibase-slf4j" % "2.0.0",
+
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
   "org.scalatest" %% "scalatest" % "2.2.5" % Test,
   "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
-  "org.liquibase" % "liquibase-core" % "3.3.5" % Test,
   "org.yaml" % "snakeyaml" % "1.16" % Test
 )
 

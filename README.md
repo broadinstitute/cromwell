@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
 [![Join the chat at https://gitter.im/broadinstitute/cromwell](https://badges.gitter.im/broadinstitute/cromwell.svg)](https://gitter.im/broadinstitute/cromwell?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
+[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](http://opensource.org/licenses/BSD-3-Clause)
 
 Cromwell
 ========
@@ -19,13 +19,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
-  * [parse](#parse)
-  * [validate](#validate)
-  * [inputs](#inputs)
-  * [highlight](#highlight)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
   * [Database](#database)
+  * [SIGINT abort handler](#sigint-abort-handler)
 * [Backends](#backends)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
@@ -39,8 +36,8 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Runtime Attributes](#runtime-attributes)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
-  * [defaultDisks](#defaultdisks)
-  * [defaultZones](#defaultzones)
+  * [disks](#disks)
+  * [zones](#zones)
   * [docker](#docker)
   * [failOnStderr](#failonstderr)
   * [memory](#memory)
@@ -123,37 +120,6 @@ server
 
   Starts a web server on port 8000.  See the web server
   documentation for more details about the API endpoints.
-
-parse <WDL file>
-
-  This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
-  
-  Compares a WDL file against the grammar and prints out an
-  abstract syntax tree if it is valid, and a syntax error
-  otherwise.  Note that higher-level AST checks are not done
-  via this sub-command and the 'validate' subcommand should
-  be used for full validation
-
-validate <WDL file>  
-  Performs full validation of the WDL file including syntax
-  and semantic checking
-
-inputs <WDL file>
-
-  This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
-  
-  Print a JSON skeleton file of the inputs needed for this
-  workflow.  Fill in the values in this JSON document and
-  pass it in to the 'run' subcommand.
-
-highlight <WDL file> <html|console>
-
-  This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
-  
-  Reformats and colorizes/tags a WDL file. The second
-  parameter is the output type.  "html" will output the WDL
-  file with <span> tags around elements.  "console" mode
-  will output colorized text to the terminal
 ```
 
 ## run
@@ -215,7 +181,8 @@ $ cat my_wf.metadata.json
         "description": "running docker",
         "startTime": "2015-10-29T03:16:51.213-03:00",
         "endTime": "2015-10-29T03:16:51.732-03:00"
-      }]
+      }],
+      "attempt": 1
     }]
   },
   "outputs": {
@@ -235,117 +202,9 @@ $ cat my_wf.metadata.json
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
-## parse
-
-This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
-
-Given a WDL file input, this does grammar level syntax checks and prints out the resulting abstract syntax tree.
-
-```
-$ echo "workflow wf {}" | java -jar cromwell.jar parse /dev/stdin
-(Document:
-  imports=[],
-  definitions=[
-    (Workflow:
-      name=<stdin:1:10 identifier "d2Y=">,
-      body=[]
-    )
-  ]
-)
-```
-
-## validate
-
-Given a WDL file, this runs the full syntax checker over the file and resolves imports in the process.  If any syntax errors are found, they are printed out.  Otherwise the program exits.
-
-Error if a `call` references a task that doesn't exist:
-
-```
-$ java -jar cromwell.jar validate 2.wdl
-ERROR: Call references a task (BADps) that doesn't exist (line 22, col 8)
-
-  call BADps
-       ^
-
-```
-
-Error if namespace and task have the same name:
-
-```
-$ java -jar cromwell.jar validate 5.wdl
-ERROR: Task and namespace have the same name:
-
-Task defined here (line 3, col 6):
-
-task ps {
-     ^
-
-Import statement defined here (line 1, col 20):
-
-import "ps.wdl" as ps
-                   ^
-```
-
-## inputs
-
-This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
-
-Examine a WDL file with one workflow in it, compute all the inputs needed for that workflow and output a JSON template that the user can fill in with values.  The keys in this document should remain unchanged.  The values tell you what type the parameter is expecting.  For example, if the value were `Array[String]`, then it's expecting a JSON array of JSON strings, like this: `["string1", "string2", "string3"]`
-
-```
-$ java -jar cromwell.jar inputs 3step.wdl
-{
-  "three_step.cgrep.pattern": "String"
-}
-```
-
-This inputs document is used as input to the `run` subcommand.
-
-## highlight
-
-This functionality is deprecated and will be removed in 0.18. Please use wdltool: https://github.com/broadinstitute/wdltool
-
-Formats a WDL file and semantically tags it.  This takes a second parameter (`html` or `console`) which determines what the output format will be.
-
-test.wdl
-```
-task abc {
-  String in
-  command {
-    echo ${in}
-  }
-  output {
-    String out = read_string(stdout())
-  }
-}
-
-workflow wf {
-  call abc
-}
-```
-
-This WDL file can be formatted in HTML as follows:
-
-```
-$ java -jar cromwell.jar highlight test.wdl html
-<span class="keyword">task</span> <span class="name">abc</span> {
-  <span class="type">String</span> <span class="variable">in</span>
-  <span class="section">command</span> {
-    <span class="command">echo ${in}</span>
-  }
-  <span class="section">output</span> {
-    <span class="type">String</span> <span class="variable">out</span> = <span class="function">read_string</span>(<span class="function">stdout</span>())
-  }
-}
-
-<span class="keyword">workflow</span> <span class="name">wf</span> {
-  <span class="keyword">call</span> <span class="name">abc</span>
-}
-```
-
 # Getting Started with WDL
 
-For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl/tree/develop#getting-started-with-wdl)
+For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl#getting-started-with-wdl)
 
 # Configuring Cromwell
 
@@ -412,17 +271,17 @@ database {
 }
 ```
 
-To initially populate the tables, use the [Java MySQL Connector](https://dev.mysql.com/downloads/connector/j/) JAR file with [Liquibase](http://www.liquibase.org/) (installable via `brew install liquibase`):
+## SIGINT abort handler
+
+For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option
 
 ```
-liquibase --driver=com.mysql.jdbc.Driver \
-          --classpath=${HOME}/.ivy2/cache/mysql/mysql-connector-java/jars/mysql-connector-java-5.1.35.jar \
-          --changeLogFile=src/main/migrations/changelog.xml \
-          --url="jdbc:mysql://localhost/cromwell" \
-          --username="root" \
-          --password="" \
-          migrate
+backend {
+  abortJobsOnTerminate=true
+}
 ```
+
+Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
 
 # Backends
 
@@ -786,8 +645,8 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    defaultZones: "US_Metro MX_Metro"
-    defaultDisks: "Disk1 3 SSD, Disk2 500 HDD"
+    zones: "US_Metro MX_Metro"
+    disks: "Disk1 3 SSD, Disk2 500 HDD"
   }
 }
 workflow jes_workflow {
@@ -801,12 +660,30 @@ This table lists the currently available runtime attributes for cromwell:
 | -------------------- |:-----:|:-----:|:-----:|
 | continueOnReturnCode |   x   |   x   |   x   |
 | cpu                  |       |   x   |       |
-| defaultDisks         |       |   x   |       |
-| defaultZones         |       |   x   |       |
+| disks                |       |   x   |       |
+| zones                |       |   x   |       |
 | docker               |   x   |   x   |   x   |
 | failOnStderr         |   x   |   x   |   x   |
 | memory               |       |   x   |       |
 | preemptible          |       |   x   |       |
+
+Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
+
+```
+task runtime_test {
+  String ubuntu_tag
+  Int memory_gb
+
+  command {
+    ./my_binary
+  }
+
+  runtime {
+    docker: "ubuntu:" + ubuntu_tag
+    memory: memory_gb + "GB"
+  }
+}
+```
 
 ## continueOnReturnCode
 
@@ -848,7 +725,7 @@ runtime {
 
 Defaults to "1".
 
-## defaultDisks
+## disks
 
 Passed to JES: "Disks to attach."
 
@@ -864,7 +741,7 @@ The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the 
 
 ```
 runtime {
-  defaultDisks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
+  disks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
 }
 ```
 
@@ -872,13 +749,13 @@ To change the size of the local disk, set the type of the disk named "local-disk
 
 ```
 runtime {
-  defaultDisks: "local-disk 11 SSD"
+  disks: "local-disk 11 SSD"
 }
 ```
 
 Defaults to "local-disk LOCAL".
 
-## defaultZones
+## zones
 
 Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
 
@@ -886,7 +763,7 @@ The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  defaultZones: "US_Metro MX_Metro"
+  zones: "US_Metro MX_Metro"
 }
 ```
 
@@ -934,11 +811,13 @@ Defaults to "2G".
 
 Passed to JES: "If applicable, preemptible machines may be used for the run."
 
-... more to come ...
+Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
+eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.
+Note: If specified, this attribute overrides [workflow options](#workflow-options).
 
 ```
 runtime {
-  preemptible: true
+  preemptible: 1
 }
 ```
 
@@ -976,6 +855,7 @@ Valid keys and their meanings:
 * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
 * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
 * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+* **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
 
 # Call Caching
 
@@ -983,9 +863,9 @@ Call Caching allows Cromwell to detect when a job has been run in the past so it
 
 Cromwell's call cache is maintained in its database.  For best mileage with call caching, configure Cromwell to [point to a MySQL database](#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
 
-**Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read-from-cache` is enabled (see below):
+**Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read_from_cache` is enabled (see below):
 
-* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming `read-from-cache` is enabled (see below)
+* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming `read_from_cache` is enabled (see below)
 * If there was a cache hit, outputs are **copied** from the cached job to the new job's output directory
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.
@@ -1025,7 +905,7 @@ All web server requests include an API version in the url. The current version i
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from the CLI with the [inputs](#inputs) sub-command.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](http://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 
 cURL:
@@ -1186,6 +1066,9 @@ the inputs file satisfies the WDL file's input requirements.
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
 * `workflowInputs` - *Optional* JSON file containing the inputs.
+* `workflowOptions` - *Optional* JSON file containing the workflow options. The options file is validated structurally
+and can supply default runtime attributes for tasks in the source file.
+
 
 cURL:
 ```
@@ -1545,7 +1428,8 @@ Server: spray-can/1.3.3
 ## GET /api/workflows/:version/:id/metadata
 
 This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
-(i.e. shards are accounted for by an array of maps, in the same order as the shards).
+(i.e. shards are accounted for by an array of maps, in the same order as the shards). 
+In addition to shards, every attempt that was made for this call will have its own object as well, in the same order as the attempts.
 Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
 Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
 return code, stdout and stderr.  Date formats are ISO with milliseconds.
@@ -1570,109 +1454,202 @@ Server spray-can/1.3.3 is not blacklisted
 Server: spray-can/1.3.3
 Date: Thu, 01 Oct 2015 22:18:07 GMT
 Content-Type: application/json; charset=UTF-8
-Content-Length: 6192
+Content-Length: 8286
 {
+  "workflowName": "sc_test",
   "calls": {
-    "sc_test.do_prepare": [{
-      "executionStatus": "Done",
-      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/stdout",
-      "outputs": {
-        "split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ad"]
+    "sc_test.do_prepare": [
+      {
+        "executionStatus": "Done",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/stdout",
+        "shardIndex": -1,
+        "outputs": {
+          "split_files": [
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ab",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ac",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
+          ]
+        },
+        "inputs": {
+          "input_file": "/home/jdoe/cromwell/11.txt"
+        },
+        "runtimeAttributes": {
+            "failOnStderr": "true",
+            "continueOnReturnCode": "0"
+        },
+        "returnCode": 0,
+        "backend": "Local",
+        "end": "2016-02-04T13:47:56.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/stderr",
+        "attempt": 1,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:55.000-05:00"
+      }
+    ],
+    "sc_test.do_scatter": [
+      {
+        "executionStatus": "Preempted",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stdout",
+        "shardIndex": 0,
+        "outputs": {},
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "backend": "Local",
+        "end": "2016-02-04T13:47:56.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stderr",
+        "attempt": 1,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:56.000-05:00"
       },
-      "inputs": {
-        "input_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/workflow-inputs/e46345ba-11.txt"
+      {
+        "executionStatus": "Done",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/stdout",
+        "shardIndex": 0,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt"
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "returnCode": 0,
+        "end": "2016-02-04T13:47:56.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/stderr",
+        "attempt": 2,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:56.000-05:00"
       },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2015-10-01T18:17:56.651-04:00",
-      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/stderr",
-      "start": "2015-10-01T18:17:56.204-04:00"
-    }],
-    "sc_test.do_scatter": [{
-      "executionStatus": "Done",
-      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/stdout",
-      "outputs": {
-        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/output.txt"
+      {
+        "executionStatus": "Done",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/stdout",
+        "shardIndex": 1,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "returnCode": 0,
+        "backend": "Local",
+        "end": "2016-02-04T13:47:56.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/stderr",
+        "attempt": 1,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:56.000-05:00"
       },
-      "inputs": {
-        "input_file": "f"
+      {
+        "executionStatus": "Done",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/stdout",
+        "shardIndex": 2,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt"
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "returnCode": 0,
+        "backend": "Local",
+        "end": "2016-02-04T13:47:56.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/stderr",
+        "attempt": 1,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:56.000-05:00"
       },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2015-10-01T18:17:56.777-04:00",
-      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/stderr",
-      "start": "2015-10-01T18:17:56.676-04:00"
-    }, {
-      "executionStatus": "Done",
-      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/stdout",
-      "outputs": {
-        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/output.txt"
-      },
-      "inputs": {
-        "input_file": "f"
-      },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2015-10-01T18:17:56.819-04:00",
-      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/stderr",
-      "start": "2015-10-01T18:17:56.676-04:00"
-    }, {
-      "executionStatus": "Done",
-      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/stdout",
-      "outputs": {
-        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/output.txt"
-      },
-      "inputs": {
-        "input_file": "f"
-      },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2015-10-01T18:17:56.806-04:00",
-      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/stderr",
-      "start": "2015-10-01T18:17:56.676-04:00"
-    }, {
-      "executionStatus": "Done",
-      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/stdout",
-      "outputs": {
-        "count_file": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/output.txt"
-      },
-      "inputs": {
-        "input_file": "f"
-      },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2015-10-01T18:17:56.793-04:00",
-      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/stderr",
-      "start": "2015-10-01T18:17:56.676-04:00"
-    }],
-    "sc_test.do_gather": [{
-      "executionStatus": "Done",
-      "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_gather/stdout",
-      "outputs": {
-        "sum": 11
-      },
-      "inputs": {
-        "input_files": "do_scatter.count_file"
-      },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2015-10-01T18:17:56.895-04:00",
-      "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_gather/stderr",
-      "start": "2015-10-01T18:17:56.206-04:00"
-    }]
+      {
+        "executionStatus": "Done",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/stdout",
+        "shardIndex": 3,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "returnCode": 0,
+        "backend": "Local",
+        "end": "2016-02-04T13:47:56.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/stderr",
+        "attempt": 1,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:56.000-05:00"
+      }
+    ],
+    "sc_test.do_gather": [
+      {
+        "executionStatus": "Done",
+        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_gather/stdout",
+        "shardIndex": -1,
+        "outputs": {
+          "sum": 12
+        },
+        "runtimeAttributes": {
+           "failOnStderr": "true",
+           "continueOnReturnCode": "0"
+        },
+        "inputs": {
+          "input_files": [
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+          ]
+        },
+        "returnCode": 0,
+        "backend": "Local",
+        "end": "2016-02-04T13:47:57.000-05:00",
+        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_gather/stderr",
+        "attempt": 1,
+        "executionEvents": [],
+        "start": "2016-02-04T13:47:56.000-05:00"
+      }
+    ]
   },
   "outputs": {
-    "sc_test.do_gather.sum": 11,
-    "sc_test.do_prepare.split_files": ["/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_aa", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ab", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ac", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_prepare/temp_ad"],
-    "sc_test.do_scatter.count_file": ["/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-0/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-1/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-2/output.txt", "/home/jdoe/cromwell/cromwell-executions/sc_test/167dafe7-f474-482a-8194-01a1b770cdfd/call-do_scatter/shard-3/output.txt"]
+    "sc_test.do_gather.sum": 12,
+    "sc_test.do_prepare.split_files": [
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ab",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ac",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
+    ],
+    "sc_test.do_scatter.count_file": [
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+    ]
   },
-  "id": "167dafe7-f474-482a-8194-01a1b770cdfd",
+  "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
   "inputs": {
     "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
   },
-  "submission": "2015-10-01T18:17:56.113-04:00",
+  "submission": "2016-02-04T13:47:55.000-05:00",
   "status": "Succeeded",
-  "start": "2015-10-01T18:17:56.113-04:00"
+  "end": "2016-02-04T13:47:57.000-05:00",
+  "start": "2016-02-04T13:47:55.000-05:00"
 }
 ```
 

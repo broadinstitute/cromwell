@@ -19,6 +19,7 @@ app:
   image: {{ $cromwell_image }}
   {{ $cromwell_dns }}
   log_driver: "{{ $env_log_driver }}"
+  restart: always
   environment:
     JAVA_OPTS: {{ $env_java_opts }}
   {{ $cromwell_volumes }}
@@ -31,7 +32,9 @@ proxy:
   ports:
     - "80:80"
     - "443:443"
+    - "127.0.0.1:8888:8888"
   {{ $proxy_volumes }}
+  restart: always
   environment:
     CALLBACK_URI: {{ $env_callback_uri }}
     LOG_LEVEL: {{ $env_log_level }}
@@ -44,4 +47,5 @@ proxy:
     AUTH_LDAP_BIND_DN2: 'AuthLDAPBindDN "{{ $proxy_ldap_bind_dn }}"'
     AUTH_LDAP_BIND_PASSWORD2: 'AuthLDAPBindPassword {{ $proxy_ldap_bind_password }}'
     REMOTE_USER_CLAIM: sub
+    ENABLE_STACKDRIVER: 'yes'
 {{end}}{{end}}{{end}}

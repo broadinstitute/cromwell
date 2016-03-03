@@ -37,6 +37,8 @@ trait WorkflowExecutionComponent {
 
     def uniqueKey = index("UK_WE_WORKFLOW_EXECUTION_UUID",
       workflowExecutionUuid, unique = true)
+
+    def statusIdx = index("STATUS_IDX", status, unique = false)
   }
 
   protected val workflowExecutions = TableQuery[WorkflowExecutions]

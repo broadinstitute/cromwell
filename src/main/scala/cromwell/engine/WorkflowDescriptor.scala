@@ -46,13 +46,14 @@ case class WorkflowDescriptor(id: WorkflowId,
                               ioManager: IoInterface,
                               wfContext: WorkflowContext,
                               engineFunctions: WorkflowEngineFunctions) {
+  import PathString._
   import WorkflowDescriptor._
 
   val shortId = id.toString.split("-")(0)
   val name = namespace.workflow.unqualifiedName
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
-  val props = sys.props
-  val relativeWorkflowRootPath = s"$name/$id"
+  private val props = sys.props
+  private val relativeWorkflowRootPath = s"$name/$id"
   private val log = WorkflowLogger("WorkflowDescriptor", this)
   val workflowOutputsPath = workflowOptions.get("outputs_path") recover { case e: IllegalArgumentException =>
     log.warn("outputs_path expected to be of type String", e)
@@ -61,16 +62,12 @@ case class WorkflowDescriptor(id: WorkflowId,
   lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
 
   // GCS FS with the workflow working directory as root
-  val gcsFilesystem = for {
-    interface <- gcsInterface
-    fs <- Try(GcsFileSystem.instance(interface, wfContext.root))
-  } yield fs
+  lazy val gcsFilesystem = Try(GcsFileSystem(gcsInterface, wfContext.root))
 
   // GCS FS with the workflow outputs directory as root
   val gcsOutputsFilesystem = for {
     root <- workflowOutputsPath
-    interface <- gcsInterface
-    fs <- Try(GcsFileSystem.instance(interface, root))
+    fs <- Try(GcsFileSystem(gcsInterface, root))
   } yield fs
 
 
@@ -94,6 +91,10 @@ case class WorkflowDescriptor(id: WorkflowId,
     case _ => NOPLogger.NOP_LOGGER
   }
 
+  lazy val workflowRootPath = wfContext.root.toPath(gcsFilesystem)
+  def workflowRootPathWithBaseRoot(rootPath: String): Path =
+    WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
+
   def copyWorkflowOutputs(implicit executionContext: ExecutionContext): Future[Unit] = {
     // Try to copy outputs to final destination
     workflowOutputsPath map copyOutputFiles getOrElse Future.successful(())
@@ -104,10 +105,10 @@ case class WorkflowDescriptor(id: WorkflowId,
     val logger = backend.workflowLogger(this)
 
     def copyFile(file: WdlFile): Try[Unit] = {
-      val src = file.valueString.toPath(workflowLogger, gcsFilesystem)
-      val wfPath = wfContext.root.toPath(workflowLogger, gcsFilesystem).toAbsolutePath
-      val relativeFilePath = src.subpath(wfPath.getNameCount, src.getNameCount)
-      val dest = destDirectory.toPath(workflowLogger, gcsOutputsFilesystem).resolve(relativeWorkflowRootPath).resolve(relativeFilePath)
+      val src = file.valueString.toPath(gcsFilesystem)
+      val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath
+      val relativeFilePath = Paths.get(relativeWorkflowRootPath).resolve(src.subpath(wfPath.getNameCount, src.getNameCount))
+      val dest = destDirectory.toPath(gcsOutputsFilesystem).resolve(relativeFilePath)
 
       def copy(): Unit = {
         logger.info(s"Trying to copy output file $src to $dest")
@@ -168,9 +169,14 @@ case class WorkflowDescriptor(id: WorkflowId,
 
   private def logWriteDisabled() = workflowLogger.warn(writeDisabled)
   private def logReadDisabled() = workflowLogger.warn(readDisabled)
+
+  override def toString = s"WorkflowDescriptor(${id.id.toString})"
 }
 
 object WorkflowDescriptor {
+
+  def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
+
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles): WorkflowDescriptor = {
     WorkflowDescriptor(id, sourceFiles, ConfigFactory.load)
   }
@@ -191,15 +197,14 @@ object WorkflowDescriptor {
                                          backend: Backend,
                                          conf: Config): ErrorOr[WorkflowDescriptor] = {
     val namespace = validateNamespace(id, sourceFiles.wdlSource)
-    val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
     val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
 
-    val runtimeAttributes = for {
-      n <- namespace.disjunction
-    } yield validateRuntimeAttributes(id, n, backend.backendType)
-
-    (namespace |@| rawInputs |@| options |@| runtimeAttributes.validation) { (_, _, _, _) } flatMap {
-      case (n, r, o, a) => buildWorkflowDescriptor(id, sourceFiles, n, r, o, backend, conf)
+    (namespace |@| options) { (_, _) } flatMap { case (nam, opt) =>
+      val runtimeAttributes = validateRuntimeAttributes(id, nam, backend.backendType)
+      val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
+      (runtimeAttributes |@| rawInputs) { (_, _) } flatMap { case (_, raw) =>
+        buildWorkflowDescriptor(id, sourceFiles, nam, raw, opt, backend, conf)
+      }
     }
   }
 
@@ -217,7 +222,7 @@ object WorkflowDescriptor {
       }
       case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
     }
-    val wfContext = backend.workflowContext(options, id, namespace.workflow.fullyQualifiedName)
+    val wfContext = new WorkflowContext(buildWorkflowRootPath(backend.rootPath(options), namespace.workflow.unqualifiedName, id))
     val engineFunctions = backend.engineFunctions(ioManager, wfContext)
 
     val validatedDescriptor = for {
@@ -237,7 +242,7 @@ object WorkflowDescriptor {
   }
 
   private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls foreach { x => CromwellRuntimeAttributes(x.task.runtimeAttributes, backendType) }) match {
+    Try(namespace.workflow.calls.map(_.task.runtimeAttributes) foreach { r => CromwellRuntimeAttributes.validateKeys(r.attrs.keySet, backendType) }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
     }

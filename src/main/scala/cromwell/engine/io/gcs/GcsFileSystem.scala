@@ -9,12 +9,13 @@ import java.util.{Collections, Set => JSet}
 import cromwell.engine.PathString
 
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 object GcsFileSystem {
   import PathString._
-  def instance(interface: GoogleCloudStorage, root: String)(implicit executionContext: ExecutionContext) = {
-    if (root.isGcsUrl) new GcsFileSystem(GcsFileSystemProvider.instance(interface), root)
-    else throw new IllegalArgumentException(s"$root is not am absolute GCS path")
+  def apply(interface: Try[GoogleCloudStorage], root: String)(implicit executionContext: ExecutionContext) = {
+    if (root.isGcsUrl) new GcsFileSystem(GcsFileSystemProvider(interface), root)
+    else throw new IllegalArgumentException(s"$root is not an absolute GCS path")
   }
   val Separator = "/"
   private [io] val Protocol = "gs://"

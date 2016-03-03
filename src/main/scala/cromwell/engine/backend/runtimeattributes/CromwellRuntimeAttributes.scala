@@ -1,179 +1,239 @@
 package cromwell.engine.backend.runtimeattributes
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.engine.backend.BackendType
+import cromwell.engine.ErrorOr
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
+import cromwell.engine.backend.{BackendCall, BackendType}
+import cromwell.engine.workflow.WorkflowOptions
+import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
 import wdl4s._
-import wdl4s.parser.MemorySize
+import wdl4s.parser.MemoryUnit
+import wdl4s.types._
+import wdl4s.values._
 
 import scala.language.postfixOps
 import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
-case class CromwellRuntimeAttributes(docker: Option[String],
-                                     defaultZones: Seq[String],
+case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
+                                     docker: Option[String],
+                                     zones: Seq[String],
                                      failOnStderr: Boolean,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      cpu: Long,
-                                     preemptible: Boolean,
-                                     defaultDisks: Seq[Disk],
+                                     preemptible: Int,
+                                     disks: Seq[Disk],
                                      memoryGB: Double)
 
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
 
-  def apply(wdlRuntimeAttributes: RuntimeAttributes, backendType: BackendType): CromwellRuntimeAttributes = {
-    val attributeMap = AttributeMap(wdlRuntimeAttributes.attrs)
-    /**
-     *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
-     *  the keys are known to be supported on at least one backend other than this.
-     */
-    attributeMap.unsupportedKeys(backendType) foreach log.warn
+  def apply(wdlRuntimeAttributes: RuntimeAttributes, backendCall: BackendCall, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
+    val supportedKeys = backendCall.backend.backendType.supportedKeys map { _.key }
 
-    val attributeMapNel = validateAttributeMap(attributeMap, backendType)
-    val runtimeAttributeNel = validateRuntimeAttributes(attributeMap)
-    val validatedRuntimeAttributes = (attributeMapNel |@| runtimeAttributeNel) { (_, r) => r }
+    val attributes = for {
+      attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(backendCall.lookupFunction(backendCall.locallyQualifiedInputs), backendCall.engineFunctions))
+      attributesWithDefaults <- Try(getAttributesWithDefaults(attributesFromTask, workflowOptions))
+      _ <- validateKeys(attributesWithDefaults.keySet, backendCall.backend.backendType)
+      supportedAttributes = attributesWithDefaults.filterKeys(k => supportedKeys.contains(k))
+      validatedAttributes <- validateRuntimeAttributes(supportedAttributes)
+    } yield validatedAttributes
 
-    validatedRuntimeAttributes match {
-      case Success(r) => r
-      case Failure(f) =>
-        throw new IllegalArgumentException() with ThrowableWithErrors {
-          val message = "RuntimeAttribute is not valid."
-          val errors = f
-        }
+
+    attributes.get
+  }
+
+  private def getAttributesWithDefaults(taskAttributes: Map[String, WdlValue], workflowOptions: Option[WorkflowOptions]): Map[String, WdlValue] = {
+    val defaultAttributes = workflowOptions match {
+      case Some(options) => defaultValues(options)
+      case None => defaultValues
     }
+
+    // Merge the two maps, prefer values from the latter
+    defaultAttributes ++ taskAttributes
+  }
+
+  def validateKeys(keys: Set[String], backendType: BackendType): Try[Set[String]] = {
+    /**
+      *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
+      *  the keys are known to be supported on at least one backend other than this.
+      */
+    val unsupported = unsupportedKeys(keys, backendType)
+    logMessageForUnsupportedKeys(unsupported, backendType) foreach log.warn
+
+    // Return only supported keys
+    validateRequiredKeys(keys, backendType) match {
+      case scalaz.Success(x) => scala.util.Success(keys)
+      case scalaz.Failure(e) => scala.util.Failure(new IllegalArgumentException() with ThrowableWithErrors {
+        val message = "RuntimeAttributes are invalid."
+        val errors = e
+      })
+    }
+  }
+
+  def logMessageForUnsupportedKeys(unsupportedKeys: Set[String], backendType: BackendType) = {
+    if (unsupportedKeys.isEmpty) None
+    else Option(s"Found unsupported keys for backend '$backendType': " + unsupportedKeys.toSeq.sorted.mkString(", "))
+  }
+
+  def unsupportedKeys(keys: Iterable[String], backendType: BackendType): Set[String] = {
+    val supportedKeys = backendType.supportedKeys map { _.key }
+    keys.toSet -- supportedKeys
   }
 
   val LocalDiskName = "local-disk"
-  val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD, Option(10)).toDisk
+  val LocalizationDisk = LocalDisk(LocalDiskName, DiskType.SSD, sizeGb=10)
 
-  /** Fallback values if values for these keys are not specified in a task "runtime" stanza. */
-  object Defaults {
-    val Cpu = 1L
-    val Disk = Vector(LocalizationDisk)
-    val FailOnStderr = false
-    val ContinueOnReturnCode = ContinueOnReturnCodeSet(Set(0))
-    val Memory = 2.0
-    val Preemptible = false
-    val Zones = Vector("us-central1-a")
+  private case class ValidKeyType(key: String, validTypes: Set[WdlType])
+  private val keys = Set(ValidKeyType("cpu", Set(WdlIntegerType)),
+                        ValidKeyType("disks", Set(WdlStringType, WdlArrayType(WdlStringType))),
+                        ValidKeyType("docker", Set(WdlStringType)),
+                        ValidKeyType("zones", Set(WdlStringType, WdlArrayType(WdlStringType))),
+                        ValidKeyType("continueOnReturnCode", Set(WdlBooleanType, WdlArrayType(WdlIntegerType))),
+                        ValidKeyType("failOnStderr", Set(WdlBooleanType)),
+                        ValidKeyType("preemptible", Set(WdlIntegerType)),
+                        ValidKeyType("memory", Set(WdlStringType)))
+
+  private val defaultValues = Map(
+    "cpu" -> WdlInteger(1),
+    "disks" -> WdlString(LocalizationDisk.toString),
+    "zones" -> WdlString("us-central1-a"),
+    "continueOnReturnCode" -> WdlInteger(0),
+    "failOnStderr" -> WdlBoolean.False,
+    "preemptible" -> WdlInteger(0),
+    "memory" -> WdlString("2GB")
+  )
+
+  private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
+    def fromWorkflowOptions(k: ValidKeyType) = {
+      val value = workflowOptions.getDefaultRuntimeOption(k.key).get
+      val coercedValue = k.validTypes map { _.coerceRawValue(value) } find { _.isSuccess } map { _.get } getOrElse {
+        log.warn(s"Could not coerce $value for runtime attribute ${k.key} to any of the supported target types: ${k.validTypes.mkString(",")}. Using default value instead.")
+        defaultValues.get(k.key).get
+      }
+      coercedValue
+    }
+
+    keys.collect({
+      case k if workflowOptions.getDefaultRuntimeOption(k.key).isSuccess => k.key -> fromWorkflowOptions(k)
+      case k if defaultValues.contains(k.key) => k.key -> defaultValues.get(k.key).get
+    }).toMap
   }
 
-  private def validateRuntimeAttributes(attributeMap: AttributeMap): ValidationNel[String, CromwellRuntimeAttributes] = {
-    val docker = attributeMap.get(DOCKER)
-    val zones = attributeMap.get(DEFAULT_ZONES) map { _.split("\\s+").toVector } getOrElse Defaults.Zones
-    val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
-    val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.getSeq(CONTINUE_ON_RETURN_CODE))
-    val cpu = validateCpu(attributeMap.get(CPU))
-    val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
-    val disks = validateLocalDisks(attributeMap.get(DEFAULT_DISKS))
-    val memory = validateMemory(attributeMap.get(MEMORY))
+  val defaults: CromwellRuntimeAttributes = {
+    // .get below because we assume that the default values are valid
+    // There's a unit test in CromwellRuntimeAttributeSpec to test these defaults
+    validateRuntimeAttributes(defaultValues).get
+  }
 
-    (failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
-      CromwellRuntimeAttributes(docker, zones, _, _, _, _, _, _)
+  private def validateRuntimeAttributes(attributes: Map[String, WdlValue]): Try[CromwellRuntimeAttributes] = {
+    val attributeMap = attributes.collect({ case (k, v) if Try(RuntimeKey.from(k)).isSuccess => RuntimeKey.from(k) -> v })
+    val docker = validateDocker(attributeMap.get(DOCKER))
+    val zones = validateZone(attributeMap.get(ZONES))
+    val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
+    val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.get(CONTINUE_ON_RETURN_CODE))
+    val cpu = validateCpu(attributeMap.get(CPU))
+    val disks = validateLocalDisks(attributeMap.get(DISKS))
+    val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
+    val memory = RuntimeAttributes.validateMemoryValue(attributeMap.getOrElse(MEMORY, WdlString(s"${defaults.memoryGB} GB"))) match {
+      case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
+      case scala.util.Failure(x) => x.getMessage.failureNel
+    }
+
+    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
+      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _)
+    } match {
+      case Success(x) => scala.util.Success(x)
+      case Failure(nel) => scala.util.Failure(new IllegalArgumentException(nel.list.mkString("\n")))
     }
   }
 
-  private def validateCpu(value: Option[String]): ValidationNel[String, Long] = {
-    value map validateLong getOrElse Defaults.Cpu.successNel
+  private def validateCpu(cpu: Option[WdlValue]): ErrorOr[Int] = {
+    cpu.map(validateInt).getOrElse(defaults.cpu.toInt.successNel)
   }
 
-  private def validatePreemptible(value: Option[String]): ValidationNel[String, Boolean] = {
-    value map validateBoolean getOrElse Defaults.Preemptible.successNel
+  private def validatePreemptible(preemptible: Option[WdlValue]): ErrorOr[Int] = {
+    preemptible.map(validateInt).getOrElse(defaults.preemptible.successNel)
   }
 
-  private def validateFailOnStderr(value: Option[String]): ValidationNel[String, Boolean] = {
-    value map validateBoolean getOrElse Defaults.FailOnStderr.successNel
+  private def validateDocker(docker: Option[WdlValue]): ErrorOr[Option[String]] = {
+    docker match {
+      case Some(WdlString(s)) => Some(s).successNel
+      case None => None.successNel
+      case _ => s"Expecting ${DOCKER.key} runtime attribute to a String".failureNel
+    }
   }
 
-  private def validateContinueOnReturnCode(value: Option[Seq[String]]): ValidationNel[String, ContinueOnReturnCode] = {
-    value.map(_.map(_.toLowerCase)) match {
-      case Some(Seq("true")) => ContinueOnReturnCodeFlag(true).successNel
-      case Some(Seq("false")) => ContinueOnReturnCodeFlag(false).successNel
-      case Some(seq) =>
-        val nels = seq map validateContinueOnReturnCode
+  private def validateZone(zoneValue: Option[WdlValue]): ErrorOr[Vector[String]] = {
+    zoneValue match {
+      case Some(WdlString(s)) => s.split("\\s+").toVector.successNel
+      case Some(WdlArray(wdlType, value)) if wdlType.memberType == WdlStringType =>
+        value.map(_.valueString).toVector.successNel
+      case Some(_) => s"Expecting ${ZONES.key} runtime attribute to be either a whitespace separated String or an Array[String]".failureNel
+      case None => defaults.zones.toVector.successNel
+    }
+  }
+
+  private def validateFailOnStderr(value: Option[WdlValue]): ErrorOr[Boolean] = {
+    value match {
+      case Some(WdlBoolean(b)) => b.successNel
+      case Some(WdlString(s)) if s.toLowerCase == "true" => true.successNel
+      case Some(WdlString(s)) if s.toLowerCase == "false" => false.successNel
+      case Some(_) => s"Expecting ${FAIL_ON_STDERR.key} runtime attribute to be a Boolean or a String with values of 'true' or 'false'".failureNel
+      case None => defaults.failOnStderr.successNel
+    }
+  }
+
+  private def validateContinueOnReturnCode(value: Option[WdlValue]): ErrorOr[ContinueOnReturnCode] = {
+    value match {
+      case Some(b: WdlBoolean) => ContinueOnReturnCodeFlag(b.value).successNel
+      case Some(WdlString(s)) if s.toLowerCase == "true" => ContinueOnReturnCodeFlag(true).successNel
+      case Some(WdlString(s)) if s.toLowerCase == "false" => ContinueOnReturnCodeFlag(false).successNel
+      case Some(WdlInteger(i)) => ContinueOnReturnCodeSet(Set(i)).successNel
+      case Some(WdlArray(wdlType, seq)) =>
+        val nels = seq map validateInt
         val defaultReturnCodeNel = Set.empty[Int].successNel[String]
         nels.foldLeft(defaultReturnCodeNel)((acc, v) => (acc |@| v) { (a, v) => a + v }) map ContinueOnReturnCodeSet
-      case None => Defaults.ContinueOnReturnCode.successNel
+      case Some(_) => s"Expecting ${CONTINUE_ON_RETURN_CODE.key} runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]".failureNel
+      case None => defaults.continueOnReturnCode.successNel
     }
   }
 
-  private def validateContinueOnReturnCode(returnCode: String): ValidationNel[String, Int] = validateInt(returnCode)
+  private def validateLocalDisks(value: Option[WdlValue]): ErrorOr[Seq[Disk]] = {
+    val nels = value match {
+      case Some(WdlString(s)) => s.split(",\\s*").toSeq.map(validateLocalDisk)
+      case Some(WdlArray(wdlType, seq)) if wdlType.memberType == WdlStringType =>
+        seq.map(_.valueString).map(validateLocalDisk)
+      case Some(_) =>
+        Seq(s"Expecting ${DISKS.key} runtime attribute to be a comma separated String or Array[String]".failureNel[Disk])
+      case None => defaults.disks.map(_.successNel)
+    }
 
-  private def validateLocalDisks(value: Option[String]): ValidationNel[String, Seq[Disk]] = {
-    value match {
-      case Some(v) =>
-        val nels = v.split(",\\s*") map validateLocalDisk
-        val emptyDiskNel = Vector.empty[Disk].successNel[String]
-        val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) { (a, v) => a :+ v })
-        disksNel map {
-          case disks if disks.exists(_.getName == LocalDiskName) => disks
-          case disks => disks :+ LocalizationDisk
-        }
-      case None => Defaults.Disk.successNel
+    val emptyDiskNel = Vector.empty[Disk].successNel[String]
+    val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) { (a, v) => a :+ v })
+    disksNel map {
+      case disks if disks.exists(_.getName == LocalDiskName) => disks
+      case disks => disks :+ LocalizationDisk.toDisk
     }
   }
 
-  private def validateLocalDisk(disk: String): ValidationNel[String, Disk] = {
-    disk.split("\\s+") match {
-      case Array(name, DiskType.LOCAL.diskTypeName) =>
-        LocalDisk(name, DiskType.LOCAL).toDisk.successNel[String]
-      case Array(name, sizeGb, diskType) if diskType != DiskType.LOCAL.diskTypeName =>
-        (validateLong(sizeGb) |@| validateDiskType(diskType)) { (s, dt) => LocalDisk(name, dt, Option(s)).toDisk }
-      case _ => s"'$disk' should be in form 'NAME SIZE TYPE', with SIZE blank for LOCAL, otherwise SIZE in GB".failureNel
+  private def validateLocalDisk(disk: String): ErrorOr[Disk] = {
+    LocalDisk.parse(disk) match {
+      case scala.util.Success(localDisk) => localDisk.toDisk.successNel
+      case scala.util.Failure(ex) => ex.getMessage.failureNel
     }
   }
 
-  private def validateDiskType(diskTypeName: String): ValidationNel[String, DiskType] = {
-    DiskType.values().find(_.diskTypeName == diskTypeName) match {
-      case Some(diskType) => diskType.successNel[String]
-      case None =>
-        val diskTypeNames = DiskType.values.map(_.diskTypeName).mkString(", ")
-        s"Disk TYPE $diskTypeName should be one of $diskTypeNames".failureNel
-    }
-  }
-
-  private def validateMemory(value: Option[String]): ValidationNel[String, Double] = {
-    value map validateMemStringInGb getOrElse Defaults.Memory.successNel
-  }
-
-  private def validateMemStringInGb(mem: String): ValidationNel[String, Double] = {
-    mem match {
-      case MemoryAndUnitPattern(amountString, unitString) =>
-        val amount = validateLong(amountString)
-        val unit = validateMemoryUnit(unitString)
-        (amount |@| unit) { (a, u) => MemorySize.GB.fromBytes(u.toBytes(a)) }
-      case _ => s"$mem should be of the form X Unit where X is a number, e.g. 8 GB".failureNel
-    }
-  }
-
-  private def validateMemoryUnit(unit: String): ValidationNel[String, MemorySize] = {
-    MemorySize.values find { _.suffixes.contains(unit) } match {
-      case Some(s) => s.successNel
-      case None => s"$unit is an invalid memory unit".failureNel
-    }
-  }
-
-  private def validateAttributeMap(attributeMap: AttributeMap,
-                                   backendType: BackendType): ValidationNel[String, Unit] = {
-    val requiredKeysNel = validateRequiredKeys(attributeMap, backendType)
-    val unknownKeysNel = validateUnknownKeys(attributeMap, backendType)
-    /*
-      Combining either the two FailureNELs and their respective error message or "combining" the two
-      SuccessNELs and their units. The latter is really a side effect to carry the success forward
-     */
-    (requiredKeysNel |@| unknownKeysNel) { (_, _) }
-  }
-
-  private def validateRequiredKeys(attributeMap: AttributeMap,
-                                   backendType: BackendType): ValidationNel[String, Unit] = {
+  private def validateRequiredKeys(keySet: Set[String],
+                                   backendType: BackendType): ErrorOr[Unit] = {
     val requiredKeys = for {
       key <- RuntimeKey.values().toSet
       if key.isMandatory(backendType)
     } yield key.key
 
-    val missingRequiredKeys = requiredKeys -- attributeMap.attrs.keySet
+    val missingRequiredKeys = requiredKeys -- keySet
     if (missingRequiredKeys.isEmpty) ().successNel
     else {
       val missingKeyString = missingRequiredKeys.toSeq.sorted.mkString(", ")
@@ -181,49 +241,17 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateUnknownKeys(attributeMap: AttributeMap,
-                                  backendType: BackendType): ValidationNel[String, Unit] = {
-    val knownKeys = RuntimeKey.values map { _.key }
-    // Finding keys unknown to any backend is an error.
-    val unknownKeys = attributeMap.attrs.keySet -- knownKeys
-
-    if (unknownKeys.isEmpty) ().successNel
-    else {
-      val unknownKeyString = unknownKeys.toSeq.sorted.mkString(", ")
-      s"Unknown keys found in runtime configuration: $unknownKeyString".failureNel
+  private def validateBoolean(value: WdlValue): ErrorOr[Boolean] = {
+    WdlBooleanType.coerceRawValue(value) match {
+      case scala.util.Success(WdlBoolean(b)) => b.successNel
+      case _ => s"Could not coerce $value into an boolean".failureNel
     }
   }
 
-  private def validateBoolean(value: String): ValidationNel[String, Boolean] = {
-    try {
-      value.toBoolean.successNel
-    } catch {
-      case _: IllegalArgumentException => s"$value not convertible to a Boolean".failureNel[Boolean]
-    }
-  }
-
-  private def validateInt(value: String): ValidationNel[String, Int] = {
-    try {
-      value.toInt.successNel
-    } catch {
-      case _: IllegalArgumentException => s"$value not convertible to an Int".failureNel[Int]
-    }
-  }
-
-  private def validateLong(value: String): ValidationNel[String, Long] = {
-    try {
-      value.toLong.successNel
-    } catch {
-      case _: IllegalArgumentException => s"$value not convertible to a Long".failureNel[Long]
-    }
-  }
-
-  private case class LocalDisk(name: String, diskType: DiskType, sizeGbOption: Option[Long] = None) {
-    def toDisk: Disk = {
-      val disk = new Disk().setName(name).setType(diskType.googleTypeName).setAutoDelete(true)
-      // Even though GCE ignores the value for local disks, JES requires we set the disk size anyway.
-      disk.setSizeGb(long2Long(sizeGbOption getOrElse 10L))
-      disk
+  private def validateInt(value: WdlValue): ErrorOr[Int] = {
+    WdlIntegerType.coerceRawValue(value) match {
+      case scala.util.Success(WdlInteger(i)) => i.intValue.successNel
+      case _ => s"Could not coerce $value into an integer".failureNel
     }
   }
 
@@ -232,16 +260,6 @@ object CromwellRuntimeAttributes {
       key <- RuntimeKey.values().toSet
       if key.supports(backendType)
     } yield key
-  }
-
-  implicit class EnhancedAttributeMap(val attrs: Map[String, String]) extends AnyVal {
-    def unsupportedKeys(backendType: BackendType): Seq[String] = {
-      val supportedKeys = backendType.supportedKeys map { _.key }
-      val unsupportedKeys = attrs.keySet -- supportedKeys
-
-      if (unsupportedKeys.isEmpty) Vector.empty
-      else Vector(s"Found unsupported keys for backend '$backendType': " + unsupportedKeys.toSeq.sorted.mkString(", "))
-    }
   }
 
   val DefaultReturnCodeNel = Set.empty[Int].successNel[String]

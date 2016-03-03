@@ -1,32 +1,56 @@
 package cromwell.engine
 
-import akka.pattern.pipe
 import akka.actor.{ActorRef, LoggingFSM, PoisonPill}
+import akka.pattern.pipe
 import cromwell.logging.WorkflowLogger
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+object CromwellFSM {
+  trait ActorFailure {
+    def failureContext: String
+    def failure: Throwable
+  }
+}
+
 trait CromwellFSM[S, D] extends LoggingFSM[S, D] with CromwellActor {
-  case class ActorFailure(failureContext: String, failure: Throwable)
+  import cromwell.engine.CromwellFSM._
 
   def logger: WorkflowLogger
   def sendFailureTo: Option[ActorRef]
   def failureState: S
 
-  def fail(asyncFailure: ActorFailure, message: Any) = {
-      logger.error(asyncFailure.failureContext, asyncFailure.failure)
-      sendFailureTo foreach { _ ! message }
+  def fail(actorFailure: ActorFailure, failureMapper: (ActorFailure => Any) = identity[ActorFailure]) = {
+      logger.error(actorFailure.failureContext, actorFailure.failure)
+      sendFailureTo foreach { _ ! failureMapper(actorFailure) }
       self ! PoisonPill
       goto(failureState)
   }
 
-  def chain(future: Future[_], nextState: S, failureContext: String) = {
+  def chain(future: Future[_], nextState: S, failureBuilder: (Throwable => ActorFailure)): CromwellFSM.this.State = {
     val result = future recover {
-      case e => ActorFailure(failureContext, e)
+      case e => failureBuilder(e)
     }
     pipe(result) to self
 
     goto(nextState)
+  }
+}
+
+trait RetryableFSM[S, D] { this: CromwellFSM[S, D] =>
+  import cromwell.engine.CromwellFSM._
+
+  def isRetryable(failure: ActorFailure): Boolean
+
+  def retryOrFail(failure: ActorFailure, originalMessage: Any, failureMapper: (ActorFailure => Any) = identity[ActorFailure]) = {
+    if (isRetryable(failure)) {
+      logger.error(failure.failureContext, failure.failure)
+      logger.error("Caught retryable failure - retrying.")
+      self ! originalMessage
+      stay()
+    } else {
+      fail(failure, failureMapper)
+    }
   }
 }

@@ -11,7 +11,6 @@ import cromwell.engine.Hashing._
 import cromwell.engine.backend.{Backend, BackendCall}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
-import cromwell.engine.callactor.completion.CallCompleteActor
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
@@ -43,6 +42,7 @@ object WorkflowActor {
     def callKey: ExecutionStoreKey
   }
   case class CallStarted(callKey: OutputKey) extends CallMessage
+  case class NoOpMessage(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
 
   sealed trait CallFailed extends TerminalCallMessage
@@ -394,6 +394,54 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     data.addPersisting(keyClone, ExecutionStatus.NotStarted)
   }
 
+  private def handleCallFailedRetryable(callKey: OutputKey,
+                                        retryStatus: ExecutionStatus,
+                                        returnCode: Option[Int],
+                                        failure: Throwable,
+                                        message: CallFailedRetryable,
+                                        data: WorkflowData,
+                                        events: Seq[ExecutionEventEntry]) = {
+    val currentSender = sender()
+    val persistEvents = globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, events)
+
+    persistEvents.failed.foreach {
+      case e => logger.error(s"Failed to persist execution events for ${callKey.tag}.", e)
+    }
+
+    persistStatusThenAck(callKey, retryStatus, currentSender, message, None, returnCode, None, None)
+    val updatedData = data.addPersisting(callKey, retryStatus)
+    stay() using updatedData
+  }
+
+
+  private def handleCallCompleted(callKey: OutputKey,
+                                  callOutputs: CallOutputs,
+                                  executionEvents: Seq[ExecutionEventEntry],
+                                  returnCode: Int,
+                                  message: TerminalCallMessage,
+                                  hash: Option[ExecutionHash],
+                                  resultsClonedFrom: Option[BackendCall],
+                                  data: WorkflowData): State = {
+    val currentSender = sender()
+    val completionWork = for {
+      // TODO These should be wrapped in a transaction so this happens atomically.
+      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
+      _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, executionEvents)
+    } yield ()
+
+    completionWork onComplete {
+      case Failure(e) =>
+        logger.error(s"Completion work failed for call ${callKey.tag}.", e)
+        currentSender ! CallActor.Ack(message)
+        self ! CallFailedNonRetryable(callKey, executionEvents, Option(returnCode), e.getMessage)
+      case Success(_) =>
+        self ! PersistStatus(callKey, ExecutionStatus.Done, Option(callOutputs), Option(returnCode), hash, resultsClonedFrom, currentSender, message)
+    }
+
+    val updatedData = data.addProcessing(callKey)
+    stay() using updatedData
+  }
+
   /** Add the outputs for the specified `ExecutionStoreKey` to the symbol cache. */
   private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: CallOutputs): Unit = {
     val newEntriesMap = outputs map { case (lqn, value) =>
@@ -429,7 +477,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       executionStore += callKey -> ExecutionStatus.Done
       updateSymbolCache(callKey)(outputs)
       self ! CheckForWorkflowComplete
-      stay using startRunnableCalls(data)
+      stay using startRunnableCalls(data).removePersisting(callKey, ExecutionStatus.Done).removeProcessing(callKey)
+    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) && !data.isProcessing(callKey) =>
+      handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
+      // Collector keys are weird internal things and never go to Running state.
+      handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, _, _, _, _, _), _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
@@ -468,7 +521,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message: CallStartMessage, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
-    case Event(PersistenceSucceeded(callKey: ScatterKey, ExecutionStatus.Done, callOutputs), data) =>
+    case Event(PersistenceSucceeded(callKey, ExecutionStatus.Done, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Done
       callOutputs foreach updateSymbolCache(callKey)
       logger.debug(s"In state WorkflowRunning: Got PersistenceCompleted message for Done call ${callKey.tag}")
@@ -476,6 +529,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       val finalData = updatedData.removePersisting(callKey, ExecutionStatus.Done).removeProcessing(callKey)
       self ! CheckForWorkflowComplete
       stay using finalData
+    case Event(PersistenceSucceeded(callKey, ExecutionStatus.Preempted, callOutputs), data) =>
+      executionStore += callKey -> ExecutionStatus.Preempted
+      val updatedData = retryCall(callKey, data).removePersisting(callKey, ExecutionStatus.Preempted).removeProcessing(callKey)
+      stay using updatedData
     case Event(PersistenceSucceeded(callKey, ExecutionStatus.Failed, callOutputs), data) =>
       executionStore += callKey -> ExecutionStatus.Failed
       val finalData = data.removePersisting(callKey, ExecutionStatus.Failed).removeProcessing(callKey)
@@ -543,16 +600,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   when(WorkflowAborting) {
     case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
-//      handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
-      stay()
+      handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
-//      handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
-      stay()
+      handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallAborted(callKey), data) if data.isPersistedRunning(callKey) =>
       executionStore += callKey -> ExecutionStatus.Aborted
       persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
+      if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
+      stay() using updatedData
+    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
+      persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
+      val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       stay() using updatedData
     case Event(PersistenceSucceeded(callKey, ExecutionStatus.Done, callOutputs), data) =>
@@ -1065,8 +1125,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         self ! CallFailedNonRetryable(collector, Seq.empty, None, e.getMessage)
       case Success(outputs) =>
         logger.info(s"Collection complete for Scattered Call ${collector.tag}.")
-        val callCompleteActor = CallCompleteActor.props(workflow.id, collector, outputs, List.empty, 0, None, None, self, logger)
-        context.actorOf(callCompleteActor)
+        self ! CallCompleted(collector, outputs, Seq.empty, 0, hash = None, resultsClonedFrom = None)
     }
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))

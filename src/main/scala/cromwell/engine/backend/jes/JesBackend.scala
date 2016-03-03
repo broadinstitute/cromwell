@@ -690,7 +690,7 @@ case class JesBackend(actorSystem: ActorSystem)
     val taskName = s"${backendCall.workflowDescriptor.id}:${backendCall.call.unqualifiedName}"
     val attempt = backendCall.key.attempt
 
-    if (errorMessage contains "Operation canceled at") {
+    if (errorMessage.exists(_.contains("Operation canceled at")))  {
       AbortedExecutionHandle.future
     } else if (preempted(errorCode, errorMessage, backendCall, logger)) {
       val preemptedMsg = s"Task $taskName was preempted for the ${attempt.toOrdinal} time."

@@ -42,7 +42,6 @@ object WorkflowActor {
     def callKey: ExecutionStoreKey
   }
   case class CallStarted(callKey: OutputKey) extends CallMessage
-  case class NoOpMessage(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
 
   sealed trait CallFailed extends TerminalCallMessage

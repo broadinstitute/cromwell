@@ -16,11 +16,7 @@ import cromwell.logging.WorkflowLogger
 object CallCompleteActor {
   sealed trait CallCompleteState
   case object Idle extends CallCompleteState
-  case object PersistingOutputs extends CallCompleteState {
-    def failureBuilder(key: OutputKey)(failure: Throwable) = {
-      s"Outputs / Events persistence failed for call ${key.tag}."
-    }
-  }
+  case object PersistingOutputs extends CallCompleteState
   case object PersistingStatus extends CallCompleteState
   case object Done extends CallCompleteState
 

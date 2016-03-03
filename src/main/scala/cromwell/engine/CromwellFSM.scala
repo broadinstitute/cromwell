@@ -27,15 +27,6 @@ trait CromwellFSM[S, D] extends LoggingFSM[S, D] with CromwellActor {
       self ! PoisonPill
       goto(failureState)
   }
-
-  def chain(future: Future[_], nextState: S, failureBuilder: (Throwable => ActorFailure)): CromwellFSM.this.State = {
-    val result = future recover {
-      case e => failureBuilder(e)
-    }
-    pipe(result) to self
-
-    goto(nextState)
-  }
 }
 
 trait RetryableFSM[S, D] { this: CromwellFSM[S, D] =>

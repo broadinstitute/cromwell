@@ -1,16 +1,13 @@
 package cromwell.engine.backend.jes
 
-import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.io.gcs.SimpleClientSecrets
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
 
 
-class JesVMAuthenticationSpec extends FlatSpec with Matchers with ProductionJesAuthentication {
-  // Prevent production jesConnection to be resolved (and trigger prod configuration resolving)
-  override def jesUserConnection(workflow: WorkflowDescriptor) = null
-  override lazy val jesCromwellInterface = null
+class JesVMAuthenticationSpec extends FlatSpec with Matchers {
+  import JesBackend._
 
   def normalize(str: String) = {
     str.parseJson.prettyPrint

@@ -16,7 +16,7 @@ object GcsFileSystem {
   private val GsUriRegex = s"""$Protocol(.*)""".r
   private val AttributeViews = Collections.singleton("basic")
 
-  val defaultGcsFileSystem = GcsFileSystemProvider.defaultProvider.getDefaultFileSystem
+  val defaultGcsFileSystem = GcsFileSystemProvider.defaultProvider.getFileSystem
 
   def isAbsoluteGcsPath(str: String) = str match {
     case GsUriRegex(chunks) => true

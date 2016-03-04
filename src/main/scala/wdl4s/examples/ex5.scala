@@ -22,10 +22,9 @@ object ex5 {
 
     val ns = NamespaceWithWorkflow.load(wdl)
 
-    Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach { scope =>
-      scope match {
-        case Some(c: Call) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.prerequisiteScopes}")
-      }
+    Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach {
+      case Some(c: Call) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.prerequisiteScopes}")
+      case _ => throw new RuntimeException("Should never get here")
     }
   }
 }

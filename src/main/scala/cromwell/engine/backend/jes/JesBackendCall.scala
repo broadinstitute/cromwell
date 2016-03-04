@@ -32,9 +32,7 @@ object JesBackendCall {
 }
 
 class JesBackendCall(val backend: JesBackend,
-                     val workflowDescriptor: WorkflowDescriptor,
-                     val key: BackendCallKey,
-                     val locallyQualifiedInputs: CallInputs,
+                     val jobDescriptor: BackendCallJobDescriptor,
                      val callAbortRegistrationFunction: Option[AbortRegistrationFunction])
   extends BackendCall with ProductionJesAuthentication with LazyLogging {
 
@@ -60,7 +58,7 @@ class JesBackendCall(val backend: JesBackend,
 
   private lazy val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
 
-  lazy val engineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+  lazy val callEngineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
 
   lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath, Paths.get(returnCodeFilename), workingDisk)
   lazy val cmdInput = JesFileInput(ExecParamName, gcsExecPath.toString, Paths.get(JesExecScript), workingDisk)
@@ -71,7 +69,7 @@ class JesBackendCall(val backend: JesBackend,
 
   def instantiateCommand: Try[String] = {
     val backendInputs = backend.adjustInputPaths(this)
-    call.instantiateCommandLine(backendInputs, engineFunctions, JesBackend.gcsPathToLocal)
+    call.instantiateCommandLine(backendInputs, callEngineFunctions, JesBackend.gcsPathToLocal)
   }
 
   /**

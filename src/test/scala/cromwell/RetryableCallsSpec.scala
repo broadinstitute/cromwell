@@ -5,11 +5,11 @@ import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.{PreemptedException, WorkflowId, WorkflowSucceeded}
+import cromwell.engine.{PreemptedException, WorkflowSucceeded}
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import org.specs2.mock.Mockito
-import wdl4s.values.{WdlValue, WdlArray}
+import wdl4s.values.{WdlArray, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 

@@ -3,6 +3,7 @@ package cromwell.logging
 import java.util.UUID
 
 import cromwell.CromwellTestkitSpec
+import cromwell.engine.backend.BackendCallJobDescriptor
 import wdl4s.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.workflow.BackendCallKey
@@ -26,13 +27,12 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
     )
   )
   val backend = LocalBackend(testWorkflowManagerSystem.actorSystem)
-  val backendCall = LocalBackendCall(
-    backend,
+  val jobDescriptor = BackendCallJobDescriptor(
     descriptor,
     BackendCallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None, 1),
-    Map.empty[String, WdlValue],
-    callAbortRegistrationFunction = None
-  )
+    Map.empty[String, WdlValue])
+
+  val backendCall = LocalBackendCall(backend, jobDescriptor, callAbortRegistrationFunction = None)
 
   "WorkflowLogger" should "create a valid tag" in {
     backend.workflowLogger(descriptor).tag shouldBe "LocalBackend [UUID(fc6cfad9)]"

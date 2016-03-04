@@ -3,11 +3,9 @@ package cromwell.engine.backend
 import akka.event.LoggingAdapter
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
-import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash, WorkflowDescriptor}
+import cromwell.engine.{CallEngineFunctions, CallOutputs, ExecutionEventEntry, ExecutionHash}
 import cromwell.logging.WorkflowLogger
 import wdl4s._
-import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -84,9 +82,22 @@ trait BackendCall {
    * The Workflow and Call to invoke.  It is assumed that in the creation
    * of a BackendCall object that the 'call' would be within the workflow
    */
-  def workflowDescriptor: WorkflowDescriptor
-  def key: BackendCallKey
+  def jobDescriptor: BackendCallJobDescriptor
+  def workflowDescriptor = jobDescriptor.workflowDescriptor
+  def key = jobDescriptor.key
   def call = key.scope
+
+  /**
+    * Inputs to the call.  For example, if a call's task specifies a command like this:
+    *
+    * File some_dir
+    * command {
+    *   ls ${some_dir}
+    * }
+    *
+    * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
+    */
+  def locallyQualifiedInputs: CallInputs = jobDescriptor.locallyQualifiedInputs
 
   /**
    * Backend which will be used to execute the Call
@@ -105,21 +116,9 @@ trait BackendCall {
   def instantiateCommand: Try[String]
 
   /**
-    * Inputs to the call.  For example, if a call's task specifies a command like this:
-    *
-    * File some_dir
-    * command {
-    *   ls ${some_dir}
-    * }
-    *
-    * Then locallyQualifiedInputs could be Map("some_dir" -> WdlFile("/some/path"))
-    */
-  def locallyQualifiedInputs: CallInputs
-
-  /**
-   * Implementation of the WDL Standard Library Functions, used to evaluate WdlExpressions
+   * Implementation of CallEngineFunctions, used to evaluate WdlExpressions
    */
-  def engineFunctions: WdlStandardLibraryFunctions
+  def callEngineFunctions: CallEngineFunctions
 
   /**
    * Function used to get the value for identifiers in expressions.  For example, the
@@ -128,7 +127,7 @@ trait BackendCall {
    */
   def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = {
     val currentlyKnownValues = locallyQualifiedInputs ++ evaluatedValues
-    WdlExpression.standardLookupFunction(currentlyKnownValues, key.scope.task.declarations, engineFunctions)
+    WdlExpression.standardLookupFunction(currentlyKnownValues, key.scope.task.declarations, callEngineFunctions)
   }
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */

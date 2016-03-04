@@ -11,7 +11,7 @@ import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.Hashing._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.backend.{Backend, BackendType, CallLogs}
+import cromwell.engine.backend._
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.io.IoInterface
@@ -78,9 +78,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
     override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
 
-    override def bindCall(workflowDescriptor: WorkflowDescriptor,
-                          key: BackendCallKey,
-                          locallyQualifiedInputs: CallInputs,
+    override def bindCall(jobDescriptor: BackendCallJobDescriptor,
                           abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall =
       throw new NotImplementedError
 

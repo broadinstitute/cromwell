@@ -8,7 +8,7 @@ import akka.pattern.pipe
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.engine.Hashing._
-import cromwell.engine.backend.{Backend, BackendCall}
+import cromwell.engine.backend.{FinalCallJobDescriptor, BackendCallJobDescriptor, Backend, BackendCall}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
@@ -492,7 +492,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       addCallFailureEvent(callKey.toDatabaseKey, failure)
       stay() using updatedData
     case Event(message @ CallFailedToInitialize(callKey, reason), data) =>
-      addCallFailureEvent(callKey.toDatabaseKey, "Call failed to initialize: $reason")
+      addCallFailureEvent(callKey.toDatabaseKey, s"Call failed to initialize: $reason")
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = None)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       stay() using updatedData
@@ -742,8 +742,17 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     val callActorName = s"CallActor-${workflow.id}-${callKey.tag}"
     val callActorProps = callKey match {
-      case backendCallKey: BackendCallKey => CallActor.props(backendCallKey, locallyQualifiedInputs, backend, workflow)
-      case finalCallKey: FinalCallKey => CallActor.props(finalCallKey)
+      case backendCallKey: BackendCallKey =>
+        // PBE This awful `workflow.copy` bit was inspired by the RetryableCallsSpec that passes a tweaked version
+        // of the local backend down through WMA.  But it turns out that WorkflowDescriptor.apply doesn't use WMA's
+        // value of backend, it talks directly to CromwellBackend and gets the regular local backend, which breaks the test.
+
+        // This backend parameter to WMA is confusing and in the world of pluggable backends somehow makes even less
+        // sense than using backends on individual workflows.  When we get real pluggable backends that test can
+        // just set its special backend cleanly in config, and all this awfulness can go away.
+        val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
+        CallActor.props(descriptor)
+      case finalCallKey: FinalCallKey => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey))
     }
     val callActor = context.actorOf(callActorProps, callActorName)
     callActor ! callActorMessage
@@ -1124,17 +1133,15 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   private def sendStartMessage(callKey: BackendCallKey, callInputs: Map[String, WdlValue]) = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
 
-    val backendCall = backend.bindCall(workflow, callKey, callInputs, Option(AbortRegistrationFunction(registerAbortFunction)))
+    val descriptor = BackendCallJobDescriptor(workflow, callKey, callInputs)
+    val backendCall = backend.bindCall(descriptor, Option(AbortRegistrationFunction(registerAbortFunction)))
     val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
 
-    def loadCachedBackendCallAndMessage(descriptor: WorkflowDescriptor, cachedExecution: Execution) = {
-      descriptor.namespace.resolve(cachedExecution.callFqn) match {
+    def loadCachedBackendCallAndMessage(workflow: WorkflowDescriptor, cachedExecution: Execution) = {
+      workflow.namespace.resolve(cachedExecution.callFqn) match {
         case Some(c: Call) =>
-          val cachedCall = backend.bindCall(
-            descriptor,
-            BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt),
-            callInputs,
-            Option(AbortRegistrationFunction(registerAbortFunction))
+          val jobDescriptor = BackendCallJobDescriptor(workflow, BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
+          val cachedCall = backend.bindCall(jobDescriptor, Option(AbortRegistrationFunction(registerAbortFunction))
           )
           log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
           self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
@@ -1146,7 +1153,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     /* Tries to use the cached Execution to send a UseCachedCall message.  If anything fails, send an InitialStartCall message */
     def loadCachedCallOrInitiateCall(cachedDescriptor: Try[WorkflowDescriptor], cachedExecution: Execution) = cachedDescriptor match {
-      case Success(descriptor) => loadCachedBackendCallAndMessage(descriptor, cachedExecution)
+      case Success(w) => loadCachedBackendCallAndMessage(w, cachedExecution)
       case Failure(ex) =>
         log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
         self ! InitialStartCall(callKey, CallActor.Start)

@@ -104,9 +104,9 @@ trait BackendCall {
    */
   def backend: Backend
 
-  def callRootPathWithBaseRoot(baseRoot: String) = key.callRootPathWithBaseRoot(workflowDescriptor, baseRoot)
+  def callRootPathWithBaseRoot(baseRoot: String) = jobDescriptor.callRootPathWithBaseRoot(baseRoot)
 
-  lazy val callRootPath = callRootPathWithBaseRoot(backend.rootPath(workflowDescriptor.workflowOptions))
+  def callRootPath = jobDescriptor.callRootPath
 
   /**
     * Attempt to evaluate all the ${...} tags in a command and return a String representation

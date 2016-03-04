@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
-import cromwell.engine.workflow.{FinalCallKey, CallKey, BackendCallKey}
+import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -25,6 +25,10 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
   // PBE temporarily still required.  Once we have call-scoped Backend actors they will know themselves and the
   // backend won't need to be in the WorkflowDescriptor and this method won't need to exist.
   def backend = workflowDescriptor.backend
+
+  def callRootPath = backend.callRootPath(this)
+
+  def callRootPathWithBaseRoot(baseRoot: String) = backend.callRootPathWithBaseRoot(this, baseRoot)
 }
 
 final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

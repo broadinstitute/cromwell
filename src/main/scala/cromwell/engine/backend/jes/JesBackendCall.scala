@@ -4,14 +4,12 @@ import java.nio.file.Paths
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor}
-import wdl4s._
+import cromwell.engine.{AbortRegistrationFunction, CallContext}
 import wdl4s.values._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -90,6 +88,10 @@ class JesBackendCall(val backend: JesBackend,
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {
     previous match {
       case handle: JesPendingExecutionHandle =>
+        val wfId = handle.backendCall.workflowDescriptor.shortId
+        val tag = handle.backendCall.key.tag
+        val runId = handle.run.runId
+        logger.debug(s"[UUID($wfId)$tag] Polling JES Job $runId")
         val status = Try(handle.run.checkStatus(this, handle.previousStatus))
         status match {
           case Success(s: TerminalRunStatus) => backend.executionResult(s, handle)

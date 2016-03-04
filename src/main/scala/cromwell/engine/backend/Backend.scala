@@ -1,21 +1,15 @@
 package cromwell.engine.backend
 
-import java.nio.file.Path
-
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
-import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
-import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.io.IoInterface
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
-import cromwell.engine.{HostInputs, CallOutputs}
+import cromwell.engine.workflow.WorkflowOptions
+import cromwell.engine.{CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
@@ -150,4 +144,12 @@ trait Backend {
   def pollBackoff: ExponentialBackOff
 
   def executionInfoKeys: List[String]
+
+  def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String) = {
+    jobDescriptor.key.callRootPathWithBaseRoot(jobDescriptor.workflowDescriptor, baseRoot)
+  }
+
+  def callRootPath(jobDescriptor: BackendCallJobDescriptor) = {
+    callRootPathWithBaseRoot(jobDescriptor, rootPath(jobDescriptor.workflowDescriptor.workflowOptions))
+  }
 }

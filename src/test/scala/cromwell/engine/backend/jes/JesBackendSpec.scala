@@ -6,14 +6,15 @@ import java.util.UUID
 
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
+import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.backend.runtimeattributes.{DiskType, CromwellRuntimeAttributes}
+import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
 import cromwell.engine.backend.{AbortedExecutionHandle, FailedExecutionHandle, RetryableExecutionHandle}
+import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
-import cromwell.engine.{PreemptedException, WorkflowContext, WorkflowDescriptor, WorkflowId}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}
@@ -163,7 +164,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     }
 
     mappedInputs.get(gcsFileKey).get match {
-      case wdlFile: WdlFile => assert(wdlFile.value.equalsIgnoreCase("/cromwell_root/blah/abc"))
+      case wdlFile: WdlFile => assert(wdlFile.value.equalsIgnoreCase("blah/abc"))
       case _ => fail("test setup error")
     }
   }
@@ -231,6 +232,70 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     jesInputs should contain(JesFileInput("fileToFileMap-1", "gs://path/to/fileToFile1Value", Paths.get("path/to/fileToFile1Value"), workingDisk))
     jesInputs should contain(JesFileInput("fileToFileMap-2", "gs://path/to/fileToFile2Key", Paths.get("path/to/fileToFile2Key"), workingDisk))
     jesInputs should contain(JesFileInput("fileToFileMap-3", "gs://path/to/fileToFile2Value", Paths.get("path/to/fileToFile2Value"), workingDisk))
+  }
+
+  case object NoIoInterface extends IoInterface {
+    def fail(m: String) = throw new NotImplementedError(m)
+    override def readFile(path: String): String = fail("not implemented")
+    override def writeFile(path: String, content: String): Unit = fail("not implemented")
+    override def exists(path: String): Boolean = fail("not implemented")
+    override def listContents(path: String): Iterable[String] = fail("not implemented")
+    override def glob(path: String, pattern: String): Seq[String] = fail("not implemented")
+    override def copy(from: String, to: String): Unit = fail("not implemented")
+    override def hash(path: String): String = fail("not implemented")
+    override def size(path: String): Long = fail("not implemented")
+    override def isValidPath(path: String): Boolean = fail("not implemented")
+  }
+
+  def makeBackendCall(wdl: SampleWdl,
+                      callName: String,
+                      inputs: Map[String, WdlValue],
+                      lookup: String => WdlValue,
+                      functions: JesCallEngineFunctions = new JesCallEngineFunctions(NoIoInterface, new CallContext("root", "out", "err"))): JesBackendCall = {
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), wdl.asWorkflowSources())
+    val backendCall = mock[JesBackendCall]
+    val runtimeAttributes = mock[CromwellRuntimeAttributes]
+    runtimeAttributes.disks returns Seq(workingDisk)
+    backendCall.locallyQualifiedInputs returns inputs
+    backendCall.workingDisk returns workingDisk
+    backendCall.call returns descriptor.namespace.workflow.findCallByName(callName).get
+    backendCall.key returns BackendCallKey(backendCall.call, None, 1)
+    backendCall.callGcsPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute=true)(mock[GcsFileSystem])
+    backendCall.lookupFunction(inputs) returns lookup
+    backendCall.runtimeAttributes returns runtimeAttributes
+    backendCall.engineFunctions returns functions
+    backendCall
+  }
+
+  it should "generate correct JesOutputs" in {
+    val inputs = Map(
+      "in" -> WdlFile("gs://a/b/c.txt")
+    )
+    val backendCall = makeBackendCall(SampleWdl.FilePassingWorkflow, "a", inputs, (s: String) => inputs.get(s).get)
+    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    jesInputs should have size 1
+    jesInputs should contain(JesFileInput("in-0", "gs://a/b/c.txt", Paths.get("a/b/c.txt"), workingDisk))
+    val jesOutputs = jesBackend.generateJesOutputs(backendCall)
+    jesOutputs should have size 1
+    jesOutputs should contain(JesFileOutput("out", "gs://call/gcs/path/out", Paths.get("out"), workingDisk))
+  }
+
+  it should "generate correct JesInputs when a command line contains a write_lines call in it" in {
+    val inputs = Map(
+      "strs" -> WdlArray(WdlArrayType(WdlStringType), Seq("A", "B", "C").map(WdlString))
+    )
+    class TestEngineFunctions(interface: IoInterface, context: CallContext) extends JesCallEngineFunctions(interface, context) {
+      override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
+        Success(WdlFile(s"gs://some/path/file.txt"))
+      }
+    }
+    val functions = new TestEngineFunctions(NoIoInterface, new CallContext("root", "stdout", "stderr"))
+    val backendCall = makeBackendCall(SampleWdl.ArrayIO, "serialize", inputs, (s: String) => inputs.get(s).get, functions)
+    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    jesInputs should have size 1
+    jesInputs should contain(JesFileInput("c6fd5c91-0", "gs://some/path/file.txt", Paths.get("some/path/file.txt"), workingDisk))
+    val jesOutputs = jesBackend.generateJesOutputs(backendCall)
+    jesOutputs should have size 0
   }
 
   it should "generate correct JesFileInputs from a WdlArray" in {

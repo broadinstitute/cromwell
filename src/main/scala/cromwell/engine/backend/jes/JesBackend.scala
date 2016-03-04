@@ -16,7 +16,6 @@ import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
@@ -26,9 +25,9 @@ import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
+import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.NoFunctions
-import wdl4s.types.WdlAnyType
 import wdl4s.values._
 import wdl4s.{Call, CallInputs, UnsatisfiedInputsException, _}
 
@@ -92,7 +91,7 @@ object JesBackend {
    * @return A path which is unique per input path
    */
   def localFilePathFromCloudStoragePath(gcsPath: GcsPath): Path = {
-    Paths.get(JesWorkingDisk.MountPoint).resolve(gcsPath.bucket).resolve(gcsPath.objectName)
+    Paths.get(gcsPath.bucket).resolve(gcsPath.objectName)
   }
 
   /**
@@ -433,26 +432,29 @@ case class JesBackend(actorSystem: ActorSystem)
       * Commands in WDL tasks can also generate input files.  For example: ./my_exec --file=${write_lines(arr)}
       *
       * write_lines(arr) would produce a string-ified version of the array stored as a GCS path.  The next block of code
-      * will use the file evaluator on each expression in the command to write these files and return back paths to
-      * those files so JES can localize them
+      * will go through each ${...} expression within the task's command section and find all write_*() ASTs and
+      * evaluate them so the files are written to GCS and the they can be included as inputs to Google's Pipeline object
       */
     val commandExpressions = backendCall.call.task.commandTemplate.collect({
       case x: ParameterCommandPart => x.expression
     })
 
-    val commandFiles = commandExpressions.map({ e =>
-      val k = e.toWdlString.md5SumShort
-      val v = e.evaluateFiles(backendCall.lookupFunction(Map.empty), backendCall.engineFunctions, WdlAnyType) match {
-        case Success(files) => files
-        case Failure(ex) => Seq.empty[WdlFile]
-      }
-      k -> v
-    }).toMap
+    val writeFunctionAsts = commandExpressions.map(_.ast).flatMap(x => AstTools.findAsts(x, "FunctionCall")).collect({
+      case y if y.getAttribute("name").sourceString.startsWith("write_") => y
+    })
+
+    val evaluatedExpressionMap = writeFunctionAsts map { ast =>
+      val expression = WdlExpression(ast)
+      val value = expression.evaluate(backendCall.lookupFunction(Map.empty), backendCall.engineFunctions)
+      expression.toWdlString.md5SumShort -> value
+    } toMap
+
+    val writeFunctionFiles = evaluatedExpressionMap collect { case (k, v: Success[_]) => k -> v.get } collect { case (k, v: WdlFile) => k -> Seq(v)}
 
     /** Collect all WdlFiles from inputs to the call */
     val callInputFiles = backendCall.locallyQualifiedInputs mapValues { _.collectAsSeq { case w: WdlFile => w } }
 
-    (callInputFiles ++ commandFiles) flatMap {
+    (callInputFiles ++ writeFunctionFiles) flatMap {
       case (name, files) => jesInputsFromWdlFiles(name, files, files.map(relativeLocalizationPath), backendCall)
     }
   }

@@ -1,6 +1,6 @@
 package cromwell.engine.backend.jes
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.engine.ErrorOr

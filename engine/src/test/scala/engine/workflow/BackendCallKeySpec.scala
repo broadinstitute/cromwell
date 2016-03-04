@@ -1,27 +1,22 @@
 package cromwell.engine.workflow
 
 import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.io.gcs.GcsFileSystem
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.Call
 
-import scala.util.{Failure, Success}
-
 class BackendCallKeySpec extends FlatSpec with Matchers with Mockito {
 
   it should "build correct call root path" in {
-    import cromwell.engine.PathString._
+    import cromwell.engine.backend.io._
 
-    import scala.concurrent.ExecutionContext.Implicits.global
-
+    val root = "/root"
+    val bucket = "gs://bucket"
     val call = mock[Call]
     call.unqualifiedName returns "callName"
     val wd = mock[WorkflowDescriptor]
-    val root = "/root"
-    val bucket = "gs://bucket"
-    val gcsFileSystem = Success(GcsFileSystem(Failure(new Throwable("no interface")), bucket))
-    wd.workflowRootPathWithBaseRoot(anyString) answers {root => s"$root/wfName/uuid".toPath(gcsFileSystem) }
+    wd.fileSystems returns defaultFileSystems
+    wd.workflowRootPathWithBaseRoot(anyString) answers { root => s"$root/wfName/uuid".toPath(defaultFileSystems) }
 
     new BackendCallKey(call, None, 1).callRootPathWithBaseRoot(wd, root).toString shouldBe "/root/wfName/uuid/call-callName"
     new BackendCallKey(call, Some(0), 1).callRootPathWithBaseRoot(wd, root).toString shouldBe "/root/wfName/uuid/call-callName/shard-0"

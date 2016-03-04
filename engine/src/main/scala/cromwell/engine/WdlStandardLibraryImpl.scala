@@ -1,6 +1,7 @@
 package cromwell.engine
 
-import cromwell.engine.io.IoInterface
+import java.nio.file.FileSystem
+
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.types._
@@ -11,14 +12,18 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
-  def interface: IoInterface
 
-  override final def fileContentsToString(path: String): String = interface.readFile(adjustFilePath(path))
+  import backend.io._
+  import better.files._
+
+  def fileSystems: List[FileSystem]
+
+  override final def fileContentsToString(path: String): String = adjustFilePath(path).toAbsolutePath(fileSystems).contentAsString
 
   def adjustFilePath(path: String): String = path
 
   private def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    Try(WdlFile(interface.writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
+    Try(WdlFile(writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
   }
 
   /**
@@ -37,7 +42,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
-  override def readFile(path: String): String = interface.readFile(path)
+  override def readFile(path: String): String = path.toAbsolutePath(fileSystems).contentAsString
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
@@ -112,7 +117,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(interface.size(adjustFilePath(value.valueString)).toDouble, MemoryUnit.Bytes).to(unit).amount
+      } yield MemorySize(adjustFilePath(value.valueString).toAbsolutePath(fileSystems).size.toDouble, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {
@@ -127,14 +132,20 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
   override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlObject])
   override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
   override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  override def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = interface.writeTempFile(path, prefix, suffix, content)
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
+    // This may be called multiple times with the same inputs.  Calling this twice with the same
+    // parameters should yield the same return value.
+    val fullPath = path.toAbsolutePath(fileSystems).resolve(s"$prefix${content.md5Sum}$suffix")
+    if (!fullPath.exists) fullPath.write(content)
 
-  override def glob(path: String, pattern: String): Seq[String] = interface.glob(path, pattern)
+    fullPath.toString
+  }
+
   override def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
       singleArgument <- extractSingleArgument(params)
       globVal = singleArgument.valueString
-      files = interface.glob(globPath(globVal), globVal)
+      files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }
     } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
   }

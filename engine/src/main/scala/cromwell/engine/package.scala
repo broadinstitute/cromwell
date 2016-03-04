@@ -1,18 +1,13 @@
 package cromwell
 
-import java.nio.file.{Path, Paths}
-
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.io.gcs.GcsFileSystem
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.{SymbolHash, WdlValue}
 
 import scala.language.implicitConversions
-import scala.util.{Failure, Try}
 import scalaz.ValidationNel
 
 package object engine {
@@ -74,22 +69,5 @@ package object engine {
     }
     def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
-  }
-
-  object PathString {
-    implicit class UriString(val str: String) extends AnyVal {
-      def isGcsUrl: Boolean = str.startsWith("gs://")
-
-      def isUriWithProtocol: Boolean = "^[a-z]+://".r.findFirstIn(str).nonEmpty
-
-      def toPath(gcsFileSystem: Try[GcsFileSystem] = Failure(new Throwable("No GCS Filesystem"))): Path = {
-        str match {
-          case path if path.isGcsUrl && gcsFileSystem.isSuccess => gcsFileSystem.get.getPath(str)
-          case path if path.isGcsUrl => throw new Throwable(s"Unable to parse GCS path $path: ${gcsFileSystem.failed.get.getMessage}\n${ExceptionUtils.getStackTrace(gcsFileSystem.failed.get)}")
-          case path if !path.isUriWithProtocol => Paths.get(path)
-          case path => throw new Throwable(s"Unable to parse $path")
-        }
-      }
-    }
   }
 }

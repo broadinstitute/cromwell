@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.nio.file._
 
 import better.files._
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
@@ -8,12 +8,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine.backend.jes.JesBackend
+import cromwell.engine.backend.io._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
-import cromwell.engine.io.gcs.{GcsFileSystem, GoogleCloudStorage}
-import cromwell.engine.io.shared.SharedFileSystemIoInterface
-import cromwell.engine.io.{IoInterface, IoManager}
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{SimpleExponentialBackoff, TryUtil}
@@ -25,7 +22,6 @@ import spray.json.{JsObject, _}
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlSingleFile, WdlValue, _}
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -44,9 +40,8 @@ case class WorkflowDescriptor(id: WorkflowId,
                               backend: Backend,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
-                              ioManager: IoManager,
-                              wfContext: WorkflowContext) {
-  import PathString._
+                              wfContext: WorkflowContext,
+                              fileSystems: List[FileSystem]) {
   import WorkflowDescriptor._
 
   val shortId = id.toString.split("-")(0)
@@ -66,47 +61,16 @@ case class WorkflowDescriptor(id: WorkflowId,
     log.warn(s"$CallLogsDirOptionKey expected to be of type String", e)
     throw e
   }
-  lazy val fileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ioManager.hash(wdlFile.value)) }
 
-
-  /*
-  TODO: Consider: Change all GCS file systems to resolve their paths relative to another path, NOT to the filesystem
-  There appears to be a feature here where if one specifies something like
-    NioGcsPath("gs://mybucket/root/folder").resolve("/foo").resolve("/bar")
-
-  This will eliminate the /foo and return
-    NioGcsPath("gs://mybucket/root/folder/bar")
-
-  Pretty sure there's no need for all these separate filesystem instances, and this could be cleaned up with unit tests
-  to ensure expected behavior. The NioGcsPaths could easily retain pointers to their parent paths, even when relative.
-   */
-
-  lazy val gcsInterface = ioManager.interfaces.collect({ case gcs: GoogleCloudStorage => gcs }) match {
-    case Seq(gcs) => Success(gcs)
-    case s if s.size > 1 => Failure(new UnsupportedOperationException(s"More than one GCS interface found: $s"))
-    case _ => Failure(new UnsupportedOperationException(s"No GCS interface found"))
+  lazy val fileHasher: FileHasher = { wdlFile: WdlFile =>
+    try {
+      SymbolHash(wdlFile.value.toPath(fileSystems).hash)
+    } catch {
+      case e: Exception =>
+        log.error(s"Cannot compute hash for file $wdlFile")
+        throw e
+    }
   }
-
-  // GCS FS with the workflow working directory as root
-  lazy val gcsFilesystem = Try(GcsFileSystem(gcsInterface, wfContext.root))
-
-  // GCS FS with the workflow log directory as root
-  val gcsWorkflowLogFileSystem = for {
-    root <- workflowLogDir
-    fs <- Try(GcsFileSystem(gcsInterface, root))
-  } yield fs
-
-  // GCS FS with the workflow outputs directory as root
-  val gcsOutputsFilesystem = for {
-    root <- workflowOutputsPath
-    fs <- Try(GcsFileSystem(gcsInterface, root))
-  } yield fs
-
-  // GCS FS with the call logs directory as root
-  val gcsCallLogsFileSystem = for {
-    root <- callLogsDir
-    fs <- Try(GcsFileSystem(gcsInterface, root))
-  } yield fs
 
   private lazy val optionCacheWriting = workflowOptions getBoolean "write_to_cache" getOrElse configCallCaching
   private lazy val optionCacheReading = workflowOptions getBoolean "read_from_cache" getOrElse configCallCaching
@@ -133,9 +97,10 @@ case class WorkflowDescriptor(id: WorkflowId,
     } yield log.delete(ignoreIOExceptions = true)
   }
 
-  lazy val workflowRootPath = wfContext.root.toPath(gcsFilesystem)
+
+  lazy val workflowRootPath = wfContext.root.toPath(fileSystems)
   def workflowRootPathWithBaseRoot(rootPath: String): Path = {
-    WorkflowDescriptor.buildWorkflowRootPath(rootPath, name, id).toPath(gcsFilesystem)
+    backend.buildWorkflowRootPath(rootPath, name, id).toPath(fileSystems)
   }
 
   def copyWorkflowOutputs(workflowMetadataResponse: WorkflowMetadataResponse)
@@ -146,7 +111,7 @@ case class WorkflowDescriptor(id: WorkflowId,
 
   private def copyWorkflowOutputsTo(workflowMetadataResponse: WorkflowMetadataResponse)(destDirectory: String)
                              (implicit executionContext: ExecutionContext): Future[Unit] = {
-    Future(copyWdlFilesTo(destDirectory, gcsOutputsFilesystem, workflowMetadataResponse.outputs.toSeq.flatMap(_.values)))
+    Future(copyWdlFilesTo(destDirectory, workflowMetadataResponse.outputs.toSeq.flatMap(_.values)))
   }
 
   def copyCallLogs(workflowMetadataResponse: WorkflowMetadataResponse)
@@ -163,7 +128,7 @@ case class WorkflowDescriptor(id: WorkflowId,
         callLog <- callMetadata.stdout.toSeq ++ callMetadata.stderr.toSeq ++
           callMetadata.backendLogs.toSeq.flatMap(_.values)
       } yield callLog
-      copyWdlFilesTo(destDirectory, gcsCallLogsFileSystem, callLogs)
+      copyWdlFilesTo(destDirectory, callLogs)
     }
   }
 
@@ -171,21 +136,20 @@ case class WorkflowDescriptor(id: WorkflowId,
     (workflowLogDir, workflowLogPath) match {
       case (Success(dir), Some(path)) =>
         val logger = backend.workflowLogger(this)
-        val dest = dir.toPath(gcsWorkflowLogFileSystem).resolve(workflowLogName).path
+        val dest = dir.toPath(fileSystems).resolve(workflowLogName)
         Future.fromTry(copyFile(logger, dest, path))
       case _ => Future.successful(())
     }
   }
 
-  private def copyWdlFilesTo(destDirectory: String, destFileSystem: Try[GcsFileSystem],
-                             wdlValues: Traversable[WdlValue]): Unit = {
+  private def copyWdlFilesTo(destDirectory: String, wdlValues: Traversable[WdlValue]): Unit = {
     val logger = backend.workflowLogger(this)
 
     // All outputs should have wdl values at this point, if they don't there's nothing we can do here
     val copies = for {
       wdlValue <- wdlValues
       wdlFile <- wdlValue collectAsSeq { case f: WdlSingleFile => f }
-    } yield copyWdlFile(logger, destDirectory, destFileSystem, wdlFile)
+    } yield copyWdlFile(logger, destDirectory, wdlFile)
 
     // Throw an exception if one or more of the copies failed.
     TryUtil.sequence(copies.toSeq) match {
@@ -194,14 +158,13 @@ case class WorkflowDescriptor(id: WorkflowId,
     }
   }
 
-  def copyWdlFile(logger: WorkflowLogger, destDirectory: String, destFileSystem: Try[GcsFileSystem],
-                  file: WdlFile): Try[Unit] = {
-    import PathString._
-    val src = file.valueString.toPath(gcsFilesystem)
-    val wfPath = wfContext.root.toPath(gcsFilesystem).toAbsolutePath
+  def copyWdlFile(logger: WorkflowLogger, destDirectory: String, file: WdlFile): Try[Unit] = {
+
+    val src = file.valueString.toPath(fileSystems)
+    val wfPath = wfContext.root.toPath(fileSystems).toAbsolutePath
     val srcSubPath = src.subpath(wfPath.getNameCount, src.getNameCount)
     val dest = destDirectory
-      .toPath(destFileSystem)
+      .toPath(fileSystems)
       .toAbsolutePath
       .resolve(relativeWorkflowRootPath)
       // UnixPath.resolve(NioGcsPath) seems to be returning a null pointer. TODO: Add a test to confirm
@@ -276,8 +239,6 @@ object WorkflowDescriptor {
   val CallLogsDirOptionKey = "call_logs_dir"
   val OptionKeys: Set[String] = Set(WorkflowLogDirOptionKey, WorkflowOutputsOptionKey, CallLogsDirOptionKey)
 
-  def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
-
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles): WorkflowDescriptor = {
     WorkflowDescriptor(id, sourceFiles, ConfigFactory.load)
   }
@@ -316,22 +277,17 @@ object WorkflowDescriptor {
                                       options: WorkflowOptions,
                                       backend: Backend,
                                       conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
-    val ioManager = backend match {
-      case _: JesBackend => gcsInterface match { // JesBackend only supports gcsInterface
-        case Success(gcs) => IoManager(List(gcs))
-        case Failure(t) => throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.", t)
-      }
-      case _ => IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
-    }
-    val wfContext = new WorkflowContext(buildWorkflowRootPath(backend.rootPath(options), namespace.workflow.unqualifiedName, id))
-    val engineFunctions = backend.engineFunctions(ioManager, wfContext)
+    val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(options), namespace.workflow.unqualifiedName, id)
+    val wfContext = new WorkflowContext(workflowRootPath)
+    val fileSystems = backend.fileSystems(options, workflowRootPath)
+    val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
 
     val validatedDescriptor = for {
       c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
       d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
-    } yield WorkflowDescriptor(id, sourceFiles, options, workflowLogOptions(conf), rawInputs, namespace, c, d, backend,
-      configCallCaching(conf), lookupDockerHash(conf), ioManager, wfContext)
+    } yield WorkflowDescriptor(id, sourceFiles, options, workflowLogOptions(conf), rawInputs, namespace, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
+      wfContext, fileSystems)
+
     validatedDescriptor.validation
   }
 

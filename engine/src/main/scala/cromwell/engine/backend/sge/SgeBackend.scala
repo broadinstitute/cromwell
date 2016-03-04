@@ -1,15 +1,19 @@
 package cromwell.engine.backend.sge
 
 import java.nio.file.{Path, Files}
+import java.nio.file.{FileSystem, Files}
 
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{LocalCallEngineFunctions, LocalBackend, SharedFileSystem}
+import cromwell.engine.backend.io._
+import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, StorageFactory}
+import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.workflow.BackendCallKey
+import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
@@ -219,6 +223,16 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def executionInfoKeys: List[String] = List(InfoKeys.JobNumber)
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
-    new SgeCallEngineFunctions(descriptor.workflowDescriptor.ioManager, buildCallContext(descriptor))
+    new SgeCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
+  }
+
+  override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = {
+    // TODO Should GCS operations have their own execution context ?
+    implicit val executionContext = scala.concurrent.ExecutionContext.global
+
+    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated
+    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getDefaultFileSystem } toOption
+
+    List(gcs, Option(defaultFileSystem)).flatten
   }
 }

@@ -1,9 +1,7 @@
 package cromwell.engine.backend
 
-import akka.event.LoggingAdapter
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.{CallEngineFunctions, CallOutputs, ExecutionEventEntry, ExecutionHash}
-import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.values._
 

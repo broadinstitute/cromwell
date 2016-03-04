@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.PathString._
+import cromwell.engine.backend.io._
 import cromwell.engine.backend.CallMetadata
 import cromwell.util.SampleWdl
 import cromwell.webservice.WorkflowMetadataResponse
@@ -86,7 +86,7 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers with ScalaFutures {
   }
 
   def workflowFile(descriptor: WorkflowDescriptor, file: String): WdlFile = {
-    val path = descriptor.wfContext.root.toPath().resolve(file).toAbsolutePath
+    val path = descriptor.wfContext.root.toPath(defaultFileSystems).resolve(file).toAbsolutePath
     path.createIfNotExists() // TODO: Delete the files and directories!
     WdlFile(path.toString)
   }

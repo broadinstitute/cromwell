@@ -1,5 +1,6 @@
 package cromwell.engine.db.slick
 
+import java.nio.file.{FileSystems, FileSystem}
 import java.sql.SQLException
 import java.util.UUID
 
@@ -13,7 +14,6 @@ import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
-import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey, WorkflowOptions}
 import cromwell.engine.{CallOutput, CallOutputs, _}
 import cromwell.util.SampleWdl
@@ -66,7 +66,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   object UnknownBackend extends Backend {
     type BackendCall = LocalBackendCall
 
-    def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions = throw new NotImplementedError
+    def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = throw new NotImplementedError
 
     override val actorSystem = workflowManagerSystem.actorSystem
 
@@ -86,6 +86,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
     override def executionInfoKeys: List[String] = List.empty
     override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
+    override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = List(FileSystems.getDefault)
   }
 
   "SlickDataAccess" should "not deadlock" in {

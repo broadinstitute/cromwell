@@ -1,18 +1,18 @@
 package cromwell.engine.backend.jes
 
 import java.net.URL
-import java.nio.file.Paths
+import java.nio.file.{FileSystems, Paths}
 import java.util.UUID
 
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
 import cromwell.engine._
+import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystem, NioGcsPath}
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
 import cromwell.engine.backend.{AbortedExecutionHandle, BackendCallJobDescriptor, FailedExecutionHandle, RetryableExecutionHandle}
-import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.util.{EncryptionSpec, SampleWdl}
@@ -234,24 +234,11 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     jesInputs should contain(JesFileInput("fileToFileMap-3", "gs://path/to/fileToFile2Value", Paths.get("path/to/fileToFile2Value"), workingDisk))
   }
 
-  case object NoIoInterface extends IoInterface {
-    def fail(m: String) = throw new NotImplementedError(m)
-    override def readFile(path: String): String = fail("not implemented")
-    override def writeFile(path: String, content: String): Unit = fail("not implemented")
-    override def exists(path: String): Boolean = fail("not implemented")
-    override def listContents(path: String): Iterable[String] = fail("not implemented")
-    override def glob(path: String, pattern: String): Seq[String] = fail("not implemented")
-    override def copy(from: String, to: String): Unit = fail("not implemented")
-    override def hash(path: String): String = fail("not implemented")
-    override def size(path: String): Long = fail("not implemented")
-    override def isValidPath(path: String): Boolean = fail("not implemented")
-  }
-
   def makeBackendCall(wdl: SampleWdl,
                       callName: String,
                       inputs: Map[String, WdlValue],
                       lookup: String => WdlValue,
-                      functions: JesCallEngineFunctions = new JesCallEngineFunctions(NoIoInterface, new CallContext("root", "out", "err"))): JesBackendCall = {
+                      functions: JesCallEngineFunctions = new JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new CallContext("root", "out", "err"))): JesBackendCall = {
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), wdl.asWorkflowSources())
     val backendCall = mock[JesBackendCall]
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
@@ -260,7 +247,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     backendCall.workingDisk returns workingDisk
     backendCall.call returns descriptor.namespace.workflow.findCallByName(callName).get
     backendCall.key returns BackendCallKey(backendCall.call, None, 1)
-    backendCall.callGcsPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute=true)(mock[GcsFileSystem])
+    backendCall.callGcsPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute = true, isDirectory = true)(GcsFileSystem.defaultGcsFileSystem)
     backendCall.lookupFunction(inputs) returns lookup
     backendCall.runtimeAttributes returns runtimeAttributes
     backendCall.callEngineFunctions returns functions
@@ -284,12 +271,12 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val inputs = Map(
       "strs" -> WdlArray(WdlArrayType(WdlStringType), Seq("A", "B", "C").map(WdlString))
     )
-    class TestEngineFunctions(interface: IoInterface, context: CallContext) extends JesCallEngineFunctions(interface, context) {
+    class TestEngineFunctions(context: CallContext) extends JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), context) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))
       }
     }
-    val functions = new TestEngineFunctions(NoIoInterface, new CallContext("root", "stdout", "stderr"))
+    val functions = new TestEngineFunctions(new CallContext("root", "stdout", "stderr"))
     val backendCall = makeBackendCall(SampleWdl.ArrayIO, "serialize", inputs, (s: String) => inputs.get(s).get, functions)
     val jesInputs = jesBackend.generateJesInputs(backendCall)
     jesInputs should have size 1
@@ -372,7 +359,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), SampleWdl.HelloWorld.asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
-    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root"))
+    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
+      fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
+    )
 
     val call = wd.namespace.workflow.findCallByName("hello").get
     val backendCall = jesBackend.bindCall(BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1)))
@@ -391,7 +380,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), new SampleWdl.ScatterWdl().asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
-    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root"))
+    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
+      fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
+    )
     val call = wd.namespace.workflow.findCallByName("B").get
     val backendCall = jesBackend.bindCall(BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1)))
     val stdoutstderr = backendCall.stdoutStderr

@@ -1,32 +1,30 @@
-package cromwell.engine.io.gcs
+package engine.backend.io.filesystem.gcs
 
 import java.nio.file.Path
 
+import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, NioGcsPath}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.ExecutionContext
-import scala.util.Success
-
 class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   behavior of "NioGcsPath"
 
-  implicit val GCSFs = GcsFileSystem(Success(mock[GoogleCloudStorage]), "gs://absolute")(mock[ExecutionContext])
+  implicit val GCSFs = GcsFileSystemProvider.defaultProvider.getDefaultFileSystem
 
   it should "implement toString" in {
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     absPath1.toString shouldBe "gs://absolute/path/to/somewhere"
     relPath1.toString shouldBe "some/relative/path"
   }
 
   it should "implement subpath" in {
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     val absSub1 = absPath1.subpath(0, 2)
     absSub1.isAbsolute shouldBe true
@@ -42,10 +40,10 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement resolveSibling" in {
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val absPath2 = new NioGcsPath(Array("absolute", "location"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
-    val relPath2 = new NioGcsPath(Array("another", "relative", "resource", "path"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val absPath2 = new NioGcsPath(Array("absolute", "location"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
+    val relPath2 = new NioGcsPath(Array("another", "relative", "resource", "path"), false, true)
 
     val absSibling = absPath1.resolveSibling("somewhere else")
     absSibling.isAbsolute shouldBe true
@@ -65,10 +63,10 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement resolve" in {
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val absPath2 = new NioGcsPath(Array("absolute", "location"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
-    val relPath2 = new NioGcsPath(Array("another", "relative", "resource", "path"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val absPath2 = new NioGcsPath(Array("absolute", "location"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
+    val relPath2 = new NioGcsPath(Array("another", "relative", "resource", "path"), false, true)
 
     val absToRel = absPath1.resolve(relPath1)
     absToRel.isAbsolute shouldBe true
@@ -88,8 +86,8 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement getName" in {
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     val nameAbs1 = absPath1.getName(0)
     nameAbs1.isAbsolute shouldBe true
@@ -109,10 +107,10 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement getParent" in {
-    val empty = new NioGcsPath(Array.empty[String], true)
-    val singleton = new NioGcsPath(Array("singleton"), true)
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val empty = new NioGcsPath(Array.empty[String], true, true)
+    val singleton = new NioGcsPath(Array("singleton"), true, true)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     val parentAbs1 = absPath1.getParent
     parentAbs1.isAbsolute shouldBe true
@@ -127,23 +125,21 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement toAbsolutePath" in {
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     val abs = absPath1.toAbsolutePath
     abs.isAbsolute shouldBe true
     abs.toString shouldBe "gs://absolute/path/to/somewhere"
 
-    val rel = relPath1.toAbsolutePath
-    rel.isAbsolute shouldBe true
-    rel.toString shouldBe "gs://absolute/some/relative/path"
+    an[Exception] shouldBe thrownBy(relPath1.toAbsolutePath)
   }
 
   it should "implement getNameCount" in {
-    val empty = new NioGcsPath(Array.empty[String], true)
-    val singleton = new NioGcsPath(Array("singleton"), true)
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val empty = new NioGcsPath(Array.empty[String], true, true)
+    val singleton = new NioGcsPath(Array("singleton"), true, true)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     absPath1.getNameCount shouldBe 4
     relPath1.getNameCount shouldBe 3
@@ -152,11 +148,11 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement getFileName" in {
-    val empty = new NioGcsPath(Array.empty[String], true)
-    val singletonAbs = new NioGcsPath(Array("singleton"), true)
-    val singletonRel = new NioGcsPath(Array("singleton"), false)
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val empty = new NioGcsPath(Array.empty[String], true, true)
+    val singletonAbs = new NioGcsPath(Array("singleton"), true, true)
+    val singletonRel = new NioGcsPath(Array("singleton"), false, true)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     val emptyFileName = empty.getFileName
     emptyFileName shouldBe null
@@ -178,38 +174,12 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
     absFileName.toString shouldBe "somewhere"
   }
 
-  it should "implement getRoot" in {
-    val empty = new NioGcsPath(Array.empty[String], true)
-    val singletonAbs = new NioGcsPath(Array("singleton"), true)
-    val singletonRel = new NioGcsPath(Array("singleton"), false)
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
-
-    an[IllegalStateException] shouldBe thrownBy(empty.getRoot)
-
-    val singletonAbsFileName = singletonAbs.getRoot
-    singletonAbsFileName.isAbsolute shouldBe true
-    singletonAbsFileName.toString shouldBe "gs://singleton"
-
-    val singletonRelFileName = singletonRel.getRoot
-    singletonRelFileName.isAbsolute shouldBe true
-    singletonRelFileName.toString shouldBe "gs://absolute"
-
-    val relFileName = relPath1.getRoot
-    relFileName.isAbsolute shouldBe true
-    relFileName.toString shouldBe "gs://absolute"
-
-    val absFileName = absPath1.getRoot
-    absFileName.isAbsolute shouldBe true
-    absFileName.toString shouldBe "gs://absolute"
-  }
-
   it should "implement getIterator" in {
-    val empty = new NioGcsPath(Array.empty[String], true)
-    val singletonAbs = new NioGcsPath(Array("singleton"), true)
-    val singletonRel = new NioGcsPath(Array("singleton"), false)
-    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false)
+    val empty = new NioGcsPath(Array.empty[String], true, true)
+    val singletonAbs = new NioGcsPath(Array("singleton"), true, true)
+    val singletonRel = new NioGcsPath(Array("singleton"), false, true)
+    val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
 
     empty.iterator().hasNext shouldBe false
 
@@ -244,19 +214,19 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement startsWith" in {
-    val empty = new NioGcsPath(Array.empty[String], false)
-    val singletonAbs = new NioGcsPath(Array("absolute"), true)
-    val singletonRel = new NioGcsPath(Array("absolute"), false)
+    val empty = new NioGcsPath(Array.empty[String], false, true)
+    val singletonAbs = new NioGcsPath(Array("absolute"), true, true)
+    val singletonRel = new NioGcsPath(Array("absolute"), false, true)
 
-    val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val startsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to"), true)
-    val doesntStartsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true)
-    val absPathStartingLikeRel = new NioGcsPath(Array("some", "relative", "path"), true)
+    val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val startsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to"), true, true)
+    val doesntStartsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true, true)
+    val absPathStartingLikeRel = new NioGcsPath(Array("some", "relative", "path"), true, true)
 
-    val relPath = new NioGcsPath(Array("some", "relative", "path"), false)
-    val startsWithRelPath = new NioGcsPath(Array("some", "relative"), false)
-    val doesntStartsWithRelPath = new NioGcsPath(Array("some", "relative", "other", "path"), false)
-    val relPathStartingLikeAbs = new NioGcsPath(Array("absolute", "path", "to"), false)
+    val relPath = new NioGcsPath(Array("some", "relative", "path"), false, true)
+    val startsWithRelPath = new NioGcsPath(Array("some", "relative"), false, true)
+    val doesntStartsWithRelPath = new NioGcsPath(Array("some", "relative", "other", "path"), false, true)
+    val relPathStartingLikeAbs = new NioGcsPath(Array("absolute", "path", "to"), false, true)
 
     val paths = Table(
       ("path1", "path2", "result"),
@@ -282,18 +252,18 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   }
 
   it should "implement endsWith" in {
-    val empty = new NioGcsPath(Array.empty[String], false)
-    val singletonAbs = new NioGcsPath(Array("absolute"), true)
-    val singletonRel = new NioGcsPath(Array("absolute"), false)
+    val empty = new NioGcsPath(Array.empty[String], false, true)
+    val singletonAbs = new NioGcsPath(Array("absolute"), true, true)
+    val singletonRel = new NioGcsPath(Array("absolute"), false, true)
 
-    val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true)
-    val doesntEndWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true)
-    val absPathEndingLikeRel = new NioGcsPath(Array("relative", "path"), true)
+    val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
+    val doesntEndWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true, true)
+    val absPathEndingLikeRel = new NioGcsPath(Array("relative", "path"), true, true)
 
-    val relPath = new NioGcsPath(Array("some", "relative", "path"), false)
-    val endsWithRelPath = new NioGcsPath(Array("relative", "path"), false)
-    val doesntStartsWithRelPath = new NioGcsPath(Array("relative", "other", "path"), false)
-    val relPathEndingLikeAbs = new NioGcsPath(Array("path", "to", "somewhere"), false)
+    val relPath = new NioGcsPath(Array("some", "relative", "path"), false, true)
+    val endsWithRelPath = new NioGcsPath(Array("relative", "path"), false, true)
+    val doesntStartsWithRelPath = new NioGcsPath(Array("relative", "other", "path"), false, true)
+    val relPathEndingLikeAbs = new NioGcsPath(Array("path", "to", "somewhere"), false, true)
 
     val paths = Table(
       ("path1", "path2", "result"),

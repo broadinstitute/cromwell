@@ -1,10 +1,13 @@
 package cromwell.engine.backend.jes.authentication
 
 import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.io.filesystem.gcs.{StorageFactory, GcsFileSystemProvider, GcsFileSystem}
 import cromwell.engine.backend.jes._
-import cromwell.engine.io.gcs.GoogleCloudStorage
 import cromwell.util.google.GoogleCredentialFactory
 import spray.json.JsObject
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.postfixOps
 
 /**
  * Trait for JesConnection
@@ -16,7 +19,7 @@ trait JesConnection {
     * This method should try its best to provide a GCS connection setup with the user's credentials.
     * In the case where it's not able to provide such a method, a default one can be provided instead.
     */
-  def jesUserConnection(workflow: WorkflowDescriptor): GoogleCloudStorage
+  def jesUserConnection(workflow: WorkflowDescriptor): GcsFileSystem
 }
 
 object ProductionJesConnection {
@@ -26,7 +29,7 @@ object ProductionJesConnection {
   lazy val jesCromwellInterface: JesInterface = {
     val cromwellCredentials = GoogleCredentialFactory.fromCromwellAuthScheme
     // .get to fail now, as we can't run on Jes without a Cromwell authenticated GCS interface
-    val gcsInterface = GoogleCloudStorage.cromwellAuthenticated.get
+    val gcsInterface = GcsFileSystemProvider(StorageFactory.cromwellAuthenticated.get).getDefaultFileSystem
     val genomicsInterface = GenomicsFactory(googleConf.appName, jesConf.endpointUrl, cromwellCredentials)
 
     JesInterface(gcsInterface, genomicsInterface)
@@ -43,7 +46,7 @@ trait JesAuthentication { self: JesConnection =>
   /**
    * Important note: Will default back to cromwell authentication if the configuration for user authentication has not been set or if the refreshToken has been supplied.
    */
-  def authenticateAsUser[A](workflow: WorkflowDescriptor)(f: GoogleCloudStorage => A) = f(jesUserConnection(workflow))
+  def authenticateAsUser[A](workflow: WorkflowDescriptor)(implicit f: GcsFileSystem => A) = f(jesUserConnection(workflow))
 
   /**
    * Generates a json containing auth information based on the parameters provided.
@@ -62,9 +65,6 @@ trait JesAuthentication { self: JesConnection =>
 trait ProductionJesAuthentication extends JesAuthentication with JesConnection {
   override lazy val jesCromwellInterface = ProductionJesConnection.jesCromwellInterface
 
-  /* We re-use the same workflow-level interface for all calls here.
-   * We can .get safely because at WorkflowDescriptor instantiation time we make sure gcsInterface is defined if running on JES.
-   * TODO: remove the Option[...] through inheritance or implicits ?
-   */
-  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.gcsInterface.get
+  // We want to fail if we can't find a GcsFileSystem here
+  override def jesUserConnection(workflow: WorkflowDescriptor) = workflow.fileSystems collectFirst { case gcs: GcsFileSystem => gcs } get
 }

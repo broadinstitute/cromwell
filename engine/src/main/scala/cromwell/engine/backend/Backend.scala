@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import java.nio.file.Path
+import java.nio.file.FileSystem
 
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
@@ -9,7 +10,6 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
-import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.engine.{CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
@@ -104,7 +104,7 @@ trait Backend {
   def bindCall(jobDescriptor: BackendCallJobDescriptor,
                abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
 
-  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions
+  def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions
 
   /**
    * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
@@ -157,4 +157,8 @@ trait Backend {
   }
 
   def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions
+
+  def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem]
+
+  def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 }

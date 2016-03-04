@@ -1,4 +1,4 @@
-package cromwell.engine.io.gcs
+package cromwell.engine.backend.io.filesystem.gcs
 
 import java.io.{FileNotFoundException, OutputStream}
 import java.net.URI
@@ -11,16 +11,31 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.StorageObject
 import com.google.cloud.hadoop.gcsio.{GoogleCloudStorageReadChannel, GoogleCloudStorageWriteChannel, ObjectWriteConditions}
 import com.google.cloud.hadoop.util.{ApiErrorExtractor, AsyncWriteChannelOptions, ClientRequestHelper}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
-import scala.util.Try
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object GcsFileSystemProvider {
-  def apply(gcsInterface: Try[GoogleCloudStorage])(implicit executionContext: ExecutionContext) = new GcsFileSystemProvider(gcsInterface, executionContext)
+  def apply()(implicit executionContext: ExecutionContext) = {
+    new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), executionContext)
+  }
+  def apply(storageClient: Storage)(implicit executionContext: ExecutionContext) = {
+    new GcsFileSystemProvider(Success(storageClient), executionContext)
+  }
+
+  val defaultProvider = new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), scala.concurrent.ExecutionContext.global)
+
+  object AcceptAllFilter extends DirectoryStream.Filter[Path] {
+    override def accept(entry: Path): Boolean = true
+  }
 }
 
 /**
@@ -48,19 +63,43 @@ object ExecutionContextExecutorServiceBridge {
   * Implements java.nio.FileSystemProvider for GoogleCloudStorage
   * This implementation is not complete and mostly a proof of concept that it's possible to *copy* around files from/to local/gcs.
   * Copying is the only functionality that has been successfully tested (same and cross filesystems).
-  * @param gcs Interface to perform operations with GCS. Type is a try so this class can be instantiated even with a failed interface
-  *            to allow Path manipulations via GcsFileSystem. The interface might be absorbed by this class eventually.
+  * @param storageClient Google API Storage object
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
-class GcsFileSystemProvider private (gcs: Try[GoogleCloudStorage], executionContext: ExecutionContext) extends FileSystemProvider {
+class GcsFileSystemProvider private (storageClient: Try[Storage], executionContext: ExecutionContext) extends FileSystemProvider {
 
   // We want to throw an exception here if we try to use this class with a failed gcs interface
-  private lazy val googleCloudStorage = gcs.get
+  lazy val client = storageClient.get
   private val executionService = ExecutionContextExecutorServiceBridge(executionContext)
   private val errorExtractor = new ApiErrorExtractor()
+  def notAGcsPath(path: Path) = throw new IllegalArgumentException(s"$path is not a GCS path.")
+  // Can't instantiate it now as it needs a GcsFileSystemProvider (this), which is not yet instantiated at this point..
+  private var defaultFileSystem: Option[GcsFileSystem] = None
 
-  private def checkExists(path: Path) = {
-    if (!googleCloudStorage.exists(path.toString)) throw new FileNotFoundException(path.toString)
+  private def exists(path: Path) = path match {
+    case gcsPath: NioGcsPath =>
+      val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
+      val polling = 500 milliseconds
+
+      def checkExists = {
+        Try(getObject.execute) recoverWith {
+          case ex: GoogleJsonResponseException if ex.getStatusCode == 404 =>
+            if (gcsPath.isDirectory) Success(gcsPath) else Failure(ex)
+        }
+      }
+
+      def tryExists(retries: Int): Boolean = checkExists match {
+        case Success(_) => true
+        case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 && retries > 0 =>
+          // FIXME remove this sleep
+          Thread.sleep(polling.toMillis)
+          tryExists(retries - 1)
+        case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 => false
+        case Failure(ex) => throw ex
+      }
+
+      if (!tryExists(3)) throw new FileNotFoundException(path.toString)
+    case _ => throw new FileNotFoundException(path.toString)
   }
 
   /**
@@ -69,13 +108,13 @@ class GcsFileSystemProvider private (gcs: Try[GoogleCloudStorage], executionCont
   override def newByteChannel(path: Path, options: util.Set[_ <: OpenOption], attrs: FileAttribute[_]*): SeekableByteChannel = {
     path match {
       case gcsPath: NioGcsPath =>
-        new GoogleCloudStorageReadChannel(googleCloudStorage.client,
+        new GoogleCloudStorageReadChannel(client,
           gcsPath.bucket,
           gcsPath.objectName,
           errorExtractor,
           new ClientRequestHelper[StorageObject]()
         )
-      case _ => throw new UnsupportedOperationException("Only Gcs paths are supported.")
+      case _ => notAGcsPath(path)
     }
   }
 
@@ -84,59 +123,103 @@ class GcsFileSystemProvider private (gcs: Try[GoogleCloudStorage], executionCont
     * NOTE: options are not honored.
     */
   override def newOutputStream(path: Path, options: OpenOption*): OutputStream = {
+    val contentType = options collectFirst {
+      case e: ContentTypeOption.ContentType => e.toString
+    } getOrElse ContentTypeOption.PlainText.toString
+
     def initializeOutputStream(gcsPath: NioGcsPath) = {
       val channel = new GoogleCloudStorageWriteChannel(
         executionService,
-        googleCloudStorage.client,
+        client,
         new ClientRequestHelper[StorageObject](),
         gcsPath.bucket,
         gcsPath.objectName,
         AsyncWriteChannelOptions.newBuilder().build(),
         new ObjectWriteConditions(),
         Map.empty[String, String].asJava,
-        "text/plain")
+        contentType)
       channel.initialize()
       Channels.newOutputStream(channel)
     }
 
     path match {
       case gcsPath: NioGcsPath => initializeOutputStream(gcsPath)
-      case _ => throw new UnsupportedOperationException("Only Gcs paths are supported.")
+      case _ => notAGcsPath(path)
     }
   }
 
   override def copy(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
-      case (s: NioGcsPath, d: NioGcsPath) => googleCloudStorage.copy(s, d)
+      case (s: NioGcsPath, d: NioGcsPath) =>
+        val storageObject = client.objects.get(s.bucket, s.objectName).execute
+        client.objects.copy(s.bucket, s.objectName, d.bucket, d.objectName, storageObject).execute
       case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
     }
   }
 
   override def delete(path: Path): Unit = {
     path match {
-      case gcs: GcsPath => googleCloudStorage.deleteObject(gcs)
+      case gcs: NioGcsPath => client.objects.delete(gcs.bucket, gcs.objectName).execute()
+      case _ => notAGcsPath(path)
     }
   }
 
-  override def readAttributes[A <: BasicFileAttributes](path: Path, `type`: Class[A], options: LinkOption*): A = {
-    checkExists(path)
-    new GcsFileAttributes(path).asInstanceOf[A]
+  override def readAttributes[A <: BasicFileAttributes](path: Path, `type`: Class[A], options: LinkOption*): A = path match {
+    case gcsPath: NioGcsPath =>
+      exists(path)
+      new GcsFileAttributes(gcsPath, client).asInstanceOf[A]
+    case _ => notAGcsPath(path)
   }
 
   override def move(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
-      case (s: NioGcsPath, d: NioGcsPath) => googleCloudStorage.move(s, d)
+      case (s: NioGcsPath, d: NioGcsPath) =>
+        val storageObject = client.objects.get(s.bucket, s.objectName).execute
+        client.objects.rewrite(s.bucket, s.objectName, d.bucket, d.objectName, storageObject).execute
       case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
     }
   }
-  override def checkAccess(path: Path, modes: AccessMode*): Unit = {checkExists(path)}
+
+  def crc32cHash(path: Path) = path match {
+    case gcsDir: NioGcsPath =>
+      val obj = client.objects().get(gcsDir.bucket, gcsDir.objectName).execute()
+      obj.getCrc32c
+    case _ => notAGcsPath(path)
+  }
+
+  override def checkAccess(path: Path, modes: AccessMode*): Unit = exists(path)
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
-  override def getFileSystem(uri: URI): FileSystem = throw new UnsupportedOperationException()
+  override def getFileSystem(uri: URI): FileSystem = getDefaultFileSystem
+
+  def getDefaultFileSystem = defaultFileSystem match {
+    case Some(fs) => fs
+    case None =>
+      val fs = GcsFileSystem(this)
+      defaultFileSystem = Option(fs)
+      fs
+  }
+
   override def isHidden(path: Path): Boolean = throw new NotImplementedError()
-  override def newDirectoryStream(dir: Path, filter: Filter[_ >: Path]): DirectoryStream[Path] = throw new NotImplementedError()
+  override def newDirectoryStream(dir: Path, filter: Filter[_ >: Path]): DirectoryStream[Path] = dir match {
+    case gcsDir: NioGcsPath =>
+      val listRequest = client.objects().list(gcsDir.bucket)
+      listRequest.setPrefix(gcsDir.objectName)
+
+      val paths = for {
+        listedFile <- listRequest.execute().getItems.asScala
+      } yield NioGcsPath(s"$getScheme${listedFile.getBucket}${GcsFileSystem.Separator}${listedFile.getName}")(dir.getFileSystem.asInstanceOf[GcsFileSystem])
+
+      new DirectoryStream[Path] {
+        override def iterator(): util.Iterator[Path] = paths.toIterator.asJava
+        override def close(): Unit = {}
+      }
+    case _ => notAGcsPath(dir)
+  }
   override def setAttribute(path: Path, attribute: String, value: scala.Any, options: LinkOption*): Unit = throw new NotImplementedError()
   override def getPath(uri: URI): Path = throw new NotImplementedError()
-  override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = throw new NotImplementedError()
+  override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = {
+    throw new UnsupportedOperationException("GcsFileSystem provider doesn't support creation of new FileSystems at this time. Use getFileSystem instead.")
+  }
   override def readAttributes(path: Path, attributes: String, options: LinkOption*): util.Map[String, AnyRef] = throw new NotImplementedError()
   override def isSameFile(path: Path, path2: Path): Boolean = throw new NotImplementedError()
   override def getFileAttributeView[V <: FileAttributeView](path: Path, `type`: Class[V], options: LinkOption*): V = throw new NotImplementedError()

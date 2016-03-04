@@ -1,10 +1,10 @@
 package cromwell.engine.backend.jes
 
-import java.math.BigInteger
 import java.net.SocketTimeoutException
-import java.nio.file.{Path, Paths}
+import java.nio.file.{FileSystem, Path, Paths}
 
 import akka.actor.ActorSystem
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
@@ -12,13 +12,13 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend._
+import cromwell.engine.backend.io.filesystem.gcs._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
-import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{AbortRegistrationFunction, CallOutput, CallOutputs, HostInputs, _}
@@ -51,7 +51,7 @@ object JesBackend {
   val WriteToCacheOptionKey = "write_to_cache"
   val ReadFromCacheOptionKey = "read_from_cache"
   val OptionKeys = Set(
-    GoogleCloudStorage.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
+    StorageFactory.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
     AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
   ) ++ WorkflowDescriptor.OptionKeys
 
@@ -200,6 +200,7 @@ object JesBackend {
   def jesLogStderrFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stderr.log"
   def jesLogFilename(key: BackendCallKey) = s"${jesLogBasename(key)}.log"
   def jesReturnCodeFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-rc.txt"
+  def globDirectory(glob: String) = s"glob-${glob.md5Sum}/"
 }
 
 /**
@@ -220,6 +221,9 @@ case class JesBackend(actorSystem: ActorSystem)
   with ProductionJesAuthentication
   with ProductionJesConfiguration {
   type BackendCall = JesBackendCall
+
+  import backend.io._
+  import better.files._
 
   /**
     * Exponential Backoff Builder to be used when polling for call status.
@@ -247,20 +251,16 @@ case class JesBackend(actorSystem: ActorSystem)
 
     generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) foreach { content =>
 
-      val path = GcsPath(gcsAuthFilePath(workflow))
-      def upload(prev: Option[Unit]) = connection.storage.uploadJson(path, content)
+      val path = gcsAuthFilePath(workflow).toAbsolutePath(List(connection.gcsFileSystem))
+      def upload(prev: Option[Unit]): Unit = path.writeAsJson(content)
 
       log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
       withRetry(upload, log, s"Exception occurred while uploading auth file to $path")
     }
   }
 
-  def getCrc32c(workflow: WorkflowDescriptor, googleCloudStoragePath: GcsPath): String = authenticateAsUser(workflow) {
-    _.getCrc32c(googleCloudStoragePath)
-  }
-
-  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions = {
-    new JesWorkflowEngineFunctions(ioInterface, workflowContext)
+  def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
+    new JesWorkflowEngineFunctions(fileSystems, workflowContext)
   }
 
   /**
@@ -275,7 +275,7 @@ case class JesBackend(actorSystem: ActorSystem)
     for {
       userAuthMode <- googleConf.userAuthMode
       secrets <- extractSecrets(userAuthMode)
-      token <- workflow.workflowOptions.get(GoogleCloudStorage.RefreshTokenOptionKey).toOption
+      token <- workflow.workflowOptions.get(StorageFactory.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(secrets, token)
   }
 
@@ -296,7 +296,7 @@ case class JesBackend(actorSystem: ActorSystem)
     }
 
     if (googleConf.userAuthMode.isDefined) {
-      Seq(GoogleCloudStorage.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
+      Seq(StorageFactory.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
         case missing if missing.nonEmpty =>
           throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
         case _ =>
@@ -320,12 +320,17 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   private def deleteAuthFile(authFilePath: String, log: WorkflowLogger): Future[Unit] = authenticateAsCromwell { connection =>
-      def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = connection.storage.exists(authFilePath)
-      def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = connection.storage.deleteObject(authFilePath)
+      implicit val gcsFs = List(connection.gcsFileSystem)
+
+      def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = authFilePath.toAbsolutePath(connection.gcsFileSystem).exists
+      def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = authFilePath.toAbsolutePath(connection.gcsFileSystem).delete()
       withRetry(gcsCheckAuthFileExists, log, s"Failed to query for auth file: $authFilePath") match {
         case Success(exists) if exists =>
           withRetry(gcsAttemptToDeleteObject, log, s"Failed to delete auth file: $authFilePath") match {
             case Success(_) => Future.successful(Unit)
+            case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 =>
+              log.warn(s"Could not delete the auth file $authFilePath: File Not Found")
+              Future.successful(Unit)
             case Failure(ex) =>
               log.error(s"Could not delete the auth file $authFilePath", ex)
               Future.failed(ex)
@@ -349,7 +354,7 @@ case class JesBackend(actorSystem: ActorSystem)
     log.info(s"Call GCS path: ${backendCall.callGcsPath}")
     val monitoringScript: Option[JesInput] = monitoringIO(backendCall)
     val monitoringOutput = monitoringScript map { _ =>
-      JesFileOutput(s"$MonitoringParamName-out", backendCall.defaultMonitoringOutputPath, Paths.get(JesMonitoringLogFile), backendCall.workingDisk)
+      JesFileOutput(s"$MonitoringParamName-out", backendCall.defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), backendCall.workingDisk)
     }
 
     val jesInputs: Seq[JesInput] = generateJesInputs(backendCall).toSeq ++ monitoringScript :+ backendCall.cmdInput
@@ -372,6 +377,9 @@ case class JesBackend(actorSystem: ActorSystem)
   def useCachedCall(cachedCall: BackendCall, backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     import better.files._
 
+    // FIXME Temporary workaround so both paths share the same FileSystemProvider, which allows copy in the cloud instead of streaming through cromwell
+    val backendCallPath = backendCall.callGcsPath.toString.toDirectory(cachedCall.jobDescriptor.workflowDescriptor.fileSystems)
+
     def renameCallSpecificFiles = {
       val namesBuilder = List(
         JesBackend.jesLogStdoutFilename _,
@@ -381,7 +389,7 @@ case class JesBackend(actorSystem: ActorSystem)
       )
 
       /* Paths of the files in the cached call. */
-      val cachedPaths = namesBuilder map { _(cachedCall.key) } map backendCall.callGcsPath.resolve
+      val cachedPaths = namesBuilder map { _(cachedCall.key) } map backendCallPath.resolve
       /* Expected names of the files in the current call.
        * They might be different if the cached call doesn't have the same name / shard
        * as the current call, because this information is part of the filename (TODO should it ?).
@@ -393,17 +401,17 @@ case class JesBackend(actorSystem: ActorSystem)
       }
     }
 
-    def copyingWork(gcs: GoogleCloudStorage): Try[Unit] = for {
-        _ <- Try(gcs.copy(cachedCall.callGcsPath.toString, backendCall.callGcsPath.toString))
+    def copyingWork(implicit gcs: GcsFileSystem): Try[Unit] = for {
+        _ <- Try(cachedCall.callGcsPath.copyTo(backendCallPath))
         _ <- Try(renameCallSpecificFiles)
     } yield ()
 
     Future {
       val log = workflowLoggerWithCall(backendCall)
-      authenticateAsUser(backendCall.workflowDescriptor) { interface =>
+      authenticateAsUser(backendCall.workflowDescriptor) { implicit interface =>
         copyingWork(interface) match {
           case Failure(ex) =>
-            log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to ${backendCall.callGcsPath}", ex)
+            log.error(s"Exception occurred while attempting to copy outputs from ${cachedCall.callGcsPath} to $backendCallPath", ex)
             FailedExecutionHandle(ex).future
           case Success(_) => postProcess(backendCall) match {
             case Success(outputs) => backendCall.hash map { h =>
@@ -493,7 +501,7 @@ case class JesBackend(actorSystem: ActorSystem)
     // Create the mappings. GLOB mappings require special treatment (i.e. stick everything matching the glob in a folder)
     wdlFileOutputs.distinct map { wdlFile =>
       val destination = wdlFile match {
-        case WdlSingleFile(filePath) => s"${backendCall.callGcsPath}/$filePath"
+        case WdlSingleFile(filePath) => backendCall.callGcsPath.resolve(filePath).toString
         case WdlGlobFile(filePath) => backendCall.globOutputPath(filePath)
       }
       val (relpath, disk) = relativePathAndAttachedDisk(wdlFile.value, backendCall.runtimeAttributes.disks)
@@ -555,7 +563,10 @@ case class JesBackend(actorSystem: ActorSystem)
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticateAsUser(backendCall.workflowDescriptor) { _.uploadObject(backendCall.gcsExecPath, fileContent) }
+    def attemptToUploadObject(priorAttempt: Option[Unit]) = authenticateAsUser(backendCall.workflowDescriptor) { implicit gcsFs =>
+      backendCall.gcsExecPath.write(fileContent)
+      ()
+    }
 
     val log = workflowLogger(backendCall.workflowDescriptor)
     withRetry(attemptToUploadObject, log, s"${workflowLoggerWithCall(backendCall).tag} Exception occurred while uploading script to ${backendCall.gcsExecPath}")
@@ -600,7 +611,7 @@ case class JesBackend(actorSystem: ActorSystem)
     vmLocalizationPath match {
       // If it's a file, work out where the file would be delocalized to, otherwise no-op:
       case x : WdlFile =>
-        val delocalizationPath = s"${backendCall.callGcsPath}/${vmLocalizationPath.valueString}"
+        val delocalizationPath = backendCall.callGcsPath.resolve(vmLocalizationPath.valueString).toString
         WdlFile(delocalizationPath)
       case a: WdlArray => WdlArray(a.wdlType, a.value map { f => gcsInputToGcsOutput(backendCall, f) })
       case m: WdlMap => WdlMap(m.wdlType, m.value map { case (k, v) => gcsInputToGcsOutput(backendCall, k) -> gcsInputToGcsOutput(backendCall, v) })
@@ -669,7 +680,7 @@ case class JesBackend(actorSystem: ActorSystem)
     try {
       val backendCall = handle.backendCall
       val outputMappings = postProcess(backendCall)
-      lazy val stderrLength: BigInteger = authenticateAsUser(backendCall.workflowDescriptor) { _.objectSize(GcsPath(backendCall.jesStderrGcsPath)) }
+      lazy val stderrLength: Long = authenticateAsUser(backendCall.workflowDescriptor) { implicit gcsFs => backendCall.jesStderrGcsPath.size }
       lazy val returnCodeContents = backendCall.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
@@ -883,6 +894,18 @@ case class JesBackend(actorSystem: ActorSystem)
     lazy val jesStderrGcsPath = callGcsPath.resolve(jesLogStderrFilename(key)).toString
 
     val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
-    new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+    new JesCallEngineFunctions(workflowDescriptor.fileSystems, callContext)
+  }
+
+  override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = {
+    // TODO Should GCS operations have their own execution context ?
+    implicit val executionContext = scala.concurrent.ExecutionContext.global
+
+    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated match {
+      case Success(x) => x
+      case Failure(t) => throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.", t)
+    }
+
+    List(GcsFileSystemProvider(gcsStorage).getDefaultFileSystem)
   }
 }

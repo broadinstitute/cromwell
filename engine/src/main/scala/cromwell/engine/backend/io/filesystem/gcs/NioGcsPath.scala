@@ -1,4 +1,4 @@
-package cromwell.engine.io.gcs
+package cromwell.engine.backend.io.filesystem.gcs
 
 import java.io.File
 import java.net.URI
@@ -7,20 +7,27 @@ import java.nio.file._
 import java.util
 
 import scala.collection.JavaConverters._
-import scala.language.implicitConversions
-import scala.language.postfixOps
+import scala.language.{implicitConversions, postfixOps}
 import scala.util.Try
 
 object NioGcsPath {
-  def apply(path: String)(implicit gcsFileSystem: GcsFileSystem)= gcsFileSystem.getPath(path)
+  def apply(path: String)(implicit gcsFileSystem: GcsFileSystem) = gcsFileSystem.getPath(path)
 
   implicit class PathEnhanced(val path: Path) extends AnyVal {
     def asGcsPath(implicit gcsFileSystem: GcsFileSystem) = path match {
       case gcsPath: NioGcsPath => gcsPath
-      case otherPath: Path => gcsFileSystem.getPath(otherPath.toString).asInstanceOf[NioGcsPath]
+      case otherPath: Path => getSoftPath(otherPath.toString).asInstanceOf[NioGcsPath]
       case _ => throw new IllegalArgumentException("Only GcsPaths are supported.")
     }
   }
+
+  /** Allow instantiation of a relative gcs path.
+    * Relative GCS paths can only be created via NioGcsPath methods (eg: subpath, getName...) but not through the GcsFileSystem.getPath method
+    * in order to avoid floating paths without root. It also ensures that a relative local path cannot mistakenly be parsed as a GCS path.
+    * */
+  private def getSoftPath(first: String, more: String*)(implicit gcsFs: GcsFileSystem): Path = Try(gcsFs.getPath(first, more: _*)) recover {
+    case e: NotAGcsPathException => new NioGcsPath(first.split(GcsFileSystem.Separator) ++ more.toArray[String], false, first.endsWith(GcsFileSystem.Separator))(gcsFs)
+  } get
 
   val Protocol = GcsFileSystem.Protocol
 }
@@ -39,7 +46,7 @@ object NioGcsPath {
   *                 Calling methods on an absolute path can return a relative paths (eg subpath).
   * @param gcsFileSystem the gcsFileSystem to be used when performing operations on this path
   */
-class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit gcsFileSystem: GcsFileSystem) extends Path {
+class NioGcsPath(private val chunks: Array[String], absolute: Boolean, val isDirectory: Boolean)(implicit gcsFileSystem: GcsFileSystem) extends Path {
   import NioGcsPath._
 
   private val separator = GcsFileSystem.Separator
@@ -53,7 +60,9 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   lazy val bucket: String = chunks match {
     case values if values.isEmpty && isAbsolute => throw new IllegalStateException("An absolute gcs path cannot be empty")
-    case _ => if(isAbsolute) chunks.head else gcsFileSystem.root.asGcsPath.bucket
+    case _ => if(isAbsolute) chunks.head else {
+      throw new UnsupportedOperationException("Attached gcs filesystem has no root and is not Absolute. The corresponding bucket is unknown.")
+    }
   }
 
   val objectName = chunksToString(objectChunks)
@@ -61,27 +70,42 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
   private def chunksToString(chunksArray: Array[String]): String = chunksArray.mkString(separator)
 
   override def subpath(beginIndex: Int, endIndex: Int): Path = {
-    new NioGcsPath(chunks.slice(beginIndex, endIndex), isAbsolute && beginIndex == 0)
+    val directory = if (endIndex == chunks.length - 1) isDirectory else true
+    new NioGcsPath(chunks.slice(beginIndex, endIndex), isAbsolute && beginIndex == 0, directory)
   }
 
   override def toFile: File = throw new UnsupportedOperationException("A GCS path cannot be converted to a File.")
 
-  override def resolveSibling(other: Path): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ other.asGcsPath.chunks, isAbsolute)
+  override def resolveSibling(other: Path): Path = {
+    val otherPath = other.asGcsPath
+    new NioGcsPath(getParent.asGcsPath.chunks ++ otherPath.chunks, isAbsolute, otherPath.isDirectory)
+  }
 
-  override def resolveSibling(other: String): Path = new NioGcsPath(getParent.asGcsPath.chunks ++ gcsFileSystem.getPath(other).asGcsPath.chunks, isAbsolute)
+  override def resolveSibling(other: String): Path = {
+    val otherPath = getSoftPath(other).asGcsPath
+    new NioGcsPath(getParent.asGcsPath.chunks ++ getSoftPath(other).asGcsPath.chunks, isAbsolute, otherPath.isDirectory)
+  }
 
   override def getFileSystem: FileSystem = gcsFileSystem
 
-  override def getName(index: Int): Path = new NioGcsPath(Array(chunks(index)), isAbsolute && index == 0)
+  override def getName(index: Int): Path = {
+    val directory = if (index == chunks.length - 1) isDirectory else true
+    new NioGcsPath(Array(chunks(index)), isAbsolute && index == 0, directory)
+  }
 
   override def getParent: Path = chunks match {
     case values if values.isEmpty || values.length == 1 => null
-    case values => new NioGcsPath(values.init, isAbsolute)
+    case values => new NioGcsPath(values.init, isAbsolute, true)
   }
 
-  override def toAbsolutePath: Path = if (isAbsolute) this else gcsFileSystem.root.resolve(this)
+  override def toAbsolutePath: Path = if (isAbsolute) this else {
+    throw new UnsupportedOperationException(s"Attached gcs filesystem has no root. path $toString can't be converted to an absolute path.")
+  }
 
-  override def relativize(other: Path): Path = throw new NotImplementedError()
+  override def relativize(other: Path): Path = other match {
+    case gcs: NioGcsPath => new NioGcsPath(gcs.chunks.diff(this.chunks), false, gcs.isDirectory)
+    case _ => throw new IllegalArgumentException(s"$other is not a GCS path.")
+  }
 
   override def getNameCount: Int = chunks.length
 
@@ -95,12 +119,18 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def getFileName: Path = chunks match {
     case values if values.isEmpty => null
-    case _ => new NioGcsPath(Array(chunks.last), isAbsolute && chunks.length == 1)
+    case _ => new NioGcsPath(Array(chunks.last), isAbsolute && chunks.length == 1, isDirectory)
   }
 
-  override def getRoot: Path = new NioGcsPath(Array(bucket), true)
+  override def getRoot: Path = new NioGcsPath(Array(bucket), true, true)
 
-  override def iterator(): util.Iterator[Path] = (chunks map { elt => new NioGcsPath(Array(elt), false).asInstanceOf[Path] } iterator).asJava
+  override def iterator(): util.Iterator[Path] = {
+    if (chunks.isEmpty) chunks.map(_.asInstanceOf[Path]).iterator.asJava else {
+      val init = chunks.init map { elt => new NioGcsPath(Array(elt), false, true).asInstanceOf[Path] }
+      val fullIterator = init :+ new NioGcsPath(Array(chunks.last), false, isDirectory).asInstanceOf[Path]
+      fullIterator.iterator.asJava
+    }
+  }
 
   override def normalize(): Path = if (isAbsolute) this else throw new UnsupportedOperationException("Cannot normalize a relative GCS path.")
 
@@ -113,7 +143,7 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
   }
 
   override def endsWith(other: String): Boolean = {
-    Try(gcsFileSystem.getPath(other)) map {
+    Try(getSoftPath(other)) map {
       case rel: NioGcsPath if !isAbsolute && rel.isAbsolute => false
       case path@(_: NioGcsPath) => chunks.endsWith(path.asGcsPath.chunks)
       case _ => false
@@ -122,13 +152,16 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
 
   override def resolve(other: Path): Path = {
     if (other.isAbsolute) other
-    else new NioGcsPath(chunks ++ other.asGcsPath.chunks, isAbsolute)
+    else {
+      val otherGcs = other.asGcsPath
+      new NioGcsPath(chunks ++ otherGcs.chunks, isAbsolute, otherGcs.isDirectory)
+    }
   }
 
   override def resolve(other: String): Path = {
-    val otherPath = gcsFileSystem.getPath(other)
+    val otherPath = getSoftPath(other).asGcsPath
     if (otherPath.isAbsolute) otherPath
-    else new NioGcsPath(chunks ++ otherPath.asGcsPath.chunks, isAbsolute)
+    else new NioGcsPath(chunks ++ otherPath.asGcsPath.chunks, isAbsolute, otherPath.isDirectory)
   }
 
   override def toRealPath(options: LinkOption*): Path = this
@@ -142,7 +175,7 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean)(implicit 
   }
 
   override def startsWith(other: String): Boolean = {
-    Try(gcsFileSystem.getPath(other)) map {
+    Try(getSoftPath(other)) map {
       case rel: NioGcsPath if !isAbsolute && rel.isAbsolute => false
       case path@(_: NioGcsPath) => chunks.startsWith(path.asGcsPath.chunks)
       case _ => false

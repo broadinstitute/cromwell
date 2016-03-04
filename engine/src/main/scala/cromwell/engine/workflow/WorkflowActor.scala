@@ -276,8 +276,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   /** Messages self to perform the requested transition once all persistence is complete. */
   private def scheduleTransition(toState: WorkflowState): Unit = {
+    // Called after the workflow Status is persisted, which means that if something fails here - Workflow will still be marked successful in the DB
     def handleTerminalWorkflow: Future[Unit] = {
       for {
+          // FIXME If cleanUpForWorkflow fails - options are not updated and the terminate message is never sent
         _ <- backend.cleanUpForWorkflow(workflow)
         _ <- globalDataAccess.updateWorkflowOptions(workflow.id, workflow.workflowOptions.clearEncryptedValues)
         _ = self ! Terminate

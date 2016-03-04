@@ -1,18 +1,22 @@
 package cromwell.engine.backend.jes
 
-import cromwell.engine.PathString._
+import java.nio.file.FileSystem
+import better.files._
 import cromwell.engine._
-import cromwell.engine.io.IoInterface
+import cromwell.engine.backend.io._
 import wdl4s.values._
+import scala.language.postfixOps
 
 import scala.util.Try
-class JesWorkflowEngineFunctions(interface: IoInterface, context: WorkflowContext) extends WorkflowEngineFunctions(interface, context) {
-  override def globPath(glob: String) = s"${context.root}/glob-${glob.md5Sum}/"
-
-  override def adjustFilePath(path: String) = if (!path.isGcsUrl) s"${context.root}/$path" else path
+class JesWorkflowEngineFunctions(fileSystems: List[FileSystem], context: WorkflowContext) extends WorkflowEngineFunctions(fileSystems, context) {
+  override def globPath(glob: String): String = context.root.toAbsolutePath(fileSystems).resolve(JesBackend.globDirectory(glob)).toString
+  override def glob(path: String, pattern: String): Seq[String] = {
+    path.toAbsolutePath(fileSystems).asDirectory.glob("**/*") map { _.path.fullPath } filterNot { _.toString == path } toSeq
+  }
+  override def adjustFilePath(path: String) = if (!path.isGcsUrl) context.root.toAbsolutePath(fileSystems).resolve(path).toString else path
 }
 
-class JesCallEngineFunctions(interface: IoInterface, context: CallContext) extends JesWorkflowEngineFunctions(interface, context) with CallEngineFunctions {
+class JesCallEngineFunctions(fileSystems: List[FileSystem], context: CallContext) extends JesWorkflowEngineFunctions(fileSystems, context) with CallEngineFunctions {
   override def stdout(params: Seq[Try[WdlValue]]) = stdout(context)
   override def stderr(params: Seq[Try[WdlValue]]) = stderr(context)
 }

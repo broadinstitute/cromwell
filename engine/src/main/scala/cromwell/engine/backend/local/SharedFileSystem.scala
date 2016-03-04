@@ -1,13 +1,12 @@
 package cromwell.engine.backend.local
 
 import java.io.File
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{FileSystem, Files, Path, Paths}
 
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, LocalFileSystemBackendCall, _}
-import cromwell.engine.io.IoInterface
-import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
+import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, _}
 import cromwell.util.TryUtil
@@ -28,7 +27,6 @@ object SharedFileSystem {
   val SharedFileSystemConf = ConfigFactory.load.getConfig("backend").getConfig("shared-filesystem")
   val CromwellExecutionRoot = SharedFileSystemConf.getString("root")
   val LocalizationStrategies = SharedFileSystemConf.getStringList("localization").asScala
-  lazy val gcsInterface = GoogleCloudStorage.cromwellAuthenticated
 
   val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
     case "hard-link" => localizePathViaHardLink _
@@ -44,10 +42,9 @@ object SharedFileSystem {
   }).+:(localizeFromGcs _)
 
   private def localizeFromGcs(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = Try {
-    import PathString._
+    import backend.io._
     assert(originalPath.isGcsUrl)
-    val content = descriptor.gcsInterface.get.downloadObject(GcsPath(originalPath))
-    new ScalaFile(executionPath).createIfNotExists().write(content)
+    originalPath.toAbsolutePath(descriptor.fileSystems).copyTo(executionPath)
   }
 
   /**
@@ -92,12 +89,14 @@ object SharedFileSystem {
 
 trait SharedFileSystem { self: Backend =>
   import SharedFileSystem._
+  import backend.io._
 
   def useCachedCall(cachedBackendCall: LocalFileSystemBackendCall, backendCall: LocalFileSystemBackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+    val fileSystems = backendCall.workflowDescriptor.fileSystems
     val source = cachedBackendCall.callRootPath.toAbsolutePath.toString
     val dest = backendCall.callRootPath.toAbsolutePath.toString
     val outputs = for {
-      _ <- Try(backendCall.workflowDescriptor.ioManager.copy(source, dest))
+      _ <- Try(source.toAbsolutePath(fileSystems).copyTo(dest.toAbsolutePath(fileSystems)))
       outputs <- postProcess(backendCall)
     } yield outputs
 
@@ -110,8 +109,8 @@ trait SharedFileSystem { self: Backend =>
 
   def rootPath(workflowOptions: WorkflowOptions) = CromwellExecutionRoot
 
-  def engineFunctions(ioInterface: IoInterface, workflowContext: WorkflowContext): WorkflowEngineFunctions = {
-    new LocalWorkflowEngineFunctions(ioInterface, workflowContext)
+  def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
+    new LocalWorkflowEngineFunctions(fileSystems, workflowContext)
   }
 
   def postProcess(backendCall: LocalFileSystemBackendCall): Try[CallOutputs] = {
@@ -197,7 +196,7 @@ trait SharedFileSystem { self: Backend =>
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
   def adjustSharedInputPaths(backendCall: BackendCall): CallInputs = {
-    import PathString._
+    import backend.io._
 
     val strategies = if (backendCall.runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 

@@ -4,7 +4,6 @@ import java.nio.file.Paths
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
@@ -13,7 +12,7 @@ import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, CallContext, WorkflowDescriptor}
 import wdl4s._
-import wdl4s.values.WdlFile
+import wdl4s.values._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps

@@ -4,9 +4,9 @@ import java.nio.file.{Paths, Path}
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.engine.ErrorOr
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.runtimeattributes.DiskType
 import wdl4s.ThrowableWithErrors
+import wdl4s.values._
 
 import scala.util.Try
 import scalaz.Scalaz._

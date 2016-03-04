@@ -10,7 +10,6 @@ import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
 import com.google.api.services.storage.model.{Bucket, StorageObject}
-import cromwell.engine.Hashing._
 import cromwell.engine.PathString
 import cromwell.engine.io.IoInterface
 import cromwell.engine.workflow.WorkflowOptions

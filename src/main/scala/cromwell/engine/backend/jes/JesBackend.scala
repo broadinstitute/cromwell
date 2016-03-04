@@ -11,7 +11,6 @@ import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.Hashing._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.RunStatus
@@ -622,7 +621,7 @@ case class JesBackend(actorSystem: ActorSystem)
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
       outputMap mapValues { v =>
-        CallOutput(v, v.getHash(backendCall.workflowDescriptor))
+        CallOutput(v, backendCall.workflowDescriptor.hash(v))
       }
     }
   }

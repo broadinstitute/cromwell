@@ -6,7 +6,6 @@ import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.{CallMetadata, Backend}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.db.DataAccess._
@@ -70,7 +69,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
           val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
-          val worldSymbolHash = worldWdlString.getHash(descriptor)
+          val worldSymbolHash = descriptor.hash(worldWdlString)
           val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST
           val task = Task.empty

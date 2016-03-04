@@ -9,7 +9,7 @@ import cromwell.engine.io.gcs.GcsFileSystem
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.joda.time.DateTime
 import wdl4s._
-import wdl4s.values.{WdlFile, WdlValue}
+import wdl4s.values.{SymbolHash, WdlValue}
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Try}
@@ -37,11 +37,6 @@ package object engine {
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 
   type ErrorOr[+A] = ValidationNel[String, A]
-
-  case class SymbolHash(value: String) extends Ordered[SymbolHash] {
-    def compare(that: SymbolHash) = this.value compare that.value
-  }
-  type FileHasher = WdlFile => SymbolHash
 
   type WorkflowOptionsJson = String
   type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]

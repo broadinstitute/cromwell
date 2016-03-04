@@ -1,12 +1,11 @@
 package cromwell.engine.backend
 
 import akka.event.LoggingAdapter
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.{CallEngineFunctions, CallOutputs, ExecutionEventEntry, ExecutionHash}
 import cromwell.logging.WorkflowLogger
 import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.values._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try

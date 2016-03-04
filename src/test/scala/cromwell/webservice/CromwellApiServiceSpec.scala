@@ -4,10 +4,9 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
 import cromwell.engine.workflow.WorkflowManagerActor.{CallCaching, CallOutputs, CallStdoutStderr, WorkflowAbort, WorkflowOutputs, WorkflowQuery, WorkflowStatus, WorkflowStdoutStderr, _}
-import cromwell.engine.{CallOutput, SymbolHash, _}
+import cromwell.engine.{CallOutput, _}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
@@ -20,7 +19,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import spray.testkit.ScalatestRouteTest
 import wdl4s._
-import wdl4s.values.{WdlFile, WdlInteger, WdlValue}
+import wdl4s.values.{SymbolHash, WdlFile, WdlInteger, WdlValue}
 
 import scala.util.{Failure, Success, Try}
 

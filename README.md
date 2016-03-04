@@ -19,13 +19,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
-  * [parse](#parse)
-  * [validate](#validate)
-  * [inputs](#inputs)
-  * [highlight](#highlight)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
   * [Database](#database)
+  * [SIGINT abort handler](#sigint-abort-handler)
 * [Backends](#backends)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
@@ -273,6 +270,18 @@ database {
   }
 }
 ```
+
+## SIGINT abort handler
+
+For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option
+
+```
+backend {
+  abortJobsOnTerminate=true
+}
+```
+
+Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
 
 # Backends
 
@@ -898,7 +907,7 @@ All web server requests include an API version in the url. The current version i
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from the CLI with the [inputs](#inputs) sub-command.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](http://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 
 cURL:

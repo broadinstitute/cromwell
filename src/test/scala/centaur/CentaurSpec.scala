@@ -17,7 +17,7 @@ class CentaurSpec extends FlatSpec with Matchers {
   // FIXME: These will run sequentially which is not going to be ideal as the N increases. Need to parallelize
   testCases(CentaurConfig.testCasePath) foreach { case w =>
     w.name should "successfully run" in {
-      TestFormulas.runSuccessfulWorkflow(w).get
+      TestFormulas.runSuccessfulWorkflow(w).run.get
     }
   }
 }

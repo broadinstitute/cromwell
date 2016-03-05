@@ -1,22 +1,20 @@
 package centaur
-
-import centaur.Operation.Test
+import cats.implicits._
+import Operations._
+import Test.testMonad
 
 /**
-  * A collection of test formulas which can be used, building upon Operations by chaining them together. The cleanest
-  * method of chaining would be a for comprehension
-  *
-  *  FIXME: The need for the .perform is pretty hokey at the moment but it's a bit of a hack to get things in
-  *  the direction I wanted in a faster fashion
+  * A collection of test formulas which can be used, building upon operations by chaining them together via a
+  * for comprehension. These assembled formulas can then be run by a client
   */
 object TestFormulas {
-  def runWorkflowUntilTerminalStatus(request: WorkflowRequest, status: TerminalStatus): Test = {
+  def runWorkflowUntilTerminalStatus(request: WorkflowRequest, status: TerminalStatus): Test[Unit] = {
     for {
-      s <- SubmitWorkflow(request).perform
-      _ <- PollUntilTerminal(s, status).perform
-    } yield s
+      s <- submitWorkflow(request)
+      _ <- pollUntilStatus(s, status)
+    } yield ()
   }
 
-  def runSuccessfulWorkflow(request: WorkflowRequest): Test = runWorkflowUntilTerminalStatus(request, Succeeded)
-  def runFailingWorkflow(request: WorkflowRequest): Test = runWorkflowUntilTerminalStatus(request, Failed)
+  def runSuccessfulWorkflow(request: WorkflowRequest) = runWorkflowUntilTerminalStatus(request, Succeeded)
+  def runFailingWorkflow(request: WorkflowRequest) = runWorkflowUntilTerminalStatus(request, Failed)
 }

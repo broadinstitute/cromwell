@@ -3,11 +3,11 @@ import sbtrelease.ReleasePlugin._
 
 name := "cromwell"
 
-version := "0.19"
-
 organization := "org.broadinstitute"
 
 scalaVersion := "2.11.7"
+
+version := "0.19"
 
 val lenthallV = "0.16"
 
@@ -82,8 +82,6 @@ libraryDependencies ++= Seq(
 )
 
 releaseSettings
-
-shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), version.value)}
 
 assemblyJarName in assembly := "cromwell-" + version.value + ".jar"
 
@@ -165,10 +163,12 @@ lazy val CromwellIntegrationTest = config("integration") extend Test
 
 lazy val CromwellNoIntegrationTest = config("nointegration") extend Test
 
+lazy val CromwellBackend = Project(id = "CromwellBackend", base = file("cromwell-backend"))
+
 // NOTE: The following block may cause problems with IntelliJ IDEA
 // by creating multiple test configurations.
 // May need to comment out when importing the project.
-lazy val root = sbt.project.in(file("."))
+lazy val root = Project(id = "Cromwell", base = file(".")).aggregate(CromwellBackend).dependsOn(CromwellBackend)
   .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
   .configs(NoTests).settings(inConfig(NoTests)(Defaults.testTasks): _*)
   .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)

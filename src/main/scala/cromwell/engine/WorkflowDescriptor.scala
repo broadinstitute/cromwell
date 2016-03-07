@@ -22,7 +22,7 @@ import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json.{JsObject, _}
 import wdl4s._
-import wdl4s.values.{WdlFile, WdlSingleFile}
+import wdl4s.values._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -171,6 +171,10 @@ case class WorkflowDescriptor(id: WorkflowId,
   private def logReadDisabled() = workflowLogger.warn(readDisabled)
 
   override def toString = s"WorkflowDescriptor(${id.id.toString})"
+
+  def hash(wdlValue: WdlValue): Option[SymbolHash] = {
+    if (configCallCaching) Option(wdlValue.computeHash(fileHasher)) else None
+  }
 }
 
 object WorkflowDescriptor {

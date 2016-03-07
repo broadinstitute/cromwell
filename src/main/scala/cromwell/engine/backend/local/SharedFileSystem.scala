@@ -5,7 +5,6 @@ import java.nio.file.{Files, Path, Paths}
 
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
@@ -125,7 +124,7 @@ trait SharedFileSystem {
     val taskOutputFailures = outputMappings filter { _._2.isFailure }
     if (taskOutputFailures.isEmpty) {
       val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) =>
-        name -> CallOutput(wdlValue, wdlValue.getHash(backendCall.workflowDescriptor))
+        name -> CallOutput(wdlValue, backendCall.workflowDescriptor.hash(wdlValue))
       }
       Success(unwrappedMap.toMap)
     } else {

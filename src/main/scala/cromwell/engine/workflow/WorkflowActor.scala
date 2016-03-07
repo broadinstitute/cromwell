@@ -7,7 +7,6 @@ import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.{FinalCallJobDescriptor, BackendCallJobDescriptor, Backend, BackendCall}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
@@ -268,7 +267,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
       val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-      taskOutput.name -> CallOutput(arrayOfValues, arrayOfValues.getHash(workflow))
+      taskOutput.name -> CallOutput(arrayOfValues, workflow.hash(arrayOfValues))
     } toMap
   }
 
@@ -1048,13 +1047,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   private def buildSymbolStoreEntries(descriptor: WorkflowDescriptor, inputs: HostInputs): Traversable[SymbolStoreEntry] = {
     val inputSymbols = inputs map {
-      case (name, value) => SymbolStoreEntry(name, value, value.getHash(descriptor), input = true)
+      case (name, value) => SymbolStoreEntry(name, value, descriptor.hash(value), input = true)
     }
 
     val callSymbols = for {
       call <- descriptor.namespace.workflow.calls
       (k, v) <- call.inputMappings
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, v.getHash(descriptor), input = true)
+    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, descriptor.hash(v), input = true)
 
     inputSymbols.toSet ++ callSymbols.toSet
   }

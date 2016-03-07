@@ -15,7 +15,7 @@ import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow._
-import cromwell.engine.{CallOutput, SymbolHash, WorkflowOutputs, _}
+import cromwell.engine.{CallOutput, WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.apache.commons.lang3.StringUtils
@@ -23,7 +23,7 @@ import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
-import wdl4s.values.WdlValue
+import wdl4s.values._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}

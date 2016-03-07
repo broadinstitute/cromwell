@@ -11,7 +11,7 @@ version := "0.19"
 
 val lenthallV = "0.16"
 
-val wdl4sV = "0.3"
+val wdl4sV = "0.4-39df7ac-SNAPSHOT"
 
 val sprayV = "1.3.2"
 

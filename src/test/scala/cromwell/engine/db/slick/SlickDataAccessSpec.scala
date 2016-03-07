@@ -8,7 +8,6 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.IntegrationTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.Hashing._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.backend._
@@ -679,7 +678,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowDescriptor = WorkflowDescriptor(workflowId, testSources)
       val key = new SymbolStoreKey(callFqn, symbolFqn, None, input = true)
-      val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray), wdlArray.getHash(workflowDescriptor))
+      val entry = new SymbolStoreEntry(key, WdlArrayType(WdlStringType), Option(wdlArray), workflowDescriptor.hash(wdlArray))
       val task = Task.empty
       val call = new Call(None, callFqn, task, Set.empty[FullyQualifiedName], Map.empty, None)
 

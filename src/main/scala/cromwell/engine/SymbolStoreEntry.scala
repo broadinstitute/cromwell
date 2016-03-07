@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import wdl4s.types.WdlType
-import wdl4s.values.WdlValue
+import wdl4s.values.{SymbolHash, WdlValue}
 
 object SymbolStoreEntry {
   private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {

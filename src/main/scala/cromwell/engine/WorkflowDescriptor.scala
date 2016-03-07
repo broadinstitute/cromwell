@@ -221,8 +221,9 @@ object WorkflowDescriptor {
                                       conf: Config): ErrorOr[WorkflowDescriptor] = {
     val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
     val ioManager = backend match {
-      case _: JesBackend => gcsInterface getOrElse { // JesBackend only supports gcsInterface
-        throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.")
+      case _: JesBackend => gcsInterface match { // JesBackend only supports gcsInterface
+        case Success(x) => x
+        case Failure(t) => throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.", t)
       }
       case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
     }

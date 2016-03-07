@@ -3,16 +3,14 @@ approve_regex: ':\+1:'
 reset_on_push: false
 author_approval: ignored
 reviewers:
-    -
-        name: users
-        required: 2
-        members:
-            - cjllanwarne
-            - Horneth
-            - scottfrazer
-            - mcovarr
-            - geoffjentry
-            - kshakir
-            - francares
-            - guaravs90
-            - jainh
+    required: 2
+    members:
+        - cjllanwarne
+        - Horneth
+        - scottfrazer
+        - mcovarr
+        - geoffjentry
+        - kshakir
+        - francares
+        - guaravs90
+        - jainh

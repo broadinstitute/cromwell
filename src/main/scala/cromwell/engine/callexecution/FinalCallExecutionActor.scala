@@ -6,11 +6,13 @@ import cromwell.engine.backend.ExecutionHandle
 import cromwell.engine.callexecution.CallExecutionActor._
 import cromwell.engine.finalcall.FinalCall
 import cromwell.logging.WorkflowLogger
+import cromwell.webservice.WorkflowMetadataResponse
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-case class FinalCallExecutionActor(override val call: FinalCall) extends CallExecutionActor {
+case class FinalCallExecutionActor(override val call: FinalCall, workflowMetadataResponse: WorkflowMetadataResponse)
+  extends CallExecutionActor {
 
   override val logger = WorkflowLogger(
     this.getClass.getSimpleName,
@@ -21,8 +23,9 @@ case class FinalCallExecutionActor(override val call: FinalCall) extends CallExe
 
   override def poll(handle: ExecutionHandle) = call.poll(ec, handle)
   override def execute(mode: ExecutionMode) = mode match {
-    case UseCachedCall(cachedBackendCall) => Future.failed(new UnsupportedOperationException("Cannot use cached results for a FinalCall"))
-    case _ => call.execute
+    case UseCachedCall(cachedBackendCall) =>
+      Future.failed(new UnsupportedOperationException("Cannot use cached results for a FinalCall"))
+    case _ => call.execute(workflowMetadataResponse) map { _ => call.handle }
   }
 
   /** There is no polling for Final Calls (yet) as they are executed in Cromwell. */

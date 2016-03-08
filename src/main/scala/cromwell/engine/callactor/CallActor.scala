@@ -9,7 +9,7 @@ import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
-import cromwell.engine.workflow.{CallKey, FinalCallKey, WorkflowActor}
+import cromwell.engine.workflow.{CallKey, WorkflowActor}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import wdl4s.Scope

@@ -4,7 +4,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.backend.{CallLogs, CallMetadata}
+import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowLogs}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry, _}
@@ -159,7 +159,7 @@ object CallMetadataBuilder {
   /**
    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
    */
-  private def buildStreamsTransformer(standardStreamsMap: Map[FullyQualifiedName, Seq[Seq[CallLogs]]]): ExecutionMapTransformer =
+  private def buildStreamsTransformer(standardStreamsMap: WorkflowLogs): ExecutionMapTransformer =
     executionMap => {
       val databaseKeysWithNoneIndexes = executionMap.keys groupBy { _.fqn } filter {
         case (fqn, edks) => edks forall { _.index.isEmpty }
@@ -194,7 +194,7 @@ object CallMetadataBuilder {
    *  for the specified parameters.
    */
   def build(infosByExecution: Traversable[ExecutionInfosByExecution],
-            standardStreamsMap: Map[FullyQualifiedName, Seq[Seq[CallLogs]]],
+            standardStreamsMap: WorkflowLogs,
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],

@@ -6,25 +6,22 @@ import akka.event.Logging
 import com.typesafe.config.ConfigFactory
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine._
+import cromwell.engine.backend.{AttemptedCallLogs, Backend, WorkflowLogs}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.{BackendCallJobDescriptor, Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.db.slick._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.{EnhancedFullyQualifiedName, _}
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
-import org.joda.time.DateTime
-import spray.json._
 import wdl4s._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
-import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -305,11 +302,7 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
     }
   }
 
-  private def hasLogs(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
-    !key.fqn.isScatter && !key.isCollector(entries)
-  }
-
-  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[Seq[Seq[CallLogs]]] = {
+  private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[AttemptedCallLogs] = {
 
     def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
       BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
@@ -327,92 +320,23 @@ class WorkflowManagerActor(backend: Backend) extends LoggingFSM[WorkflowManagerS
         callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn)) if !callFqn.isFinalCall
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
-      } yield backendKeys.groupBy(_.key.index).values.toSeq.sortBy(_.head.key.index) map { _.sortBy(_.key.attempt).map(_.stdoutStderr) }
-  }
-
-  private def workflowStdoutStderr(workflowId: WorkflowId): Future[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
-    def logMapFromStatusMap(workflow: WorkflowDescriptor, statusMap: Map[ExecutionDatabaseKey, ExecutionStatus]): Try[Map[FullyQualifiedName, Seq[Seq[CallLogs]]]] = {
-      // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
-      import cromwell.engine.finalcall.FinalCall._
-      Try {
-        val sortedMap = statusMap.toSeq.sortBy(_._1.index)
-        val callsToPaths = for {
-          (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
-          callName = assertCallFqnWellFormed(workflow, key.fqn).get
-          callKey = BackendCallKey(workflow.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
-          // TODO There should be an easier way than going as far as backend.bindCall just to retrieve stdout/err path
-          backendCall = backend.bindCall(BackendCallJobDescriptor(workflow, callKey))
-          callStandardOutput = backend.stdoutStderr(backendCall)
-        } yield key -> callStandardOutput
-
-        /* Some FP "magic" to transform the pairs of (key, logs) into the final result: grouped by FQNS, ordered by shards, and then ordered by attempts */
-        callsToPaths groupBy { _._1.fqn } mapValues { key => key.groupBy(_._1.index).values.toSeq.sortBy(_.head._1.index) map { _.sortBy(_._1.attempt).map(_._2) }  }
-      }
+    } yield backendKeys.groupBy(_.key.index).values.toIndexedSeq.sortBy(_.head.key.index) map {
+      _.sortBy(_.key.attempt).map(_.stdoutStderr).toIndexedSeq
     }
-
-    for {
-      _ <- assertWorkflowExistence(workflowId)
-      descriptor <- globalDataAccess.getWorkflow(workflowId)
-      callToStatusMap <- globalDataAccess.getExecutionStatuses(workflowId)
-      statusMap = callToStatusMap mapValues { _.executionStatus }
-      callToLogsMap <- Future.fromTry(logMapFromStatusMap(descriptor, statusMap))
-    } yield callToLogsMap
   }
 
-  private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
-                                    workflowExecutionAux: WorkflowExecutionAux,
-                                    workflowOutputs: engine.WorkflowOutputs,
-                                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]],
-                                    workflowFailures: Seq[FailureEventEntry]): WorkflowMetadataResponse = {
-
-    val startDate = new DateTime(workflowExecution.startDt)
-    val endDate = workflowExecution.endDt map { new DateTime(_) }
-    val workflowInputs = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream).mkString.parseJson.asInstanceOf[JsObject]
-    val failures = if (workflowFailures.isEmpty) None else Option(workflowFailures)
-
-    WorkflowMetadataResponse(
-      id = workflowExecution.workflowExecutionUuid.toString,
-      workflowName = workflowExecution.name,
-      status = workflowExecution.status,
-      // We currently do not make a distinction between the submission and start dates of a workflow, but it's
-      // possible at least theoretically that a workflow might not begin to execute immediately upon submission.
-      submission = startDate,
-      start = Option(startDate),
-      end = endDate,
-      inputs = workflowInputs,
-      outputs = Option(workflowOutputs) map { _.mapToValues },
-      calls = callMetadata,
-      failures)
+  private def workflowStdoutStderr(workflowId: WorkflowId): Future[WorkflowLogs] = {
+    for {
+      workflowState <- globalDataAccess.getWorkflowState(workflowId)
+      // TODO: This assertion could also be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
+      _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
+      workflowDescriptor <- globalDataAccess.getWorkflow(workflowId)
+      executionStatuses <- globalDataAccess.getExecutionStatuses(workflowId)
+    } yield WorkflowMetadataBuilder.workflowStdoutStderr(workflowId, backend, workflowDescriptor, executionStatuses)
   }
 
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
-    for {
-      workflowExecution <- globalDataAccess.getWorkflowExecution(id)
-      workflowOutputs <- workflowOutputs(id)
-      // The workflow has been persisted in the DB so we know the workflowExecutionId must be non-null,
-      // so the .get on the Option is safe.
-      workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(WorkflowId.fromString(workflowExecution.workflowExecutionUuid))
-      callStandardStreamsMap <- workflowStdoutStderr(id)
-      callInputs <- globalDataAccess.getAllInputs(id)
-      callOutputs <- globalDataAccess.getAllOutputs(id)
-      infosByExecution <- globalDataAccess.infosByExecution(id)
-      executionEvents <- globalDataAccess.getAllExecutionEvents(id)
-      runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
-
-      failures <- globalDataAccess.getFailureEvents(id)
-      wfFailures = failures collect { case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp) }
-      callFailures = callFailuresMap(failures)
-
-      callMetadata = CallMetadataBuilder.build(infosByExecution, callStandardStreamsMap, callInputs, callOutputs, executionEvents, runtimeAttributes, callFailures)
-      workflowMetadata = buildWorkflowMetadata(workflowExecution, workflowExecutionAux, workflowOutputs, callMetadata, wfFailures)
-
-    } yield workflowMetadata
-  }
-
-  private def callFailuresMap(failureEvents: Seq[QualifiedFailureEventEntry]): Map[ExecutionDatabaseKey, Seq[FailureEventEntry]] = {
-    failureEvents filter { _.execution.isDefined } groupBy { _.execution } map {
-      case (key, qualifiedEntries: Seq[QualifiedFailureEventEntry]) => key.get -> (qualifiedEntries map { _.dequalify })
-    }
+    WorkflowMetadataBuilder.workflowMetadata(id, backend)
   }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a

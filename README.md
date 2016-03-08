@@ -827,11 +827,22 @@ Defaults to "false".
 
 # Logging
 
-Cromwell accepts three Java Properties for controlling logging:
+Cromwell accepts two Java Properties for controlling logging:
 
 * `LOG_MODE` - Accepts either `pretty` or `standard` (default `pretty`).  In `standard` mode, logs will be written without ANSI escape code coloring, with a layout more appropriate for server logs, versus `pretty` that is easier to read for a single workflow run.
 * `LOG_LEVEL` - Level at which to log (default `info`).
-* `LOG_ROOT` - Specifies the directory where logs will be written (default `.`). Currently unused, as logs are only written to standard out, but will be restored in a future update.
+
+Additionally, a directory may be set for writing per workflow logs. By default, the per workflow logs will be erased once the workflow completes.
+
+```hocon
+// In application.conf or specified via system properties
+workflow-options {
+    workflow-log-dir: "cromwell-workflow-logs"
+    workflow-log-temporary: true
+}
+```
+
+The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `workflow_log_dir`.
 
 # Workflow Options
 
@@ -851,7 +862,9 @@ Valid keys and their meanings:
 
 * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
 * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+* **workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
 * **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
+* **call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
 * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
 * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
 * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.

@@ -1,0 +1,13 @@
+approve_by_comment: true
+approve_regex: ':\+1:'
+reset_on_push: false
+author_approval: ignored
+reviewers:
+    required: 2
+    members:
+        - cjllanwarne
+        - Horneth
+        - scottfrazer
+        - mcovarr
+        - geoffjentry
+        - kshakir

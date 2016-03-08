@@ -117,7 +117,7 @@ trait BackendCall {
   /**
    * Implementation of CallEngineFunctions, used to evaluate WdlExpressions
    */
-  def callEngineFunctions: CallEngineFunctions
+  def callEngineFunctions: CallEngineFunctions = jobDescriptor.callEngineFunctions
 
   /**
    * Function used to get the value for identifiers in expressions.  For example, the

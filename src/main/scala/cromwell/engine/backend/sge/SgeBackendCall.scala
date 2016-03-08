@@ -1,9 +1,7 @@
 package cromwell.engine.backend.sge
 
+import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
-import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor}
-import wdl4s.CallInputs
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -16,8 +14,6 @@ case class SgeBackendCall(backend: SgeBackend,
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script.sh")
   val returnCode = callRootPath.resolve("rc")
-  val callEngineFunctions: SgeCallEngineFunctions = new SgeCallEngineFunctions(callRootPath, stdout, stderr, workflowDescriptor.ioManager)
-  callRootPath.toFile.mkdirs
 
   def instantiateCommand: Try[String] = {
     val backendInputs = backend.adjustInputPaths(this)

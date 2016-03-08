@@ -1,23 +1,22 @@
 package cromwell.engine.backend.sge
 
-import java.nio.file.Files
+import java.nio.file.{Path, Files}
 
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend._
-import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
+import cromwell.engine.backend.local.{LocalCallEngineFunctions, LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortRegistrationFunction, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
-import wdl4s.CallInputs
 
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
@@ -211,5 +210,15 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     executionResult map { (_,  jobReturnCode) }
   }
 
+  override def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+    val path = super.callRootPathWithBaseRoot(jobDescriptor, baseRoot)
+    if (!path.toFile.exists()) path.toFile.mkdirs()
+    path
+  }
+
   override def executionInfoKeys: List[String] = List(InfoKeys.JobNumber)
+
+  override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
+    new SgeCallEngineFunctions(descriptor.workflowDescriptor.ioManager, buildCallContext(descriptor))
+  }
 }

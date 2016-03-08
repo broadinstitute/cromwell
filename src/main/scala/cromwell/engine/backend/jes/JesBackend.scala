@@ -190,6 +190,16 @@ object JesBackend {
     val JesRunId = "JES_RUN_ID"
     val JesStatus = "JES_STATUS"
   }
+
+  def jesLogBasename(key: BackendCallKey) = {
+    val index = key.index.map(s => s"-$s").getOrElse("")
+    s"${key.scope.unqualifiedName}$index"
+  }
+
+  def jesLogStdoutFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stdout.log"
+  def jesLogStderrFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stderr.log"
+  def jesLogFilename(key: BackendCallKey) = s"${jesLogBasename(key)}.log"
+  def jesReturnCodeFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-rc.txt"
 }
 
 /**
@@ -364,10 +374,10 @@ case class JesBackend(actorSystem: ActorSystem)
 
     def renameCallSpecificFiles = {
       val namesBuilder = List(
-        JesBackendCall.jesLogStdoutFilename _,
-        JesBackendCall.jesLogStderrFilename _,
-        JesBackendCall.jesLogFilename _,
-        JesBackendCall.jesReturnCodeFilename _
+        JesBackend.jesLogStdoutFilename _,
+        JesBackend.jesLogStderrFilename _,
+        JesBackend.jesLogFilename _,
+        JesBackend.jesReturnCodeFilename _
       )
 
       /* Paths of the files in the cached call. */
@@ -532,7 +542,7 @@ case class JesBackend(actorSystem: ActorSystem)
     } else ""
 
     val tmpDir = Paths.get(JesWorkingDisk.MountPoint).resolve("tmp")
-    val rcPath = Paths.get(JesWorkingDisk.MountPoint).resolve(JesBackendCall.jesReturnCodeFilename(backendCall.key))
+    val rcPath = Paths.get(JesWorkingDisk.MountPoint).resolve(JesBackend.jesReturnCodeFilename(backendCall.key))
 
     val fileContent =
       s"""
@@ -862,4 +872,17 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)
+
+  override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
+    val workflowDescriptor = descriptor.workflowDescriptor
+    val key = descriptor.key
+
+    lazy val callGcsPath = key.callRootPathWithBaseRoot(workflowDescriptor, rootPath(workflowDescriptor.workflowOptions))
+
+    lazy val jesStdoutGcsPath = callGcsPath.resolve(jesLogStdoutFilename(key)).toString
+    lazy val jesStderrGcsPath = callGcsPath.resolve(jesLogStderrFilename(key)).toString
+
+    val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
+    new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+  }
 }

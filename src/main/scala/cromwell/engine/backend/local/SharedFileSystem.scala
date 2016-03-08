@@ -90,7 +90,7 @@ object SharedFileSystem {
   val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
 }
 
-trait SharedFileSystem {
+trait SharedFileSystem { self: Backend =>
   import SharedFileSystem._
 
   def useCachedCall(cachedBackendCall: LocalFileSystemBackendCall, backendCall: LocalFileSystemBackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
@@ -317,5 +317,13 @@ trait SharedFileSystem {
     case f: WdlFile if f.valueString(0) != '/' => WdlFile(cwd.resolve(f.valueString).toAbsolutePath.toString)
     case a: WdlArray => a map {absolutizeOutputWdlFile(_, cwd)}
     case x => x
+  }
+
+  protected def buildCallContext(descriptor: BackendCallJobDescriptor): CallContext = {
+    val callRoot = callRootPath(descriptor)
+    val stdout = callRoot.resolve("stdout")
+    val stderr = callRoot.resolve("stderr")
+
+    new CallContext(callRoot.fullPath, stdout.fullPath, stderr.fullPath)
   }
 }

@@ -53,7 +53,7 @@ object Run  {
       val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setPipelineArgs(rpargs)
 
       val logging = new LoggingOptions()
-      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackendCall.jesLogFilename(pipeline.key)}")
+      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackend.jesLogFilename(pipeline.key)}")
       rpargs.setLogging(logging)
 
       val runId = pipeline.genomicsService.pipelines().run(rpr).execute().getName

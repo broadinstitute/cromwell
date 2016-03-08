@@ -148,8 +148,25 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
   }
 
   def move(from: NioGcsPath, to: NioGcsPath): Unit = {
-    val storageObject = client.objects.get(from.bucket, from.objectName).execute
-    client.objects.rewrite(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+    val polling = 500 milliseconds
+    def moveInner = {
+      val storageObject = client.objects.get(from.bucket, from.objectName).execute
+      client.objects.rewrite(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+    }
+
+    def tryMove(retries: Int): Unit = Try(moveInner) match {
+      case Success(_) =>
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 && retries > 0 =>
+        /* Could not use TryUtil here because it requires a WorkflowLogger, which we can't get form here
+         * TODO From a more general perspective we may need to add a logging capability to the IOInterface
+         */
+        Thread.sleep(polling.toMillis)
+        tryMove(retries - 1)
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 =>
+      case Failure(ex) => throw ex
+    }
+
+    tryMove(3)
   }
 
   //TODO: improve to honor pattern ?

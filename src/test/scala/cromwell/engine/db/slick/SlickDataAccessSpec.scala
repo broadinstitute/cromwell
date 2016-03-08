@@ -8,9 +8,9 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.IntegrationTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
+import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
-import cromwell.engine.backend._
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.io.IoInterface
@@ -29,9 +29,9 @@ import org.scalatest.time.SpanSugar._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
+import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlString}
-import wdl4s.{CallInputs, _}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -696,8 +696,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
           resultSymbol.wdlType should be(WdlArrayType(WdlStringType))
           resultSymbol.wdlValue shouldNot be(empty)
           resultSymbol.wdlValue.get should be(wdlArray)
-          resultSymbol.symbolHash shouldNot be(empty)
-          resultSymbol.symbolHash should be(Option(wdlArray.computeHash))
+          resultSymbol.symbolHash should be(empty)
         }
       } yield ()).futureValue
     }

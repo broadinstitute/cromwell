@@ -53,6 +53,11 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
   import GcsPath._
   import PathString._
 
+  // To choose these numbers I first entered a prolonged period of personal consideration and deep thought.
+  // Then, at the end of this time, I decided to just pick some numbers arbitrarily.
+  private val retryInterval = 500 milliseconds
+  private val retryCount = 3
+
   def isValidPath(path: String) = path.isGcsUrl
 
   def readFile(path: String): String = {
@@ -72,7 +77,6 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
 
   def exists(path: String): Boolean = {
     val getObject = client.objects.get(path.bucket, path.objectName)
-    val polling = 500 milliseconds
 
     def tryExists(retries: Int): Boolean = Try(getObject.execute) match {
       case Success(_) => true
@@ -80,13 +84,13 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
         /* Could not use TryUtil here because it requires a WorkflowLogger, which we can't get form here
          * TODO From a more general perspective we may need to add a logging capability to the IOInterface
          */
-        Thread.sleep(polling.toMillis)
+        Thread.sleep(retryInterval.toMillis)
         tryExists(retries - 1)
       case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 => false
       case Failure(ex) => throw ex
     }
 
-    tryExists(3)
+    tryExists(retryCount)
   }
 
   def listContents(path: String): Iterable[String] = {
@@ -148,8 +152,24 @@ case class GoogleCloudStorage private(client: Storage) extends IoInterface {
   }
 
   def move(from: NioGcsPath, to: NioGcsPath): Unit = {
-    val storageObject = client.objects.get(from.bucket, from.objectName).execute
-    client.objects.rewrite(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+    def moveInner = {
+      val storageObject = client.objects.get(from.bucket, from.objectName).execute
+      client.objects.rewrite(from.bucket, from.objectName, to.bucket, to.objectName, storageObject).execute
+    }
+
+    def tryMove(retries: Int): Unit = Try(moveInner) match {
+      case Success(_) =>
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 && retries > 0 =>
+        /* Could not use TryUtil here because it requires a WorkflowLogger, which we can't get form here
+         * TODO From a more general perspective we may need to add a logging capability to the IOInterface
+         */
+        Thread.sleep(retryInterval.toMillis)
+        tryMove(retries - 1)
+      case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 =>
+      case Failure(ex) => throw ex
+    }
+
+    tryMove(retryCount)
   }
 
   //TODO: improve to honor pattern ?

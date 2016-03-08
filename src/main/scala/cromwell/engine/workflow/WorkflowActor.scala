@@ -1134,7 +1134,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     val descriptor = BackendCallJobDescriptor(workflow, callKey, callInputs)
     val backendCall = backend.bindCall(descriptor, Option(AbortRegistrationFunction(registerAbortFunction)))
-    val log = backendCall.workflowLoggerWithCall("WorkflowActor", Option(akkaLogger))
+    val log = WorkflowLogger("WorkflowActor", workflow, akkaLogger = Option(akkaLogger))
 
     def loadCachedBackendCallAndMessage(workflow: WorkflowDescriptor, cachedExecution: Execution) = {
       workflow.namespace.resolve(cachedExecution.callFqn) match {

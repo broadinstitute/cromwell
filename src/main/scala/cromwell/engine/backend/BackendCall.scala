@@ -205,10 +205,4 @@ trait BackendCall {
    */
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
-  def workflowLoggerWithCall(source: String, akkaLogger: Option[LoggingAdapter] = None) = WorkflowLogger(
-    source,
-    workflowDescriptor,
-    akkaLogger = akkaLogger,
-    callTag = Option(key.tag)
-  )
 }

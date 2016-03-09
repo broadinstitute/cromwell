@@ -44,8 +44,7 @@ case class WorkflowDescriptor(id: WorkflowId,
                               backend: Backend,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
-                              gcsInterface: Try[GoogleCloudStorage],
-                              ioManager: IoInterface,
+                              ioManager: IoManager,
                               wfContext: WorkflowContext,
                               engineFunctions: WorkflowEngineFunctions) {
   import PathString._
@@ -82,6 +81,12 @@ case class WorkflowDescriptor(id: WorkflowId,
   Pretty sure there's no need for all these separate filesystem instances, and this could be cleaned up with unit tests
   to ensure expected behavior. The NioGcsPaths could easily retain pointers to their parent paths, even when relative.
    */
+
+  lazy val gcsInterface = ioManager.interfaces.collect({ case gcs: GoogleCloudStorage => gcs }) match {
+    case Seq(gcs) => Success(gcs)
+    case s if s.size > 1 => Failure(new UnsupportedOperationException(s"More than one GCS interface found: $s"))
+    case _ => Failure(new UnsupportedOperationException(s"No GCS interface found"))
+  }
 
   // GCS FS with the workflow working directory as root
   lazy val gcsFilesystem = Try(GcsFileSystem(gcsInterface, wfContext.root))
@@ -315,10 +320,10 @@ object WorkflowDescriptor {
     val gcsInterface = GoogleCloudStorage.userAuthenticated(options) orElse GoogleCloudStorage.cromwellAuthenticated
     val ioManager = backend match {
       case _: JesBackend => gcsInterface match { // JesBackend only supports gcsInterface
-        case Success(x) => x
+        case Success(gcs) => IoManager(List(gcs))
         case Failure(t) => throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.", t)
       }
-      case _ => new IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
+      case _ => IoManager(Seq(gcsInterface.toOption, Option(SharedFileSystemIoInterface.instance)).flatten)
     }
     val wfContext = new WorkflowContext(buildWorkflowRootPath(backend.rootPath(options), namespace.workflow.unqualifiedName, id))
     val engineFunctions = backend.engineFunctions(ioManager, wfContext)
@@ -327,7 +332,7 @@ object WorkflowDescriptor {
       c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
       d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
     } yield WorkflowDescriptor(id, sourceFiles, options, workflowLogOptions(conf), rawInputs, namespace, c, d, backend,
-      configCallCaching(conf), lookupDockerHash(conf), gcsInterface, ioManager, wfContext, engineFunctions)
+      configCallCaching(conf), lookupDockerHash(conf), ioManager, wfContext, engineFunctions)
     validatedDescriptor.validation
   }
 

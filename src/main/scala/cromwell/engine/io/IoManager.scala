@@ -3,7 +3,7 @@ package cromwell.engine.io
 /**
   * Given a list of IoInterfaces, tries to find a suitable one to process the given path.
   */
-class IoManager(interfaces: Seq[IoInterface]) extends IoInterface {
+case class IoManager(interfaces: Seq[IoInterface]) extends IoInterface {
   private def findInterface(path: String) = interfaces.find(_.isValidPath(path))
   private def unsupported(path: String) = throw new UnsupportedOperationException(s"No IoInterface able to process $path has been found.")
   private def withInterface[T](path: String, fn: IoInterface => T): T = {

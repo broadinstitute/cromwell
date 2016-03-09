@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.engine.backend._
-import cromwell.engine.backend.local.{LocalCallEngineFunctions, LocalBackend, SharedFileSystem}
+import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
@@ -34,6 +34,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   override def backendType = BackendType.SGE
 
+  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
   override def adjustInputPaths(backendCall: BackendCall) = adjustSharedInputPaths(backendCall)
 
   /**
@@ -220,5 +221,10 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
     new SgeCallEngineFunctions(descriptor.workflowDescriptor.ioManager, buildCallContext(descriptor))
+  }
+
+  def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {
+    val backendInputs = adjustInputPaths(jobDescriptor)
+    jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions)
   }
 }

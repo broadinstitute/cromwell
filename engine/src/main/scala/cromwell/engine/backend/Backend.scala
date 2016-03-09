@@ -7,6 +7,7 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.io.IoInterface
@@ -81,6 +82,7 @@ trait Backend {
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
+  def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor): CallInputs
   def adjustInputPaths(backendCall: BackendCall): CallInputs
 
   // FIXME: This is never called...
@@ -157,4 +159,8 @@ trait Backend {
   }
 
   def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions
+
+  def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String]
+
+  def runtimeAttributes(descriptor: BackendCallJobDescriptor): CromwellRuntimeAttributes = ???
 }

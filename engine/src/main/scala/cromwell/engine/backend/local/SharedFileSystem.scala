@@ -5,6 +5,7 @@ import java.nio.file.{Files, Path, Paths}
 
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.IoInterface
 import cromwell.engine.io.gcs.{GcsPath, GoogleCloudStorage}
@@ -196,17 +197,35 @@ trait SharedFileSystem { self: Backend =>
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
+  def adjustSharedInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = {
+    adjustSharedInputPaths(jobDescriptor.callRuntimeAttributes, jobDescriptor.callRootPath, jobDescriptor.workflowDescriptor, jobDescriptor.locallyQualifiedInputs)
+  }
+
   def adjustSharedInputPaths(backendCall: BackendCall): CallInputs = {
+    adjustSharedInputPaths(backendCall.runtimeAttributes, backendCall.callRootPath, backendCall.workflowDescriptor, backendCall.locallyQualifiedInputs)
+  }
+
+  /**
+    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
+    * been performed for this `Backend` implementation.
+    * NOTE: This ends up being a backdoor implementation of Backend.adjustInputPaths as both LocalBackend and SgeBackend
+    *    end up with this implementation and thus use it to satisfy their contract with Backend.
+    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
+    */
+  def adjustSharedInputPaths(callRuntimeAttributes: CromwellRuntimeAttributes,
+                             callRootPath: Path,
+                             workflowDescriptor: WorkflowDescriptor,
+                             locallyQualifiedInputs: CallInputs): CallInputs = {
     import PathString._
 
-    val strategies = if (backendCall.runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
+    val strategies = if (callRuntimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 
     /**
-     * Transform an original input path to a path in the call directory.
-     * The new path matches the original path, it only "moves" the root to be the call directory.
-     */
+      * Transform an original input path to a path in the call directory.
+      * The new path matches the original path, it only "moves" the root to be the call directory.
+      */
     def toCallPath(path: String): Path = {
-      val callDirectory = backendCall.callRootPath
+      val callDirectory = callRootPath
       // Concatenate call directory with absolute input path
       val localInputPath = if(path.isGcsUrl) {
         val gcsPath = GcsPath(path)
@@ -218,9 +237,9 @@ trait SharedFileSystem { self: Backend =>
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    val postProcessor: Option[Path => Path] = backendCall.runtimeAttributes.docker map { _ => toDockerPath _ }
-    val localizeFunction = localizeWdlValue(backendCall.workflowDescriptor, toCallPath, strategies.toStream, postProcessor) _
-    val localizedValues = backendCall.locallyQualifiedInputs.toSeq map {
+    val postProcessor: Option[Path => Path] = callRuntimeAttributes.docker map { _ => toDockerPath _ }
+    val localizeFunction = localizeWdlValue(workflowDescriptor, toCallPath, strategies.toStream, postProcessor) _
+    val localizedValues = locallyQualifiedInputs.toSeq map {
       case (name, value) => localizeFunction(value) map { name -> _ }
     }
 
@@ -229,6 +248,7 @@ trait SharedFileSystem { self: Backend =>
 
   /**
    * Try to localize a WdlValue if it is or contains a WdlFile.
+ *
    * @param toDestPath function specifying how to generate the destination path from the source path
    * @param strategies strategies to use for localization
    * @param postProcessor optional function to be applied to the path after the file it points to has been localized (defaults to noop)

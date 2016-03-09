@@ -12,10 +12,8 @@ import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.engine.workflow.BackendCallKey
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
-import wdl4s._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -213,5 +211,15 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
   }
 
+  override def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+    val path = super.callRootPathWithBaseRoot(jobDescriptor, baseRoot)
+    if (!path.toFile.exists()) path.toFile.mkdirs()
+    path
+  }
+
   override def executionInfoKeys: List[String] = List(InfoKeys.Pid)
+
+  override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
+    new LocalCallEngineFunctions(descriptor.workflowDescriptor.ioManager, buildCallContext(descriptor))
+  }
 }

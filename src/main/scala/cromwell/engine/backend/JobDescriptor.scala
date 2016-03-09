@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.{CallEngineFunctions, WorkflowDescriptor}
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._
@@ -30,6 +30,8 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
   def callRootPath = backend.callRootPath(this)
 
   def callRootPathWithBaseRoot(baseRoot: String) = backend.callRootPathWithBaseRoot(this, baseRoot)
+
+  def callEngineFunctions: CallEngineFunctions = backend.callEngineFunctions(this)
 }
 
 final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

@@ -8,25 +8,13 @@ import cromwell.engine.backend.jes.Run.TerminalRunStatus
 import cromwell.engine.backend.jes.authentication.ProductionJesAuthentication
 import cromwell.engine.backend.{BackendCall, CallLogs, JobKey, _}
 import cromwell.engine.io.gcs.GcsPath
-import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, CallContext}
+import cromwell.engine.AbortRegistrationFunction
 import wdl4s.values._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object JesBackendCall {
-  def jesLogBasename(key: BackendCallKey) = {
-    val index = key.index.map(s => s"-$s").getOrElse("")
-    s"${key.scope.unqualifiedName}$index"
-  }
-
-  def jesLogFilename(key: BackendCallKey) = s"${jesLogBasename(key)}.log"
-  def jesLogStdoutFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stdout.log"
-  def jesLogStderrFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stderr.log"
-  def jesReturnCodeFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-rc.txt"
-}
 
 class JesBackendCall(val backend: JesBackend,
                      val jobDescriptor: BackendCallJobDescriptor,
@@ -34,7 +22,6 @@ class JesBackendCall(val backend: JesBackend,
   extends BackendCall with ProductionJesAuthentication with LazyLogging {
 
   import JesBackend._
-  import JesBackendCall._
 
   // TODO: Assuming that runtimeAttributes.disks always has a 'local-disk'
   lazy val workingDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
@@ -53,10 +40,6 @@ class JesBackendCall(val backend: JesBackend,
   lazy val jesLogGcsPath = s"$callGcsPath/${jesLogFilename(key)}"
   lazy val returnCodeGcsPath = s"$callGcsPath/$returnCodeFilename"
 
-  private lazy val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
-
-  lazy val callEngineFunctions = new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
-
   lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath, Paths.get(returnCodeFilename), workingDisk)
   lazy val cmdInput = JesFileInput(ExecParamName, gcsExecPath.toString, Paths.get(JesExecScript), workingDisk)
 
@@ -66,7 +49,7 @@ class JesBackendCall(val backend: JesBackend,
 
   def instantiateCommand: Try[String] = {
     val backendInputs = backend.adjustInputPaths(this)
-    call.instantiateCommandLine(backendInputs, callEngineFunctions, JesBackend.gcsPathToLocal)
+    call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
   }
 
   /**

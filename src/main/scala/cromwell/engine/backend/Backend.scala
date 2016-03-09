@@ -1,5 +1,7 @@
 package cromwell.engine.backend
 
+import java.nio.file.Path
+
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
@@ -68,6 +70,7 @@ object AttemptedLookupResult {
  * Trait to be implemented by concrete backends.
  */
 trait Backend {
+
   type BackendCall <: backend.BackendCall
 
   def actorSystem: ActorSystem
@@ -145,11 +148,13 @@ trait Backend {
 
   def executionInfoKeys: List[String]
 
-  def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String) = {
+  def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
     jobDescriptor.key.callRootPathWithBaseRoot(jobDescriptor.workflowDescriptor, baseRoot)
   }
 
   def callRootPath(jobDescriptor: BackendCallJobDescriptor) = {
     callRootPathWithBaseRoot(jobDescriptor, rootPath(jobDescriptor.workflowDescriptor.workflowOptions))
   }
+
+  def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions
 }

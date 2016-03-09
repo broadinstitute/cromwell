@@ -827,7 +827,7 @@ Defaults to "false".
 
 # Logging
 
-Cromwell accepts two Java Properties for controlling logging:
+Cromwell accepts two Java Properties or Environment Variables for controlling logging:
 
 * `LOG_MODE` - Accepts either `pretty` or `standard` (default `pretty`).  In `standard` mode, logs will be written without ANSI escape code coloring, with a layout more appropriate for server logs, versus `pretty` that is easier to read for a single workflow run.
 * `LOG_LEVEL` - Level at which to log (default `info`).

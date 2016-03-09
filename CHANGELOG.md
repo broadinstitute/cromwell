@@ -24,6 +24,7 @@ task disk_test {
 ```
 * Added workflow options to copy the call logs and/or the workflow logs to a `call_logs_dir` or a `workflow_log_dir`,
 respectively.
+* The system properties `LOG_MODE` and `LOG_LEVEL` used by Logback may now be specified as environment variables.
 
 ## 0.18
 

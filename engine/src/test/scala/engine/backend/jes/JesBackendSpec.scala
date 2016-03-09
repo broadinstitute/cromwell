@@ -149,9 +149,12 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       gcsFileKey -> gcsFileVal
     )
 
+    // This should only ever be used in this test to grab some locallyQualifiedInputs. So leave the rest null:
+    val jobDescriptor = BackendCallJobDescriptor(null, null, inputs)
+
     val mockedBackendCall = mock[JesBackendCall]
-    mockedBackendCall.locallyQualifiedInputs returns inputs
-    val mappedInputs: CallInputs  = new JesBackend(actorSystem).adjustInputPaths(mockedBackendCall)
+    mockedBackendCall.jobDescriptor returns jobDescriptor
+    val mappedInputs: CallInputs = new JesBackend(actorSystem).adjustInputPaths(mockedBackendCall.jobDescriptor)
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))

@@ -14,6 +14,7 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
+import wdl4s.values.WdlValue
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -78,7 +79,7 @@ object LocalBackend {
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   type BackendCall = LocalBackendCall
 
-  override def adjustInputPaths(backendCall: BackendCall) = adjustSharedInputPaths(backendCall)
+  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
   /**
     * Exponential Backoff Builder to be used when polling for call status.
@@ -221,5 +222,14 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
     new LocalCallEngineFunctions(descriptor.workflowDescriptor.ioManager, buildCallContext(descriptor))
+  }
+
+  def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {
+    val backendInputs = adjustInputPaths(jobDescriptor)
+    val pathTransformFunction: WdlValue => WdlValue = jobDescriptor.callRuntimeAttributes.docker match {
+      case Some(_) => toDockerPath
+      case None => (v: WdlValue) => v
+    }
+    jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
   }
 }

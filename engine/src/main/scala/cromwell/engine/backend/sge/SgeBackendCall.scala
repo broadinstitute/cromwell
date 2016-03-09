@@ -15,11 +15,6 @@ case class SgeBackendCall(backend: SgeBackend,
   val script = callRootPath.resolve("script.sh")
   val returnCode = callRootPath.resolve("rc")
 
-  def instantiateCommand: Try[String] = {
-    val backendInputs = backend.adjustInputPaths(this)
-    call.instantiateCommandLine(backendInputs, callEngineFunctions)
-  }
-
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)

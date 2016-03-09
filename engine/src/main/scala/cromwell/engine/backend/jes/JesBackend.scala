@@ -236,7 +236,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
-  override def adjustInputPaths(backendCall: BackendCall): CallInputs = backendCall.locallyQualifiedInputs mapValues gcsPathToLocal
+  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
   override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
@@ -884,5 +884,10 @@ case class JesBackend(actorSystem: ActorSystem)
 
     val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
     new JesCallEngineFunctions(workflowDescriptor.ioManager, callContext)
+  }
+
+  override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = {
+    val backendInputs = adjustInputPaths(descriptor)
+    descriptor.key.scope.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
   }
 }

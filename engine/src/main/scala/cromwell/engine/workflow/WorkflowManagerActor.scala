@@ -7,9 +7,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
-import cromwell.engine.backend.{AttemptedCallLogs, Backend, WorkflowLogs}
+import cromwell.engine.backend._
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{BackendCallJobDescriptor, Backend, CallLogs, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}

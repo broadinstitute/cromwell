@@ -196,17 +196,17 @@ trait SharedFileSystem { self: Backend =>
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def adjustSharedInputPaths(backendCall: BackendCall): CallInputs = {
+  def adjustSharedInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = {
     import PathString._
 
-    val strategies = if (backendCall.runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
+    val strategies = if (jobDescriptor.callRuntimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 
     /**
-     * Transform an original input path to a path in the call directory.
-     * The new path matches the original path, it only "moves" the root to be the call directory.
-     */
+      * Transform an original input path to a path in the call directory.
+      * The new path matches the original path, it only "moves" the root to be the call directory.
+      */
     def toCallPath(path: String): Path = {
-      val callDirectory = backendCall.callRootPath
+      val callDirectory = jobDescriptor.callRootPath
       // Concatenate call directory with absolute input path
       val localInputPath = if(path.isGcsUrl) {
         val gcsPath = GcsPath(path)
@@ -218,9 +218,9 @@ trait SharedFileSystem { self: Backend =>
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    val postProcessor: Option[Path => Path] = backendCall.runtimeAttributes.docker map { _ => toDockerPath _ }
-    val localizeFunction = localizeWdlValue(backendCall.workflowDescriptor, toCallPath, strategies.toStream, postProcessor) _
-    val localizedValues = backendCall.locallyQualifiedInputs.toSeq map {
+    val postProcessor: Option[Path => Path] = jobDescriptor.callRuntimeAttributes.docker map { _ => toDockerPath _ }
+    val localizeFunction = localizeWdlValue(jobDescriptor.workflowDescriptor, toCallPath, strategies.toStream, postProcessor) _
+    val localizedValues = jobDescriptor.locallyQualifiedInputs.toSeq map {
       case (name, value) => localizeFunction(value) map { name -> _ }
     }
 
@@ -229,6 +229,7 @@ trait SharedFileSystem { self: Backend =>
 
   /**
    * Try to localize a WdlValue if it is or contains a WdlFile.
+   *
    * @param toDestPath function specifying how to generate the destination path from the source path
    * @param strategies strategies to use for localization
    * @param postProcessor optional function to be applied to the path after the file it points to has been localized (defaults to noop)

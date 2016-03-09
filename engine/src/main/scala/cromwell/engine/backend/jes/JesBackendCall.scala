@@ -47,11 +47,6 @@ class JesBackendCall(val backend: JesBackend,
 
   def downloadRcFile = authenticateAsUser(workflowDescriptor) { storage => Try(storage.readFile(returnCodeGcsPath)) }
 
-  def instantiateCommand: Try[String] = {
-    val backendInputs = backend.adjustInputPaths(this)
-    call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
-  }
-
   /**
     * Determines the maximum number of times a call can be started with a Preemptible VM.
     * TODO: Use configuration as a way to set this globally.

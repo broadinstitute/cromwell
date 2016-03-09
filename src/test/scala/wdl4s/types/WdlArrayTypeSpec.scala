@@ -12,6 +12,32 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
   "WdlArray" should "stringify its value" in {
     intArray.toWdlString shouldEqual "[1, 2, 3]"
   }
+  it should "tsv serialize an Array[Array[String]]" in {
+    val nestedArray = WdlArray(
+      WdlArrayType(WdlArrayType(WdlStringType)),
+      Seq(
+        WdlArray(WdlArrayType(WdlStringType), Seq("a", "b").map(WdlString)),
+        WdlArray(WdlArrayType(WdlStringType), Seq("c", "d").map(WdlString))
+      )
+    )
+    nestedArray.tsvSerialize shouldEqual Success("a\tb\nc\td")
+  }
+  it should "fail to TSV serialize an Array[Array[Array[String]]]" in {
+    try {
+      val array = WdlArray(WdlArrayType(WdlStringType), Seq("a", "b").map(WdlString))
+      val nestedArray = WdlArray(
+        WdlArrayType(WdlArrayType(WdlStringType)),
+        Seq(
+          WdlArray(WdlArrayType(WdlArrayType(WdlStringType)), Seq(array, array)),
+          WdlArray(WdlArrayType(WdlArrayType(WdlStringType)), Seq(array, array))
+        )
+      )
+      nestedArray.tsvSerialize
+      fail("should not have succeeded")
+    } catch {
+      case _: UnsupportedOperationException => // expected
+    }
+  }
   "WdlArrayType" should "coerce Seq(1,2,3) into a WdlArray" in {
     WdlArrayType(WdlIntegerType).coerceRawValue(Seq(1,2,3)) match {
       case Success(array) => array shouldEqual intArray

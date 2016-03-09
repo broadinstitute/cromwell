@@ -126,6 +126,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
   override def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlMap])
   override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlObject])
   override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
   override def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = interface.writeTempFile(path, prefix, suffix, content)
 
   override def glob(path: String, pattern: String): Seq[String] = interface.glob(path, pattern)
@@ -143,6 +144,4 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_json")
   override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stdout")
   override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
-  // FIXME: I'll point out that this was uninmplemented yet writeToTsv exists. As w/ the WDL PR, people are welcome to submit a PR
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_tsv")
 }

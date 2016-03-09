@@ -1,10 +1,13 @@
 package cromwell.engine.backend
 
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.{CallEngineFunctions, WorkflowDescriptor}
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._
 import wdl4s.values.WdlValue
+
+import scala.util.Try
 
 
 /** Aspires to be an equivalent of `TaskDescriptor` in the pluggable backends world, describing a job in a way
@@ -32,6 +35,15 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
   def callRootPathWithBaseRoot(baseRoot: String) = backend.callRootPathWithBaseRoot(this, baseRoot)
 
   def callEngineFunctions: CallEngineFunctions = backend.callEngineFunctions(this)
+
+  def callRuntimeAttributes: CromwellRuntimeAttributes = backend.runtimeAttributes(this)
+
+  /**
+    * Attempt to evaluate all the ${...} tags in a command and return a String representation
+    * of the command.  This could fail for a variety of reasons related to expression evaluation
+    * which is why it returns a Try[String]
+    */
+  def instantiateCommand: Try[String] = backend.instantiateCommand(this)
 }
 
 final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

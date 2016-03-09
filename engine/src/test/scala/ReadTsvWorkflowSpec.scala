@@ -1,12 +1,9 @@
 package cromwell
 
-import akka.testkit._
-import wdl4s.types.{WdlFileType, WdlIntegerType, WdlStringType, WdlArrayType}
-import wdl4s.values.{WdlFile, WdlInteger, WdlArray, WdlString}
-import cromwell.CromwellSpec.DockerTest
+import akka.testkit.EventFilter
 import cromwell.util.SampleWdl
-
-import scala.language.postfixOps
+import wdl4s.types.{WdlFileType, WdlStringType, WdlIntegerType, WdlArrayType}
+import wdl4s.values.{WdlFile, WdlString, WdlInteger, WdlArray}
 
 class ReadTsvWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with array/map indexes in expressions" should {

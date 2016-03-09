@@ -9,7 +9,7 @@ import akka.util.Timeout
 import better.files._
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl._
+import cromwell.util.SampleWdl.{EmptyWorkflow, GoodbyeWorld, ThreeStep}
 import org.apache.commons.io.output.TeeOutputStream
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.time.Span
@@ -19,7 +19,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLimitedTests {
-
   import MainSpec._
 
   behavior of "Main"
@@ -344,7 +343,8 @@ object MainSpec {
 
   /**
    * Utility for capturing output while also streaming it to stdout/stderr.
-   * @param orig The stream to share.
+    *
+    * @param orig The stream to share.
    */
   case class TeeStream(orig: OutputStream) {
     private lazy val byteStream = new ByteArrayOutputStream()

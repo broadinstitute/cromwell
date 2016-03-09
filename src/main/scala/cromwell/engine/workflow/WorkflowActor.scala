@@ -42,6 +42,10 @@ object WorkflowActor {
   }
   case class CallStarted(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
+
+  sealed trait CallFailed extends TerminalCallMessage
+  case class CallSucceeded(callKey: OutputKey, outputs: CallOutputs)
+  case class CallCompletionFailed(callKey: OutputKey)
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
   case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
@@ -466,6 +470,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     case Event(message: CallStarted, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
+    case Event(message @ CallSucceeded(callKey, outputs), data) =>
+      executionStore += callKey -> ExecutionStatus.Done
+      updateSymbolCache(callKey)(outputs)
+      self ! CheckForWorkflowComplete
+      stay using startRunnableCalls(data).removePersisting(callKey, ExecutionStatus.Done).removeProcessing(callKey)
     case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) && !data.isProcessing(callKey) =>
       handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>

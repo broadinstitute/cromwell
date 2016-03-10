@@ -30,6 +30,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Local Backend](#local-backend)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
   * [Google JES Backend](#google-jes-backend)
+    * [Configuring Google Project](#configuring-google-project)
+    * [Configuring Authentication](#configuring-authentication)
+      * [Application Default Credentials](#application-default-credentials)
+      * [Service Account](#service-account)
     * [Data Localization](#data-localization)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
@@ -504,7 +508,22 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES Backend
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some [configuration](#configuring-cromwell) that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+Google JES (Job Execution Service) is a Docker-as-a-service from Google.
+
+### Configuring Google Project
+
+You'll need the following things to get started:
+
+* A Google Project (Manage/create projects [here](https://console.developers.google.com/project))
+* A Google Cloud Storage bucket (View/create buckets in your project [here](https://console.cloud.google.com/storage/browser))
+
+On your Google project, open up the [API Manager](https://console.developers.google.com/apis/library) and enable the following APIs:
+
+* Google Compute Engine
+* Google Cloud Storage
+* Genomics API
+
+If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](#configuring-cromwell) as follows:
 
 ```hocon
 backend {
@@ -512,10 +531,10 @@ backend {
 
   jes {
     // Google project
-    project = "broad-dsde-dev"
+    project = "my-project"
 
     // Location to store workflow results, must be a gs:// URL
-    baseExecutionBucket = "gs://your-bucket/cromwell-executions"
+    baseExecutionBucket = "gs://my-bucket/cromwell-executions"
 
     // Root URL for the API
     endpointUrl = "https://genomics.googleapis.com/"
@@ -524,30 +543,71 @@ backend {
     // This is the maximum polling interval (in seconds):
     maximumPollingInterval = 600
   }
-
-  ...
 }
 ```
 
-It is also necessary to fill out the `google` stanza in the configuration file. This stanza will set up the service / user account that Cromwell uses to write certain files to GCS as well as run jobs.
+### Configuring Authentication
+
+The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are three authentication schemes:
+
+* `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
+* `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
+* `user_account` - Authenticate as a user.
+
+#### Application Default Credentials
+
+By default, application default credentials will be used.  The configuration file should look like this to use application default credentials:
 
 ```hocon
 google {
   applicationName = "cromwell"
-  
-  cromwellAuthenticationScheme = "service_account"
+  cromwellAuthenticationScheme = "application_default"
+}
+```
 
-  // If cromwellAuthenticationScheme is "user_account"
-  userAuth {
-    // user = ""
-    // secretsFile = ""
-    // dataStoreDir = ""
-  }
+To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
+
+```
+$ gcloud auth login
+$ gcloud config set project my-project
+```
+
+This should be all that's necessary to run Cromwell using the JES backend.
+
+#### Service Account
+
+First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
+
+Creating the account will cause the JSON file to be downloaded.  The structure of this file is roughly like this (account name is `my-account`):
+
+```
+{
+  "type": "service_account",
+  "project_id": "my-project",
+  "private_key_id": "OMITTED",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nBASE64 ENCODED KEY WITH \n TO REPRESENT NEWLINES\n-----END PRIVATE KEY-----\n",
+  "client_email": "my-account@my-project.iam.gserviceaccount.com",
+  "client_id": "22377410244549202395",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-account%40my-project.iam.gserviceaccount.com"
+}
+```
+
+Most importantly, the value of the `client_email` field should go into the `google.serviceAuth.serviceAccountId` field in the configuration (see below).
+
+The `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
+
+```hocon
+google {
+  applicationName = "cromwell"
+  cromwellAuthenticationScheme = "service_account"
 
   // If cromwellAuthenticationScheme is "service_account"
   serviceAuth {
-    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
-    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
+    pemFile = "/path/to/secret/my-key.pem"
+    serviceAccountId = "my-account@my-project.iam.gserviceaccount.com"
   }
 }
 ```
@@ -571,9 +631,9 @@ google {
     pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
-  
+
   userAuthenticationScheme = "refresh"
-  
+
   refreshTokenAuth = {
     client_id = "myclientid.apps.googleusercontent.com"
     client_secret = "clientsecretpassphrase"
@@ -590,7 +650,7 @@ Note that upon generation of the refresh token, the application must ask for GCS
 
 ### Docker
 
-It is possible to reference private docker images in dockerhub to be run on JES.
+It is possible to reference private docker images in DockerHub to be run on JES.
 However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
 
 ```

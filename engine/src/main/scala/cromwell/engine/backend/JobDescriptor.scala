@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.engine.{CallEngineFunctions, WorkflowDescriptor}
+import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._

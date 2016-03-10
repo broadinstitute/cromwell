@@ -10,7 +10,7 @@ import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.engine.backend.io._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
+import cromwell.engine.backend._
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{SimpleExponentialBackoff, TryUtil}

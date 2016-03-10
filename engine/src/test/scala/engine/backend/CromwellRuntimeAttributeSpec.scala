@@ -8,7 +8,7 @@ import cromwell.engine.backend.jes.{JesAttachedDisk, JesBackend, JesEmptyMounted
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes, _}
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowId}
+import cromwell.engine.{WorkflowDescriptor, WorkflowId}
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table

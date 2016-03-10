@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, LocalFileSystemBackendCall, _}
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.workflow.WorkflowOptions
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, _}
+import cromwell.engine._
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -42,7 +42,7 @@ object SharedFileSystem {
   }).+:(localizeFromGcs _)
 
   private def localizeFromGcs(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = Try {
-    import backend.io._
+    import cromwell.engine.backend.io._
     assert(originalPath.isGcsUrl)
     originalPath.toAbsolutePath(descriptor.fileSystems).copyTo(executionPath)
   }
@@ -89,7 +89,7 @@ object SharedFileSystem {
 
 trait SharedFileSystem { self: Backend =>
   import SharedFileSystem._
-  import backend.io._
+  import cromwell.engine.backend.io._
 
   def useCachedCall(cachedBackendCall: LocalFileSystemBackendCall, backendCall: LocalFileSystemBackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val fileSystems = backendCall.workflowDescriptor.fileSystems
@@ -196,7 +196,7 @@ trait SharedFileSystem { self: Backend =>
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
   def adjustSharedInputPaths(backendCall: BackendCall): CallInputs = {
-    import backend.io._
+    import cromwell.engine.backend.io._
 
     val strategies = if (backendCall.runtimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 

@@ -12,9 +12,6 @@ import scalaz.ValidationNel
 
 package object engine {
 
-  class WorkflowContext(val root: String)
-  class CallContext(override val root: String, val stdout: String, val stderr: String) extends WorkflowContext(root)
-
   /**
    * Represents the collection of source files that a user submits to run a workflow
    */

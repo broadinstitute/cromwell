@@ -7,12 +7,12 @@ import java.util.UUID
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
 import cromwell.engine._
+import cromwell.engine.backend._
 import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystem, NioGcsPath}
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
-import cromwell.engine.backend.{AbortedExecutionHandle, BackendCallJobDescriptor, FailedExecutionHandle, RetryableExecutionHandle}
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.util.{EncryptionSpec, SampleWdl}

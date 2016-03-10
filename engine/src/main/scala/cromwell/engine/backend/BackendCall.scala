@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
-import cromwell.engine.{CallEngineFunctions, CallOutputs, ExecutionEventEntry, ExecutionHash}
+import cromwell.engine.{CallOutputs, ExecutionEventEntry, ExecutionHash}
 import wdl4s._
 import wdl4s.values._
 

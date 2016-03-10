@@ -1,12 +1,13 @@
 package cromwell.engine.backend.jes
 
 import java.nio.file.FileSystem
-import better.files._
-import cromwell.engine._
-import cromwell.engine.backend.io._
-import wdl4s.values._
-import scala.language.postfixOps
 
+import better.files._
+import cromwell.engine.backend.io._
+import cromwell.engine.backend.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions}
+import wdl4s.values._
+
+import scala.language.postfixOps
 import scala.util.Try
 class JesWorkflowEngineFunctions(fileSystems: List[FileSystem], context: WorkflowContext) extends WorkflowEngineFunctions(fileSystems, context) {
   override def globPath(glob: String): String = context.root.toAbsolutePath(fileSystems).resolve(JesBackend.globDirectory(glob)).toString

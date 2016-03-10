@@ -45,8 +45,7 @@ case class WorkflowDescriptor(id: WorkflowId,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
                               ioManager: IoManager,
-                              wfContext: WorkflowContext,
-                              engineFunctions: WorkflowEngineFunctions) {
+                              wfContext: WorkflowContext) {
   import PathString._
   import WorkflowDescriptor._
 
@@ -332,7 +331,7 @@ object WorkflowDescriptor {
       c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
       d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
     } yield WorkflowDescriptor(id, sourceFiles, options, workflowLogOptions(conf), rawInputs, namespace, c, d, backend,
-      configCallCaching(conf), lookupDockerHash(conf), ioManager, wfContext, engineFunctions)
+      configCallCaching(conf), lookupDockerHash(conf), ioManager, wfContext)
     validatedDescriptor.validation
   }
 

@@ -36,6 +36,11 @@ object GcsFileSystemProvider {
   object AcceptAllFilter extends DirectoryStream.Filter[Path] {
     override def accept(entry: Path): Boolean = true
   }
+
+  // To choose these numbers I first entered a prolonged period of personal consideration and deep thought.
+  // Then, at the end of this time, I decided to just pick some numbers arbitrarily.
+  private val retryInterval = 500 milliseconds
+  private val retryCount = 3
 }
 
 /**
@@ -67,6 +72,7 @@ object ExecutionContextExecutorServiceBridge {
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
 class GcsFileSystemProvider private (storageClient: Try[Storage], executionContext: ExecutionContext) extends FileSystemProvider {
+  import GcsFileSystemProvider._
 
   // We want to throw an exception here if we try to use this class with a failed gcs interface
   lazy val client = storageClient.get
@@ -79,7 +85,6 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
   private def exists(path: Path) = path match {
     case gcsPath: NioGcsPath =>
       val getObject = client.objects.get(gcsPath.bucket, gcsPath.objectName)
-      val polling = 500 milliseconds
 
       def checkExists = {
         Try(getObject.execute) recoverWith {
@@ -92,13 +97,13 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
         case Success(_) => true
         case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 && retries > 0 =>
           // FIXME remove this sleep
-          Thread.sleep(polling.toMillis)
+          Thread.sleep(retryInterval.toMillis.toInt)
           tryExists(retries - 1)
         case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 => false
         case Failure(ex) => throw ex
       }
 
-      if (!tryExists(3)) throw new FileNotFoundException(path.toString)
+      if (!tryExists(retryCount)) throw new FileNotFoundException(path.toString)
     case _ => throw new FileNotFoundException(path.toString)
   }
 
@@ -174,8 +179,25 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
   override def move(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
       case (s: NioGcsPath, d: NioGcsPath) =>
-        val storageObject = client.objects.get(s.bucket, s.objectName).execute
-        client.objects.rewrite(s.bucket, s.objectName, d.bucket, d.objectName, storageObject).execute
+        def moveInner = {
+          val storageObject = client.objects.get(s.bucket, s.objectName).execute
+          client.objects.rewrite(s.bucket, s.objectName, d.bucket, d.objectName, storageObject).execute
+        }
+
+        def tryMove(retries: Int): Unit = Try(moveInner) match {
+          case Success(_) =>
+          case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 && retries > 0 =>
+            /* Could not use TryUtil here because it requires a WorkflowLogger, which we can't get form here
+             * TODO From a more general perspective we may need to add a logging capability to the IOInterface
+             */
+            Thread.sleep(retryInterval.toMillis)
+            tryMove(retries - 1)
+          case Failure(ex: GoogleJsonResponseException) if ex.getStatusCode == 404 =>
+          case Failure(ex) => throw ex
+        }
+
+        tryMove(retryCount)
+
       case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
     }
   }

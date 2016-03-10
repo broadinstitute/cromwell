@@ -34,6 +34,7 @@ import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlString}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 object SlickDataAccessSpec {
   val AllowFalse = Seq(webservice.QueryParameter("allow", "false"))
@@ -70,22 +71,18 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
     override val actorSystem = workflowManagerSystem.actorSystem
 
-    override def adjustInputPaths(backendCall: BackendCall) = throw new NotImplementedError
-
+    override def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor) = throw new NotImplementedError()
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = throw new NotImplementedError
     override def stdoutStderr(backendCall: BackendCall): CallLogs = throw new NotImplementedError
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
     override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
-
-    override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                          abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall =
-      throw new NotImplementedError
-
+    override def bindCall(jobDescriptor: BackendCallJobDescriptor, abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = throw new NotImplementedError
     override def backendType: BackendType = throw new NotImplementedError
     override def rootPath(workflowOptions: WorkflowOptions): String = throw new NotImplementedError
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
     override def executionInfoKeys: List[String] = List.empty
-    override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
+    override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError
+    override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = throw new NotImplementedError
   }
 
   "SlickDataAccess" should "not deadlock" in {

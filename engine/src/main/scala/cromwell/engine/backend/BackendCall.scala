@@ -112,7 +112,7 @@ trait BackendCall {
     * of the command.  This could fail for a variety of reasons related to expression evaluation
     * which is why it returns a Try[String]
     */
-  def instantiateCommand: Try[String]
+  def instantiateCommand: Try[String] = jobDescriptor.instantiateCommand
 
   /**
    * Implementation of CallEngineFunctions, used to evaluate WdlExpressions
@@ -124,10 +124,7 @@ trait BackendCall {
    * expression `read_lines(my_file_var)` would have to call lookupFunction()("my_file_var")
    * during expression evaluation
    */
-  def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = {
-    val currentlyKnownValues = locallyQualifiedInputs ++ evaluatedValues
-    WdlExpression.standardLookupFunction(currentlyKnownValues, key.scope.task.declarations, callEngineFunctions)
-  }
+  def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = jobDescriptor.lookupFunction(evaluatedValues)
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
@@ -150,7 +147,7 @@ trait BackendCall {
   def stdoutStderr: CallLogs
 
   @throws[IllegalArgumentException]
-  lazy val runtimeAttributes = CromwellRuntimeAttributes(call.task.runtimeAttributes, this, Option(workflowDescriptor.workflowOptions))
+  lazy val runtimeAttributes = jobDescriptor.callRuntimeAttributes
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {

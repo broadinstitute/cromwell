@@ -3,7 +3,7 @@ package cromwell.engine.backend.runtimeattributes
 import cromwell.engine.ErrorOr
 import cromwell.engine.backend.jes.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
-import cromwell.engine.backend.{BackendCall, BackendType}
+import cromwell.engine.backend.{BackendCallJobDescriptor, BackendCall, BackendType}
 import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
@@ -30,13 +30,13 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
 
-  def apply(wdlRuntimeAttributes: RuntimeAttributes, backendCall: BackendCall, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
-    val supportedKeys = backendCall.backend.backendType.supportedKeys map { _.key }
+  def apply(wdlRuntimeAttributes: RuntimeAttributes, jobDescriptor: BackendCallJobDescriptor, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
+    val supportedKeys = jobDescriptor.backend.backendType.supportedKeys map { _.key }
 
     val attributes = for {
-      attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(backendCall.lookupFunction(backendCall.locallyQualifiedInputs), backendCall.callEngineFunctions))
+      attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(jobDescriptor.lookupFunction(jobDescriptor.locallyQualifiedInputs), jobDescriptor.callEngineFunctions))
       attributesWithDefaults <- Try(getAttributesWithDefaults(attributesFromTask, workflowOptions))
-      _ <- validateKeys(attributesWithDefaults.keySet, backendCall.backend.backendType)
+      _ <- validateKeys(attributesWithDefaults.keySet, jobDescriptor.backend.backendType)
       supportedAttributes = attributesWithDefaults.filterKeys(k => supportedKeys.contains(k))
       validatedAttributes <- validateRuntimeAttributes(supportedAttributes)
     } yield validatedAttributes

@@ -20,15 +20,6 @@ case class LocalBackendCall(backend: LocalBackend,
   val stderr = callRootPath.resolve("stderr")
   val script = callRootPath.resolve("script")
 
-  def instantiateCommand: Try[String] = {
-    val backendInputs = backend.adjustInputPaths(this)
-    val pathTransformFunction: WdlValue => WdlValue = runtimeAttributes.docker match {
-      case Some(_) => backend.toDockerPath
-      case None => (v: WdlValue) => v
-    }
-    call.instantiateCommandLine(backendInputs, callEngineFunctions, pathTransformFunction)
-  }
-
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)

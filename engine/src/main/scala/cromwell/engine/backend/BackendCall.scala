@@ -200,6 +200,6 @@ trait BackendCall {
    * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution
    * of this `BackendCall`.
    */
-  def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = jobDescriptor.poll(previous)
 
 }

@@ -3,6 +3,7 @@ package cromwell.engine.backend.jes
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.backend.BackendCallJobDescriptor
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
@@ -141,7 +142,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
     }
   }
 
-  def checkStatus(backendCall: JesBackendCall, previousStatus: Option[RunStatus]): RunStatus = {
+  def checkStatus(jobDescriptor: BackendCallJobDescriptor, previousStatus: Option[RunStatus]): RunStatus = {
     val currentStatus = status()
 
     if (!(previousStatus contains currentStatus)) {
@@ -165,7 +166,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
       // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.
       if (currentStatus.isRunningOrComplete && (previousStatus.isEmpty || !previousStatus.get.isRunningOrComplete)) {
-        backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(() => abort())))
+        jobDescriptor.abortRegistrationFunction.foreach(_.register(AbortFunction(() => abort())))
       }
     }
 

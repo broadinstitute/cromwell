@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 
 import akka.actor.ActorSystem
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
@@ -13,7 +14,7 @@ import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
-import cromwell.engine.backend.jes.Run.RunStatus
+import cromwell.engine.backend.jes.Run.{TerminalRunStatus, RunStatus}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -339,9 +340,11 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def stdoutStderr(backendCall: BackendCall): CallLogs = backendCall.stdoutStderr
 
+  /** WARNING returns a modified copy of the input jobDescriptor as part of the BackendCall result. */
   override def bindCall(jobDescriptor: BackendCallJobDescriptor,
                         abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-    new JesBackendCall(this, jobDescriptor, abortRegistrationFunction)
+    val newDescriptor = jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
+    new JesBackendCall(this, newDescriptor, abortRegistrationFunction)
   }
 
   private def executeOrResume(backendCall: BackendCall, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
@@ -890,4 +893,33 @@ case class JesBackend(actorSystem: ActorSystem)
     val backendInputs = adjustInputPaths(descriptor)
     descriptor.key.scope.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
   }
+
+  override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {
+    previous match {
+      case handle: JesPendingExecutionHandle =>
+        val wfId = handle.backendCall.workflowDescriptor.shortId
+        val tag = handle.backendCall.key.tag
+        val runId = handle.run.runId
+        logger.debug(s"[UUID($wfId)$tag] Polling JES Job $runId")
+        val status = Try(handle.run.checkStatus(jobDescriptor, handle.previousStatus))
+        status match {
+          case Success(s: TerminalRunStatus) => executionResult(s, handle)
+          case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
+          case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
+            logger.error(s"JES Job ID ${handle.run.runId} has not been found, failing call")
+            FailedExecutionHandle(e).future
+          case Failure(e: Exception) =>
+            // Log exceptions and return the original handle to try again.
+            logger.warn("Caught exception, retrying: " + e.getMessage, e)
+            handle.future
+          case Failure(e: Error) => Future.failed(e) // JVM-ending calamity.
+          case Failure(throwable) =>
+            // Someone has subclassed Throwable directly?
+            FailedExecutionHandle(throwable).future
+        }
+      case f: FailedExecutionHandle => f.future
+      case s: SuccessfulExecutionHandle => s.future
+      case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
+    }
+  } flatten
 }

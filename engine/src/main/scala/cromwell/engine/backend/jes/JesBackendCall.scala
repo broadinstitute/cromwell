@@ -63,35 +63,6 @@ class JesBackendCall(val backend: JesBackend,
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
-  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {
-    previous match {
-      case handle: JesPendingExecutionHandle =>
-        val wfId = handle.backendCall.workflowDescriptor.shortId
-        val tag = handle.backendCall.key.tag
-        val runId = handle.run.runId
-        logger.debug(s"[UUID($wfId)$tag] Polling JES Job $runId")
-        val status = Try(handle.run.checkStatus(this, handle.previousStatus))
-        status match {
-          case Success(s: TerminalRunStatus) => backend.executionResult(s, handle)
-          case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
-          case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
-            logger.error(s"JES Job ID ${handle.run.runId} has not been found, failing call")
-            FailedExecutionHandle(e).future
-          case Failure(e: Exception) =>
-            // Log exceptions and return the original handle to try again.
-            logger.warn("Caught exception, retrying: " + e.getMessage, e)
-            handle.future
-          case Failure(e: Error) => Future.failed(e) // JVM-ending calamity.
-          case Failure(throwable) =>
-            // Someone has subclassed Throwable directly?
-            FailedExecutionHandle(throwable).future
-        }
-      case f: FailedExecutionHandle => f.future
-      case s: SuccessfulExecutionHandle => s.future
-      case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
-    }
-  } flatten
-
   override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = backend.resume(this, jobKey)
 
   override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =

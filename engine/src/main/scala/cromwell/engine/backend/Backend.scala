@@ -166,4 +166,6 @@ trait Backend {
       descriptor.key.scope.task.runtimeAttributes,
       descriptor,
       Option(descriptor.workflowDescriptor.workflowOptions))
+
+  def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 }

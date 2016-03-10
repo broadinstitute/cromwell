@@ -37,7 +37,12 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
     wdlType.memberType match {
       case t: WdlPrimitiveType => Success(value.map(_.valueString).mkString("\n"))
       case WdlObjectType => WdlObject.tsvSerializeArray(value map { _.asInstanceOf[WdlObject] })
-      case _ => Failure(new UnsupportedOperationException("Can only TSV serialize an Array[Primitive] or Array[Object]"))
+      case WdlArrayType(t: WdlPrimitiveType) =>
+        val tsvString = value.collect({ case a: WdlArray => a }) map { a =>
+          a.value.collect({ case p: WdlPrimitive => p }).map(_.valueString).mkString("\t")
+        } mkString "\n"
+        Success(tsvString)
+      case _ => Failure(new UnsupportedOperationException(s"Cannot TSV serialize a ${this.wdlType.toWdlString} (valid types are Array[Primitive], Array[Array[Primitive]], or Array[Object])"))
     }
   }
 

@@ -30,7 +30,7 @@ object SgeBackend {
 }
 
 case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  type BackendCall = SgeBackendCall
+  override type BackendCall = SgeBackendCall
 
   import LocalBackend.WriteWithNewline
 
@@ -57,7 +57,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future( {
-    val logger = workflowLoggerWithCall(backendCall)
+    val logger = jobLogger(backendCall.jobDescriptor)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
@@ -115,7 +115,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     def recursiveWait(): Int = Files.exists(backendCall.returnCode) match {
       case true => backendCall.returnCode.contentAsString.stripLineEnd.toInt
       case false =>
-        val logger = workflowLoggerWithCall(backendCall)
+        val logger = jobLogger(backendCall.jobDescriptor)
         logger.info(s"'rc' file does not exist yet")
         Thread.sleep(5000)
         recursiveWait()
@@ -135,7 +135,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val returnCode: Int = process.exitValue()
     Vector(qdelStdoutWriter, qdelStderrWriter) foreach { _.flushAndClose() }
     backendCall.returnCode.clear().appendLine("143")
-    val logger = workflowLoggerWithCall(backendCall)
+    val logger = jobLogger(backendCall.jobDescriptor)
     logger.debug(s"qdel $sgeJobId (returnCode=$returnCode)")
   }
 
@@ -155,7 +155,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    * Launches the qsub command, returns a tuple: (rc, Option(sge_job_id))
    */
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
-    val logger = workflowLoggerWithCall(backendCall)
+    val logger = jobLogger(backendCall.jobDescriptor)
     val sgeJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
     val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
@@ -186,7 +186,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    * and returns the outputs for the call
    */
   private def pollForSgeJobCompletionThenPostProcess(backendCall: BackendCall, sgeJobId: Int)(implicit ec: ExecutionContext): Future[(ExecutionResult, Int)] = {
-    val logger = workflowLoggerWithCall(backendCall)
+    val logger = jobLogger(backendCall.jobDescriptor)
     val abortFunction = killSgeJob(backendCall, sgeJobId)
     val waitUntilCompleteFunction = waitUntilComplete(backendCall)
     backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(abortFunction)))
@@ -204,7 +204,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
         logger.error(message)
         NonRetryableExecution(new Exception(message), Option(0)).future
       case (r, _) =>
-        postProcess(backendCall) match {
+        postProcess(backendCall.jobDescriptor) match {
           case Success(callOutputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(callOutputs, Seq.empty, r, h) }
           case Failure(e) => NonRetryableExecution(e).future
         }

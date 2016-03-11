@@ -39,6 +39,6 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   }
 
   it should "create a valid tag for backend call" in {
-    backend.workflowLoggerWithCall(backendCall).tag shouldBe "LocalBackend [UUID(fc6cfad9):x]"
+    backend.jobLogger(backendCall.jobDescriptor).tag shouldBe "LocalBackend [UUID(fc6cfad9):x]"
   }
 }

@@ -2,10 +2,8 @@ package cromwell.engine.backend.local
 
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.{BackendCall, LocalFileSystemBackendCall, _}
-import wdl4s.values.WdlValue
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 case class LocalBackendCall(backend: LocalBackend,
                             jobDescriptor: BackendCallJobDescriptor,
@@ -22,8 +20,7 @@ case class LocalBackendCall(backend: LocalBackend,
 
   override def execute(implicit ec: ExecutionContext) = backend.execute(this)
 
-  override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
-    backend.useCachedCall(avoidedTo.asInstanceOf[LocalBackendCall], this)
+  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 
   override def stdoutStderr: CallLogs = backend.stdoutStderr(this)
 }

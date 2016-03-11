@@ -53,7 +53,7 @@ final case class CompletedExecutionHandle(override val result: ExecutionResult) 
   override val isDone = true
 }
 
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCallJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }
@@ -136,7 +136,7 @@ trait BackendCall {
     throw new NotImplementedError(s"resume() called on a non-resumable BackendCall: $this")
   }
 
-  def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = ???
+  def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = jobDescriptor.useCachedCall(cachedBackendCall.jobDescriptor)
 
   /**
     * Return CallLogs which contains the stdout/stderr of the particular call

@@ -3,7 +3,7 @@ package cromwell.webservice
 import akka.testkit.TestActorRef
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.{ValidateActor, WorkflowManagerActor}
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{FormData, StatusCodes}
@@ -15,6 +15,7 @@ class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
   override def actorRefFactory = testWorkflowManagerSystem.actorSystem
   override val workflowManager = TestActorRef(new WorkflowManagerActor(new LocalBackend(actorRefFactory)))
+  override val validateActor = TestActorRef(new ValidateActor())
   val version = "v1"
 
   override protected def afterAll() = {

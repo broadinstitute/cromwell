@@ -6,18 +6,20 @@ import akka.util.Timeout
 import cromwell.engine
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
+import cromwell.engine.workflow.ValidateActor.{ValidationFailure, ValidationSuccess, ValidateWorkflow}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
+import wdl4s.WdlJson
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CromwellApiHandler {
-  def props(workflowManagerActorRef: ActorRef): Props = {
-    Props(new CromwellApiHandler(workflowManagerActorRef))
+  def props(requestHandlerActor: ActorRef): Props = {
+    Props(new CromwellApiHandler(requestHandlerActor))
   }
 
   sealed trait ApiHandlerMessage
@@ -32,6 +34,7 @@ object CromwellApiHandler {
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowMetadata(id: WorkflowId) extends ApiHandlerMessage
+  final case class ApiHandlerValidateWorkflow(wdlSource: String, workflowInputs: Option[String], workflowOptions: Option[String]) extends ApiHandlerMessage
 
   sealed trait WorkflowManagerResponse
 
@@ -63,7 +66,7 @@ object CromwellApiHandler {
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
 }
 
-class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
+class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
   import CromwellApiHandler._
   import WorkflowJsonSupport._
 
@@ -78,7 +81,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
   private def error(t: Throwable)(f: Throwable => RequestComplete[_]): Unit = context.parent ! f(t)
 
   override def receive = {
-    case ApiHandlerWorkflowStatus(id) => workflowManager ! WorkflowManagerActor.WorkflowStatus(id)
+    case ApiHandlerWorkflowStatus(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowStatus(id)
     case WorkflowManagerStatusSuccess(id, state) => context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, state.toString))
     case WorkflowManagerStatusFailure(_, e) =>
       error(e) {
@@ -86,7 +89,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, e)
       }
 
-    case ApiHandlerWorkflowQuery(parameters) => workflowManager ! WorkflowManagerActor.WorkflowQuery(parameters)
+    case ApiHandlerWorkflowQuery(parameters) => requestHandlerActor ! WorkflowManagerActor.WorkflowQuery(parameters)
     case WorkflowManagerQuerySuccess(response) => context.parent ! RequestComplete(StatusCodes.OK, response)
     case WorkflowManagerQueryFailure(e) =>
       error(e) {
@@ -94,7 +97,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowAbort(id) => workflowManager ! WorkflowManagerActor.WorkflowAbort(id)
+    case ApiHandlerWorkflowAbort(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowAbort(id)
     case WorkflowManagerAbortSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
     case WorkflowManagerAbortFailure(_, e) =>
@@ -104,7 +107,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowSubmit(source) => workflowManager ! WorkflowManagerActor.SubmitWorkflow(source)
+    case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowManagerActor.SubmitWorkflow(source)
     case WorkflowManagerSubmitSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
     case WorkflowManagerSubmitFailure(e) =>
@@ -113,7 +116,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowOutputs(id) => workflowManager ! WorkflowManagerActor.WorkflowOutputs(id)
+    case ApiHandlerWorkflowOutputs(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowOutputs(id)
     case WorkflowManagerWorkflowOutputsSuccess(id, outputs) =>
       context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputs.mapToValues))
     case WorkflowManagerWorkflowOutputsFailure(id, e) =>
@@ -122,7 +125,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerCallOutputs(id, callFqn) => workflowManager ! WorkflowManagerActor.CallOutputs(id, callFqn)
+    case ApiHandlerCallOutputs(id, callFqn) => requestHandlerActor ! WorkflowManagerActor.CallOutputs(id, callFqn)
     case WorkflowManagerCallOutputsSuccess(id, callFqn, outputs) =>
       context.parent ! RequestComplete(StatusCodes.OK, CallOutputResponse(id.toString, callFqn, outputs.mapToValues))
     case WorkflowManagerCallOutputsFailure(id, callFqn, e) =>
@@ -132,7 +135,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerCallStdoutStderr(id, callFqn) => workflowManager ! WorkflowManagerActor.CallStdoutStderr(id, callFqn)
+    case ApiHandlerCallStdoutStderr(id, callFqn) => requestHandlerActor ! WorkflowManagerActor.CallStdoutStderr(id, callFqn)
     case WorkflowManagerCallStdoutStderrSuccess(id, callFqn, logs) =>
       context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, Map(callFqn -> logs)))
     case WorkflowManagerCallStdoutStderrFailure(id, callFqn, e) =>
@@ -143,7 +146,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowStdoutStderr(id) => workflowManager ! WorkflowManagerActor.WorkflowStdoutStderr(id)
+    case ApiHandlerWorkflowStdoutStderr(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowStdoutStderr(id)
     case WorkflowManagerWorkflowStdoutStderrSuccess(id, callLogs) =>
           context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, callLogs))
     case WorkflowManagerWorkflowStdoutStderrFailure(id, e) =>
@@ -152,7 +155,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowMetadata(id) => workflowManager ! WorkflowManagerActor.WorkflowMetadata(id)
+    case ApiHandlerWorkflowMetadata(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowMetadata(id)
     case WorkflowManagerWorkflowMetadataSuccess(id, response) => context.parent ! RequestComplete(StatusCodes.OK, response)
     case WorkflowManagerWorkflowMetadataFailure(id, e) =>
       error(e) {
@@ -160,7 +163,7 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerCallCaching(id, parameters, callName) => workflowManager ! WorkflowManagerActor.CallCaching(id, parameters, callName)
+    case ApiHandlerCallCaching(id, parameters, callName) => requestHandlerActor ! WorkflowManagerActor.CallCaching(id, parameters, callName)
     case WorkflowManagerCallCachingSuccess(id, updateCount) => context.parent ! RequestComplete(StatusCodes.OK, CallCachingResponse(updateCount))
     case WorkflowManagerCallCachingFailure(id, e) =>
       error(e) {
@@ -168,5 +171,9 @@ class CromwellApiHandler(workflowManager: ActorRef) extends Actor {
         case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
+
+    case ApiHandlerValidateWorkflow(wdlSource, workflowInputs, workflowOptions) => requestHandlerActor ! ValidateWorkflow(wdlSource, workflowInputs, workflowOptions)
+    case ValidationSuccess(_,_,_,_) => context.parent ! RequestComplete(StatusCodes.OK, APIResponse.success("Validation succeeded."))
+    case ValidationFailure(reason) => context.parent ! RequestComplete(StatusCodes.BadRequest,APIResponse.fail(reason))
   }
 }

@@ -21,11 +21,7 @@ import scala.language.postfixOps
 import scala.util.{Try, Failure, Success}
 
 object ValidateActor {
-  private val tag = "ValidateActor"
-
-  def props(wdlSource: WdlSource, wdlJson: Option[WdlJson], workflowOptions: Option[WdlJson]): Props = {
-    Props(new ValidateActor(wdlSource, wdlJson, workflowOptions))
-  }
+  def props(): Props = Props(new ValidateActor())
 
   sealed trait ValidateActorMessage
   sealed trait ValidationResult extends ValidateActorMessage
@@ -36,40 +32,22 @@ object ValidateActor {
                                workflowOptions: Option[WorkflowOptions],
                                runtimeAttributes: Seq[Set[String]]) extends ValidationResult
   case class ValidationFailure(reason: Throwable) extends ValidationResult
-  case object ValidateWorkflow extends ValidateActorMessage
+  case class ValidateWorkflow(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[WdlJson]) extends ValidateActorMessage
 }
 
 // TODO: Declarations cannot be validated here currently because of it's dependency on EngineFunctions, and in turn on IOManager and WfContext
-class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[String])
+class ValidateActor()
   extends Actor with LazyLogging {
 
-  import ValidateActor.{ValidateWorkflow, tag}
+  import ValidateActor.ValidateWorkflow
   import context.dispatcher
 
   override def receive = {
-    case ValidateWorkflow =>
-      validateWorkflow(sender())
-    // NOTE: self shuts down when the parent PerRequest shuts down
-  }
-
-  private def validateWorkflow(sentBy: ActorRef): Unit = {
-    logger.info(s"$tag for $sentBy")
-    // TODO: IMO, the responsibility for returning a status code should be a part of the client. This class should only return a validation result,
-    // and the callee should convert that to a status code or anything that it wants
-    validateAll() map {
-      case _: ValidationSuccess =>
-        logger.info(s"$tag success $sentBy")
-        sentBy ! RequestComplete(
-          StatusCodes.OK,
-          APIResponse.success("Validation succeeded."))
-
-      case ValidationFailure(reason) =>
-        val messageOrBlank = Option(reason.getMessage).mkString
-        logger.info(s"$tag error $sentBy: $messageOrBlank")
-        sentBy ! RequestComplete(
-          StatusCodes.BadRequest,
-          APIResponse.fail(reason))
-    }
+    case ValidateWorkflow(wdlSource, workflowInputs, workflowOptions) =>
+      val requester = sender()
+        // `validateAll(..)` guarantees we will get a `ValidationResult`, and nothing else
+      validateAll(wdlSource, workflowInputs, workflowOptions) map { requester ! _ }
+    case unknownMsg => logger.error(s"${this.getClass.getName} received an unknown message: $unknownMsg")
   }
 
   /**
@@ -78,13 +56,13 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     * 2.) Raw inputs and it's coercion
     * 3.) Workflow Options
     * 4.) RuntimeAttributes w.r.t. a backend
-    * @return
+    * @return The result of the validation as instance of `ValidationResult`
     */
-  private def validateAll(): Future[ValidationResult] = {
+  private def validateAll(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[WdlJson]): Future[ValidationResult] = {
     (for {
       namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
-      validatedInputs <- Future(validateInputs(namespaceWithWorkflow))
-      validatedWorkflowOptions <- Future(validateWorkflowOptions(CromwellBackend.backend()))
+      validatedInputs <- Future(validateInputs(workflowInputs, namespaceWithWorkflow))
+      validatedWorkflowOptions <- Future(validateWorkflowOptions(workflowOptions, CromwellBackend.backend()))
       validatedRuntimeAttrs <- Future(validateRuntimeAttributes(namespaceWithWorkflow))
     } yield ValidationSuccess(namespaceWithWorkflow, validatedInputs, validatedWorkflowOptions, validatedRuntimeAttrs)) recover {
       case reason => ValidationFailure(reason)
@@ -101,7 +79,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
     }
   }
 
-  private def validateInputs(namespaceWithWorkflow: NamespaceWithWorkflow): Option[WorkflowCoercedInputs] = {
+  private def validateInputs(workflowInputs: Option[WdlJson], namespaceWithWorkflow: NamespaceWithWorkflow): Option[WorkflowCoercedInputs] = {
     def rawInputs(json: WdlJson): Map[String, JsValue] = {
       Try(json.parseJson) match {
         case Success(JsObject(inputs)) => inputs
@@ -122,7 +100,7 @@ class ValidateActor(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workf
   }
 
   // TODO: With PBE, this should be defined in the backend.
-  private def validateWorkflowOptions(backend: Backend): Option[WorkflowOptions] = {
+  private def validateWorkflowOptions(workflowOptions: Option[WdlJson], backend: Backend): Option[WorkflowOptions] = {
     def validateBackendOptions(options: WorkflowOptions, backend: Backend): WorkflowOptions = {
       try {
         backend.assertWorkflowOptions(options)

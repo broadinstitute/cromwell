@@ -16,6 +16,7 @@ lazy val engine = (project in file("engine"))
   .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
   .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
   .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
+  .configs(DbmsTest).settings(inConfig(DbmsTest)(Defaults.testTasks): _*)
 
 lazy val root = (project in file("."))
   .dependsOn(engine % "test->test;compile->compile", core % "test->test;compile->compile", backend)
@@ -27,5 +28,6 @@ lazy val root = (project in file("."))
   .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
   .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
   .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
+  .configs(DbmsTest).settings(inConfig(DbmsTest)(Defaults.testTasks): _*)
 
 

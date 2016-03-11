@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
+import cromwell.engine.ExecutionHash
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
 import cromwell.engine.{AbortRegistrationFunction, CallEngineFunctions, WorkflowDescriptor}
 import cromwell.webservice.WorkflowMetadataResponse
@@ -53,6 +54,11 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
   }
 
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.poll(this, previous)
+
+  /**
+    * Compute a hash that uniquely identifies this job w.r.t. its backend.
+    */
+  def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = backend.hash(this)
 }
 
 final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

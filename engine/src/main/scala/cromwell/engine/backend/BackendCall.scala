@@ -1,9 +1,6 @@
 package cromwell.engine.backend
 
-import akka.event.LoggingAdapter
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.{CallEngineFunctions, CallOutputs, ExecutionEventEntry, ExecutionHash}
-import cromwell.logging.WorkflowLogger
 import wdl4s._
 import wdl4s.values._
 
@@ -149,52 +146,10 @@ trait BackendCall {
   @throws[IllegalArgumentException]
   lazy val runtimeAttributes = jobDescriptor.callRuntimeAttributes
 
-  /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
-  private def hashGivenDockerHash(dockerHash: Option[String]): ExecutionHash = {
-    val orderedInputs = locallyQualifiedInputs.toSeq.sortBy(_._1)
-    val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
-    val orderedRuntime = Seq(
-      ("docker", dockerHash getOrElse ""),
-      ("zones", runtimeAttributes.zones.sorted.mkString(",")),
-      ("failOnStderr", runtimeAttributes.failOnStderr.toString),
-      ("continueOnReturnCode", runtimeAttributes.continueOnReturnCode match {
-        case ContinueOnReturnCodeFlag(bool) => bool.toString
-        case ContinueOnReturnCodeSet(codes) => codes.toList.sorted.mkString(",")
-      }),
-      ("cpu", runtimeAttributes.cpu.toString),
-      ("preemptible", runtimeAttributes.preemptible.toString),
-      ("disks", runtimeAttributes.disks.sortWith((l, r) => l.name > r.name).map(_.toString).mkString(",")),
-      ("memoryGB", runtimeAttributes.memoryGB.toString)
-    )
-
-    val overallHash = Seq(
-      backend.backendType.toString,
-      call.task.commandTemplateString,
-      orderedInputs map { case (k, v) => s"$k=${v.computeHash(workflowDescriptor.fileHasher).value}" } mkString "\n",
-      orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
-      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.requiredExpression.toWdlString}" } mkString "\n"
-    ).mkString("\n---\n").md5Sum
-
-    ExecutionHash(overallHash, dockerHash)
-  }
-
   /**
     * Compute a hash that uniquely identifies this call
     */
-  def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = {
-    // If a Docker image is defined in the task's runtime attributes, return a `Future[Option[String]]` of the Docker
-    // hash string, otherwise return a `Future.successful` of `None`.
-    def hashDockerImage(dockerImage: String): Future[Option[String]] =
-      if (workflowDescriptor.lookupDockerHash)
-        backend.dockerHashClient.getDockerHash(dockerImage) map { dh => Option(dh.hashString) }
-      else
-        Future.successful(Option(dockerImage))
-
-    if (workflowDescriptor.configCallCaching)
-      runtimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash
-    else
-      Future.successful(ExecutionHash("", None))
-  }
+  def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = jobDescriptor.hash
 
   /**
    * Using the execution handle from the previous execution, resumption, or polling attempt, poll the execution

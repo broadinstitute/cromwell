@@ -226,4 +226,6 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val backendInputs = adjustInputPaths(jobDescriptor)
     jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions)
   }
+
+  override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 }

@@ -1139,18 +1139,15 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def sendStartMessage(callKey: BackendCallKey, callInputs: Map[String, WdlValue]) = {
-    def registerAbortFunction(abortFunction: AbortFunction): Unit = {}
-
     val descriptor = BackendCallJobDescriptor(workflow, callKey, callInputs)
-    val backendCall = backend.bindCall(descriptor, Option(AbortRegistrationFunction(registerAbortFunction)))
+    val backendCall = backend.bindCall(descriptor)
     val log = WorkflowLogger("WorkflowActor", workflow, akkaLogger = Option(akkaLogger))
 
     def loadCachedBackendCallAndMessage(workflow: WorkflowDescriptor, cachedExecution: Execution) = {
       workflow.namespace.resolve(cachedExecution.callFqn) match {
         case Some(c: Call) =>
           val jobDescriptor = BackendCallJobDescriptor(workflow, BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
-          val cachedCall = backend.bindCall(jobDescriptor, Option(AbortRegistrationFunction(registerAbortFunction))
-          )
+          val cachedCall = backend.bindCall(jobDescriptor)
           log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
           self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
         case _ =>

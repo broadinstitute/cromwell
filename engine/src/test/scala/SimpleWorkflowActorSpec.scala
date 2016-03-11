@@ -3,14 +3,12 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
-import wdl4s._
 import cromwell.engine._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
-import org.scalatest.Ignore
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -25,7 +23,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
     TestFSMRef(new WorkflowActor(descriptor, new LocalBackend(system)))
   }
 
-  val TestExecutionTimeout = 5.seconds.dilated
+  val TestExecutionTimeout = 10.seconds.dilated
 
   "A WorkflowActor" should {
     "start, run, succeed and die" in {

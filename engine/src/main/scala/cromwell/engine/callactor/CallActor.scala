@@ -219,8 +219,4 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
     CallCounter.decrement()
     context.stop(self)
   }
-
-  protected def registerAbortFunction(abortFunction: AbortFunction): Unit = {
-    self ! CallActor.RegisterCallAbortFunction(abortFunction)
-  }
 }

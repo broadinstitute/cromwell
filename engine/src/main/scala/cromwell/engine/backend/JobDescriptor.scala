@@ -1,13 +1,15 @@
 package cromwell.engine.backend
 
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.{CallEngineFunctions, WorkflowDescriptor}
 import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
+import cromwell.engine.{AbortRegistrationFunction, CallEngineFunctions, WorkflowDescriptor}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._
 import wdl4s.values.WdlValue
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+
 
 /** Aspires to be an equivalent of `TaskDescriptor` in the pluggable backends world, describing a job in a way
   * that is complete enough for it to be executed on any backend and free of references to engine types.
@@ -23,7 +25,8 @@ sealed trait JobDescriptor[K <: CallKey] {
 
 final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
                                           key: BackendCallKey,
-                                          locallyQualifiedInputs: CallInputs = Map.empty) extends JobDescriptor[BackendCallKey] {
+                                          locallyQualifiedInputs: CallInputs = Map.empty,
+                                          abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
 
   // PBE temporarily still required.  Once we have call-scoped Backend actors they will know themselves and the
   // backend won't need to be in the WorkflowDescriptor and this method won't need to exist.
@@ -48,6 +51,8 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
     val currentlyKnownValues = locallyQualifiedInputs ++ evaluatedValues
     WdlExpression.standardLookupFunction(currentlyKnownValues, key.scope.task.declarations, callEngineFunctions)
   }
+
+  def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.poll(this, previous)
 }
 
 final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

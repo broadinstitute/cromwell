@@ -92,9 +92,12 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   override def pollBackoff = pollBackoffBuilder.build()
 
+  /** WARNING returns a modified copy of the input jobDescriptor as part of the BackendCall result. */
   override def bindCall(jobDescriptor: BackendCallJobDescriptor,
                         abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-    LocalBackendCall(this, jobDescriptor, abortRegistrationFunction)
+
+    val newDescriptor = jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
+    LocalBackendCall(this, newDescriptor, abortRegistrationFunction)
   }
 
   def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
@@ -232,4 +235,6 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
     jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
   }
+
+  override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 }

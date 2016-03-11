@@ -83,6 +83,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def executionInfoKeys: List[String] = List.empty
     override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError
     override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = throw new NotImplementedError
+    override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
   }
 
   "SlickDataAccess" should "not deadlock" in {

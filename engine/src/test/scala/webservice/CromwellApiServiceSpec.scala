@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.actor.{Actor, Props}
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
+import cromwell.engine.workflow.ValidateActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallCaching, CallOutputs, CallStdoutStderr, WorkflowAbort, WorkflowOutputs, WorkflowQuery, WorkflowStatus, WorkflowStdoutStderr, _}
 import cromwell.engine.{CallOutput, _}
 import cromwell.util.SampleWdl.HelloWorld
@@ -229,6 +230,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
   override def actorRefFactory = testWorkflowManagerSystem.actorSystem
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
+  override val validateActor = actorRefFactory.actorOf(Props(new ValidateActor()))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {

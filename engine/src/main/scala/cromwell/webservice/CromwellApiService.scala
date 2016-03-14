@@ -1,8 +1,7 @@
 package cromwell.webservice
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor._
 import com.typesafe.config.Config
-import cromwell.engine.workflow.ValidateActor
 import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.webservice.CromwellApiServiceActor.traceName
@@ -25,14 +24,14 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
-    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config)
+  def props(workflowManagerActorRef: ActorRef, validateActorRef: ActorRef, config: Config): Props = {
+    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, validateActorRef, config)
   }
 
   def traceName(name: String) = Monitor.traceName(name)
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
+class CromwellApiServiceActor(val workflowManager: ActorRef, val validateActor: ActorRef, config: Config)
   extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
@@ -48,6 +47,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   import CromwellApiServiceActor._
 
   val workflowManager: ActorRef
+  val validateActor: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
@@ -113,10 +113,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         post {
           formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
             requestContext =>
-              perRequest(
-                requestContext,
-                ValidateActor.props(wdlSource, workflowInputs, workflowOptions),
-                ValidateActor.ValidateWorkflow)
+              perRequest(requestContext, CromwellApiHandler.props(validateActor), CromwellApiHandler.ApiHandlerValidateWorkflow(wdlSource, workflowInputs, workflowOptions))
           }
         }
       }

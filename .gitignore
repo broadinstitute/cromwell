@@ -7,3 +7,7 @@ cromwell-test-executions
 cromwell-workflow-logs
 cromwell-test-workflow-logs
 native
+.classpath
+.project
+.settings
+core

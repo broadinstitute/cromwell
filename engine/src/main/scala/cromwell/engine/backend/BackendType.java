@@ -8,6 +8,7 @@ public enum BackendType {
         }
     },
     JES,
+    PBS,
     SGE;
 
     public String displayName() {

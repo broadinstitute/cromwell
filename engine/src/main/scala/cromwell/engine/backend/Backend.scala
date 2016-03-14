@@ -7,6 +7,7 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.pbs.PbsBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
@@ -31,6 +32,7 @@ object Backend {
   def from(backendType: BackendType, actorSystem: ActorSystem): Backend = backendType match {
     case BackendType.LOCAL => LocalBackend(actorSystem)
     case BackendType.JES => JesBackend(actorSystem)
+    case BackendType.PBS => PbsBackend(actorSystem)
     case BackendType.SGE => SgeBackend(actorSystem)
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }

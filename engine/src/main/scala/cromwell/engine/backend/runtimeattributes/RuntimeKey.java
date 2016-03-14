@@ -3,18 +3,19 @@ package cromwell.engine.backend.runtimeattributes;
 import cromwell.engine.backend.BackendType;
 import static cromwell.engine.backend.BackendType.JES;
 import static cromwell.engine.backend.BackendType.LOCAL;
+import static cromwell.engine.backend.BackendType.PBS;
 import static cromwell.engine.backend.BackendType.SGE;
 /**
  * Backend runtime keys and the backends which are known to support them.
  */
 public enum RuntimeKey {
-    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES),
-    CPU("cpu", JES),
+    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES, PBS),
+    CPU("cpu", JES, PBS),
     DISKS("disks", JES),
     ZONES("zones", JES),
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
-    FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE),
-    MEMORY("memory", JES),
+    FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE, PBS),
+    MEMORY("memory", JES, PBS),
     PREEMPTIBLE("preemptible", JES);
 
     public final String key;

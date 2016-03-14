@@ -25,9 +25,9 @@ sealed trait JobDescriptor[K <: CallKey] {
 }
 
 case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
-                                          key: BackendCallKey,
-                                          locallyQualifiedInputs: CallInputs = Map.empty,
-                                          abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
+                                    key: BackendCallKey,
+                                    locallyQualifiedInputs: CallInputs = Map.empty,
+                                    abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
 
   // PBE temporarily still required.  Once we have call-scoped Backend actors they will know themselves and the
   // backend won't need to be in the WorkflowDescriptor and this method won't need to exist.
@@ -61,6 +61,10 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
     * Compute a hash that uniquely identifies this job w.r.t. its backend.
     */
   def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = backend.hash(this)
+
+  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
+
+  def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
 }
 
 case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

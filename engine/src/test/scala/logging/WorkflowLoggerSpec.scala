@@ -4,11 +4,11 @@ import java.util.UUID
 
 import cromwell.CromwellTestkitSpec
 import cromwell.engine.backend.BackendCallJobDescriptor
-import wdl4s.values.WdlValue
 import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortRegistrationFunction, WorkflowDescriptor, WorkflowId, WorkflowSourceFiles}
+import cromwell.engine.{WorkflowDescriptor, WorkflowId, WorkflowSourceFiles}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import wdl4s.values.WdlValue
 
 class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()

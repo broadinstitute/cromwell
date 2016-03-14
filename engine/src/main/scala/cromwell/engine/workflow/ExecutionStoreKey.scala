@@ -31,6 +31,7 @@ object BackendCallKey {
 
 case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int) extends CallKey {
   import BackendCallKey._
+  import cromwell.engine.backend.io._
 
   def retryClone = this.copy(attempt = this.attempt + 1)
 
@@ -38,7 +39,7 @@ case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int) extends
     val call = s"$CallPrefix-${scope.unqualifiedName}"
     val shard = index map { s => s"$ShardPrefix-$s" } getOrElse ""
     val retry = if (attempt > 1) s"$AttemptPrefix-$attempt" else ""
-    descriptor.workflowRootPathWithBaseRoot(baseRoot).resolve(call).resolve(shard).resolve(retry)
+    descriptor.workflowRootPathWithBaseRoot(baseRoot).resolve(call).resolve(shard).resolve(retry).asDirectory
   }
 }
 case class CollectorKey(scope: Call, attempt: Int = 1) extends OutputKey {

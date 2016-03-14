@@ -1,6 +1,7 @@
 package cromwell.engine
 
-import cromwell.engine.io.IoInterface
+import java.nio.file.FileSystem
+
 import wdl4s.values._
 
 import scala.language.postfixOps
@@ -10,9 +11,8 @@ import scala.util.{Success, Try}
  * Default implementation of Wdl Standard Library functions executed at the workflow level.
  * This class is abstract to enforce that Backends extend it and customize the behavior if needed.
  */
-abstract class WorkflowEngineFunctions(override val interface: IoInterface, val context: WorkflowContext) extends WdlStandardLibraryImpl {
+abstract class WorkflowEngineFunctions(override val fileSystems: List[FileSystem], val context: WorkflowContext) extends WdlStandardLibraryImpl {
   override def tempFilePath: String = context.root
-  override def globPath(glob: String): String = context.root
 }
 
 /**

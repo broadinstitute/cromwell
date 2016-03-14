@@ -1,6 +1,6 @@
 package cromwell.engine.db.slick
 
-import java.nio.file.{FileSystems, FileSystem}
+import java.nio.file.{FileSystem, FileSystems}
 import java.sql.SQLException
 import java.util.UUID
 
@@ -10,8 +10,8 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.backend._
+import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.backend.local.{LocalBackend, LocalBackendCall}
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey, WorkflowOptions}
@@ -65,8 +65,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
   object UnknownBackend extends Backend {
-    type BackendCall = LocalBackendCall
-
     def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = throw new NotImplementedError
 
     override val actorSystem = workflowManagerSystem.actorSystem
@@ -76,7 +74,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = throw new NotImplementedError
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
     override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
-    override def bindCall(jobDescriptor: BackendCallJobDescriptor, abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = throw new NotImplementedError
     override def backendType: BackendType = throw new NotImplementedError
     override def rootPath(workflowOptions: WorkflowOptions): String = throw new NotImplementedError
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError

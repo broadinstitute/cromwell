@@ -746,7 +746,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       for {
         workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(jobDescriptor.workflowDescriptor.id.toString).result.head
         execution <- dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndexAndAttempt(
-          workflowExecutionResult.workflowExecutionId.get, jobDescriptor.key.scope.fullyQualifiedName, jobDescriptor.key.index.fromIndex, jobDescriptor.key.attempt).result.head
+          workflowExecutionResult.workflowExecutionId.get, jobDescriptor.call.fullyQualifiedName, jobDescriptor.key.index.fromIndex, jobDescriptor.key.attempt).result.head
       } yield Option(execution.executionId.get)
     } getOrElse DBIO.successful(None)
 

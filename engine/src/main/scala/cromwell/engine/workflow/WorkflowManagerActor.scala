@@ -8,7 +8,6 @@ import cromwell.engine
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
@@ -313,7 +312,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
       BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
 
     def backendCallFromKey(workflow: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) = {
-      backend.bindCall(BackendCallJobDescriptor(workflow, callKey(workflow, callName, key)))
+      BackendCallJobDescriptor(workflow, callKey(workflow, callName, key))
     }
 
     // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
@@ -326,6 +325,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
     } yield backendKeys.groupBy(_.key.index).values.toIndexedSeq.sortBy(_.head.key.index) map {
+      // TODO Waiting for stdoutStderr to be moved
       _.sortBy(_.key.attempt).map(_.stdoutStderr).toIndexedSeq
     }
   }

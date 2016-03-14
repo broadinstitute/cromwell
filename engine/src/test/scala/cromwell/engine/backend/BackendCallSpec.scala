@@ -20,8 +20,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
       val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
-      val backendCall = backend.bindCall(jobDescriptor, abortRegistrationFunction = None)
-      val actual = backendCall.hash.futureValue.overallHash
+      val actual = jobDescriptor.hash.futureValue.overallHash
       actual should be(empty)
     }
 
@@ -30,8 +29,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources, callCachingConfig)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
       val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
-      val backendCall = backend.bindCall(jobDescriptor, abortRegistrationFunction = None)
-      val actual = backendCall.hash.futureValue.overallHash
+      val actual = jobDescriptor.hash.futureValue.overallHash
       val expected = "9eb5cdfbb16dcccb0ca413a5a101ca7c"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
@@ -42,9 +40,8 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), sources, callCachingConfig)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
       val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
-      val backendCall = backend.bindCall(jobDescriptor, abortRegistrationFunction = None)
 
-      val actual = backendCall.hash.futureValue.overallHash
+      val actual = jobDescriptor.hash.futureValue.overallHash
       val expected = "09eb4d544ecbd3740838c9798109a6d0"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }

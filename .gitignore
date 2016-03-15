@@ -11,3 +11,4 @@ native
 .project
 .settings
 core
+.cache*

@@ -17,6 +17,8 @@ import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
+import java.util.concurrent.TimeUnit
+
 case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      docker: Option[String],
                                      zones: Seq[String],
@@ -25,7 +27,8 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      cpu: Long,
                                      preemptible: Int,
                                      disks: Seq[JesAttachedDisk],
-                                     memoryGB: Double)
+                                     memoryGB: Double,
+                                     walltime: String)
 
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
@@ -93,7 +96,8 @@ object CromwellRuntimeAttributes {
                         ValidKeyType("continueOnReturnCode", Set(WdlBooleanType, WdlArrayType(WdlIntegerType))),
                         ValidKeyType("failOnStderr", Set(WdlBooleanType)),
                         ValidKeyType("preemptible", Set(WdlIntegerType)),
-                        ValidKeyType("memory", Set(WdlStringType)))
+                        ValidKeyType("memory", Set(WdlStringType)),
+                        ValidKeyType("walltime", Set(WdlStringType)))
 
   private val defaultValues = Map(
     "cpu" -> WdlInteger(1),
@@ -102,7 +106,8 @@ object CromwellRuntimeAttributes {
     "continueOnReturnCode" -> WdlInteger(0),
     "failOnStderr" -> WdlBoolean.False,
     "preemptible" -> WdlInteger(0),
-    "memory" -> WdlString("2GB")
+    "memory" -> WdlString("2GB"),
+    "walltime" -> WdlString("24:00:00")
   )
 
   private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
@@ -140,9 +145,10 @@ object CromwellRuntimeAttributes {
       case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
       case scala.util.Failure(x) => x.getMessage.failureNel
     }
+    val walltime = validateWalltime(attributeMap.get(WALLTIME))
 
-    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
-      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _)
+    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory |@| walltime) {
+      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _, _)
     } match {
       case Success(x) => scala.util.Success(x)
       case Failure(nel) => scala.util.Failure(new IllegalArgumentException(nel.list.mkString("\n")))
@@ -151,6 +157,28 @@ object CromwellRuntimeAttributes {
 
   private def validateCpu(cpu: Option[WdlValue]): ErrorOr[Int] = {
     cpu.map(validateInt).getOrElse(defaults.cpu.toInt.successNel)
+  }
+  
+  private def validateWalltime(walltime: Option[WdlValue]): ErrorOr[String] = {
+    val walltimeFormat = new java.text.SimpleDateFormat("HH:mm:ss")
+    def toIntervalString(interval: WdlValue): ErrorOr[String] = {
+      Try(walltimeFormat.parse(interval.valueString)) match {
+        case scala.util.Success(date) =>
+          /*
+           * We use SimpleDateFormat as a parsing validator, but we want a well-formed
+           * HH:mm:ss string at the end (e.g. 00:70:00 is accepted as valid input but we
+           * want 01:10:00 as output) so we turn the resulting date into a millisecond
+           * interval and construct proper HH:mm:ss
+           */
+          val millis = date.getTime - (date.getTimezoneOffset * 60 * 1000)
+          val hours = TimeUnit.MILLISECONDS.toHours(millis)
+          val minutes = TimeUnit.MILLISECONDS.toMinutes(millis - hours * 3600000)
+          val seconds = TimeUnit.MILLISECONDS.toSeconds(millis - hours * 3600000 - minutes * 60000)
+          s"$hours:$minutes:$seconds".successNel[String]
+        case scala.util.Failure(e) => e.toString.failureNel
+      }
+    }
+    walltime.map(toIntervalString(_)).getOrElse(defaults.walltime.successNel)
   }
 
   private def validatePreemptible(preemptible: Option[WdlValue]): ErrorOr[Int] = {

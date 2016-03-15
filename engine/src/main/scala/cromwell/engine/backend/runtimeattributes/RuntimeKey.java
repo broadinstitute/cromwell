@@ -10,13 +10,14 @@ import static cromwell.engine.backend.BackendType.SGE;
  */
 public enum RuntimeKey {
     CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES, PBS),
-    CPU("cpu", JES, PBS),
+    CPU("cpu", new BackendType[]{PBS}, JES),
     DISKS("disks", JES),
     ZONES("zones", JES),
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
     FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE, PBS),
-    MEMORY("memory", JES, PBS),
-    PREEMPTIBLE("preemptible", JES);
+    MEMORY("memory", new BackendType[]{PBS}, JES),
+    PREEMPTIBLE("preemptible", JES),
+    WALLTIME("walltime", new BackendType[]{PBS});
 
     public final String key;
 

@@ -7,7 +7,7 @@ import java.util.UUID
 import better.files._
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.IntegrationTest
+import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
@@ -179,7 +179,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     val testWdlStringShard = WdlString("testStringValueShard")
     val testWdlStringShardHash = testWdlStringShard.computeHash
 
-    it should "(if hsqldb) have transaction isolation mvcc" taggedAs IntegrationTest in {
+    it should "(if hsqldb) have transaction isolation mvcc" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       import dataAccess.dataAccess.driver.api._
 
@@ -201,7 +201,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "create and retrieve the workflow for just reading" taggedAs IntegrationTest in {
+    it should "create and retrieve the workflow for just reading" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -221,7 +221,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "store and retrieve an empty String as a WdlValue" taggedAs IntegrationTest in {
+    it should "store and retrieve an empty String as a WdlValue" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -247,7 +247,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "create and query a workflow" taggedAs IntegrationTest in {
+    it should "create and query a workflow" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), testSources)
       val workflow2Info = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), test2Sources)
@@ -319,7 +319,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       }
     }
 
-    it should "support call caching configuration for specified calls in a regular workflow" taggedAs IntegrationTest in {
+    it should "support call caching configuration for specified calls in a regular workflow" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.ThreeStep.asWorkflowSources())
 
@@ -343,7 +343,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "support call caching configuration for specified calls in a scattered workflow" taggedAs IntegrationTest in {
+    it should "support call caching configuration for specified calls in a scattered workflow" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.SimpleScatterWdl.asWorkflowSources())
 
@@ -385,7 +385,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "support call caching configuration for all calls in a regular workflow" taggedAs IntegrationTest in {
+    it should "support call caching configuration for all calls in a regular workflow" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
 
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.ThreeStep.asWorkflowSources())
@@ -403,7 +403,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "support call caching configuration for all calls in a scattered workflow" taggedAs IntegrationTest in {
+    it should "support call caching configuration for all calls in a scattered workflow" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
 
       val workflowInfo = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.SimpleScatterWdl.asWorkflowSources())
@@ -426,7 +426,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
 
 
-    it should "query a single execution status" taggedAs IntegrationTest in {
+    it should "query a single execution status" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -444,7 +444,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "create and retrieve 3step.wdl with a 10,000 char pattern" taggedAs IntegrationTest in {
+    it should "create and retrieve 3step.wdl with a 10,000 char pattern" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val sampleWdl = SampleWdl.ThreeStepLargeJson
@@ -465,7 +465,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "fail when saving a workflow twice" taggedAs IntegrationTest in {
+    it should "fail when saving a workflow twice" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -476,7 +476,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 
-    it should "fail when updating a non-existent workflow state" taggedAs IntegrationTest in {
+    it should "fail when updating a non-existent workflow state" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
 
@@ -485,7 +485,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
-    it should "update and get a workflow state" taggedAs IntegrationTest in {
+    it should "update and get a workflow state" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -506,7 +506,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "get workflow state" taggedAs IntegrationTest in {
+    it should "get workflow state" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -553,7 +553,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
       val callAlias = if (useAlias) Some("call.alias") else None
 
-      it should s"get $spec" taggedAs IntegrationTest in {
+      it should s"get $spec" taggedAs DbmsTest in {
         assume(canConnect || testRequired)
         val workflowId = WorkflowId(UUID.randomUUID())
         val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -611,7 +611,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       }
     }
 
-    it should "insert a call in execution table" taggedAs IntegrationTest in {
+    it should "insert a call in execution table" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
@@ -635,12 +635,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "fail to get an non-existent execution status" taggedAs IntegrationTest in {
+    it should "fail to get an non-existent execution status" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       dataAccess.getExecutionStatuses(WorkflowId(UUID.randomUUID())).failed.futureValue should be(a[NoSuchElementException])
     }
 
-    it should "get a symbol input" taggedAs IntegrationTest in {
+    it should "get a symbol input" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolFqn = "symbol.fully.qualified.scope"
@@ -671,7 +671,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "get a symbol input that has a very long WDL value field" taggedAs IntegrationTest in {
+    it should "get a symbol input that has a very long WDL value field" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val wdlArray = new WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("test"), WdlString("*" * 10000)))
       val callFqn = "call.fully.qualified.scope"
@@ -702,7 +702,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "fail to get inputs for a null call" taggedAs IntegrationTest in {
+    it should "fail to get inputs for a null call" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId: WorkflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -714,7 +714,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
-    it should "set and get an output" taggedAs IntegrationTest in {
+    it should "set and get an output" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
@@ -743,7 +743,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "set and get shard statuses" taggedAs IntegrationTest in {
+    it should "set and get shard statuses" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn1 = "call.fully.qualified.scope$s1"
       val callFqn2 = "call.fully.qualified.scope$s2"
@@ -772,7 +772,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "set and get an output by call" taggedAs IntegrationTest in {
+    it should "set and get an output by call" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
@@ -810,7 +810,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "fail to get outputs for a null call" taggedAs IntegrationTest in {
+    it should "fail to get outputs for a null call" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -822,7 +822,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(an[IllegalArgumentException])
     }
 
-    it should "fail to create workflow for an unknown backend" taggedAs IntegrationTest in {
+    it should "fail to create workflow for an unknown backend" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
@@ -834,7 +834,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         UnknownBackend).failed.futureValue should be(an[Exception])
     }
 
-    it should "fail to create workflow for a null backend" taggedAs IntegrationTest in {
+    it should "fail to create workflow for a null backend" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
@@ -846,7 +846,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         null).failed.futureValue should be(a[NullPointerException])
     }
 
-    it should "set and get the same symbol with IO as input then output" taggedAs IntegrationTest in {
+    it should "set and get the same symbol with IO as input then output" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
@@ -879,7 +879,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "fail when setting an existing symbol output" taggedAs IntegrationTest in {
+    it should "fail when setting an existing symbol output" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val symbolLqn = "symbol"
@@ -898,7 +898,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 
-    it should "set and get a backend info" taggedAs IntegrationTest in {
+    it should "set and get a backend info" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId = WorkflowId(UUID.randomUUID())
       val workflowInfo = WorkflowDescriptor(workflowId, testSources)
@@ -918,7 +918,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
 
     // Queries use `.head` a lot. There was a bug that pulled the backend info by fqn, but for any workflow.
-    it should "set and get a backend info for same call on two workflows" taggedAs IntegrationTest in {
+    it should "set and get a backend info for same call on two workflows" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowId1 = WorkflowId(UUID.randomUUID())
       val workflowId2 = WorkflowId(UUID.randomUUID())
@@ -947,7 +947,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "update call start and end dates appropriately" taggedAs IntegrationTest in {
+    it should "update call start and end dates appropriately" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"
       val workflowId = WorkflowId(UUID.randomUUID())
@@ -980,7 +980,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield()).futureValue
     }
 
-    it should "set and get execution events" taggedAs IntegrationTest in {
+    it should "set and get execution events" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
 
       // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
@@ -1046,7 +1046,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "reject a set of execution events without a valid execution to link to" taggedAs IntegrationTest in {
+    it should "reject a set of execution events without a valid execution to link to" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
 
       // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
@@ -1063,7 +1063,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
-    it should "close the database" taggedAs IntegrationTest in {
+    it should "close the database" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       dataAccess.close()
     }

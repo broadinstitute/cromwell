@@ -14,6 +14,6 @@ object CromwellSpec {
   val Config = ConfigFactory.parseString(CromwellSpec.BackendConfText).getConfig("backend")
 
   object DockerTest extends Tag("DockerTest")
-
   object IntegrationTest extends Tag("CromwellIntegrationTest")
+  object DbmsTest extends Tag("DbmsTest")
 }

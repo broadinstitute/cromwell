@@ -3,7 +3,6 @@ import sbt._
 
 object Testing {
   lazy val AllTests = config("alltests") extend Test
-  lazy val NoTests = config("notests") extend Test
   lazy val DockerTest = config("docker") extend Test
   lazy val NoDockerTest = config("nodocker") extend Test
   lazy val CromwellIntegrationTest = config("integration") extend Test
@@ -34,8 +33,6 @@ object Testing {
     testOptions in Test ++= defaultTestArgs,
     // `alltests:test` - Run all tests
     testOptions in AllTests := (testOptions in Test).value.diff(defaultTestArgs),
-    // `notests:test` - Run no tests
-    testOptions in NoTests := (testOptions in Test).value ++ Seq(Tests.Filter(_ => false)),
     // `docker:test` - Run only the docker tests.
     testOptions in DockerTest := (testOptions in AllTests).value ++ Seq(UseDockerTaggedTests),
     // `nodocker:test` - Run all tests, except docker

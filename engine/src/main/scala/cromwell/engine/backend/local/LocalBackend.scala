@@ -80,7 +80,7 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  type BackendCall = LocalBackendCall
+  override type BackendCall = LocalBackendCall
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
@@ -106,7 +106,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
 
   def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
-    val logger = workflowLoggerWithCall(backendCall)
+    val logger = jobLogger(backendCall.jobDescriptor)
     backendCall.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
@@ -159,7 +159,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   }
 
   private def runSubprocess(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
-    val logger = workflowLoggerWithCall(backendCall)
+    val logger = jobLogger(backendCall.jobDescriptor)
     val stdoutWriter = backendCall.stdout.untailed
     val stderrTailed = backendCall.stderr.tailed(100)
     val dockerRun = backendCall.runtimeAttributes.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
@@ -192,7 +192,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     } else {
 
       def processSuccess(rc: Int) = {
-        postProcess(backendCall) match {
+        postProcess(backendCall.jobDescriptor) match {
           case Success(outputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""

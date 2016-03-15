@@ -10,7 +10,7 @@ import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.backend.{Backend, BackendCall, JobKey, WorkflowQueryResult}
+import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
@@ -729,24 +729,24 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   def setTerminalStatus(workflowId: WorkflowId, scopeKey: ExecutionDatabaseKey, status: ExecutionStatus,
                         scriptReturnCode: Option[Int], hash: Option[ExecutionHash],
-                        resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext): Future[Unit] = {
+                        resultsClonedFrom: Option[BackendCallJobDescriptor])(implicit ec: ExecutionContext): Future[Unit] = {
     runTransaction(setTerminalStatusAction(workflowId, scopeKey, status, scriptReturnCode, hash, resultsClonedFrom))
   }
 
   def setTerminalStatusAction(workflowId: WorkflowId, scopeKey: ExecutionDatabaseKey, status: ExecutionStatus,
                               scriptReturnCode: Option[Int], hash: Option[ExecutionHash],
-                              resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext) = {
+                              resultsClonedFrom: Option[BackendCallJobDescriptor])(implicit ec: ExecutionContext) = {
     require(status.isTerminal)
 
     val overallHash = hash map { _.overallHash }
     val dockerHash = hash flatMap { _.dockerHash }
     val projection = { e: SlickDataAccess.this.dataAccess.Executions => (e.status, e.endDt, e.rc, e.executionHash, e.dockerImageHash, e.resultsClonedFrom) }
 
-    val findResultsClonedFromId = resultsClonedFrom map { backendCall =>
+    val findResultsClonedFromId = resultsClonedFrom map { jobDescriptor =>
       for {
-        workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(backendCall.workflowDescriptor.id.toString).result.head
+        workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(jobDescriptor.workflowDescriptor.id.toString).result.head
         execution <- dataAccess.executionsByWorkflowExecutionIdAndCallFqnAndIndexAndAttempt(
-          workflowExecutionResult.workflowExecutionId.get, backendCall.key.scope.fullyQualifiedName, backendCall.key.index.fromIndex, backendCall.key.attempt).result.head
+          workflowExecutionResult.workflowExecutionId.get, jobDescriptor.key.scope.fullyQualifiedName, jobDescriptor.key.index.fromIndex, jobDescriptor.key.attempt).result.head
       } yield Option(execution.executionId.get)
     } getOrElse DBIO.successful(None)
 

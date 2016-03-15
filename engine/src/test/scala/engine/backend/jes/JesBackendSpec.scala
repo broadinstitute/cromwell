@@ -64,12 +64,15 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     call.task returns task
     val backendCallKey = mock[BackendCallKey]
     backendCallKey.attempt returns 1
+    backendCallKey.scope returns call
     val backendCall = mock[JesBackendCall]
     backendCall.call returns call
     backendCall.key returns backendCallKey
     backendCall.preemptible returns false
     backendCall.maxPreemption returns 1
     backendCall.workflowDescriptor returns wd
+    val jobDescriptor = new BackendCallJobDescriptor(wd, backendCallKey)
+    backendCall.jobDescriptor returns jobDescriptor
     val handle = mock[JesPendingExecutionHandle]
     handle.backendCall returns backendCall
 
@@ -242,17 +245,23 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
                       inputs: Map[String, WdlValue],
                       lookup: String => WdlValue,
                       functions: JesCallEngineFunctions = new JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new CallContext("root", "out", "err"))): JesBackendCall = {
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), wdl.asWorkflowSources())
+
+    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), wdl.asWorkflowSources()).copy(wfContext = new WorkflowContext("gs://foobar"))
     val backendCall = mock[JesBackendCall]
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
     runtimeAttributes.disks returns Seq(workingDisk)
+    val jobDescriptor = mock[BackendCallJobDescriptor]
+    jobDescriptor.workflowDescriptor returns descriptor
+    jobDescriptor.key returns new BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, None, 1)
+    backendCall.jobDescriptor returns jobDescriptor
     backendCall.locallyQualifiedInputs returns inputs
     backendCall.workingDisk returns workingDisk
     backendCall.call returns descriptor.namespace.workflow.findCallByName(callName).get
     backendCall.key returns BackendCallKey(backendCall.call, None, 1)
-    backendCall.callGcsPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute = true, isDirectory = true)(GcsFileSystem.defaultGcsFileSystem)
+    // This will be less ugly once BackendCall is really deleted and the Filesystems PR is merged
+    jobDescriptor.callRootPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute=true, isDirectory = true)(GcsFileSystem.defaultGcsFileSystem)
     backendCall.lookupFunction(inputs) returns lookup
-    backendCall.runtimeAttributes returns runtimeAttributes
+    jobDescriptor.callRuntimeAttributes returns runtimeAttributes
     backendCall.callEngineFunctions returns functions
     backendCall
   }
@@ -265,7 +274,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val jesInputs = jesBackend.generateJesInputs(backendCall)
     jesInputs should have size 1
     jesInputs should contain(JesFileInput("in-0", "gs://a/b/c.txt", Paths.get("a/b/c.txt"), workingDisk))
-    val jesOutputs = jesBackend.generateJesOutputs(backendCall)
+    val jesOutputs = jesBackend.generateJesOutputs(backendCall.jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(JesFileOutput("out", "gs://call/gcs/path/out", Paths.get("out"), workingDisk))
   }
@@ -284,7 +293,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val jesInputs = jesBackend.generateJesInputs(backendCall)
     jesInputs should have size 1
     jesInputs should contain(JesFileInput("c6fd5c91-0", "gs://some/path/file.txt", Paths.get("some/path/file.txt"), workingDisk))
-    val jesOutputs = jesBackend.generateJesOutputs(backendCall)
+    val jesOutputs = jesBackend.generateJesOutputs(backendCall.jobDescriptor)
     jesOutputs should have size 0
   }
 

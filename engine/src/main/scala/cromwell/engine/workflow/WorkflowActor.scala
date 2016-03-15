@@ -43,7 +43,7 @@ object WorkflowActor {
   case class CallStarted(callKey: OutputKey) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
-  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall]) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
   case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: Throwable) extends TerminalCallMessage
   case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends TerminalCallMessage
@@ -58,7 +58,7 @@ object WorkflowActor {
   }
 
   final private case class PersistStatus(callKey: OutputKey, status: ExecutionStatus, callOutputs: Option[CallOutputs], returnCode: Option[Int],
-                                         hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall], sender: ActorRef, message: TerminalCallMessage)
+                                         hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor], sender: ActorRef, message: TerminalCallMessage)
   final case class PersistenceSucceeded(callKey: ExecutionStoreKey,
                                         executionStatus: ExecutionStatus,
                                         outputs: Option[CallOutputs] = None) extends PersistenceMessage
@@ -415,7 +415,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
                                   returnCode: Int,
                                   message: TerminalCallMessage,
                                   hash: Option[ExecutionHash],
-                                  resultsClonedFrom: Option[BackendCall],
+                                  resultsClonedFrom: Option[BackendCallJobDescriptor],
                                   data: WorkflowData): State = {
     val currentSender = sender()
     val completionWork = for {
@@ -701,7 +701,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
                             callOutputs: Option[CallOutputs] = None,
                             returnCode: Option[Int] = None,
                             hash: Option[ExecutionHash] = None,
-                            resultsClonedFrom: Option[BackendCall] = None): Future[Unit] = {
+                            resultsClonedFrom: Option[BackendCallJobDescriptor] = None): Future[Unit] = {
 
     logger.info(s"persisting status of ${storeKey.tag} to $executionStatus.")
 
@@ -727,7 +727,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
                                    callOutputs: Option[CallOutputs] = None,
                                    returnCode: Option[Int] = None,
                                    hash: Option[ExecutionHash] = None,
-                                   resultsClonedFrom: Option[BackendCall] = None): Unit = {
+                                   resultsClonedFrom: Option[BackendCallJobDescriptor] = None): Unit = {
 
     persistStatus(storeKey, executionStatus, callOutputs, returnCode, hash, resultsClonedFrom) map { _ => CallActor.Ack(message) } pipeTo recipient
   }

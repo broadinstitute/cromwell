@@ -1,17 +1,16 @@
 package cromwell.engine.backend
 
-import java.nio.file.Path
-import java.nio.file.FileSystem
+import java.nio.file.{FileSystem, Path}
 
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag, CromwellRuntimeAttributes}
+import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
-import cromwell.engine.workflow.WorkflowOptions
+import cromwell.engine.workflow.{CallKey, WorkflowOptions}
 import cromwell.engine.{CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
@@ -136,11 +135,11 @@ trait Backend {
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
-  def workflowLoggerWithCall(backendCall: BackendCall) = WorkflowLogger(
+  def jobLogger(jobDescriptor: JobDescriptor[_ <: CallKey]) = WorkflowLogger(
     backendClassString,
-    backendCall.workflowDescriptor,
+    jobDescriptor.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
-    callTag = Option(backendCall.key.tag)
+    callTag = Option(jobDescriptor.key.tag)
   )
 
   lazy val dockerHashClient = new SprayDockerRegistryApiClient()(actorSystem)
@@ -221,4 +220,6 @@ trait Backend {
   def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem]
 
   def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
+
+  def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 }

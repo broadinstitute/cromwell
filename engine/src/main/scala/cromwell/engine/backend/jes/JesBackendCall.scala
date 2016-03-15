@@ -62,9 +62,6 @@ class JesBackendCall(val backend: JesBackend,
 
   override def resume(jobKey: JobKey)(implicit ec: ExecutionContext) = backend.resume(this, jobKey)
 
-  override def useCachedCall(avoidedTo: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
-    backend.useCachedCall(avoidedTo.asInstanceOf[JesBackendCall], this)
-
   override def stdoutStderr: CallLogs = {
     CallLogs(
       stdout = WdlFile(jesStdoutGcsPath.toString),

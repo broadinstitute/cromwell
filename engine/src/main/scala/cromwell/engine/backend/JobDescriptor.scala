@@ -24,7 +24,7 @@ sealed trait JobDescriptor[K <: CallKey] {
   def locallyQualifiedInputs: CallInputs
 }
 
-final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
+case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
                                           key: BackendCallKey,
                                           locallyQualifiedInputs: CallInputs = Map.empty,
                                           abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
@@ -40,6 +40,8 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
   def callEngineFunctions: CallEngineFunctions = backend.callEngineFunctions(this)
 
   def callRuntimeAttributes: CromwellRuntimeAttributes = backend.runtimeAttributes(this)
+
+  def useCachedCall(cachedJobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.useCachedCall(cachedJobDescriptor, this)
 
   /**
     * Attempt to evaluate all the ${...} tags in a command and return a String representation
@@ -61,7 +63,7 @@ final case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor
   def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = backend.hash(this)
 }
 
-final case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
+case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
                                         key: FinalCallKey,
                                         workflowMetadataResponse: WorkflowMetadataResponse) extends JobDescriptor[FinalCallKey] {
 

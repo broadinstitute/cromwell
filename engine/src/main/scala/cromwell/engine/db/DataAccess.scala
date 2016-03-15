@@ -1,7 +1,7 @@
 package cromwell.engine.db
 
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, BackendCall, JobKey}
+import cromwell.engine.backend.{BackendCallJobDescriptor, Backend, BackendCall, JobKey}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
@@ -101,7 +101,7 @@ trait DataAccess extends AutoCloseable {
 
   /** Set the status of a Call to a terminal status, and update associated information (return code, hash, cache). */
   def setTerminalStatus(workflowId: WorkflowId, scopeKeys: ExecutionDatabaseKey, status: ExecutionStatus,
-                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext): Future[Unit]
+                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor])(implicit ec: ExecutionContext): Future[Unit]
 
   def getExecutionStatuses(workflowId: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]]

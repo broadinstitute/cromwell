@@ -28,7 +28,7 @@ object CallActor {
   }
   case object Start extends StartMode { override val executionMessage = CallExecutionActor.Execute }
   final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
-  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode {
+  final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor) extends StartMode {
     override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall)
   }
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage

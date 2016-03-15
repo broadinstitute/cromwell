@@ -4,6 +4,7 @@ import java.net.URL
 import java.nio.file.{FileSystems, Paths}
 import java.util.UUID
 
+import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
 import cromwell.engine._
@@ -65,7 +66,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
 
     class PreemptionJobDescriptor(attempt: Int, max: Int) extends BackendCallJobDescriptor(wd, BackendCallKey(call, None, attempt)) {
       private val attributes = mock[CromwellRuntimeAttributes].preemptible returns max
-      override def callRuntimeAttributes: CromwellRuntimeAttributes = attributes
+      override lazy val callRuntimeAttributes: CromwellRuntimeAttributes = attributes
     }
 
     val handle = mock[JesPendingExecutionHandle]
@@ -149,9 +150,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     // This should only ever be used in this test to grab some locallyQualifiedInputs. So leave the rest null:
     val jobDescriptor = BackendCallJobDescriptor(null, null, inputs)
 
-    val mockedBackendCall = mock[JesBackendCall]
-    mockedBackendCall.jobDescriptor returns jobDescriptor
-    val mappedInputs: CallInputs = new JesBackend(actorSystem).adjustInputPaths(mockedBackendCall.jobDescriptor)
+    val mappedInputs: CallInputs = new JesBackend(actorSystem).adjustInputPaths(jobDescriptor)
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -378,10 +377,10 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
-    )
+    ).copy(backend = jesBackend)
 
     val call = wd.namespace.workflow.findCallByName("hello").get
-    val backendCall = jesBackend.bindCall(BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1)))
+    val backendCall = BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log")
@@ -399,9 +398,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
-    )
+    ).copy(backend = jesBackend)
     val call = wd.namespace.workflow.findCallByName("B").get
-    val backendCall = jesBackend.bindCall(BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1)))
+    val backendCall = BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1))
     val stdoutstderr = backendCall.stdoutStderr
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stdout.log")
@@ -411,5 +410,41 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val logsMap = stdoutstderr.backendLogs.get
     logsMap should contain key "log"
     logsMap("log") shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2.log")
+  }
+
+  "JesJobDescriptor" should "return preemptible = true only in the correct cases" in {
+    val backendCallKeyWithAttempt1 = mock[BackendCallKey]
+    backendCallKeyWithAttempt1.attempt returns 1
+
+    val backendCallKeyWithAttempt2 = mock[BackendCallKey]
+    backendCallKeyWithAttempt2.attempt returns 2
+
+    val workflow = mock[WorkflowDescriptor]
+    val backend = new JesBackend(ActorSystem("Jessie"))
+    workflow.backend returns backend
+
+    class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {
+      val attributes = mock[CromwellRuntimeAttributes]
+
+      override lazy val callRuntimeAttributes: CromwellRuntimeAttributes = attributes.preemptible returns max
+    }
+
+    class Attempt1(max: Int) extends MaxMockingDescriptor(max, backendCallKeyWithAttempt1)
+    class Attempt2(max: Int) extends MaxMockingDescriptor(max, backendCallKeyWithAttempt2)
+
+    val descriptorWithMax0AndKey1 = new Attempt1(max = 0)
+    descriptorWithMax0AndKey1.preemptible shouldBe false
+
+    val descriptorWithMax1AndKey1 = new Attempt1(max = 1)
+    descriptorWithMax1AndKey1.preemptible shouldBe true
+
+    val descriptorWithMax2AndKey1 = new Attempt1(max = 2)
+    descriptorWithMax2AndKey1.preemptible shouldBe true
+
+    val descriptorWithMax1AndKey2 = new Attempt2(max = 1)
+    descriptorWithMax1AndKey2.preemptible shouldBe false
+
+    val descriptorWithMax2AndKey2 = new Attempt2(max = 2)
+    descriptorWithMax2AndKey2.preemptible shouldBe true
   }
 }

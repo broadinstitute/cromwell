@@ -6,5 +6,5 @@ import cromwell.engine.callexecution.CallExecutionActor
 
 case class FinalCallActor(jobDescriptor: FinalCallJobDescriptor) extends CallActor[FinalCallJobDescriptor] {
   override protected lazy val callExecutionActor: ActorRef = context.actorOf(
-    CallExecutionActor.props(jobDescriptor.key.scope, jobDescriptor.workflowMetadataResponse))
+    CallExecutionActor.props(jobDescriptor.call, jobDescriptor.workflowMetadataResponse))
 }

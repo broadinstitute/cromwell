@@ -3,7 +3,7 @@ package cromwell.engine.callexecution
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import com.google.api.client.util.ExponentialBackOff
-import cromwell.engine.backend.{BackendCall, ExecutionHandle, JobKey, _}
+import cromwell.engine.backend.{ExecutionHandle, JobKey, _}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, Finish, IssuePollRequest, PollResponseReceived}
 import cromwell.engine.finalcall.FinalCall
@@ -12,7 +12,7 @@ import cromwell.logging.WorkflowLogger
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.Scope
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -27,9 +27,9 @@ object CallExecutionActor {
 
   case object Execute extends ExecutionMode
   final case class Resume(jobKey: JobKey) extends ExecutionMode
-  final case class UseCachedCall(cachedBackendCall: BackendCall) extends ExecutionMode
+  final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor) extends ExecutionMode
 
-  def props(backendCall: BackendCall): Props = Props(new BackendCallExecutionActor(backendCall))
+  def props(backendCall: BackendCallJobDescriptor): Props = Props(new BackendCallExecutionActor(backendCall))
   def props(finalCall: FinalCall, workflowMetadataResponse: WorkflowMetadataResponse): Props = {
     Props(new FinalCallExecutionActor(finalCall, workflowMetadataResponse))
   }
@@ -83,7 +83,7 @@ trait CallExecutionActor extends Actor with CromwellActor {
     * Start the execution. Once the Future resolves, the ExecutionHandle can be used to poll
     * the state of the execution.
     */
-  def execute(mode: ExecutionMode): Future[ExecutionHandle]
+  def execute(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle]
   def call: Scope
 
   override def receive = LoggingReceive {

@@ -92,9 +92,6 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  override type BackendCall = LocalBackendCall
-
-  import LocalBackend.LocalEnhancedJobDescriptor
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
@@ -110,14 +107,6 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   override def pollBackoff = pollBackoffBuilder.build()
 
   def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
-
-  /** WARNING returns a modified copy of the input jobDescriptor as part of the BackendCall result. */
-  override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-
-    val newDescriptor = jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
-    LocalBackendCall(this, newDescriptor, abortRegistrationFunction)
-  }
 
   def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)
 
@@ -203,7 +192,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     )
 
     if (jobDescriptor.callRuntimeAttributes.failOnStderr && stderrFileLength > 0) {
-      NonRetryableExecution(new Throwable(s"Call ${jobDescriptor.key.scope.fullyQualifiedName}, " +
+      NonRetryableExecution(new Throwable(s"Call ${jobDescriptor.call.fullyQualifiedName}, " +
         s"Workflow ${jobDescriptor.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
 
@@ -217,7 +206,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       }
 
       val badReturnCodeMessage =
-         s"""Call ${jobDescriptor.key.scope.fullyQualifiedName}, Workflow ${jobDescriptor.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
+         s"""Call ${jobDescriptor.call.fullyQualifiedName}, Workflow ${jobDescriptor.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
             |
             |Full command was: $backendCommandString
             |
@@ -259,7 +248,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       case Some(_) => toDockerPath
       case None => (v: WdlValue) => v
     }
-    jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
+    jobDescriptor.call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
   }
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)

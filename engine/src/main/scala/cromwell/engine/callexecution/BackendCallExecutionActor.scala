@@ -5,26 +5,27 @@ import cromwell.engine.backend._
 import cromwell.engine.callexecution.CallExecutionActor._
 import cromwell.logging.WorkflowLogger
 
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 /**
   * Actor to manage the execution of a single backend call.
   * */
-class BackendCallExecutionActor(backendCall: BackendCall) extends CallExecutionActor {
+class BackendCallExecutionActor(jobDescriptor: BackendCallJobDescriptor) extends CallExecutionActor {
   override val logger = WorkflowLogger(
     this.getClass.getSimpleName,
-    backendCall.workflowDescriptor,
+    jobDescriptor.workflowDescriptor,
     akkaLogger = Option(akkaLogger),
-    callTag = Option(backendCall.key.tag)
+    callTag = Option(jobDescriptor.key.tag)
   )
 
-  override val call = backendCall.call
-  override def poll(handle: ExecutionHandle) = backendCall.poll(handle)
-  override def execute(mode: ExecutionMode) = mode match {
-    case Execute => backendCall.execute
-    case Resume(jobKey) => backendCall.resume(jobKey)
-    case UseCachedCall(cachedBackendCall) => backendCall.useCachedCall(cachedBackendCall)
+  override val call = jobDescriptor.call
+  override def poll(handle: ExecutionHandle) = jobDescriptor.poll(handle)
+  override def execute(mode: ExecutionMode)(implicit ec: ExecutionContext) = mode match {
+    case Execute => jobDescriptor.execute
+    case Resume(jobKey) => jobDescriptor.resume(jobKey)
+    case UseCachedCall(cachedBackendCall) => jobDescriptor.useCachedCall(cachedBackendCall)
   }
 
-  override val backoff: ExponentialBackOff = backendCall.backend.pollBackoff
+  override val backoff: ExponentialBackOff = jobDescriptor.backend.pollBackoff
 }

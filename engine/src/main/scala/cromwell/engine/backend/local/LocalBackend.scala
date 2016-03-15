@@ -92,7 +92,6 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  override type BackendCall = LocalBackendCall
 
   import LocalBackend.LocalEnhancedJobDescriptor
 
@@ -113,10 +112,9 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   /** WARNING returns a modified copy of the input jobDescriptor as part of the BackendCall result. */
   override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
+                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCallJobDescriptor = {
 
-    val newDescriptor = jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
-    LocalBackendCall(this, newDescriptor, abortRegistrationFunction)
+    jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
   }
 
   def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)

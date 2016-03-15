@@ -29,6 +29,8 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
                                     locallyQualifiedInputs: CallInputs = Map.empty,
                                     abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
 
+  def call = key.scope
+
   // PBE temporarily still required.  Once we have call-scoped Backend actors they will know themselves and the
   // backend won't need to be in the WorkflowDescriptor and this method won't need to exist.
   def backend = workflowDescriptor.backend
@@ -65,6 +67,8 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
   def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
 
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
+
+  def stdoutStderr: CallLogs = backend.stdoutStderr(this)
 }
 
 case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,

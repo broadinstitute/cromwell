@@ -38,10 +38,6 @@ object SgeBackend {
 }
 
 case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  import SgeBackend.SgeEnhancedJobDescriptor
-
-  override type BackendCall = SgeBackendCall
-
   def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
 
   import LocalBackend.WriteWithNewline
@@ -51,7 +47,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
   /**
-    * Exponential Backoff Builder to be used when polling for call status.
+    * Exponential Backoff Builder to be used when polling for jobDescriptor status.
     */
   final private lazy val pollBackoffBuilder = new Builder()
     .setInitialIntervalMillis(10.seconds.toMillis.toInt)
@@ -62,8 +58,8 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def pollBackoff = pollBackoffBuilder.build()
 
   override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-    SgeBackendCall(this, jobDescriptor, abortRegistrationFunction)
+                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCallJobDescriptor = {
+    jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
   }
 
   def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)
@@ -195,7 +191,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   /**
    * This waits for a given SGE job to finish.  When finished, it post-processes the job
-   * and returns the outputs for the call
+   * and returns the outputs for the jobDescriptor
    */
   private def pollForSgeJobCompletionThenPostProcess(jobDescriptor: BackendCallJobDescriptor, sgeJobId: Int)(implicit ec: ExecutionContext): Future[(ExecutionResult, Int)] = {
     val logger = jobLogger(jobDescriptor)

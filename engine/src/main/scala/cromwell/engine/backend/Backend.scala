@@ -71,8 +71,6 @@ object AttemptedLookupResult {
  */
 trait Backend {
 
-  type BackendCall <: backend.BackendCall
-
   def actorSystem: ActorSystem
 
   def rootPath(workflowOptions: WorkflowOptions): String
@@ -102,7 +100,7 @@ trait Backend {
    * Essentially turns a Call object + CallInputs into a BackendCall
    */
   def bindCall(jobDescriptor: BackendCallJobDescriptor,
-               abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
+               abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCallJobDescriptor
 
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions
 
@@ -224,6 +222,9 @@ trait Backend {
   def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+<<<<<<< HEAD
 
   def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+=======
+>>>>>>> wip
 }

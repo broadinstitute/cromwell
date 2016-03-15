@@ -1,7 +1,7 @@
 package cromwell.engine.db
 
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{BackendCallJobDescriptor, Backend, BackendCall, JobKey}
+import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, JobKey}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}

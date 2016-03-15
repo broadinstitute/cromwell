@@ -326,6 +326,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
         callLogKeys <- getCallLogKeys(workflowId, callFqn)
         backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
     } yield backendKeys.groupBy(_.key.index).values.toIndexedSeq.sortBy(_.head.key.index) map {
+      // TODO Waiting for stdoutStderr to be moved
       _.sortBy(_.key.attempt).map(_.stdoutStderr).toIndexedSeq
     }
   }

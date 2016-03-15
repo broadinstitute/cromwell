@@ -38,7 +38,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
       k.replace(s"${call.fullyQualifiedName}.", "") -> v
     }
     val jobDescriptor = BackendCallJobDescriptor(descriptor.copy(backend = backend),  BackendCallKey(call, None, 1), inputs)
-    backend.bindCall(jobDescriptor).runtimeAttributes
+    backend.bindCall(jobDescriptor).callRuntimeAttributes
   }
 
   it should "have reasonable defaults" in {

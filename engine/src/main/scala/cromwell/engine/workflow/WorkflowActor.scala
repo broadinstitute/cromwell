@@ -7,7 +7,7 @@ import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
-import cromwell.engine.backend.{FinalCallJobDescriptor, BackendCallJobDescriptor, Backend, BackendCall}
+import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, FinalCallJobDescriptor}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
@@ -1199,7 +1199,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       }
     }
 
-    Try(backendCall.runtimeAttributes) map { attrs =>
+    Try(backendCall.callRuntimeAttributes) map { attrs =>
       globalDataAccess.setRuntimeAttributes(workflow.id, backendCall.key.toDatabaseKey, attrs.attributes) onComplete {
         case Success(_) => startCall
         case Failure(f) =>

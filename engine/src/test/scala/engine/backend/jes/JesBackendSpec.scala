@@ -55,33 +55,28 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   "executionResult" should "handle Failure Status" in {
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val logger: Logger = LoggerFactory.getLogger("JesBackendSPecLogger")
+    val logger: Logger = LoggerFactory.getLogger("JesBackendSpecLogger")
     val wd = mock[WorkflowDescriptor]
     wd.workflowLogger returns logger
     val task = mock[Task]
     task.outputs returns Seq.empty
     val call = mock[Call]
     call.task returns task
-    val backendCallKey = mock[BackendCallKey]
-    backendCallKey.attempt returns 1
-    backendCallKey.scope returns call
-    val backendCall = mock[JesBackendCall]
-    backendCall.call returns call
-    backendCall.key returns backendCallKey
-    backendCall.preemptible returns false
-    backendCall.maxPreemption returns 1
-    backendCall.workflowDescriptor returns wd
-    val jobDescriptor = new BackendCallJobDescriptor(wd, backendCallKey)
-    backendCall.jobDescriptor returns jobDescriptor
+
+    class PreemptionJobDescriptor(attempt: Int, max: Int) extends BackendCallJobDescriptor(wd, BackendCallKey(call, None, attempt)) {
+      private val attributes = mock[CromwellRuntimeAttributes].preemptible returns max
+      override def callRuntimeAttributes: CromwellRuntimeAttributes = attributes
+    }
+
     val handle = mock[JesPendingExecutionHandle]
-    handle.backendCall returns backendCall
+    handle.jobDescriptor returns new PreemptionJobDescriptor(attempt = 2, max = 1)
 
     val executionResult0 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
     executionResult0.isInstanceOf[FailedExecutionHandle] shouldBe true
     val failedHandle0 = executionResult0.asInstanceOf[FailedExecutionHandle]
     failedHandle0.returnCode shouldBe None
 
-    backendCall.preemptible returns true
+    handle.jobDescriptor returns new PreemptionJobDescriptor(attempt = 1, max = 1)
 
     val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
     executionResult.isInstanceOf[RetryableExecutionHandle] shouldBe true
@@ -89,9 +84,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
     retryableHandle.returnCode shouldBe None
     val preemptedException = retryableHandle.throwable.asInstanceOf[PreemptedException]
-    preemptedException.getMessage should include ("will be restarted with a non-pre-emptible VM")
+    preemptedException.getMessage should include ("will be restarted with a non-preemptible VM")
 
-    backendCall.maxPreemption returns 2
+    handle.jobDescriptor returns new PreemptionJobDescriptor(attempt = 1, max = 2)
 
     val executionResult2 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
     executionResult2.isInstanceOf[RetryableExecutionHandle] shouldBe true
@@ -99,7 +94,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     retryableHandle2.throwable.isInstanceOf[PreemptedException] shouldBe true
     retryableHandle2.returnCode shouldBe None
     val preemptedException2 = retryableHandle2.throwable.asInstanceOf[PreemptedException]
-    preemptedException2.getMessage should include ("will be re-started with another pre-emptible VM")
+    preemptedException2.getMessage should include ("will be restarted with another preemptible VM")
 
     Await.result(jesBackend.executionResult(new Failed(10, Some("15: Other type of error."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(new Failed(11, Some("14: Wrong errorCode."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
@@ -107,7 +102,6 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     Await.result(jesBackend.executionResult(new Failed(10, Some("UnparsableInt: Even weirder error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(new Failed(10, None, Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(new Failed(10, Some("Operation canceled at"), Seq.empty), handle), 2.seconds) shouldBe AbortedExecutionHandle
-
   }
 
   "JesBackend" should "consider 403 as a fatal exception" in {
@@ -224,11 +218,14 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       ))
     )
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
-    val backendCall = mock[JesBackendCall]
-    backendCall.locallyQualifiedInputs returns inputs
-    backendCall.workingDisk returns workingDisk
-    backendCall.call returns descriptor.namespace.workflow.findCallByName("whereami").get
-    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    val jobDescriptor = mock[BackendCallJobDescriptor]
+    jobDescriptor.locallyQualifiedInputs returns inputs
+    val runtimeAttributes = mock[CromwellRuntimeAttributes]
+    runtimeAttributes.disks returns Seq(workingDisk)
+    jobDescriptor.callRuntimeAttributes returns runtimeAttributes
+    val key = BackendCallKey(descriptor.namespace.workflow.findCallByName("whereami").get, None, 1)
+    jobDescriptor.key returns key
+    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 8
     jesInputs should contain(JesFileInput("stringToFileMap-0", "gs://path/to/stringTofile1", Paths.get("path/to/stringTofile1"), workingDisk))
     jesInputs should contain(JesFileInput("stringToFileMap-1", "gs://path/to/stringTofile2", Paths.get("path/to/stringTofile2"), workingDisk))
@@ -240,41 +237,39 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     jesInputs should contain(JesFileInput("fileToFileMap-3", "gs://path/to/fileToFile2Value", Paths.get("path/to/fileToFile2Value"), workingDisk))
   }
 
-  def makeBackendCall(wdl: SampleWdl,
-                      callName: String,
-                      inputs: Map[String, WdlValue],
-                      lookup: String => WdlValue,
-                      functions: JesCallEngineFunctions = new JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new CallContext("root", "out", "err"))): JesBackendCall = {
+  def makeJobDescriptor(wdl: SampleWdl,
+                        callName: String,
+                        inputs: Map[String, WdlValue],
+                        lookup: String => WdlValue,
+                        functions: JesCallEngineFunctions = new JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new CallContext("root", "out", "err"))): BackendCallJobDescriptor = {
 
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), wdl.asWorkflowSources()).copy(wfContext = new WorkflowContext("gs://foobar"))
-    val backendCall = mock[JesBackendCall]
+    val jobDescriptor = mock[BackendCallJobDescriptor]
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
     runtimeAttributes.disks returns Seq(workingDisk)
-    val jobDescriptor = mock[BackendCallJobDescriptor]
     jobDescriptor.workflowDescriptor returns descriptor
     jobDescriptor.key returns new BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, None, 1)
-    backendCall.jobDescriptor returns jobDescriptor
-    backendCall.locallyQualifiedInputs returns inputs
-    backendCall.workingDisk returns workingDisk
-    backendCall.call returns descriptor.namespace.workflow.findCallByName(callName).get
-    backendCall.key returns BackendCallKey(backendCall.call, None, 1)
+    jobDescriptor.locallyQualifiedInputs returns inputs
+
+    val call = descriptor.namespace.workflow.findCallByName(callName).get
+    jobDescriptor.key returns BackendCallKey(call, None, 1)
     // This will be less ugly once BackendCall is really deleted and the Filesystems PR is merged
     jobDescriptor.callRootPath returns new NioGcsPath(Seq("call", "gcs", "path").toArray, absolute=true, isDirectory = true)(GcsFileSystem.defaultGcsFileSystem)
-    backendCall.lookupFunction(inputs) returns lookup
+    jobDescriptor.lookupFunction(inputs) returns lookup
     jobDescriptor.callRuntimeAttributes returns runtimeAttributes
-    backendCall.callEngineFunctions returns functions
-    backendCall
+    jobDescriptor.callEngineFunctions returns functions
+    jobDescriptor
   }
 
   it should "generate correct JesOutputs" in {
     val inputs = Map(
       "in" -> WdlFile("gs://a/b/c.txt")
     )
-    val backendCall = makeBackendCall(SampleWdl.FilePassingWorkflow, "a", inputs, (s: String) => inputs.get(s).get)
-    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    val jobDescriptor = makeJobDescriptor(SampleWdl.FilePassingWorkflow, "a", inputs, (s: String) => inputs.get(s).get)
+    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
     jesInputs should contain(JesFileInput("in-0", "gs://a/b/c.txt", Paths.get("a/b/c.txt"), workingDisk))
-    val jesOutputs = jesBackend.generateJesOutputs(backendCall.jobDescriptor)
+    val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(JesFileOutput("out", "gs://call/gcs/path/out", Paths.get("out"), workingDisk))
   }
@@ -289,11 +284,11 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       }
     }
     val functions = new TestEngineFunctions(new CallContext("root", "stdout", "stderr"))
-    val backendCall = makeBackendCall(SampleWdl.ArrayIO, "serialize", inputs, (s: String) => inputs.get(s).get, functions)
-    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    val jobDescriptor = makeJobDescriptor(SampleWdl.ArrayIO, "serialize", inputs, (s: String) => inputs.get(s).get, functions)
+    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
     jesInputs should contain(JesFileInput("c6fd5c91-0", "gs://some/path/file.txt", Paths.get("some/path/file.txt"), workingDisk))
-    val jesOutputs = jesBackend.generateJesOutputs(backendCall.jobDescriptor)
+    val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 0
   }
 
@@ -302,11 +297,15 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       "fileArray" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("gs://path/to/file1"), WdlFile("gs://path/to/file2")))
     )
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
-    val backendCall = mock[JesBackendCall]
-    backendCall.locallyQualifiedInputs returns inputs
-    backendCall.workingDisk returns workingDisk
-    backendCall.call returns descriptor.namespace.workflow.findCallByName("whereami").get
-    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    val jobDescriptor = mock[BackendCallJobDescriptor]
+    jobDescriptor.locallyQualifiedInputs returns inputs
+    val runtimeAttributes = mock[CromwellRuntimeAttributes]
+    runtimeAttributes.disks returns Seq(workingDisk)
+    jobDescriptor.callRuntimeAttributes returns runtimeAttributes
+    val key = BackendCallKey(descriptor.namespace.workflow.findCallByName("whereami").get, None, 1)
+    jobDescriptor.key returns key
+
+    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 2
     jesInputs should contain(JesFileInput("fileArray-0", "gs://path/to/file1", Paths.get("path/to/file1"), workingDisk))
     jesInputs should contain(JesFileInput("fileArray-1", "gs://path/to/file2", Paths.get("path/to/file2"), workingDisk))
@@ -318,11 +317,15 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       "file2" -> WdlFile("gs://path/to/file2")
     )
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
-    val backendCall = mock[JesBackendCall]
-    backendCall.locallyQualifiedInputs returns inputs
-    backendCall.workingDisk returns workingDisk
-    backendCall.call returns descriptor.namespace.workflow.findCallByName("whereami").get
-    val jesInputs = jesBackend.generateJesInputs(backendCall)
+    val jobDescriptor = mock[BackendCallJobDescriptor]
+    jobDescriptor.locallyQualifiedInputs returns inputs
+    val runtimeAttributes = mock[CromwellRuntimeAttributes]
+    runtimeAttributes.disks returns Seq(workingDisk)
+    jobDescriptor.callRuntimeAttributes returns runtimeAttributes
+    val key = BackendCallKey(descriptor.namespace.workflow.findCallByName("whereami").get, None, 1)
+    jobDescriptor.key returns key
+
+    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 2
     jesInputs should contain(JesFileInput("file1-0", "gs://path/to/file1", Paths.get("path/to/file1"), workingDisk))
     jesInputs should contain(JesFileInput("file2-0", "gs://path/to/file2", Paths.get("path/to/file2"), workingDisk))
@@ -355,16 +358,18 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   }
 
   it should "create a JesFileInput for the monitoring script, if specified" in {
-    val backendCall = mock[JesBackendCall]
+    val jobDescriptor = mock[BackendCallJobDescriptor]
     val wd = mock[WorkflowDescriptor]
-    backendCall.workflowDescriptor returns wd
-    backendCall.workingDisk returns workingDisk
+    jobDescriptor.workflowDescriptor returns wd
+    val runtimeAttributes = mock[CromwellRuntimeAttributes]
+    runtimeAttributes.disks returns Seq(workingDisk)
+    jobDescriptor.callRuntimeAttributes returns runtimeAttributes
 
     wd.workflowOptions returns WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get
-    jesBackend.monitoringIO(backendCall) shouldBe Some(JesFileInput("monitoring-in", "gs://path/to/script", Paths.get("monitoring.sh"), workingDisk))
+    JesBackend.monitoringIO(jobDescriptor) shouldBe Some(JesFileInput("monitoring-in", "gs://path/to/script", Paths.get("monitoring.sh"), workingDisk))
 
     wd.workflowOptions returns WorkflowOptions.fromJsonString("""{}""").get
-    jesBackend.monitoringIO(backendCall) shouldBe None
+    JesBackend.monitoringIO(jobDescriptor) shouldBe None
   }
 
   "JesBackendCall" should "return JES log paths for non-scattered call" in {

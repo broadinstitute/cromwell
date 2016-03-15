@@ -201,11 +201,7 @@ object JesBackend {
     def jesStderrGcsPath = jobDescriptor.callGcsPath.resolve(jesLogStderrFilename(jobDescriptor.key))
     def jesLogGcsPath = jobDescriptor.callGcsPath.resolve(jesLogFilename(jobDescriptor.key))
     def returnCodeGcsPath = callGcsPath.resolve(returnCodeFilename)
-    def monitoringIO: Option[JesInput] = {
-      jobDescriptor.workflowDescriptor.workflowOptions.get(MonitoringScriptOptionKey) map { path =>
-        JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), jobDescriptor.workingDisk)
-      } toOption
-    }
+    def monitoringIO: Option[JesInput] = JesBackend.monitoringIO(jobDescriptor)
 
     // TODO: Assuming that runtimeAttributes.disks always has a 'local-disk'
     def workingDisk = jobDescriptor.callRuntimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
@@ -225,6 +221,12 @@ object JesBackend {
       * Determine the output directory for the files matching a particular glob.
       */
     def globOutputPath(glob: String) = callGcsPath.resolve(globDirectory(glob)).toString
+  }
+
+  def monitoringIO(jobDescriptor: BackendCallJobDescriptor): Option[JesInput] = {
+    jobDescriptor.workflowDescriptor.workflowOptions.get(MonitoringScriptOptionKey) map { path =>
+      JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), jobDescriptor.workingDisk)
+    } toOption
   }
 }
 
@@ -443,7 +445,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
     Future {
       val log = jobLogger(callDescriptor)
-      authenticateAsUser(callDescriptor.workflowDescriptor) { implicit interface =>
+      authenticateAsUser(callDescriptor.workflowDescriptor) { interface =>
         copyingWork(interface) match {
           case Failure(ex) =>
             log.error(s"Exception occurred while attempting to copy outputs from ${cachedCallDescriptor.callGcsPath} to $backendCallPath", ex)
@@ -561,12 +563,6 @@ case class JesBackend(actorSystem: ActorSystem)
       case None =>
         throw new Exception(s"Absolute path $path doesn't appear to be under any mount points: ${disks.map(_.toString).mkString(", ")}")
     }
-  }
-
-  def monitoringIO(backendCall: BackendCall): Option[JesInput] = {
-    backendCall.workflowDescriptor.workflowOptions.get(MonitoringScriptOptionKey) map { path =>
-      JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), backendCall.jobDescriptor.workingDisk)
-    } toOption
   }
 
   /**
@@ -812,13 +808,13 @@ case class JesBackend(actorSystem: ActorSystem)
 
       if (attempt < max) {
         val e = new PreemptedException(
-          s"""$preemptedMsg The call will be re-started with another pre-emptible VM (max pre-emptible attempts number is $max).
+          s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $max).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
         RetryableExecutionHandle(e, None, events).future
       } else {
         val e = new PreemptedException(
-          s"""$preemptedMsg The maximum number of pre-emptible attempts ($max) has been reached. The call will be restarted with a non-pre-emptible VM.
+          s"""$preemptedMsg The maximum number of preemptible attempts ($max) has been reached. The call will be restarted with a non-preemptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
         RetryableExecutionHandle(e, None, events).future
       }

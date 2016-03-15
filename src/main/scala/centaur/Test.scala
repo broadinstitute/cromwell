@@ -62,6 +62,10 @@ object Operations {
     }
   }
 
+  /**
+    * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
+    * stops with a failure.
+    */
   def pollUntilStatus(workflow: Workflow, expectedStatus: WorkflowStatus): Test[Workflow] = {
     new Test[Workflow] {
       @tailrec
@@ -70,6 +74,7 @@ object Operations {
         val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
         status match {
           case Success(s) if s == expectedStatus => workflow
+          case Success(s: TerminalStatus) => throw new Exception(s"Unexpected terminal status $s but was waiting for $expectedStatus")
           case Failure(f) => throw f
           case _ =>
             Thread.sleep(10000) // This could be a lot smarter including cromwell style backoff

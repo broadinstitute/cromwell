@@ -15,7 +15,7 @@ class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
   override def actorRefFactory = testWorkflowManagerSystem.actorSystem
   override val workflowManager = TestActorRef(new WorkflowManagerActor(new LocalBackend(actorRefFactory)))
-  override val validateActor = TestActorRef(new ValidateActor())
+  override val validateActor = TestActorRef(new ValidateActor(new LocalBackend(actorRefFactory)))
   val version = "v1"
 
   override protected def afterAll() = {

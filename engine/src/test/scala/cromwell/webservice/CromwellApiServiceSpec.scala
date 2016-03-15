@@ -230,7 +230,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
   override def actorRefFactory = testWorkflowManagerSystem.actorSystem
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
-  override val validateActor = actorRefFactory.actorOf(Props(new ValidateActor()))
+  override val validateActor = actorRefFactory.actorOf(Props(new ValidateActor(testWorkflowManagerSystem.backend)))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
@@ -469,7 +469,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "
+              |  "message": "Workflow input processing failed.",
+              |  "errors": ["Unable to load namespace from workflow: ERROR: Finished parsing without consuming all tokens.\\n\\nfoobar bad wdl!\\n^\\n     "]
               |}""".stripMargin) {
           responseAs[String]
         }
@@ -489,7 +490,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"
+              |  "message": "Workflow input processing failed.",
+              |  "errors": ["Workflow contains invalid inputs JSON: Unexpected character 'o' at input index 0 (line 1, position 1), expected JSON Value:\\nfoobar bad json!\\n^\\n"]
               |}""".stripMargin) {
           responseAs[String]
         }

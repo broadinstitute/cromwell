@@ -32,7 +32,7 @@ import wdl4s.{Call, CallInputs, UnsatisfiedInputsException, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.{implicitConversions, postfixOps}
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object JesBackend {

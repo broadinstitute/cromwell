@@ -48,16 +48,5 @@ class JesBackendCallSpec extends FlatSpec with Matchers with Mockito {
 
     val descriptorWithMax2AndKey2 = new Attempt2(max = 2)
     descriptorWithMax2AndKey2.preemptible shouldBe true
-    //=======
-    //    JesBackend.preemptible(callDescriptor1, 0) shouldBe false
-    //
-    //    JesBackend.preemptible(callDescriptor1, 1) shouldBe true
-    //
-    //    JesBackend.preemptible(callDescriptor1, 2) shouldBe true
-    //
-    //    JesBackend.preemptible(callDescriptor2, 1) shouldBe false
-    //
-    //    JesBackend.preemptible(callDescriptor2, 2) shouldBe true
-    //  }
   }
 }

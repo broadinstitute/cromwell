@@ -193,6 +193,11 @@ object JesBackend {
   def rootPath(options: WorkflowOptions): String = options.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
   def globOutputPath(callPath: Path, glob: String) = callPath.resolve(s"glob-${glob.md5Sum}/")
   def preemptible(jobDescriptor: BackendCallJobDescriptor, maxPreemption: Int) = jobDescriptor.key.attempt <= maxPreemption
+  def monitoringIO(jobDescriptor: BackendCallJobDescriptor): Option[JesInput] = {
+    jobDescriptor.workflowDescriptor.workflowOptions.get(MonitoringScriptOptionKey) map { path =>
+      JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), jobDescriptor.workingDisk)
+    } toOption
+  }
 }
 
 /**

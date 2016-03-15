@@ -93,8 +93,6 @@ object LocalBackend {
  */
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
 
-  import LocalBackend.LocalEnhancedJobDescriptor
-
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
   /**

@@ -12,7 +12,7 @@ import cromwell.logging.WorkflowLogger
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.Scope
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -83,7 +83,7 @@ trait CallExecutionActor extends Actor with CromwellActor {
     * Start the execution. Once the Future resolves, the ExecutionHandle can be used to poll
     * the state of the execution.
     */
-  def execute(mode: ExecutionMode): Future[ExecutionHandle]
+  def execute(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle]
   def call: Scope
 
   override def receive = LoggingReceive {

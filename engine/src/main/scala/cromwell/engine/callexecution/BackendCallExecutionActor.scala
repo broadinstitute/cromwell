@@ -5,6 +5,7 @@ import cromwell.engine.backend._
 import cromwell.engine.callexecution.CallExecutionActor._
 import cromwell.logging.WorkflowLogger
 
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 /**
@@ -20,8 +21,8 @@ class BackendCallExecutionActor(jobDescriptor: BackendCallJobDescriptor) extends
 
   override val call = jobDescriptor.key.scope
   override def poll(handle: ExecutionHandle) = jobDescriptor.poll(handle)
-  override def execute(mode: ExecutionMode) = mode match {
-    case Execute => jobDescriptor.execute()
+  override def execute(mode: ExecutionMode)(implicit ec: ExecutionContext) = mode match {
+    case Execute => jobDescriptor.execute
     case Resume(jobKey) => jobDescriptor.resume(jobKey)
     case UseCachedCall(cachedBackendCall) => jobDescriptor.useCachedCall(cachedBackendCall)
   }

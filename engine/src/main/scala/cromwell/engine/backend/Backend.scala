@@ -222,9 +222,6 @@ trait Backend {
   def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
-<<<<<<< HEAD
 
   def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle]
-=======
->>>>>>> wip
 }

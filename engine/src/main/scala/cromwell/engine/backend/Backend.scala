@@ -165,7 +165,7 @@ trait Backend {
     val call = jobDescriptor.call
     val runtimeAttributes = jobDescriptor.callRuntimeAttributes
     val orderedInputs = jobDescriptor.locallyQualifiedInputs.toSeq.sortBy(_._1)
-    val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)
+    val orderedOutputs = call.task.outputs.sortWith((l, r) => l.unqualifiedName > r.unqualifiedName)
     val orderedRuntime = Seq(
       ("docker", dockerHash getOrElse ""),
       ("zones", runtimeAttributes.zones.sorted.mkString(",")),
@@ -185,7 +185,7 @@ trait Backend {
       call.task.commandTemplateString,
       orderedInputs map { case (k, v) => s"$k=${v.computeHash(jobDescriptor.workflowDescriptor.fileHasher).value}" } mkString "\n",
       orderedRuntime map { case (k, v) => s"$k=$v" } mkString "\n",
-      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.name} = ${o.requiredExpression.toWdlString}" } mkString "\n"
+      orderedOutputs map { o => s"${o.wdlType.toWdlString} ${o.unqualifiedName} = ${o.requiredExpression.toWdlString}" } mkString "\n"
     ).mkString("\n---\n").md5Sum
 
     ExecutionHash(overallHash, dockerHash)

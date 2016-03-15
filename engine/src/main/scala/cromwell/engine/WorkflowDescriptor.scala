@@ -34,7 +34,7 @@ case class WorkflowDescriptor(id: WorkflowId,
                               workflowOptions: WorkflowOptions,
                               workflowLogOptions: Option[WorkflowLogOptions],
                               rawInputs: Map[String, JsValue],
-                              namespace: NamespaceWithWorkflow,
+                              namespace: WdlNamespaceWithWorkflow,
                               coercedInputs: WorkflowCoercedInputs,
                               declarations: WorkflowCoercedInputs,
                               backend: Backend,
@@ -272,7 +272,7 @@ object WorkflowDescriptor {
 
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFiles,
-                                      namespace: NamespaceWithWorkflow,
+                                      namespace: WdlNamespaceWithWorkflow,
                                       rawInputs: Map[String, JsValue],
                                       options: WorkflowOptions,
                                       backend: Backend,
@@ -291,15 +291,15 @@ object WorkflowDescriptor {
     validatedDescriptor.validation
   }
 
-  private def validateNamespace(id: WorkflowId, source: WdlSource): ErrorOr[NamespaceWithWorkflow] = {
+  private def validateNamespace(id: WorkflowId, source: WdlSource): ErrorOr[WdlNamespaceWithWorkflow] = {
     try {
-      NamespaceWithWorkflow.load(source).successNel
+      WdlNamespaceWithWorkflow.load(source).successNel
     } catch {
       case e: Exception => s"Workflow $id unable to load namespace: ${e.getMessage}".failureNel
     }
   }
 
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
+  private def validateRuntimeAttributes(id: WorkflowId, namespace: WdlNamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
     Try(namespace.workflow.calls.map(_.task.runtimeAttributes) foreach { r => CromwellRuntimeAttributes.validateKeys(r.attrs.keySet, backendType) }) match {
       case scala.util.Success(_) => ().successNel
       case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
@@ -324,7 +324,7 @@ object WorkflowDescriptor {
 
   private def validateCoercedInputs(id: WorkflowId,
                                     rawInputs: Map[String, JsValue],
-                                    namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
+                                    namespace: WdlNamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
     namespace.coerceRawInputs(rawInputs) match {
       case Success(r) => r.successNel
       case Failure(e: ThrowableWithErrors) => scalaz.Failure(e.errors)
@@ -343,7 +343,7 @@ object WorkflowDescriptor {
   }
 
   private def validateDeclarations(id: WorkflowId,
-                                   namespace: NamespaceWithWorkflow,
+                                   namespace: WdlNamespaceWithWorkflow,
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
                                    engineFunctions: WorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {

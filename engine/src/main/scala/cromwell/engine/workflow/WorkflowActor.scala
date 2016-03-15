@@ -264,9 +264,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       fetchCallOutputEntries(e) map { _.outputs } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }
     collector.scope.task.outputs map { taskOutput =>
-      val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
+      val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.unqualifiedName, throw new RuntimeException(s"Could not retrieve output ${taskOutput.unqualifiedName}")))
       val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-      taskOutput.name -> CallOutput(arrayOfValues, workflow.hash(arrayOfValues))
+      taskOutput.unqualifiedName -> CallOutput(arrayOfValues, workflow.hash(arrayOfValues))
     } toMap
   }
 

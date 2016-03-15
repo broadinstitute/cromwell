@@ -248,7 +248,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       case Some(_) => toDockerPath
       case None => (v: WdlValue) => v
     }
-    jobDescriptor.call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
+    jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, valueMapper=pathTransformFunction)
   }
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)

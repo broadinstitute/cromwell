@@ -134,7 +134,7 @@ trait SharedFileSystem { self: Backend =>
 
   private def getOutputFoldingFunction(jobDescriptor: BackendCallJobDescriptor): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
     (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
-      currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, jobDescriptor, currentList)))
+      currentList ++ Seq(AttemptedLookupResult(taskOutput.unqualifiedName, outputLookup(taskOutput, jobDescriptor, currentList)))
     }
   }
 
@@ -276,7 +276,7 @@ trait SharedFileSystem { self: Backend =>
   private def assertTaskOutputPathExists(path: String, taskOutput: TaskOutput, callFqn: String): Try[WdlFile] =
     if (Files.exists(Paths.get(path))) Success(WdlFile(path))
     else Failure(new RuntimeException(
-      s"""ERROR: Could not process output '${taskOutput.wdlType.toWdlString} ${taskOutput.name}' of $callFqn:
+      s"""ERROR: Could not process output '${taskOutput.wdlType.toWdlString} ${taskOutput.unqualifiedName}' of $callFqn:
          |
          |Invalid path: $path
        """.stripMargin

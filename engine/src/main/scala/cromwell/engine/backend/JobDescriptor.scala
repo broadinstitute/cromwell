@@ -53,8 +53,8 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
   lazy val instantiateCommand: Try[String] = backend.instantiateCommand(this)
 
   def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = {
-    val currentlyKnownValues = locallyQualifiedInputs ++ evaluatedValues
-    WdlExpression.standardLookupFunction(currentlyKnownValues, call.task.declarations, callEngineFunctions)
+    // TODO: sfrazer
+    key.scope.lookupFunction(evaluatedValues, callEngineFunctions)
   }
 
   def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.poll(this, previous)

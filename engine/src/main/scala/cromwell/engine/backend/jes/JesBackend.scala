@@ -639,7 +639,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
   private def getOutputFoldingFunction(jobDescriptor: BackendCallJobDescriptor): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
     (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
-      currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, jobDescriptor, currentList)))
+      currentList ++ Seq(AttemptedLookupResult(taskOutput.unqualifiedName, outputLookup(taskOutput, jobDescriptor, currentList)))
     }
   }
 
@@ -894,7 +894,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = {
     val backendInputs = adjustInputPaths(descriptor)
-    descriptor.call.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
+    descriptor.key.scope.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, valueMapper=JesBackend.gcsPathToLocal)
   }
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {

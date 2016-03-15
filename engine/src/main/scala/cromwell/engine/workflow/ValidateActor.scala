@@ -27,7 +27,7 @@ object ValidateActor {
   sealed trait ValidationResult extends ValidateActorMessage
   // This ADT contains all the resolved / validated components of the workflow (minus Declarations).
   // It should be used in the future to indicate if the workflow succeeded validation. The callee should reuse these materialized information.
-  case class ValidationSuccess(namespaceWithWorkflow: NamespaceWithWorkflow,
+  case class ValidationSuccess(namespaceWithWorkflow: WdlNamespaceWithWorkflow,
                                coercedInputs: Option[WorkflowCoercedInputs],
                                workflowOptions: Option[WorkflowOptions],
                                runtimeAttributes: Seq[Set[String]]) extends ValidationResult
@@ -60,7 +60,7 @@ class ValidateActor()
     */
   private def validateAll(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[WdlJson]): Future[ValidationResult] = {
     (for {
-      namespaceWithWorkflow <- Future(NamespaceWithWorkflow.load(wdlSource))
+      namespaceWithWorkflow <- Future(WdlNamespaceWithWorkflow.load(wdlSource))
       validatedInputs <- Future(validateInputs(workflowInputs, namespaceWithWorkflow))
       validatedWorkflowOptions <- Future(validateWorkflowOptions(workflowOptions, CromwellBackend.backend()))
       validatedRuntimeAttrs <- Future(validateRuntimeAttributes(namespaceWithWorkflow))
@@ -70,7 +70,7 @@ class ValidateActor()
   }
 
   // TODO: With PBE, this should be defined in the backend.
-  private def validateRuntimeAttributes(namespaceWithWorkflow: NamespaceWithWorkflow): Seq[Set[String]] = {
+  private def validateRuntimeAttributes(namespaceWithWorkflow: WdlNamespaceWithWorkflow): Seq[Set[String]] = {
     TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
       call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, CromwellBackend.backend().backendType)
     }) match {
@@ -79,7 +79,7 @@ class ValidateActor()
     }
   }
 
-  private def validateInputs(workflowInputs: Option[WdlJson], namespaceWithWorkflow: NamespaceWithWorkflow): Option[WorkflowCoercedInputs] = {
+  private def validateInputs(workflowInputs: Option[WdlJson], namespaceWithWorkflow: WdlNamespaceWithWorkflow): Option[WorkflowCoercedInputs] = {
     def rawInputs(json: WdlJson): Map[String, JsValue] = {
       Try(json.parseJson) match {
         case Success(JsObject(inputs)) => inputs

@@ -1,10 +1,5 @@
 package cromwell.engine.backend
 
-import cromwell.engine.backend.local.LocalBackend
-
-/**
-  * Created by tjeandet on 3/15/16.
-  */
 package object sge {
   /**
     * PBE This class is a temporary workaround for the fact that Backends are not call-scoped yet.

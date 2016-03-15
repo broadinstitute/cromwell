@@ -156,7 +156,10 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val logger = workflowLoggerWithCall(backendCall)
     val pbsJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
     //val argv = Seq("qsub", "-terse", "-N", pbsJobName, "-V", "-wd", backendCall.callRootPath.toAbsolutePath, "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
-    val argv = Seq("cd", backendCall.callRootPath.toAbsolutePath, "&&", "qsub", "-N", pbsJobName, "-V", "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString)
+    val runtimeAttrs = backendCall.runtimeAttributes
+    val pbsAttributes = Seq(("ncpus", runtimeAttrs.cpu), ("mem", runtimeAttrs.memoryGB), ("walltime", runtimeAttrs.walltime))
+    val pbsOptions = (for ( (key, value) <- pbsAttributes) yield Seq("-l", s"$key=$value")) flatten
+    val argv = Seq("cd", backendCall.callRootPath.toAbsolutePath, "&&", "qsub", "-N", pbsJobName, "-V", "-o", backendCall.stdout.getFileName, "-e", backendCall.stderr.getFileName, backendCall.script.toAbsolutePath).map(_.toString) ++ pbsOptions
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 
@@ -168,8 +171,8 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val returnCode: Int = process.exitValue()
     Vector(qsubStdoutWriter, qsubStderrWriter) foreach { _.flushAndClose() }
 
-    // The -terse option to qsub makes it so stdout only has the job ID, if it was successfully launched
-    val jobId = Try(qsubStdoutFile.contentAsString.stripLineEnd.toInt) match {
+    // stdout only has the job ID, if it was successfully launched
+    val jobId = Try(qsubStdoutFile.contentAsString.stripLineEnd.split("\\.")(0).toInt) match {
       case Success(id) => Some(id)
       case Failure(ex) =>
         logger.error(s"Could not find PBS job ID from qsub stdout file.\n\n" +

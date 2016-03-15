@@ -17,7 +17,9 @@ import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
+import java.util.{Calendar,GregorianCalendar}
 import java.util.concurrent.TimeUnit
+
 
 case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      docker: Option[String],
@@ -168,13 +170,15 @@ object CromwellRuntimeAttributes {
            * We use SimpleDateFormat as a parsing validator, but we want a well-formed
            * HH:mm:ss string at the end (e.g. 00:70:00 is accepted as valid input but we
            * want 01:10:00 as output) so we turn the resulting date into a millisecond
-           * interval and construct proper HH:mm:ss
+           * interval and do TimeUnit arithmetic to construct proper HH:mm:ss
            */
-          val millis = date.getTime - (date.getTimezoneOffset * 60 * 1000)
+          val calendar = new GregorianCalendar(1970, 1, 1, 0, 0, 0)
+          val offset = calendar.get(Calendar.ZONE_OFFSET) + calendar.get(Calendar.DST_OFFSET)
+          val millis = date.getTime + offset
           val hours = TimeUnit.MILLISECONDS.toHours(millis)
           val minutes = TimeUnit.MILLISECONDS.toMinutes(millis - hours * 3600000)
           val seconds = TimeUnit.MILLISECONDS.toSeconds(millis - hours * 3600000 - minutes * 60000)
-          s"$hours:$minutes:$seconds".successNel[String]
+          f"${hours}:${minutes}%02d:${seconds}%02d".successNel[String]
         case scala.util.Failure(e) => e.toString.failureNel
       }
     }

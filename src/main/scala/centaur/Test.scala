@@ -55,7 +55,11 @@ object Operations {
   def submitWorkflow(request: WorkflowRequest): Test[Workflow] = {
     new Test[Workflow] {
       override def run: Try[Workflow] = {
-        val formData = FormData(List("wdlSource" -> request.wdl, "workflowInputs" -> request.inputs, "workflowOptions" -> request.options))
+        // Collect only the parameters which exist:
+        val params = List("wdlSource" -> Option(request.wdl), "workflowInputs" -> request.inputs, "workflowOptions" -> request.options) collect {
+          case (name, Some(value)) => (name, value)
+        }
+        val formData = FormData(params)
         val response = Pipeline(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
         sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { Workflow(_, CentaurConfig.cromwellUrl) })
       }

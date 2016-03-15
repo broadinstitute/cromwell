@@ -74,7 +74,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = throw new NotImplementedError
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
     override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
-    override def bindCall(jobDescriptor: BackendCallJobDescriptor, abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCallJobDescriptor = throw new NotImplementedError
     override def backendType: BackendType = throw new NotImplementedError
     override def rootPath(workflowOptions: WorkflowOptions): String = throw new NotImplementedError
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError

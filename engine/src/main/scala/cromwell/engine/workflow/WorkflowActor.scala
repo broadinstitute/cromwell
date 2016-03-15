@@ -1142,16 +1142,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
   private def sendStartMessage(callKey: BackendCallKey, callInputs: Map[String, WdlValue]) = {
     val descriptor = BackendCallJobDescriptor(workflow, callKey, callInputs)
-    val backendCall = backend.bindCall(descriptor)
     val log = WorkflowLogger("WorkflowActor", workflow, akkaLogger = Option(akkaLogger))
 
     def loadCachedBackendCallAndMessage(workflow: WorkflowDescriptor, cachedExecution: Execution) = {
       workflow.namespace.resolve(cachedExecution.callFqn) match {
         case Some(c: Call) =>
           val jobDescriptor = BackendCallJobDescriptor(workflow, BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
-          val cachedCall = backend.bindCall(jobDescriptor)
-          log.info(s"Call Caching: Cache hit. Using UUID(${cachedCall.workflowDescriptor.shortId}):${cachedCall.key.tag} as results for UUID(${backendCall.workflowDescriptor.shortId}):${backendCall.key.tag}")
-          self ! UseCachedCall(callKey, CallActor.UseCachedCall(cachedCall, backendCall))
+          log.info(s"Call Caching: Cache hit. Using UUID(${jobDescriptor.workflowDescriptor.shortId}):${jobDescriptor.key.tag} as results for UUID(${descriptor.workflowDescriptor.shortId}):${descriptor.key.tag}")
+          self ! UseCachedCall(callKey, CallActor.UseCachedCall(jobDescriptor, descriptor))
         case _ =>
           log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
           self ! InitialStartCall(callKey, CallActor.Start)
@@ -1174,7 +1172,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
 
     def checkCacheAndStartCall = {
       log.debug(s"Call caching 'readFromCache' is turned on. Checking cache before starting call")
-      backendCall.hash map { hash =>
+      descriptor.hash map { hash =>
         globalDataAccess.getExecutionsWithResuableResultsByHash(hash.overallHash) onComplete {
           case Success(executions) if executions.nonEmpty => startCachedCall(executions.head)
           case Success(_) =>
@@ -1185,13 +1183,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
             self ! InitialStartCall(callKey, CallActor.Start)
         }
       } recover { case e =>
-        log.error(s"Failed to calculate hash for call '${backendCall.key.tag}'.", e)
-        self ! CallFailedToInitialize(callKey, s"Failed to calculate hash for call '${backendCall.key.tag}': ${e.getMessage}")
+        log.error(s"Failed to calculate hash for call '${descriptor.key.tag}'.", e)
+        self ! CallFailedToInitialize(callKey, s"Failed to calculate hash for call '${descriptor.key.tag}': ${e.getMessage}")
       }
     }
 
     def startCall = {
-      if (backendCall.workflowDescriptor.readFromCache) {
+      if (descriptor.workflowDescriptor.readFromCache) {
         checkCacheAndStartCall
       } else {
         log.debug(s"Call caching 'readFromCache' is turned off, starting call")
@@ -1199,8 +1197,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       }
     }
 
-    Try(backendCall.callRuntimeAttributes) map { attrs =>
-      globalDataAccess.setRuntimeAttributes(workflow.id, backendCall.key.toDatabaseKey, attrs.attributes) onComplete {
+    Try(descriptor.callRuntimeAttributes) map { attrs =>
+      globalDataAccess.setRuntimeAttributes(workflow.id, descriptor.key.toDatabaseKey, attrs.attributes) onComplete {
         case Success(_) => startCall
         case Failure(f) =>
           logger.error("Could not persist runtime attributes", f)

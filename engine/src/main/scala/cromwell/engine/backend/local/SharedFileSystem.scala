@@ -116,7 +116,7 @@ trait SharedFileSystem { self: Backend =>
   def postProcess(jobDescriptor: BackendCallJobDescriptor): Try[CallOutputs] = {
     implicit val hasher = jobDescriptor.workflowDescriptor.fileHasher
 
-    val outputs = jobDescriptor.key.scope.task.outputs
+    val outputs = jobDescriptor.call.task.outputs
     val outputFoldingFunction = getOutputFoldingFunction(jobDescriptor)
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
 
@@ -308,7 +308,7 @@ trait SharedFileSystem { self: Backend =>
   private def outputAutoConversion(jobDescriptor: BackendCallJobDescriptor, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
     rawOutputValue match {
       case rhs if rhs.wdlType == taskOutput.wdlType => Success(rhs)
-      case rhs: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(jobDescriptor, rhs.value), taskOutput, jobDescriptor.key.scope.fullyQualifiedName)
+      case rhs: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(jobDescriptor, rhs.value), taskOutput, jobDescriptor.call.fullyQualifiedName)
       case rhs => taskOutput.wdlType.coerceRawValue(rhs)
     }
   }

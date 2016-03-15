@@ -346,12 +346,6 @@ case class JesBackend(actorSystem: ActorSystem)
     )
   }
 
-  /** WARNING returns a modified copy of the input jobDescriptor as part of the BackendCall result. */
-  override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCallJobDescriptor = {
-     jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
-  }
-
   private def executeOrResume(jobDescriptor: BackendCallJobDescriptor, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val log = jobLogger(jobDescriptor)
     log.info(s"Call GCS path: ${jobDescriptor.callRootPath}")
@@ -376,8 +370,6 @@ case class JesBackend(actorSystem: ActorSystem)
     val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.jesRunId }
     executeOrResume(jobDescriptor, runIdForResumption = runId)
   }
-
-  def downloadRcFile(jobDescriptor: BackendCallJobDescriptor) = authenticateAsUser(jobDescriptor.workflowDescriptor) { implicit gcsFs => Try(jobDescriptor.returnCodeGcsPath.toAbsolutePath.contentAsString) }
 
   def useCachedCall(cachedCallDescriptor: BackendCallJobDescriptor, callDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
 
@@ -420,7 +412,7 @@ case class JesBackend(actorSystem: ActorSystem)
             FailedExecutionHandle(ex).future
           case Success(_) => postProcess(callDescriptor) match {
             case Success(outputs) => callDescriptor.hash map { h =>
-              SuccessfulExecutionHandle(outputs, List.empty[ExecutionEventEntry], downloadRcFile(cachedCallDescriptor).get.stripLineEnd.toInt, h, Option(cachedCallDescriptor)) }
+              SuccessfulExecutionHandle(outputs, List.empty[ExecutionEventEntry], cachedCallDescriptor.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCallDescriptor)) }
             case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
               // TODO: What can we return here to retry this operation?
               // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
@@ -641,7 +633,7 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   def postProcess(jobDescriptor: BackendCallJobDescriptor): Try[CallOutputs] = {
-    val outputs = jobDescriptor.key.scope.task.outputs
+    val outputs = jobDescriptor.call.task.outputs
     val outputFoldingFunction = getOutputFoldingFunction(jobDescriptor)
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
@@ -771,7 +763,7 @@ case class JesBackend(actorSystem: ActorSystem)
   private def handleFailure(jobDescriptor: BackendCallJobDescriptor, errorCode: Int, errorMessage: Option[String], events: Seq[ExecutionEventEntry], logger: WorkflowLogger) = {
     import lenthall.numeric.IntegerUtil._
 
-    val taskName = s"${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.key.scope.unqualifiedName}"
+    val taskName = s"${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.call.unqualifiedName}"
     val attempt = jobDescriptor.key.attempt
 
     if (errorMessage.exists(_.contains("Operation canceled at")))  {
@@ -793,7 +785,7 @@ case class JesBackend(actorSystem: ActorSystem)
         RetryableExecutionHandle(e, None, events).future
       }
     } else {
-      val e = new Throwable(s"Task ${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.key.scope.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
+      val e = new Throwable(s"Task ${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.call.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
       FailedExecutionHandle(e, None, events).future
     }
   }
@@ -889,16 +881,12 @@ case class JesBackend(actorSystem: ActorSystem)
   override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
-    val workflowDescriptor = descriptor.workflowDescriptor
-    val key = descriptor.key
+    lazy val callRootPath = descriptor.callRootPath.toString
+    lazy val jesStdoutPath = descriptor.jesStdoutGcsPath.toString
+    lazy val jesStderrPath = descriptor.jesStderrGcsPath.toString
 
-    lazy val callGcsPath = key.callRootPathWithBaseRoot(workflowDescriptor, rootPath(workflowDescriptor.workflowOptions))
-
-    lazy val jesStdoutGcsPath = callGcsPath.resolve(jesLogStdoutFilename(key)).toString
-    lazy val jesStderrGcsPath = callGcsPath.resolve(jesLogStderrFilename(key)).toString
-
-    val callContext = new CallContext(callGcsPath.toString, jesStdoutGcsPath, jesStderrGcsPath)
-    new JesCallEngineFunctions(workflowDescriptor.fileSystems, callContext)
+    val callContext = new CallContext(callRootPath, jesStdoutPath, jesStderrPath)
+    new JesCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, callContext)
   }
 
   override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = {
@@ -912,7 +900,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = {
     val backendInputs = adjustInputPaths(descriptor)
-    descriptor.key.scope.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
+    descriptor.call.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
   }
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {

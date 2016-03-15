@@ -19,7 +19,7 @@ class BackendCallExecutionActor(jobDescriptor: BackendCallJobDescriptor) extends
     callTag = Option(jobDescriptor.key.tag)
   )
 
-  override val call = jobDescriptor.key.scope
+  override val call = jobDescriptor.call
   override def poll(handle: ExecutionHandle) = jobDescriptor.poll(handle)
   override def execute(mode: ExecutionMode)(implicit ec: ExecutionContext) = mode match {
     case Execute => jobDescriptor.execute

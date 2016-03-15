@@ -8,13 +8,19 @@ import Test.testMonad
   * for comprehension. These assembled formulas can then be run by a client
   */
 object TestFormulas {
-  def runWorkflowUntilTerminalStatus(request: WorkflowRequest, status: TerminalStatus): Test[Unit] = {
+  def runWorkflowUntilTerminalStatus(request: WorkflowRequest, status: TerminalStatus): Test[Workflow] = {
     for {
       s <- submitWorkflow(request)
       _ <- pollUntilStatus(s, status)
+    } yield s
+  }
+
+  def runSuccessfulWorkflow(request: WorkflowRequest) = {
+    for {
+      s <- runWorkflowUntilTerminalStatus(request, Succeeded)
+      _ <- verifyOutputs(s, request)
     } yield ()
   }
 
-  def runSuccessfulWorkflow(request: WorkflowRequest) = runWorkflowUntilTerminalStatus(request, Succeeded)
   def runFailingWorkflow(request: WorkflowRequest) = runWorkflowUntilTerminalStatus(request, Failed)
 }

@@ -18,6 +18,7 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       preemptible = 1,
       disks = disks,
       memoryGB = 4D,
+      queue = Some("workq"),
       walltime = "24:00:00")
 
     val runtimeInfo = PreemptibleJesRuntimeInfo("command", attributes)
@@ -41,6 +42,7 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       preemptible = 3,
       disks = disks,
       memoryGB = 4D,
+      queue = Some("workq"),
       walltime = "24:00:00")
 
     val runtimeInfo = NonPreemptibleJesRuntimeInfo("command", attributes)

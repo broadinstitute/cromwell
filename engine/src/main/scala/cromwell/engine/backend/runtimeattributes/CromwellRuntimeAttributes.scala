@@ -30,6 +30,7 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      preemptible: Int,
                                      disks: Seq[JesAttachedDisk],
                                      memoryGB: Double,
+                                     queue: Option[String],
                                      walltime: String)
 
 object CromwellRuntimeAttributes {
@@ -99,6 +100,7 @@ object CromwellRuntimeAttributes {
                         ValidKeyType("failOnStderr", Set(WdlBooleanType)),
                         ValidKeyType("preemptible", Set(WdlIntegerType)),
                         ValidKeyType("memory", Set(WdlStringType)),
+                        ValidKeyType("queue", Set(WdlStringType)),
                         ValidKeyType("walltime", Set(WdlStringType)))
 
   private val defaultValues = Map(
@@ -147,10 +149,11 @@ object CromwellRuntimeAttributes {
       case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
       case scala.util.Failure(x) => x.getMessage.failureNel
     }
+    val queue = validateQueue(attributeMap.get(QUEUE))
     val walltime = validateWalltime(attributeMap.get(WALLTIME))
 
-    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory |@| walltime) {
-      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _, _)
+    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory |@| queue |@| walltime) {
+      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _, _, _)
     } match {
       case Success(x) => scala.util.Success(x)
       case Failure(nel) => scala.util.Failure(new IllegalArgumentException(nel.list.mkString("\n")))
@@ -159,6 +162,14 @@ object CromwellRuntimeAttributes {
 
   private def validateCpu(cpu: Option[WdlValue]): ErrorOr[Int] = {
     cpu.map(validateInt).getOrElse(defaults.cpu.toInt.successNel)
+  }
+  
+  private def validateQueue(queue: Option[WdlValue]): ErrorOr[Option[String]] = {
+    queue match {
+      case Some(WdlString(q)) => Some(q).successNel
+      case None => None.successNel
+      case _ => s"Expecting ${QUEUE.key} runtime attribute to be a String".failureNel
+    }
   }
   
   private def validateWalltime(walltime: Option[WdlValue]): ErrorOr[String] = {
@@ -193,7 +204,7 @@ object CromwellRuntimeAttributes {
     docker match {
       case Some(WdlString(s)) => Some(s).successNel
       case None => None.successNel
-      case _ => s"Expecting ${DOCKER.key} runtime attribute to a String".failureNel
+      case _ => s"Expecting ${DOCKER.key} runtime attribute to be a String".failureNel
     }
   }
 

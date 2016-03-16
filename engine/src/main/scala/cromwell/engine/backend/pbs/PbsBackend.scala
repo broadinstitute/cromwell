@@ -145,8 +145,22 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    * as some extra shell code for monitoring jobs
    */
   private def writeScript(backendCall: BackendCall, instantiatedCommand: String) = {
+    val pbsJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
+    val queueSpec = backendCall.runtimeAttributes.queue match {
+      case Some(q) => s"#PBS -q ${q}"
+      case None => ""
+    }
     backendCall.script.write(
       s"""#!/bin/sh
+         |#PBS -N $pbsJobName
+         |#PBS -V
+         |#PBS -o ${backendCall.stdout.toAbsolutePath}
+         |#PBS -e ${backendCall.stderr.toAbsolutePath}
+         |#PBS -l ncpus=${backendCall.runtimeAttributes.cpu}
+         |#PBS -l mem=${backendCall.runtimeAttributes.memoryGB.toInt}gb
+         |#PBS -l walltime=${backendCall.runtimeAttributes.walltime}
+         |${queueSpec}
+         |
          |cd $$PBS_O_WORKDIR
          |$instantiatedCommand
          |echo $$? > rc
@@ -158,19 +172,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
     val logger = workflowLoggerWithCall(backendCall)
-    val pbsJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
-
-    val argv = Seq(
-          "qsub",
-          "-N", pbsJobName,
-          "-V",
-          "-o", backendCall.stdout.toAbsolutePath,
-          "-e", backendCall.stderr.toAbsolutePath,
-          "-l", s"ncpus=${backendCall.runtimeAttributes.cpu}",
-          "-l", s"mem=${backendCall.runtimeAttributes.memoryGB.toInt}gb",
-          "-l", s"walltime=${backendCall.runtimeAttributes.walltime}",
-          backendCall.script.toAbsolutePath
-        ).map(_.toString)
+    val argv = Seq("qsub", backendCall.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 

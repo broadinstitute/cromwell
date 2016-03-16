@@ -17,6 +17,7 @@ public enum RuntimeKey {
     FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE, PBS),
     MEMORY("memory", new BackendType[]{PBS}, JES),
     PREEMPTIBLE("preemptible", JES),
+    QUEUE("queue", new BackendType[]{PBS}),
     WALLTIME("walltime", new BackendType[]{PBS});
 
     public final String key;

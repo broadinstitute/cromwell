@@ -25,13 +25,12 @@ class JesBackendCallSpec extends FlatSpec with Matchers with Mockito {
 
     class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {
       val attributes = mock[CromwellRuntimeAttributes]
-      override def callRuntimeAttributes: CromwellRuntimeAttributes = attributes.preemptible returns max
+      override lazy val callRuntimeAttributes: CromwellRuntimeAttributes = attributes.preemptible returns max
     }
 
     class Attempt1(max: Int) extends MaxMockingDescriptor(max, backendCallKeyWithAttempt1)
     class Attempt2(max: Int) extends MaxMockingDescriptor(max, backendCallKeyWithAttempt2)
 
-    import JesBackend.JesEnhancedJobDescriptor
     val descriptorWithMax0AndKey1 = new Attempt1(max = 0)
     descriptorWithMax0AndKey1.preemptible shouldBe false
 

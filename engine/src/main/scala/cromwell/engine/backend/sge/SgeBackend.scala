@@ -38,10 +38,6 @@ object SgeBackend {
 }
 
 case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  import SgeBackend.SgeEnhancedJobDescriptor
-
-  override type BackendCall = SgeBackendCall
-
   def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
 
   import LocalBackend.WriteWithNewline
@@ -51,7 +47,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
   /**
-    * Exponential Backoff Builder to be used when polling for call status.
+    * Exponential Backoff Builder to be used when polling for job status.
     */
   final private lazy val pollBackoffBuilder = new Builder()
     .setInitialIntervalMillis(10.seconds.toMillis.toInt)
@@ -60,11 +56,6 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     .setMultiplier(1.1D)
 
   override def pollBackoff = pollBackoffBuilder.build()
-
-  override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
-    SgeBackendCall(this, jobDescriptor, abortRegistrationFunction)
-  }
 
   def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)
 
@@ -110,7 +101,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   private def updateSgeJobTable(jobDescriptor: BackendCallJobDescriptor, status: String, rc: Option[Int], sgeJobId: Option[Int])
                                (implicit ec: ExecutionContext): Future[Unit] = {
-    globalDataAccess.updateExecutionInfo(jobDescriptor.workflowDescriptor.id, BackendCallKey(jobDescriptor.key.scope, jobDescriptor.key.index, jobDescriptor.key.attempt), InfoKeys.JobNumber, Option(sgeJobId.toString))
+    globalDataAccess.updateExecutionInfo(jobDescriptor.workflowDescriptor.id, BackendCallKey(jobDescriptor.call, jobDescriptor.key.index, jobDescriptor.key.attempt), InfoKeys.JobNumber, Option(sgeJobId.toString))
   }
 
   /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like
@@ -168,7 +159,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
-    val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.key.scope.unqualifiedName}"
+    val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
     val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, jobDescriptor.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
@@ -195,7 +186,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   /**
    * This waits for a given SGE job to finish.  When finished, it post-processes the job
-   * and returns the outputs for the call
+   * and returns the outputs for the jobDescriptor
    */
   private def pollForSgeJobCompletionThenPostProcess(jobDescriptor: BackendCallJobDescriptor, sgeJobId: Int)(implicit ec: ExecutionContext): Future[(ExecutionResult, Int)] = {
     val logger = jobLogger(jobDescriptor)
@@ -245,7 +236,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {
     val backendInputs = adjustInputPaths(jobDescriptor)
-    jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions)
+    jobDescriptor.call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions)
   }
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)

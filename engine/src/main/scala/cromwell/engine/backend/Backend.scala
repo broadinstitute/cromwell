@@ -71,8 +71,6 @@ object AttemptedLookupResult {
  */
 trait Backend {
 
-  type BackendCall <: backend.BackendCall
-
   def actorSystem: ActorSystem
 
   def rootPath(workflowOptions: WorkflowOptions): String
@@ -97,12 +95,6 @@ trait Backend {
    * Do whatever cleaning up work is required when a workflow reaches a terminal state.
    */
   def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
-
-  /**
-   * Essentially turns a Call object + CallInputs into a BackendCall
-   */
-  def bindCall(jobDescriptor: BackendCallJobDescriptor,
-               abortRegistrationFunction: Option[AbortRegistrationFunction] = None): BackendCall
 
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions
 
@@ -162,7 +154,7 @@ trait Backend {
 
   def runtimeAttributes(descriptor: BackendCallJobDescriptor): CromwellRuntimeAttributes =
     CromwellRuntimeAttributes(
-      descriptor.key.scope.task.runtimeAttributes,
+      descriptor.call.task.runtimeAttributes,
       descriptor,
       Option(descriptor.workflowDescriptor.workflowOptions))
 
@@ -170,7 +162,7 @@ trait Backend {
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
   private def hashGivenDockerHash(jobDescriptor: BackendCallJobDescriptor)(dockerHash: Option[String]): ExecutionHash = {
-    val call = jobDescriptor.key.scope
+    val call = jobDescriptor.call
     val runtimeAttributes = jobDescriptor.callRuntimeAttributes
     val orderedInputs = jobDescriptor.locallyQualifiedInputs.toSeq.sortBy(_._1)
     val orderedOutputs = call.task.outputs.sortWith((l, r) => l.name > r.name)

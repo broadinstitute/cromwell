@@ -33,7 +33,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
       case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a DateTime")
     }
   }
-  implicit val executionDatabaseKeyValue = jsonFormat3(ExecutionDatabaseKey)
+  implicit val executionDatabaseKeyValue = jsonFormat3(ExecutionDatabaseKey.apply)
   implicit val unqualifiedFailureEventEntry = jsonFormat2(FailureEventEntry)
   implicit val qualifiedFailureEventEntry = jsonFormat4(QualifiedFailureEventEntry)
   implicit val executionEventProtocol = jsonFormat3(ExecutionEventEntry)
@@ -44,4 +44,3 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
   implicit val callCachingResponse = jsonFormat1(CallCachingResponse)
 }
-

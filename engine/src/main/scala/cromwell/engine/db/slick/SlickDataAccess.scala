@@ -522,15 +522,15 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Get all outputs for the scope of this key. */
-  override def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
-                         (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+  override def getAllOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                            (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     require(key != null, "key cannot be null")
     getSymbols(workflowId, IoOutput, Option(key.fqn), key.index)
   }
 
   /** Returns all NON SHARDS outputs for this workflowId */
-  override def getWorkflowOutputs(workflowId: WorkflowId)
-                                 (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+  override def getAllWorkflowOutputs(workflowId: WorkflowId)
+                                    (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val action = dataAccess.symbolsForWorkflowOutput(workflowId.toString).result
     runTransaction(action) map toSymbolStoreEntries
   }
@@ -548,7 +548,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  override def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
                           reportableResults: Seq[ReportableSymbol])
                          (implicit ec: ExecutionContext): Future[Unit] = {
     val reportableResultNames = reportableResults map { _.fullyQualifiedName }
@@ -556,11 +556,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
         case (symbolLocallyQualifiedName, CallOutput(wdlValue, hash)) =>
-          val reportableSymbol = key.index.fromIndex == -1 && reportableResultNames.contains(key.scope.fullyQualifiedName + "." + symbolLocallyQualifiedName)
+          val reportableSymbol = key.index.fromIndex == -1 &&
+            reportableResultNames.contains(key.fqn + "." + symbolLocallyQualifiedName)
           val value = wdlValueToDbValue(wdlValue).toNonEmptyClob
           new Symbol(
             workflowExecution.workflowExecutionId.get,
-            key.scope.fullyQualifiedName,
+            key.fqn,
             symbolLocallyQualifiedName,
             key.index.fromIndex,
             IoOutput,

@@ -299,35 +299,38 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
   }
 
-  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
+  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Future[Unit] = {
     descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => Success(c.unqualifiedName)
-      case _ => Failure(new UnsupportedOperationException(s"Expected a fully qualified name to have at least two parts but got $callFqn"))
+      case None => Future.failed(new UnsupportedOperationException(
+        s"Expected a fully qualified name to have at least two parts but got $callFqn"))
+      case _ => Future.successful(())
     }
   }
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[AttemptedCallLogs] = {
 
-    def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
-      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
+    def getCallLogs(workflowId: WorkflowId, keys: Seq[ExecutionDatabaseKey]): Future[AttemptedCallLogs] = {
+      val callLogFutures = keys map { key =>
+        globalDataAccess.getCallLogOutputs(workflowId, key) map { entries =>
+          key -> key.toCallLogs(entries)
+        }
+      }
 
-    def backendCallFromKey(workflow: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) = {
-      BackendCallJobDescriptor(workflow, callKey(workflow, callName, key))
+      for {
+        results <- Future.sequence(callLogFutures)
+      } yield results.groupBy(_._1.index).toIndexedSeq.sortBy(_._1).map(_._2) map {
+        _.sortBy(_._1.attempt).map(_._2.get).toIndexedSeq
+      }
     }
 
-    // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
-    import cromwell.engine.finalcall.FinalCall._
     for {
-        _ <- assertWorkflowExistence(workflowId)
-        descriptor <- globalDataAccess.getWorkflow(workflowId)
-        _ <- assertCallExistence(workflowId, callFqn)
-        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn)) if !callFqn.isFinalCall
-        callLogKeys <- getCallLogKeys(workflowId, callFqn)
-        backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
-    } yield backendKeys.groupBy(_.key.index).values.toIndexedSeq.sortBy(_.head.key.index) map {
-      // TODO Waiting for stdoutStderr to be moved
-      _.sortBy(_.key.attempt).map(_.stdoutStderr).toIndexedSeq
-    }
+      _ <- assertWorkflowExistence(workflowId)
+      descriptor <- globalDataAccess.getWorkflow(workflowId)
+      _ <- assertCallExistence(workflowId, callFqn)
+      _ <- assertCallFqnWellFormed(descriptor, callFqn)
+      callLogKey <- getCallLogKeys(workflowId, callFqn)
+      entries <- getCallLogs(workflowId, callLogKey)
+    } yield entries
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[WorkflowLogs] = {
@@ -335,13 +338,31 @@ class WorkflowManagerActor(backend: Backend, config: Config)
       workflowState <- globalDataAccess.getWorkflowState(workflowId)
       // TODO: This assertion could also be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
       _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
-      workflowDescriptor <- globalDataAccess.getWorkflow(workflowId)
-      executionStatuses <- globalDataAccess.getExecutionStatuses(workflowId)
-    } yield WorkflowMetadataBuilder.workflowStdoutStderr(workflowId, backend, workflowDescriptor, executionStatuses)
+      callLogOutputs <- globalDataAccess.getCallLogOutputs(workflowId)
+    } yield workflowStdoutStderr(callLogOutputs)
   }
 
+  private def workflowStdoutStderr(callLogOutputs: Traversable[SymbolStoreEntry]): WorkflowLogs = {
+    val callsToPaths = for {
+      (key, entries) <- callLogOutputs.groupBy(ExecutionDatabaseKey.toCallLogKey)
+    } yield key -> key.toCallLogs(entries)
+
+    /* Some FP "magic" to transform the pairs of (key, logs) into the final result:
+    grouped by FQNS, ordered by shards, and then ordered by attempts */
+    callsToPaths.toList filter {
+      _._2.isDefined
+    } groupBy {
+      _._1.fqn
+    } mapValues {
+      key => key.groupBy(_._1.index).values.toIndexedSeq.sortBy(_.head._1.index) map {
+        _.sortBy(_._1.attempt).map(_._2.get).toIndexedSeq
+      }
+    }
+  }
+
+
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
-    WorkflowMetadataBuilder.workflowMetadata(id, backend)
+    WorkflowMetadataBuilder.workflowMetadata(id)
   }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a

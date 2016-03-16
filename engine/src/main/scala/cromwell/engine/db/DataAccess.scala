@@ -1,11 +1,11 @@
 package cromwell.engine.db
 
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, JobKey}
+import cromwell.engine._
+import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, CallLogs, JobKey}
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
-import cromwell.engine.{WorkflowOutputs, _}
+import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
@@ -51,15 +51,30 @@ trait DataAccess extends AutoCloseable {
   // TODO needed to support compatibility with current code, this seems like an inefficient way of getting
   // TODO workflow outputs.
   /** Returns all outputs for this workflowId */
-  def getWorkflowOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+  def getAllWorkflowOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
-  def getAllOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+  def getWorkflowOutputs(workflowId: WorkflowId)
+                        (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    // TODO: Filtering should be done in the database
+    getAllWorkflowOutputs(workflowId) map { _ filterNot ExecutionDatabaseKey.isCallLog }
+  }
 
   def getAllInputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
-  /** Get all outputs for the scope of this call. */
+  def getAllOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+
+  def getOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    getAllOutputs(workflowId) map { _ filterNot ExecutionDatabaseKey.isCallLog }
+  }
+
+  /** Get all output symbols for the scope of this call including standard stream symbols. */
+  def getAllOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                             (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
-                (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
+                (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    getAllOutputs(workflowId, key) map { _ filterNot ExecutionDatabaseKey.isCallLog }
+  }
 
   def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
 
@@ -69,8 +84,24 @@ trait DataAccess extends AutoCloseable {
   def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
                  workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit]
+
+  def setCallLogs(id: WorkflowId, key: ExecutionDatabaseKey, callLogs: CallLogs)
+                                (implicit ec: ExecutionContext): Future[Unit] = {
+    val outputs = key.toCallOutputs(callLogs)
+    setOutputs(id, key, outputs, Seq.empty)
+  }
+
+  def getCallLogOutputs(workflowId: WorkflowId)
+                       (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    getAllOutputs(workflowId) map { _ filter ExecutionDatabaseKey.isCallLog }
+  }
+
+  def getCallLogOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
+                       (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
+    getAllOutputs(workflowId, key) map { _ filter ExecutionDatabaseKey.isCallLog }
+  }
 
   /** Updates the existing input symbols to replace expressions with real values **/
   def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs)

@@ -4,7 +4,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowLogs}
+import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry, _}
@@ -99,8 +99,9 @@ object CallMetadataBuilder {
    */
   private def buildOutputsTransformer(callOutputs: Traversable[SymbolStoreEntry]): ExecutionMapTransformer =
     executionMap => {
+      val outputsNoCallLogs = callOutputs filterNot ExecutionDatabaseKey.isCallLog
       // Remove collector entries for the purposes of this endpoint.
-      val outputsNoCollectors = filterCollectorSymbols(callOutputs)
+      val outputsNoCollectors = filterCollectorSymbols(outputsNoCallLogs)
       val outputsByKey = outputsNoCollectors.groupBy(o => ExecutionDatabaseKey(o.scope, o.key.index, findLastAttempt(executionMap, o.scope, o.key.index)))
       for {
         (key, outputs) <- outputsByKey
@@ -159,25 +160,16 @@ object CallMetadataBuilder {
   /**
    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
    */
-  private def buildStreamsTransformer(standardStreamsMap: WorkflowLogs): ExecutionMapTransformer =
+  private def buildStreamsTransformer(callOutputs: Traversable[SymbolStoreEntry]): ExecutionMapTransformer = {
     executionMap => {
-      val databaseKeysWithNoneIndexes = executionMap.keys groupBy { _.fqn } filter {
-        case (fqn, edks) => edks forall { _.index.isEmpty }
-      }
-
-      def indexForFqn(fqn: FullyQualifiedName, rawIndex: Int): ExecutionIndex = {
-        if (databaseKeysWithNoneIndexes.contains(fqn)) None else rawIndex.toIndex
-      }
-
+      val outputsCallLogs = callOutputs filter ExecutionDatabaseKey.isCallLog
+      val outputsByKey = outputsCallLogs groupBy ExecutionDatabaseKey.toCallLogKey
       for {
-        (fqn, seqOfSeqOfStreams) <- standardStreamsMap.toTraversable
-        (logsForAttempt, index) <- seqOfSeqOfStreams.zipWithIndex
-        // Increment all attempt indices because attempts are one-based
-        (streams, attempt) <- logsForAttempt.zipWithIndex map { case (l, a) => (l, a + 1) }
-        key = ExecutionDatabaseKey(fqn, indexForFqn(fqn, index), attempt)
+        (key, outputs) <- outputsByKey
         baseMetadata = executionMap.get(key).get
-      } yield key -> baseMetadata.copy(streams = Option(streams))
-    }.toMap
+      } yield key -> baseMetadata.copy(streams = key.toCallLogs(outputs))
+    }
+  }
 
   /** Remove symbols corresponding to collectors. */
   private def filterCollectorSymbols(symbols: Traversable[SymbolStoreEntry]): Traversable[SymbolStoreEntry] = {
@@ -194,7 +186,6 @@ object CallMetadataBuilder {
    *  for the specified parameters.
    */
   def build(infosByExecution: Traversable[ExecutionInfosByExecution],
-            standardStreamsMap: WorkflowLogs,
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
@@ -210,7 +201,7 @@ object CallMetadataBuilder {
       buildOutputsTransformer(callOutputs),
       buildExecutionEventsTransformer(executionEvents),
       buildExecutionInfoTransformer(infosByExecution),
-      buildStreamsTransformer(standardStreamsMap),
+      buildStreamsTransformer(callOutputs),
       buildRuntimeAttributesTranformer(runtimeAttributes),
       buildCallFailureTranformer(callFailures)
     )

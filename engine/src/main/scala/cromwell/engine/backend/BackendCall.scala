@@ -124,7 +124,7 @@ trait BackendCall {
   def lookupFunction(evaluatedValues: Map[String, WdlValue]): String => WdlValue = jobDescriptor.lookupFunction(evaluatedValues)
 
   /** Initiate execution, callers can invoke `poll` once this `Future` completes successfully. */
-  def execute(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = jobDescriptor.execute
 
   /**
    * The default implementation of this method is not expected to be called and simply throws an `NotImplementedError`.
@@ -132,9 +132,7 @@ trait BackendCall {
    * this method will not be called.  If the backend does override `Backend#findResumableExecutions`, the corresponding
    * `BackendCall` should override this method to actually do the resumption work.
    */
-  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    throw new NotImplementedError(s"resume() called on a non-resumable BackendCall: $this")
-  }
+  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = jobDescriptor.resume(jobKey)
 
   def useCachedCall(cachedBackendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = jobDescriptor.useCachedCall(cachedBackendCall.jobDescriptor)
 

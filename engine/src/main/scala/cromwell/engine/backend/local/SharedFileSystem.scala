@@ -146,8 +146,8 @@ trait SharedFileSystem { self: Backend =>
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def sharedFileSystemStdoutStderr(backendCall: BackendCall): CallLogs = {
-    val dir = backendCall.callRootPath
+  def sharedFileSystemStdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = {
+    val dir = jobDescriptor.callRootPath
     CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
       stderr = WdlFile(dir.resolve("stderr").toAbsolutePath.toString)

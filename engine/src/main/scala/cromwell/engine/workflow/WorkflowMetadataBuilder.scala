@@ -54,9 +54,7 @@ object WorkflowMetadataBuilder {
       callName = assertCallFqnWellFormed(workflowDescriptor, key.fqn)
       call = workflowDescriptor.namespace.workflow.findCallByName(callName).get
       callKey = BackendCallKey(call, key.index, key.attempt)
-      // TODO There should be an easier way than going as far as backend.bindCall just to retrieve stdout/err path
-      backendCall = backend.bindCall(BackendCallJobDescriptor(workflowDescriptor, callKey))
-      callStandardOutput = backend.stdoutStderr(backendCall)
+      callStandardOutput = backend.stdoutStderr(BackendCallJobDescriptor(workflowDescriptor, callKey))
     } yield key -> callStandardOutput
 
     /* Some FP "magic" to transform the pairs of (key, logs) into the final result:

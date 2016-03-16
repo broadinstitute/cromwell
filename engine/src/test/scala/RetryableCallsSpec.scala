@@ -15,11 +15,11 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
   val customizedLocalBackend = new LocalBackend(system) {
-    override def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-      backendCall.key.scope.taskFqn match {
-        case "do_scatter" if backendCall.key.index.contains(0) && backendCall.key.attempt == 1 =>
+    override def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+      jobDescriptor.key.scope.taskFqn match {
+        case "do_scatter" if jobDescriptor.key.index.contains(0) && jobDescriptor.key.attempt == 1 =>
           RetryableExecutionHandle(new PreemptedException("Retryable failure")).future
-        case _ => super.execute(backendCall)
+        case _ => super.execute(jobDescriptor)
       }
     }
   }

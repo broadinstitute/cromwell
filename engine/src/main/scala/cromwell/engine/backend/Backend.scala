@@ -114,7 +114,7 @@ trait Backend {
   /**
    * Return CallLogs which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(backendCall: BackendCall): CallLogs
+  def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs
 
   def backendType: BackendType
 
@@ -222,4 +222,8 @@ trait Backend {
   def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 
   def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+
+  def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+
+  def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 }

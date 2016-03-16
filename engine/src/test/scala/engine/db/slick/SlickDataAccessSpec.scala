@@ -73,7 +73,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
     override def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor) = throw new NotImplementedError()
     override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = throw new NotImplementedError
-    override def stdoutStderr(backendCall: BackendCall): CallLogs = throw new NotImplementedError
+    override def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = throw new NotImplementedError
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
     override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
     override def bindCall(jobDescriptor: BackendCallJobDescriptor, abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = throw new NotImplementedError
@@ -86,6 +86,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
     override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = List(FileSystems.getDefault)
     override def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
+    override def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
+    override def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
   }
 
   "SlickDataAccess" should "not deadlock" in {

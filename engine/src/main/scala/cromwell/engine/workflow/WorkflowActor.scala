@@ -420,7 +420,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
-      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
+      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.workflow.outputs)
       _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, executionEvents)
     } yield ()
 
@@ -800,7 +800,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
 
     def arePrerequisitesDone(key: ExecutionStoreKey): Boolean = {
-      val upstream = key.scope.prerequisiteScopes.map(s => upstreamEntries(key, s))
+      val upstream = key.scope.upstream.map(s => upstreamEntries(key, s))
       val downstream = key match {
         case collector: CollectorKey => findShardEntries(collector)
         case _ => Nil
@@ -893,7 +893,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   private def lookupDeclaration(workflow: Workflow)(name: String): Try[WdlValue] = {
-    workflow.scopedDeclarations find { _.name == name } match {
+    workflow.declarations find { _.unqualifiedName == name } match {
       case Some(declaration) => fetchFullyQualifiedName(declaration.fullyQualifiedName)
       case None => Failure(new WdlExpressionException(s"Could not find a declaration with name '$name'"))
     }
@@ -933,7 +933,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   def fetchLocallyQualifiedInputs(callKey: BackendCallKey): Try[Map[String, WdlValue]] = Try {
-    val parentWorkflow = callKey.scope.rootWorkflow
+    val parentWorkflow = callKey.scope.workflow
 
     def lookup(identifier: String): WdlValue = {
       /* This algorithm defines three ways to lookup an identifier in order of their precedence:
@@ -970,7 +970,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     val exception = new WdlExpressionException(s"Could not find task input '$inputName' for call '$callFqn'")
     workflow.namespace.resolve(callFqn) match {
       case Some(c:Call) =>
-        c.task.declarations.find(_.name == inputName) match {
+        c.task.declarations.find(_.unqualifiedName == inputName) match {
           case Some(decl) => Success(decl)
           case None => Failure(exception)
         }
@@ -1118,7 +1118,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       }
     }
 
-    val rootWorkflow = scatterKey.scope.rootWorkflow
+    val rootWorkflow = scatterKey.scope.workflow
     for {
       collection <- scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), NoFunctions)
     } yield buildExecutionStartResult(collection)

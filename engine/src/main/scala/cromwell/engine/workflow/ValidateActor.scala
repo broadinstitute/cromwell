@@ -71,9 +71,10 @@ class ValidateActor()
 
   // TODO: With PBE, this should be defined in the backend.
   private def validateRuntimeAttributes(namespaceWithWorkflow: WdlNamespaceWithWorkflow): Seq[Set[String]] = {
-    TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
+    val validatedCallRuntimeAttributes = namespaceWithWorkflow.workflow.calls.toSeq map {
       call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, CromwellBackend.backend().backendType)
-    }) match {
+    }
+    TryUtil.sequence(validatedCallRuntimeAttributes) match {
       case Success(validatedRuntimeAttrs) => validatedRuntimeAttrs
       case Failure(reason) => throw new IllegalArgumentException("Failed to validate runtime attributes.", reason)
     }

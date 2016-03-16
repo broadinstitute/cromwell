@@ -8,7 +8,8 @@ import cromwell.engine.workflow.WorkflowActor.ExecutionStore
 import scala.language.postfixOps
 
 sealed trait ExecutionStoreKey {
-  def scope: Scope
+  // TODO: sfrazer: do I need GraphNode?
+  def scope: Scope with GraphNode with WorkflowScoped
   def index: Option[Int]
   def tag: String = {
     val shard = index.map(x => s":$x").getOrElse("")

@@ -40,7 +40,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
 
   "A static Map[File, String] declaration" should {
     "be a valid declaration" in {
-      val declaration = ns.workflow.declarations.find {_.name == "map"}.getOrElse {
+      val declaration = ns.workflow.declarations.find(_.unqualifiedName == "map").getOrElse {
         fail("Expected declaration 'map' to be found")
       }
       val expression = declaration.expression.getOrElse {

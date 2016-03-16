@@ -2,6 +2,7 @@ package cromwell.engine.finalcall
 
 import cromwell.engine.WorkflowDescriptor
 import cromwell.webservice.WorkflowMetadataResponse
+import wdl4s.{Scope, GraphNode}
 
 import scala.concurrent.ExecutionContext
 
@@ -11,12 +12,12 @@ object CopyCallLogsCall extends FinalCallCompanion[CopyCallLogsCall] {
   override def createCall(workflow: WorkflowDescriptor) = CopyCallLogsCall(workflow)
 }
 
-case class CopyCallLogsCall(override val workflow: WorkflowDescriptor) extends FinalCall {
+case class CopyCallLogsCall(override val workflowDescriptor: WorkflowDescriptor) extends FinalCall {
   override val companion = CopyCallLogsCall
   override val handle = CopyCallLogsCallHandle
 
   override def execute(workflowMetadataResponse: WorkflowMetadataResponse)(implicit ec: ExecutionContext) = {
-    workflow.copyCallLogs(workflowMetadataResponse)
+    workflowDescriptor.copyCallLogs(workflowMetadataResponse)
   }
 }
 

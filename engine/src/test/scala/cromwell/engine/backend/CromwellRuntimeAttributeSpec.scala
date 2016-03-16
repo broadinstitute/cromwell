@@ -32,7 +32,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
       wdl.asWorkflowSources(workflowOptions = workflowOptionsJson)
     ).copy(wfContext = new WorkflowContext(root))
 
-    val call = descriptor.namespace.workflow.callByName(callName).get
+    val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == callName).get
     val coercedInputs = descriptor.namespace.coerceRawInputs(wdl.rawInputs).get
     val inputs = coercedInputs collect { case (k, v) if s"${call.fullyQualifiedName}\\.[a-zA-Z0-9_-]+".r.findFirstMatchIn(k).isDefined =>
       k.replace(s"${call.fullyQualifiedName}.", "") -> v
@@ -138,7 +138,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
 
   it should "detect unsupported runtime attributes on the local backend" in {
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.WorkflowWithFullGooglyConfig.asWorkflowSources())
-    val call = descriptor.namespace.workflow.callByName("googly_task").get
+    val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "googly_task").get
     val unsupported = CromwellRuntimeAttributes.unsupportedKeys(call.task.runtimeAttributes.attrs.keys, BackendType.LOCAL)
     unsupported shouldEqual Set("disks", "cpu", "zones", "memory")
   }

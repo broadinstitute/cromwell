@@ -33,7 +33,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
 
   "A static Array[File] declaration" should {
     "be a valid declaration" in {
-      val declaration = ns.workflow.declarations.find {_.name == "arr"}.getOrElse {
+      val declaration = ns.workflow.declarations.find(_.unqualifiedName == "arr").getOrElse {
         fail("Expected declaration 'arr' to be found")
       }
       val expression = declaration.expression.getOrElse {

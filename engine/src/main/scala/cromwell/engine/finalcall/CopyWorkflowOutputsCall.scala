@@ -14,12 +14,12 @@ object CopyWorkflowOutputsCall extends FinalCallCompanion[CopyWorkflowOutputsCal
 /**
   * Final call implementation that copies workflow outputs to a specified destination.
   */
-case class CopyWorkflowOutputsCall(override val workflow: WorkflowDescriptor) extends FinalCall {
+case class CopyWorkflowOutputsCall(override val workflowDescriptor: WorkflowDescriptor) extends FinalCall {
   override val companion = CopyWorkflowOutputsCall
   override val handle = CopyWorkflowOutputsHandle
 
   override def execute(workflowMetadataResponse: WorkflowMetadataResponse)(implicit ec: ExecutionContext) = {
-    workflow.copyWorkflowOutputs(workflowMetadataResponse)
+    workflowDescriptor.copyWorkflowOutputs(workflowMetadataResponse)
   }
 }
 

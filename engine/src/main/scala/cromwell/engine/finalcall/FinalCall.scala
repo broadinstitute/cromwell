@@ -4,7 +4,7 @@ import cromwell.engine._
 import cromwell.engine.backend.{ExecutionHandle, SuccessfulFinalCallExecution}
 import cromwell.engine.workflow.{ExecutionStoreKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
-import wdl4s.{Scope, Workflow}
+import wdl4s.{GraphNode, WorkflowScoped, Scope, Workflow}
 
 import scala.collection.immutable.Traversable
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,12 +35,14 @@ object FinalCall {
 }
 
 /** Scope representing a "final call" that is inserted after all other workflow executions. */
-trait FinalCall extends Scope {
+trait FinalCall extends Scope with GraphNode with WorkflowScoped {
   val companion: FinalCallCompanion[_ <: FinalCall]
   val handle: FinalCallHandle
-  val parent: Option[Scope] = Option(this.rootWorkflow)
+  override def workflow: Workflow = workflowDescriptor.namespace.workflow
+  override val parent: Option[Scope] = Option(workflow)
+  override val ast = null
 
-  def workflow: WorkflowDescriptor
+  def workflowDescriptor: WorkflowDescriptor
 
   def execute(workflowMetadataResponse: WorkflowMetadataResponse)(implicit ec: ExecutionContext): Future[Unit]
 
@@ -56,11 +58,10 @@ trait FinalCall extends Scope {
   /**
     * This is handled as a special case by the WorkflowActor. We don't have to list the specially here.
     */
-  def prerequisiteScopes: Set[Scope] = Set.empty
+  def downstream: Set[Scope with GraphNode] = Set.empty[Scope with GraphNode]
+  def upstream: Set[Scope with GraphNode] = Set.empty[Scope with GraphNode]
 
-  override def rootWorkflow: Workflow = workflow.namespace.workflow
-
-  override def unqualifiedName = "%s.$final_call$%s".format(workflow.name, companion.finalCallName)
+  override def unqualifiedName = "%s.$final_call$%s".format(workflowDescriptor.name, companion.finalCallName)
 }
 
 /**

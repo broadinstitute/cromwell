@@ -16,7 +16,7 @@ case class FinalCallExecutionActor(override val call: FinalCall, workflowMetadat
 
   override val logger = WorkflowLogger(
     this.getClass.getSimpleName,
-    call.workflow,
+    call.workflowDescriptor,
     akkaLogger = Option(akkaLogger),
     callTag = Option(call.unqualifiedName)
   )

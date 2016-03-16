@@ -923,17 +923,25 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
   }
 
   def fetchFullyQualifiedInputs(callKey: BackendCallKey): Map[Scope with GraphNode, WdlValue] = {
-    val allSymbols = for {
-      entry <- symbolCache.values.flatMap(_.toSeq)
+    val allSymbols = symbolCache.values.flatMap(_.toSeq)
+
+    val inputSymbols = for {
+      entry <- allSymbols
       wdlValue <- entry.wdlValue
-      if !wdlValue.isInstanceOf[WdlExpression] // TODO: sfrazer
+      if entry.isInput
+      if !wdlValue.isInstanceOf[WdlExpression] // TODO: sfrazer: why store expressions anyway?
     } yield entry.key.fqn -> wdlValue
 
-    allSymbols.toMap foreach { case (k, v) =>
+    val callObjects = for {
+      entry <- allSymbols
+      if entry.isOutput
+    } yield entry
+
+    inputSymbols.toMap foreach { case (k, v) =>
       println(s"$k -> $v")
     }
 
-    allSymbols.toMap
+    inputSymbols.toMap
   }
 
   def fetchLocallyQualifiedInputs(callKey: BackendCallKey): Try[Map[String, WdlValue]] = Try {

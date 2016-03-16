@@ -5,16 +5,15 @@ import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
-import cromwell.{core, engine}
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
+import cromwell.{core, engine}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import wdl4s._
 
@@ -270,18 +269,6 @@ class WorkflowManagerActor(config: Config)
     }
   }
 
-  /**
-   * Retrieve the entries that produce stdout and stderr.
-   */
-  private def getCallLogKeys(id: WorkflowId, callFqn: FullyQualifiedName): Future[Seq[ExecutionDatabaseKey]] = {
-    globalDataAccess.getExecutionStatuses(id, callFqn) map {
-      case map if map.isEmpty => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
-      case entries =>
-        val callKeys = entries.keys filterNot { _.isCollector(entries.keys) }
-        callKeys.toSeq.sortBy(_.index)
-    }
-  }
-
   private def workflowOutputs(id: WorkflowId): Future[engine.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
@@ -301,35 +288,22 @@ class WorkflowManagerActor(config: Config)
     }
   }
 
-  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
+  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Future[Unit] = {
     descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => Success(c.unqualifiedName)
-      case _ => Failure(new UnsupportedOperationException(s"Expected a fully qualified name to have at least two parts but got $callFqn"))
+      case None => Future.failed(new UnsupportedOperationException(
+        s"Expected a fully qualified name to have at least two parts but got $callFqn"))
+      case _ => Future.successful(())
     }
   }
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[AttemptedCallLogs] = {
-
-    def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
-      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
-
-    def backendCallFromKey(workflow: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) = {
-      BackendCallJobDescriptor(workflow, callKey(workflow, callName, key))
-    }
-
-    // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
-    import cromwell.engine.finalcall.FinalCall._
     for {
-        _ <- assertWorkflowExistence(workflowId)
-        descriptor <- globalDataAccess.getWorkflow(workflowId)
-        _ <- assertCallExistence(workflowId, callFqn)
-        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn)) if !callFqn.isFinalCall
-        callLogKeys <- getCallLogKeys(workflowId, callFqn)
-        backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
-    } yield backendKeys.groupBy(_.key.index).values.toIndexedSeq.sortBy(_.head.key.index) map {
-      // TODO Waiting for stdoutStderr to be moved
-      _.sortBy(_.key.attempt).map(_.stdoutStderr).toIndexedSeq
-    }
+      _ <- assertWorkflowExistence(workflowId)
+      descriptor <- globalDataAccess.getWorkflow(workflowId)
+      _ <- assertCallExistence(workflowId, callFqn)
+      _ <- assertCallFqnWellFormed(descriptor, callFqn)
+      entries <- globalDataAccess.infosByExecution(workflowId, callFqn) map ExecutionInfosByExecution.toWorkflowLogs
+    } yield entries.getOrElse(callFqn, List.empty)
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[WorkflowLogs] = {
@@ -337,9 +311,8 @@ class WorkflowManagerActor(config: Config)
       workflowState <- globalDataAccess.getWorkflowState(workflowId)
       // TODO: This assertion could also be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
       _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
-      workflowDescriptor <- globalDataAccess.getWorkflow(workflowId)
-      executionStatuses <- globalDataAccess.getExecutionStatuses(workflowId)
-    } yield WorkflowMetadataBuilder.workflowStdoutStderr(workflowId, workflowDescriptor.backend, workflowDescriptor, executionStatuses)
+      callLogOutputs <- globalDataAccess.infosByExecution(workflowId)
+    } yield ExecutionInfosByExecution.toWorkflowLogs(callLogOutputs)
   }
 
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {

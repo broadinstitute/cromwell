@@ -4,9 +4,9 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.backend._
-import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.slick._
+import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry, _}
 import org.joda.time.DateTime
 import wdl4s._
@@ -175,25 +175,21 @@ object CallMetadataBuilder {
   /**
    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
    */
-  private def buildStreamsTransformer(standardStreamsMap: WorkflowLogs): ExecutionMapTransformer =
+  private def buildStreamsTransformer(executionsAndInfos: Traversable[ExecutionInfosByExecution]):
+  ExecutionMapTransformer = {
     executionMap => {
-      val databaseKeysWithNoneIndexes = executionMap.keys groupBy { _.fqn } filter {
-        case (fqn, edks) => edks forall { _.index.isEmpty }
-      }
-
-      def indexForFqn(fqn: FullyQualifiedName, rawIndex: Int): ExecutionIndex = {
-        if (databaseKeysWithNoneIndexes.contains(fqn)) None else rawIndex.toIndex
-      }
-
       for {
-        (fqn, seqOfSeqOfStreams) <- standardStreamsMap.toTraversable
-        (logsForAttempt, index) <- seqOfSeqOfStreams.zipWithIndex
-        // Increment all attempt indices because attempts are one-based
-        (streams, attempt) <- logsForAttempt.zipWithIndex map { case (l, a) => (l, a + 1) }
-        key = ExecutionDatabaseKey(fqn, indexForFqn(fqn, index), attempt)
-        baseMetadata = executionMap.get(key).get
-      } yield key -> baseMetadata.copy(streams = Option(streams))
-    }.toMap
+        (key, baseMetadata) <- executionMap
+        callLogs = executionsAndInfos find { executionInfosByExecution =>
+          val execution = executionInfosByExecution.execution
+          import ExecutionIndex._
+          key.fqn == execution.callFqn && key.index == execution.index.toIndex && key.attempt == execution.attempt
+        } flatMap {
+          _.callLogs
+        }
+      } yield key -> baseMetadata.copy(streams = callLogs)
+    }
+  }
 
   /** Remove symbols corresponding to collectors. */
   private def filterCollectorSymbols(symbols: Traversable[SymbolStoreEntry]): Traversable[SymbolStoreEntry] = {
@@ -210,7 +206,6 @@ object CallMetadataBuilder {
    *  for the specified parameters.
    */
   def build(infosByExecution: Traversable[ExecutionInfosByExecution],
-            standardStreamsMap: WorkflowLogs,
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
@@ -227,7 +222,7 @@ object CallMetadataBuilder {
       buildOutputsTransformer(callOutputs),
       buildExecutionEventsTransformer(executionEvents),
       buildExecutionInfoTransformer(infosByExecution),
-      buildStreamsTransformer(standardStreamsMap),
+      buildStreamsTransformer(infosByExecution),
       buildRuntimeAttributesTransformer(runtimeAttributes),
       buildCallFailureTransformer(callFailures),
       buildCallCacheTransformer(cacheData)

@@ -8,16 +8,15 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.core.WorkflowId
-import cromwell.core.CallOutput
+import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow._
-import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.apache.commons.lang3.StringUtils
@@ -491,6 +490,35 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
+  override def upsertExecutionInfo(workflowId: WorkflowId,
+                                   callKey: BackendCallKey,
+                                   keyValues: Map[String, Option[String]])
+                                  (implicit ec: ExecutionContext): Future[Unit] = {
+    import ExecutionIndex._
+
+    val action = for {
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
+        workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt).result.head
+
+      _ <- DBIO.sequence(keyValues map upsertExecutionInfo(executionResult.executionId.get))
+    } yield ()
+
+    runTransaction(action)
+  }
+
+  private def upsertExecutionInfo(executionId: Int)(keyValue: (String, Option[String]))
+                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (key, value) = keyValue
+    for {
+      backendUpdate <- dataAccess.executionInfoValueByExecutionAndKey(executionId, key).update(value)
+      _ <- backendUpdate match {
+        case 0 => dataAccess.executionInfosAutoInc += ExecutionInfo(executionId, key, value)
+        case 1 => DBIO.successful(Unit)
+        case _ => DBIO.failed(new RuntimeException(s"Unexpected backend update count $backendUpdate"))
+      }
+    } yield ()
+  }
+
   private def toSymbolStoreEntries(symbolResults: Traversable[Symbol]) =
     symbolResults map toSymbolStoreEntry
 
@@ -553,7 +581,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  override def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  override def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
                           reportableResults: Seq[ReportableSymbol])
                          (implicit ec: ExecutionContext): Future[Unit] = {
     val reportableResultNames = reportableResults map { _.fullyQualifiedName }
@@ -561,11 +589,12 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       _ <- dataAccess.symbolsAutoInc ++= callOutputs map {
         case (symbolLocallyQualifiedName, CallOutput(wdlValue, hash)) =>
-          val reportableSymbol = key.index.fromIndex == -1 && reportableResultNames.contains(key.scope.fullyQualifiedName + "." + symbolLocallyQualifiedName)
+          val reportableSymbol = key.index.fromIndex == -1 &&
+            reportableResultNames.contains(key.fqn + "." + symbolLocallyQualifiedName)
           val value = wdlValueToDbValue(wdlValue).toNonEmptyClob
           new Symbol(
             workflowExecution.workflowExecutionId.get,
-            key.scope.fullyQualifiedName,
+            key.fqn,
             symbolLocallyQualifiedName,
             key.index.fromIndex,
             IoOutput,
@@ -881,14 +910,18 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
-    val action = for {
-      rawTuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(id.toString).result
-      // Group by execution, then remove the execution keys of the execution -> execution info tuple.
-      // The net result is Execution -> Seq[ExecutionInfo].
-      groupedTuples = rawTuples groupBy { _._1 } mapValues { _ map { _._2 } }
-      infosByExecution = groupedTuples map ExecutionInfosByExecution.tupled
-    } yield infosByExecution
+  override def infosByExecution(id: WorkflowId)
+                               (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
+    val action = dataAccess.executionsAndExecutionInfosByWorkflowId(id.toString).result map
+      ExecutionInfosByExecution.fromRawTuples
+
+    runTransaction(action)
+  }
+
+  override def infosByExecution(id: WorkflowId, fqn: FullyQualifiedName)
+                               (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
+    val action = dataAccess.executionsAndExecutionInfosByWorkflowIdAndFqn(id.toString, fqn).result map
+      ExecutionInfosByExecution.fromRawTuples
 
     runTransaction(action)
   }

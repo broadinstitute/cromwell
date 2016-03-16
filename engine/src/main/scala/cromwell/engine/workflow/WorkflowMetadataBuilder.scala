@@ -2,11 +2,11 @@ package cromwell.engine.workflow
 
 import cromwell.core.WorkflowId
 import cromwell.engine
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
+import cromwell.engine.backend.CallMetadata
 import cromwell.engine.backend._
 import cromwell.engine.db.slick._
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
+import cromwell.engine.db.{ExecutionInfosByExecution, CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.finalcall.FinalCall._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice._
@@ -25,47 +25,6 @@ object WorkflowMetadataBuilder {
     workflowState match {
       case None => Future.failed(new WorkflowNotFoundException(s"Workflow '$id' not found"))
       case _ => Future.successful(Unit)
-    }
-  }
-
-  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): String = {
-    descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => c.unqualifiedName
-      case _ => throw new UnsupportedOperationException(
-        s"Expected a fully qualified name to have at least two parts but got $callFqn")
-    }
-  }
-
-  private def hasLogs(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
-    !key.fqn.isScatter && !key.isCollector(entries)
-  }
-
-  def workflowStdoutStderr(workflowId: WorkflowId, backend: Backend,
-                           workflowDescriptor: WorkflowDescriptor,
-                           executionStatuses: Map[ExecutionDatabaseKey, CallStatus]): WorkflowLogs = {
-    val statusMap = executionStatuses filterKeys {
-      !_.fqn.isFinalCall
-    } mapValues {
-      _.executionStatus
-    }
-
-    val sortedMap = statusMap.toSeq.sortBy(_._1.index)
-    val callsToPaths = for {
-      (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
-      callName = assertCallFqnWellFormed(workflowDescriptor, key.fqn)
-      call = workflowDescriptor.namespace.workflow.findCallByName(callName).get
-      callKey = BackendCallKey(call, key.index, key.attempt)
-      callStandardOutput = backend.stdoutStderr(BackendCallJobDescriptor(workflowDescriptor, callKey))
-    } yield key -> callStandardOutput
-
-    /* Some FP "magic" to transform the pairs of (key, logs) into the final result:
-    grouped by FQNS, ordered by shards, and then ordered by attempts */
-    callsToPaths groupBy {
-      _._1.fqn
-    } mapValues {
-      key => key.groupBy(_._1.index).values.toIndexedSeq.sortBy(_.head._1.index) map {
-        _.sortBy(_._1.attempt).map(_._2).toIndexedSeq
-      }
     }
   }
 
@@ -109,7 +68,6 @@ object WorkflowMetadataBuilder {
   }
 
   private def buildWorkflowMetadata(id: WorkflowId,
-                                    backend: Backend,
                                     workflowExecution: WorkflowExecution,
                                     workflowOutputs: Traversable[SymbolStoreEntry],
                                     workflowExecutionAux: WorkflowExecutionAux,
@@ -124,7 +82,6 @@ object WorkflowMetadataBuilder {
                                     failures: Seq[QualifiedFailureEventEntry]):
   WorkflowMetadataResponse = {
     val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
-    val nonFinalStatuses = executionStatuses.filterKeys(!_.fqn.isFinalCall)
     val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
 
     val wfFailures = failures collect {
@@ -133,9 +90,8 @@ object WorkflowMetadataBuilder {
     val callFailures = callFailuresMap(failures)
 
     val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
-    val callStandardStreamsMap = workflowStdoutStderr(id, backend, workflowDescriptor, nonFinalStatuses)
-    val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callStandardStreamsMap, callInputs,
-      callOutputs, nonFinalEvents, runtimeAttributes, cacheData, callFailures)
+    val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs, nonFinalEvents,
+      runtimeAttributes, cacheData, callFailures)
     buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
   }
 
@@ -162,7 +118,6 @@ object WorkflowMetadataBuilder {
       failures <- globalDataAccess.getFailureEvents(id)
     } yield buildWorkflowMetadata(
       id,
-      workflowDescriptor.backend,
       workflowExecution,
       workflowOutputs,
       workflowExecutionAux,

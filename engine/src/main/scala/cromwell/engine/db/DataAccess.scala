@@ -1,12 +1,12 @@
 package cromwell.engine.db
 
-import cromwell.core.WorkflowId
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
-import cromwell.engine.{WorkflowOutputs, _}
+import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
@@ -43,6 +43,9 @@ trait DataAccess extends AutoCloseable {
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
                          (implicit ec: ExecutionContext): Future[Unit]
 
+  def upsertExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, keyValues: Map[String, Option[String]])
+                         (implicit ec: ExecutionContext): Future[Unit]
+
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
                          (implicit ec: ExecutionContext): Future[Unit]
 
@@ -70,7 +73,7 @@ trait DataAccess extends AutoCloseable {
   def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
                  workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit]
 
   /** Updates the existing input symbols to replace expressions with real values **/
@@ -144,6 +147,9 @@ trait DataAccess extends AutoCloseable {
   def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int]
 
   def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
+
+  def infosByExecution(id: WorkflowId, fqn: FullyQualifiedName)
+                      (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
 
   def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]]
 }

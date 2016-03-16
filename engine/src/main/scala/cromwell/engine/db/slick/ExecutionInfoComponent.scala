@@ -5,8 +5,6 @@ case class ExecutionInfo(executionId: Int,
                          value: Option[String] = None,
                          executionInfoId: Option[Int] = None)
 
-case class ExecutionInfosByExecution(execution: Execution, executionInfos: Seq[ExecutionInfo])
-
 trait ExecutionInfoComponent {
   this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
 
@@ -42,6 +40,16 @@ trait ExecutionInfoComponent {
     (id: Rep[String]) => for {
       executionInfo <- executionInfos
       execution <- executionInfo.execution
+      workflowExecution <- execution.workflowExecution
+      if workflowExecution.workflowExecutionUuid === id
+    } yield (execution, executionInfo)
+  )
+
+  val executionsAndExecutionInfosByWorkflowIdAndFqn = Compiled(
+    (id: Rep[String], fqn: Rep[String]) => for {
+      executionInfo <- executionInfos
+      execution <- executionInfo.execution
+      if execution.callFqn === fqn
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === id
     } yield (execution, executionInfo)

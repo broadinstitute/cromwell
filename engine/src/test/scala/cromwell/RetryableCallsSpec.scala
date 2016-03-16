@@ -1,17 +1,20 @@
 package cromwell
 
+import akka.pattern.ask
 import akka.testkit.{EventFilter, TestActorRef}
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.{PreemptedException, WorkflowSucceeded}
+import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
+import cromwell.engine.{PreemptedException, WorkflowDescriptor, WorkflowId, WorkflowSucceeded}
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import org.specs2.mock.Mockito
 import wdl4s.values.{WdlArray, WdlValue}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.language.postfixOps
 
 class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
   val customizedLocalBackend = new LocalBackend(system) {
@@ -27,17 +30,22 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
   "A workflow with a Successful retried Call" should {
 
     "succeed and return correct metadata" in {
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(customizedLocalBackend), self, "Test Workflow metadata with Retried Calls")
-      val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(new LocalBackend(system)), self, "Test Workflow metadata with Retried Calls")
+      val wfId = WorkflowId.randomId()
+      val wd = WorkflowDescriptor(wfId, SampleWdl.PrepareScatterGatherWdl().asWorkflowSources()).copy(backend = customizedLocalBackend)
+      val workflowActor = TestActorRef(WorkflowActor.props(wd), self, "TestWorkflow Actor with custom backend")
+
+      waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         EventFilter.info(pattern = s"persisting status of do_scatter:0:2 to Starting", occurrences = 1).intercept {
-          messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.PrepareScatterGatherWdl().asWorkflowSources())).id
+          val futureAny = workflowActor ? new WorkflowActor.Start(None)
+          Await.result(futureAny, 5 seconds)
         }
       }
 
-      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
+      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(wfId)).state
       status shouldEqual WorkflowSucceeded
 
-      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(workflowId)).response
+      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(wfId)).response
       metadata should not be null
 
       metadata.status shouldBe WorkflowSucceeded.toString
@@ -71,7 +79,7 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
       val gatherInputs: Seq[WdlValue] = metadata.calls("sc_test.do_gather").head.inputs("input_files").asInstanceOf[WdlArray].value
       gatherInputs.size shouldBe 4
 
-      val wfStdouterr = messageAndWait[WorkflowManagerWorkflowStdoutStderrSuccess](WorkflowStdoutStderr(workflowId))
+      val wfStdouterr = messageAndWait[WorkflowManagerWorkflowStdoutStderrSuccess](WorkflowStdoutStderr(wfId))
       wfStdouterr should not be null
       wfStdouterr.logs should have size 3
       wfStdouterr.logs("sc_test.do_scatter") should have size 5
@@ -80,7 +88,7 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
       wfStdouterr.logs("sc_test.do_scatter")(1).stdout.value should include ("attempt")
       wfStdouterr.logs("sc_test.do_scatter")(1).stderr.value should include ("attempt")
 
-      val callStdouterr = messageAndWait[WorkflowManagerCallStdoutStderrSuccess](CallStdoutStderr(workflowId, "sc_test.do_scatter"))
+      val callStdouterr = messageAndWait[WorkflowManagerCallStdoutStderrSuccess](CallStdoutStderr(wfId, "sc_test.do_scatter"))
       callStdouterr should not be null
       callStdouterr.logs should have size 5
       callStdouterr.logs.head.stdout.value should not include "attempt"

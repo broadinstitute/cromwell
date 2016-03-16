@@ -4,7 +4,6 @@ import java.util.UUID
 
 import akka.testkit._
 import cromwell.engine._
-import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
@@ -20,7 +19,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
   TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
-    TestFSMRef(new WorkflowActor(descriptor, new LocalBackend(system)))
+    TestFSMRef(new WorkflowActor(descriptor))
   }
 
   val TestExecutionTimeout = 10.seconds.dilated

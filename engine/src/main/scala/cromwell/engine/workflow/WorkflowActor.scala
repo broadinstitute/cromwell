@@ -922,8 +922,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }).headOption
   }
 
-  def fetchFullyQualifiedInputs(callKey: BackendCallKey): Map[Scope with GraphNode, WdlValue] = {
+  def fetchFullyQualifiedInputs(callKey: BackendCallKey): Map[FullyQualifiedName, WdlValue] = {
     val allSymbols = symbolCache.values.flatMap(_.toSeq)
+    val namespace = callKey.scope.namespace
 
     val inputSymbols = for {
       entry <- allSymbols
@@ -932,14 +933,21 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
       if !wdlValue.isInstanceOf[WdlExpression] // TODO: sfrazer: why store expressions anyway?
     } yield entry.key.fqn -> wdlValue
 
-    val callObjects = for {
+    /*val x = for {
       entry <- allSymbols
       if entry.isOutput
     } yield entry
 
+    x.map(_.key.scope).toSet map {callFqn =>
+      callKey.scope.namespace.resolve(callFqn) match {
+        case Some(c: Call) => c
+      }
+      val outputEntries = x.collect({ case y if })
+    }
+
     inputSymbols.toMap foreach { case (k, v) =>
       println(s"$k -> $v")
-    }
+    }*/
 
     inputSymbols.toMap
   }

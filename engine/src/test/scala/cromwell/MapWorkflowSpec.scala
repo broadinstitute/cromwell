@@ -3,7 +3,7 @@ package cromwell
 import java.nio.file.{Files, Paths}
 
 import akka.testkit._
-import wdl4s.NamespaceWithWorkflow
+import wdl4s.WdlNamespaceWithWorkflow
 import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
@@ -14,7 +14,7 @@ import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
-  val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""))
+  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""))
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
     WdlFile("f2") -> WdlString("bob"),

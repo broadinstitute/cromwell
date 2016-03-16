@@ -2,11 +2,10 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import wdl4s.types.{WdlStringType, WdlFileType}
-import wdl4s.{WorkflowInput, NamespaceWithWorkflow}
-import wdl4s.values.{WdlInteger, WdlString}
-import cromwell.engine.backend.BackendType
 import cromwell.util.SampleWdl
+import wdl4s.types.{WdlFileType, WdlStringType}
+import wdl4s.values.{WdlInteger, WdlString}
+import wdl4s.{WdlNamespaceWithWorkflow, WorkflowInput}
 
 import scala.language.postfixOps
 
@@ -18,7 +17,7 @@ class DeclarationWorkflowSpec extends CromwellTestkitSpec {
 
   "A workflow with declarations in it" should {
     "compute inputs properly" in {
-      NamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime="")).workflow.inputs shouldEqual Map(
+      WdlNamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime="")).workflow.inputs shouldEqual Map(
         "two_step.cat.file" -> WorkflowInput("two_step.cat.file", WdlFileType, postfixQuantifier = None),
         "two_step.cgrep.str_decl" -> WorkflowInput("two_step.cgrep.str_decl", WdlStringType, postfixQuantifier = None),
         "two_step.cgrep.pattern" -> WorkflowInput("two_step.cgrep.pattern", WdlStringType, postfixQuantifier = None),

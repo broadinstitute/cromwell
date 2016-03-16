@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.16"
-  lazy val wdl4sV = "0.4-f45cb36-SNAPSHOT"
+  lazy val wdl4sV = "0.4-beacb85-SNAPSHOT"
   lazy val sprayV = "1.3.2"
   lazy val DowngradedSprayV = "1.3.1"
   lazy val akkaV = "2.3.12"

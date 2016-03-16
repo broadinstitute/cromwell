@@ -62,7 +62,7 @@ object SampleWdl {
   object HelloWorld extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """
-        |task hello {
+        |task hello_task {
         |  String addressee
         |  command {
         |    echo "Hello ${addressee}!"
@@ -74,13 +74,13 @@ object SampleWdl {
         |}
         |
         |workflow hello {
-        |  call hello
+        |  call hello_task
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    val Addressee = "hello.hello.addressee"
+    val Addressee = "hello.hello_task.addressee"
     val rawInputs = Map(Addressee -> "world")
-    val OutputKey = "hello.hello.salutation"
+    val OutputKey = "hello.hello_task.salutation"
     val OutputValue = "Hello world!"
   }
 

@@ -27,7 +27,8 @@ sealed trait JobDescriptor[K <: CallKey] {
 case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
                                     key: BackendCallKey,
                                     locallyQualifiedInputs: CallInputs = Map.empty,
-                                    abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
+                                    abortRegistrationFunction: Option[AbortRegistrationFunction] = None, fake: Boolean)
+  extends JobDescriptor[BackendCallKey] {
 
   lazy val call = key.scope
 

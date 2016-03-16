@@ -550,29 +550,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     }
   }
 
-  private def startBackendCallWithMessage(message: CallStartMessage, backendCallKey: BackendCallKey, callInputs: Map[String, WdlValue]) = {
-      // TODO: The block of code is only run on non-shards because of issues with DSDEEPB-2490
+  private def startBackendCallWithMessage(message: CallStartMessage, backendCallKey: BackendCallKey, symbols: Map[FullyQualifiedName, WdlValue]) = {
       if (!backendCallKey.index.isShard) {
-        val updateDbCallInputs = globalDataAccess.updateCallInputs(workflow.id, backendCallKey, callInputs)
-        updateDbCallInputs onComplete {
-          case Success(i) =>
-            logger.debug(s"$i call input expression(s) updated in database.")
-            startActor(backendCallKey, callInputs, message.startMode)
-          case Failure(e) => self ! AsyncFailure(new SQLException(s"Failed to update symbol inputs for ${backendCallKey.scope.fullyQualifiedName}.${backendCallKey.tag}.${backendCallKey.index}", e))
-        }
+        startActor(backendCallKey, symbols, message.startMode)
+        // TODO: sfrazer: updateCallInputs used to be called here... is it needed???
       } else {
-        startActor(backendCallKey, callInputs, message.startMode)
+        startActor(backendCallKey, symbols, message.startMode)
       }
   }
 
   private def startCallWithMessage(message: CallStartMessage) = {
     val callKey = message.callKey
     callKey match {
-      case backendCallKey: BackendCallKey => fetchLocallyQualifiedInputs(backendCallKey) match {
-        case Success(callInputs) => startBackendCallWithMessage(message, backendCallKey, callInputs)
-        case Failure(t) =>
-          self ! CallFailedToInitialize(callKey, s"Failed to fetch locally qualified inputs: ${t.getMessage}")
-      }
+      case backendCallKey: BackendCallKey => startBackendCallWithMessage(message, backendCallKey, fetchFullyQualifiedInputs(backendCallKey))
       case finalCallKey: FinalCallKey => startActor(finalCallKey, Map.empty, message.startMode)
     }
   }
@@ -732,9 +722,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     persistStatus(storeKey, executionStatus, callOutputs, returnCode, hash, resultsClonedFrom) map { _ => CallActor.Ack(message) } pipeTo recipient
   }
 
-  private def startActor(callKey: CallKey, locallyQualifiedInputs: CallInputs, callActorMessage: CallActorMessage = CallActor.Start): Unit = {
-    if (locallyQualifiedInputs.nonEmpty) {
-      val inputs = locallyQualifiedInputs map { case(lqn, value) => s"  $lqn -> $value" } mkString "\n"
+  private def startActor(callKey: CallKey, symbols: Map[FullyQualifiedName, WdlValue], callActorMessage: CallActorMessage = CallActor.Start): Unit = {
+    if (symbols.nonEmpty) {
+      val inputs = symbols map { case(lqn, value) => s"  $lqn -> $value" } mkString "\n"
       logger.info(s"inputs for call '${callKey.tag}':\n$inputs")
     } else {
       logger.info(s"no inputs for call '${callKey.tag}'")
@@ -750,7 +740,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
         // This backend parameter to WMA is confusing and in the world of pluggable backends somehow makes even less
         // sense than using backends on individual workflows.  When we get real pluggable backends that test can
         // just set its special backend cleanly in config, and all this awfulness can go away.
-        val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
+        val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, symbols)
         Future.successful(CallActor.props(descriptor))
       case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id, backend) map {
         metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
@@ -930,6 +920,20 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     executionStore.collect({
       case (k: OutputKey, _) if k.scope == call && k.index == index => k
     }).headOption
+  }
+
+  def fetchFullyQualifiedInputs(callKey: BackendCallKey): Map[Scope with GraphNode, WdlValue] = {
+    val allSymbols = for {
+      entry <- symbolCache.values.flatMap(_.toSeq)
+      wdlValue <- entry.wdlValue
+      if !wdlValue.isInstanceOf[WdlExpression] // TODO: sfrazer
+    } yield entry.key.fqn -> wdlValue
+
+    allSymbols.toMap foreach { case (k, v) =>
+      println(s"$k -> $v")
+    }
+
+    allSymbols.toMap
   }
 
   def fetchLocallyQualifiedInputs(callKey: BackendCallKey): Try[Map[String, WdlValue]] = Try {

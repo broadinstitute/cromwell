@@ -3,6 +3,7 @@ package cromwell.engine.workflow
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.pbs.PbsBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowLogs}
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -48,6 +49,7 @@ object CallMetadataBuilder {
       infos.execution.backendType match {
         case "Local" => BackendValues("Local", jobId = extractValue(LocalBackend.InfoKeys.Pid))
         case "JES" => BackendValues("JES", jobId = extractValue(JesBackend.InfoKeys.JesRunId), status = extractValue(JesBackend.InfoKeys.JesStatus))
+        case "PBS" => BackendValues("PBS", jobId = extractValue(PbsBackend.InfoKeys.JobNumber))
         case "SGE" => BackendValues("SGE", jobId = extractValue(SgeBackend.InfoKeys.JobNumber))
       }
     }

@@ -926,11 +926,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
     val allSymbols = symbolCache.values.flatMap(_.toSeq)
     val namespace = callKey.scope.namespace
 
+    println(s" ==== $symbolCache")
     val inputSymbols = for {
       entry <- allSymbols
       wdlValue <- entry.wdlValue
       if entry.isInput
       if !wdlValue.isInstanceOf[WdlExpression] // TODO: sfrazer: why store expressions anyway?
+      _ = println(s" ---- ${entry.key}")
     } yield entry.key.fqn -> wdlValue
 
     /*val x = for {

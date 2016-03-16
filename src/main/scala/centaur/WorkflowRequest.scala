@@ -1,6 +1,9 @@
 package centaur
 
+import java.io.FileNotFoundException
 import java.nio.file.Path
+
+import scala.util.{Failure, Success, Try}
 
 object WorkflowRequest {
   /**
@@ -15,8 +18,8 @@ object WorkflowRequest {
 
     val base = path.resolve(name)
     val wdl = base.slurpExtension("wdl")
-    val inputs = base.slurpExtension("inputs")
-    val options = base.slurpExtension("options")
+    val inputs = base.slurpExtensionIfExists("inputs")
+    val options = base.slurpExtensionIfExists("options")
 
     WorkflowRequest(name.toString, wdl, inputs, options)
   }
@@ -24,6 +27,16 @@ object WorkflowRequest {
   implicit class EnhancedPath(val path: Path) extends AnyVal {
     def addExtension(extension: String): Path = path.resolveSibling(s"${path.getFileName}.$extension")
     def slurpExtension(extension: String): String = path.addExtension(extension).slurp
+
+    def slurpExtensionIfExists(extension: String): Option[String] = {
+      val attempt = Try(slurpExtension(extension))
+      attempt match {
+        case Success(x) => Option(x)
+        case Failure(t: FileNotFoundException) => None
+        case Failure(t) => throw t
+      }
+    }
+
     /** Read an entire file into a string, closing the underlying stream. */
     def slurp: String = {
       val source = io.Source.fromFile(path.toFile)
@@ -32,4 +45,4 @@ object WorkflowRequest {
   }
 }
 
-case class WorkflowRequest(name: String, wdl: String, inputs: String, options: String)
+case class WorkflowRequest(name: String, wdl: String, inputs: Option[String], options: Option[String])

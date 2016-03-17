@@ -106,12 +106,12 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful(())
 
   /**
-   * Returns the RC of this job when it finishes.  Sleeps and polls
-   * until the 'rc' file is generated AND stdout, stderr files exist in callRootPath
-   * (PBS keeps these in /var/spool/PBS/... until completion /then/ copies them to execution dir)
+   * Returns the RC of this job when it finishes.  Sleeps and polls until the 'rc' file is
+   * generated and stdout, stderr files exist in their specified locations: a feature/quirk
+   * of PBS is that it creates output stream files in /var/spool/PBS/spool/... and only after
+   * execution completes are they are copied to the locations specified by -o/-e.
    */
   private def waitUntilComplete(backendCall: BackendCall): Int = {
-
     @tailrec
     def recursiveWait(): Int = Seq(backendCall.returnCode, backendCall.stdout, backendCall.stderr).forall(Files.exists(_)) match {
       case true => backendCall.returnCode.contentAsString.stripLineEnd.toInt
@@ -145,22 +145,8 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    * as some extra shell code for monitoring jobs
    */
   private def writeScript(backendCall: BackendCall, instantiatedCommand: String) = {
-    val pbsJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
-    val queueSpec = backendCall.runtimeAttributes.queue match {
-      case Some(q) => s"#PBS -q ${q}"
-      case None => ""
-    }
     backendCall.script.write(
       s"""#!/bin/sh
-         |#PBS -N $pbsJobName
-         |#PBS -V
-         |#PBS -o ${backendCall.stdout.toAbsolutePath}
-         |#PBS -e ${backendCall.stderr.toAbsolutePath}
-         |#PBS -l ncpus=${backendCall.runtimeAttributes.cpu}
-         |#PBS -l mem=${backendCall.runtimeAttributes.memoryGB.toInt}gb
-         |#PBS -l walltime=${backendCall.runtimeAttributes.walltime}
-         |${queueSpec}
-         |
          |cd $$PBS_O_WORKDIR
          |$instantiatedCommand
          |echo $$? > rc
@@ -172,7 +158,21 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
     val logger = workflowLoggerWithCall(backendCall)
-    val argv = Seq("qsub", backendCall.script.toAbsolutePath).map(_.toString)
+    val pbsJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
+    val queueSpec = backendCall.runtimeAttributes.queue match {
+      case Some(q) => List("-q", q)
+      case None => List()
+    }
+    val argv = "qsub" :: queueSpec ++ Seq(
+      "-N", pbsJobName,
+      "-V",
+      "-e", backendCall.stderr.toAbsolutePath,
+      "-o", backendCall.stdout.toAbsolutePath,
+      "-l", s"ncpus=${backendCall.runtimeAttributes.cpu}",
+      "-l", s"mem=${backendCall.runtimeAttributes.memoryGB.toInt}gb",
+      "-l", s"walltime=${backendCall.runtimeAttributes.walltime}",
+      backendCall.script.toAbsolutePath
+    ).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 
@@ -180,7 +180,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val qsubStderrFile = backendCall.callRootPath.resolve("qsub.stderr")
     val qsubStdoutWriter = qsubStdoutFile.newBufferedWriter
     val qsubStderrWriter = qsubStderrFile.newBufferedWriter
-    val executionDir = new java.io.File(backendCall.callRootPath.toAbsolutePath.toString)
+    val executionDir = backendCall.callRootPath.toAbsolutePath.toFile
     val process = Process(argv, executionDir).run(ProcessLogger(qsubStdoutWriter writeWithNewline, qsubStderrWriter writeWithNewline))
     val returnCode: Int = process.exitValue()
     Vector(qsubStdoutWriter, qsubStderrWriter) foreach { _.flushAndClose() }

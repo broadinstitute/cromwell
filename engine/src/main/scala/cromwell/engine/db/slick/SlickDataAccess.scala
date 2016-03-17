@@ -397,7 +397,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
       workflowDescriptor = WorkflowDescriptor(
         WorkflowId(UUID.fromString(workflowExecutionResult.workflowExecutionUuid)),
-        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString),
+        CromwellBackend.getBackendFromOptions(workflowAux.workflowOptions.toRawString)
       )
     } yield workflowDescriptor
 
@@ -410,7 +411,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
       workflowDescriptor = WorkflowDescriptor(
         workflowId,
-        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString)
+        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString),
+        CromwellBackend.getBackendFromOptions(workflowAux.workflowOptions.toRawString)
       )
     } yield workflowDescriptor
 
@@ -434,7 +436,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
                 workflowExecutionAux.wdlSource.toRawString,
                 workflowExecutionAux.jsonInputs.toRawString,
                 workflowExecutionAux.workflowOptions.toRawString
-              )
+              ),
+              CromwellBackend.getBackendFromOptions(workflowExecutionAux.workflowOptions.toRawString)
             )
           }
         }

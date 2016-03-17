@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{DefaultTimeout, ImplicitSender, TestKit, TestDuration}
-import cromwell.engine.backend.{BackendType, Backend}
+import cromwell.engine.backend.{CromwellBackend, BackendType, Backend}
 import cromwell.engine.workflow.ValidateActor.{ValidateWorkflow, ValidationFailure, ValidationSuccess}
 import cromwell.util.SampleWdl.HelloWorld
 import org.mockito.Mockito._
@@ -21,7 +21,12 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
   val MalformedJson: String = "foobar bad json!"
   val MalformedWdl: String = "foobar bad wdl!"
 
-  val validOptionsJson = HelloWorld.rawInputs.toJson.toString()
+  val customizedLocalBackendOptions =
+    """
+      |{
+      |  "backend": "retryableCallsSpecBackend"
+      |}""".stripMargin
+
   val malformedOptionsJson = MalformedJson
   val validInputsJson = HelloWorld.rawInputs.toJson.toString()
   val malformedInputsJson = MalformedJson
@@ -48,7 +53,10 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
   val Timeout = 1.second.dilated
 
   before {
-    validateActor = system.actorOf(ValidateActor.props(backendMock))
+    validateActor = system.actorOf(ValidateActor.props())
+    // Needed since we might want to run this test as test-only
+    CromwellBackend.initBackends(List("local"), "local", system)
+    CromwellBackend.registerCustomBackend("retryableCallsSpecBackend", backendMock)
   }
 
   after {
@@ -59,22 +67,22 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
   "A Validate actor" should {
     "return ValidationSuccess when Namespace, options, runtime attributes and inputs are valid" in {
       within(Timeout) {
-        validateActor ! ValidateWorkflow(validWdlSource, Some(validInputsJson), Some(validOptionsJson))
+        validateActor ! ValidateWorkflow(validWdlSource, Some(validInputsJson), Some(customizedLocalBackendOptions))
         expectMsgPF() {
           case validationSuccess: ValidationSuccess =>
             if (validationSuccess.namespaceWithWorkflow.tasks.size != 1) fail("Number of tasks is not equals to one.")
             if (!validationSuccess.coercedInputs.get.head._1.contains("hello.hello.addressee")) fail("Input does not contains 'hello.hello.addressee'.")
-            if (!validationSuccess.workflowOptions.get.get("hello.hello.addressee").get.contains("world")) fail("Workflow option does not comply with 'hello.hello.addressee' entry.")
+            if (!validationSuccess.workflowOptions.get.get("backend").get.contains("retryableCallsSpecBackend")) fail("Workflow option does not comply with 'backend' entry.")
             if (!validationSuccess.runtimeAttributes.head.head.contains("docker")) fail("Runtime attribute does not contains 'docker' entry.")
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return ValidationFailure when there is an invalid Namespace coming from a WDL source" in {
       within(Timeout) {
-        validateActor ! ValidateWorkflow(MalformedWdl, Some(validInputsJson), Some(validOptionsJson))
+        validateActor ! ValidateWorkflow(MalformedWdl, Some(validInputsJson), Some(customizedLocalBackendOptions))
         expectMsgPF() {
           case validationFailure: ValidationFailure =>
             validationFailure.reason match {
@@ -86,7 +94,7 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return ValidationFailure when there are workflow options coming from a malformed workflow options JSON file" in {
@@ -103,13 +111,13 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(0)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(0)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return ValidationFailure when there are invalid workflow options coming from a workflow options JSON file" in {
-      when(backendMock.assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)).thenThrow(new IllegalStateException("Some exception"))
+      when(backendMock.assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)).thenThrow(new IllegalStateException("Some exception"))
       within(Timeout) {
-        validateActor ! ValidateWorkflow(validWdlSource, Some(validInputsJson), Some(validOptionsJson))
+        validateActor ! ValidateWorkflow(validWdlSource, Some(validInputsJson), Some(customizedLocalBackendOptions))
         expectMsgPF() {
           case validationFailure: ValidationFailure =>
             validationFailure.reason match {
@@ -121,12 +129,12 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return ValidationFailure when there are workflow inputs coming from a malformed workflow inputs JSON file" in {
       within(Timeout) {
-        validateActor ! ValidateWorkflow(validWdlSource, Some(malformedInputsJson), Some(validOptionsJson))
+        validateActor ! ValidateWorkflow(validWdlSource, Some(malformedInputsJson), Some(customizedLocalBackendOptions))
         expectMsgPF() {
           case validationFailure: ValidationFailure =>
             validationFailure.reason match {
@@ -138,12 +146,12 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return ValidationFailure when there are invalid workflow inputs coming from a workflow inputs JSON file" in {
       within(Timeout) {
-        validateActor ! ValidateWorkflow(validWdlSource, Some(invalidInputJson), Some(validOptionsJson))
+        validateActor ! ValidateWorkflow(validWdlSource, Some(invalidInputJson), Some(customizedLocalBackendOptions))
         expectMsgPF() {
           case validationFailure: ValidationFailure =>
             validationFailure.reason match {
@@ -155,13 +163,13 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return ValidationFailure when there are invalid runtime requirements coming from WDL file" in {
       when(backendMock.backendType).thenReturn(BackendType.JES)
       within(Timeout) {
-        validateActor ! ValidateWorkflow(invalidWdlSource, Some(validInputsJson), Some(validOptionsJson))
+        validateActor ! ValidateWorkflow(invalidWdlSource, Some(validInputsJson), Some(customizedLocalBackendOptions))
         expectMsgPF() {
           case validationFailure: ValidationFailure =>
             validationFailure.reason match {
@@ -173,7 +181,7 @@ class ValidateActorSpec extends TestKit(ActorSystem("ValidateActorSpecSystem"))
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(validOptionsJson).get)
+      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
   }
 }

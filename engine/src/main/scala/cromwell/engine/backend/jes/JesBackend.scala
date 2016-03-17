@@ -80,7 +80,7 @@ object JesBackend {
 
   // Decoration around WorkflowDescriptor to generate bucket names and the like
   implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
-    extends JesBackend(CromwellBackend.backend().actorSystem) {
+    extends JesBackend(descriptor.backend.actorSystem) {
     def callDir(key: BackendCallKey) = key.callRootPathWithBaseRoot(descriptor, rootPath(descriptor.workflowOptions))
   }
 

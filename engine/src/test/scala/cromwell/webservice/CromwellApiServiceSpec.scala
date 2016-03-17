@@ -230,7 +230,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
   override def actorRefFactory = testWorkflowManagerSystem.actorSystem
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
-  override val validateActor = actorRefFactory.actorOf(Props(new ValidateActor(testWorkflowManagerSystem.backend)))
+  override val validateActor = actorRefFactory.actorOf(Props(new ValidateActor()))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {

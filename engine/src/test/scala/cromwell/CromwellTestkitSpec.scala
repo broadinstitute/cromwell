@@ -10,8 +10,7 @@ import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.backend.CallLogs
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.{CromwellBackend, CallLogs}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
 import cromwell.engine.{WorkflowOutputs, _}
@@ -56,8 +55,7 @@ object CromwellTestkitSpec {
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-    override val backendType = "local"
-    backend // Force initialization
+    defaultBackend // Force initialization
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
@@ -216,11 +214,12 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
 
   def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String, uuid: UUID): WorkflowDescriptor = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    WorkflowDescriptor(WorkflowId(uuid), workflowSources)
+    val backend = CromwellBackend.getBackendFromOptions(workflowSources.workflowOptionsJson)
+    WorkflowDescriptor(WorkflowId(uuid), workflowSources, backend)
   }
 
   private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String, config: Config) = {
-    TestActorRef(new WorkflowManagerActor(new LocalBackend(system), config))
+    TestActorRef(new WorkflowManagerActor(config))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

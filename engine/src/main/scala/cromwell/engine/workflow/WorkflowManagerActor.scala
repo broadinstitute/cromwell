@@ -45,7 +45,7 @@ object WorkflowManagerActor {
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
-  def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
+  def props(): Props = Props(new WorkflowManagerActor())
 
   // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
   // as much work as can reasonably be handled.
@@ -81,10 +81,11 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(backend: Backend, config: Config)
+class WorkflowManagerActor(config: Config)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
 
-  def this(backend: Backend) = this(backend, WorkflowManagerActor.defaultConfig)
+  def this() = this(WorkflowManagerActor.defaultConfig)
+
 
   private val logger = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
@@ -337,11 +338,11 @@ class WorkflowManagerActor(backend: Backend, config: Config)
       _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
       workflowDescriptor <- globalDataAccess.getWorkflow(workflowId)
       executionStatuses <- globalDataAccess.getExecutionStatuses(workflowId)
-    } yield WorkflowMetadataBuilder.workflowStdoutStderr(workflowId, backend, workflowDescriptor, executionStatuses)
+    } yield WorkflowMetadataBuilder.workflowStdoutStderr(workflowId, workflowDescriptor.backend, workflowDescriptor, executionStatuses)
   }
 
   private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
-    WorkflowMetadataBuilder.workflowMetadata(id, backend)
+    WorkflowMetadataBuilder.workflowMetadata(id)
   }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a

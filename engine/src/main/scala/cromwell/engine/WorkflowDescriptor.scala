@@ -239,12 +239,26 @@ object WorkflowDescriptor {
   val CallLogsDirOptionKey = "call_logs_dir"
   val OptionKeys: Set[String] = Set(WorkflowLogDirOptionKey, WorkflowOutputsOptionKey, CallLogsDirOptionKey)
 
+  /**
+    * Warning: Uses the default backend for this workflow.
+    */
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles): WorkflowDescriptor = {
-    WorkflowDescriptor(id, sourceFiles, ConfigFactory.load)
+    WorkflowDescriptor(id, sourceFiles, CromwellBackend.getBackendFromOptions(sourceFiles.workflowOptionsJson), ConfigFactory.load)
   }
 
+  /**
+    * Warning: Uses the default backend for this workflow.
+    */
   def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, conf: Config): WorkflowDescriptor = {
-    validateWorkflowDescriptor(id, sourceFiles, CromwellBackend.backend(), conf) match {
+    WorkflowDescriptor(id, sourceFiles, CromwellBackend.getBackendFromOptions(sourceFiles.workflowOptionsJson), conf)
+  }
+
+  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, backend: Backend): WorkflowDescriptor = {
+    WorkflowDescriptor(id, sourceFiles, backend, ConfigFactory.load)
+  }
+
+  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, backend: Backend, conf: Config): WorkflowDescriptor = {
+    validateWorkflowDescriptor(id, sourceFiles, backend, conf) match {
       case scalaz.Success(w) => w
       case scalaz.Failure(f) =>
         throw new IllegalArgumentException() with ThrowableWithErrors {

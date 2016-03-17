@@ -11,9 +11,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc start-->
 
-* [How To Reach Us](#how-to-reach-us)
+* [Getting Help](#getting-help)
+  * [Website and User Guide](#website-and-user-guide)
+  * [Support Forum](#support-forum)
   * [Gitter](#gitter)
-  * [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
@@ -72,15 +73,18 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc end-->
 
-# How To Reach Us
+# Getting Help
+
+## Website and User Guide
+
+The [WDL website](https://software.broadinstitute.org/wdl/) is the best place to go for more information on both WDL and Cromwell. In particular new users should check out the [user guide](https://software.broadinstitute.org/wdl/userguide/) which has many tutorials, examples and other bits to get you started.
+
+## Support Forum
+
+If you have questions that aren't covered by the website you can ask them in the [support forum](http://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team).
 
 ## Gitter
-There is a [gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
-
-## Mailing List
-The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstitute.org.
-
-If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.
+There is a [Cromwell gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
 
 # Requirements
 

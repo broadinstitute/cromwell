@@ -381,8 +381,8 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     ).copy(backend = jesBackend)
 
     val call = wd.namespace.workflow.findCallByName("hello").get
-    val backendCall = BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1))
-    val stdoutstderr = jesBackend.stdoutStderr(backendCall)
+    val jobDescriptor = BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1))
+    val stdoutstderr = jesBackend.stdoutStderr(jobDescriptor)
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log")
     stdoutstderr.stderr shouldBe WdlFile("gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log")
@@ -401,8 +401,8 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
     ).copy(backend = jesBackend)
     val call = wd.namespace.workflow.findCallByName("B").get
-    val backendCall = BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1))
-    val stdoutstderr = jesBackend.stdoutStderr(backendCall)
+    val jobDescriptor = BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1))
+    val stdoutstderr = jesBackend.stdoutStderr(jobDescriptor)
 
     stdoutstderr.stdout shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stdout.log")
     stdoutstderr.stderr shouldBe WdlFile("gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7c/call-B/shard-2/B-2-stderr.log")

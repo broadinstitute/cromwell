@@ -316,11 +316,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
         }
       }
 
-      for {
-        results <- Future.sequence(callLogFutures)
-      } yield results.groupBy(_._1.index).toIndexedSeq.sortBy(_._1).map(_._2) map {
-        _.sortBy(_._1.attempt).map(_._2.get).toIndexedSeq
-      }
+      Future.sequence(callLogFutures) map { _.toIndexedSeq } map ExecutionDatabaseKey.toAttemptedCallLogs
     }
 
     for {
@@ -345,19 +341,11 @@ class WorkflowManagerActor(backend: Backend, config: Config)
   private def workflowStdoutStderr(callLogOutputs: Traversable[SymbolStoreEntry]): WorkflowLogs = {
     val callsToPaths = for {
       (key, entries) <- callLogOutputs.groupBy(ExecutionDatabaseKey.toCallLogKey)
-    } yield key -> key.toCallLogs(entries)
+    } yield key -> key.toCallLogs(entries.toIndexedSeq)
 
     /* Some FP "magic" to transform the pairs of (key, logs) into the final result:
     grouped by FQNS, ordered by shards, and then ordered by attempts */
-    callsToPaths.toList filter {
-      _._2.isDefined
-    } groupBy {
-      _._1.fqn
-    } mapValues {
-      key => key.groupBy(_._1.index).values.toIndexedSeq.sortBy(_.head._1.index) map {
-        _.sortBy(_._1.attempt).map(_._2.get).toIndexedSeq
-      }
-    }
+    callsToPaths.toList groupBy { case (key, _) => key.fqn } mapValues { ExecutionDatabaseKey.toAttemptedCallLogs }
   }
 
 

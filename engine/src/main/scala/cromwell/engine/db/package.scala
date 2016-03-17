@@ -2,9 +2,11 @@ package cromwell.engine
 
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{BackendCallJobDescriptor, CallLogs}
+import cromwell.engine.backend.{AttemptedCallLogs, BackendCallJobDescriptor, CallLogs}
 import wdl4s.types.WdlFileType
 import wdl4s.values.WdlFile
+
+import scala.collection.immutable.Seq
 
 package object db {
   case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor]) {
@@ -32,6 +34,20 @@ package object db {
         case unexpected =>
           throw new Exception(s"Unexpected call log key ('${unexpected.mkString("','")}')")
       }
+    }
+
+    def toAttemptedCallLogs(maybeLogs: Seq[(ExecutionDatabaseKey, Option[CallLogs])]): AttemptedCallLogs = {
+      val logs = maybeLogs collect { case (key, maybeCallLog) if maybeCallLog.isDefined => key -> maybeCallLog.get }
+      val groupByIndex = logs groupBy { case (key, _) => key.index }
+      val sortedByIndex = groupByIndex.toIndexedSeq sortBy { case (index, _) => index }
+      val attemptedCallLogs = sortedByIndex map { case (_, callLogs) => mapSortByAttempt(callLogs) }
+      attemptedCallLogs
+    }
+
+    private def mapSortByAttempt(logs: Seq[(ExecutionDatabaseKey, CallLogs)]): Seq[CallLogs] = {
+      val sortedByAttempt = logs sortBy { case (key, callLog) => key.attempt }
+      val mappedToLogs = sortedByAttempt map { case (_, callLog) => callLog }
+      mappedToLogs
     }
   }
 

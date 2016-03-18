@@ -5,7 +5,6 @@ case class ExecutionInfo(executionId: Int,
                          value: Option[String] = None,
                          executionInfoId: Option[Int] = None)
 
-case class ExecutionAndExecutionInfo(execution: Execution, executionInfo: ExecutionInfo)
 case class ExecutionInfosByExecution(execution: Execution, executionInfos: Seq[ExecutionInfo])
 
 trait ExecutionInfoComponent {

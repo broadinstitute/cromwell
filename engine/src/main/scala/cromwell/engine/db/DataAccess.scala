@@ -143,4 +143,6 @@ trait DataAccess extends AutoCloseable {
   def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int]
 
   def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
+
+  def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]]
 }

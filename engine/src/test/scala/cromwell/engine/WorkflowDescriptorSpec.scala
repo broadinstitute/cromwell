@@ -5,16 +5,14 @@ import java.nio.file.{Files, Paths}
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.io._
 import cromwell.engine.backend.CallMetadata
+import cromwell.engine.backend.io._
 import cromwell.util.SampleWdl
 import cromwell.webservice.WorkflowMetadataResponse
 import org.joda.time.DateTime
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.time.SpanSugar._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.JsObject
@@ -157,24 +155,25 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers with ScalaFutures {
     val calls = Seq("call-A", "call-B").map({
       case call =>
         val metadata = CallMetadata(
-          Map.empty,
-          ExecutionStatus.Done.toString,
-          None,
-          None,
-          None,
-          None,
-          None,
-          None,
-          None,
-          0,
-          Option(workflowFile(descriptor, s"$call/stdout")),
-          Option(workflowFile(descriptor, s"$call/stderr")),
-          if (call == "call-A") Option(Map("backendLog" -> workflowFile(descriptor, s"$call/backendout"))) else None,
-          Seq.empty,
-          1,
-          Map.empty,
-          None,
-          None)
+          inputs=Map.empty,
+          executionStatus=ExecutionStatus.Done.toString,
+          backend=None,
+          backendStatus=None,
+          outputs=None,
+          start=None,
+          end=None,
+          jobId=None,
+          returnCode=None,
+          shardIndex=0,
+          stdout=Option(workflowFile(descriptor, s"$call/stdout")),
+          stderr=Option(workflowFile(descriptor, s"$call/stderr")),
+          backendLogs=if (call == "call-A") Option(Map("backendLog" -> workflowFile(descriptor, s"$call/backendout"))) else None,
+          executionEvents=Seq.empty,
+          attempt=1,
+          runtimeAttributes=Map.empty,
+          preemptible=None,
+          cache=None,
+          failures=None)
         call -> Seq(metadata)
     }).toMap
 

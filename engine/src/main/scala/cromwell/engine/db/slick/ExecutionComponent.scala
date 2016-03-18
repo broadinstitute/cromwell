@@ -9,6 +9,9 @@ import slick.profile.RelationalProfile.ColumnOption.Default
 
 import scala.language.postfixOps
 
+case class CallCacheHit(workflowId: String, callName: String)
+case class ExecutionWithCacheData(execution: Execution, cacheHit: Option[CallCacheHit])
+
 case class Execution(workflowExecutionId: Int,
                      callFqn: String,
                      index: Int,
@@ -160,6 +163,40 @@ trait ExecutionComponent {
       execution <- executions
       if execution.executionId === executionId
     } yield (execution.status, execution.rc))
+
+  /** Returns a tuple of (execution, cache hit workflow UUID, cache hit call FQN)
+    *
+    * If the execution was not satisfied by a cache hit, then the second two values in the tuple are None.
+    *
+    * The query that is being created here is:
+    *
+    * SELECT
+    *     e.*
+    *     we1.WORKFLOW_EXECUTION_UUID as cache_hit_workflow,
+    *     e1.CALL_FQN as cache_hit_call
+    * FROM execution e
+    *     LEFT JOIN execution e1 ON e.results_cloned_from=e1.execution_id
+    *     LEFT JOIN workflow_execution we1 ON e1.workflow_execution_id=we1.workflow_execution_id
+    *     LEFT JOIN workflow_execution we ON e.workflow_execution_id=we.workflow_execution_id
+    * WHERE we.workflow_execution_uuid = 'UUID';
+    *
+    * See the following resources for how to construct queries like this in Slick
+    *
+    *   - http://stackoverflow.com/questions/32061552/slick-3-multiple-outer-joins/32062677
+    *   - http://slick.typesafe.com/doc/3.1.1/queries.html
+    */
+  val executionsWithCacheHitWorkflowAndCall = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      (((execution, cacheHitExecution), cacheHitWorkflow), workflowExecution) <- executions joinLeft executions on {
+        case (e, cacheHitExecution) => e.resultsClonedFrom === cacheHitExecution.executionId
+      } joinLeft workflowExecutions on {
+        case ((e, maybeCacheHitExecution), we1) => maybeCacheHitExecution.map(_.workflowExecutionId) === we1.workflowExecutionId
+      } joinLeft workflowExecutions on {
+        case (((e, _), _), we) => e.workflowExecutionId === we.workflowExecutionId
+      }
+      if workflowExecution.map(_.workflowExecutionUuid) === workflowExecutionUuid
+    } yield (execution, cacheHitWorkflow.map(_.workflowExecutionUuid), cacheHitExecution.map(_.callFqn))
+  )
 
   // see workflowExecutionsByStatuses
   def executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {

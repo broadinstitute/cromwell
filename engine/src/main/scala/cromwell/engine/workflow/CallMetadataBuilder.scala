@@ -4,7 +4,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowLogs}
+import cromwell.engine.backend._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick._
 import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry, _}
@@ -13,6 +13,8 @@ import wdl4s._
 
 import scala.language.postfixOps
 import scala.util.Try
+
+case class CallCacheData(allowResultReuse: Boolean, cacheHitWorkflow: Option[String], cacheHitCall: Option[String])
 
 /**
  * Builds call metadata suitable for return as part of a workflow metadata request.
@@ -32,6 +34,7 @@ object CallMetadataBuilder {
                                            backendStatus: Option[String] = None,
                                            executionEvents: Seq[ExecutionEventEntry] = Seq.empty,
                                            runtimeAttributes: Map[String, String] = Map.empty,
+                                           cache: Option[CallCacheData] = None,
                                            failures: Seq[FailureEventEntry] = Seq.empty)
 
   // Types used in interim steps of the construction of the call metadata.
@@ -122,7 +125,7 @@ object CallMetadataBuilder {
   /**
     * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
     */
-  private def buildRuntimeAttributesTranformer(runtimeAttributesMap: Map[ExecutionDatabaseKey, Map[String, String]]): ExecutionMapTransformer =
+  private def buildRuntimeAttributesTransformer(runtimeAttributesMap: Map[ExecutionDatabaseKey, Map[String, String]]): ExecutionMapTransformer =
     executionMap => {
       for {
         (key, attrs) <- runtimeAttributesMap
@@ -131,9 +134,22 @@ object CallMetadataBuilder {
     }
 
   /**
+    * Function to build a transformer that adds call cache data to the entries in the input `ExecutionMap`.
+    */
+  private def buildCallCacheTransformer(callCacheData: Traversable[ExecutionWithCacheData]): ExecutionMapTransformer =
+    executionMap => {
+      for {
+        (executionKey, assembledMetadata) <- executionMap
+        cacheData <- callCacheData
+        if executionKey.fqn == cacheData.execution.callFqn
+        metadata = CallCacheData(cacheData.execution.allowsResultReuse, cacheData.cacheHit.map(_.workflowId), cacheData.cacheHit.map(_.callName))
+      } yield executionKey -> assembledMetadata.copy(cache = Option(metadata))
+    }
+
+  /**
     * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
     */
-  private def buildCallFailureTranformer(callFailureMap: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): ExecutionMapTransformer =
+  private def buildCallFailureTransformer(callFailureMap: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): ExecutionMapTransformer =
     executionMap => {
       for {
         (key, failureEvents) <- callFailureMap
@@ -199,6 +215,7 @@ object CallMetadataBuilder {
             callOutputs: Traversable[SymbolStoreEntry],
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
             runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
+            cacheData: Traversable[ExecutionWithCacheData],
             callFailures: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
 
     val executionKeys = infosByExecution map { x => ExecutionDatabaseKey(x.execution.callFqn, x.execution.index.toIndex, x.execution.attempt) }
@@ -211,8 +228,9 @@ object CallMetadataBuilder {
       buildExecutionEventsTransformer(executionEvents),
       buildExecutionInfoTransformer(infosByExecution),
       buildStreamsTransformer(standardStreamsMap),
-      buildRuntimeAttributesTranformer(runtimeAttributes),
-      buildCallFailureTranformer(callFailures)
+      buildRuntimeAttributesTransformer(runtimeAttributes),
+      buildCallFailureTransformer(callFailures),
+      buildCallCacheTransformer(cacheData)
     )
 
     // Fold a zero ExecutionMap across this Seq of functions.
@@ -250,7 +268,9 @@ object CallMetadataBuilder {
         attempt = attempt,
         runtimeAttributes = metadata.runtimeAttributes,
         preemptible = preemptible,
-        failures = failures)
+        failures = failures,
+        cache = metadata.cache
+      )
     }
 
     // The CallMetadatas need to be grouped by FQN and sorted within an FQN by index and within an index by attempt.

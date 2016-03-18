@@ -21,5 +21,5 @@ trait WorkflowManagerSystem {
   lazy val backend: Backend = CromwellBackend.initBackend(backendType, actorSystem)
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
   lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(backend), "WorkflowManagerActor")
-  lazy val validateActor = actorSystem.actorOf(Props[ValidateActor], "ValidationActor")
+  lazy val validateActor = actorSystem.actorOf(ValidateActor.props(backend), "ValidationActor")
 }

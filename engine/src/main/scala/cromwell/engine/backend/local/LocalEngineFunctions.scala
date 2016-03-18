@@ -2,7 +2,8 @@ package cromwell.engine.backend.local
 
 import java.nio.file.FileSystem
 
-import cromwell.engine.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions, _}
+import cromwell.engine.backend
+import cromwell.engine.backend.{CallContext, CallEngineFunctions, WorkflowContext, WorkflowEngineFunctions}
 import wdl4s.values.WdlValue
 
 import scala.language.postfixOps

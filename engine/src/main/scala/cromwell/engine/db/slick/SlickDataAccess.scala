@@ -8,6 +8,8 @@ import javax.sql.rowset.serial.SerialClob
 import _root_.slick.backend.DatabaseConfig
 import _root_.slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import cromwell.core.WorkflowId
+import cromwell.core.CallOutput
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend._
@@ -15,7 +17,7 @@ import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow._
-import cromwell.engine.{CallOutput, WorkflowOutputs, _}
+import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.apache.commons.lang3.StringUtils
@@ -833,7 +835,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def findResumableExecutions(workflowId: WorkflowId,
                                        isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
-                                       jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => JobKey)
+                                       jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => BackendJobKey)
                                       (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
     val action = for {
       tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result

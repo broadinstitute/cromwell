@@ -10,6 +10,8 @@ object Dependencies {
   lazy val googleClientApiV = "1.20.0"
   lazy val kamonV = "0.5.2"
 
+  val wdl4sDependency = "org.broadinstitute" %% "wdl4s" % wdl4sV
+
   val kamonDependencies = List(
     "io.kamon" %% "kamon-core" % kamonV,
     "io.kamon" %% "kamon-akka" % kamonV,
@@ -54,9 +56,14 @@ object Dependencies {
     "com.mattbertolini" % "liquibase-slf4j" % "2.0.0"
   )
 
+  val coreDependencies = List(
+    wdl4sDependency,
+    "com.typesafe" % "config" % "1.3.0"
+  )
+
   val engineDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.broadinstitute" %% "wdl4s" % wdl4sV,
+    wdl4sDependency,
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.joda" % "joda-convert" % "1.8.1",
     "org.webjars" % "swagger-ui" % "2.1.1",

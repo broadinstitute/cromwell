@@ -1,8 +1,8 @@
 package cromwell.webservice
 
+import cromwell.core.{ErrorOr, WorkflowId}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
-import cromwell.engine.{ErrorOr, WorkflowId}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try

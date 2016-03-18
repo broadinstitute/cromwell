@@ -1,10 +1,9 @@
 package cromwell.engine.backend.runtimeattributes
 
-import cromwell.engine.ErrorOr
+import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.engine.backend.jes.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
 import cromwell.engine.backend.{BackendCallJobDescriptor, BackendType}
-import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
 import wdl4s._

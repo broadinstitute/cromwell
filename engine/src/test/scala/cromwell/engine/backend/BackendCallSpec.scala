@@ -4,9 +4,9 @@ import java.util.UUID
 
 import cromwell.CallCachingWorkflowSpec._
 import cromwell.CromwellTestkitSpec
+import cromwell.core.WorkflowId
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{WorkflowDescriptor, WorkflowId}
 import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
 

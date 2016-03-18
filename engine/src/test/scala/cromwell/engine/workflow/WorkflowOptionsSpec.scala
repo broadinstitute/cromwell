@@ -1,5 +1,6 @@
 package cromwell.engine.workflow
 
+import cromwell.core.WorkflowOptions
 import cromwell.util.EncryptionSpec
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json._

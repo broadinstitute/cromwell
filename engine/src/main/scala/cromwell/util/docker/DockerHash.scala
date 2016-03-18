@@ -2,13 +2,13 @@ package cromwell.util.docker
 
 import javax.xml.bind.DatatypeConverter
 
-import cromwell.engine.ErrorOr
+import cromwell.core.ErrorOr
 import cromwell.util.TryUtil
+import wdl4s.values._
 
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.{Failure => FailureZ, Success => SuccessZ, _}
-import wdl4s.values._
 
 case class DockerHash(hashType: String, hashString: String) {
   val digest = s"$hashType:$hashString"

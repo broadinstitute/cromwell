@@ -4,10 +4,11 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.backend.{CallLogs, WorkflowQueryResult}
+import cromwell.core.{CallOutput, WorkflowId}
+import cromwell.engine._
+import cromwell.engine.backend.{CallLogs, WorkflowDescriptor, WorkflowQueryResult}
 import cromwell.engine.workflow.ValidateActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallCaching, CallOutputs, CallStdoutStderr, WorkflowAbort, WorkflowOutputs, WorkflowQuery, WorkflowStatus, WorkflowStdoutStderr, _}
-import cromwell.engine.{CallOutput, _}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}

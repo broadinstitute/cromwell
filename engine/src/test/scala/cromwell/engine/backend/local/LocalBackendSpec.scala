@@ -3,7 +3,6 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.WorkflowDescriptor
 import cromwell.engine.backend._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.util.SampleWdl

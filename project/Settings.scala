@@ -1,4 +1,5 @@
 import Dependencies.engineDependencies
+import Dependencies.coreDependencies
 import Merging.customMergeStrategy
 import Testing._
 import sbt.Keys._
@@ -46,6 +47,7 @@ object Settings {
   val coreSettings = List(
     name := "cromwell-core",
     version := engineVersion,
+    libraryDependencies ++= coreDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

@@ -9,8 +9,9 @@ import akka.util.Timeout
 import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
+import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.backend.{CromwellBackend, CallLogs}
+import cromwell.engine.backend.{CallLogs, CromwellBackend, WorkflowDescriptor}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
 import cromwell.engine.{WorkflowOutputs, _}

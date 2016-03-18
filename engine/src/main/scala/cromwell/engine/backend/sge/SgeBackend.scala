@@ -5,14 +5,15 @@ import java.nio.file.{FileSystem, Files, Path}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
+import cromwell.core.WorkflowOptions
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.io._
 import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, StorageFactory}
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
-import cromwell.engine.{AbortRegistrationFunction, _}
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
 
@@ -215,8 +216,8 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     executionResult map { (_,  jobReturnCode) }
   }
 
-  override def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
-    val path = super.callRootPathWithBaseRoot(jobDescriptor, baseRoot)
+  override def callRootPathWithBaseRoot(descriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+    val path = super.callRootPathWithBaseRoot(descriptor, baseRoot)
     if (!path.toFile.exists()) path.toFile.mkdirs()
     path
   }
@@ -241,7 +242,7 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 
-  override def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     Future.failed(new Throwable("resume invoked on non-resumable SGE backend"))
   }
 }

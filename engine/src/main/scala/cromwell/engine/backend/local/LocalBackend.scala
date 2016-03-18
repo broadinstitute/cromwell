@@ -7,14 +7,14 @@ import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine._
+import cromwell.engine.backend._
 import cromwell.engine.backend.io._
 import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, StorageFactory}
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
@@ -223,8 +223,8 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
   }
 
-  override def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
-    val path = super.callRootPathWithBaseRoot(jobDescriptor, baseRoot)
+  override def callRootPathWithBaseRoot(descriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+    val path = super.callRootPathWithBaseRoot(descriptor, baseRoot)
     if (!path.toFile.exists()) path.toFile.mkdirs()
     path
   }
@@ -253,7 +253,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 
-  override def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     Future.failed(new Throwable("resume invoked on non-resumable Local backend"))
   }
 }

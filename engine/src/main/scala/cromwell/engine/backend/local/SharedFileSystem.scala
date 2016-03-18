@@ -5,10 +5,10 @@ import java.nio.file.{FileSystem, Files, Path, Paths}
 
 import better.files.{File => ScalaFile, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.{AttemptedLookupResult, CallLogs, _}
+import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
+import cromwell.engine.backend._
 import cromwell.engine.io.gcs.GcsPath
-import cromwell.engine.workflow.WorkflowOptions
-import cromwell.engine.{WorkflowContext, WorkflowDescriptor, WorkflowEngineFunctions, _}
+import cromwell.engine.{ExecutionEventEntry, backend}
 import cromwell.util.TryUtil
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -157,10 +157,9 @@ trait SharedFileSystem { self: Backend =>
   /**
    * Creates host execution directory.
    */
-  def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[HostInputs] = {
+  def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[Unit] = Try {
     val hostExecutionDirectory = descriptor.workflowRootPath.toFile
     hostExecutionDirectory.mkdirs()
-    Success(descriptor.actualInputs)
   }
 
   def toDockerPath(path: WdlValue): WdlValue = path match {
@@ -196,7 +195,6 @@ trait SharedFileSystem { self: Backend =>
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
   def adjustSharedInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = {
-    import backend.io._
 
     val strategies = if (jobDescriptor.callRuntimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 

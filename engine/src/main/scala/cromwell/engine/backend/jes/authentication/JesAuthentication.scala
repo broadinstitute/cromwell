@@ -1,9 +1,9 @@
 package cromwell.engine.backend.jes.authentication
 
 import com.google.api.services.genomics.Genomics
+import cromwell.core.WorkflowOptions
 import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystem, GcsFileSystemProvider, StorageFactory}
 import cromwell.engine.backend.jes._
-import cromwell.engine.workflow.WorkflowOptions
 
 import scala.language.postfixOps
 

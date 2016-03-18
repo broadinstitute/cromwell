@@ -1,8 +1,7 @@
 package cromwell.engine.backend
 
+import cromwell.core.CallOutputs
 import cromwell.engine.ExecutionEventEntry
-import cromwell.engine.ExecutionHash
-import cromwell.engine.CallOutputs
 
 /**
  * ADT representing the result of an execution of a BackendCall.

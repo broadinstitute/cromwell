@@ -3,10 +3,11 @@ package cromwell.logging
 import java.util.UUID
 
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.BackendCallJobDescriptor
+import cromwell.core.WorkflowId
+import cromwell.engine.backend.{WorkflowDescriptor, BackendCallJobDescriptor}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{WorkflowDescriptor, WorkflowId, WorkflowSourceFiles}
+import cromwell.engine.WorkflowSourceFiles
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import wdl4s.values.WdlValue
 

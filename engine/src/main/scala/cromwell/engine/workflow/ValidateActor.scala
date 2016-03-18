@@ -2,11 +2,9 @@ package cromwell.engine.workflow
 
 import akka.actor.{Actor, Props}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.WorkflowDescriptor
+import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.engine.backend.{Backend, CromwellBackend}
-import cromwell.engine.ErrorOr
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.backend.{Backend, CromwellBackend}
 import cromwell.engine.workflow.ValidateActor.{ValidationFailure, ValidationResult, ValidationSuccess}
 import cromwell.util.TryUtil
 import spray.json._

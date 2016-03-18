@@ -2,6 +2,7 @@ package cromwell.util
 
 import javax.crypto.Cipher
 
+import cromwell.core.{SecretKey, Aes256Cbc}
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 
 object EncryptionSpec {

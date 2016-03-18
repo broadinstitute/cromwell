@@ -9,8 +9,10 @@ import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus._
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.io.filesystem.gcs._
 import cromwell.engine.backend.jes.JesBackend._
@@ -20,8 +22,6 @@ import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.gcs._
-import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
-import cromwell.engine.{CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
 import spray.json.JsObject
@@ -29,7 +29,7 @@ import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
-import wdl4s.{Call, CallInputs, UnsatisfiedInputsException, _}
+import wdl4s.{CallInputs, UnsatisfiedInputsException, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -72,16 +72,10 @@ object JesBackend {
       eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isEmpty)
   }
 
-  case class JesJobKey(jesRunId: String) extends JobKey
+  case class JesBackendJobKey(jesRunId: String) extends BackendJobKey
 
-  private val BuildJobKey: (Execution, Seq[ExecutionInfo]) => JobKey = (e: Execution, eis: Seq[ExecutionInfo]) => {
-    JesJobKey(eis.find(_.key == JesBackend.InfoKeys.JesRunId).get.value.get)
-  }
-
-  // Decoration around WorkflowDescriptor to generate bucket names and the like
-  implicit class JesWorkflowDescriptor(val descriptor: WorkflowDescriptor)
-    extends JesBackend(descriptor.backend.actorSystem) {
-    def callDir(key: BackendCallKey) = key.callRootPathWithBaseRoot(descriptor, rootPath(descriptor.workflowOptions))
+  private val BuildBackendJobKey: (Execution, Seq[ExecutionInfo]) => BackendJobKey = (e: Execution, eis: Seq[ExecutionInfo]) => {
+    JesBackendJobKey(eis.find(_.key == JesBackend.InfoKeys.JesRunId).get.value.get)
   }
 
   /**
@@ -181,15 +175,15 @@ object JesBackend {
     val JesStatus = "JES_STATUS"
   }
 
-  def jesLogBasename(key: BackendCallKey) = {
+  def jesLogBasename(key: JobKey) = {
     val index = key.index.map(s => s"-$s").getOrElse("")
     s"${key.scope.unqualifiedName}$index"
   }
 
-  def jesLogStdoutFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stdout.log"
-  def jesLogStderrFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-stderr.log"
-  def jesLogFilename(key: BackendCallKey) = s"${jesLogBasename(key)}.log"
-  def jesReturnCodeFilename(key: BackendCallKey) = s"${jesLogBasename(key)}-rc.txt"
+  def jesLogStdoutFilename(key: JobKey) = s"${jesLogBasename(key)}-stdout.log"
+  def jesLogStderrFilename(key: JobKey) = s"${jesLogBasename(key)}-stderr.log"
+  def jesLogFilename(key: JobKey) = s"${jesLogBasename(key)}.log"
+  def jesReturnCodeFilename(key: JobKey) = s"${jesLogBasename(key)}-rc.txt"
   def globDirectory(glob: String) = s"glob-${glob.md5Sum}/"
   def rootPath(options: WorkflowOptions): String = options.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
   def globOutputPath(callPath: Path, glob: String) = callPath.resolve(s"glob-${glob.md5Sum}/")
@@ -252,21 +246,17 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
-  override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs mapValues {
-    case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
-  }
-
-  private def writeAuthenticationFile(workflow: WorkflowDescriptor) = {
+  private def writeAuthenticationFile(workflow: WorkflowDescriptor): Try[Unit] = {
     val log = workflowLogger(workflow)
 
-    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) foreach { content =>
+    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) map { content =>
 
       val path = gcsAuthFilePath(workflow)
       def upload(prev: Option[Unit]): Unit = path.writeAsJson(content)
 
       log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
       withRetry(upload, log, s"Exception occurred while uploading auth file to $path")
-    }
+    } getOrElse Success(())
   }
 
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
@@ -293,9 +283,8 @@ case class JesBackend(actorSystem: ActorSystem)
    * No need to copy GCS inputs for the workflow we should be able to directly reference them
    * Create an authentication json file containing docker credentials and/or user account information
    */
-  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs] = {
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[Unit] = {
     writeAuthenticationFile(workflow)
-    Success(workflow.actualInputs)
   }
 
   override def assertWorkflowOptions(options: WorkflowOptions): Unit = {
@@ -378,8 +367,8 @@ case class JesBackend(actorSystem: ActorSystem)
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(jobDescriptor, runIdForResumption = None)
 
-  def resume(jobDescriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val runId = Option(jobKey) collect { case jesKey: JesJobKey => jesKey.jesRunId }
+  def resume(jobDescriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    val runId = Option(jobKey) collect { case jesKey: JesBackendJobKey => jesKey.jesRunId }
     executeOrResume(jobDescriptor, runIdForResumption = runId)
   }
 
@@ -572,12 +561,8 @@ case class JesBackend(actorSystem: ActorSystem)
 
   private def createJesRun(jobDescriptor: BackendCallJobDescriptor, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] = {
       def attemptToCreateJesRun(priorAttempt: Option[Run]): Run = Pipeline(
-        jobDescriptor.jesCommandLine,
-        jobDescriptor.workflowDescriptor,
-        jobDescriptor.key,
-        jobDescriptor.callRuntimeAttributes,
+        jobDescriptor,
         jesParameters,
-        jobDescriptor.preemptible,
         googleProject(jobDescriptor.workflowDescriptor),
         genomicsInterface,
         runIdForResumption
@@ -876,7 +861,7 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
-    globalDataAccess.findResumableExecutions(id, IsResumable, BuildJobKey)
+    globalDataAccess.findResumableExecutions(id, IsResumable, BuildBackendJobKey)
   }
 
   override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)

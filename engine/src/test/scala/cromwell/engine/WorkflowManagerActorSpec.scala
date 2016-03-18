@@ -5,9 +5,10 @@ import java.util.UUID
 import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.CromwellTestkitSpec._
+import cromwell.core.{WorkflowId, CallOutput}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{Backend, CallMetadata}
+import cromwell.engine.backend.{WorkflowDescriptor, Backend, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor

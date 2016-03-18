@@ -1,6 +1,6 @@
 package cromwell.engine.finalcall
 
-import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.webservice.WorkflowMetadataResponse
 
 import scala.concurrent.ExecutionContext

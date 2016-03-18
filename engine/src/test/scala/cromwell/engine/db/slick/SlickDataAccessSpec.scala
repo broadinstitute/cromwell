@@ -9,13 +9,14 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
+import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
+import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
-import cromwell.engine.workflow.{BackendCallKey, ScatterKey, WorkflowOptions}
-import cromwell.engine.{CallOutput, CallOutputs, _}
+import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
 import cromwell.util.SampleWdl
 import cromwell.webservice
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
@@ -70,7 +71,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override val actorSystem = workflowManagerSystem.actorSystem
 
     override def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor) = throw new NotImplementedError()
-    override def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = throw new NotImplementedError
     override def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = throw new NotImplementedError
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
     override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
@@ -83,7 +83,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
     override def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
-    override def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
+    override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def fileSystems(options: WorkflowOptions): List[FileSystem] = List(FileSystems.getDefault)
   }
 

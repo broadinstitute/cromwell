@@ -5,13 +5,12 @@ import java.nio.file.{FileSystem, Path}
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
-import cromwell.engine.workflow.{CallKey, WorkflowOptions}
-import cromwell.engine.{CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
@@ -39,8 +38,6 @@ object Backend {
     Backend.from(backendType, actorSystem)
   }
 
-  case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
-
   implicit class BackendyString(val backendType: String) extends AnyVal {
     def toBackendType: BackendType = {
       try {
@@ -50,9 +47,23 @@ object Backend {
       }
     }
   }
+
+  private val CallPrefix = "call"
+  private val ShardPrefix = "shard"
+  private val AttemptPrefix = "attempt"
+
+  def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+    import io._
+    val call = s"$CallPrefix-${jobDescriptor.key.scope.unqualifiedName}"
+    val shard = jobDescriptor.key.index map { s => s"$ShardPrefix-$s" } getOrElse ""
+    val retry = if (jobDescriptor.key.attempt > 1) s"$AttemptPrefix-${jobDescriptor.key.attempt}" else ""
+    val workflowRoot = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(baseRoot)
+
+    List(call, shard, retry).foldLeft(workflowRoot)((path, dir) => path.resolve(dir)).asDirectory
+  }
 }
 
-trait JobKey
+trait BackendJobKey
 
 final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
   def toPair = name -> value
@@ -81,15 +92,12 @@ trait Backend {
    */
   def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor): CallInputs
 
-  // FIXME: This is never called...
-  def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs
-
   /**
    * Do whatever work is required to initialize the workflow, returning a copy of
    * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s
    * adjusted for the host workflow execution path.
    */
-  def initializeForWorkflow(workflow: WorkflowDescriptor): Try[HostInputs]
+  def initializeForWorkflow(workflow: WorkflowDescriptor): Try[Unit]
 
   /**
    * Do whatever cleaning up work is required when a workflow reaches a terminal state.
@@ -127,7 +135,7 @@ trait Backend {
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
-  def jobLogger(jobDescriptor: JobDescriptor[_ <: CallKey]) = WorkflowLogger(
+  def jobLogger(jobDescriptor: JobDescriptor[_ <: JobKey]) = WorkflowLogger(
     backendClassString,
     jobDescriptor.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
@@ -140,9 +148,7 @@ trait Backend {
 
   def executionInfoKeys: List[String]
 
-  def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
-    jobDescriptor.key.callRootPathWithBaseRoot(jobDescriptor.workflowDescriptor, baseRoot)
-  }
+  def callRootPathWithBaseRoot(descriptor: BackendCallJobDescriptor, baseRoot: String): Path = Backend.callRootPathWithBaseRoot(descriptor, baseRoot)
 
   def callRootPath(jobDescriptor: BackendCallJobDescriptor) = {
     callRootPathWithBaseRoot(jobDescriptor, rootPath(jobDescriptor.workflowDescriptor.workflowOptions))
@@ -217,5 +223,5 @@ trait Backend {
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
-  def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 }

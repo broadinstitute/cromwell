@@ -1,9 +1,8 @@
 package cromwell.engine.backend
 
+import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.ExecutionHash
-import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
-import cromwell.engine.{AbortRegistrationFunction, CallEngineFunctions, WorkflowDescriptor}
+import cromwell.engine.workflow.{BackendCallKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._
 import wdl4s.values.WdlValue
@@ -18,7 +17,7 @@ import scala.util.Try
   *
   * @tparam K CallKey subtype
   */
-sealed trait JobDescriptor[K <: CallKey] {
+sealed trait JobDescriptor[K <: JobKey] {
   def workflowDescriptor: WorkflowDescriptor
   def key: K
   def locallyQualifiedInputs: CallInputs
@@ -64,7 +63,7 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
     */
   def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = backend.hash(this)
 
-  def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
+  def resume(jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
 
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
 
@@ -72,8 +71,8 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
 }
 
 case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
-                                        key: FinalCallKey,
-                                        workflowMetadataResponse: WorkflowMetadataResponse) extends JobDescriptor[FinalCallKey] {
+                                  key: FinalCallKey,
+                                  workflowMetadataResponse: WorkflowMetadataResponse) extends JobDescriptor[FinalCallKey] {
 
   override val locallyQualifiedInputs = Map.empty[String, WdlValue]
 

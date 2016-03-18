@@ -3,7 +3,9 @@ package cromwell
 import java.util.UUID
 
 import akka.testkit._
+import cromwell.core.WorkflowId
 import cromwell.engine._
+import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl

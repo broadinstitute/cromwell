@@ -238,6 +238,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
   implicit val actorSystem = context.system
   val backend = workflow.backend
+  val workflowFailureMode = workflow.workflowFailureMode
   /*
    * This will not survive incoming Call-Scopification of backends but allows for use of engine functions everywhere for now,
    * in particular in the { input: ... } stanza of a call.
@@ -846,10 +847,13 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       case _ => false
     }
 
+    lazy val hasAnythingFailed = executionStore.values exists { x => x == Failed || x == Aborted }
+    lazy val allowNewCalls = workflowFailureMode.allowNewCallsAfterFailure || !hasAnythingFailed
+
     def isRunnable(entry: ExecutionStoreEntry) = {
       entry match {
-        case (key: FinalCallKey, ExecutionStatus.NotStarted) => nonFinalCallsComplete
-        case (key, ExecutionStatus.NotStarted) => arePrerequisitesDone(key)
+        case (key: FinalCallKey, ExecutionStatus.NotStarted) => nonFinalCallsComplete && allowNewCalls
+        case (key, ExecutionStatus.NotStarted) => arePrerequisitesDone(key) && allowNewCalls
         case _ => false
       }
     }

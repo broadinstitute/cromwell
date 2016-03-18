@@ -102,7 +102,7 @@ object WorkflowOptions {
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj) map JsString.apply
     case Some(jsObj: JsObject) => Success(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new Throwable(s"Field not found: $key"))
+    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }
 
   private def get(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
@@ -111,7 +111,7 @@ object WorkflowOptions {
     case Some(jsBool: JsBoolean) => Success(jsBool.value.toString)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new Throwable(s"Field not found: $key"))
+    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }
 }
 

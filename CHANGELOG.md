@@ -3,6 +3,10 @@
 ## 0.19
 
 * New runtime option for JES: `bootDiskSizeGb`. Allows specification of a boot disk size (as an Integer number of GB) that can be increased to boot a larger docker image.
+* Workflow options now allows you to specify a `workflowFailureMode` to control workflow behavior after a call has failed, for example:`{ "workflowFailureMode": "..." }`. The options are:
+  * `ContinueWhilePossible` - continues to start and process calls in the workflow, as long as they did not depend on the failing call
+  * `NoNewCalls` - no *new* calls are started but existing calls are allowed to finish
+  * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
 * Bug fix: Tasks that changed directory would fail on JES because their return code file was written to the new directory instead of an absolute path
 * Bug fix: Using `write_*` functions in a Task's command (e.g. `./my_script --file=${write_file(my_array)}`) will now work with JES
 * Changing format of the 'disks' runtime attribute slightly to allow for mounting disks at specific mountpoints

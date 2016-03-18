@@ -15,6 +15,7 @@ import wdl4s.values.WdlValue
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
+import scala.util.{Failure, Success, Try}
 
 package object engine {
   /**
@@ -67,6 +68,18 @@ package object engine {
     def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
+
+  object WorkflowFailureMode {
+    def tryParse(mode: String): Try[WorkflowFailureMode] = {
+      val modes = Seq(ContinueWhilePossible, NoNewCalls)
+      modes find { _.toString.equalsIgnoreCase(mode) } map { Success(_) } getOrElse Failure(new Exception(s"Invalid workflow failure mode: $mode"))
+    }
+  }
+  sealed trait WorkflowFailureMode {
+    def allowNewCallsAfterFailure: Boolean
+  }
+  case object ContinueWhilePossible extends WorkflowFailureMode { override val allowNewCallsAfterFailure = true }
+  case object NoNewCalls extends WorkflowFailureMode { override val allowNewCallsAfterFailure = false }
 
   // Used to convert the database returned value `executionAndAux` to a WorkflowDescriptor
   def workflowDescriptorFromExecutionAndAux(executionAndAux: WorkflowExecutionAndAux)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowDescriptor] = {

@@ -2306,7 +2306,8 @@ task shouldCompleteFast {
         |    Int a
         |    command {
         |        echo "The number was: ${a}"
-        |        sleep 0.2
+        |        # More than 1 so this should finish second
+        |        sleep 2
         |    }
         |    output {
         |        Int echo = a
@@ -2317,7 +2318,8 @@ task shouldCompleteFast {
         |    Int a
         |    command {
         |        echo "The number was: ${a}"
-        |        sleep 0.2
+        |        # Less than 2 so this should finish first
+        |        sleep 1
         |        ./NOOOOOO
         |    }
         |    output {

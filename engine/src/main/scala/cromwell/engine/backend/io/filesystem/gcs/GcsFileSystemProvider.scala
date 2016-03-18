@@ -78,8 +78,7 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
   private val executionService = ExecutionContextExecutorServiceBridge(executionContext)
   private val errorExtractor = new ApiErrorExtractor()
   def notAGcsPath(path: Path) = throw new IllegalArgumentException(s"$path is not a GCS path.")
-  // Can't instantiate it now as it needs a GcsFileSystemProvider (this), which is not yet instantiated at this point..
-  private var defaultFileSystem: Option[GcsFileSystem] = None
+  private lazy val defaultFileSystem: GcsFileSystem = GcsFileSystem(this)
 
   private def exists(path: Path) = path match {
     case gcsPath: NioGcsPath =>
@@ -196,7 +195,6 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
         }
 
         tryMove(retryCount)
-
       case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
     }
   }
@@ -210,15 +208,8 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
 
   override def checkAccess(path: Path, modes: AccessMode*): Unit = exists(path)
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
-  override def getFileSystem(uri: URI): FileSystem = getDefaultFileSystem
-
-  def getDefaultFileSystem = defaultFileSystem match {
-    case Some(fs) => fs
-    case None =>
-      val fs = GcsFileSystem(this)
-      defaultFileSystem = Option(fs)
-      fs
-  }
+  override def getFileSystem(uri: URI): FileSystem = getFileSystem
+  lazy val getFileSystem = defaultFileSystem
 
   override def isHidden(path: Path): Boolean = throw new NotImplementedError()
 

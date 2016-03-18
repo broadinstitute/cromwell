@@ -235,9 +235,9 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     new LocalCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
   }
 
-  override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = {
+  override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
     val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated
-    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getDefaultFileSystem } toOption
+    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
 
     List(gcs, Option(defaultFileSystem)).flatten
   }

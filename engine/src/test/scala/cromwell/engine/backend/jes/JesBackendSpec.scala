@@ -48,8 +48,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       endpointUrl = anyURL,
       maxPollingInterval = 600) {
     }
-    override def jesUserConnection(workflow: WorkflowDescriptor) = null
-    override lazy val jesCromwellInterface = null
+    override lazy val genomicsInterface = null
+    override lazy val cromwellGcsFileSystem = null
+    override def userGcsFileSystem(options: WorkflowOptions) = null
     override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
   }
 

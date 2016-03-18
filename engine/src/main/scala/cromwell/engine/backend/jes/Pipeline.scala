@@ -20,7 +20,7 @@ object Pipeline {
             jesParameters: Seq[JesParameter],
             preemptible: Boolean,
             projectId: String,
-            jesConnection: JesInterface,
+            genomicsInterface: Genomics,
             runIdForResumption: Option[String]): Pipeline = {
     val logger = WorkflowLogger(
       "JES Pipeline",
@@ -42,7 +42,7 @@ object Pipeline {
     p.setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
     p.setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
-    def createPipeline = jesConnection.genomics.pipelines().create(p).execute().getPipelineId
+    def createPipeline = genomicsInterface.pipelines().create(p).execute().getPipelineId
 
     def pipelineParameterString(p: PipelineParameter): String = {
       val description = Option(p.getLocalCopy) match {
@@ -70,7 +70,7 @@ object Pipeline {
                  key,
                  jesParameters,
                  runtimeInfo,
-                 jesConnection.genomics,
+                 genomicsInterface,
                  runIdForResumption)
   }
 }

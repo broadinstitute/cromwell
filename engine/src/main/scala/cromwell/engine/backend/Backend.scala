@@ -209,7 +209,7 @@ trait Backend {
       Future.successful(ExecutionHash("", None))
   }
 
-  def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem]
+  def fileSystems(options: WorkflowOptions): List[FileSystem]
 
   def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 

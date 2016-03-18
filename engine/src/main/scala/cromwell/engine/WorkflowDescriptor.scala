@@ -279,7 +279,7 @@ object WorkflowDescriptor {
                                       conf: Config): ErrorOr[WorkflowDescriptor] = {
     val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(options), namespace.workflow.unqualifiedName, id)
     val wfContext = new WorkflowContext(workflowRootPath)
-    val fileSystems = backend.fileSystems(options, workflowRootPath)
+    val fileSystems = backend.fileSystems(options)
     val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
 
     val validatedDescriptor = for {

@@ -12,7 +12,7 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   behavior of "NioGcsPath"
 
-  implicit val GCSFs = GcsFileSystemProvider.defaultProvider.getDefaultFileSystem
+  implicit val GCSFs = GcsFileSystemProvider.defaultProvider.getFileSystem
 
   it should "implement toString" in {
     val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)

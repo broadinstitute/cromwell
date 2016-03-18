@@ -24,6 +24,7 @@ import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
 import cromwell.engine.{CallOutput, CallOutputs, HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
+import spray.json.JsObject
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.NoFunctions
@@ -198,6 +199,19 @@ object JesBackend {
       JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), jobDescriptor.workingDisk)
     } toOption
   }
+
+  /**
+    * Generates a json containing auth information based on the parameters provided.
+    * @return a string representation of the json
+    */
+  def generateAuthJson(authInformation: Option[JesAuthInformation]*) = {
+    authInformation.flatten map { _.toMap } match {
+      case Nil => None
+      case jsons =>
+        val authsValues = jsons.reduce(_ ++ _) mapValues JsObject.apply
+        Option(JsObject("auths" -> JsObject(authsValues)).prettyPrint)
+    }
+  }
 }
 
 /**
@@ -242,12 +256,12 @@ case class JesBackend(actorSystem: ActorSystem)
     case CallOutput(value, hash) => CallOutput(gcsPathToLocal(value), hash)
   }
 
-  private def writeAuthenticationFile(workflow: WorkflowDescriptor) = authenticateAsCromwell { connection =>
+  private def writeAuthenticationFile(workflow: WorkflowDescriptor) = {
     val log = workflowLogger(workflow)
 
     generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) foreach { content =>
 
-      val path = gcsAuthFilePath(workflow).toAbsolutePath(List(connection.gcsFileSystem))
+      val path = gcsAuthFilePath(workflow)
       def upload(prev: Option[Unit]): Unit = path.writeAsJson(content)
 
       log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
@@ -315,11 +329,9 @@ case class JesBackend(actorSystem: ActorSystem)
     }
   }
 
-  private def deleteAuthFile(authFilePath: String, log: WorkflowLogger): Future[Unit] = authenticateAsCromwell { connection =>
-      implicit val gcsFs = List(connection.gcsFileSystem)
-
-      def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = authFilePath.toAbsolutePath(connection.gcsFileSystem).exists
-      def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = authFilePath.toAbsolutePath(connection.gcsFileSystem).delete()
+  private def deleteAuthFile(authFilePath: Path, log: WorkflowLogger): Future[Unit] = {
+      def gcsCheckAuthFileExists(prior: Option[Boolean]): Boolean = authFilePath.exists
+      def gcsAttemptToDeleteObject(prior: Option[Unit]): Unit = authFilePath.delete()
       withRetry(gcsCheckAuthFileExists, log, s"Failed to query for auth file: $authFilePath") match {
         case Success(exists) if exists =>
           withRetry(gcsAttemptToDeleteObject, log, s"Failed to delete auth file: $authFilePath") match {
@@ -398,15 +410,14 @@ case class JesBackend(actorSystem: ActorSystem)
       }
     }
 
-    def copyingWork(implicit gcs: GcsFileSystem): Try[Unit] = for {
+    def copyingWork: Try[Unit] = for {
         _ <- Try(callRootPath(cachedCallDescriptor).copyTo(jobDescriptorPath))
         _ <- Try(renameCallSpecificFiles)
     } yield ()
 
     Future {
       val log = jobLogger(callDescriptor)
-      authenticateAsUser(callDescriptor.workflowDescriptor) { interface =>
-        copyingWork(interface) match {
+        copyingWork match {
           case Failure(ex) =>
             log.error(s"Exception occurred while attempting to copy outputs from ${cachedCallDescriptor.callRootPath} to $jobDescriptorPath", ex)
             FailedExecutionHandle(ex).future
@@ -421,7 +432,6 @@ case class JesBackend(actorSystem: ActorSystem)
               FailedExecutionHandle(new Exception(error, ex)).future
             case Failure(ex) => FailedExecutionHandle(ex).future
           }
-        }
       }
     } flatten
   }
@@ -554,16 +564,13 @@ case class JesBackend(actorSystem: ActorSystem)
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def attemptToUploadObject(priorAttempt: Option[Unit]): Unit = authenticateAsUser(jobDescriptor.workflowDescriptor) { implicit gcsFs =>
-      Option(jobDescriptor.gcsExecPath.write(fileContent))
-    }
+    def attemptToUploadObject(priorAttempt: Option[Unit]): Unit = Option(jobDescriptor.gcsExecPath.write(fileContent))
 
     val log = jobLogger(jobDescriptor)
     withRetry(attemptToUploadObject, log, s"${jobLogger(jobDescriptor).tag} Exception occurred while uploading script to ${jobDescriptor.gcsExecPath}")
   }
 
-  private def createJesRun(jobDescriptor: BackendCallJobDescriptor, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] =
-    authenticateAsCromwell { connection =>
+  private def createJesRun(jobDescriptor: BackendCallJobDescriptor, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] = {
       def attemptToCreateJesRun(priorAttempt: Option[Run]): Run = Pipeline(
         jobDescriptor.jesCommandLine,
         jobDescriptor.workflowDescriptor,
@@ -572,7 +579,7 @@ case class JesBackend(actorSystem: ActorSystem)
         jesParameters,
         jobDescriptor.preemptible,
         googleProject(jobDescriptor.workflowDescriptor),
-        connection,
+        genomicsInterface,
         runIdForResumption
       ).run
 
@@ -669,8 +676,8 @@ case class JesBackend(actorSystem: ActorSystem)
 
     try {
       val jobDescriptor = handle.jobDescriptor
-      lazy val stderrLength: Long = authenticateAsUser(jobDescriptor.workflowDescriptor) { implicit gcsFs => jobDescriptor.jesStderrGcsPath.size }
       val outputMappings = postProcess(jobDescriptor)
+      lazy val stderrLength: Long = jobDescriptor.jesStderrGcsPath.size
       lazy val returnCodeContents = jobDescriptor.downloadRcFile
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = jobDescriptor.callRuntimeAttributes.continueOnReturnCode
@@ -851,10 +858,10 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def backendType = BackendType.JES
 
-  def gcsAuthFilePath(descriptor: WorkflowDescriptor): String = {
+  def gcsAuthFilePath(descriptor: WorkflowDescriptor): Path =  {
     // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
     val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse descriptor.workflowRootPath.toString
-    s"$bucket/${descriptor.id}_auth.json"
+    bucket.toPath(cromwellGcsFileSystem).resolve(s"${descriptor.id}_auth.json")
   }
 
   def googleProject(descriptor: WorkflowDescriptor): String = {
@@ -864,7 +871,7 @@ case class JesBackend(actorSystem: ActorSystem)
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
     if (googleConf.userAuthMode.isDefined || dockerConf.isDefined)
-      Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor)))
+      Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor).toString))
     else None
   }
 
@@ -883,14 +890,7 @@ case class JesBackend(actorSystem: ActorSystem)
     new JesCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, callContext)
   }
 
-  override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = {
-    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated match {
-      case Success(x) => x
-      case Failure(t) => throw new Throwable("No GCS interface has been found. When running on JES Backend, Cromwell requires a google configuration to perform GCS operations.", t)
-    }
-
-    List(GcsFileSystemProvider(gcsStorage).getDefaultFileSystem)
-  }
+  override def fileSystems(options: WorkflowOptions): List[FileSystem] = List(userGcsFileSystem(options))
 
   override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = {
     val backendInputs = adjustInputPaths(descriptor)

@@ -81,10 +81,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = throw new NotImplementedError
     override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
-    override def fileSystems(options: WorkflowOptions, workflowRootPath: String): List[FileSystem] = List(FileSystems.getDefault)
     override def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def resume(descriptor: BackendCallJobDescriptor, jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
+    override def fileSystems(options: WorkflowOptions): List[FileSystem] = List(FileSystems.getDefault)
   }
 
   "SlickDataAccess" should "not deadlock" in {

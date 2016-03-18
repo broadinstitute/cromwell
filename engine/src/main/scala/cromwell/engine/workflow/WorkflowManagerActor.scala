@@ -356,7 +356,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
 
     val actorAndData = for {
       descriptor <- Try(WorkflowDescriptor(workflowId, source, config))
-      actor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
+      actor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
       _ = actor ! SubscribeTransitionCallBack(self)
       data = stateData.add(workflowId -> actor)
     } yield ActorAndStateData(actor, data)

@@ -15,6 +15,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.time.SpanSugar._
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.JsObject
 import wdl4s.types.{WdlArrayType, WdlFileType}
@@ -125,6 +126,8 @@ class WorkflowDescriptorSpec extends FlatSpec with Matchers with ScalaFutures {
       Option(metadataOutputs),
       Map.empty,
       None)
+
+    implicit val patienceConfig = PatienceConfig(timeout = Span(10, Seconds), interval = Span(15, Millis))
 
     descriptor.copyWorkflowOutputs(workflowMetadataResponse).futureValue
     descriptor.maybeDeleteWorkflowLog()

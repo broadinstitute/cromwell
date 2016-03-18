@@ -159,8 +159,8 @@ object WorkflowActor {
     override def replyTo: Option[ActorRef] = None
   }
 
-  def props(descriptor: WorkflowDescriptor, backend: Backend): Props = {
-    Props(WorkflowActor(descriptor, backend))
+  def props(descriptor: WorkflowDescriptor): Props = {
+    Props(WorkflowActor(descriptor))
   }
 
   case class WorkflowData(startMode: Option[StartMode] = None,
@@ -234,8 +234,10 @@ object WorkflowActor {
   private val MarkdownMaxColumnChars = 100
 }
 
-case class WorkflowActor(workflow: WorkflowDescriptor, backend: Backend)
+case class WorkflowActor(workflow: WorkflowDescriptor)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
+
+  val backend = workflow.backend
 
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)

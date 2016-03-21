@@ -40,6 +40,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Docker](#docker)
     * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
+  * [Specifying Default Values](#specifying-default-values)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
   * [disks](#disks)
@@ -159,7 +160,7 @@ $ java -jar cromwell.jar run my_workflow.wdl -
 
 The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
-Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes-backend) for more details.
+See the section [workflow options](#workflow-options) for more details.
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -710,7 +711,7 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    zones: "US_Metro MX_Metro"
+    zones: "us-central1-c us-central1-a"
     disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
@@ -749,6 +750,55 @@ task runtime_test {
   }
 }
 ```
+
+## Specifying Default Values
+
+Default values for runtime attributes can be specified via [workflow options](#workflow-options).  For example, consider this WDL file:
+
+```wdl
+task first {
+  command { ... }
+}
+
+task second {
+  command {...}
+  runtime {
+    docker: "my_docker_image"
+  }
+}
+
+workflow w {
+  call first
+  call second
+}
+```
+
+And this set of workflow options:
+
+```json
+{
+  "defaultRuntimeOptions": {
+    "docker": "ubuntu:latest",
+    "zones": "us-central1-a us-central1-b"
+  }
+}
+```
+
+Then these values for `docker` and `zones` will be used for any task that does not explicitly override them in the WDL file. So the effective runtime for `task first` is:
+```
+{
+    "docker": "ubuntu:latest",
+    "zones": "us-central1-a us-central1-b"
+  }
+```
+And the effective runtime for `task second` is:
+```
+{
+    "docker": "my_docker_image",
+    "zones": "us-central1-a us-central1-b"
+  }
+```
+Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
 
 ## continueOnReturnCode
 
@@ -824,17 +874,17 @@ Since no `local-disk` entry is specified, Cromwell will automatically add `local
 
 ## zones
 
-Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
+The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
 
 The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  zones: "US_Metro MX_Metro"
+  zones: "us-central1-a us-central1-b"
 }
 ```
 
-Defaults to "us-central1-a".
+Defaults to "us-central1-a"
 
 ## docker
 
@@ -936,6 +986,7 @@ Valid keys and their meanings:
 * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
 * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
 * **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
+* **defaultRuntimeOptions** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
 
 # Call Caching
 

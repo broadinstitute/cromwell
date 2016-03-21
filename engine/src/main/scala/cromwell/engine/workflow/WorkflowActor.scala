@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import java.sql.SQLException
 
-import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.core.{CallOutput, CallOutputs}
@@ -22,7 +22,7 @@ import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
 import org.joda.time.DateTime
-import wdl4s._
+import wdl4s.{Scope, _}
 import wdl4s.types.WdlArrayType
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 
@@ -236,6 +236,7 @@ object WorkflowActor {
 case class WorkflowActor(workflow: WorkflowDescriptor)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
+  implicit val actorSystem = context.system
   val backend = workflow.backend
   /*
    * This will not survive incoming Call-Scopification of backends but allows for use of engine functions everywhere for now,
@@ -1189,8 +1190,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         self ! startCallMsg
     }
 
-    def startCachedCall(cachedExecution: Execution) = {
-      globalDataAccess.getWorkflow(cachedExecution.workflowExecutionId) onComplete { cachedDescriptor =>
+    def startCachedCall(cachedExecution: Execution)(implicit actorSystem: ActorSystem) = {
+      val wfDesc = globalDataAccess.getWorkflowExecutionAndAux(cachedExecution.workflowExecutionId) flatMap workflowDescriptorFromExecutionAndAux
+      wfDesc onComplete { cachedDescriptor =>
         loadCachedCallOrInitiateCall(cachedDescriptor, cachedExecution)
       }
     }

@@ -1,7 +1,5 @@
 package cromwell
 
-import java.util.UUID
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.testkit._
@@ -207,16 +205,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         block
       }
     }
-  }
-
-  def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String): WorkflowDescriptor = {
-    buildWorkflowDescriptor(sampleWdl, runtime, UUID.randomUUID())
-  }
-
-  def buildWorkflowDescriptor(sampleWdl: SampleWdl, runtime: String, uuid: UUID): WorkflowDescriptor = {
-    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    val backend = CromwellBackend.getBackendFromOptions(workflowSources.workflowOptionsJson)
-    WorkflowDescriptor(WorkflowId(uuid), workflowSources, backend)
   }
 
   private def buildWorkflowManagerActor(config: Config) = {

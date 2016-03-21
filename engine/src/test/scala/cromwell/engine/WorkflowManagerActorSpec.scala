@@ -8,7 +8,7 @@ import cromwell.CromwellTestkitSpec._
 import cromwell.core.{WorkflowId, CallOutput}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{WorkflowDescriptor, Backend, CallMetadata}
+import cromwell.engine.backend.{WorkflowDescriptorBuilder, WorkflowDescriptor, Backend, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -25,7 +25,10 @@ import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
-class WorkflowManagerActorSpec extends CromwellTestkitSpec {
+class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
+  override implicit val actorSystem = system
+
+  val backendInstance = Backend.from(CromwellSpec.Config, system)
 
   "A WorkflowManagerActor" should {
 
@@ -68,7 +71,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec {
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val descriptor = WorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
+          val descriptor = materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = SampleWdl.HelloWorld.asWorkflowSources())
           val worldSymbolHash = descriptor.hash(worldWdlString)
           val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST

@@ -1,11 +1,11 @@
 package cromwell
 
 import akka.testkit.{EventFilter, TestActorRef}
+import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{BackendCallJobDescriptor, CromwellBackend, ExecutionHandle, RetryableExecutionHandle}
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.{PreemptedException, WorkflowSucceeded}
+import cromwell.engine.workflow.{MaterializeWorkflowDescriptorActor, WorkflowActor, WorkflowManagerActor}
+import cromwell.engine._
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import org.specs2.mock.Mockito
@@ -14,7 +14,9 @@ import wdl4s.values.{WdlArray, WdlValue}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
+class RetryableCallsSpec extends CromwellTestkitSpec with Mockito with WorkflowDescriptorBuilder {
+  override val actorSystem = system
+
   val customizedLocalBackend = new LocalBackend(system) {
     override def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
       jobDescriptor.key.scope.taskFqn match {
@@ -36,6 +38,7 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito {
     "succeed and return correct metadata" in {
       CromwellBackend.registerCustomBackend("customizedLocalBackend", customizedLocalBackend)
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test Workflow metadata with Retried Calls")
+      val wd = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.PrepareScatterGatherWdl().asWorkflowSources(workflowOptions = customizedLocalBackendOptions))
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         EventFilter.info(pattern = s"persisting status of do_scatter:0:2 to Starting", occurrences = 1).intercept {
           messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(SampleWdl.PrepareScatterGatherWdl().asWorkflowSources(workflowOptions = customizedLocalBackendOptions))).id

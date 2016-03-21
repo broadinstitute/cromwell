@@ -1,12 +1,13 @@
 package cromwell.engine.workflow
 
+import akka.actor.ActorSystem
 import cromwell.core.WorkflowId
 import cromwell.engine
 import cromwell.engine._
 import cromwell.engine.backend.CallMetadata
-import cromwell.engine.backend._
+import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.slick._
-import cromwell.engine.db.{ExecutionInfosByExecution, CallStatus, ExecutionDatabaseKey}
+import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.finalcall.FinalCall._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice._
@@ -71,7 +72,6 @@ object WorkflowMetadataBuilder {
                                     workflowExecution: WorkflowExecution,
                                     workflowOutputs: Traversable[SymbolStoreEntry],
                                     workflowExecutionAux: WorkflowExecutionAux,
-                                    workflowDescriptor: WorkflowDescriptor,
                                     executionStatuses: Map[ExecutionDatabaseKey, CallStatus],
                                     callInputs: Traversable[SymbolStoreEntry],
                                     callOutputs: Traversable[SymbolStoreEntry],
@@ -79,23 +79,26 @@ object WorkflowMetadataBuilder {
                                     runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
                                     executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
                                     cacheData: Traversable[ExecutionWithCacheData],
-                                    failures: Seq[QualifiedFailureEventEntry]):
-  WorkflowMetadataResponse = {
-    val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
-    val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
+                                    failures: Seq[QualifiedFailureEventEntry]) (implicit ec: ExecutionContext, actorSystem: ActorSystem):
+  Future[WorkflowMetadataResponse] = {
+    val executionAndAux = WorkflowExecutionAndAux(workflowExecution, workflowExecutionAux)
+    workflowDescriptorFromExecutionAndAux(executionAndAux) map { workflowDescriptor =>
+      val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
+      val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
 
-    val wfFailures = failures collect {
-      case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp)
+      val wfFailures = failures collect {
+        case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp)
+      }
+      val callFailures = callFailuresMap(failures)
+
+      val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
+      val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs, nonFinalEvents,
+        runtimeAttributes, cacheData, callFailures)
+      buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
     }
-    val callFailures = callFailuresMap(failures)
-
-    val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
-    val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs, nonFinalEvents,
-      runtimeAttributes, cacheData, callFailures)
-    buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
   }
 
-  def workflowMetadata(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadataResponse] = {
+  def workflowMetadata(id: WorkflowId)(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[WorkflowMetadataResponse] = {
 
     // TODO: This entire block of chained database actions should be a single request to the db layer.
     import cromwell.engine.db.DataAccess.globalDataAccess
@@ -107,7 +110,6 @@ object WorkflowMetadataBuilder {
       workflowExecution <- globalDataAccess.getWorkflowExecution(id)
       workflowOutputs <- globalDataAccess.getWorkflowOutputs(id)
       workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(id)
-      workflowDescriptor <- globalDataAccess.getWorkflow(id)
       callToStatusMap <- globalDataAccess.getExecutionStatuses(id)
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
@@ -116,19 +118,8 @@ object WorkflowMetadataBuilder {
       runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
       failures <- globalDataAccess.getFailureEvents(id)
-    } yield buildWorkflowMetadata(
-      id,
-      workflowExecution,
-      workflowOutputs,
-      workflowExecutionAux,
-      workflowDescriptor,
-      callToStatusMap,
-      callInputs,
-      callOutputs,
-      infosByExecution,
-      runtimeAttributes,
-      executionEvents,
-      callCacheData,
-      failures)
+      wfMetadata <- buildWorkflowMetadata(id, workflowExecution, workflowOutputs, workflowExecutionAux,
+        callToStatusMap, callInputs, callOutputs, infosByExecution, runtimeAttributes, executionEvents, callCacheData, failures)
+    } yield wfMetadata
   }
 }

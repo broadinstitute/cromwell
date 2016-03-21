@@ -1,10 +1,8 @@
 package cromwell.engine.backend
 
 import java.nio.file.Paths
-import java.util.UUID
 
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.core.WorkflowId
 import cromwell.engine.backend.jes.{JesAttachedDisk, JesBackend, JesEmptyMountedDisk, JesWorkingDisk}
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes, _}
@@ -16,8 +14,10 @@ import org.scalatest.{EitherValues, FlatSpec, Matchers}
 import wdl4s.types.{WdlArrayType, WdlIntegerType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
-class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
+class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues with WorkflowDescriptorBuilder {
   val workflowManagerSystem = new TestWorkflowManagerSystem
+  override implicit val actorSystem = workflowManagerSystem.actorSystem
+
   val localBackend = new LocalBackend(workflowManagerSystem.actorSystem)
   val jesBackend = new JesBackend(workflowManagerSystem.actorSystem)
 
@@ -27,10 +27,8 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
       case x: LocalBackend => "/wf-root"
     }
 
-    val descriptor: WorkflowDescriptor = WorkflowDescriptor(
-      WorkflowId(UUID.randomUUID()),
-      wdl.asWorkflowSources(workflowOptions = workflowOptionsJson)
-    ).copy(wfContext = new WorkflowContext(root))
+    val descriptor: WorkflowDescriptor = materializeWorkflowDescriptorFromSources(workflowSources =
+      wdl.asWorkflowSources(workflowOptions = workflowOptionsJson)).copy(wfContext = new WorkflowContext(root))
 
     val call = descriptor.namespace.workflow.callByName(callName).get
     val coercedInputs = descriptor.namespace.coerceRawInputs(wdl.rawInputs).get
@@ -137,7 +135,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
   }
 
   it should "detect unsupported runtime attributes on the local backend" in {
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.WorkflowWithFullGooglyConfig.asWorkflowSources())
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.WorkflowWithFullGooglyConfig.asWorkflowSources())
     val call = descriptor.namespace.workflow.callByName("googly_task").get
     val unsupported = CromwellRuntimeAttributes.unsupportedKeys(call.task.runtimeAttributes.attrs.keys, BackendType.LOCAL)
     unsupported shouldEqual Set("disks", "cpu", "zones", "memory")

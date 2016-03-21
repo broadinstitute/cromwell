@@ -2,6 +2,8 @@ package cromwell.engine.workflow
 
 import akka.actor.{Actor, Props}
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.{Backend, CromwellBackend}
 import cromwell.engine.ErrorOr
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend.{Backend, CromwellBackend}
@@ -19,7 +21,7 @@ import scalaz.Validation.FlatMap._
 object ValidateActor {
   private val EmptyJson: String = "{}"
 
-  def props(backend: Backend): Props = Props(new ValidateActor(backend))
+  def props(): Props = Props(new ValidateActor())
 
   sealed trait ValidateActorMessage
   sealed trait ValidationResult extends ValidateActorMessage
@@ -35,7 +37,7 @@ object ValidateActor {
 }
 
 // TODO: Declarations cannot be validated here currently because of it's dependency on EngineFunctions, and in turn on IOManager and WfContext
-class ValidateActor(backend: Backend) extends Actor with LazyLogging {
+class ValidateActor() extends Actor with LazyLogging {
 
   import ValidateActor.{EmptyJson, ValidateWorkflow}
   import context.dispatcher
@@ -43,8 +45,9 @@ class ValidateActor(backend: Backend) extends Actor with LazyLogging {
   override def receive = {
     case ValidateWorkflow(wdlSource, workflowInputs, workflowOptions) =>
       val requester = sender()
+      val backend = workflowOptions map { CromwellBackend.getBackendFromOptions } getOrElse CromwellBackend.defaultBackend
       // `validateAll(..)` guarantees we will get a `ValidationResult`, and nothing else
-      validateAll(wdlSource, workflowInputs, workflowOptions) map {
+      validateAll(wdlSource, workflowInputs, workflowOptions, backend) map {
         requester ! _
       }
     case unknownMsg => logger.error(s"${this.getClass.getName} received an unknown message: $unknownMsg")
@@ -59,13 +62,13 @@ class ValidateActor(backend: Backend) extends Actor with LazyLogging {
     *
     * @return The result of the validation as instance of `ValidationResult`
     */
-  private def validateAll(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[WdlJson]): Future[ValidationResult] = Future {
+  private def validateAll(wdlSource: WdlSource, workflowInputs: Option[WdlJson], workflowOptions: Option[WdlJson], backend: Backend): Future[ValidationResult] = Future {
     val namespace = validateNamespace(wdlSource)
     val options = validateWorkflowOptions(backend, workflowOptions: Option[WdlJson])
     val result = (namespace |@| options) { (_, _) } flatMap {
       case (ns, opt) =>
         val inputs = validateInputs(ns, workflowInputs)
-        val runtimeAttributes = validateRuntimeAttributes(ns)
+        val runtimeAttributes = validateRuntimeAttributes(ns, backend)
         (inputs |@| runtimeAttributes) ((in, runAttr) => ValidationSuccess(ns, Option(in), Option(opt), runAttr))
     }
 
@@ -124,7 +127,7 @@ class ValidateActor(backend: Backend) extends Actor with LazyLogging {
   // TODO: With PBE, this should be defined in the backend.
   // TODO: Add CromwellRuntimeAttributes as a dependency for this actor (arg in ctor) in case is not moved to specific
   // backend when PBE is merged.
-  private def validateRuntimeAttributes(namespaceWithWorkflow: NamespaceWithWorkflow): ErrorOr[Seq[Set[String]]] = {
+  private def validateRuntimeAttributes(namespaceWithWorkflow: NamespaceWithWorkflow, backend: Backend): ErrorOr[Seq[Set[String]]] = {
     TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
       call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, backend.backendType)
     }) match {

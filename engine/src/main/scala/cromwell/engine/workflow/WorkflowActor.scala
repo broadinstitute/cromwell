@@ -754,7 +754,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         // just set its special backend cleanly in config, and all this awfulness can go away.
         val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
         Future.successful(CallActor.props(descriptor))
-      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id, backend) map {
+      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
         metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
       }
     }

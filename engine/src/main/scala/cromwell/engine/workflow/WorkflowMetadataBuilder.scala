@@ -137,8 +137,7 @@ object WorkflowMetadataBuilder {
     buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
   }
 
-  def workflowMetadata(id: WorkflowId, backend: Backend)
-                      (implicit ec: ExecutionContext): Future[WorkflowMetadataResponse] = {
+  def workflowMetadata(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadataResponse] = {
 
     // TODO: This entire block of chained database actions should be a single request to the db layer.
     import cromwell.engine.db.DataAccess.globalDataAccess
@@ -160,7 +159,7 @@ object WorkflowMetadataBuilder {
       failures <- globalDataAccess.getFailureEvents(id)
     } yield buildWorkflowMetadata(
       id,
-      backend,
+      workflowDescriptor.backend,
       workflowExecution,
       workflowOutputs,
       workflowExecutionAux,

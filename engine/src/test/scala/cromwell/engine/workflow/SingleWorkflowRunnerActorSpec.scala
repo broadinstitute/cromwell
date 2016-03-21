@@ -40,7 +40,7 @@ object SingleWorkflowRunnerActorSpec {
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(classOf[WorkflowManagerActor], LocalBackend(system)))
+    system.actorOf(Props(classOf[WorkflowManagerActor]))
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

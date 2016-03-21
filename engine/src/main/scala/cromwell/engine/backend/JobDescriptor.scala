@@ -67,8 +67,6 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
   def resume(jobKey: JobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
 
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
-
-  lazy val stdoutStderr: CallLogs = backend.stdoutStderr(this)
 }
 
 case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
@@ -79,4 +77,3 @@ case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
 
   lazy val call = key.scope
 }
-

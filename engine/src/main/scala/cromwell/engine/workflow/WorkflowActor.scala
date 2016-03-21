@@ -7,7 +7,7 @@ import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
-import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, FinalCallJobDescriptor}
+import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, CallLogs, FinalCallJobDescriptor}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
@@ -40,7 +40,7 @@ object WorkflowActor {
   sealed trait CallMessage extends WorkflowActorMessage {
     def callKey: ExecutionStoreKey
   }
-  case class CallStarted(callKey: OutputKey) extends CallMessage
+  case class CallStarted(callKey: OutputKey, maybeCallLogs: Option[CallLogs]) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
   case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor]) extends TerminalCallMessage
@@ -422,7 +422,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
-      _ <- globalDataAccess.setOutputs(workflow.id, callKey, callOutputs, callKey.scope.rootWorkflow.outputs)
+      _ <- globalDataAccess.setOutputs(workflow.id, callKey.toDatabaseKey, callOutputs,
+        callKey.scope.rootWorkflow.outputs)
       _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, executionEvents)
     } yield ()
 
@@ -462,9 +463,14 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       val updatedData = startRunnableCalls(data)
       self ! CheckForWorkflowComplete
       stay() using updatedData
-    case Event(CallStarted(callKey), data) if !data.isPending(callKey) =>
+    case Event(CallStarted(callKey, maybeCallLogs), data) if !data.isPending(callKey) =>
       executionStore += callKey -> ExecutionStatus.Running
-      persistStatus(callKey, ExecutionStatus.Running)
+      // TODO: We're not using/waiting for the future results
+      // TODO: This should be in a single transaction!
+      for {
+        _ <- persistStatus(callKey, ExecutionStatus.Running)
+        _ <- persistCallLogs(callKey, maybeCallLogs)
+      } yield ()
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Running)
       stay() using updatedData
     case Event(message: CallStarted, _) =>
@@ -734,7 +740,15 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     persistStatus(storeKey, executionStatus, callOutputs, returnCode, hash, resultsClonedFrom) map { _ => CallActor.Ack(message) } pipeTo recipient
   }
 
-  private def startActor(callKey: CallKey, locallyQualifiedInputs: CallInputs, callActorMessage: CallActorMessage = CallActor.Start): Unit = {
+  private def persistCallLogs(storeKey: ExecutionStoreKey, maybeCallLogs: Option[CallLogs]): Future[Unit] = {
+    maybeCallLogs match {
+      case Some(callLogs) => globalDataAccess.setCallLogs(workflow.id, storeKey.toDatabaseKey, callLogs)
+      case None => Future.successful(Unit)
+    }
+  }
+
+  private def startActor(callKey: CallKey, locallyQualifiedInputs: CallInputs,
+                         callActorMessage: CallActorMessage): Unit = {
     if (locallyQualifiedInputs.nonEmpty) {
       val inputs = locallyQualifiedInputs map { case(lqn, value) => s"  $lqn -> $value" } mkString "\n"
       logger.info(s"inputs for call '${callKey.tag}':\n$inputs")
@@ -754,7 +768,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         // just set its special backend cleanly in config, and all this awfulness can go away.
         val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
         Future.successful(CallActor.props(descriptor))
-      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id, backend) map {
+      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
         metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
       }
     }
@@ -1146,15 +1160,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     val descriptor = BackendCallJobDescriptor(workflow, callKey, callInputs)
     val log = WorkflowLogger("WorkflowActor", workflow, akkaLogger = Option(akkaLogger))
 
+    def startCallMsg = InitialStartCall(callKey, CallActor.StartBackendCall(Option(backend.stdoutStderr(descriptor))))
+
     def loadCachedBackendCallAndMessage(workflow: WorkflowDescriptor, cachedExecution: Execution) = {
       workflow.namespace.resolve(cachedExecution.callFqn) match {
         case Some(c: Call) =>
           val jobDescriptor = BackendCallJobDescriptor(workflow, BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
           log.info(s"Call Caching: Cache hit. Using UUID(${jobDescriptor.workflowDescriptor.shortId}):${jobDescriptor.key.tag} as results for UUID(${descriptor.workflowDescriptor.shortId}):${descriptor.key.tag}")
-          self ! UseCachedCall(callKey, CallActor.UseCachedCall(jobDescriptor, descriptor))
+          self ! UseCachedCall(callKey, CallActor.UseCachedCall(jobDescriptor, descriptor,
+            backend.stdoutStderr(descriptor)))
         case _ =>
           log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
-          self ! InitialStartCall(callKey, CallActor.Start)
+          self ! startCallMsg
       }
     }
 
@@ -1163,7 +1180,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       case Success(w) => loadCachedBackendCallAndMessage(w, cachedExecution)
       case Failure(ex) =>
         log.error(s"Call Caching: error when loading workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution", ex)
-        self ! InitialStartCall(callKey, CallActor.Start)
+        self ! startCallMsg
     }
 
     def startCachedCall(cachedExecution: Execution) = {
@@ -1179,10 +1196,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
           case Success(executions) if executions.nonEmpty => startCachedCall(executions.head)
           case Success(_) =>
             log.info(s"Call Caching: cache miss")
-            self ! InitialStartCall(callKey, CallActor.Start)
+            self ! startCallMsg
           case Failure(ex) =>
             log.error(s"Call Caching: Failed to look up executions that matched hash '$hash'. Falling back to normal execution", ex)
-            self ! InitialStartCall(callKey, CallActor.Start)
+            self ! startCallMsg
         }
       } recover { case e =>
         log.error(s"Failed to calculate hash for call '${descriptor.key.tag}'.", e)
@@ -1195,7 +1212,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         checkCacheAndStartCall
       } else {
         log.debug(s"Call caching 'readFromCache' is turned off, starting call")
-        self ! InitialStartCall(callKey, CallActor.Start)
+        self ! startCallMsg
       }
     }
 
@@ -1230,7 +1247,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
             Failure(t)
         }
       case finalCallKey: FinalCallKey =>
-        self ! InitialStartCall(finalCallKey, CallActor.Start)
+        self ! InitialStartCall(finalCallKey, CallActor.StartFinalCall)
         Success(ExecutionStartResult(Set(StartEntry(callKey, ExecutionStatus.Starting))))
     }
   }

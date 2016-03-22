@@ -3,9 +3,11 @@ package centaur
 import java.util.UUID
 
 import akka.actor.ActorSystem
+import centaur.api.{OutputResponseJsonSupport, OutputResponse, CromwellStatusJsonSupport, CromwellStatus}
 import spray.client.pipelining._
 import spray.http.{HttpRequest, FormData}
 import cats.Monad
+import spray.json._
 
 import scala.annotation.tailrec
 import scala.concurrent.{Await, Future}
@@ -13,6 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 import spray.httpx.SprayJsonSupport._
 import CromwellStatusJsonSupport._
+import OutputResponseJsonSupport._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -90,6 +93,33 @@ object Operations {
     }
   }
 
+  def verifyOutputs(workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
+    // NB need "DefaultJsonProtocol" to allow convertTo[Map[String, String]]
+    import DefaultJsonProtocol._
+    new Test[Workflow] {
+      val expectedMap: Option[Map[String, String]] = {
+        request.outputs map { outputString: String => outputString.parseJson.convertTo[Map[String, String]] }
+      }
+
+      def verifyWorkflowOutputs(outputs: Map[String, String]) = {
+        // If "expectedMap is not None, check that the outputs match the expected"
+        expectedMap match {
+          case Some(expected) => if (!expected.equals(outputs)) {
+            throw new Exception(s"Bad outputs. Expected ${expected.mkString} but got ${outputs.mkString}")
+          }
+          case None =>
+        }
+      }
+      override def run: Try[Workflow] = {
+        val response = OutputRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/outputs"))
+        sendReceiveFutureCompletion(response map { _.outputs }) map { outputs =>
+          verifyWorkflowOutputs(outputs)
+          workflow
+        }
+      }
+    }
+  }
+
   /**
     * Ensure that the Future completes within the specified timeout. If it does not, or if the Future fails,
     * will return a Failure, otherwise a Success
@@ -102,6 +132,7 @@ object Operations {
   implicit val system = ActorSystem("centaur-foo")
   // FIXME: Pretty sure this will be insufficient once we move past submit & polling, but hey, continuous improvement!
   val Pipeline: HttpRequest => Future[CromwellStatus] = sendReceive ~> unmarshal[CromwellStatus]
+  val OutputRequest: HttpRequest => Future[OutputResponse] = sendReceive ~> unmarshal[OutputResponse]
 }
 
 

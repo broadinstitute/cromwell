@@ -1,4 +1,4 @@
-package centaur
+package centaur.api
 
 import spray.json.DefaultJsonProtocol
 

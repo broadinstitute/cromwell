@@ -103,3 +103,5 @@ task example {
   }
 }
 ```
+
+* Support `sub` function from the WDL Standard Library. See https://github.com/broadinstitute/wdl/blob/subFunction/SPEC.md#string-substring-string-string

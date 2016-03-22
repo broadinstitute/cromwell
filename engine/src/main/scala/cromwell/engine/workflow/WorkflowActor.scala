@@ -22,7 +22,6 @@ import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
 import org.joda.time.DateTime
 import wdl4s._
-import wdl4s.expression.NoFunctions
 import wdl4s.types.WdlArrayType
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 
@@ -238,6 +237,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
   val backend = workflow.backend
+  /*
+   * This will not survive incoming Call-Scopification of backends but allows for use of engine functions everywhere for now,
+   * in particular in the { input: ... } stanza of a call.
+   */
+  val engineFunctions = backend.engineFunctions(backend.fileSystems(workflow.workflowOptions), workflow.wfContext)
 
   def createWorkflow(inputs: HostInputs): Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)
@@ -904,7 +908,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   private def lookupScatterVariable(callKey: BackendCallKey, workflow: Workflow)(name: String): Try[WdlValue] = {
     val scatterBlock = callKey.scope.ancestry collect { case s: Scatter => s } find { _.item == name }
     val scatterCollection = scatterBlock map { s =>
-      s.collection.evaluate(scatterCollectionLookupFunction(workflow, callKey), NoFunctions) match {
+      s.collection.evaluate(scatterCollectionLookupFunction(workflow, callKey), engineFunctions) match {
         case Success(v: WdlArray) if callKey.index.isDefined =>
           if (v.value.isDefinedAt(callKey.index.get))
             Success(v.value(callKey.index.get))
@@ -959,7 +963,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       val declaration = findTaskDeclaration(entry.scope, entry.key.name).get
 
       val value = entry.wdlValue match {
-        case Some(e: WdlExpression) => e.evaluate(lookup, NoFunctions)
+        case Some(e: WdlExpression) => e.evaluate(lookup, engineFunctions)
         case Some(v) => Success(v)
         case _ => Failure(new WdlExpressionException("Unknown error"))
       }
@@ -1122,7 +1126,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     val rootWorkflow = scatterKey.scope.rootWorkflow
     for {
-      collection <- scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), NoFunctions)
+      collection <- scatterKey.scope.collection.evaluate(scatterCollectionLookupFunction(rootWorkflow, scatterKey), engineFunctions)
     } yield buildExecutionStartResult(collection)
   }
 

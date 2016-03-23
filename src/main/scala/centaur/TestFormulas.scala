@@ -23,4 +23,6 @@ object TestFormulas {
   }
 
   def runFailingWorkflow(request: WorkflowRequest) = runWorkflowUntilTerminalStatus(request, Failed)
+
+  def runSubmissionFailureWorkflow(request: WorkflowRequest) = submitWorkflowExpectingRejection(request)
 }

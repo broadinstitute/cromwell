@@ -17,6 +17,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile]
   def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile]
   def size(params: Seq[Try[WdlValue]]): Try[WdlFloat]
+  def sub(params: Seq[Try[WdlValue]]): Try[WdlString]
 
   def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
   def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter(params).map(s => WdlString(s.trim))
@@ -122,6 +123,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def write_json(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
   def size(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFloatType)
+  def sub(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
 }
 
 case object NoFunctions extends WdlStandardLibraryFunctions {
@@ -134,4 +136,5 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError())
+  override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
 }

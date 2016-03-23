@@ -1,5 +1,6 @@
 # WDL4S Change Log
 
-0.3:
+0.4:
 =====
 
+Add *sub* engine function

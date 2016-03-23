@@ -54,13 +54,19 @@ object Dependencies {
     "com.mattbertolini" % "liquibase-slf4j" % "2.0.0"
   )
 
+  val coreDependencies = List(
+    "com.typesafe.akka" %% "akka-actor" % akkaV
+  ) ++ testDependencies
+
+  val backendDependencies = List(
+    "org.broadinstitute" %% "wdl4s" % wdl4sV
+  ) ++ coreDependencies
+
   val engineDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.broadinstitute" %% "wdl4s" % wdl4sV,
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.joda" % "joda-convert" % "1.8.1",
     "org.webjars" % "swagger-ui" % "2.1.1",
-    "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.4",
@@ -70,5 +76,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % "2.13.0"
-  ) ++ testDependencies ++ kamonDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies
+  ) ++ kamonDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies ++ backendDependencies
 }

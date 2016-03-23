@@ -1,7 +1,8 @@
 package cromwell.engine.finalcall
 
+import cromwell.core.LocallyQualifiedName
 import cromwell.engine._
-import cromwell.engine.backend.{ExecutionHandle, SuccessfulFinalCallExecution}
+import cromwell.engine.backend.{ExecutionHandle, SuccessfulFinalCallExecution, WorkflowDescriptor}
 import cromwell.engine.workflow.{ExecutionStoreKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.{Scope, Workflow}

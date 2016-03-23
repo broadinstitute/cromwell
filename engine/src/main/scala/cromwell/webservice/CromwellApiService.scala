@@ -2,7 +2,8 @@ package cromwell.webservice
 
 import akka.actor._
 import com.typesafe.config.Config
-import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.WorkflowId
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.webservice.CromwellApiServiceActor.traceName
 import cromwell.webservice.WorkflowJsonSupport._

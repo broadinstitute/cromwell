@@ -3,13 +3,14 @@ package cromwell.webservice
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
-import cromwell.engine
+import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
-import cromwell.engine.workflow.ValidateActor.{ValidationFailure, ValidationSuccess, ValidateWorkflow}
+import cromwell.engine.workflow.ValidateActor.{ValidateWorkflow, ValidationFailure, ValidationSuccess}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.{core, engine}
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 import wdl4s.WdlJson
@@ -54,7 +55,7 @@ object CromwellApiHandler {
   final case class WorkflowManagerAbortFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerQuerySuccess(response: WorkflowQueryResponse) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerQueryFailure(override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerCallOutputsSuccess(id: WorkflowId, callFqn: FullyQualifiedName, outputs: engine.CallOutputs) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerCallOutputsSuccess(id: WorkflowId, callFqn: FullyQualifiedName, outputs: core.CallOutputs) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallOutputsFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallStdoutStderrSuccess(id: WorkflowId, callFqn: FullyQualifiedName, logs: Seq[CallLogs]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallStdoutStderrFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse

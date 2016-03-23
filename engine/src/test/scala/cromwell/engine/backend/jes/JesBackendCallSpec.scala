@@ -1,8 +1,7 @@
 package cromwell.engine.backend.jes
 
 import akka.actor.ActorSystem
-import cromwell.engine.WorkflowDescriptor
-import cromwell.engine.backend.BackendCallJobDescriptor
+import cromwell.engine.backend.{WorkflowDescriptor, BackendCallJobDescriptor}
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.BackendCallKey
 import org.scalatest.{FlatSpec, Matchers}

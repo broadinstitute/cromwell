@@ -1,4 +1,4 @@
-package cromwell.util
+package cromwell.core
 
 import java.security.SecureRandom
 import javax.crypto.Cipher

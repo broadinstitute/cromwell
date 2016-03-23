@@ -1,5 +1,6 @@
 package cromwell.engine
 
+import cromwell.core.{CallOutput, CallOutputs}
 import wdl4s.types.WdlType
 import wdl4s.values.{SymbolHash, WdlValue}
 

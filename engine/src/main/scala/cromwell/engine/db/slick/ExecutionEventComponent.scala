@@ -3,7 +3,7 @@ package cromwell.engine.db.slick
 import java.sql.{Timestamp, Clob}
 
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.{WorkflowId, ExecutionIndex}
+import cromwell.engine.ExecutionIndex
 import cromwell.engine.ExecutionIndex._
 
 case class ExecutionEvent (

@@ -7,15 +7,16 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
+import cromwell.core.{WorkflowOptions, WorkflowId}
 import cromwell.engine._
 import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystem, NioGcsPath}
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
-import cromwell.engine.backend.{AbortedExecutionHandle, BackendCallJobDescriptor, FailedExecutionHandle, RetryableExecutionHandle}
+import cromwell.engine.backend._
 import cromwell.engine.io.gcs._
-import cromwell.engine.workflow.{BackendCallKey, WorkflowOptions}
+import cromwell.engine.workflow.BackendCallKey
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}

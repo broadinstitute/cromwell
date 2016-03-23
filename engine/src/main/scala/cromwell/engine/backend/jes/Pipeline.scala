@@ -1,11 +1,9 @@
 package cromwell.engine.backend.jes
 
-import com.google.api.services.genomics.Genomics
-import com.google.api.services.genomics.model
 import com.google.api.services.genomics.model.{Disk, PipelineParameter}
-import cromwell.engine.WorkflowDescriptor
+import com.google.api.services.genomics.{Genomics, model}
+import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.engine.backend.jes.JesBackend._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import org.slf4j.LoggerFactory
@@ -13,26 +11,26 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 
 object Pipeline {
-  def apply(command: String,
-            workflow: WorkflowDescriptor,
-            key: BackendCallKey,
-            runtimeAttributes: CromwellRuntimeAttributes,
+  def apply(jesJobDescriptor: JesJobDescriptor,
             jesParameters: Seq[JesParameter],
-            preemptible: Boolean,
             projectId: String,
             genomicsInterface: Genomics,
             runIdForResumption: Option[String]): Pipeline = {
+
+    lazy val jobDescriptor = jesJobDescriptor.jobDescriptor
+    lazy val workflow = jobDescriptor.workflowDescriptor
+    lazy val command = jesJobDescriptor.jesCommandLine
+    lazy val runtimeAttributes = jobDescriptor.callRuntimeAttributes
+
     val logger = WorkflowLogger(
       "JES Pipeline",
       workflow,
       otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
-      callTag = Option(key.tag)
+      callTag = Option(jesJobDescriptor.jobDescriptor.key.tag)
     )
 
     logger.debug(s"Command line is: $command")
-    val runtimeInfo = if (preemptible) PreemptibleJesRuntimeInfo(command, runtimeAttributes) else NonPreemptibleJesRuntimeInfo(command, runtimeAttributes)
-
-    val gcsPath = workflow.callDir(key)
+    val runtimeInfo = if (jesJobDescriptor.preemptible) PreemptibleJesRuntimeInfo(command, runtimeAttributes) else NonPreemptibleJesRuntimeInfo(command, runtimeAttributes)
 
     val p = new model.Pipeline
     p.setProjectId(projectId)
@@ -65,9 +63,9 @@ object Pipeline {
     new Pipeline(command,
                  pipelineId,
                  projectId,
-                 gcsPath.toString,
+                 jobDescriptor.callRootPath.toString,
                  workflow,
-                 key,
+                 jobDescriptor.key,
                  jesParameters,
                  runtimeInfo,
                  genomicsInterface,

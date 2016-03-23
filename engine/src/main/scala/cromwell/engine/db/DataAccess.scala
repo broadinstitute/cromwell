@@ -1,7 +1,8 @@
 package cromwell.engine.db
 
+import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, JobKey}
+import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
@@ -15,7 +16,7 @@ import scala.language.postfixOps
 
 object DataAccess {
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
-  case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: JobKey)
+  case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: BackendJobKey)
 }
 
 trait DataAccess extends AutoCloseable {
@@ -134,7 +135,7 @@ trait DataAccess extends AutoCloseable {
 
   def findResumableExecutions(workflowId: WorkflowId,
                               isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
-                              jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => JobKey)
+                              jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => BackendJobKey)
                              (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]]
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)

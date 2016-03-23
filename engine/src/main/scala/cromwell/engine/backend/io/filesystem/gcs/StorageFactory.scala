@@ -4,8 +4,8 @@ import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.util.DateTime
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.Bucket.Owner
+import cromwell.core.WorkflowOptions
 import cromwell.engine.io.gcs.GoogleConfiguration
-import cromwell.engine.workflow.WorkflowOptions
 import cromwell.util.google.GoogleCredentialFactory
 
 import scala.language.postfixOps

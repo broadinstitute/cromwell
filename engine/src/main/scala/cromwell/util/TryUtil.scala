@@ -4,13 +4,19 @@ import java.io.{PrintWriter, StringWriter}
 
 import cromwell.engine.CromwellFatalException
 import cromwell.logging.WorkflowLogger
+import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
+object AggregatedException {
+  val logger = LoggerFactory.getLogger("AggregatedException")
+}
+
 case class AggregatedException(exceptions: Seq[Throwable], prefixError: String = "") extends Exception {
   override def getMessage: String = {
-    prefixError + exceptions.map(_.getMessage).mkString("\n")
+    exceptions foreach { e => AggregatedException.logger.error(prefixError, e) }
+    prefixError + exceptions.map(e => s"${e.getMessage}").mkString("\n")
   }
 }
 

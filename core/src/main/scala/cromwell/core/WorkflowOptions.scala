@@ -1,7 +1,6 @@
-package cromwell.engine.workflow
+package cromwell.core
 
 import com.typesafe.config.ConfigFactory
-import cromwell.util.{Aes256Cbc, EncryptedBytes, SecretKey}
 import spray.json._
 
 import scala.collection.JavaConverters._

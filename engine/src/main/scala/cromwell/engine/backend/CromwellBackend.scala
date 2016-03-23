@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
 import akka.actor.ActorSystem
-import cromwell.engine.workflow.WorkflowOptions
+import cromwell.core.WorkflowOptions
 import org.slf4j.LoggerFactory
 
 import scala.util.Try

@@ -4,7 +4,8 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine
+import cromwell.core.WorkflowId
+import cromwell.{core, engine}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend._
@@ -290,7 +291,7 @@ class WorkflowManagerActor(config: Config)
     }
   }
 
-  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[engine.CallOutputs] = {
+  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[core.CallOutputs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)

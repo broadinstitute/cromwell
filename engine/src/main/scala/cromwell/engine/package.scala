@@ -1,20 +1,16 @@
 package cromwell
 
+import cromwell.core.CallOutput
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import org.joda.time.DateTime
 import wdl4s._
-import wdl4s.values.{SymbolHash, WdlValue}
+import wdl4s.values.WdlValue
 
 import scala.language.implicitConversions
-import scalaz.ValidationNel
 
 package object engine {
-
-  class WorkflowContext(val root: String)
-  class CallContext(override val root: String, val stdout: String, val stderr: String) extends WorkflowContext(root)
-
   /**
    * Represents the collection of source files that a user submits to run a workflow
    */
@@ -28,17 +24,12 @@ package object engine {
     def dequalify = FailureEventEntry(failure, timestamp)
   }
   final case class FailureEventEntry(failure: String, timestamp: DateTime)
-  final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
-
-  type ErrorOr[+A] = ValidationNel[String, A]
 
   type WorkflowOptionsJson = String
   type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]
   type FullyQualifiedName = String
-  type LocallyQualifiedName = String
-  case class CallOutput(wdlValue: WdlValue, hash: Option[SymbolHash])
-  type CallOutputs = Map[LocallyQualifiedName, CallOutput]
+
   type HostInputs = Map[String, WdlValue]
 
   class CromwellFatalException(exception: Throwable) extends Exception(exception)

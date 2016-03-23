@@ -5,9 +5,10 @@ import java.sql.SQLException
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import akka.event.Logging
 import akka.pattern.pipe
+import cromwell.core.{CallOutput, CallOutputs}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
-import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, FinalCallJobDescriptor}
+import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
@@ -16,7 +17,7 @@ import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure, WorkflowActorSubmitSuccess}
-import cromwell.engine.{CallOutput, CallOutputs, EnhancedFullyQualifiedName, HostInputs, _}
+import cromwell.engine.{EnhancedFullyQualifiedName, HostInputs, _}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
@@ -108,7 +109,6 @@ object WorkflowActor {
   }
 
   implicit class EnhancedExecutionStoreKey(val key: ExecutionStoreKey) extends AnyVal {
-
     def toDatabaseKey: ExecutionDatabaseKey = ExecutionDatabaseKey(key.scope.fullyQualifiedName, key.index, key.attempt)
   }
 
@@ -117,7 +117,7 @@ object WorkflowActor {
       // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
       // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
       actor.initializeWorkflow match {
-        case Success(inputs) => actor.createWorkflow(inputs)
+        case Success(_) => actor.createWorkflow
         case Failure(ex) => Future.failed(ex)
       }
     }
@@ -239,8 +239,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
   val backend = workflow.backend
 
-  def createWorkflow(inputs: HostInputs): Future[Unit] = {
-    val symbolStoreEntries = buildSymbolStoreEntries(workflow, inputs)
+  def createWorkflow: Future[Unit] = {
+    val symbolStoreEntries = buildSymbolStoreEntries(workflow, workflow.actualInputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
     val finalCalls = FinalCall.createFinalCalls(workflow)
     globalDataAccess.createWorkflow(
@@ -345,7 +345,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     futureCaches map { _ => () }
   }
 
-  private def initializeWorkflow: Try[HostInputs] = backend.initializeForWorkflow(workflow)
+  private def initializeWorkflow: Try[Unit] = backend.initializeForWorkflow(workflow)
 
   /**
    * Dump symbol and execution tables, start runnable calls, and message self to transition to the appropriate
@@ -1200,7 +1200,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     }
 
     Try(descriptor.callRuntimeAttributes) map { attrs =>
-      globalDataAccess.setRuntimeAttributes(workflow.id, descriptor.key.toDatabaseKey, attrs.attributes) onComplete {
+      val databaseKey = ExecutionDatabaseKey(descriptor.key.scope.fullyQualifiedName, descriptor.key.index, descriptor.key.attempt)
+      globalDataAccess.setRuntimeAttributes(workflow.id, databaseKey, attrs.attributes) onComplete {
         case Success(_) => startCall
         case Failure(f) =>
           logger.error("Could not persist runtime attributes", f)

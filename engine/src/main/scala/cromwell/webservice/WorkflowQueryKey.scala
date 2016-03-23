@@ -1,12 +1,12 @@
 package cromwell.webservice
 
-import cromwell.engine.{ErrorOr, WorkflowState}
+import cromwell.core.ErrorOr
+import cromwell.engine.WorkflowState
 import org.joda.time.DateTime
 
 import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.{Success, Try}
 import scalaz.Scalaz._
-import scalaz.{Success => _, _}
 
 object WorkflowQueryKey {
   val ValidKeys = Set(StartDate, EndDate, Name, Status) map { _.name }

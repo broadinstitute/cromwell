@@ -1,8 +1,9 @@
 package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{DefaultTimeout, ImplicitSender, TestKit, TestDuration}
-import cromwell.engine.backend.{CromwellBackend, BackendType, Backend}
+import akka.testkit.{DefaultTimeout, ImplicitSender, TestDuration, TestKit}
+import cromwell.core.WorkflowOptions
+import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
 import cromwell.engine.workflow.ValidateActor.{ValidateWorkflow, ValidationFailure, ValidationSuccess}
 import cromwell.util.SampleWdl.HelloWorld
 import org.mockito.Mockito._

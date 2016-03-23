@@ -3,7 +3,7 @@ package cromwell.engine.callexecution
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import com.google.api.client.util.ExponentialBackOff
-import cromwell.engine.backend.{ExecutionHandle, JobKey, _}
+import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, Finish, IssuePollRequest, PollResponseReceived}
 import cromwell.engine.finalcall.FinalCall
@@ -26,7 +26,7 @@ object CallExecutionActor {
   sealed trait ExecutionMode extends CallExecutionActorMessage
 
   case object Execute extends ExecutionMode
-  final case class Resume(jobKey: JobKey) extends ExecutionMode
+  final case class Resume(jobKey: BackendJobKey) extends ExecutionMode
   final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor) extends ExecutionMode
 
   def props(backendCall: BackendCallJobDescriptor): Props = Props(new BackendCallExecutionActor(backendCall))

@@ -218,7 +218,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     WorkflowDescriptor(WorkflowId(uuid), workflowSources, backend)
   }
 
-  private def buildWorkflowManagerActor(sampleWdl: SampleWdl, runtime: String, config: Config) = {
+  private def buildWorkflowManagerActor(config: Config) = {
     TestActorRef(new WorkflowManagerActor(config))
   }
 
@@ -242,7 +242,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
              runtime: String = "",
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = WorkflowManagerActor.defaultConfig)(implicit ec: ExecutionContext): WorkflowOutputs = {
-    val wma = buildWorkflowManagerActor(sampleWdl, runtime, config)
+    val wma = buildWorkflowManagerActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     eventFilter.intercept {
       within(timeoutDuration) {
@@ -260,9 +260,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
                              terminalState: WorkflowState = WorkflowSucceeded,
-                             config: Config = WorkflowManagerActor.defaultConfig)
+                             config: Config = WorkflowManagerActor.defaultConfig,
+                             workflowManagerActor: Option[TestActorRef[WorkflowManagerActor]] = None)
                             (implicit ec: ExecutionContext): WorkflowId = {
-    val workflowManager = buildWorkflowManagerActor(sampleWdl, runtime, config)
+    val workflowManager = workflowManagerActor.getOrElse(buildWorkflowManagerActor(config))
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
     eventFilter.intercept {
       within(timeoutDuration) {
@@ -352,7 +353,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                                   stderr: Option[Seq[String]] = None,
                                   config: Config = WorkflowManagerActor.defaultConfig)
                                  (implicit ec: ExecutionContext) = {
-    val actor = buildWorkflowManagerActor(sampleWdl, runtime, config)
+    val actor = buildWorkflowManagerActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     runSingleCallWdlWithWorkflowManagerActor(actor, sources, eventFilter, fqn, index, stdout, stderr)
   }
@@ -365,7 +366,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                                           terminalState: WorkflowState = WorkflowSucceeded,
                                           config: Config = WorkflowManagerActor.defaultConfig)
                                          (implicit ec: ExecutionContext) = {
-    val actor = buildWorkflowManagerActor(sampleWdl, runtime, config)
+    val actor = buildWorkflowManagerActor(config)
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
     runWdlWithWorkflowManagerActor(actor, workflowSources, eventFilter, stdout, stderr, Map.empty, terminalState)
   }

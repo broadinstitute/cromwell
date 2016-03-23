@@ -119,6 +119,7 @@ object WorkflowMetadataBuilder {
                                     infosByExecution: Traversable[ExecutionInfosByExecution],
                                     runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
                                     executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
+                                    cacheData: Traversable[ExecutionWithCacheData],
                                     failures: Seq[QualifiedFailureEventEntry]):
   WorkflowMetadataResponse = {
     val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
@@ -133,7 +134,7 @@ object WorkflowMetadataBuilder {
     val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
     val callStandardStreamsMap = workflowStdoutStderr(id, backend, workflowDescriptor, nonFinalStatuses)
     val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callStandardStreamsMap, callInputs,
-      callOutputs, nonFinalEvents, runtimeAttributes, callFailures)
+      callOutputs, nonFinalEvents, runtimeAttributes, cacheData, callFailures)
     buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
   }
 
@@ -154,6 +155,7 @@ object WorkflowMetadataBuilder {
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
       infosByExecution <- globalDataAccess.infosByExecution(id)
+      callCacheData <- globalDataAccess.callCacheDataByExecution(id)
       runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
       failures <- globalDataAccess.getFailureEvents(id)
@@ -170,6 +172,7 @@ object WorkflowMetadataBuilder {
       infosByExecution,
       runtimeAttributes,
       executionEvents,
+      callCacheData,
       failures)
   }
 }

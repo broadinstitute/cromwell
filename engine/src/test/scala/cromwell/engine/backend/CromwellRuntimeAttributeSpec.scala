@@ -2,6 +2,7 @@ package cromwell.engine.backend
 
 import java.nio.file.Paths
 
+import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.engine.backend.jes.{JesAttachedDisk, JesBackend, JesEmptyMountedDisk, JesWorkingDisk}
 import cromwell.engine.backend.local.LocalBackend
@@ -17,9 +18,8 @@ import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues with WorkflowDescriptorBuilder {
   val workflowManagerSystem = new TestWorkflowManagerSystem
   override implicit val actorSystem = workflowManagerSystem.actorSystem
-
-  val localBackend = new LocalBackend(workflowManagerSystem.actorSystem)
-  val jesBackend = new JesBackend(workflowManagerSystem.actorSystem)
+  val localBackend = new LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfig, workflowManagerSystem.actorSystem)
+  val jesBackend = new JesBackend(CromwellTestkitSpec.JesBackendConfig, workflowManagerSystem.actorSystem)
 
   private def runtimeAttributes(wdl: SampleWdl, callName: String, backend: Backend, workflowOptionsJson: String = "{}"): CromwellRuntimeAttributes = {
     val root = backend match {

@@ -1,9 +1,10 @@
 package cromwell.engine.backend
 
 import akka.actor.ActorSystem
+import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions
-import org.slf4j.LoggerFactory
 
+import scala.language.postfixOps
 import scala.util.Try
 
 /**
@@ -16,13 +17,19 @@ import scala.util.Try
   * for now
   */
 object CromwellBackend {
-  private val log = LoggerFactory.getLogger(getClass.getName)
   private var _backends: Option[Map[String, Backend]] = None
   private var _defaultBackend: Option[Backend] = None
 
-  def initBackends(backendTypes: List[String], defaultBackend: String, actorSystem: ActorSystem) = {
-    _backends = Option((backendTypes map { backendType => (backendType, Backend.from(backendType, actorSystem)) }).toMap)
-    _defaultBackend = Option(Backend.from(defaultBackend, actorSystem))
+  def backendFromConfig(entry: BackendConfigurationEntry, actorSystem: ActorSystem): Backend = {
+    val ctor = Class.forName(entry.className).getConstructor(classOf[Config], classOf[ActorSystem])
+    ctor.newInstance(entry.config, actorSystem).asInstanceOf[Backend]
+  }
+
+  def initBackends(backendEntries: List[BackendConfigurationEntry], defaultBackendEntry: BackendConfigurationEntry, actorSystem: ActorSystem) = {
+    case class EntryAndBackend(entry: BackendConfigurationEntry, backend: Backend)
+    val entriesAndBackends = backendEntries map { e => EntryAndBackend(e, backendFromConfig(e, actorSystem)) }
+    _defaultBackend = entriesAndBackends collectFirst { case eb if eb.entry == defaultBackendEntry => eb.backend }
+    _backends = Option(entriesAndBackends map { eb => eb.entry.name -> eb.backend } toMap)
   }
 
   def backend(backendName: String): Backend = _backends map { _(backendName) } getOrElse { throw new IllegalStateException("backend() called prior to initBackends") }
@@ -42,10 +49,6 @@ object CromwellBackend {
   }
 
   def defaultBackend = _defaultBackend getOrElse { throw new IllegalStateException("defaultBackend() called prior to initBackends") }
-
-  private def errorString(newBackend: Backend, oldBackend: String): String = {
-    s"Backend already initialized to ${newBackend.backendType} attempting to change it to $oldBackend"
-  }
 
   // PBE:This is shorthand for reading a JSON options file and returning a backend.
   // Probably won't make it past the imminent move from workflow-scoped backend to call-scoped backend.

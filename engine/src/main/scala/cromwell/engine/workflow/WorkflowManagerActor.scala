@@ -102,9 +102,9 @@ class WorkflowManagerActor(config: Config)
   }
 
   private def addShutdownHook(): Unit = {
-    // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
+    // Only abort jobs on SIGINT if the config explicitly sets server.abortJobsOnTerminate = true.
     val abortJobsOnTerminate =
-      config.getConfig("backend").getBooleanOr("abortJobsOnTerminate", default = false)
+      config.getConfig("server").getBooleanOr("abortJobsOnTerminate", default = false)
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {

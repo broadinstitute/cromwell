@@ -1,8 +1,10 @@
 package cromwell.engine.io.gcs
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import cromwell.util.ConfigUtil._
+import org.slf4j.LoggerFactory
 
+import scala.language.postfixOps
 import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
@@ -26,22 +28,22 @@ final case class SimpleClientSecrets(clientId: String, clientSecret: String) ext
 final case class GoogleConfiguration(appName: String, cromwellAuthMode: GoogleCromwellAuthMode, userAuthMode: Option[GoogleUserAuthMode])
 
 object GoogleConfiguration {
-  lazy val gcloudConf: Try[GoogleConfiguration] = Try(build())
 
-  def build(conf: Config = ConfigFactory.load()): GoogleConfiguration = {
-    val googleConf = conf.getConfig("google")
+  private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
-    val appName = googleConf.validateString("applicationName")
+  def fromConfig(config: Config): Try[GoogleConfiguration] = Try {
 
-    def serviceAccountAuth = googleConf.getConfig("serviceAuth") validateAny {
-       config => ServiceAccountMode(config.getString("serviceAccountId"), config.getString("pemFile"))
+    val appName = config.validateString("applicationName")
+
+    def serviceAccountAuth = config.getConfig("serviceAuth") validateAny {
+      cfg => ServiceAccountMode(cfg.getString("serviceAccountId"), cfg.getString("pemFile"))
     }
 
-    def userAccountAuth = googleConf.getConfig("userAuth") validateAny {
-      config => UserMode(config.getString("user"), config.getString("secretsFile"), config.getString("dataStoreDir"))
+    def userAccountAuth = config.getConfig("userAuth") validateAny {
+      cfg => UserMode(cfg.getString("user"), cfg.getString("secretsFile"), cfg.getString("dataStoreDir"))
     }
 
-    val cromwellAuth = googleConf.validateString("cromwellAuthenticationScheme") match {
+    val cromwellAuth = config.validateString("cromwellAuthenticationScheme") match {
       case Success("service_account") => serviceAccountAuth
       case Success("user_account") => userAccountAuth
       case Success("application_default") => ApplicationDefaultMode.successNel
@@ -49,11 +51,11 @@ object GoogleConfiguration {
       case Failure(f) => s"Could not find a value for cromwellAuthenticationScheme: $f".failureNel
     }
 
-    def clientSecrets = googleConf.getConfig("refreshTokenAuth") validateAny {
-      config => SimpleClientSecrets(config.getString("client_id"), config.getString("client_secret"))
+    def clientSecrets = config.getConfig("refreshTokenAuth") validateAny {
+      cfg => SimpleClientSecrets(cfg.getString("client_id"), cfg.getString("client_secret"))
     }
 
-    val userAuth = googleConf.validateString("userAuthenticationScheme") match {
+    val userAuth = config.validateString("userAuthenticationScheme") match {
       case Success("refresh") => clientSecrets map { secrets => Option(Refresh(secrets)) }
       case Success(unsupported) => s"Unsupported userAuthenticationMode: $unsupported".failureNel
       case Failure(_) => None.successNel
@@ -65,6 +67,7 @@ object GoogleConfiguration {
       case Success(r) => r
       case Failure(f) =>
         val errorMessages = f.list.mkString(", ")
+        log.error(errorMessages)
         throw new ConfigValidationException("Google", errorMessages)
     }
   }

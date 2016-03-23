@@ -3,9 +3,9 @@ package cromwell.engine.workflow
 import akka.actor.ActorRef
 import akka.testkit.TestDuration
 import cromwell.CromwellTestkitSpec
-import cromwell.core.{WorkflowOptions, WorkflowId}
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
+import cromwell.engine.backend.{Backend, BackendConfigurationEntry, BackendType, CromwellBackend}
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
 import cromwell.util.SampleWdl.HelloWorld
 import org.mockito.Mockito._
@@ -58,7 +58,8 @@ class MaterializeWorkflowDescriptorActorSpec
   before {
     materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props())
     // Needed since we might want to run this test as test-only
-    CromwellBackend.initBackends(List("local"), "local", system)
+    val local = BackendConfigurationEntry("local", "cromwell.engine.backend.local.LocalBackend", CromwellTestkitSpec.DefaultLocalBackendConfig)
+    CromwellBackend.initBackends(List(local), local, system)
     CromwellBackend.registerCustomBackend("retryableCallsSpecBackend", backendMock)
   }
 

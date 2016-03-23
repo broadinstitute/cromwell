@@ -291,7 +291,7 @@ backend {
 }
 ```
 
-Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
+Or, via `-Dserver.abortJobsOnTerminate=true` command line option.
 
 # Backends
 

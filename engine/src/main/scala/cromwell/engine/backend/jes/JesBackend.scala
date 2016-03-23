@@ -4,10 +4,12 @@ import java.net.SocketTimeoutException
 import java.nio.file.{FileSystem, Path, Paths}
 
 import akka.actor.ActorSystem
+import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
@@ -23,7 +25,8 @@ import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.gcs._
 import cromwell.logging.WorkflowLogger
-import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
+import cromwell.util.google.GoogleCredentialFactory
+import cromwell.util.{AggregatedException, DockerConfiguration, SimpleExponentialBackoff, TryUtil}
 import spray.json.JsObject
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart
@@ -185,7 +188,7 @@ object JesBackend {
   def jesLogFilename(key: JobKey) = s"${jesLogBasename(key)}.log"
   def jesReturnCodeFilename(key: JobKey) = s"${jesLogBasename(key)}-rc.txt"
   def globDirectory(glob: String) = s"glob-${glob.md5Sum}/"
-  def rootPath(options: WorkflowOptions): String = options.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
+  def rootPath(jesAttributes: JesAttributes, options: WorkflowOptions): String = options.getOrElse(GcsRootOptionKey, jesAttributes.executionBucket).stripSuffix("/")
   def globOutputPath(callPath: Path, glob: String) = callPath.resolve(s"glob-${glob.md5Sum}/")
   def preemptible(jobDescriptor: BackendCallJobDescriptor, maxPreemption: Int) = jobDescriptor.key.attempt <= maxPreemption
   def monitoringIO(jobDescriptor: BackendCallJobDescriptor): Option[JesInput] = {
@@ -220,11 +223,9 @@ case class JesPendingExecutionHandle(jobDescriptor: BackendCallJobDescriptor,
   override val result = NonRetryableExecution(new IllegalStateException("JesPendingExecutionHandle cannot yield a result"))
 }
 
-case class JesBackend(actorSystem: ActorSystem)
+case class JesBackend(config: Config, actorSystem: ActorSystem)
   extends Backend
-  with LazyLogging
-  with ProductionJesAuthentication
-  with ProductionJesConfiguration {
+  with LazyLogging {
 
   import backend.io._
   import better.files._
@@ -238,18 +239,37 @@ case class JesBackend(actorSystem: ActorSystem)
     .setMaxIntervalMillis(10.minutes.toMillis.toInt)
     .setMultiplier(1.1D)
 
+  protected lazy val jesAttributes = JesAttributes(config)
+
   override def pollBackoff = pollBackoffBuilder.build()
 
-  override def rootPath(options: WorkflowOptions) = options.getOrElse(GcsRootOptionKey, ProductionJesConfiguration.jesConf.executionBucket).stripSuffix("/")
+  override def rootPath(options: WorkflowOptions) = options.getOrElse(GcsRootOptionKey, jesAttributes.executionBucket).stripSuffix("/")
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
+  protected lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration.fromConfig(config).get
+
+  private lazy val dockerConfiguration: Option[JesDockerCredentials] = DockerConfiguration.build(config).dockerCredentials map JesDockerCredentials.apply
+
+  override lazy val cromwellAuthCredential: Option[Credential] = Try(GoogleCredentialFactory.fromCromwellAuthScheme(googleConfiguration)).toOption
+
+  protected def genomicsInterface(googleConfiguration: GoogleConfiguration, jesAttributes: JesAttributes) = GenomicsFactory(googleConfiguration, jesAttributes.endpointUrl)
+
+  protected def cromwellGcsFileSystem = StorageFactory.cromwellAuthenticated(googleConfiguration) map { cromwellStorage =>
+    GcsFileSystemProvider(cromwellStorage).getFileSystem
+  } getOrElse { throw new Exception("JES Backend requires a GCS configuration. No suitable configuration has been found.") }
+
+  // User authenticated filesystem defaults back to cromwell authenticated if there is no user configuration
+  protected def userGcsFileSystem(options: WorkflowOptions) = {
+    StorageFactory.userAuthenticated(googleConfiguration, options) map { storage => GcsFileSystemProvider(storage).getFileSystem } getOrElse cromwellGcsFileSystem
+  }
+
   private def writeAuthenticationFile(workflow: WorkflowDescriptor): Try[Unit] = {
     val log = workflowLogger(workflow)
 
-    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) map { content =>
+    generateAuthJson(dockerConfiguration, getGcsAuthInformation(workflow)) map { content =>
 
       val path = gcsAuthFilePath(workflow)
       def upload(prev: Option[Unit]): Unit = path.writeAsJson(content)
@@ -273,7 +293,7 @@ case class JesBackend(actorSystem: ActorSystem)
     }
 
     for {
-      userAuthMode <- googleConf.userAuthMode
+      userAuthMode <- googleConfiguration.userAuthMode
       secrets <- extractSecrets(userAuthMode)
       token <- workflow.workflowOptions.get(StorageFactory.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(secrets, token)
@@ -294,7 +314,7 @@ case class JesBackend(actorSystem: ActorSystem)
       case _ =>
     }
 
-    if (googleConf.userAuthMode.isDefined) {
+    if (googleConfiguration.userAuthMode.isDefined) {
       Seq(StorageFactory.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
         case missing if missing.nonEmpty =>
           throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
@@ -564,7 +584,7 @@ case class JesBackend(actorSystem: ActorSystem)
         jobDescriptor,
         jesParameters,
         googleProject(jobDescriptor.workflowDescriptor),
-        genomicsInterface,
+        genomicsInterface(googleConfiguration, jesAttributes),
         runIdForResumption
       ).run
 
@@ -850,12 +870,12 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   def googleProject(descriptor: WorkflowDescriptor): String = {
-    descriptor.workflowOptions.getOrElse(GoogleProjectOptionKey, jesConf.project)
+    descriptor.workflowOptions.getOrElse(GoogleProjectOptionKey, jesAttributes.project)
   }
 
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if (googleConf.userAuthMode.isDefined || dockerConf.isDefined)
+    if (googleConfiguration.userAuthMode.isDefined || dockerConfiguration.isDefined)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor).toString))
     else None
   }

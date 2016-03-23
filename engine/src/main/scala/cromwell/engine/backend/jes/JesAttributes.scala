@@ -24,17 +24,14 @@ object JesAttributes {
 
   private val context = "Jes"
 
-  def apply(): JesAttributes = this.apply(ConfigFactory.load)
-
   def apply(config: Config): JesAttributes = {
-    val jesConf = config.getConfig("backend").getConfig("jes")
 
-    jesConf.warnNotRecognized(jesKeys, context)
+    config.warnNotRecognized(jesKeys, context)
 
-    val project: ValidationNel[String, String] = jesConf.validateString("project")
-    val executionBucket: ValidationNel[String, String] = jesConf.validateString("baseExecutionBucket")
-    val endpointUrl: ValidationNel[String, URL] = jesConf.validateURL("endpointUrl")
-    val maxPollingInterval: Int = jesConf.getIntOption("maximumPollingInterval").getOrElse(600)
+    val project: ValidationNel[String, String] = config.validateString("project")
+    val executionBucket: ValidationNel[String, String] = config.validateString("baseExecutionBucket")
+    val endpointUrl: ValidationNel[String, URL] = config.validateURL("endpointUrl")
+    val maxPollingInterval: Int = config.getIntOption("maximumPollingInterval").getOrElse(600)
 
     (project |@| executionBucket |@| endpointUrl) {
       JesAttributes(_, _, _, maxPollingInterval)
@@ -47,5 +44,4 @@ object JesAttributes {
         }
     }
   }
-
 }

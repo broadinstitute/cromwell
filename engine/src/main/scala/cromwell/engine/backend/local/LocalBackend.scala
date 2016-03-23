@@ -6,7 +6,7 @@ import java.nio.file.{FileSystem, Files, Path, Paths}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.Config
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
@@ -15,6 +15,7 @@ import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, Storage
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
+import cromwell.engine.io.gcs.GoogleConfiguration
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
@@ -45,8 +46,6 @@ object LocalBackend {
     }
   }
 
-  lazy val logger = LoggerFactory.getLogger("cromwell")
-
   implicit class LocalEnhancedJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
     def dockerContainerExecutionDir = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(LocalBackend.ContainerRoot)
     def containerCallRoot = jobDescriptor.callRuntimeAttributes.docker match {
@@ -58,6 +57,28 @@ object LocalBackend {
     def script = jobDescriptor.callRootPath.resolve("script")
     def returnCode = jobDescriptor.callRootPath.resolve("rc")
   }
+}
+
+
+/**
+ * Handles both local Docker runs as well as local direct command line executions.
+ */
+case class LocalBackend(config: Config, actorSystem: ActorSystem) extends Backend with SharedFileSystem {
+
+  private lazy val logger = LoggerFactory.getLogger("cromwell")
+
+  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
+
+  protected lazy val googleConfiguration: Option[GoogleConfiguration] = GoogleConfiguration.fromConfig(config) toOption
+
+  /**
+    * Exponential Backoff Builder to be used when polling for call status.
+    */
+  final private lazy val pollBackoffBuilder = new Builder()
+    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
+    .setMaxElapsedTimeMillis(Int.MaxValue)
+    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
+    .setMultiplier(1.1D)
 
   /**
     * If using Mac OS X with Docker Machine, by default Cromwell can only use the -v flag to 'docker run'
@@ -68,9 +89,7 @@ object LocalBackend {
     * This function will at least detect this case and log some WARN messages.
     */
   def detectDockerMachinePossibleMisusage() = {
-    val backendConf = ConfigFactory.load.getConfig("backend")
-    val sharedFileSystemConf = backendConf.getConfig("shared-filesystem")
-    val cromwellExecutionRoot = Paths.get(sharedFileSystemConf.getString("root")).toAbsolutePath.toString
+    val cromwellExecutionRoot = Paths.get(config.getString("root")).toAbsolutePath.toString
     val os = Option(System.getProperty("os.name"))
     val homeDir = Option(System.getProperty("user.home")).map(Paths.get(_).toAbsolutePath.toString)
     val dockerMachineName = sys.env.get("DOCKER_MACHINE_NAME")
@@ -85,24 +104,6 @@ object LocalBackend {
   }
 
   detectDockerMachinePossibleMisusage()
-}
-
-
-/**
- * Handles both local Docker runs as well as local direct command line executions.
- */
-case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-
-  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
-
-  /**
-    * Exponential Backoff Builder to be used when polling for call status.
-    */
-  final private lazy val pollBackoffBuilder = new Builder()
-    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
-    .setMaxElapsedTimeMillis(Int.MaxValue)
-    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
-    .setMultiplier(1.1D)
 
   override def pollBackoff = pollBackoffBuilder.build()
 
@@ -236,8 +237,12 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   }
 
   override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
-    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated
-    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
+    val maybeTryStorage = googleConfiguration map { gconf => StorageFactory.userAuthenticated(gconf, options) orElse StorageFactory.cromwellAuthenticated(gconf) }
+
+    val gcs = for {
+      tryStorage <- maybeTryStorage
+      gcsFileSystem <- tryStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
+    } yield gcsFileSystem
 
     List(gcs, Option(defaultFileSystem)).flatten
   }

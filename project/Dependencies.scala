@@ -41,8 +41,8 @@ object Dependencies {
     "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
     "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
     "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
-    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.3",
-    "com.google.apis" % "google-api-services-genomics" % "v1alpha2-rev7-1.19.1"
+    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.4",
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
   )
 
   val dbDependencies = List(

@@ -30,7 +30,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
       val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
       val actual = jobDescriptor.hash.futureValue.overallHash
-      val expected = "9eb5cdfbb16dcccb0ca413a5a101ca7c"
+      val expected = "1e5fc2d1fb3c8a26add14c3a5813b507"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
 
@@ -42,7 +42,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures {
       val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
 
       val actual = jobDescriptor.hash.futureValue.overallHash
-      val expected = "09eb4d544ecbd3740838c9798109a6d0"
+      val expected = "e0fac3e3f6d3b611334fd2e0a504e99a"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
     }
   }

@@ -155,7 +155,10 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
   override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
     // This may be called multiple times with the same inputs.  Calling this twice with the same
     // parameters should yield the same return value.
-    val fullPath = path.toAbsolutePath(fileSystems).resolve(s"$prefix${content.md5Sum}$suffix")
+    val rootDir = path.toAbsolutePath(fileSystems)
+    if (!rootDir.exists) rootDir.toFile.mkdirs()
+
+    val fullPath = rootDir.resolve(s"$prefix${content.md5Sum}$suffix")
     if (!fullPath.exists) fullPath.write(content)
 
     fullPath.toString

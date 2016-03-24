@@ -2378,4 +2378,31 @@ task shouldCompleteFast {
 
     override val rawInputs: WorkflowRawInputs = Map.empty[FullyQualifiedName, Any]
   }
+
+  object WriteTsvWorkflow extends SampleWdl {
+    override def wdlSource(runtime: String): WdlSource =
+      """
+        |task a2f {
+        |  Array[Array[String]] strings = [["a","b"],["c","d"]]
+        |  File tsv = write_tsv(strings)
+        |
+        |  command {
+        |    cat ${write_tsv(strings)} > f0
+        |    cat ${tsv} > f1
+        |  }
+        |
+        |  output {
+        |    Array[Array[String]] out0 = read_tsv("f0")
+        |    Array[Array[String]] out1 = read_tsv("f1")
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow write_lines {
+        |  call a2f
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    override val rawInputs: WorkflowRawInputs = Map.empty[FullyQualifiedName, Any]
+  }
 }

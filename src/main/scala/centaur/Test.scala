@@ -3,10 +3,12 @@ package centaur
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import centaur.api.{OutputResponseJsonSupport, OutputResponse, CromwellStatusJsonSupport, CromwellStatus}
+import centaur.api._
 import spray.client.pipelining._
-import spray.http.{HttpRequest, FormData}
+import spray.http.{HttpResponse, HttpRequest, FormData}
 import cats.Monad
+import spray.httpx.{PipelineException, UnsuccessfulResponseException}
+import spray.httpx.unmarshalling._
 import spray.json._
 
 import scala.annotation.tailrec
@@ -16,6 +18,7 @@ import scala.util.{Failure, Success, Try}
 import spray.httpx.SprayJsonSupport._
 import CromwellStatusJsonSupport._
 import OutputResponseJsonSupport._
+import FailedWorkflowSubmissionJsonSupport._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -63,8 +66,27 @@ object Operations {
           case (name, Some(value)) => (name, value)
         }
         val formData = FormData(params)
-        val response = Pipeline(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
+        val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
         sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { Workflow(_, CentaurConfig.cromwellUrl) })
+      }
+    }
+  }
+
+  /**
+    * Submits a workflow and expects the response from the server to be an error code.
+    *
+    * @return The message in the error response
+    */
+  def submitWorkflowExpectingRejection(request: WorkflowRequest): Test[String] = {
+    new Test[String] {
+      override def run: Try[String] = {
+        // Collect only the parameters which exist:
+        val params = List("wdlSource" -> Option(request.wdl), "workflowInputs" -> request.inputs, "workflowOptions" -> request.options) collect {
+          case (name, Some(value)) => (name, value)
+        }
+        val formData = FormData(params)
+        val response = FailingPipeline[FailedWorkflowSubmission].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
+        sendReceiveFutureCompletion(response map { _.message })
       }
     }
   }
@@ -77,7 +99,7 @@ object Operations {
     new Test[Workflow] {
       @tailrec
       def doPerform(): Workflow = {
-        val response = Pipeline(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
+        val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
         val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
         status match {
           case Success(s) if s == expectedStatus => workflow
@@ -111,7 +133,7 @@ object Operations {
         }
       }
       override def run: Try[Workflow] = {
-        val response = OutputRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/outputs"))
+        val response = Pipeline[OutputResponse].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/outputs"))
         sendReceiveFutureCompletion(response map { _.outputs }) map { outputs =>
           verifyWorkflowOutputs(outputs)
           workflow
@@ -130,9 +152,23 @@ object Operations {
 
   // Spray needs an implicit ActorSystem
   implicit val system = ActorSystem("centaur-foo")
-  // FIXME: Pretty sure this will be insufficient once we move past submit & polling, but hey, continuous improvement!
-  val Pipeline: HttpRequest => Future[CromwellStatus] = sendReceive ~> unmarshal[CromwellStatus]
-  val OutputRequest: HttpRequest => Future[OutputResponse] = sendReceive ~> unmarshal[OutputResponse]
+
+  def Pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
+  def FailingPipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[FailedWorkflowSubmission] = sendReceive ~> unmarshalFailure[FailedWorkflowSubmission]
+
+  private def unmarshalFailure[T: FromResponseUnmarshaller]: HttpResponse => T =
+    response =>
+      if (!response.status.isSuccess)
+        response.as[T] match {
+          case Right(value) => value
+          case Left(error: MalformedContent) =>
+            throw new PipelineException(error.errorMessage, error.cause.orNull)
+          case Left(error) => throw new PipelineException(error.toString)
+        }
+      else throw new SuccessfulResponseException(response)
+
+  class SuccessfulResponseException(val response: HttpResponse) extends RuntimeException(s"Status: ${response.status}\n" +
+    s"Body: ${if (response.entity.data.length < 1024) response.entity.asString else response.entity.data.length + " bytes"}")
 }
 
 

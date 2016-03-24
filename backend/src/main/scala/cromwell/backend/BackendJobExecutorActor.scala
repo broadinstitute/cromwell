@@ -41,6 +41,7 @@ object BackendJobExecutorActor {
   * BackendJobExecutor functions should be implemented by each custom backend.
   */
 trait BackendJobExecutorActor extends Actor with ActorLogging {
+
   /**
     * Defines needed data to be able to execute a job.
     */
@@ -80,4 +81,5 @@ trait BackendJobExecutorActor extends Actor with ActorLogging {
     * Performs a cleanUp after the task was executed.
     */
   def cleanUp(): CleanUpEvent
+
 }

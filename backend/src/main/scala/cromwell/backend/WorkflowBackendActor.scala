@@ -2,10 +2,10 @@ package cromwell.backend
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import cromwell.backend.BackendActor._
+import cromwell.backend.WorkflowBackendActor._
 import cromwell.backend.model.{JobDescriptor, WorkflowDescriptor}
 
-object BackendActor {
+object WorkflowBackendActor {
 
   // Commands
   sealed trait BackendActorMessage
@@ -39,7 +39,8 @@ object BackendActor {
   * Defines basic structure and functionality to initialize and make use of a backend through an Akka actor system.
   * Backend functions should be implemented by each custom backend.
   */
-trait BackendActor extends Actor with ActorLogging {
+trait WorkflowBackendActor extends Actor with ActorLogging {
+
   /**
     * Defines needed data to be able to execute a workflow.
     */
@@ -82,4 +83,5 @@ trait BackendActor extends Actor with ActorLogging {
     * Executes validation on workflow descriptor in order to see if the workflow can be executed by the backend.
     */
   def validate(): ValidationEvent
+
 }

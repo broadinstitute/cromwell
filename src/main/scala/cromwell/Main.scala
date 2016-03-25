@@ -104,7 +104,6 @@ private class PromiseActor(promise: Promise[Any]) extends Actor {
 
 class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   lazy val Log = LoggerFactory.getLogger("cromwell")
-  Monitor.start()
 
   def this() = this(managerSystem = new WorkflowManagerSystem {})
 

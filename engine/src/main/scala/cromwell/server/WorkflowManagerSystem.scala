@@ -4,9 +4,12 @@ import akka.actor.{Props, ActorSystem}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.CromwellBackend
 import cromwell.engine.workflow.{ValidateActor, WorkflowManagerActor}
+import cromwell.instrumentation.Instrumentation._
 import collection.JavaConversions._
 
 trait WorkflowManagerSystem {
+  Monitor.start()
+
   protected def systemName = "cromwell-system"
 
   protected def newActorSystem(): ActorSystem = ActorSystem(systemName)

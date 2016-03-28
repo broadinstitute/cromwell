@@ -156,7 +156,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
     // This may be called multiple times with the same inputs.  Calling this twice with the same
     // parameters should yield the same return value.
     val rootDir = path.toAbsolutePath(fileSystems)
-    if (!rootDir.exists) rootDir.toFile.mkdirs()
+    rootDir.createDirectories
 
     val fullPath = rootDir.resolve(s"$prefix${content.md5Sum}$suffix")
     if (!fullPath.exists) fullPath.write(content)

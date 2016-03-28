@@ -1,13 +1,14 @@
-package cromwell.util.google
+package cromwell.filesystems.gcs
 
 import java.nio.file.{Files, Paths}
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.IntegrationTest
-import cromwell.engine.io.gcs.GoogleConfiguration
-import cromwell.util.google.GoogleCredentialFactory.EnhancedCredentials
+import cromwell.filesystems.gcs.GcsFileSystemSpec.IntegrationTest
+import cromwell.filesystems.gcs.GoogleCredentialFactory.EnhancedCredentials
 import org.scalatest.{Assertions, FlatSpec, Matchers}
+
+import scala.util.Try
 
 class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
 
@@ -16,11 +17,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
   it should "refresh a token using user credentials" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeUserConfigExists()
 
-    val credentialFactory = {
-      new GoogleCredentialFactory() {
-        override val GoogleConf = GoogleCredentialFactorySpec.GoogleUserConfig
-      }.fromCromwellAuthScheme
-    }
+    val credentialFactory = GoogleCredentialFactory(GoogleCredentialFactorySpec.GoogleUserConfig.authMode, GcsScopes)
 
     val firstCredentialTry = credentialFactory.freshCredential
     assert(firstCredentialTry.isSuccess)
@@ -41,11 +38,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
   it should "refresh a token using a service account" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeAccountConfigExists()
 
-    val credentialFactory = {
-      new GoogleCredentialFactory() {
-        override val GoogleConf = GoogleCredentialFactorySpec.GoogleAccountConfig
-      }.fromCromwellAuthScheme
-    }
+    val credentialFactory = GoogleCredentialFactory(GoogleCredentialFactorySpec.GoogleAccountConfig.authMode, GcsScopes)
 
     val firstCredentialTry = credentialFactory.freshCredential
     assert(firstCredentialTry.isSuccess)
@@ -67,14 +60,13 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
     GoogleCredentialFactorySpec.assumeRefreshConfigExists()
 
     val refreshToken = {
-      new GoogleCredentialFactory() {
-        override val GoogleConf = GoogleCredentialFactorySpec.GoogleRefreshConfig
-      }.fromCromwellAuthScheme.freshCredential.get.getRefreshToken
+      val googleConf = GoogleConfigurationAdapter.build(GoogleCredentialFactorySpec.RefreshConfig).cromwellConf
+      GoogleCredentialFactory(googleConf.authMode, GcsScopes).freshCredential.get.getRefreshToken
     }
 
-    val credentialFactoryBuilder = new GoogleCredentialFactory() {
-      override val GoogleConf = GoogleCredentialFactorySpec.GoogleRefreshConfig
-    }.fromUserAuthScheme(refreshToken)
+    val credentialFactoryBuilder =  Try {
+      GoogleCredentialFactory(GoogleCredentialFactorySpec.GoogleAccountConfig.authMode, GcsScopes, Option(refreshToken))
+    }
 
     assert(credentialFactoryBuilder.isSuccess)
     val credentialFactory = credentialFactoryBuilder.get
@@ -112,17 +104,17 @@ object GoogleCredentialFactorySpec {
   val AccountConfigPath = Paths.get("cromwell-account.conf")
   val AccountConfigExists = Files.exists(AccountConfigPath)
   lazy val AccountConfig = ConfigFactory.parseFile(AccountConfigPath.toFile)
-  lazy val GoogleAccountConfig = GoogleConfiguration.build(AccountConfig)
+  lazy val GoogleAccountConfig = GoogleConfigurationAdapter.build(AccountConfig).cromwellConf
 
   val UserConfigPath = Paths.get("cromwell-user.conf")
   val UserConfigExists = Files.exists(UserConfigPath)
   lazy val UserConfig = ConfigFactory.parseFile(UserConfigPath.toFile)
-  lazy val GoogleUserConfig = GoogleConfiguration.build(UserConfig)
+  lazy val GoogleUserConfig = GoogleConfigurationAdapter.build(UserConfig).cromwellConf
 
   val RefreshConfigPath = Paths.get("cromwell-refresh.conf")
   val RefreshConfigExists = Files.exists(RefreshConfigPath)
   lazy val RefreshConfig = ConfigFactory.parseFile(RefreshConfigPath.toFile)
-  lazy val GoogleRefreshConfig = GoogleConfiguration.build(RefreshConfig)
+  lazy val GoogleRefreshConfig = GoogleConfigurationAdapter.build(RefreshConfig).userConf.get
 
   import Assertions._
 

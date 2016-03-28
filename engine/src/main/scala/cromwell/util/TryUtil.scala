@@ -4,21 +4,17 @@ import java.io.{PrintWriter, StringWriter}
 
 import cromwell.engine.CromwellFatalException
 import cromwell.logging.WorkflowLogger
+import lenthall.exception.ThrowableAggregation
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object AggregatedException {
+object CromwellAggregatedException {
   val logger = LoggerFactory.getLogger("AggregatedException")
 }
 
-case class AggregatedException(exceptions: Seq[Throwable], prefixError: String = "") extends Exception {
-  override def getMessage: String = {
-    exceptions foreach { e => AggregatedException.logger.error(prefixError, e) }
-    prefixError + exceptions.map(e => s"${e.getMessage}").mkString("\n")
-  }
-}
+case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "") extends ThrowableAggregation
 
 object TryUtil {
   private def stringifyFailure[T](failure: Try[T]): String = {
@@ -115,7 +111,7 @@ object TryUtil {
 
   private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
     tries collect { case f: Failure[_] => f } match {
-      case failures if failures.nonEmpty => Failure(new AggregatedException(failures map { _.exception } toSeq, prefixErrorMessage))
+      case failures if failures.nonEmpty => Failure(new CromwellAggregatedException(failures map { _.exception } toSeq, prefixErrorMessage))
       case _ => Success(unbox())
     }
   }

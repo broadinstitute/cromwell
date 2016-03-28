@@ -5,7 +5,7 @@ import java.util.Base64
 
 import com.google.api.client.auth.oauth2.Credential
 import com.typesafe.config.Config
-import cromwell.util.google.GoogleCredentialFactory
+import cromwell.filesystems.gcs.GoogleCredentialFactory
 import lenthall.config.ScalaConfig._
 
 /** A username and password combination. */

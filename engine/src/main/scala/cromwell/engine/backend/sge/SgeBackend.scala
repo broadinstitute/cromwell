@@ -9,11 +9,12 @@ import cromwell.core.WorkflowOptions
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.io._
-import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, StorageFactory}
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
+import cromwell.filesystems.gcs.{GoogleConfigurationAdapter, GoogleConfiguration, GcsFileSystemProvider}
+import cromwell.filesystems.gcs.StorageFactory
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
 
@@ -36,6 +37,9 @@ object SgeBackend {
     def script = jobDescriptor.callRootPath.resolve("script.sh")
     def returnCode = jobDescriptor.callRootPath.resolve("rc")
   }
+
+  private lazy val oldGoogleConf = GoogleConfigurationAdapter.gcloudConf.get
+  lazy val gcsConf = Try(GoogleConfiguration(oldGoogleConf.appName, oldGoogleConf.userAuthMode.getOrElse(oldGoogleConf.cromwellAuthMode)))
 }
 
 case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
@@ -229,7 +233,8 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }
 
   override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
-    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated
+    val refreshToken = options.get(GoogleConfiguration.RefreshTokenOptionKey).toOption
+    val gcsStorage = SgeBackend.gcsConf map { conf => StorageFactory(conf, refreshToken) }
     val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
 
     List(gcs, Option(defaultFileSystem)).flatten

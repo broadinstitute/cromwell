@@ -1,4 +1,4 @@
-package cromwell.engine.backend.io.filesystem.gcs
+package cromwell.filesystems.gcs
 
 import java.io.File
 import java.net.URI

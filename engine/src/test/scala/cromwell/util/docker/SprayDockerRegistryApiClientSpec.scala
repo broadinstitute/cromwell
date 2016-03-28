@@ -3,8 +3,9 @@ package cromwell.util.docker
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.filesystems.gcs.GoogleCredentialFactory
+import cromwell.filesystems.gcs._
 import cromwell.util.DockerConfiguration
-import cromwell.util.google.{GoogleCredentialFactory, GoogleCredentialFactorySpec}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -172,9 +173,7 @@ with IntegrationPatience {
       "us.gcr.io/broad-dsde-dev/cromwell:dev")
 
     val dockerConf = DockerConfiguration.build(DockerHubLoginProviderSpec.DockerHubConfig)
-    val googleCreds = new GoogleCredentialFactory {
-      override val GoogleConf = GoogleCredentialFactorySpec.GoogleAccountConfig
-    }.fromCromwellAuthScheme
+    val googleCreds = GoogleCredentialFactory(GoogleCredentialFactorySpec.GoogleAccountConfig.authMode, GcsScopes)
     val parser = new DockerIdentifierParser(dockerConf, Option(googleCreds))
 
     forAll(identifiers) { identifier =>

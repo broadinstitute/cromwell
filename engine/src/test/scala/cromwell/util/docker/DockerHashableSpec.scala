@@ -1,9 +1,9 @@
 package cromwell.util.docker
 
-import cromwell.util.AggregatedException
-import org.scalatest.{Matchers, FlatSpec}
+import cromwell.util.CromwellAggregatedException
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
+import org.scalatest.{FlatSpec, Matchers}
 
 class DockerHashableSpec extends FlatSpec with Matchers {
   behavior of "DockerHashable"
@@ -45,12 +45,12 @@ class DockerHashableSpec extends FlatSpec with Matchers {
   it should "not create hashes for invalid hashables" in {
     val hashables = Table(
       ("hashable", "exceptionType", "exceptionMessage"),
-      (DockerRegistryImageId("bad_hash"), an[AggregatedException],
-        "hashString 'bad_hash' is not valid: contains illegal character for hexBinary: bad_hash"),
+      (DockerRegistryImageId("bad_hash"), an[CromwellAggregatedException],
+        "\nhashString 'bad_hash' is not valid: contains illegal character for hexBinary: bad_hash"),
       (DockerHubImageId(Seq.empty), an[IllegalArgumentException], "docker hashes is empty"),
       (DockerManifest(Seq.empty), an[IllegalArgumentException], "docker hashes is empty"),
-      (DockerDigestHashable("sha256:bad_hash"), an[AggregatedException],
-        "hashString 'bad_hash' is not valid: contains illegal character for hexBinary: bad_hash")
+      (DockerDigestHashable("sha256:bad_hash"), an[CromwellAggregatedException],
+        "\nhashString 'bad_hash' is not valid: contains illegal character for hexBinary: bad_hash")
     )
 
     forAll(hashables) { (hashable, exceptionType, exceptionMessage) =>

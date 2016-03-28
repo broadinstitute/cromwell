@@ -1,6 +1,6 @@
 package cromwell.engine.backend.jes.authentication
 
-import cromwell.engine.io.gcs.ClientSecrets
+import cromwell.filesystems.gcs.ClientSecrets
 import cromwell.util.DockerCredentials
 import spray.json.{JsString, JsValue}
 

@@ -10,7 +10,7 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.{AbortFunction, ExecutionEventEntry}
 import cromwell.logging.WorkflowLogger
-import cromwell.util.google.GoogleScopes
+import cromwell.util.google.GenomicsScopes
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 
@@ -20,7 +20,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Run  {
-  val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GoogleScopes.Scopes.asJava)
+  val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GenomicsScopes.genomicsScopes)
   lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   val InitialPollingInterval = 5 seconds
   val PollingBackoffFactor = 1.1

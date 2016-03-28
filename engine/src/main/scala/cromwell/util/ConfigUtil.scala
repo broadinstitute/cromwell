@@ -15,8 +15,6 @@ object ConfigUtil {
 
   val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
 
-  class ConfigValidationException(context: String, message: String) extends Exception(s"Invalid $context configuration: $message")
-
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
     def keys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
 

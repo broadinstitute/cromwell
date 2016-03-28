@@ -95,8 +95,7 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
     case gcsPath: NioGcsPath =>
       Try(withRetry(client.objects.get(gcsPath.bucket, gcsPath.objectName).execute)) recover {
         case ex: GoogleJsonResponseException
-          if ex.getStatusCode == 404 =>
-          if (!gcsPath.isDirectory) throw new FileNotFoundException(path.toString)
+          if ex.getStatusCode == 404 => if (!gcsPath.isDirectory) throw new FileNotFoundException(path.toString)
       } get
     case _ => throw new FileNotFoundException(path.toString)
   }
@@ -105,14 +104,15 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
     * Note: options and attributes are not honored.
     */
   override def newByteChannel(path: Path, options: util.Set[_ <: OpenOption], attrs: FileAttribute[_]*): SeekableByteChannel = {
+    def createReadChannel(gcsPath: NioGcsPath) = new GoogleCloudStorageReadChannel(client,
+       gcsPath.bucket,
+       gcsPath.objectName,
+       errorExtractor,
+       new ClientRequestHelper[StorageObject]()
+     )
+    
     path match {
-      case gcsPath: NioGcsPath =>
-        new GoogleCloudStorageReadChannel(client,
-          gcsPath.bucket,
-          gcsPath.objectName,
-          errorExtractor,
-          new ClientRequestHelper[StorageObject]()
-        )
+      case gcsPath: NioGcsPath => withRetry(createReadChannel(gcsPath))
       case _ => notAGcsPath(path)
     }
   }
@@ -142,7 +142,7 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
     }
 
     path match {
-      case gcsPath: NioGcsPath => initializeOutputStream(gcsPath)
+      case gcsPath: NioGcsPath => withRetry(initializeOutputStream(gcsPath))
       case _ => notAGcsPath(path)
     }
   }
@@ -183,13 +183,12 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
         }
 
         withRetry(moveInner)
-      case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
+      case _ => throw new UnsupportedOperationException(s"Can only move from GCS to GCS: $source or $target is not a GCS path")
     }
   }
 
   def crc32cHash(path: Path) = path match {
-    case gcsDir: NioGcsPath =>
-      withRetry(client.objects().get(gcsDir.bucket, gcsDir.objectName).execute().getCrc32c)
+    case gcsDir: NioGcsPath => withRetry(client.objects().get(gcsDir.bucket, gcsDir.objectName).execute().getCrc32c)
     case _ => notAGcsPath(path)
   }
 

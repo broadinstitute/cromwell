@@ -15,7 +15,8 @@ public enum RuntimeKey {
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
     FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE),
     MEMORY("memory", JES),
-    PREEMPTIBLE("preemptible", JES);
+    PREEMPTIBLE("preemptible", JES),
+    BOOT_DISK("bootDiskSizeGb", JES);
 
     public final String key;
 

@@ -17,7 +17,8 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
       preemptible = 1,
       disks = disks,
-      memoryGB = 4D)
+      memoryGB = 4,
+      bootDiskSizeGb = CromwellRuntimeAttributes.defaults.bootDiskSizeGb)
 
     val runtimeInfo = PreemptibleJesRuntimeInfo("command", attributes)
     runtimeInfo.resources.getPreemptible shouldBe true
@@ -39,7 +40,8 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
       preemptible = 3,
       disks = disks,
-      memoryGB = 4D)
+      memoryGB = 4,
+      bootDiskSizeGb = CromwellRuntimeAttributes.defaults.bootDiskSizeGb)
 
     val runtimeInfo = NonPreemptibleJesRuntimeInfo("command", attributes)
     runtimeInfo.resources.getPreemptible shouldBe false

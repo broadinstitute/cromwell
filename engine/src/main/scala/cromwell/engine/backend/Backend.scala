@@ -183,7 +183,8 @@ trait Backend {
       ("cpu", runtimeAttributes.cpu.toString),
       ("preemptible", runtimeAttributes.preemptible.toString),
       ("disks", runtimeAttributes.disks.sortWith((l, r) => l.name > r.name).map(_.toString).mkString(",")),
-      ("memoryGB", runtimeAttributes.memoryGB.toString)
+      ("memoryGB", runtimeAttributes.memoryGB.toString),
+      ("bootDiskSizeGb", runtimeAttributes.bootDiskSizeGb.toString)
     )
 
     val overallHash = Seq(

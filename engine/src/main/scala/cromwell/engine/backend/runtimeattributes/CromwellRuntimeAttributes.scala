@@ -24,7 +24,8 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      cpu: Long,
                                      preemptible: Int,
                                      disks: Seq[JesAttachedDisk],
-                                     memoryGB: Double)
+                                     memoryGB: Double,
+                                     bootDiskSizeGb: Int)
 
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
@@ -92,7 +93,8 @@ object CromwellRuntimeAttributes {
                         ValidKeyType("continueOnReturnCode", Set(WdlBooleanType, WdlArrayType(WdlIntegerType))),
                         ValidKeyType("failOnStderr", Set(WdlBooleanType)),
                         ValidKeyType("preemptible", Set(WdlIntegerType)),
-                        ValidKeyType("memory", Set(WdlStringType)))
+                        ValidKeyType("memory", Set(WdlStringType)),
+                        ValidKeyType("bootDiskSizeGb", Set(WdlStringType)))
 
   private val defaultValues = Map(
     "cpu" -> WdlInteger(1),
@@ -101,7 +103,8 @@ object CromwellRuntimeAttributes {
     "continueOnReturnCode" -> WdlInteger(0),
     "failOnStderr" -> WdlBoolean.False,
     "preemptible" -> WdlInteger(0),
-    "memory" -> WdlString("2GB")
+    "memory" -> WdlString("2GB"),
+    "bootDiskSizeGb" -> WdlInteger(10)
   )
 
   private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
@@ -139,9 +142,10 @@ object CromwellRuntimeAttributes {
       case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
       case scala.util.Failure(x) => x.getMessage.failureNel
     }
+    val bootDiskSize = validateBootDisk(attributeMap.get(BOOT_DISK))
 
-    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory) {
-      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _)
+    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory |@| bootDiskSize) {
+      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _, _)
     } match {
       case Success(x) => scala.util.Success(x)
       case Failure(nel) => scala.util.Failure(new IllegalArgumentException(nel.list.mkString("\n")))
@@ -223,6 +227,16 @@ object CromwellRuntimeAttributes {
       case scala.util.Success(localDisk) => localDisk.successNel
       case scala.util.Failure(ex) => ex.getMessage.failureNel
     }
+  }
+
+  private def validateBootDisk(diskSize: Option[WdlValue]): ErrorOr[Int] = diskSize match {
+    case Some(x) if WdlIntegerType.isCoerceableFrom(x.wdlType) =>
+      WdlIntegerType.coerceRawValue(x) match {
+        case scala.util.Success(x: WdlInteger) => x.value.intValue.successNel
+        case scala.util.Success(coercionhasgoneawry) => s"Coercion was expected to create an Integer but instead got $coercionhasgoneawry".failureNel
+        case scala.util.Failure(t) => t.getMessage.failureNel
+      }
+    case None => defaults.bootDiskSizeGb.successNel
   }
 
   private def validateRequiredKeys(keySet: Set[String],

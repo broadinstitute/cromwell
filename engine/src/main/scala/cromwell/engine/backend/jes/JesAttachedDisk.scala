@@ -89,4 +89,3 @@ case class JesWorkingDisk(diskType: DiskType, sizeGb: Int) extends JesAttachedDi
   val name = JesWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
 }
-

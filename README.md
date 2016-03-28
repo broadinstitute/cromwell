@@ -732,6 +732,7 @@ This table lists the currently available runtime attributes for cromwell:
 | failOnStderr         |   x   |   x   |   x   |
 | memory               |       |   x   |       |
 | preemptible          |       |   x   |       |
+| bootDiskSizeGb       |       |   x   |       |
 
 Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
 
@@ -867,6 +868,16 @@ runtime {
 ```
 runtime {
   disks: "/mnt/my_mnt 3 SSD, /mnt/my_mnt2 500 HDD"
+}
+```
+
+### Boot Disk
+In addition to working disks, JES allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
+Its primary purpose is to ensure that larger docker images can fit on the boot disk.
+```
+runtime {
+  # Yikes, we have a big OS in this docker image! Allow 50GB to hold it:
+  bootDiskSizeGb: 50
 }
 ```
 

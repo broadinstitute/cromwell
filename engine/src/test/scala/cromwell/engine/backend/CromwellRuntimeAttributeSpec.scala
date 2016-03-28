@@ -262,6 +262,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
         |{
         |  "defaultRuntimeOptions": {
         |    "continueOnReturnCode": [0, 1, 2, 3],
+        |    "bootDiskSizeGb": 10,
         |    "failOnStderr": true,
         |    "zones": "us-central1-a",
         |    "disks": "local-disk 10 SSD",
@@ -272,13 +273,14 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
         |}
       """.stripMargin
 
-    val expectedJesKeys = Set("docker", "continueOnReturnCode", "failOnStderr", "zones", "disks", "memory", "preemptible", "cpu")
+    val expectedJesKeys = Set("docker", "continueOnReturnCode", "bootDiskSizeGb", "failOnStderr", "zones", "disks", "memory", "preemptible", "cpu")
     val expectedLocalKeys = Set("docker", "continueOnReturnCode", "failOnStderr")
 
     val jesRA = runtimeAttributes(SampleWdl.WorkflowWithStaticRuntime, "cgrep", jesBackend, fullWfOptions).attributes
     jesRA.keySet should contain theSameElementsAs expectedJesKeys
     jesRA("continueOnReturnCode").valueString shouldBe WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2, 3).map(WdlInteger(_))).valueString
     jesRA("failOnStderr").valueString shouldBe WdlBoolean(true).valueString
+    jesRA("bootDiskSizeGb").valueString shouldBe WdlInteger(10).valueString
     jesRA("zones").valueString shouldBe WdlString("us-central1-a").valueString
     jesRA("memory").valueString shouldBe WdlString("5000000 KB").valueString
     jesRA("preemptible").valueString shouldBe WdlInteger(2).valueString

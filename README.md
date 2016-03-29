@@ -997,6 +997,7 @@ Valid keys and their meanings:
         * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
         * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish
         * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
+    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.    
 * JES Backend Only
     * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.

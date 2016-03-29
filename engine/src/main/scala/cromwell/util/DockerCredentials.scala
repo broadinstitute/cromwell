@@ -18,14 +18,14 @@ case class DockerConfiguration(dockerCredentials: Option[DockerCredentials], doc
 object DockerConfiguration {
   import lenthall.config.ScalaConfig._
 
-  private val dockerKeys = Set("dockerAccount", "dockerToken")
+  private val dockerKeys = Set("account", "token")
 
   def build(config: Config) = {
     val dockerConf: Option[DockerCredentials] = for {
-      dockerConf <- config.getConfigOption("docker")
-      _ = dockerConf.warnNotRecognized(dockerKeys, "docker")
-      account <- dockerConf.validateString("dockerAccount").toOption
-      token <- dockerConf.validateString("dockerToken").toOption
+      dockerConf <- config.getConfigOption("dockerHub")
+      _ = dockerConf.warnNotRecognized(dockerKeys, "dockerHub")
+      account <- dockerConf.validateString("account").toOption
+      token <- dockerConf.validateString("token").toOption
     } yield new DockerCredentials(account, token)
 
     val dockerHubConf = {

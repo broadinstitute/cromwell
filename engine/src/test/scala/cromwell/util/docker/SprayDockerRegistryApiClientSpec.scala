@@ -119,9 +119,9 @@ with IntegrationPatience {
 
     val badDockerConfig = ConfigFactory.parseString(
       s"""
-         |docker {
-         |  dockerAccount = "fakeAccount"
-         |  dockerToken = "YmFkdXNlcjpiYWRwYXNz" // baduser:badpass
+         |dockerHub {
+         |  account = "fakeAccount"
+         |  token = "YmFkdXNlcjpiYWRwYXNz" // baduser:badpass
          |}
      """.stripMargin)
 

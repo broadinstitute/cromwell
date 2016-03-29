@@ -4,9 +4,10 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
 import cromwell.core.WorkflowId
+import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
-import cromwell.engine.workflow.ValidateActor.{ValidateWorkflow, ValidationFailure, ValidationSuccess}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
@@ -35,7 +36,7 @@ object CromwellApiHandler {
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowMetadata(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerValidateWorkflow(wdlSource: String, workflowInputs: Option[String], workflowOptions: Option[String]) extends ApiHandlerMessage
+  final case class ApiHandlerValidateWorkflow(id: WorkflowId, wdlSource: String, workflowInputs: Option[String], workflowOptions: Option[String]) extends ApiHandlerMessage
 
   sealed trait WorkflowManagerResponse
 
@@ -173,8 +174,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerValidateWorkflow(wdlSource, workflowInputs, workflowOptions) => requestHandlerActor ! ValidateWorkflow(wdlSource, workflowInputs, workflowOptions)
-    case ValidationSuccess(_,_,_,_) => context.parent ! RequestComplete(StatusCodes.OK, APIResponse.success("Validation succeeded."))
-    case ValidationFailure(reason) => context.parent ! RequestComplete(StatusCodes.BadRequest,APIResponse.fail(reason))
+    case ApiHandlerValidateWorkflow(id, wdlSource, workflowInputs, workflowOptions) =>
+      requestHandlerActor ! MaterializeWorkflow(id, WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{ }"), workflowOptions.getOrElse("{ }")))
+    case MaterializationSuccess(_) => context.parent ! RequestComplete(StatusCodes.OK, APIResponse.success("Validation succeeded."))
+    case MaterializationFailure(reason) => context.parent ! RequestComplete(StatusCodes.BadRequest,APIResponse.fail(reason))
   }
 }

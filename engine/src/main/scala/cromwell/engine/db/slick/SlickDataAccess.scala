@@ -5,17 +5,21 @@ import java.util.concurrent.{ExecutorService, Executors}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
-import _root_.slick.backend.DatabaseConfig
-import _root_.slick.driver.JdbcProfile
+import slick.backend.DatabaseConfig
+import slick.dbio
+import slick.dbio.Effect.Read
+import slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
+import cromwell.engine.db.DataAccess.{WorkflowExecutionAndAux, ExecutionKeyToJobKey}
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.MaterializationResult
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializationResult}
 import cromwell.engine.workflow._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
@@ -392,59 +396,34 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getWorkflow(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowDescriptor] = {
+
+  override def getWorkflowExecutionAndAux(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByPrimaryKey(workflowExecutionId).result.head
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
-      workflowDescriptor = WorkflowDescriptor(
-        WorkflowId(UUID.fromString(workflowExecutionResult.workflowExecutionUuid)),
-        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString),
-        CromwellBackend.getBackendFromOptions(workflowAux.workflowOptions.toRawString)
-      )
-    } yield workflowDescriptor
+    } yield WorkflowExecutionAndAux(workflowExecutionResult, workflowAux)
 
     runTransaction(action)
   }
 
-  override def getWorkflow(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowDescriptor] = {
+  override def getWorkflowExecutionAndAux(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux] = {
     val action = for {
       workflowExecutionResult <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
       workflowAux <- dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
-      workflowDescriptor = WorkflowDescriptor(
-        workflowId,
-        WorkflowSourceFiles(workflowAux.wdlSource.toRawString, workflowAux.jsonInputs.toRawString, workflowAux.workflowOptions.toRawString),
-        CromwellBackend.getBackendFromOptions(workflowAux.workflowOptions.toRawString)
-      )
-    } yield workflowDescriptor
+    } yield WorkflowExecutionAndAux(workflowExecutionResult, workflowAux)
 
     runTransaction(action)
   }
 
-  override def getWorkflowsByState(states: Traversable[WorkflowState])
-                                  (implicit ec: ExecutionContext): Future[Traversable[WorkflowDescriptor]] = {
+  override def getWorkflowExecutionAndAuxByState(states: Traversable[WorkflowState])
+                                  (implicit ec: ExecutionContext): Future[Traversable[WorkflowExecutionAndAux]] = {
     val action = for {
       workflowExecutionResults <- dataAccess.workflowExecutionsByStatuses(states.map(_.toString)).result
-
-      workflowDescriptors <- DBIO.sequence(
-        workflowExecutionResults map { workflowExecutionResult =>
-          val workflowExecutionAuxResult = dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(
-            workflowExecutionResult.workflowExecutionUuid).result.head
-
-          workflowExecutionAuxResult map { workflowExecutionAux =>
-            WorkflowDescriptor(
-              WorkflowId.fromString(workflowExecutionResult.workflowExecutionUuid),
-              WorkflowSourceFiles(
-                workflowExecutionAux.wdlSource.toRawString,
-                workflowExecutionAux.jsonInputs.toRawString,
-                workflowExecutionAux.workflowOptions.toRawString
-              ),
-              CromwellBackend.getBackendFromOptions(workflowExecutionAux.workflowOptions.toRawString)
-            )
-          }
-        }
-      )
-
-    } yield workflowDescriptors
+      workflowAuxSeq <- DBIO.sequence(workflowExecutionResults.map(workflowExecutionResult =>
+        dataAccess.workflowExecutionAuxesByWorkflowExecutionUuid(workflowExecutionResult.workflowExecutionUuid).result.head
+      ))
+      executionAndAux <- DBIO.sequence((workflowExecutionResults zip workflowAuxSeq) map { case (exec, aux) => DBIO.successful(WorkflowExecutionAndAux(exec, aux)) })
+    } yield executionAndAux
 
     runTransaction(action)
   }

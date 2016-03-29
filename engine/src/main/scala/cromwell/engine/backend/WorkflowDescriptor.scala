@@ -7,18 +7,15 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
-import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.{ErrorOr, WorkflowId, WorkflowOptions}
-import cromwell.engine._
+import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.io._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{SimpleExponentialBackoff, TryUtil}
 import cromwell.webservice.WorkflowMetadataResponse
-import lenthall.config.ScalaConfig._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
-import spray.json.{JsObject, _}
+import spray.json._
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlSingleFile, WdlValue, _}
 
@@ -26,8 +23,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
-import scalaz.Validation.FlatMap._
+
+case class WorkflowLogOptions(dir: Path, temporary: Boolean)
 
 case class WorkflowDescriptor(id: WorkflowId,
                               sourceFiles: WorkflowSourceFiles,
@@ -239,137 +236,6 @@ object WorkflowDescriptor {
   val CallLogsDirOptionKey = "call_logs_dir"
   val OptionKeys: Set[String] = Set(WorkflowLogDirOptionKey, WorkflowOutputsOptionKey, CallLogsDirOptionKey)
 
-  /**
-    * Warning: Uses the default backend for this workflow.
-    */
-  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles): WorkflowDescriptor = {
-    WorkflowDescriptor(id, sourceFiles, CromwellBackend.getBackendFromOptions(sourceFiles.workflowOptionsJson), ConfigFactory.load)
-  }
-
-  /**
-    * Warning: Uses the default backend for this workflow.
-    */
-  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, conf: Config): WorkflowDescriptor = {
-    WorkflowDescriptor(id, sourceFiles, CromwellBackend.getBackendFromOptions(sourceFiles.workflowOptionsJson), conf)
-  }
-
-  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, backend: Backend): WorkflowDescriptor = {
-    WorkflowDescriptor(id, sourceFiles, backend, ConfigFactory.load)
-  }
-
-  def apply(id: WorkflowId, sourceFiles: WorkflowSourceFiles, backend: Backend, conf: Config): WorkflowDescriptor = {
-    validateWorkflowDescriptor(id, sourceFiles, backend, conf) match {
-      case scalaz.Success(w) => w
-      case scalaz.Failure(f) =>
-        throw new IllegalArgumentException() with ThrowableWithErrors {
-          val message = s"Workflow input processing failed."
-          val errors = f
-        }
-    }
-  }
-
-  private def validateWorkflowDescriptor(id: WorkflowId,
-                                         sourceFiles: WorkflowSourceFiles,
-                                         backend: Backend,
-                                         conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val namespace = validateNamespace(id, sourceFiles.wdlSource)
-    val options = validateWorkflowOptions(id, sourceFiles.workflowOptionsJson, backend)
-
-    (namespace |@| options) { (_, _) } flatMap { case (nam, opt) =>
-      val runtimeAttributes = validateRuntimeAttributes(id, nam, backend.backendType)
-      val rawInputs = validateRawInputs(id, sourceFiles.inputsJson)
-      (runtimeAttributes |@| rawInputs) { (_, _) } flatMap { case (_, raw) =>
-        buildWorkflowDescriptor(id, sourceFiles, nam, raw, opt, backend, conf)
-      }
-    }
-  }
-
-  private def buildWorkflowDescriptor(id: WorkflowId,
-                                      sourceFiles: WorkflowSourceFiles,
-                                      namespace: NamespaceWithWorkflow,
-                                      rawInputs: Map[String, JsValue],
-                                      options: WorkflowOptions,
-                                      backend: Backend,
-                                      conf: Config): ErrorOr[WorkflowDescriptor] = {
-    val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(options), namespace.workflow.unqualifiedName, id)
-    val wfContext = new WorkflowContext(workflowRootPath)
-    val fileSystems = backend.fileSystems(options)
-    val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
-
-    val validatedDescriptor = for {
-      c <- validateCoercedInputs(id, rawInputs, namespace).disjunction
-      d <- validateDeclarations(id, namespace, options, c, engineFunctions).disjunction
-    } yield WorkflowDescriptor(id, sourceFiles, options, workflowLogOptions(conf), rawInputs, namespace, c, d, backend, configCallCaching(conf), lookupDockerHash(conf),
-      wfContext, fileSystems)
-
-    validatedDescriptor.validation
-  }
-
-  private def validateNamespace(id: WorkflowId, source: WdlSource): ErrorOr[NamespaceWithWorkflow] = {
-    try {
-      NamespaceWithWorkflow.load(source).successNel
-    } catch {
-      case e: Exception => s"Workflow $id unable to load namespace: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateRuntimeAttributes(id: WorkflowId, namespace: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Unit] = {
-    Try(namespace.workflow.calls.map(_.task.runtimeAttributes) foreach { r => CromwellRuntimeAttributes.validateKeys(r.attrs.keySet, backendType) }) match {
-      case scala.util.Success(_) => ().successNel
-      case scala.util.Failure(e) => s"Workflow $id contains bad runtime attributes: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateWorkflowOptions(id: WorkflowId,
-                                      optionsJson: WorkflowOptionsJson,
-                                      backend: Backend): ErrorOr[WorkflowOptions] = {
-    WorkflowOptions.fromJsonString(optionsJson) match {
-      case Success(o) => validateBackendOptions(id, o, backend)
-      case Failure(e) => s"Workflow $id contains bad options JSON: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateRawInputs(id: WorkflowId, json: WdlJson): ErrorOr[Map[String, JsValue]] = {
-    Try(json.parseJson) match {
-      case Success(JsObject(inputs)) => inputs.successNel
-      case _ => s"Workflow $id contains bad inputs JSON: $json".failureNel
-    }
-  }
-
-  private def validateCoercedInputs(id: WorkflowId,
-                                    rawInputs: Map[String, JsValue],
-                                    namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
-    namespace.coerceRawInputs(rawInputs) match {
-      case Success(r) => r.successNel
-      case Failure(e: ThrowableWithErrors) => scalaz.Failure(e.errors)
-      case Failure(e) => e.getMessage.failureNel
-    }
-  }
-
-  private def validateBackendOptions(id: WorkflowId, options: WorkflowOptions, backend: Backend): ErrorOr[WorkflowOptions] = {
-    try {
-      backend.assertWorkflowOptions(options)
-      options.successNel
-    } catch {
-      case e: Exception =>
-        s"Workflow $id has invalid options for backend ${backend.backendType}: ${e.getMessage}".failureNel
-    }
-  }
-
-  private def validateDeclarations(id: WorkflowId,
-                                   namespace: NamespaceWithWorkflow,
-                                   options: WorkflowOptions,
-                                   coercedInputs: WorkflowCoercedInputs,
-                                   engineFunctions: WorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {
-    namespace.staticDeclarationsRecursive(coercedInputs, engineFunctions) match {
-      case Success(d) => d.successNel
-      case Failure(e) => s"Workflow $id has invalid declarations: ${e.getMessage}".failureNel
-    }
-  }
-
-  private val DefaultCallCachingValue = false
-  private val DefaultLookupDockerHash = false
-
   private def disabledMessage(readWrite: String, consequence: String) =
     s"""$readWrite is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.
        |As a result the calls in this workflow $consequence
@@ -377,24 +243,4 @@ object WorkflowDescriptor {
 
   private val writeDisabled = disabledMessage("Write to Cache", "WILL NOT be cached")
   private val readDisabled = disabledMessage("Read from Cache", "WILL ALL be executed")
-
-  private def configCallCaching(conf: Config) = lookupBooleanWithDefault(conf, "call-caching", "enabled", DefaultCallCachingValue)
-  private def lookupDockerHash(conf: Config) = lookupBooleanWithDefault(conf, "call-caching", "lookup-docker-hash", DefaultLookupDockerHash)
-
-  private def lookupBooleanWithDefault(conf: Config, stanza: String, key: String, default: Boolean) = {
-    (for {
-      config <- conf.getConfigOption(stanza)
-      value <- config.getBooleanOption(key)
-    } yield value) getOrElse default
-  }
-
-  private def workflowLogOptions(conf: Config): Option[WorkflowLogOptions] = {
-    for {
-      workflowConfig <- conf.getConfigOption("workflow-options")
-      dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
-      temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
-    } yield WorkflowLogOptions(Paths.get(dir), temporary)
-  }
 }
-
-case class WorkflowLogOptions(dir: Path, temporary: Boolean)

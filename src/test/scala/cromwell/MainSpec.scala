@@ -110,7 +110,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val result = traceMain(_.run(Array(wdl, inputs)))
-      assert(result.err.contains("contains bad inputs JSON"))
+      assert(result.err.contains("Workflow inputs JSON cannot be parsed to JsObject"))
       result.returnCode should be(1)
     }
   }

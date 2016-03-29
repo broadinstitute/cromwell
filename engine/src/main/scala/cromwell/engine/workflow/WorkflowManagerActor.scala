@@ -9,8 +9,10 @@ import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
 import cromwell.{core, engine}
@@ -26,6 +28,9 @@ import scala.util.{Failure, Success, Try}
 object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
   class CallNotFoundException(message: String) extends RuntimeException(message)
+
+  type WorkflowActorRef = ActorRef
+  type WorkflowIdToActorRef = (WorkflowId, WorkflowActorRef)
 
   sealed trait WorkflowManagerActorMessage
 
@@ -43,6 +48,7 @@ object WorkflowManagerActor {
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
+  private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
   def props(): Props = Props(new WorkflowManagerActor())
@@ -57,8 +63,6 @@ object WorkflowManagerActor {
   case object Running extends WorkflowManagerState
   case object Aborting extends WorkflowManagerState
   case object Done extends WorkflowManagerState
-
-  type WorkflowActorRef = ActorRef
 
   case class WorkflowManagerData(workflows: Map[WorkflowId, WorkflowActorRef]) {
     def add(entry: (WorkflowId, WorkflowActorRef)): WorkflowManagerData = this.copy(workflows = workflows + entry)
@@ -85,7 +89,7 @@ class WorkflowManagerActor(config: Config)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
 
   def this() = this(WorkflowManagerActor.defaultConfig)
-
+  implicit val actorSystem = context.system
 
   private val logger = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
@@ -168,8 +172,11 @@ class WorkflowManagerActor(config: Config)
 
   when (Running) {
     case Event(SubmitWorkflow(source), _) =>
-      val updatedData = submitWorkflow(source, replyTo = Option(sender), id = None)
-      stay() using updatedData
+      submitWorkflow(source, replyTo = Option(sender), id = None) map {
+        case updatedEntry: WorkflowIdToActorRef => self ! AddEntryToWorkflowManagerData(updatedEntry)
+      }
+      //`recover` doesn't do anything since it's been handled already in the `submitWorkflow` function
+      stay()
     case Event(WorkflowActorSubmitSuccess(replyTo, id), _) =>
       replyTo foreach { _ ! WorkflowManagerSubmitSuccess(id) }
       stay()
@@ -207,11 +214,13 @@ class WorkflowManagerActor(config: Config)
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
       stay()
     case Event(RestartWorkflows(w :: ws), _) =>
-      val updatedData = restartWorkflow(w)
+      restartWorkflow(w) map {
+        case updatedEntry: WorkflowIdToActorRef => self ! AddEntryToWorkflowManagerData(updatedEntry)
+      }
       context.system.scheduler.scheduleOnce(RestartDelay) {
         self ! RestartWorkflows(ws)
       }
-      stay() using updatedData
+      stay()
     case Event(RestartWorkflows(Nil), _) =>
       // No more workflows need restarting.
       stay()
@@ -241,6 +250,10 @@ class WorkflowManagerActor(config: Config)
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(AddEntryToWorkflowManagerData(entry), _) =>
+      logger.info(s"Updating WorkflowManager state. New Data: $entry")
+      val newData = stateData.add(entry)
+      stay() using newData
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
   }
@@ -299,7 +312,7 @@ class WorkflowManagerActor(config: Config)
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[AttemptedCallLogs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
-      descriptor <- globalDataAccess.getWorkflow(workflowId)
+      descriptor <- globalDataAccess.getWorkflowExecutionAndAux(workflowId) flatMap workflowDescriptorFromExecutionAndAux
       _ <- assertCallExistence(workflowId, callFqn)
       _ <- assertCallFqnWellFormed(descriptor, callFqn)
       entries <- globalDataAccess.infosByExecution(workflowId, callFqn) map ExecutionInfosByExecution.toWorkflowLogs
@@ -322,34 +335,35 @@ class WorkflowManagerActor(config: Config)
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
     */
-  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): WorkflowManagerData = {
+  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): Future[WorkflowIdToActorRef] = {
     val workflowId: WorkflowId = id.getOrElse(WorkflowId.randomId())
     logger.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
     val isRestart = id.isDefined
 
-    case class ActorAndStateData(actor: WorkflowActorRef, data: WorkflowManagerData)
+    import PromiseActor.EnhancedActorRef
 
-    val actorAndData = for {
-      descriptor <- Try(WorkflowDescriptor(workflowId, source, config))
-      actor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
-      _ = actor ! SubscribeTransitionCallBack(self)
-      data = stateData.add(workflowId -> actor)
-    } yield ActorAndStateData(actor, data)
-
-    actorAndData match {
-      case Failure(e) =>
-        val messageOrBlank = Option(e.getMessage).mkString
-        logger.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
-        replyTo foreach { _ ! WorkflowManagerSubmitFailure(e)}
-        // Return the original state data if the workflow failed submission.
-        stateData
-      case Success(a) =>
-        a.actor ! (if (isRestart) Restart else Start(replyTo))
-        a.data
+    val message  = MaterializeWorkflowDescriptorActor.MaterializeWorkflow(workflowId, source, config)
+    val materializeWorkflowDescriptorActor = context.actorOf(MaterializeWorkflowDescriptorActor.props())
+    materializeWorkflowDescriptorActor.askNoTimeout(message) map {
+      case MaterializationSuccess(descriptor) =>
+        val wfActor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
+        wfActor ! SubscribeTransitionCallBack(self)
+        wfActor ! (if (isRestart) Restart else Start(replyTo))
+        logger.debug(s"Successfuly started ${wfActor.path} for Workflow ${workflowId}")
+        context.stop(materializeWorkflowDescriptorActor)
+        (workflowId -> wfActor)
+      case MaterializationFailure(error) =>
+        val messageOrBlank = Option(error.getMessage).mkString
+        logger.error(error, s"$tag: Workflow failed submission: " + messageOrBlank)
+        replyTo foreach { _ ! WorkflowManagerSubmitFailure(error)}
+        // This error will be ignored currently as the only entity that needs to be notified about it
+        // has already been sent a failure message above
+        context.stop(materializeWorkflowDescriptorActor)
+        throw error
     }
   }
 
-  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): WorkflowManagerData = {
+  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): Future[WorkflowIdToActorRef] = {
     logger.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
     submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
   }
@@ -369,7 +383,8 @@ class WorkflowManagerActor(config: Config)
     }
 
     val result = for {
-      restartableWorkflows <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      restartableWorkflowExecutionAndAuxes <- globalDataAccess.getWorkflowExecutionAndAuxByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      restartableWorkflows <- Future.sequence(restartableWorkflowExecutionAndAuxes map workflowDescriptorFromExecutionAndAux)
       _ = logRestarts(restartableWorkflows)
       _ = self ! RestartWorkflows(restartableWorkflows.toSeq)
     } yield ()

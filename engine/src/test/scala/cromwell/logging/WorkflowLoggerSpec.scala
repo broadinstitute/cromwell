@@ -4,24 +4,24 @@ import java.util.UUID
 
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
-import cromwell.engine.backend.{WorkflowDescriptor, BackendCallJobDescriptor}
-import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.workflow.BackendCallKey
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.{BackendCallJobDescriptor, WorkflowDescriptorBuilder}
+import cromwell.engine.workflow.BackendCallKey
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import wdl4s.values.WdlValue
 
-class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll with WorkflowDescriptorBuilder {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
+  override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
 
   override protected def afterAll() = {
     testWorkflowManagerSystem.shutdownTestActorSystem()
     super.afterAll()
   }
 
-  val descriptor = WorkflowDescriptor(
-    WorkflowId(UUID.fromString("fc6cfad9-65e9-4eb7-853f-7e08c1c8cf8e")),
-    WorkflowSourceFiles(
+  val descriptor = materializeWorkflowDescriptorFromSources(id = WorkflowId(UUID.fromString("fc6cfad9-65e9-4eb7-853f-7e08c1c8cf8e")),
+    workflowSources = WorkflowSourceFiles(
       "task x {command {ps}} workflow w {call x}",
       "{}",
       "{}"

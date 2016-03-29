@@ -3,8 +3,8 @@ package cromwell.engine.db
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
-import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
+import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, _}
+import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
@@ -17,6 +17,7 @@ import scala.language.postfixOps
 object DataAccess {
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
   case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: BackendJobKey)
+  case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
 }
 
 trait DataAccess extends AutoCloseable {
@@ -31,12 +32,11 @@ trait DataAccess extends AutoCloseable {
 
   def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowState]]
 
-  def getWorkflow(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowDescriptor]
+  def getWorkflowExecutionAndAux(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux]
 
-  def getWorkflow(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowDescriptor]
+  def getWorkflowExecutionAndAux(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux]
 
-  def getWorkflowsByState(states: Traversable[WorkflowState])
-                         (implicit ec: ExecutionContext): Future[Traversable[WorkflowDescriptor]]
+  def getWorkflowExecutionAndAuxByState(states: Traversable[WorkflowState])(implicit ec: ExecutionContext): Future[Traversable[WorkflowExecutionAndAux]]
 
   def getExecutionInfos(workflowId: WorkflowId, call: Call, attempt: Int)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfo]]
 

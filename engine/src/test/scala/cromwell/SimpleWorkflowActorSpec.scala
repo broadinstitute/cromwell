@@ -1,11 +1,8 @@
 package cromwell
 
-import java.util.UUID
-
 import akka.testkit._
-import cromwell.core.WorkflowId
 import cromwell.engine._
-import cromwell.engine.backend.WorkflowDescriptor
+import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
@@ -15,12 +12,14 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
+class SimpleWorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
+
+  override implicit val actorSystem = system
 
   private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: String):
   TestFSMRef[WorkflowState, WorkflowData, WorkflowActor] = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), workflowSources)
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = workflowSources)
     TestFSMRef(new WorkflowActor(descriptor))
   }
 

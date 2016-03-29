@@ -3,6 +3,8 @@ package cromwell.engine.backend.local
 import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.util.SampleWdl
@@ -10,7 +12,10 @@ import org.specs2.mock.Mockito
 import wdl4s.WdlSource
 import wdl4s.values.WdlValue
 
-class LocalBackendSpec extends CromwellTestkitSpec with Mockito {
+class LocalBackendSpec extends CromwellTestkitSpec with Mockito with WorkflowDescriptorBuilder {
+
+  val testWorkflowManagerSystem = new TestWorkflowManagerSystem
+  override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
 
   object StdoutWdl extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
@@ -28,8 +33,13 @@ class LocalBackendSpec extends CromwellTestkitSpec with Mockito {
     override val rawInputs =  Map.empty[String, String]
   }
 
-  def stdoutDescriptor(runtime: String) = buildWorkflowDescriptor(StdoutWdl, runtime)
-  def stderrDescriptor(runtime: String) = buildWorkflowDescriptor(StderrWdl, runtime)
+  def buildWorkflowWithRuntime(wdl: SampleWdl, runtime: String): WorkflowDescriptor = {
+    val sources = WorkflowSourceFiles(wdl.wdlSource(runtime), wdl.wdlJson, "{}")
+    materializeWorkflowDescriptorFromSources(workflowSources = sources)
+  }
+
+  def stdoutDescriptor(runtime: String) = buildWorkflowWithRuntime(StdoutWdl, runtime)
+  def stderrDescriptor(runtime: String) = buildWorkflowWithRuntime(StderrWdl, runtime)
 
   val prefix = "this_is_a_prefix"
   val cwd = Paths.get(".")

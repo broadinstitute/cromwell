@@ -1,13 +1,19 @@
 package cromwell
 
-import cromwell.core.CallOutput
+import akka.actor.ActorSystem
+import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine.ExecutionStatus._
+import cromwell.engine.backend.WorkflowDescriptor
+import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
 import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.WdlValue
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 
 package object engine {
@@ -60,5 +66,24 @@ package object engine {
     }
     def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
+  }
+
+  // Used to convert the database returned value `executionAndAux` to a WorkflowDescriptor
+  def workflowDescriptorFromExecutionAndAux(executionAndAux: WorkflowExecutionAndAux)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowDescriptor] = {
+    //imports for implicits
+    import cromwell.engine.db.slick.SlickDataAccess.ClobToRawString
+    import cromwell.util.PromiseActor.EnhancedActorRef
+
+    val id = WorkflowId.fromString(executionAndAux.execution.workflowExecutionUuid)
+    val sources = WorkflowSourceFiles(executionAndAux.aux.wdlSource.toRawString, executionAndAux.aux.jsonInputs.toRawString, executionAndAux.aux.workflowOptions.toRawString)
+
+    val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props())
+
+    materializeWorkflowDescriptorActor.askNoTimeout(MaterializeWorkflow(id, sources))  map {
+      case MaterializationSuccess(workflowDescriptor) => workflowDescriptor
+      case MaterializationFailure(error) => throw error
+    } andThen {
+      case _ => actorSystem.stop(materializeWorkflowDescriptorActor)
+    }
   }
 }

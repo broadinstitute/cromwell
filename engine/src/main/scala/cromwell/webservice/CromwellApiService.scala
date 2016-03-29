@@ -32,7 +32,7 @@ object CromwellApiServiceActor {
   def traceName(name: String) = Monitor.traceName(name)
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, val validateActor: ActorRef, config: Config)
+class CromwellApiServiceActor(val workflowManager: ActorRef, val workflowDescriptorMaterializer: ActorRef, config: Config)
   extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
@@ -48,7 +48,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   import CromwellApiServiceActor._
 
   val workflowManager: ActorRef
-  val validateActor: ActorRef
+  val workflowDescriptorMaterializer: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
@@ -114,7 +114,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         post {
           formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
             requestContext =>
-              perRequest(requestContext, CromwellApiHandler.props(validateActor), CromwellApiHandler.ApiHandlerValidateWorkflow(wdlSource, workflowInputs, workflowOptions))
+              perRequest(requestContext, CromwellApiHandler.props(workflowDescriptorMaterializer), CromwellApiHandler.ApiHandlerValidateWorkflow(WorkflowId.randomId(), wdlSource, workflowInputs, workflowOptions))
           }
         }
       }

@@ -29,9 +29,9 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Success, Try}
 
-class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll {
+class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll with WorkflowDescriptorBuilder {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
-  val actorSystem = testWorkflowManagerSystem.actorSystem
+  override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
   val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
 
   override protected def afterAll() = {
@@ -216,7 +216,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
         WdlString("stringToString2") -> WdlString("path/to/stringToString2")
       ))
     )
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.CurrentDirectory.asWorkflowSources())
     val jobDescriptor = mock[BackendCallJobDescriptor]
     jobDescriptor.locallyQualifiedInputs returns inputs
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
@@ -242,7 +242,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
                         lookup: String => WdlValue,
                         functions: JesCallEngineFunctions = new JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new CallContext("root", "out", "err"))): BackendCallJobDescriptor = {
 
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), wdl.asWorkflowSources()).copy(wfContext = new WorkflowContext("gs://foobar"))
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = wdl.asWorkflowSources()).copy(wfContext = new WorkflowContext("gs://foobar"))
     val jobDescriptor = mock[BackendCallJobDescriptor]
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
     runtimeAttributes.disks returns Seq(workingDisk)
@@ -295,7 +295,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val inputs = Map(
       "fileArray" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("gs://path/to/file1"), WdlFile("gs://path/to/file2")))
     )
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.CurrentDirectory.asWorkflowSources())
     val jobDescriptor = mock[BackendCallJobDescriptor]
     jobDescriptor.locallyQualifiedInputs returns inputs
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
@@ -315,7 +315,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       "file1" -> WdlFile("gs://path/to/file1"),
       "file2" -> WdlFile("gs://path/to/file2")
     )
-    val descriptor = WorkflowDescriptor(WorkflowId(UUID.randomUUID()), SampleWdl.CurrentDirectory.asWorkflowSources())
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.CurrentDirectory.asWorkflowSources())
     val jobDescriptor = mock[BackendCallJobDescriptor]
     jobDescriptor.locallyQualifiedInputs returns inputs
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
@@ -372,7 +372,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   }
 
   "JesBackendCall" should "return JES log paths for non-scattered call" in {
-    val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), SampleWdl.HelloWorld.asWorkflowSources(
+    val wd = materializeWorkflowDescriptorFromSources(id = WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), workflowSources = SampleWdl.HelloWorld.asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
@@ -393,7 +393,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   }
 
   it should "return JES log paths for scattered call" in {
-    val wd = WorkflowDescriptor(WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), new SampleWdl.ScatterWdl().asWorkflowSources(
+    val wd = materializeWorkflowDescriptorFromSources(id = WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), workflowSources = new SampleWdl.ScatterWdl().asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(

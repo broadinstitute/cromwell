@@ -3,7 +3,8 @@ package cromwell.server
 import akka.actor.{Props, ActorSystem}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.CromwellBackend
-import cromwell.engine.workflow.{ValidateActor, WorkflowManagerActor}
+import cromwell.engine.workflow.{MaterializeWorkflowDescriptorActor, WorkflowManagerActor}
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.instrumentation.Instrumentation._
 import collection.JavaConversions._
 
@@ -26,5 +27,4 @@ trait WorkflowManagerSystem {
   CromwellBackend.initBackends(allowedBackends, defaultBackend, actorSystem)
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
   lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(), "WorkflowManagerActor")
-  lazy val validateActor = actorSystem.actorOf(Props[ValidateActor], "ValidationActor")
 }

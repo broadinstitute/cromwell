@@ -3,12 +3,11 @@ package cromwell.webservice
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
-import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.core.{CallOutput, WorkflowId}
-import cromwell.engine._
-import cromwell.engine.backend.{CallLogs, WorkflowDescriptor, WorkflowQueryResult}
-import cromwell.engine.workflow.ValidateActor
-import cromwell.engine.workflow.WorkflowManagerActor.{CallCaching, CallOutputs, CallStdoutStderr, WorkflowAbort, WorkflowOutputs, WorkflowQuery, WorkflowStatus, WorkflowStdoutStderr, _}
+import cromwell.engine.{WorkflowAborted, WorkflowRunning}
+import cromwell.engine.backend.{CallLogs, WorkflowDescriptorBuilder, WorkflowQueryResult}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
@@ -41,7 +40,8 @@ object MockWorkflowManagerActor {
   def props: Props = Props(classOf[MockWorkflowManagerActor])
 }
 
-class MockWorkflowManagerActor extends Actor  {
+class MockWorkflowManagerActor extends Actor {
+  this: WorkflowDescriptorBuilder =>
 
   implicit lazy val hasher: WdlValue => SymbolHash = { x => SymbolHash("NOT REALLY IMPORTANT IN THESE TESTs!!") }
 
@@ -60,7 +60,7 @@ class MockWorkflowManagerActor extends Actor  {
         WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
         from WorkflowDescriptor's validation
        */
-      val message = Try(WorkflowDescriptor(id, sources)) match {
+      val message = Try(materializeWorkflowDescriptorFromSources(id = id, workflowSources = sources)) match {
         case Success(w) => WorkflowManagerSubmitSuccess(w.id)
         case Failure(e) => WorkflowManagerSubmitFailure(e)
       }
@@ -228,10 +228,11 @@ object CromwellApiServiceSpec {
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   import spray.httpx.SprayJsonSupport._
 
-  val testWorkflowManagerSystem = new TestWorkflowManagerSystem
-  override def actorRefFactory = testWorkflowManagerSystem.actorSystem
-  override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
-  override val validateActor = actorRefFactory.actorOf(Props(new ValidateActor()))
+  override def actorRefFactory = system
+  override val workflowDescriptorMaterializer = actorRefFactory.actorOf(MaterializeWorkflowDescriptorActor.props())
+  override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
+    override implicit  val actorSystem = context.system
+  }))
   val version = "v1"
 
   s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
@@ -384,10 +385,10 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           fields.get("message").get.asInstanceOf[JsString].value.contains("Workflow input processing failed.") &&
           fields.get("errors").isDefined &&
             (fields.get("errors").get match {
-            case array: JsArray if array.elements.length == 1 =>
-              array.elements.head.asInstanceOf[JsString].value.contains("contains bad inputs JSON")
-            case _ => false
-          })
+              case array: JsArray if array.elements.length == 1 =>
+                array.elements.head.asInstanceOf[JsString].value.contains("contains invalid inputs JSON")
+              case _ => false
+            })
         }
       }
   }
@@ -410,11 +411,11 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
         assertResult(true) {
           fields.get("errors").isDefined &&
-          (fields.get("errors").get match {
-            case array: JsArray if array.elements.length == 1 =>
-              array.elements.head.asInstanceOf[JsString].value.contains("contains bad options JSON")
-            case _ => false
-          })
+            (fields.get("errors").get match {
+              case array: JsArray if array.elements.length == 1 =>
+                array.elements.head.asInstanceOf[JsString].value.contains("contains invalid options JSON")
+              case _ => false
+            })
         }
       }
   }

@@ -49,7 +49,7 @@ object WorkflowActor {
   case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends TerminalCallMessage
   case class CallFailedToInitialize(callKey: ExecutionStoreKey, reason: String) extends TerminalCallMessage
   case object Terminate extends WorkflowActorMessage
-  final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
+  final case class CachesCreated(startMode: WorkflowStartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
   final case class PerformTransition(toState: WorkflowState) extends WorkflowActorMessage
   sealed trait PersistenceMessage extends WorkflowActorMessage {
@@ -101,7 +101,7 @@ object WorkflowActor {
   /** Represents restarting a call for backends which support restart. */
   final case class RestartCall(override val callKey: CallKey, override val startMode: CallActor.StartMode) extends CallStartMessage
 
-  sealed trait StartMode {
+  sealed trait WorkflowStartMode {
     def runInitialization(actor: WorkflowActor): Future[Unit]
     def start(actor: WorkflowActor): Unit
     def replyTo: Option[ActorRef]
@@ -111,7 +111,7 @@ object WorkflowActor {
     def toDatabaseKey: ExecutionDatabaseKey = ExecutionDatabaseKey(key.scope.fullyQualifiedName, key.index, key.attempt)
   }
 
-  case class Start(replyTo: Option[ActorRef] = None) extends WorkflowActorMessage with StartMode {
+  case class StartNewWorkflow(replyTo: Option[ActorRef] = None) extends WorkflowActorMessage with WorkflowStartMode {
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
       // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
       // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
@@ -124,7 +124,7 @@ object WorkflowActor {
     override def start(actor: WorkflowActor) = actor.self ! StartRunnableCalls
   }
 
-  case object Restart extends WorkflowActorMessage with StartMode {
+  case object RestartWorkflow extends WorkflowActorMessage with WorkflowStartMode {
 
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
       for {
@@ -162,7 +162,7 @@ object WorkflowActor {
     Props(WorkflowActor(descriptor))
   }
 
-  case class WorkflowData(startMode: Option[StartMode] = None,
+  case class WorkflowData(startMode: Option[WorkflowStartMode] = None,
                           pendingExecutions: Map[ExecutionStoreKey, Set[ExecutionStatus]] = Map.empty,
                           processingExecutions: Set[ExecutionStoreKey] = Set.empty) {
 
@@ -331,7 +331,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     }
   }
 
-  private def initializeExecutionStore(startMode: StartMode): Future[Unit] = {
+  private def initializeExecutionStore(startMode: WorkflowStartMode): Future[Unit] = {
     val initializationCode = startMode.runInitialization(this)
     val futureCaches = for {
       _ <- initializationCode
@@ -367,7 +367,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   }
 
   when(WorkflowSubmitted) {
-    case Event(startMode: StartMode, _) =>
+    case Event(startMode: WorkflowStartMode, _) =>
       logger.info(s"$startMode message received")
       val sndr = sender()
       initializeExecutionStore(startMode) onComplete {

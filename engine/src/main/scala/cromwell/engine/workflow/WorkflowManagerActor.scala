@@ -10,7 +10,7 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess}
-import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.workflow.WorkflowActor.{RestartWorkflow, StartNewWorkflow}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
@@ -348,7 +348,7 @@ class WorkflowManagerActor(config: Config)
       case MaterializationSuccess(descriptor) =>
         val wfActor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
         wfActor ! SubscribeTransitionCallBack(self)
-        wfActor ! (if (isRestart) Restart else Start(replyTo))
+        wfActor ! (if (isRestart) RestartWorkflow else StartNewWorkflow(replyTo))
         logger.debug(s"Successfuly started ${wfActor.path} for Workflow ${workflowId}")
         context.stop(materializeWorkflowDescriptorActor)
         (workflowId -> wfActor)

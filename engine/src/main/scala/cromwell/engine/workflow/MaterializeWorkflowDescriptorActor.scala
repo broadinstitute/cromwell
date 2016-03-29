@@ -5,18 +5,20 @@ import java.nio.file.Paths
 import akka.actor.{Actor, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.core.{ErrorOr, WorkflowOptions, WorkflowId}
+import cromwell.core.{OptionNotFoundException, ErrorOr, WorkflowOptions, WorkflowId}
 import cromwell.engine._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend._
 import cromwell.util.TryUtil
-import spray.json._
+import spray.json.{JsObject,_}
 import wdl4s._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
+import lenthall.config.ScalaConfig.EnhancedScalaConfig
+
 
 object MaterializeWorkflowDescriptorActor {
   def props(): Props = Props(new MaterializeWorkflowDescriptorActor)
@@ -33,6 +35,7 @@ object MaterializeWorkflowDescriptorActor {
 
   private val DefaultCallCachingValue = false
   private val DefaultLookupDockerHash = false
+  private val DefaultWorkflowFailureMode = NoNewCalls.toString
 
   def configCallCaching(conf: Config) = lookupBooleanWithDefault(conf, "call-caching", "enabled", DefaultCallCachingValue)
   def lookupDockerHash(conf: Config) = lookupBooleanWithDefault(conf, "call-caching", "lookup-docker-hash", DefaultLookupDockerHash)
@@ -58,9 +61,9 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
   import MaterializeWorkflowDescriptorActor._
 
   override def receive = {
-    case MaterializeWorkflow(id, workflowSourceFiles, conf) =>
+    case MaterializeWorkflow(workflowId, workflowSourceFiles, conf) =>
       val backend = CromwellBackend.getBackendFromOptions(workflowSourceFiles.workflowOptionsJson)
-      buildWorkflowDescriptor(id, workflowSourceFiles, backend, conf) match {
+      buildWorkflowDescriptor(workflowId, workflowSourceFiles, backend, conf) match {
         case scalaz.Success(descriptor) => sender() ! MaterializationSuccess(descriptor)
         case scalaz.Failure(error) => sender() ! MaterializationFailure(
           new IllegalArgumentException() with ThrowableWithErrors {
@@ -78,15 +81,17 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
 
     def buildWorkflowDescriptor(namespace: NamespaceWithWorkflow,
                                 workflowOptions: WorkflowOptions,
-                                rawInputs: Map[String, JsValue]): ErrorOr[WorkflowDescriptor] = {
+                                rawInputs: Map[String, JsValue],
+                                workflowFailureMode: WorkflowFailureMode): ErrorOr[WorkflowDescriptor] = {
       validateCoercedInputs(rawInputs, namespace) flatMap { coercedInputs =>
         val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(workflowOptions), namespace.workflow.unqualifiedName, id)
         val wfContext = new WorkflowContext(workflowRootPath)
         val fileSystems = backend.fileSystems(workflowOptions)
         val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
+
         validateDeclarations(namespace, workflowOptions, coercedInputs, engineFunctions) flatMap { declarations =>
           WorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, backend,
-            configCallCaching(conf), lookupDockerHash(conf), wfContext, fileSystems).successNel
+            configCallCaching(conf), lookupDockerHash(conf), workflowFailureMode, wfContext, fileSystems).successNel
         }
       }
     }
@@ -98,10 +103,11 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     } flatMap { case (namespace, workflowOptions) =>
       val runtimeAttributes = validateRuntimeAttributes(namespace, backend.backendType)
       val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
-      (runtimeAttributes |@| rawInputsValidation) {
-        (_, _)
-      } flatMap { case (_, rawInputs) =>
-        buildWorkflowDescriptor(namespace, workflowOptions, rawInputs)
+      val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
+      (runtimeAttributes |@| rawInputsValidation |@| failureModeValidation) {
+        (_, _, _)
+      } flatMap { case (_, rawInputs, failureMode) =>
+        buildWorkflowDescriptor(namespace, workflowOptions, rawInputs, failureMode)
       }
     }
   }
@@ -155,6 +161,19 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     WorkflowOptions.fromJsonString(workflowOptions) match {
       case Success(o) => validateBackendOptions(backend, o)
       case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".failureNel
+    }
+  }
+
+  private def validateWorkflowFailureMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[WorkflowFailureMode] = {
+    val modeString: Try[String] = workflowOptions.get("workflowFailureMode") match {
+      case Success(x) => Success(x)
+      case Failure(_: OptionNotFoundException) => Success(conf.getStringOption("workflow-failure-mode") getOrElse DefaultWorkflowFailureMode)
+      case Failure(t) => Failure(t)
+    }
+
+    modeString flatMap WorkflowFailureMode.tryParse match {
+        case Success(mode) => mode.successNel
+        case Failure(t) => t.getMessage.failureNel
     }
   }
 

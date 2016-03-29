@@ -8,7 +8,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.{WorkflowFailureMode, WorkflowSourceFiles}
 import cromwell.engine.backend.io._
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{SimpleExponentialBackoff, TryUtil}
@@ -37,6 +37,7 @@ case class WorkflowDescriptor(id: WorkflowId,
                               backend: Backend,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
+                              workflowFailureMode: WorkflowFailureMode,
                               wfContext: WorkflowContext,
                               fileSystems: List[FileSystem]) {
   import WorkflowDescriptor._
@@ -234,7 +235,8 @@ object WorkflowDescriptor {
   val WorkflowLogDirOptionKey = "workflow_log_dir"
   val WorkflowOutputsOptionKey = "outputs_path"
   val CallLogsDirOptionKey = "call_logs_dir"
-  val OptionKeys: Set[String] = Set(WorkflowLogDirOptionKey, WorkflowOutputsOptionKey, CallLogsDirOptionKey)
+  val WorkflowFailureModeKey = "workflowFailureMode"
+  val OptionKeys: Set[String] = Set(WorkflowLogDirOptionKey, WorkflowOutputsOptionKey, CallLogsDirOptionKey, WorkflowFailureModeKey)
 
   private def disabledMessage(readWrite: String, consequence: String) =
     s"""$readWrite is enabled in the workflow options but Call Caching is disabled in this Cromwell instance.

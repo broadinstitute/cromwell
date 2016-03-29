@@ -1,17 +1,24 @@
 package cromwell.util.docker
 
+import com.google.api.client.auth.oauth2.Credential
 import cromwell.CromwellSpec.IntegrationTest
-import cromwell.util.DockerConfiguration
+import cromwell.engine.backend.BackendConfiguration
+import cromwell.engine.io.gcs.GoogleConfiguration
 import cromwell.util.google.{GoogleCredentialFactory, GoogleCredentialFactorySpec}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.language.postfixOps
+
 class DockerIdentifierParserSpec extends FlatSpec with Matchers {
   behavior of "DockerIdentifierParser"
 
   it should "parse docker tagged identifiers" in {
-    val parser = DockerIdentifierParser.Default
+    val backendEntry = BackendConfiguration.DefaultBackendEntry
+    val maybeConfiguration: Option[GoogleConfiguration] = GoogleConfiguration.fromConfig(backendEntry.config) toOption
+    val credential: Option[Credential] = maybeConfiguration map GoogleCredentialFactory.fromCromwellAuthScheme
+    val parser = DockerIdentifierParser(backendEntry.config, credential)
 
     val identifiers = Table(
       ("identifier", "name", "tag", "namespace"),
@@ -39,13 +46,9 @@ class DockerIdentifierParserSpec extends FlatSpec with Matchers {
   it should "parse gcr.io tagged identifiers" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeAccountConfigExists()
 
-    val googleCredentials = new GoogleCredentialFactory {
-      override val GoogleConf = GoogleCredentialFactorySpec.GoogleAccountConfig
-    }.fromCromwellAuthScheme
-
-    val dockerConf = DockerConfiguration.build(GoogleCredentialFactorySpec.AccountConfig)
-
-    val parser = new DockerIdentifierParser(dockerConf, Option(googleCredentials))
+    val backendConfiguration = BackendConfiguration.DefaultBackendEntry
+    val credential: Option[Credential] = Option(GoogleCredentialFactory.fromCromwellAuthScheme(GoogleCredentialFactorySpec.GoogleAccountConfig))
+    val parser = DockerIdentifierParser(backendConfiguration.config, credential)
 
     val identifiers = Table(
       ("identifier", "name", "tag", "namespace"),

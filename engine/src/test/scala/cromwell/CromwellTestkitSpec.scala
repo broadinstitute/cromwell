@@ -54,7 +54,6 @@ object CromwellTestkitSpec {
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-    defaultBackend // Force initialization
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
@@ -153,6 +152,84 @@ object CromwellTestkitSpec {
       Await.result(manager.ask(message).mapTo[WorkflowManagerCallStdoutStderrSuccess], Duration.Inf).logs
     }
   }
+
+  lazy val DefaultLocalBackendConfig = ConfigFactory.parseString(
+    """
+      |  {
+      |    // Root directory where Cromwell writes job results.  This directory must be
+      |    // visible and writeable by the Cromwell process as well as the jobs that Cromwell
+      |    // launches.
+      |    root: "cromwell-executions"
+      |
+      |    // Cromwell makes a link to your input files within <root>/<workflow UUID>/workflow-inputs
+      |    // The following are strategies used to make those links.  They are ordered.  If one fails
+      |    // The next one is tried:
+      |    //
+      |    // hard-link: attempt to create a hard-link to the file
+      |    // copy: copy the file
+      |    // soft-link: create a symbolic link to the file
+      |    //
+      |    // NOTE: soft-link will be skipped for Docker jobs
+      |    localization: [
+      |      "hard-link", "soft-link", "copy"
+      |    ]
+      |  }
+    """.stripMargin)
+
+  lazy val JesBackendConfig = ConfigFactory.parseString(
+    """
+      |{
+      |  // Google project
+      |  project = "my-cromwell-workflows"
+      |
+      |  // Base bucket for workflow executions
+      |  root = "gs://my-cromwell-workflows-bucket"
+      |
+      |  // Endpoint for APIs, no reason to change this unless directed by Google.
+      |  endpointUrl = "https://genomics.googleapis.com/"
+      |
+      |  // Polling for completion backs-off gradually for slower-running jobs.
+      |  // This is the maximum polling interval (in seconds):
+      |  maximumPollingInterval = 600
+      |
+      |  applicationName = "cromwell"
+      |
+      |  // cromwellAuthenticationScheme can take the values "service_account",
+      |  // "user_account", and "application_default". The first two are described
+      |  // in the stanzas below.
+      |  // Use "application_default" to use the default service account credentials.
+      |  // This is useful if you are running on a GCE VM and if you don't need
+      |  // user level access. See https://developers.google.com/identity/protocols/application-default-credentials
+      |  // for more info. No further information is needed.
+      |  cromwellAuthenticationScheme = "application_default"
+      |
+      |  // If cromwellAuthenticationScheme is "service_account"
+      |  serviceAuth {
+      |    // pemFile = ""
+      |    // serviceAccountId = ""
+      |  }
+      |
+      |  // If cromwellAuthenticationScheme is "user_account"
+      |  userAuth {
+      |    // user = ""
+      |    // secretsFile = ""
+      |    // dataStoreDir = ""
+      |  }
+      |
+      |  // [Optional]
+      |  // Can be defined to provide an alternative way for Cromwell to perform some runtime interactions with GCS.
+      |  // For instance data localization and delocalization in GoogleCloudStorage will be done on behalf of another entity (typically a user).
+      |  // This allows cromwell to localize data that wouldn't be accessible using whatever "cromwellAuthenticationScheme" has been defined.
+      |  // The currently only available scheme is refresh, which requires a refresh token to be passed upon every workflow submission (see "workflow options" in cromwell documentation).
+      |  // In that scheme, a client_id and client_secrets must be provided. They must be the ones that have been used to generate the above-mentioned refresh token.
+      |  // userAuthenticationScheme = "refresh"
+      |  // refreshTokenAuth = {
+      |  //   client_id = ""
+      |  //   client_secret = ""
+      |  // }
+      |}
+    """.stripMargin
+  )
 }
 
 abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)

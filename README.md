@@ -291,7 +291,7 @@ backend {
 }
 ```
 
-Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
+Or, via `-Dserver.abortJobsOnTerminate=true` command line option.
 
 # Backends
 
@@ -433,7 +433,7 @@ Backends that use the shared filesystem can accept the following values for `Fil
 The Google Cloud Storage (GCS) Filesystem is only used for when a workflow is run on Google JES.  It uses the same directory structure as the [Shared Local Filesystem](#shared-local-filesystem), however it is rooted at one of the following GCS locations:
 
 * If the `jes_gcs_root` [workflow option](#workflow-options) is set, this is used first.
-* Otherwise, `backend.jes.baseExecutionBucket` in the [configuration file](#configuring-cromwell), which can also be set via `java -Dbackend.jes.baseExecutionBucket="gs://my-bucket/"`, will be used instead.
+* Otherwise, `backend.jes.root` in the [configuration file](#configuring-cromwell), which can also be set via `java -Dbackend.jes.root="gs://my-bucket/"`, will be used instead.
 
 Google Cloud Storage URIs are the only acceptable values for `File` inputs for workflows using the JES backend.
 
@@ -540,7 +540,7 @@ backend {
     project = "my-project"
 
     // Location to store workflow results, must be a gs:// URL
-    baseExecutionBucket = "gs://my-bucket/cromwell-executions"
+    root = "gs://my-bucket/cromwell-executions"
 
     // Root URL for the API
     endpointUrl = "https://genomics.googleapis.com/"

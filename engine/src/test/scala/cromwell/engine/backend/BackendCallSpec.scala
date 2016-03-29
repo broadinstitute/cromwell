@@ -10,7 +10,7 @@ import org.scalatest.concurrent.ScalaFutures
 class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures with WorkflowDescriptorBuilder {
   override implicit val actorSystem = system
 
-  val backend = new LocalBackend(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
+  val backend = new LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfig, new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
 
   "BackendCall hash function" should {
     "not hash by default" in {

@@ -23,7 +23,7 @@ class JesVMAuthenticationSpec extends FlatSpec with Matchers {
       Some(normalize("""
         |{
         |    "auths": {
-        |        "docker": {
+        |        "dockerHub": {
         |            "account": "my@docker.account",
         |            "token": "mydockertoken"
         |        }
@@ -48,7 +48,7 @@ class JesVMAuthenticationSpec extends FlatSpec with Matchers {
     Some(normalize("""
            |{
            |    "auths": {
-           |        "docker": {
+           |        "dockerHub": {
            |            "account": "my@docker.account",
            |            "token": "mydockertoken"
            |        },

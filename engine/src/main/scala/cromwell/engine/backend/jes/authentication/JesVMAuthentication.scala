@@ -36,7 +36,7 @@ object JesDockerCredentials {
  * Authentication information to pull docker images as the user.
  */
 class JesDockerCredentials(account: String, token: String) extends DockerCredentials(account, token) with JesAuthInformation {
-  override val context = "docker"
+  override val context = "dockerHub"
   override val map = Map(
     "account" -> JsString(account),
     "token" -> JsString(token)

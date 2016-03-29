@@ -11,7 +11,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   it should "parse a configuration stanza with service account" in {
     val serviceConfig =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "service_account"
@@ -22,7 +22,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    val gconf = GoogleConfiguration.build(ConfigFactory.parseString(serviceConfig))
+    val gconf = GoogleConfiguration.fromConfig(ConfigFactory.parseString(serviceConfig)).get
 
     gconf.appName shouldBe "cromwell"
     gconf.cromwellAuthMode.isInstanceOf[ServiceAccountMode] shouldBe true
@@ -34,7 +34,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   it should "parse a configuration stanza with user account" in {
     val userConfig =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "user_account"
@@ -46,7 +46,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    val gconf = GoogleConfiguration.build(ConfigFactory.parseString(userConfig))
+    val gconf = GoogleConfiguration.fromConfig(ConfigFactory.parseString(userConfig)).get
 
     gconf.appName shouldBe "cromwell"
     gconf.cromwellAuthMode.isInstanceOf[UserMode] shouldBe true
@@ -59,7 +59,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   it should "parse a configuration stanza with refresh token scheme" in {
     val refreshConfig =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "service_account"
@@ -76,7 +76,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    val gconf = GoogleConfiguration.build(ConfigFactory.parseString(refreshConfig))
+    val gconf = GoogleConfiguration.fromConfig(ConfigFactory.parseString(refreshConfig)).get
 
     val refreshConf = gconf.userAuthMode
     refreshConf shouldBe defined
@@ -89,7 +89,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   it should "not parse a configuration stanza without applicationName" in {
     val wrongConf =
       """
-        |google {
+        |{
         |
         | cromwellAuthenticationScheme = "user_account"
         | userAuth {
@@ -101,14 +101,14 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigValidationException] shouldBe thrownBy {
-       GoogleConfiguration.build(ConfigFactory.parseString(wrongConf))
+       GoogleConfiguration.fromConfig(ConfigFactory.parseString(wrongConf)).get
     }
   }
 
   it should "not parse a configuration stanza with wrong cromwell auth" in {
     val unsupported =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "not supported"
@@ -116,12 +116,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigValidationException] shouldBe thrownBy {
-      GoogleConfiguration.build(ConfigFactory.parseString(unsupported))
+      GoogleConfiguration.fromConfig(ConfigFactory.parseString(unsupported)).get
     }
 
     val wrongSA =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "service_account"
@@ -129,12 +129,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration.build(ConfigFactory.parseString(wrongSA))
+      GoogleConfiguration.fromConfig(ConfigFactory.parseString(wrongSA)).get
     }
 
     val wrongSA2 =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "service_account"
@@ -146,14 +146,14 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration.build(ConfigFactory.parseString(wrongSA2))
+      GoogleConfiguration.fromConfig(ConfigFactory.parseString(wrongSA2)).get
     }
   }
 
   it should "not parse a configuration stanza with wrong user auth" in {
     val unsupported =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | userAuthenticationScheme = "not supported"
@@ -161,12 +161,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigValidationException] shouldBe thrownBy {
-      GoogleConfiguration.build(ConfigFactory.parseString(unsupported))
+      GoogleConfiguration.fromConfig(ConfigFactory.parseString(unsupported)).get
     }
 
     val wrongUser =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         | cromwellAuthenticationScheme = "user_account"
@@ -174,12 +174,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration.build(ConfigFactory.parseString(wrongUser))
+      GoogleConfiguration.fromConfig(ConfigFactory.parseString(wrongUser)).get
     }
 
     val wrongUser2 =
       """
-        |google {
+        |{
         | applicationName = "cromwell"
         |
         |cromwellAuthenticationScheme = "user_account"
@@ -192,7 +192,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration.build(ConfigFactory.parseString(wrongUser2))
+      GoogleConfiguration.fromConfig(ConfigFactory.parseString(wrongUser2)).get
     }
   }
 

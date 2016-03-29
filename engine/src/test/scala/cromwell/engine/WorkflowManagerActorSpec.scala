@@ -4,11 +4,12 @@ import java.util.UUID
 
 import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellSpec.DockerTest
+import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
-import cromwell.core.{WorkflowId, CallOutput}
+import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
+import cromwell.engine.backend.{CallMetadata, WorkflowDescriptorBuilder}
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{WorkflowDescriptorBuilder, WorkflowDescriptor, Backend, CallMetadata}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -16,7 +17,6 @@ import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.webservice.CromwellApiHandler._
-import cromwell.{CromwellSpec, CromwellTestkitSpec}
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlInteger, WdlString}
@@ -27,8 +27,6 @@ import scala.language.postfixOps
 
 class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
   override implicit val actorSystem = system
-
-  val backendInstance = Backend.from(CromwellSpec.Config, system)
 
   "A WorkflowManagerActor" should {
 
@@ -78,7 +76,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
           val task = Task.empty
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
-            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
+            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfig, system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
             _ <- globalDataAccess.updateStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()
@@ -208,7 +206,6 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "show (only supported) runtime attributes in metadata" taggedAs DockerTest in {
 
-      val backendInstance = Backend.from(CromwellSpec.Config, system)
       implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test Workflow metadata construction")
 
       val fullWfOptions =

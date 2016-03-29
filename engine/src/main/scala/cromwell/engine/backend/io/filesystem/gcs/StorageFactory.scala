@@ -15,18 +15,16 @@ object StorageFactory {
 
   val RefreshTokenOptionKey = "refresh_token"
 
-  lazy val cromwellAuthenticated: Try[Storage] = {
+  def cromwellAuthenticated(googleConfiguration: GoogleConfiguration): Try[Storage] = {
     for {
-      cromwellCredentials <- Try(GoogleCredentialFactory.fromCromwellAuthScheme)
-      conf <- GoogleConfiguration.gcloudConf
-    } yield apply(conf.appName, cromwellCredentials)
+      cromwellCredentials <- Try(GoogleCredentialFactory.fromCromwellAuthScheme(googleConfiguration))
+    } yield apply(googleConfiguration.appName, cromwellCredentials)
   }
 
-  def userAuthenticated(workflowOptions: WorkflowOptions): Try[Storage] = for {
-    conf <- GoogleConfiguration.gcloudConf
+  def userAuthenticated(googleConfiguration: GoogleConfiguration, workflowOptions: WorkflowOptions): Try[Storage] = for {
     token <- workflowOptions.get(RefreshTokenOptionKey)
-    userCredentials <- GoogleCredentialFactory.fromUserAuthScheme(token)
-  } yield apply(conf.appName, userCredentials)
+    userCredentials <- GoogleCredentialFactory.fromUserAuthScheme(googleConfiguration, token)
+  } yield apply(googleConfiguration.appName, userCredentials)
 
   private def apply(appName: String, credential: Credential): Storage = {
     new Storage.Builder(GoogleCredentialFactory.httpTransport, GoogleCredentialFactory.jsonFactory, credential).setApplicationName(appName).build()

@@ -40,19 +40,19 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   }
 
   val clientSecrets = SimpleClientSecrets("id", "secrets")
-  val jesBackend = new JesBackend(actorSystem) {
+  val jesBackend = new JesBackend(CromwellTestkitSpec.JesBackendConfig, actorSystem) {
     private val anyString = ""
     private val anyURL: URL = null
-    override lazy val jesConf = new JesAttributes(
+    override lazy val jesAttributes = new JesAttributes(
       project = anyString,
       executionBucket = anyString,
       endpointUrl = anyURL,
       maxPollingInterval = 600) {
     }
-    override lazy val genomicsInterface = null
-    override lazy val cromwellGcsFileSystem = null
+    override def genomicsInterface(googleConfiguration: GoogleConfiguration, jesAttributes: JesAttributes) = null
+    override def cromwellGcsFileSystem = null
     override def userGcsFileSystem(options: WorkflowOptions) = null
-    override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
+    override lazy val googleConfiguration = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
   }
 
   "executionResult" should "handle Failure Status" in {
@@ -150,7 +150,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     // This should only ever be used in this test to grab some locallyQualifiedInputs. So leave the rest null:
     val jobDescriptor = BackendCallJobDescriptor(null, null, inputs)
 
-    val mappedInputs: CallInputs = new JesBackend(actorSystem).adjustInputPaths(jobDescriptor)
+    val mappedInputs: CallInputs = new JesBackend(CromwellTestkitSpec.JesBackendConfig, actorSystem).adjustInputPaths(jobDescriptor)
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -420,7 +420,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     backendCallKeyWithAttempt2.attempt returns 2
 
     val workflow = mock[WorkflowDescriptor]
-    val backend = new JesBackend(ActorSystem("Jessie"))
+    val backend = new JesBackend(CromwellTestkitSpec.JesBackendConfig, ActorSystem("Jessie"))
     workflow.backend returns backend
 
     class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {

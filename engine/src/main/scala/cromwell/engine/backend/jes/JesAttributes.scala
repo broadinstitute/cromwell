@@ -3,6 +3,7 @@ package cromwell.engine.backend.jes
 import java.net.URL
 
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.ErrorOr
 import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
 import wdl4s.ThrowableWithErrors
@@ -17,24 +18,21 @@ object JesAttributes {
 
   private val jesKeys = Set(
     "project",
-    "baseExecutionBucket",
+    "root",
     "endpointUrl",
     "maximumPollingInterval"
   )
 
   private val context = "Jes"
 
-  def apply(): JesAttributes = this.apply(ConfigFactory.load)
-
   def apply(config: Config): JesAttributes = {
-    val jesConf = config.getConfig("backend").getConfig("jes")
 
-    jesConf.warnNotRecognized(jesKeys, context)
+    config.warnNotRecognized(jesKeys, context)
 
-    val project: ValidationNel[String, String] = jesConf.validateString("project")
-    val executionBucket: ValidationNel[String, String] = jesConf.validateString("baseExecutionBucket")
-    val endpointUrl: ValidationNel[String, URL] = jesConf.validateURL("endpointUrl")
-    val maxPollingInterval: Int = jesConf.getIntOption("maximumPollingInterval").getOrElse(600)
+    val project: ErrorOr[String] = config.validateString("project")
+    val executionBucket: ErrorOr[String] = config.validateString("root")
+    val endpointUrl: ErrorOr[URL] = config.validateURL("endpointUrl")
+    val maxPollingInterval: Int = config.getIntOption("maximumPollingInterval").getOrElse(600)
 
     (project |@| executionBucket |@| endpointUrl) {
       JesAttributes(_, _, _, maxPollingInterval)
@@ -47,5 +45,4 @@ object JesAttributes {
         }
     }
   }
-
 }

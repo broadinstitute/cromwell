@@ -5,6 +5,7 @@ import java.nio.file.{FileSystem, Files, Path}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
+import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions
 import cromwell.engine._
 import cromwell.engine.backend._
@@ -13,6 +14,7 @@ import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, Storage
 import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
+import cromwell.engine.io.gcs.GoogleConfiguration
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
@@ -38,7 +40,7 @@ object SgeBackend {
   }
 }
 
-case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
+case class SgeBackend(config: Config, actorSystem: ActorSystem) extends Backend with SharedFileSystem {
   def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
 
   import LocalBackend.WriteWithNewline
@@ -46,6 +48,8 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def backendType = BackendType.SGE
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
+
+  protected lazy val googleConfiguration: Option[GoogleConfiguration] = GoogleConfiguration.fromConfig(config) toOption
 
   /**
     * Exponential Backoff Builder to be used when polling for job status.
@@ -229,10 +233,14 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }
 
   override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
-    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated
-    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
 
-    List(gcs, Option(defaultFileSystem)).flatten
+    val gcs = for {
+      gconf <- Try(googleConfiguration.get)
+      gcsStorage = StorageFactory.userAuthenticated(gconf, options) orElse StorageFactory.cromwellAuthenticated(gconf)
+      fileSystem <- gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem }
+    } yield fileSystem
+
+    List(gcs.toOption, Option(defaultFileSystem)).flatten
   }
 
   def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {

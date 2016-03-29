@@ -1,9 +1,7 @@
 package cromwell.util
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import cromwell.util.ConfigUtil._
-
-import scala.util.Try
 
 /**
  * Encapsulate docker credential information.
@@ -20,26 +18,23 @@ case class DockerConfiguration(dockerCredentials: Option[DockerCredentials], doc
 object DockerConfiguration {
   import lenthall.config.ScalaConfig._
 
-  private val dockerKeys = Set("dockerAccount", "dockerToken")
+  private val dockerKeys = Set("account", "token")
 
-  lazy val dockerConf = build(ConfigFactory.load)
-
-  def build(conf: Config) = {
+  def build(config: Config) = {
     val dockerConf: Option[DockerCredentials] = for {
-      dockerConf <- conf.getConfigOption("docker")
-      _ = dockerConf.warnNotRecognized(dockerKeys, "docker")
-      account <- dockerConf.validateString("dockerAccount").toOption
-      token <- dockerConf.validateString("dockerToken").toOption
+      dockerConf <- config.getConfigOption("dockerHub")
+      _ = dockerConf.warnNotRecognized(dockerKeys, "dockerHub")
+      account <- dockerConf.validateString("account").toOption
+      token <- dockerConf.validateString("token").toOption
     } yield new DockerCredentials(account, token)
 
     val dockerHubConf = {
       new DockerHubConfiguration(
-        namespace = conf.getStringOr("docker.hub.namespace", "docker.io"),
-        v1Registry = conf.getStringOr("docker.hub.v1Registry", "index.docker.io"),
-        v2Registry = conf.getStringOr("docker.hub.v2Registry", "registry-1.docker.io")
+        namespace = config.getStringOr("docker.hub.namespace", "docker.io"),
+        v1Registry = config.getStringOr("docker.hub.v1Registry", "index.docker.io"),
+        v2Registry = config.getStringOr("docker.hub.v2Registry", "registry-1.docker.io")
       )
     }
     new DockerConfiguration(dockerConf, dockerHubConf)
   }
-
 }

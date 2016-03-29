@@ -18,8 +18,6 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object GoogleCredentialFactory extends GoogleCredentialFactory {
-  // gcloudConf is a Try, calling .get will throw an exception containing all validation failures.
-  override lazy val GoogleConf = GoogleConfiguration.gcloudConf.get
 
   /**
     * Before it returns the raw credential, checks if the token will expire within 60 seconds.
@@ -43,7 +41,6 @@ object GoogleCredentialFactory extends GoogleCredentialFactory {
       }
     }
   }
-
 }
 
 /**
@@ -51,20 +48,20 @@ object GoogleCredentialFactory extends GoogleCredentialFactory {
   */
 abstract class GoogleCredentialFactory {
 
-  // Abstract to allow use of custom configuration in the tests.
-  val GoogleConf: GoogleConfiguration
-
   private lazy val log = LoggerFactory.getLogger("GoogleCredentialFactory")
   lazy val jsonFactory = JacksonFactory.getDefaultInstance
   lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
 
-  lazy val fromCromwellAuthScheme: Credential = GoogleConf.cromwellAuthMode match {
+  // TODO this should be an implicit class
+  def fromCromwellAuthScheme(googleConfiguration: GoogleConfiguration): Credential = googleConfiguration.cromwellAuthMode match {
     case user: UserMode => validateCredentials(forUser(user))
     case service: ServiceAccountMode => validateCredentials(forServiceAccount(service))
     case ApplicationDefaultMode => validateCredentials(forApplicationDefaultCredentials())
   }
 
-  lazy val fromUserAuthScheme: (String) => Try[Credential] = (forClientSecrets _).andThen(_ map validateCredentials)
+  def fromUserAuthScheme(googleConfiguration: GoogleConfiguration, token: String): Try[Credential] = {
+    forClientSecrets(googleConfiguration, token) map validateCredentials
+  }
 
   private def validateCredentials(credential: Credential) = {
     Try(credential.refreshToken()) match {
@@ -108,8 +105,8 @@ abstract class GoogleCredentialFactory {
       .build()
   }
 
-  private def forClientSecrets(token: String): Try[Credential] = {
-    GoogleConf.userAuthMode collect {
+  private def forClientSecrets(googleConfiguration: GoogleConfiguration, token: String): Try[Credential] = {
+    googleConfiguration.userAuthMode collect {
       case refresh: Refresh =>
         Success(new GoogleCredential.Builder().setTransport(httpTransport)
           .setJsonFactory(jsonFactory)

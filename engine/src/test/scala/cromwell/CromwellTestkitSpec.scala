@@ -183,7 +183,7 @@ object CromwellTestkitSpec {
       |  project = "my-cromwell-workflows"
       |
       |  // Base bucket for workflow executions
-      |  baseExecutionBucket = "gs://my-cromwell-workflows-bucket"
+      |  root = "gs://my-cromwell-workflows-bucket"
       |
       |  // Endpoint for APIs, no reason to change this unless directed by Google.
       |  endpointUrl = "https://genomics.googleapis.com/"

@@ -12,7 +12,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     val configString = """
           {
              project = "myProject"
-             baseExecutionBucket = "gs://myBucket"
+             root = "gs://myBucket"
              endpointUrl = "http://myEndpoint"
              maximumPollingInterval = 600
              [PREEMPTIBLE]
@@ -48,7 +48,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     }
     val errorsList = exception.errors.list
     errorsList should contain ("Could not find key: project")
-    errorsList should contain ("Could not find key: baseExecutionBucket")
+    errorsList should contain ("Could not find key: root")
     errorsList should contain ("no protocol: myEndpoint")
   }
 

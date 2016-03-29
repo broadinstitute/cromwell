@@ -41,7 +41,7 @@ To use Squants in your Maven project add the following dependency
 
 ## Scaladoc
 
-* [0.3](http://broadinstitute.github.io/wdl4s/0.3)
+* [0.4](http://broadinstitute.github.io/wdl4s/0.4)
 
 ## Usage
 

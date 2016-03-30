@@ -10,20 +10,14 @@ import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.JobKey
-import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
-import cromwell.engine.ExecutionIndex.IndexEnhancedInt
-import cromwell.engine.ExecutionStatus._
+import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.{RunStatus, TerminalRunStatus}
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
-import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.gcs._
-import cromwell.filesystems.gcs.{GoogleConfiguration, RefreshTokenMode, GoogleAuthMode}
-import cromwell.filesystems.gcs.RefreshTokenMode
+import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration, RefreshTokenMode}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{CromwellAggregatedException, SimpleExponentialBackoff, TryUtil}
 import spray.json.JsObject
@@ -59,26 +53,6 @@ object JesBackend {
   ) ++ WorkflowDescriptor.OptionKeys
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesLiteralInput(ExtraConfigParamName, gcsPath)
-
-  // Only executions in Running state with a recorded operation ID are resumable.
-  private val IsResumable: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
-    e.status.toExecutionStatus == ExecutionStatus.Running &&
-      eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isDefined)
-  }
-
-  /** In this context transient means that a job is Running but doesn't have a Jes Run ID yet.
-    * This could happen if a call starts Running but Cromwell is stopped before the request to JES has been made
-    * (or the ID persisted to the DB) .*/
-  private val IsTransient: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
-    e.status.toExecutionStatus == ExecutionStatus.Running &&
-      eis.exists(ei => ei.key == JesBackend.InfoKeys.JesRunId && ei.value.isEmpty)
-  }
-
-  case class JesBackendJobKey(jesRunId: String) extends BackendJobKey
-
-  private val BuildBackendJobKey: (Execution, Seq[ExecutionInfo]) => BackendJobKey = (e: Execution, eis: Seq[ExecutionInfo]) => {
-    JesBackendJobKey(eis.find(_.key == JesBackend.InfoKeys.JesRunId).get.value.get)
-  }
 
   /**
    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
@@ -163,13 +137,6 @@ object JesBackend {
       )
     }
     val toGoogleRunParameter: String = gcs
-  }
-
-  implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
-    import cromwell.engine.ExecutionIndex._
-    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
-    def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
-    def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
 
   object InfoKeys {
@@ -370,8 +337,8 @@ case class JesBackend(actorSystem: ActorSystem)
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(jobDescriptor, runIdForResumption = None)
 
-  def resume(jobDescriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val runId = Option(jobKey) collect { case jesKey: JesBackendJobKey => jesKey.jesRunId }
+  def resume(jobDescriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    val runId = executionInfos.get(InfoKeys.JesRunId).flatten
     executeOrResume(jobDescriptor, runIdForResumption = runId)
   }
 
@@ -779,69 +746,12 @@ case class JesBackend(actorSystem: ActorSystem)
     }
   }
 
-  /**
-   * <ul>
-   *   <li>Any execution in Failed should fail the restart.</li>
-   *   <li>Any execution in Aborted should fail the restart.</li>
-   *   <li>Scatters in Starting should fail the restart.</li>
-   *   <li>Collectors in Running should be set back to NotStarted.</li>
-   *   <li>Calls in Starting should be rolled back to NotStarted.</li>
-   *   <li>Calls in Running with no job key should be rolled back to NotStarted.</li>
-   * </ul>
-   *
-   * Calls in Running *with* a job key should be left in Running.  The WorkflowActor is responsible for
-   * resuming the CallActors for these calls.
-   */
-  override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
-    import cromwell.engine.backend.jes.JesBackend.EnhancedExecution
+  override def isResumable(key: JobKey, executionInfos: Map[String, Option[String]]): Boolean = {
+    executionInfos.get(InfoKeys.JesRunId).flatten.nonEmpty
+  }
 
-    lazy val tag = s"Workflow ${restartableWorkflow.id.shortString}:"
-
-    def handleExecutionStatuses(executions: Traversable[Execution]): Future[Unit] = {
-
-      def stringifyExecutions(executions: Traversable[Execution]): String = {
-        executions.toSeq.sortWith((lt, rt) => lt.callFqn < rt.callFqn || (lt.callFqn == rt.callFqn && lt.index < rt.index)).mkString(" ")
-      }
-
-      def isRunningCollector(key: Execution) = key.index.toIndex.isEmpty && key.executionStatus == ExecutionStatus.Running
-
-      val failedOrAbortedExecutions = executions filter { x => x.executionStatus == ExecutionStatus.Aborted || x.executionStatus == ExecutionStatus.Failed }
-
-      if (failedOrAbortedExecutions.nonEmpty) {
-        Future.failed(new Throwable(s"$tag Cannot restart, found Failed and/or Aborted executions: " + stringifyExecutions(failedOrAbortedExecutions)))
-      } else {
-        // Cromwell has execution types: scatter, collector, call.
-        val (scatters, collectorsAndCalls) = executions partition { _.isScatter }
-        // If a scatter is found in starting state, it's not clear without further database queries whether the call
-        // shards have been created or not.  This is an unlikely scenario and could be worked around with further
-        // queries or a bracketing transaction, but for now Cromwell just bails out on restarting the workflow.
-        val startingScatters = scatters filter { _.executionStatus == ExecutionStatus.Starting }
-        if (startingScatters.nonEmpty) {
-          Future.failed(new Throwable(s"$tag Cannot restart, found scatters in Starting status: " + stringifyExecutions(startingScatters)))
-        } else {
-          // Scattered calls have more than one execution with the same FQN.  Find any collectors in these FQN
-          // groupings which are in Running state.
-          // This is a race condition similar to the "starting scatters" case above, but here the assumption is that
-          // it's more likely that collectors can safely be reset to starting.  This may prove not to be the case if
-          // entries have been written to the symbol table.
-          // Like the starting scatters case, further queries or a bracketing transaction would be a better long term solution.
-          val runningCollectors = collectorsAndCalls.groupBy(_.callFqn) collect {
-            case (_, xs) if xs.size > 1 => xs filter isRunningCollector } flatten
-
-          for {
-            _ <- globalDataAccess.resetTransientExecutions(restartableWorkflow.id, IsTransient)
-            _ <- globalDataAccess.setStartingStatus(restartableWorkflow.id, runningCollectors map { _.toKey })
-          } yield ()
-        }
-      }
-    }
-
-    for {
-      // Find all executions for the specified workflow that are not NotStarted or Done.
-      executions <- globalDataAccess.getExecutionsForRestart(restartableWorkflow.id)
-      // Examine statuses/types of executions, reset statuses as necessary.
-      _ <- handleExecutionStatuses(executions)
-    } yield ()
+  override def isRestartable(key: JobKey, executionInfos: Map[String, Option[String]]): Boolean = {
+    !isResumable(key, executionInfos)
   }
 
   override def backendType = BackendType.JES
@@ -861,10 +771,6 @@ case class JesBackend(actorSystem: ActorSystem)
     if (gcsConf.authMode.isInstanceOf[RefreshTokenMode] || dockerConf.isDefined)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor).toString))
     else None
-  }
-
-  override def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
-    globalDataAccess.findResumableExecutions(id, IsResumable, BuildBackendJobKey)
   }
 
   override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)

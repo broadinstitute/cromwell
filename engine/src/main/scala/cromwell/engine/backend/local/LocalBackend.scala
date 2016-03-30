@@ -7,15 +7,13 @@ import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.backend.JobKey
+import cromwell.core.WorkflowOptions
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.io._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.filesystems.gcs.{GoogleConfigurationAdapter, GoogleConfiguration, GcsFileSystemProvider}
-import cromwell.filesystems.gcs.StorageFactory
+import cromwell.filesystems.gcs.{GcsFileSystemProvider, GoogleConfiguration, GoogleConfigurationAdapter, StorageFactory}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
@@ -125,22 +123,9 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
   }).flatten map CompletedExecutionHandle
 
-  /**
-   * LocalBackend needs to force non-terminal calls back to NotStarted on restart.
-   */
-  override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
-    // Remove terminal states and the NotStarted state from the states which need to be reset to NotStarted.
-    val StatusesNeedingUpdate = ExecutionStatus.values -- Set(ExecutionStatus.Failed, ExecutionStatus.Done, ExecutionStatus.NotStarted)
-    def updateNonTerminalCalls(workflowId: WorkflowId, keyToStatusMap: Map[ExecutionDatabaseKey, CallStatus]): Future[Unit] = {
-      val callFqnsNeedingUpdate = keyToStatusMap collect { case (callFqn, callStatus) if StatusesNeedingUpdate.contains(callStatus.executionStatus) => callFqn }
-      globalDataAccess.updateStatus(workflowId, callFqnsNeedingUpdate, ExecutionStatus.NotStarted)
-    }
 
-    for {
-      callsToStatuses <- globalDataAccess.getExecutionStatuses(restartableWorkflow.id)
-      _ <- updateNonTerminalCalls(restartableWorkflow.id, callsToStatuses)
-    } yield ()
-  }
+  override def isRestartable(key: JobKey, executionInfos: Map[String, Option[String]]): Boolean = true
+  override def isResumable(key: JobKey, executionInfos: Map[String, Option[String]]): Boolean = false
 
   override def backendType = BackendType.LOCAL
 
@@ -258,7 +243,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 
-  override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def resume(descriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     Future.failed(new Throwable("resume invoked on non-resumable Local backend"))
   }
 }

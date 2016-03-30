@@ -9,11 +9,13 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
+import cromwell.backend.JobKey
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
+import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
@@ -32,7 +34,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlString}
+import wdl4s.values.{WdlFloat, WdlInteger, WdlArray, WdlString}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -74,7 +76,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor) = throw new NotImplementedError()
     override def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = throw new NotImplementedError
     override def initializeForWorkflow(workflow: WorkflowDescriptor) = throw new NotImplementedError
-    override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = throw new NotImplementedError
     override def backendType: BackendType = throw new NotImplementedError
     override def rootPath(workflowOptions: WorkflowOptions): String = throw new NotImplementedError
     override def pollBackoff: ExponentialBackOff = throw new NotImplementedError
@@ -84,8 +85,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
     override def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
-    override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
+    override def resume(descriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = throw new NotImplementedError()
     override def fileSystems(options: WorkflowOptions): List[FileSystem] = List(FileSystems.getDefault)
+    override def isResumable(key: JobKey, executionInfo: Map[String, Option[String]]) = false
+    override def isRestartable(key: JobKey, executionInfo: Map[String, Option[String]]) = false
   }
 
   "SlickDataAccess" should "not deadlock" in {
@@ -1100,14 +1103,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
-    // TODO: Still need a test that consistently reproduces the deadlock exception when we do NOT retry.
-    // TODO: We also don't have a unit test for our withRetry.
     it should "not deadlock with upserts" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
-
-      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowId = WorkflowId.randomId()
       val sources = WorkflowSourceFiles(
-        wdlSource="""task a {command{}}
+        wdlSource="""
+          |task a {command{}}
           |workflow w {
           |  call a
           |  call a as b
@@ -1117,37 +1118,27 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         inputsJson="{}",
         workflowOptionsJson="{}"
       )
-
       val descriptor = materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = sources)
-      def getCall(name: String): Call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == name).get
-      val key1 = BackendCallKey(getCall("a"), None, 1)
-      val key2 = BackendCallKey(getCall("b"), None, 1)
-      val key3 = BackendCallKey(getCall("c"), None, 1)
-
-      val infos = Map(
-        "a" -> Option("foobar"),
-        "b" -> Option("foobar"),
-        "c" -> Option("foobar"),
-        "d" -> Option("foobar"),
-        "e" -> Option("foobar"),
-        "f" -> Option("foobar")
+      val key1 = ExecutionDatabaseKey("w.a", None, 1)
+      val key2 = ExecutionDatabaseKey("w.b", None, 1)
+      val key3 = ExecutionDatabaseKey("w.c", None, 1)
+      val attributes = Map(
+        "a" -> WdlString("foo"),
+        "b" -> WdlInteger(1),
+        "c" -> WdlFloat(2.2),
+        "d" -> WdlString("foo"),
+        "e" -> WdlInteger(1),
+        "f" -> WdlFloat(2.2)
       )
-
       (for {
         _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
         executions <- dataAccess.getExecutions(descriptor.id)
         _ = executions should have size 3
         _ <- Future.sequence(Seq(
-          dataAccess.upsertExecutionInfo(workflowId, key1, infos, actorSystem),
-          dataAccess.upsertExecutionInfo(workflowId, key2, infos, actorSystem),
-          dataAccess.upsertExecutionInfo(workflowId, key3, infos, actorSystem)
+          dataAccess.upsertRuntimeAttributes(workflowId, key1, attributes, actorSystem),
+          dataAccess.upsertRuntimeAttributes(workflowId, key2, attributes, actorSystem),
+          dataAccess.upsertRuntimeAttributes(workflowId, key3, attributes, actorSystem)
         ))
-        executionInfos <- dataAccess.infosByExecution(workflowId)
-        _ = executionInfos should have size 3
-        _ = Seq("w.a", "w.b", "w.c") foreach { fqn =>
-          val callExecutionInfos = executionInfos.find(_.execution.callFqn == fqn).get.executionInfos
-          callExecutionInfos.collect({ case i if infos.contains(i.key) => i.key -> i.value }).toMap shouldEqual infos
-        }
       } yield ()).futureValue
     }
 

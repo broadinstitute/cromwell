@@ -64,7 +64,7 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
     */
   def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = backend.hash(this)
 
-  def resume(jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
+  def resume(executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, executionInfos)
 
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
 }

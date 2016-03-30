@@ -26,7 +26,7 @@ object CallExecutionActor {
   sealed trait ExecutionMode extends CallExecutionActorMessage
 
   case object Execute extends ExecutionMode
-  final case class Resume(jobKey: BackendJobKey) extends ExecutionMode
+  final case class Resume(executionInfos: Map[String, Option[String]]) extends ExecutionMode
   final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor) extends ExecutionMode
 
   def props(backendCall: BackendCallJobDescriptor): Props = Props(new BackendCallExecutionActor(backendCall))

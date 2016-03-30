@@ -2,6 +2,20 @@
 
 ## 0.19
 
+* Workflow options may now contain a choice of backend specific for that workflow:
+```
+{
+  "backend": "JES"
+}
+```
+* To support the above change, the configuration file has changed how backends are specified. You must replace `backend.backend` with `backend.defaultBackend`. 
+In addition the option `backend.backendsAllowed` must be specified (and should include the default), for example:
+```
+backend {
+  defaultBackend = "local"
+  backendsAllowed = [ "local", "JES", "SGE" ]
+  ...
+```
 * New runtime option for JES: `bootDiskSizeGb`. Allows specification of a boot disk size (as an Integer number of GB) that can be increased to boot a larger docker image.
 * Workflow options now allows you to specify a `workflowFailureMode` to control workflow behavior after a call has failed, for example:`{ "workflowFailureMode": "..." }`. The options are:
   * `ContinueWhilePossible` - continues to start and process calls in the workflow, as long as they did not depend on the failing call

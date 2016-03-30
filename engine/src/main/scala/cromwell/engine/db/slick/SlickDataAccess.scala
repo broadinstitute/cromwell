@@ -233,7 +233,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       // - DBIO.sequence(mySeq) converts Seq[ DBIOAction[R] ] to DBIOAction[ Seq[R] ]
       // - DBIO.fold(mySeq, init) converts Seq[ DBIOAction[R] ] to DBIOAction[R]
 
-      _ <- DBIO.sequence(toScopeActions(workflowExecutionInsert, backend, scopeKeys))
+      _ <- DBIO.sequence(toScopeActions(workflowExecutionInsert, scopeKeys))
 
     } yield ()
 
@@ -287,20 +287,23 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
-  private def toScopeActions(workflowExecution: WorkflowExecution, backend: Backend,
+  private def toScopeActions(workflowExecution: WorkflowExecution,
                             keys: Traversable[ExecutionStoreKey])(implicit ec: ExecutionContext): Seq[DBIO[Unit]] = {
-    keys.toSeq map toScopeAction(workflowExecution, backend)
+    keys.toSeq map toScopeAction(workflowExecution)
   }
 
-  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
+  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey])
                           (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
-      _ <- DBIO.sequence(toScopeActions(workflowExecution, backend, keys))
+      _ <- DBIO.sequence(toScopeActions(workflowExecution, keys))
     } yield ()
 
     runTransaction(action)
   }
+
+  def setBackend(workflowId: cromwell.core.WorkflowId,execution: cromwell.engine.workflow.ExecutionStoreKey,backend: cromwell.engine.backend.Backend)(implicit ec: scala.concurrent.ExecutionContext): scala.concurrent.Future[Unit] = ???
+  def getBackend(workflowId: cromwell.core.WorkflowId,execution: cromwell.engine.workflow.ExecutionStoreKey)(implicit ec: scala.concurrent.ExecutionContext): scala.concurrent.Future[cromwell.engine.backend.Backend] = ???
 
   private def insertEmptyExecutionInfos(insertResult: this.dataAccess.executionsAutoInc.SingleInsertResult,
                                    backend: Backend): DBIO[_] = {
@@ -314,7 +317,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
-  private def toScopeAction(workflowExecution: WorkflowExecution, backend: Backend)
+  private def toScopeAction(workflowExecution: WorkflowExecution)
                            (key: ExecutionStoreKey)(implicit ec: ExecutionContext): DBIO[Unit] = {
     for {
       // Insert an execution row
@@ -327,11 +330,11 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
           rc = None,
           startDt = None,
           endDt = None,
-          backendType = backend.backendType.displayName,
+          backendType = None,
           attempt = key.attempt)
 
       // Add the empty execution info rows using the execution as the FK.
-      _ <- insertEmptyExecutionInfos(executionInsert, backend)
+      //_ <- insertEmptyExecutionInfos(executionInsert, backend)
     } yield ()
   }
 

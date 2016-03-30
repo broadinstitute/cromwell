@@ -354,7 +354,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
         newEntries = scatterKey.populate(5)
-        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys, localBackend)
+        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys)
         executions <- dataAccess.getExecutions(workflowInfo.id)
         _ = executions foreach { _.allowsResultReuse shouldBe true }
 
@@ -414,7 +414,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
         newEntries = scatterKey.populate(5)
-        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys, localBackend)
+        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys)
 
         scatterParams <- CallCachingParameters.from(workflowInfo.id, None, AllowFalse, dataAccess)
         executions <- dataAccess.getExecutions(workflowInfo.id)
@@ -592,7 +592,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
             status.executionStatus should be(if (updateStatus) ExecutionStatus.Running else ExecutionStatus.NotStarted)
             status.returnCode should be(None)
           }
-          _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, Option(0), 1)), localBackend)
+          _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, Option(0), 1)))
           _ <- dataAccess.setTerminalStatus(workflowId, shardKey, ExecutionStatus.Done, Option(0), None, None)
           _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
             result.size should be(2)
@@ -624,7 +624,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
-        _ <- dataAccess.insertCalls(workflowId, Seq(callKey), localBackend)
+        _ <- dataAccess.insertCalls(workflowId, Seq(callKey))
         _ <- dataAccess.getExecutionStatuses(workflowId) map { result =>
           result.size should be(1)
           val (key, status) = result.head
@@ -763,8 +763,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call1, shardIndex1, 1)), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call2, shardIndex2, 1)), localBackend)
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call1, shardIndex1, 1)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call2, shardIndex2, 1)))
         _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call1, shardIndex1, 1), InfoKeys.Pid, pid1)
         _ <- dataAccess.updateExecutionInfo(workflowId, BackendCallKey(call2, shardIndex2, 1), InfoKeys.Pid, pid2)
         _ <- dataAccess.getExecutionInfos(workflowId, call1, 1) map {
@@ -1002,9 +1002,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, None, 2)), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 1)), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 2)), localBackend)
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, None, 2)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 1)))
+        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 2)))
 
         now = DateTime.now
         mainEventSeq = Seq(

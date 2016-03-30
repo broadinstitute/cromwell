@@ -32,7 +32,7 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
 
   // PBE temporarily still required.  Once we have call-scoped Backend actors they will know themselves and the
   // backend won't need to be in the WorkflowDescriptor and this method won't need to exist.
-  lazy val backend = workflowDescriptor.backend
+  lazy val backend = workflowDescriptor.defaultBackend
 
   lazy val callRootPath = backend.callRootPath(this)
 

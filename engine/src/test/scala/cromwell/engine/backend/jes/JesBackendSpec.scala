@@ -377,7 +377,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
-    ).copy(backend = jesBackend)
+    ).copy(defaultBackend = jesBackend)
 
     val call = wd.namespace.workflow.findCallByName("hello").get
     val jobDescriptor = BackendCallJobDescriptor(wd, BackendCallKey(call, None, 1))
@@ -398,7 +398,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
     )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
-    ).copy(backend = jesBackend)
+    ).copy(defaultBackend = jesBackend)
     val call = wd.namespace.workflow.findCallByName("B").get
     val jobDescriptor = BackendCallJobDescriptor(wd, BackendCallKey(call, Some(2), 1))
     val stdoutstderr = jesBackend.stdoutStderr(jobDescriptor)
@@ -421,7 +421,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
 
     val workflow = mock[WorkflowDescriptor]
     val backend = new JesBackend(ActorSystem("Jessie"))
-    workflow.backend returns backend
+    workflow.defaultBackend returns backend
 
     class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {
       val attributes = mock[CromwellRuntimeAttributes]

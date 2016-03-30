@@ -19,7 +19,7 @@ case class Execution(workflowExecutionId: Int,
                      rc: Option[Int] = None,
                      startDt: Option[Timestamp] = None,
                      endDt: Option[Timestamp] = None,
-                     backendType: String,
+                     backendType: Option[String],
                      allowsResultReuse: Boolean = true,
                      dockerImageHash: Option[String] = None,
                      resultsClonedFrom: Option[Int] = None,
@@ -41,7 +41,7 @@ trait ExecutionComponent {
     def rc = column[Option[Int]]("RC")
     def startDt = column[Option[Timestamp]]("START_DT")
     def endDt = column[Option[Timestamp]]("END_DT")
-    def backendType = column[String]("BACKEND_TYPE")
+    def backendType = column[Option[String]]("BACKEND_TYPE")
     def allowsResultReuse = column[Boolean]("ALLOWS_RESULT_REUSE", Default(true))
     def dockerImageHash = column[Option[String]]("DOCKER_IMAGE_HASH")
     def resultsClonedFrom = column[Option[Int]]("RESULTS_CLONED_FROM")

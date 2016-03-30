@@ -117,8 +117,10 @@ trait DataAccess extends AutoCloseable {
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey)
                         (implicit ec: ExecutionContext): Future[Option[CallStatus]]
 
-  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
-                 (implicit ec: ExecutionContext): Future[Unit]
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey])(implicit ec: ExecutionContext): Future[Unit]
+
+  def setBackend(workflowId: WorkflowId, execution: ExecutionStoreKey, backend: Backend)(implicit ec: ExecutionContext): Future[Unit]
+  def getBackend(workflowId: WorkflowId, execution: ExecutionStoreKey)(implicit ec: ExecutionContext): Future[Backend]
 
   def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]]
 

@@ -124,6 +124,8 @@ object WorkflowActor {
     override def start(actor: WorkflowActor) = actor.self ! StartRunnableCalls
   }
 
+  private def startInitialization
+
   case object RestartWorkflow extends WorkflowActorMessage with WorkflowStartMode {
 
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {

@@ -34,7 +34,7 @@ case class WorkflowDescriptor(id: WorkflowId,
                               namespace: NamespaceWithWorkflow,
                               coercedInputs: WorkflowCoercedInputs,
                               declarations: WorkflowCoercedInputs,
-                              backend: Backend,
+                              defaultBackend: Backend,
                               configCallCaching: Boolean,
                               lookupDockerHash: Boolean,
                               workflowFailureMode: WorkflowFailureMode,
@@ -98,7 +98,7 @@ case class WorkflowDescriptor(id: WorkflowId,
 
   lazy val workflowRootPath = wfContext.root.toPath(fileSystems)
   def workflowRootPathWithBaseRoot(rootPath: String): Path = {
-    backend.buildWorkflowRootPath(rootPath, name, id).toPath(fileSystems)
+    defaultBackend.buildWorkflowRootPath(rootPath, name, id).toPath(fileSystems)
   }
 
   def copyWorkflowOutputs(workflowMetadataResponse: WorkflowMetadataResponse)
@@ -133,7 +133,7 @@ case class WorkflowDescriptor(id: WorkflowId,
   def copyWorkflowLog()(implicit executionContext: ExecutionContext): Future[Unit] = {
     (workflowLogDir, workflowLogPath) match {
       case (Success(dir), Some(path)) =>
-        val logger = backend.workflowLogger(this)
+        val logger = defaultBackend.workflowLogger(this)
         val dest = dir.toPath(fileSystems).resolve(workflowLogName)
         Future.fromTry(copyFile(logger, dest, path))
       case _ => Future.successful(())
@@ -141,7 +141,7 @@ case class WorkflowDescriptor(id: WorkflowId,
   }
 
   private def copyWdlFilesTo(destDirectory: String, wdlValues: Traversable[WdlValue]): Unit = {
-    val logger = backend.workflowLogger(this)
+    val logger = defaultBackend.workflowLogger(this)
 
     // All outputs should have wdl values at this point, if they don't there's nothing we can do here
     val copies = for {

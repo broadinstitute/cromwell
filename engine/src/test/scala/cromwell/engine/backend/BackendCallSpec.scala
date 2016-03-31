@@ -17,7 +17,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures with Workflo
       val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()
       val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-      val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
+      val jobDescriptor = BackendCallJobDescriptor(descriptor, backend, BackendCallKey(call, None, 1), descriptor.actualInputs)
       val actual = jobDescriptor.hash.futureValue.overallHash
       actual should be(empty)
     }
@@ -26,7 +26,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures with Workflo
       val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources()
       val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = callCachingConfig)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-      val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
+      val jobDescriptor = BackendCallJobDescriptor(descriptor, backend, BackendCallKey(call, None, 1), descriptor.actualInputs)
       val actual = jobDescriptor.hash.futureValue.overallHash
       val expected = "1e5fc2d1fb3c8a26add14c3a5813b507"
       assert(actual == expected, s"Expected BackendCall hash to be $expected, but got $actual.  Did the hashing algorithm change?")
@@ -37,7 +37,7 @@ class BackendCallSpec extends CromwellTestkitSpec with ScalaFutures with Workflo
       val sources = SampleWdl.CallCachingHashingWdl.asWorkflowSources( s"""runtime { docker: "$nameAndDigest" } """)
       val descriptor =materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = callCachingConfig)
       val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "t").get
-      val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), descriptor.actualInputs)
+      val jobDescriptor = BackendCallJobDescriptor(descriptor, backend, BackendCallKey(call, None, 1), descriptor.actualInputs)
 
       val actual = jobDescriptor.hash.futureValue.overallHash
       val expected = "e0fac3e3f6d3b611334fd2e0a504e99a"

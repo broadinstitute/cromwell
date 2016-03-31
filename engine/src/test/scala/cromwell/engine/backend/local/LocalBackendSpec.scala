@@ -15,6 +15,7 @@ import wdl4s.values.WdlValue
 class LocalBackendSpec extends CromwellTestkitSpec with Mockito with WorkflowDescriptorBuilder {
 
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
+  val backend = CromwellBackend.backend("local")
   override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
 
   object StdoutWdl extends SampleWdl {
@@ -46,7 +47,7 @@ class LocalBackendSpec extends CromwellTestkitSpec with Mockito with WorkflowDes
 
   def testFailOnStderr(descriptor: WorkflowDescriptor, expectSuccess: Boolean): Unit = {
     val call = descriptor.namespace.workflow.calls.head
-    val jobDescriptor = BackendCallJobDescriptor(descriptor, BackendCallKey(call, None, 1), Map.empty[String, WdlValue])
+    val jobDescriptor = BackendCallJobDescriptor(descriptor, backend, BackendCallKey(call, None, 1), Map.empty[String, WdlValue])
     jobDescriptor.execute map { _.result } map {
       case NonRetryableExecution(e, _, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)
       case RetryableExecution(e, _, _) => if (expectSuccess) fail("A call in a failOnStderr test which should have succeeded has failed ", e)

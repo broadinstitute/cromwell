@@ -8,6 +8,7 @@ import akka.pattern.pipe
 import cromwell.core.{CallOutput, CallOutputs}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
+import cromwell.engine.analysis.BackendSelector
 import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
@@ -180,20 +181,20 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
   implicit val actorSystem = context.system
-  val backend = workflow.defaultBackend
+  val backends: List[Backend] = List(workflow.defaultBackend)
   val workflowFailureMode = workflow.workflowFailureMode
   /*
    * This will not survive incoming Call-Scopification of backends but allows for use of engine functions everywhere for now,
    * in particular in the { input: ... } stanza of a call.
    */
-  val engineFunctions = backend.engineFunctions(backend.fileSystems(workflow.workflowOptions), workflow.wfContext)
+  val engineFunctions = backends map { backend => backend.engineFunctions(backend.fileSystems(workflow.workflowOptions), workflow.wfContext) }
 
   def createWorkflow: Future[Unit] = {
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, workflow.actualInputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
     val finalCalls = FinalCall.createFinalCalls(workflow)
     globalDataAccess.createWorkflow(
-      workflow, symbolStoreEntries, (workflow.namespace.workflow.children ++ finalCalls) map { _ -> backend } toMap)
+      workflow, symbolStoreEntries, (workflow.namespace.workflow.children ++ finalCalls) map { scope => scope -> BackendSelector.selectBackend(workflow, scope) } toMap)
   }
 
   // This is passed as an implicit parameter to methods of classes in the companion object.

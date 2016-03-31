@@ -193,7 +193,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
     val finalCalls = FinalCall.createFinalCalls(workflow)
     globalDataAccess.createWorkflow(
-      workflow, symbolStoreEntries, workflow.namespace.workflow.children ++ finalCalls, backend)
+      workflow, symbolStoreEntries, (workflow.namespace.workflow.children ++ finalCalls) map { _ -> backend } toMap)
   }
 
   // This is passed as an implicit parameter to methods of classes in the companion object.
@@ -329,7 +329,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     val keyClone = callKey.retryClone
 
-    val insertCopy = globalDataAccess.insertCalls(workflow.id, List(keyClone))
+    val insertCopy = globalDataAccess.insertCalls(workflow.id, List(keyClone) map { _ -> backend } toMap )
 
     insertCopy map { _ => PersistenceSucceeded(keyClone, ExecutionStatus.NotStarted) } recover {
       case e =>
@@ -1072,7 +1072,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
           val persistFuture = for {
             _ <- persistStatus(scatterKey, ExecutionStatus.Starting, None)
-            _ <- globalDataAccess.insertCalls(workflow.id, newEntries.keys)
+            _ <- globalDataAccess.insertCalls(workflow.id, newEntries.keys map { _ -> backend } toMap)
             _ = self ! PersistencesCompleted(newEntries.keys, ExecutionStatus.NotStarted)
           } yield ()
 

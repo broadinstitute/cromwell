@@ -45,15 +45,13 @@ object CallMetadataBuilder {
 
   object BackendValues {
     // FIXME needs to traverse the list of pluggable backends rather than hardcoding a list.
-    def extract(infos: ExecutionInfosByExecution): Option[BackendValues] = {
+    def extract(infos: ExecutionInfosByExecution): BackendValues = {
       def extractValue(key: String): Option[String] = infos.executionInfos collectFirst { case i if i.key == key => i.value } flatten
 
       infos.execution.backendType match {
-        case Some("Local") => Some(BackendValues("Local", jobId = extractValue(LocalBackend.InfoKeys.Pid)))
-        case Some("JES") => Some(BackendValues("JES", jobId = extractValue(JesBackend.InfoKeys.JesRunId), status = extractValue(JesBackend.InfoKeys.JesStatus)))
-        case Some("SGE") => Some(BackendValues("SGE", jobId = extractValue(SgeBackend.InfoKeys.JobNumber)))
-        case Some(x) => Some(BackendValues(s"UNKNOWN: $x", jobId = None, status = None))
-        case None => None
+        case "Local" => BackendValues("Local", jobId = extractValue(LocalBackend.InfoKeys.Pid))
+        case "JES" => BackendValues("JES", jobId = extractValue(JesBackend.InfoKeys.JesRunId), status = extractValue(JesBackend.InfoKeys.JesStatus))
+        case "SGE" => BackendValues("SGE", jobId = extractValue(SgeBackend.InfoKeys.JobNumber))
       }
     }
   }
@@ -171,7 +169,7 @@ object CallMetadataBuilder {
         if !e.isScatter && !e.isCollector(allExecutions)
         baseMetadata = executionMap.get(e.toKey).get
         backendValues = BackendValues.extract(ei)
-      } yield e.toKey -> baseMetadata.copy(backend = e.backendType, jobId = backendValues flatMap {_.jobId}, backendStatus = backendValues flatMap {_.status})
+      } yield e.toKey -> baseMetadata.copy(backend = Option(e.backendType), jobId = backendValues.jobId, backendStatus = backendValues.status)
     }.toMap
 
   /**

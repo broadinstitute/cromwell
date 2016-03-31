@@ -226,7 +226,7 @@ class ExecutionInfosByExecutionSpec extends FlatSpec with Matchers {
 
   private def execution(fqn: String, index: ExecutionIndex, attempt: Int): Execution = {
     import ExecutionIndex._
-    Execution(-1, fqn, index.fromIndex, ExecutionStatus.NotStarted.toString, None, None, None, None,
+    Execution(-1, fqn, index.fromIndex, ExecutionStatus.NotStarted.toString, None, None, None, "Blah blah never used",
       allowsResultReuse = false, None, None, None, attempt, None)
   }
 

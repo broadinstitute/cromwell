@@ -9,7 +9,8 @@ import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
-import cromwell.engine.workflow.{CallKey, WorkflowActor}
+import cromwell.engine.workflow.workflowactor.WorkflowActorMessages._
+import cromwell.engine.workflow.CallKey
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import wdl4s.Scope
@@ -58,10 +59,10 @@ object CallActor {
   /** The `WorkflowActor` will drop `TerminalCallMessage`s that it is unable to immediately process.  This message
     * represents the acknowledgment from the `WorkflowActor` that the `callMessage` was processed and the status
     * change has been successfully committed to the database. */
-  final case class Ack(callMessage: WorkflowActor.TerminalCallMessage) extends CallActorMessage
+  final case class Ack(callMessage: TerminalCallMessage) extends CallActorMessage
 
   /** Message to self to retry sending the `callMessage` to the `WorkflowActor` in the absence of an `Ack`. */
-  final case class Retry(callMessage: WorkflowActor.CallMessage) extends CallActorMessage
+  final case class Retry(callMessage: CallMessage) extends CallActorMessage
 
   /** FSM data class with an optional abort function and exponential backoff. */
   case class CallActorData(abortFunction: Option[AbortFunction] = None,
@@ -73,7 +74,7 @@ object CallActor {
      * `CallActorData` holding a reference to the timer to allow for its cancellation in the event an `Ack` is
      * received prior to its expiration.
      */
-    def copyWithRetry(actor: Actor, callMessage: WorkflowActor.CallMessage)(implicit ec: ExecutionContext): CallActorData = {
+    def copyWithRetry(actor: Actor, callMessage: CallMessage)(implicit ec: ExecutionContext): CallActorData = {
       val timer = actor.context.system.scheduler.scheduleOnce(backoff.get.nextBackOffMillis().millis) {
         actor.self ! Retry(callMessage)
       }
@@ -128,7 +129,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
-      context.parent ! WorkflowActor.CallStarted(key, startMode.maybeCallLogs)
+      context.parent ! CallStarted(key, startMode.maybeCallLogs)
       callExecutionActor ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
@@ -173,7 +174,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
       context.parent ! message
       val updatedData = data.copyWithRetry(this, message)
       stay() using updatedData
-    case Event(Ack(message: WorkflowActor.TerminalCallMessage), data) =>
+    case Event(Ack(message: TerminalCallMessage), data) =>
       logger.debug(s"CallActor received ack for ${message.callKey.tag}")
       data.cancelTimer()
       val updatedData = data.copy(backoff = None, timer = None)
@@ -208,15 +209,15 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
 
     val message = executionResult match {
       case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
-        WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
-      case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
-      case AbortedExecution => WorkflowActor.CallAborted(key)
+        CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+      case SuccessfulFinalCallExecution => CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
+      case AbortedExecution => CallAborted(key)
       case RetryableExecution(e, returnCode, events) =>
         logger.error("Failing call with retryable Failure: " + e.getMessage, e)
-        WorkflowActor.CallFailedRetryable(key, events, returnCode, e)
+        CallFailedRetryable(key, events, returnCode, e)
       case NonRetryableExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
-        WorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
+        CallFailedNonRetryable(key, events, returnCode, e.getMessage)
     }
 
     context.parent ! message

@@ -196,18 +196,26 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   /**
-   * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
-   * `backend`.  Or perhaps defer this?
+    * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
+    * `backend`.  Or perhaps defer this?
+    */
+  override def createWorkflow(workflowDescriptor: WorkflowDescriptor,
+                              workflowInputs: Traversable[SymbolStoreEntry],
+                              calls: Traversable[Scope],
+                              backend: Backend)(implicit ec: ExecutionContext): Future[Unit] =
+    createWorkflow(workflowDescriptor, workflowInputs, calls map {_ -> backend} toMap)
+
+  /**
+   * Creates a row in each of the backend-info specific tables for each scope and its corresponding backend.
    */
   override def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                               workflowInputs: Traversable[SymbolStoreEntry],
-                              scopes: Traversable[Scope],
-                              backend: Backend)(implicit ec: ExecutionContext): Future[Unit] = {
+                              scopes: Map[Scope, Backend])(implicit ec: ExecutionContext): Future[Unit] = {
 
-    val scopeKeys: Traversable[ExecutionStoreKey] = scopes collect {
-      case call: Call => BackendCallKey(call, None, 1)
-      case scatter: Scatter => ScatterKey(scatter, None)
-      case finalCall: FinalCall => FinalCallKey(finalCall)
+    val scopeKeys: Map[ExecutionStoreKey, Backend] = scopes collect {
+      case (call: Call, b: Backend) => BackendCallKey(call, None, 1) -> b
+      case (scatter: Scatter, b: Backend) => ScatterKey(scatter, None) -> b
+      case (finalCall: FinalCall, b: Backend) => FinalCallKey(finalCall) -> b
     }
 
     val action = for {
@@ -288,11 +296,19 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   // Converts the Traversable[Call] to Seq[DBIOAction[]] that insert the correct rows
   private def toScopeActions(workflowExecution: WorkflowExecution,
-                            keys: Traversable[ExecutionStoreKey])(implicit ec: ExecutionContext): Seq[DBIO[Unit]] = {
-    keys.toSeq map toScopeAction(workflowExecution)
-  }
+                             keys: Traversable[ExecutionStoreKey],
+                             backend: Backend)(implicit ec: ExecutionContext): Seq[DBIO[Unit]] =
+    toScopeActions(workflowExecution, keys map { _ -> backend } toMap)
 
-  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey])
+  private def toScopeActions(workflowExecution: WorkflowExecution,
+                            keys: Map[ExecutionStoreKey, Backend])(implicit ec: ExecutionContext): Seq[DBIO[Unit]] =
+    keys map toScopeAction(workflowExecution) toSeq
+
+  override def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
+                          (implicit ec: ExecutionContext): Future[Unit] =
+    insertCalls(workflowId, keys map { _ -> backend } toMap)
+
+  override def insertCalls(workflowId: WorkflowId, keys: Map[ExecutionStoreKey, Backend])
                           (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       workflowExecution <- dataAccess.workflowExecutionsByWorkflowExecutionUuid(workflowId.toString).result.head
@@ -301,9 +317,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
     runTransaction(action)
   }
-
-  def setBackend(workflowId: cromwell.core.WorkflowId,execution: cromwell.engine.workflow.ExecutionStoreKey,backend: cromwell.engine.backend.Backend)(implicit ec: scala.concurrent.ExecutionContext): scala.concurrent.Future[Unit] = ???
-  def getBackend(workflowId: cromwell.core.WorkflowId,execution: cromwell.engine.workflow.ExecutionStoreKey)(implicit ec: scala.concurrent.ExecutionContext): scala.concurrent.Future[cromwell.engine.backend.Backend] = ???
 
   private def insertEmptyExecutionInfos(insertResult: this.dataAccess.executionsAutoInc.SingleInsertResult,
                                    backend: Backend): DBIO[_] = {
@@ -318,20 +331,21 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   // Converts a single Call to a composite DBIOAction[] that inserts the correct rows
   private def toScopeAction(workflowExecution: WorkflowExecution)
-                           (key: ExecutionStoreKey)(implicit ec: ExecutionContext): DBIO[Unit] = {
+                           (key: (ExecutionStoreKey, Backend))(implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (storeKey,backend) = key
     for {
       // Insert an execution row
       executionInsert <- dataAccess.executionsAutoInc +=
         new Execution(
           workflowExecutionId = workflowExecution.workflowExecutionId.get,
-          callFqn = key.scope.fullyQualifiedName,
-          index = key.index.fromIndex,
+          callFqn = storeKey.scope.fullyQualifiedName,
+          index = storeKey.index.fromIndex,
           status = ExecutionStatus.NotStarted.toString,
           rc = None,
           startDt = None,
           endDt = None,
-          backendType = None,
-          attempt = key.attempt)
+          backendType = backend.backendType.displayName,
+          attempt = storeKey.attempt)
 
       // Add the empty execution info rows using the execution as the FK.
       //_ <- insertEmptyExecutionInfos(executionInsert, backend)

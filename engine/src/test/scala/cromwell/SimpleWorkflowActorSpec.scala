@@ -5,6 +5,7 @@ import cromwell.engine._
 import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine.workflow.workflowactor.WorkflowActorMessages.StartNewWorkflow
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 

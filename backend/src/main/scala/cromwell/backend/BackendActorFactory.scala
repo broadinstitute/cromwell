@@ -3,7 +3,7 @@ package cromwell.backend
 import akka.actor.{ActorRef, ActorSystem}
 import cromwell.backend.model.WorkflowDescriptor
 
-trait WorkflowBackendActorFactory {
+trait BackendActorFactory {
 
   /**
     * Returns a backend actor instance based on the init class, Cromwell actor system and specific workflow.
@@ -13,6 +13,7 @@ trait WorkflowBackendActorFactory {
     * @param workflowDescriptor Needed data to be able to execute a workflow.
     * @return An actor of type BackendActor.
     */
+  //TODO: Add backend configuration arg.
   def getBackend(initClass: String, actorSystem: ActorSystem, workflowDescriptor: WorkflowDescriptor): ActorRef
 
 }

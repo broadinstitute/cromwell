@@ -298,6 +298,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     futureCaches onComplete {
       case Success((executions, symbols)) =>
         executionStore = executions
+        backends = (executionStore.keys map { storeEntry => storeEntry -> BackendSelector.selectBackend(workflow, storeEntry.scope)}).toMap
         symbolCache = symbols
         self ! CachesCreated(startMessage)
       case Failure(t) =>

@@ -43,19 +43,13 @@ object CromwellBackend {
 
   def defaultBackend = _defaultBackend getOrElse { throw new IllegalStateException("defaultBackend() called prior to initBackends") }
 
-  private def errorString(newBackend: Backend, oldBackend: String): String = {
-    s"Backend already initialized to ${newBackend.backendType} attempting to change it to $oldBackend"
-  }
-
-  // PBE:This is shorthand for reading a JSON options file and returning a backend.
-  // Probably won't make it past the imminent move from workflow-scoped backend to call-scoped backend.
-  def getBackendFromOptions(optionsString: String): Backend = {
+  def getDefaultBackendForWorkflowAfterConsideringWorkflowOptions(workflowOptions: WorkflowOptions): Backend = {
     val triedBackend = for {
-      workflowOptions <- WorkflowOptions.fromJsonString(optionsString)
-      backendRequested <- workflowOptions.get("backend")
+      backendRequested <- workflowOptions.get(WorkflowOptions.defaultBackendKey)
       backend <- tryBackend(backendRequested)
     } yield backend
 
+    // TODO: This doesn't distinguish between a missing value and an invalid value. Either case returns the system default.
     triedBackend getOrElse CromwellBackend.defaultBackend
   }
 }

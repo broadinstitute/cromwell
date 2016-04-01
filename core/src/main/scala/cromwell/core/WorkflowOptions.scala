@@ -2,6 +2,7 @@ package cromwell.core
 
 import com.typesafe.config.ConfigFactory
 import spray.json._
+import wdl4s.util.TryUtil
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -45,6 +46,10 @@ object WorkflowOptions {
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toSeq
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = "defaultRuntimeOptions"
+  val defaultBackendKey: String = "defaultBackend"
+  private lazy val backendAssignmentsKey: String = "backendAssignments"
+
+  private lazy val objectInWorkflowOptions = List(backendAssignmentsKey, defaultRuntimeOptionKey)
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
@@ -74,7 +79,7 @@ object WorkflowOptions {
       case (k, v: JsString) if EncryptedFields.contains(k) => k -> encryptField(v)
       case (k, v: JsString) => k -> Success(v)
       case (k, v: JsBoolean) => k -> Success(v)
-      case (k, v: JsObject) if defaultRuntimeOptionKey.equals(k) => k -> Success(v)
+      case (k, v: JsObject) if objectInWorkflowOptions.contains(k) => k -> Success(v)
       case (k, v: JsNumber) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v) => k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
@@ -125,6 +130,36 @@ case class WorkflowOptions(jsObject: JsObject) {
   def getBoolean(key: String): Try[Boolean] = jsObject.fields.get(key) match {
     case Some(jsBool: JsBoolean) => Success(jsBool.value)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported JsValue as JsBoolean: $jsVal"))
+    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+  }
+
+  def getBackendAssignments: Try[Map[String, String]] = jsObject.fields.get(backendAssignmentsKey) match {
+    case Some(jsObj: JsObject) => {
+      val triedConversion = jsObj.fields mapValues {
+        case str: JsString => Success(str.value)
+        case badValue => Failure(new IllegalArgumentException(s"Expected string value from backend assignment but got $badValue"))
+      }
+      val unpackFailures = triedConversion map {
+        case (key, Success(x)) => Success(key, x)
+        case (key, Failure(t)) => Failure(t)
+      }
+      TryUtil.sequence(unpackFailures.toSeq) map { _.toMap }
+    }
+    case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $backendAssignmentsKey: $jsVal. Expected a JSON object."))
+    case None => Failure(new OptionNotFoundException(s"No backend assignments found: $backendAssignmentsKey"))
+  }
+
+  /**
+    * Will return either a Success containing a backend assignment for this FQN, or a Failure(OptionNotFoundException)
+    * in which case the backend was not assigned, or a Failure(Throwable) if something went wrong trying to read the value.
+    */
+  def getBackendAssignment(key: String): Try[String] = jsObject.fields.get(backendAssignmentsKey) match {
+    case Some(jsObj: JsObject) => WorkflowOptions.getAsJson(key, jsObj) match {
+      case Success(str: JsString) => Success(str.value)
+      case Success(badValue) => Failure(new IllegalArgumentException(s"Expected string value from backend assignment but got $badValue"))
+      case Failure(t) => Failure(t)
+    }
+    case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $backendAssignmentsKey: $jsVal. Expected a JSON object."))
     case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }
 

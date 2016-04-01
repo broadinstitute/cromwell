@@ -7,6 +7,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.{OptionNotFoundException, ErrorOr, WorkflowOptions, WorkflowId}
 import cromwell.engine._
+import cromwell.engine.analysis.BackendSelector
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend._
 import cromwell.util.TryUtil
@@ -62,8 +63,7 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
 
   override def receive = {
     case MaterializeWorkflow(workflowId, workflowSourceFiles, conf) =>
-      val backend = CromwellBackend.getBackendFromOptions(workflowSourceFiles.workflowOptionsJson)
-      buildWorkflowDescriptor(workflowId, workflowSourceFiles, backend, conf) match {
+      buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf) match {
         case scalaz.Success(descriptor) => sender() ! MaterializationSuccess(descriptor)
         case scalaz.Failure(error) => sender() ! MaterializationFailure(
           new IllegalArgumentException() with ThrowableWithErrors {
@@ -76,39 +76,53 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
 
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFiles,
-                                      backend: Backend,
                                       conf: Config): ErrorOr[WorkflowDescriptor] = {
 
-    def buildWorkflowDescriptor(namespace: NamespaceWithWorkflow,
-                                workflowOptions: WorkflowOptions,
-                                rawInputs: Map[String, JsValue],
-                                workflowFailureMode: WorkflowFailureMode): ErrorOr[WorkflowDescriptor] = {
+    def buildWorkflowDescriptorInner(namespace: NamespaceWithWorkflow,
+                                             workflowOptions: WorkflowOptions,
+                                             rawInputs: Map[String, JsValue],
+                                             defaultBackend: Backend,
+                                             backendAssignments: Map[String, Backend],
+                                             workflowFailureMode: WorkflowFailureMode): ErrorOr[WorkflowDescriptor] = {
       validateCoercedInputs(rawInputs, namespace) flatMap { coercedInputs =>
-        val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(workflowOptions), namespace.workflow.unqualifiedName, id)
+        val workflowRootPath = defaultBackend.buildWorkflowRootPath(defaultBackend.rootPath(workflowOptions), namespace.workflow.unqualifiedName, id)
         val wfContext = new WorkflowContext(workflowRootPath)
-        val fileSystems = backend.fileSystems(workflowOptions)
-        val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
+        val fileSystems = defaultBackend.fileSystems(workflowOptions)
+        val engineFunctions = defaultBackend.engineFunctions(fileSystems, wfContext)
 
         validateDeclarations(namespace, workflowOptions, coercedInputs, engineFunctions) flatMap { declarations =>
-          WorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, backend,
-            configCallCaching(conf), lookupDockerHash(conf), workflowFailureMode, wfContext, fileSystems).successNel
+          WorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, defaultBackend,
+            backendAssignments, configCallCaching(conf), lookupDockerHash(conf), workflowFailureMode, wfContext, fileSystems).successNel
         }
       }
     }
 
     val namespaceValidation = validateNamespace(sourceFiles.wdlSource)
-    val workflowOptionsValidation = validateWorkflowOptions(backend, sourceFiles.workflowOptionsJson)
+    val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     (namespaceValidation |@| workflowOptionsValidation) {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
-      val runtimeAttributes = validateRuntimeAttributes(namespace, backend.backendType)
+      val defaultBackend = CromwellBackend.getDefaultBackendForWorkflowAfterConsideringWorkflowOptions(workflowOptions)
+      val backendAssignmentsValidation = materializeValidManifestedBackendAssignments(namespace, defaultBackend)
       val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
       val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
-      (runtimeAttributes |@| rawInputsValidation |@| failureModeValidation) {
+      (backendAssignmentsValidation |@| rawInputsValidation |@| failureModeValidation) {
         (_, _, _)
-      } flatMap { case (_, rawInputs, failureMode) =>
-        buildWorkflowDescriptor(namespace, workflowOptions, rawInputs, failureMode)
+      } flatMap { case (backendAssignments, rawInputs, failureMode) =>
+        validateRuntimeAttributes(backendAssignments, namespace) flatMap { _ =>
+          buildWorkflowDescriptorInner(namespace, workflowOptions, rawInputs, defaultBackend, backendAssignments, failureMode)
+        }
       }
+    }
+  }
+
+  private def materializeValidManifestedBackendAssignments(namespace: NamespaceWithWorkflow, defaultBackend: Backend): ErrorOr[Map[FullyQualifiedName, Backend]] = {
+    // TODO: A Try that's so ugly even its parents would struggle to love it. Crying out for better validation:
+    Try(namespace.workflow.calls map { call =>
+      (call.fullyQualifiedName, BackendSelector.selectBackend(Option(defaultBackend), call).get)
+    } toMap) match {
+      case Success(assignments) => assignments.successNel
+      case Failure(t) => t.getMessage.failureNel
     }
   }
 
@@ -147,8 +161,7 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     }
   }
 
-  // TODO: With PBE, this should be defined in the backend.
-  private def validateWorkflowOptions(backend: Backend, workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
+  private def validateWorkflowOptions(workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
     def validateBackendOptions(backend: Backend, workflowOpt: WorkflowOptions): ErrorOr[WorkflowOptions] = {
       try {
         backend.assertWorkflowOptions(workflowOpt)
@@ -159,7 +172,10 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     }
 
     WorkflowOptions.fromJsonString(workflowOptions) match {
-      case Success(o) => validateBackendOptions(backend, o)
+      case Success(options) =>
+        val defaultBackend = CromwellBackend.getDefaultBackendForWorkflowAfterConsideringWorkflowOptions(options)
+        // TODO: Also need to validate options against all assigned backends? Or all allowed backends?
+        validateBackendOptions(defaultBackend, options)
       case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".failureNel
     }
   }
@@ -178,11 +194,12 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
   }
 
   // TODO: With PBE, this should be defined in the backend.
-  // TODO: Add CromwellRuntimeAttributes as a dependency for this actor (arg in ctor) in case is not moved to specific
-  // backend when PBE is merged.
-  private def validateRuntimeAttributes(namespaceWithWorkflow: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Seq[Set[String]]] = {
+  // TODO: Add CromwellRuntimeAttributes as a dependency for this actor (arg in ctor) in case is not moved to specific backend when PBE is merged.
+  private def validateRuntimeAttributes(backendAssignments: Map[FullyQualifiedName, Backend], namespaceWithWorkflow: NamespaceWithWorkflow): ErrorOr[Seq[Set[String]]] = {
     TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
-      call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, backendType)
+      call =>
+        val backend = backendAssignments(call.fullyQualifiedName)
+        CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, backend.backendType)
     }) match {
       case Success(validatedRuntimeAttrs) => validatedRuntimeAttrs.successNel
       case Failure(reason) => "Failed to validate runtime attributes.".failureNel

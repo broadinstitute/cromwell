@@ -72,7 +72,7 @@ object WorkflowActor {
   case object RestartWorkflowBehaviour extends WorkflowStartupBehaviour {
 
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
-      val futures = actor.backends.values.toSet[Backend] map { backend =>
+      val futures = actor.workflow.backendAssignments.values.toSet[Backend] map { backend =>
         for {
           _ <- backend.prepareForRestart(actor.workflow)
           _ <- actor.dumpTables()
@@ -88,7 +88,7 @@ object WorkflowActor {
           case callKey: BackendCallKey if resumableExecutionsAndJobIds.exists(_.executionKey == callKey.toDatabaseKey) => callKey }
       }
 
-      actor.backends.values.toSet foreach { backend: Backend =>
+      actor.workflow.backendAssignments.values.toSet foreach { backend: Backend =>
         val resumptionWork = for {
           resumableExecutionsAndJobIds <- backend.findResumableExecutions(actor.workflow.id)
           resumableCallKeys = filterResumableCallKeys(resumableExecutionsAndJobIds)
@@ -186,8 +186,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
 
   implicit val actorSystem = context.system
-  var backends: Map[ExecutionStoreKey, Backend] = Map.empty
-  def backendTypes: List[Backend] = backends.values.toSet.toList
   val workflowFailureMode = workflow.workflowFailureMode
 
   /*
@@ -195,7 +193,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
    * in particular in the { input: ... } stanza of a call.
    */
   def engineFunctions(executionStoreKey: ExecutionStoreKey) = {
-    val backend = backends(executionStoreKey)
+    val backend = workflow.backendAssignments(executionStoreKey.scope.fullyQualifiedName)
     backend.engineFunctions(backend.fileSystems(workflow.workflowOptions), workflow.wfContext)
   }
 
@@ -204,7 +202,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
     val finalCalls = FinalCall.createFinalCalls(workflow)
     globalDataAccess.createWorkflow(
-      workflow, symbolStoreEntries, (workflow.namespace.workflow.children ++ finalCalls) map { scope => scope -> BackendSelector.selectBackend(workflow, scope) } toMap)
+      workflow, symbolStoreEntries, (workflow.namespace.workflow.children ++ finalCalls) map {
+        case call: Call => call -> workflow.backendAssignments(call.fullyQualifiedName)
+        case scope => scope -> workflow.defaultBackend } toMap)
   }
 
   // This is passed as an implicit parameter to methods of classes in the companion object.
@@ -240,7 +240,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   private def scheduleTransition(toState: WorkflowState): Unit = {
     // Called after the workflow Status is persisted, which means that if something fails here - Workflow will still be marked successful in the DB
     def handleTerminalWorkflow: Future[Unit] = {
-      val futures = backendTypes map { backend: Backend =>
+      val futures = workflow.backendAssignments.values.toSet map { backend: Backend =>
         for {
         // FIXME If cleanUpForWorkflow fails - options are not updated and the terminate message is never sent
           _ <- backend.cleanUpForWorkflow(workflow)
@@ -297,8 +297,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     futureCaches onComplete {
       case Success((executions, symbols)) =>
-        executionStore = executions
-        backends = (executionStore.keys map { storeEntry => storeEntry -> BackendSelector.selectBackend(workflow, storeEntry.scope)}).toMap
         symbolCache = symbols
         self ! CachesCreated(startMessage)
       case Failure(t) =>
@@ -310,8 +308,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   }
 
   private def initializeWorkflow: Try[Unit] = {
-    val seq = backendTypes map { _.initializeForWorkflow(workflow) }
-    TryUtil.sequence(seq) map { _ => () }
+    TryUtil.sequence(workflow.backendAssignments.values map { _.initializeForWorkflow(workflow) } toSeq) map { _ => () }
   }
 
   /**
@@ -347,7 +344,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     val keyClone = callKey.retryClone
 
-    val insertCopy = globalDataAccess.insertCalls(workflow.id, Map(keyClone -> this.backends(callKey)))
+    val insertCopy = globalDataAccess.insertCalls(workflow.id, Map(keyClone -> workflow.backendAssignments(callKey.scope.fullyQualifiedName)))
 
     insertCopy map { _ => PersistenceSucceeded(keyClone, ExecutionStatus.NotStarted) } recover {
       case e =>
@@ -735,7 +732,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         // This backend parameter to WMA is confusing and in the world of pluggable backends somehow makes even less
         // sense than using backends on individual workflows.  When we get real pluggable backends that test can
         // just set its special backend cleanly in config, and all this awfulness can go away.
-        val descriptor = BackendCallJobDescriptor(workflow, backends(callKey), backendCallKey, locallyQualifiedInputs)
+        val descriptor = BackendCallJobDescriptor(workflow, workflow.backendAssignments(callKey.scope.fullyQualifiedName), backendCallKey, locallyQualifiedInputs)
         Future.successful(CallActor.props(descriptor))
       case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
         metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
@@ -1088,12 +1085,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
           executionStore += scatterKey -> ExecutionStatus.Starting
           executionStore ++= newEntries.keys map { _ -> ExecutionStatus.NotStarted }
           // All scatter shards use the same backend as the parent scatter
-          backends ++= newEntries.keys map { _ -> backends(scatterKey) }
+          val newBackendAssignments = newEntries.keys map { key => (key, workflow.backendAssignments(key.scope.fullyQualifiedName)) } toMap
 
           val persistFuture = for {
             _ <- persistStatus(scatterKey, ExecutionStatus.Starting, None)
-            // All of the scatters get the same
-            _ <- globalDataAccess.insertCalls(workflow.id, newEntries.keys, backends(scatterKey))
+            _ <- globalDataAccess.insertCalls(workflow.id, newBackendAssignments)
             _ = self ! PersistencesCompleted(newEntries.keys, ExecutionStatus.NotStarted)
           } yield ()
 
@@ -1132,18 +1128,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   }
 
   private def sendStartMessage(callKey: BackendCallKey, callInputs: Map[String, WdlValue]) = {
-    val descriptor = BackendCallJobDescriptor(workflow, backends(callKey), callKey, callInputs)
+    val callBackend = workflow.backendAssignments(callKey.scope.fullyQualifiedName)
+    val descriptor = BackendCallJobDescriptor(workflow, callBackend, callKey, callInputs)
     val log = WorkflowLogger("WorkflowActor", workflow, akkaLogger = Option(akkaLogger))
 
-    def startCallMsg = InitialStartCall(callKey, CallActor.StartBackendCall(Option(backends(callKey).stdoutStderr(descriptor))))
+    def startCallMsg = InitialStartCall(callKey, CallActor.StartBackendCall(Option(callBackend.stdoutStderr(descriptor))))
 
     def loadCachedBackendCallAndMessage(workflow: WorkflowDescriptor, cachedExecution: Execution) = {
       workflow.namespace.resolve(cachedExecution.callFqn) match {
         case Some(c: Call) =>
-          val jobDescriptor = BackendCallJobDescriptor(workflow, backends(callKey), BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
+          val jobDescriptor = BackendCallJobDescriptor(workflow, callBackend, BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
           log.info(s"Call Caching: Cache hit. Using UUID(${jobDescriptor.workflowDescriptor.shortId}):${jobDescriptor.key.tag} as results for UUID(${descriptor.workflowDescriptor.shortId}):${descriptor.key.tag}")
-          self ! UseCachedCall(callKey, CallActor.UseCachedCall(jobDescriptor, descriptor,
-            backends(callKey).stdoutStderr(descriptor)))
+          self ! UseCachedCall(callKey, CallActor.UseCachedCall(jobDescriptor, descriptor, callBackend.stdoutStderr(descriptor)))
         case _ =>
           log.error(s"Call Caching: error when resolving '${cachedExecution.callFqn}' in workflow with execution ID ${cachedExecution.workflowExecutionId}: falling back to normal execution")
           self ! startCallMsg

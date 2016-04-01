@@ -8,7 +8,7 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtrelease.ReleasePlugin._
 
 object Settings {
-  val engineVersion = "0.19"
+  val engineVersion = "0.20"
 
   val commonResolvers = List(
     "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",

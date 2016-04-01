@@ -2,19 +2,18 @@ package cromwell.backend
 
 import akka.actor.{Actor, ActorLogging}
 import akka.event.LoggingReceive
-import cromwell.backend.BackendActor._
+import cromwell.backend.WorkflowBackendActor._
 import cromwell.backend.model.{JobDescriptor, WorkflowDescriptor}
 
 import scala.concurrent.Future
 import scala.util.{Success, Failure}
 
-object BackendActor {
+object WorkflowBackendActor {
 
   // Commands
   sealed trait BackendActorMessage
   case class Execute(jobDescriptor: JobDescriptor) extends BackendActorMessage
-  case class Abort(jobDescriptor: JobDescriptor) extends BackendActorMessage
-  case object AbortAll extends BackendActorMessage
+  case object Abort extends BackendActorMessage
   case class Recover(jobDescriptor: JobDescriptor) extends BackendActorMessage
 
   // Events
@@ -25,12 +24,8 @@ object BackendActor {
   case class ExecutionFailed(throwable: Throwable) extends ExecutionEvent
 
   sealed trait AbortEvent extends BackendActorEvent
-  case class AbortSucceeded(jobDescriptor: JobDescriptor) extends AbortEvent
+  case object AbortSucceeded extends AbortEvent
   case class AbortFailed(throwable: Throwable) extends AbortEvent
-
-  sealed trait AbortAllEvent extends BackendActorEvent
-  case class AbortAllSucceeded(jobDescriptor: List[JobDescriptor]) extends AbortAllEvent //Attributes TBD.
-  case class AbortAllFailed(throwable: Throwable) extends AbortAllEvent
 
   sealed trait RecoverEvent extends BackendActorEvent
   case class RecoverSucceeded(jobDescriptor: JobDescriptor) extends RecoverEvent //Same happens here.
@@ -54,7 +49,7 @@ object BackendActor {
   * Defines basic structure and functionality to initialize and make use of a backend through an Akka actor system.
   * Backend functions should be implemented by each custom backend.
   */
-trait BackendActor extends Actor with ActorLogging {
+trait WorkflowBackendActor extends Actor with ActorLogging {
   import context.dispatcher
 
   /**
@@ -71,12 +66,16 @@ trait BackendActor extends Actor with ActorLogging {
         case Failure(exception: Throwable) =>
           sndr ! ExecutionFailed(exception)
       }
-    case Abort(jobDescriptor: JobDescriptor) =>
-      sender() ! abort(jobDescriptor)
-    case AbortAll =>
-      sender() ! abortAll()
-    case Recover =>
-      sender() ! recover()
+    case Abort =>
+      sender() ! abort()
+    case Recover(jobDescriptor: JobDescriptor) =>
+      val sndr = sender()
+      recover(jobDescriptor) onComplete {
+        case Success(recoverEvent: RecoverEvent) =>
+          sndr ! recoverEvent
+        case Failure(exception: Throwable) =>
+          sndr ! RecoverFailed(exception)
+      }
   }
 
   /**
@@ -85,7 +84,6 @@ trait BackendActor extends Actor with ActorLogging {
     * BeforeAll: Execute any required pre-condition before making backend available for executions.
     */
   override def preStart(): Unit = {
-    validate()
     beforeAll()
   }
 
@@ -106,19 +104,11 @@ trait BackendActor extends Actor with ActorLogging {
   def execute(jobDescriptor: JobDescriptor): Future[ExecutionEvent]
 
   /**
-    * Stops a job execution.
+    * Stops all job executions.
     *
-    * @param jobDescriptor All information related to a task.
     * @return An AbortEvent with the result.
     */
-  def abort(jobDescriptor: JobDescriptor): AbortEvent
-
-  /**
-    * Stops all job execution.
-    *
-    * @return An AbortAllEvent with the result.
-    */
-  def abortAll(): AbortAllEvent
+  def abort(): AbortEvent
 
   /**
     * Tries to recover last status and information on an on going job in the backend.
@@ -126,11 +116,12 @@ trait BackendActor extends Actor with ActorLogging {
     * @return An RecoverEvent with the result.
     */
   //TODO: Need more details on this in order to define it.
-  def recover(): RecoverEvent
+  def recover(jobDescriptor: JobDescriptor): Future[RecoverEvent]
 
   /**
     * Executes validation on workflow descriptor in order to see if the workflow can be executed by the backend.
     */
+  //TODO: to be modified after having a sequence diagram of the idea in place.
   def validate(): Unit
 
   /**

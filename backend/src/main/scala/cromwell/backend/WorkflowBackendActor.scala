@@ -11,35 +11,35 @@ import scala.util.{Success, Failure}
 object WorkflowBackendActor {
 
   // Commands
-  sealed trait BackendActorMessage
-  case class Execute(jobDescriptor: JobDescriptor) extends BackendActorMessage
-  case object Abort extends BackendActorMessage
-  case class Recover(jobDescriptor: JobDescriptor) extends BackendActorMessage
+  sealed trait WorkflowBackendActorMessage
+  case class Execute(jobDescriptor: JobDescriptor) extends WorkflowBackendActorMessage
+  case object Abort extends WorkflowBackendActorMessage
+  case class Recover(jobDescriptor: JobDescriptor) extends WorkflowBackendActorMessage
 
   // Events
-  sealed trait BackendActorEvent
+  sealed trait WorkflowBackendActorEvent
 
-  sealed trait ExecutionEvent extends BackendActorEvent
+  sealed trait ExecutionEvent extends WorkflowBackendActorEvent
   case class ExecutionSucceeded(result: String) extends ExecutionEvent //Result TBD.
   case class ExecutionFailed(throwable: Throwable) extends ExecutionEvent
 
-  sealed trait AbortEvent extends BackendActorEvent
+  sealed trait AbortEvent extends WorkflowBackendActorEvent
   case object AbortSucceeded extends AbortEvent
   case class AbortFailed(throwable: Throwable) extends AbortEvent
 
-  sealed trait RecoverEvent extends BackendActorEvent
+  sealed trait RecoverEvent extends WorkflowBackendActorEvent
   case class RecoverSucceeded(jobDescriptor: JobDescriptor) extends RecoverEvent //Same happens here.
   case class RecoverFailed(throwable: Throwable) extends RecoverEvent
 
-  sealed trait ValidationEvent extends BackendActorEvent
+  sealed trait ValidationEvent extends WorkflowBackendActorEvent
   case object ValidationSucceeded extends ValidationEvent
   case class ValidationFailed(throwable: Throwable) extends ValidationEvent
 
-  sealed trait BeforeAllEvent extends BackendActorEvent
+  sealed trait BeforeAllEvent extends WorkflowBackendActorEvent
   case object BeforeAllSucceeded extends BeforeAllEvent
   case class BeforeAllFailed(throwable: Throwable) extends BeforeAllEvent
 
-  sealed trait AfterAllEvent extends BackendActorEvent
+  sealed trait AfterAllEvent extends WorkflowBackendActorEvent
   case object AfterAllSucceeded extends AfterAllEvent
   case class AfterAllFailed(throwable: Throwable) extends AfterAllEvent
 

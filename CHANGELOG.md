@@ -1,5 +1,51 @@
 # Cromwell Change Log
 
+## 0.19
+
+* Workflow options may now contain a choice of backend specific for that workflow:
+```
+{
+  "backend": "JES"
+}
+```
+* To support the above change, the configuration file has changed how backends are specified. You must replace `backend.backend` with `backend.defaultBackend`. 
+In addition the option `backend.backendsAllowed` must be specified (and should include the default), for example:
+```
+backend {
+  defaultBackend = "local"
+  backendsAllowed = [ "local", "JES", "SGE" ]
+  ...
+```
+* New runtime option for JES: `bootDiskSizeGb`. Allows specification of a boot disk size (as an Integer number of GB) that can be increased to boot a larger docker image.
+* Workflow options now allows you to specify a `workflowFailureMode` to control workflow behavior after a call has failed, for example:`{ "workflowFailureMode": "..." }`. The options are:
+  * `ContinueWhilePossible` - continues to start and process calls in the workflow, as long as they did not depend on the failing call
+  * `NoNewCalls` - no *new* calls are started but existing calls are allowed to finish
+  * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
+* Bug fix: Tasks that changed directory would fail on JES because their return code file was written to the new directory instead of an absolute path
+* Bug fix: Using `write_*` functions in a Task's command (e.g. `./my_script --file=${write_file(my_array)}`) will now work with JES
+* Changing format of the 'disks' runtime attribute slightly to allow for mounting disks at specific mountpoints
+```
+task disk_test {
+  command { ... }
+  runtime {
+    disks: "local-disk 20 SSD, /mnt/mnt1 200 HDD"
+  }
+}
+```
+* Metadata now contains a list of failures for calls and workflows. This is an optional element of both `call` and `workflow` and is shaped thus:
+```
+"failures": [
+  {
+    "failure": "The failure message",
+    "timestamp": "2016-02-25T10:49:02.066-05:00"
+  }
+]
+```
+* Added workflow options to copy the call logs and/or the workflow logs to a `call_logs_dir` or a `workflow_log_dir`,
+respectively.
+* The system properties `LOG_MODE` and `LOG_LEVEL` used by Logback may now be specified as environment variables.
+* Implemented `write_tsv` function
+
 ## 0.18
 
 * The deprecated parse, validate, inputs and highlight functionality from the command line tool has been removed in favor of wdltool (https://github.com/broadinstitute/wdltool) 
@@ -76,3 +122,5 @@ task example {
   }
 }
 ```
+
+* Support `sub` function from the WDL Standard Library. See https://github.com/broadinstitute/wdl/blob/subFunction/SPEC.md#string-substring-string-string

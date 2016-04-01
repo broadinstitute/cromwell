@@ -1,7 +1,8 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
+[![Stories in Ready](https://badge.waffle.io/broadinstitute/cromwell.svg?label=ready&title=Ready)](http://waffle.io/broadinstitute/cromwell)
 [![Join the chat at https://gitter.im/broadinstitute/cromwell](https://badges.gitter.im/broadinstitute/cromwell.svg)](https://gitter.im/broadinstitute/cromwell?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](http://opensource.org/licenses/BSD-3-Clause)
+[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 Cromwell
 ========
@@ -10,9 +11,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc start-->
 
-* [How To Reach Us](#how-to-reach-us)
+* [Getting Help](#getting-help)
+  * [Website and User Guide](#website-and-user-guide)
+  * [Support Forum](#support-forum)
   * [Gitter](#gitter)
-  * [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
@@ -30,10 +32,15 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Local Backend](#local-backend)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
   * [Google JES Backend](#google-jes-backend)
+    * [Configuring Google Project](#configuring-google-project)
+    * [Configuring Authentication](#configuring-authentication)
+      * [Application Default Credentials](#application-default-credentials)
+      * [Service Account](#service-account)
     * [Data Localization](#data-localization)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
+  * [Specifying Default Values](#specifying-default-values)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
   * [disks](#disks)
@@ -67,21 +74,24 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc end-->
 
-# How To Reach Us
+# Getting Help
+
+## Website and User Guide
+
+The [WDL website](https://software.broadinstitute.org/wdl/) is the best place to go for more information on both WDL and Cromwell. In particular new users should check out the [user guide](https://software.broadinstitute.org/wdl/userguide/) which has many tutorials, examples and other bits to get you started.
+
+## Support Forum
+
+If you have questions that aren't covered by the website you can ask them in the [support forum](http://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team).
 
 ## Gitter
-There is a [gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
-
-## Mailing List
-The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstitute.org.
-
-If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.
+There is a [Cromwell gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
 
 # Requirements
 
 The following is the toolchain used for development of Cromwell.  Other versions may work, but these are recommended.
 
-* [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7)
+* [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7/)
 * [SBT 0.13.8](https://github.com/sbt/sbt/releases/tag/v0.13.8)
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 
@@ -150,7 +160,7 @@ $ java -jar cromwell.jar run my_workflow.wdl -
 
 The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
-Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes-backend) for more details.
+See the section [workflow options](#workflow-options) for more details.
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -504,7 +514,22 @@ Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the ex
 
 ## Google JES Backend
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google. JES has some [configuration](#configuring-cromwell) that needs to be set before it can be run.  Edit `src/main/resources/application.conf` and fill out the 'jes' stanza, e.g.
+Google JES (Job Execution Service) is a Docker-as-a-service from Google.
+
+### Configuring Google Project
+
+You'll need the following things to get started:
+
+* A Google Project (Manage/create projects [here](https://console.developers.google.com/project))
+* A Google Cloud Storage bucket (View/create buckets in your project [here](https://console.cloud.google.com/storage/browser))
+
+On your Google project, open up the [API Manager](https://console.developers.google.com/apis/library) and enable the following APIs:
+
+* Google Compute Engine
+* Google Cloud Storage
+* Genomics API
+
+If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](#configuring-cromwell) as follows:
 
 ```hocon
 backend {
@@ -512,10 +537,10 @@ backend {
 
   jes {
     // Google project
-    project = "broad-dsde-dev"
+    project = "my-project"
 
     // Location to store workflow results, must be a gs:// URL
-    baseExecutionBucket = "gs://your-bucket/cromwell-executions"
+    baseExecutionBucket = "gs://my-bucket/cromwell-executions"
 
     // Root URL for the API
     endpointUrl = "https://genomics.googleapis.com/"
@@ -524,30 +549,71 @@ backend {
     // This is the maximum polling interval (in seconds):
     maximumPollingInterval = 600
   }
-
-  ...
 }
 ```
 
-It is also necessary to fill out the `google` stanza in the configuration file. This stanza will set up the service / user account that Cromwell uses to write certain files to GCS as well as run jobs.
+### Configuring Authentication
+
+The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are three authentication schemes:
+
+* `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
+* `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
+* `user_account` - Authenticate as a user.
+
+#### Application Default Credentials
+
+By default, application default credentials will be used.  The configuration file should look like this to use application default credentials:
 
 ```hocon
 google {
   applicationName = "cromwell"
-  
-  cromwellAuthenticationScheme = "service_account"
+  cromwellAuthenticationScheme = "application_default"
+}
+```
 
-  // If cromwellAuthenticationScheme is "user_account"
-  userAuth {
-    // user = ""
-    // secretsFile = ""
-    // dataStoreDir = ""
-  }
+To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
+
+```
+$ gcloud auth login
+$ gcloud config set project my-project
+```
+
+This should be all that's necessary to run Cromwell using the JES backend.
+
+#### Service Account
+
+First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
+
+Creating the account will cause the JSON file to be downloaded.  The structure of this file is roughly like this (account name is `my-account`):
+
+```
+{
+  "type": "service_account",
+  "project_id": "my-project",
+  "private_key_id": "OMITTED",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nBASE64 ENCODED KEY WITH \n TO REPRESENT NEWLINES\n-----END PRIVATE KEY-----\n",
+  "client_email": "my-account@my-project.iam.gserviceaccount.com",
+  "client_id": "22377410244549202395",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-account%40my-project.iam.gserviceaccount.com"
+}
+```
+
+Most importantly, the value of the `client_email` field should go into the `google.serviceAuth.serviceAccountId` field in the configuration (see below).
+
+The `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
+
+```hocon
+google {
+  applicationName = "cromwell"
+  cromwellAuthenticationScheme = "service_account"
 
   // If cromwellAuthenticationScheme is "service_account"
   serviceAuth {
-    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
-    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
+    pemFile = "/path/to/secret/my-key.pem"
+    serviceAccountId = "my-account@my-project.iam.gserviceaccount.com"
   }
 }
 ```
@@ -571,9 +637,9 @@ google {
     pemFile = "/path/to/secret/cromwell-svc-acct.pem"
     serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
   }
-  
+
   userAuthenticationScheme = "refresh"
-  
+
   refreshTokenAuth = {
     client_id = "myclientid.apps.googleusercontent.com"
     client_secret = "clientsecretpassphrase"
@@ -590,7 +656,7 @@ Note that upon generation of the refresh token, the application must ask for GCS
 
 ### Docker
 
-It is possible to reference private docker images in dockerhub to be run on JES.
+It is possible to reference private docker images in DockerHub to be run on JES.
 However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
 
 ```
@@ -645,8 +711,8 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    zones: "US_Metro MX_Metro"
-    disks: "Disk1 3 SSD, Disk2 500 HDD"
+    zones: "us-central1-c us-central1-a"
+    disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
 workflow jes_workflow {
@@ -666,6 +732,7 @@ This table lists the currently available runtime attributes for cromwell:
 | failOnStderr         |   x   |   x   |   x   |
 | memory               |       |   x   |       |
 | preemptible          |       |   x   |       |
+| bootDiskSizeGb       |       |   x   |       |
 
 Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
 
@@ -684,6 +751,55 @@ task runtime_test {
   }
 }
 ```
+
+## Specifying Default Values
+
+Default values for runtime attributes can be specified via [workflow options](#workflow-options).  For example, consider this WDL file:
+
+```wdl
+task first {
+  command { ... }
+}
+
+task second {
+  command {...}
+  runtime {
+    docker: "my_docker_image"
+  }
+}
+
+workflow w {
+  call first
+  call second
+}
+```
+
+And this set of workflow options:
+
+```json
+{
+  "defaultRuntimeOptions": {
+    "docker": "ubuntu:latest",
+    "zones": "us-central1-a us-central1-b"
+  }
+}
+```
+
+Then these values for `docker` and `zones` will be used for any task that does not explicitly override them in the WDL file. So the effective runtime for `task first` is:
+```
+{
+    "docker": "ubuntu:latest",
+    "zones": "us-central1-a us-central1-b"
+  }
+```
+And the effective runtime for `task second` is:
+```
+{
+    "docker": "my_docker_image",
+    "zones": "us-central1-a us-central1-b"
+  }
+```
+Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
 
 ## continueOnReturnCode
 
@@ -731,43 +847,55 @@ Passed to JES: "Disks to attach."
 
 The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
 
-1. Disk name
-2. Disk size in GB (not applicable for LOCAL)
-3. Disk type
+1. Mount point (absolute path), or `local-disk` to reference the mount point where JES will localize files and the task's current working directory will be
+2. Disk size in GB (ignored for disk type LOCAL)
+3. Disk type.  One of: "LOCAL", "SSD", or "HDD" ([documentation](https://cloud.google.com/compute/docs/disks/#overview))
 
-The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google. All disks are set to auto-delete after the job completes.
+All tasks launched on JES *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
 
-... more to come ...
+The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
 
-```
-runtime {
-  disks: "local-disk LOCAL, Disk1 3 SSD, Disk2 500 HDD"
-}
-```
-
-To change the size of the local disk, set the type of the disk named "local-disk" to a persistent type, and specify the size in GB.
+**Example 1: Changing the Localization Disk**
 
 ```
 runtime {
-  disks: "local-disk 11 SSD"
+  disks: "local-disk 100 SSD"
 }
 ```
 
-Defaults to "local-disk LOCAL".
+**Example 2: Mounting an Additional Two Disks**
+
+```
+runtime {
+  disks: "/mnt/my_mnt 3 SSD, /mnt/my_mnt2 500 HDD"
+}
+```
+
+### Boot Disk
+In addition to working disks, JES allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
+Its primary purpose is to ensure that larger docker images can fit on the boot disk.
+```
+runtime {
+  # Yikes, we have a big OS in this docker image! Allow 50GB to hold it:
+  bootDiskSizeGb: 50
+}
+```
+
+Since no `local-disk` entry is specified, Cromwell will automatically add `local-disk 10 SSD` to this list.
 
 ## zones
 
-Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
+The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
 
 The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  zones: "US_Metro MX_Metro"
+  zones: "us-central1-a us-central1-b"
 }
 ```
 
-Defaults to "us-central1-a".
+Defaults to "us-central1-a"
 
 ## docker
 
@@ -825,11 +953,22 @@ Defaults to "false".
 
 # Logging
 
-Cromwell accepts three Java Properties for controlling logging:
+Cromwell accepts two Java Properties or Environment Variables for controlling logging:
 
 * `LOG_MODE` - Accepts either `pretty` or `standard` (default `pretty`).  In `standard` mode, logs will be written without ANSI escape code coloring, with a layout more appropriate for server logs, versus `pretty` that is easier to read for a single workflow run.
 * `LOG_LEVEL` - Level at which to log (default `info`).
-* `LOG_ROOT` - Specifies the directory where logs will be written (default `.`). Currently unused, as logs are only written to standard out, but will be restored in a future update.
+
+Additionally, a directory may be set for writing per workflow logs. By default, the per workflow logs will be erased once the workflow completes.
+
+```hocon
+// In application.conf or specified via system properties
+workflow-options {
+    workflow-log-dir: "cromwell-workflow-logs"
+    workflow-log-temporary: true
+}
+```
+
+The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `workflow_log_dir`.
 
 # Workflow Options
 
@@ -847,15 +986,25 @@ Example workflow options file:
 
 Valid keys and their meanings:
 
-* **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
-* **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
-* **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
-* **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
-* **google_project** - (JES backend only) Specifies which google project to execute this workflow.
-* **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
-* **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
-* **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
-* **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
+* Global *(use with any backend)*
+    * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
+    * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+    * **workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
+    * **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
+    * **call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
+    * **defaultRuntimeOptions** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
+    * **workflowFailureMode** - What happens after a task fails. Choose from:
+        * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
+        * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish
+        * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
+    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.    
+* JES Backend Only
+    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
+    * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
+    * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
+    * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
+    * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+    * **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
 
 # Call Caching
 
@@ -894,7 +1043,7 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
 
-The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jakubroztocil/httpie) and [cURL](http://curl.haxx.se/)
+The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jkbrzt/httpie) and [cURL](https://curl.haxx.se/)
 
 ## REST API Versions
 
@@ -905,7 +1054,7 @@ All web server requests include an API version in the url. The current version i
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](http://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 
 cURL:
@@ -1651,6 +1800,16 @@ Content-Length: 8286
   "end": "2016-02-04T13:47:57.000-05:00",
   "start": "2016-02-04T13:47:55.000-05:00"
 }
+```
+
+The `call` and `workflow` may optionally contain failures shaped like this:
+```
+"failures": [
+  {
+    "failure": "The failure message",
+    "timestamp": "2016-02-25T10:49:02.066-05:00"
+  }
+]
 ```
 
 ## POST /api/workflows/:version/:id/abort

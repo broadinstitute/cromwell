@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <include file="changesets/db_schema.xml" relativeToChangelogFile="true" />
+    <include file="changesets/symbol_iteration_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/wdl_and_inputs.xml" relativeToChangelogFile="true" />
+    <include file="changesets/drop_workflow_uri_and_local_command.xml" relativeToChangelogFile="true" />
+    <include file="changesets/local_job_allow_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/symbol_iteration_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_unique_constraints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/lengthen_wdl_value.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_index_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rename_iteration_to_index.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sge.xml" relativeToChangelogFile="true" />
+    <include file="changesets/change_execution_unique_constraint.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rc.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_options.xml" relativeToChangelogFile="true" />
+    <include file="changesets/jes_id_update.xml" relativeToChangelogFile="true" />
+    <include file="changesets/optional_sge_ids.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_start_end_time_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rename_jes_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_workflow_name.xml" relativeToChangelogFile="true" />
+    <include file="changesets/top_level_output.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_execution_aux_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_result_caching.xml" relativeToChangelogFile="true" />
+    <include file="changesets/events_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sync_not_null_constraints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sge_job_execution_unique_key.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_attempt_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/execution_backend_info.xml" relativeToChangelogFile="true" />
+    <include file="changesets/runtime_attributes_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/failure_table.xml" relativeToChangelogFile="true" />
+</databaseChangeLog>

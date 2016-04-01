@@ -5,20 +5,22 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.{Actor, Props, Status}
 import better.files._
-import cromwell.util.TerminalUtil
-import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl4s.{AstTools, _}
+import com.typesafe.config.ConfigFactory
+import cromwell.core.WorkflowOptions
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
+import cromwell.util.PromiseActor
 import org.slf4j.LoggerFactory
 import spray.json._
+import wdl4s._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Await, Promise}
+import scala.concurrent.{Await, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -27,7 +29,7 @@ object Actions extends Enumeration {
 }
 
 object Main extends App {
-  setupServerLogging(args)
+  initLogging(args)
 
   /*
    * scala.App's DelayedInit is tricky, as the docs say. During tests we definitely don't want to use sys.exit on an
@@ -53,13 +55,33 @@ object Main extends App {
     *   https://github.com/broadinstitute/cromwell/commit/2e3f45b#diff-facc2160a82442932c41026c9a1e4b2bL28
     * TODO: Logback is configurable programmatically. We don't have to overwrite system properties like this.
     *
+    * Also copies variables from config/system/environment/defaults over to the system properties.
+    * Fixes issue where users are trying to specify Java properties as environment variables.
+    *
     * @param args The command line arguments.
     */
-  private def setupServerLogging(args: Array[String]): Unit = {
-    getAction(args) match {
-      case Some(Actions.Server) => sys.props.getOrElseUpdate("LOG_MODE", "STANDARD")
-      case _ =>
+  private def initLogging(args: Array[String]): Unit = {
+    val defaultLogMode = getAction(args) match {
+      case Some(Actions.Server) => "STANDARD"
+      case _ => "PRETTY"
     }
+
+    val defaultProps = Map("LOG_MODE" -> defaultLogMode, "LOG_LEVEL" -> "INFO")
+
+    val config = ConfigFactory.load
+      .withFallback(ConfigFactory.systemEnvironment())
+      .withFallback(ConfigFactory.parseMap(defaultProps.asJava, "Defaults"))
+
+    val props = sys.props
+    defaultProps.keys foreach { key =>
+      props += key -> config.getString(key)
+    }
+
+    /*
+    We've possibly copied values from the environment, or our defaults, into the system properties.
+    Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
+     */
+    ConfigFactory.invalidateCaches()
   }
 
   private def getAction(args: Seq[String]): Option[Actions.Value] = for {
@@ -69,23 +91,8 @@ object Main extends App {
   } yield action
 }
 
-/** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
-private class PromiseActor(promise: Promise[Any]) extends Actor {
-  override def receive = {
-    case Status.Failure(f) =>
-      promise.tryFailure(f)
-      context.stop(self)
-    case success =>
-      promise.trySuccess(success)
-      context.stop(self)
-  }
-}
-
 class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
-  private[cromwell] val initLoggingReturnCode = initLogging()
-
   lazy val Log = LoggerFactory.getLogger("cromwell")
-  Monitor.start()
 
   def this() = this(managerSystem = new WorkflowManagerSystem {})
 
@@ -156,14 +163,16 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
 
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
     val workflowManagerSystem = managerSystem
+    implicit val actorSystem = workflowManagerSystem.actorSystem
     val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
-    val promise = Promise[Any]()
-    val promiseActor = workflowManagerSystem.actorSystem.actorOf(Props(classOf[PromiseActor], promise))
-    runner.tell(RunWorkflow, promiseActor)
-    waitAndExit(promise.future, workflowManagerSystem)
+    import PromiseActor.EnhancedActorRef
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    val promise = runner.askNoTimeout(RunWorkflow)
+    waitAndExit(promise, workflowManagerSystem)
   }
 
   private[this] def waitAndExit(futureResult: Future[Any], workflowManagerSystem: WorkflowManagerSystem): Int = {
@@ -264,30 +273,6 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
         |  documentation for more details about the API endpoints.
       """.stripMargin)
     -1
-  }
-
-  private[this] def initLogging(): Int = {
-    val systemProperties = sys.props
-    systemProperties.getOrElseUpdate("LOG_MODE", "PRETTY")
-    systemProperties.getOrElseUpdate("LOG_LEVEL", "INFO")
-    /*
-    TODO: When implementing DSDEEPB-2271, make sure not to regress DSDEEPB-2339.
-    If a parameter is not going to be used due to some combination of arguments, log a warning.
-     */
-    if (systemProperties.get("LOG_ROOT").isDefined) {
-      Console.err.println("WARNING: The LOG_ROOT parameter is currently ignored.")
-    }
-    val logRoot = systemProperties.getOrElseUpdate("LOG_ROOT", File(".").fullPath)
-
-    try {
-      File(logRoot).createDirectories()
-      0
-    } catch {
-      case e: Throwable =>
-        Console.err.println(s"Could not create log directory: $logRoot")
-        e.printStackTrace()
-        1
-    }
   }
 
   private[this] def continueIf(valid: => Boolean)(block: => Int): Int = if (valid) block else usageAndExit()

@@ -3,6 +3,7 @@ package cromwell.engine.db
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
+import cromwell.engine.finalcall.FinalCall
 import wdl4s.values.WdlFile
 
 case class ExecutionInfosByExecution(execution: Execution, executionInfos: Seq[ExecutionInfo]) {
@@ -51,7 +52,12 @@ object ExecutionInfosByExecution {
   }
 
   def toWorkflowLogs(executionInfosByExecutions: Traversable[ExecutionInfosByExecution]): WorkflowLogs = {
-    executionInfosByExecutions groupBy { _.execution.callFqn } mapValues toAttemptedCallLogs filterNot {
+    import FinalCall._
+    executionInfosByExecutions groupBy {
+      _.execution.callFqn
+    } filterKeys {
+      !_.isFinalCall
+    } mapValues toAttemptedCallLogs filterNot {
       case (_, attemptedCallLogs) => attemptedCallLogs.isEmpty
     }
   }

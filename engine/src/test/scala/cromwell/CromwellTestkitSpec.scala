@@ -9,7 +9,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.backend.{CallLogs, CromwellBackend, WorkflowDescriptor}
+import cromwell.engine.backend.CallLogs
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
 import cromwell.engine.{WorkflowOutputs, _}
@@ -232,13 +232,26 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
              workflowOptions: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = WorkflowManagerActor.defaultConfig)(implicit ec: ExecutionContext): WorkflowOutputs = {
+    val (_, workflowOutputs) = runWdlAndReturnIdOutputs(
+      sampleWdl, eventFilter, runtime, workflowOptions, terminalState, config)
+    workflowOutputs
+  }
+
+  def runWdlAndReturnIdOutputs(sampleWdl: SampleWdl,
+                               eventFilter: EventFilter,
+                               runtime: String = "",
+                               workflowOptions: String = "{}",
+                               terminalState: WorkflowState = WorkflowSucceeded,
+                               config: Config = WorkflowManagerActor.defaultConfig)
+                              (implicit ec: ExecutionContext): (WorkflowId, WorkflowOutputs) = {
     val wma = buildWorkflowManagerActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, terminalState)
-        wma.workflowOutputs(workflowId)
+        val outputs = wma.workflowOutputs(workflowId)
+        (workflowId, outputs)
       }
     }
   }

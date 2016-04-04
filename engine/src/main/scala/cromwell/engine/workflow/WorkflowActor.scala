@@ -583,7 +583,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         case Failure(t) =>
           self ! CallFailedToInitialize(callKey, s"Failed to fetch locally qualified inputs: ${t.getMessage}")
       }
-      case finalCallKey: FinalCallKey => startActor(finalCallKey, Map.empty, message.startMode)
     }
   }
 
@@ -765,7 +764,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     }
 
     val callActorName = s"CallActor-${workflow.id}-${callKey.tag}"
+    import FinalCall._
     val futureCallActorProps = callKey match {
+      case backendCallKey: BackendCallKey if backendCallKey.isFinalCall =>
+        WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
+          metadata => CallActor.props(backendCallKey.finalCallJobDescriptor(workflow, metadata))
+        }
       case backendCallKey: BackendCallKey =>
         // PBE This awful `workflow.copy` bit was inspired by the RetryableCallsSpec that passes a tweaked version
         // of the local backend down through WMA.  But it turns out that WorkflowDescriptor.apply doesn't use WMA's
@@ -776,9 +780,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         // just set its special backend cleanly in config, and all this awfulness can go away.
         val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
         Future.successful(CallActor.props(descriptor))
-      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
-        metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
-      }
     }
 
     futureCallActorProps onComplete {
@@ -841,8 +842,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       (upstream forall { _.nonEmpty }) && dependenciesResolved
     }
 
+    import FinalCall._
     lazy val nonFinalCallsComplete = executionStore forall {
-      case (key: FinalCallKey, _) => true
+      case (key: BackendCallKey, _) if key.isFinalCall => true
       case (_, x: ExecutionStatus) if x.isTerminal => true
       case _ => false
     }
@@ -852,7 +854,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     def isRunnable(entry: ExecutionStoreEntry) = {
       entry match {
-        case (key: FinalCallKey, ExecutionStatus.NotStarted) => nonFinalCallsComplete && allowNewCalls
+        case (key: BackendCallKey, ExecutionStatus.NotStarted) if key.isFinalCall =>
+          nonFinalCallsComplete && allowNewCalls
         case (key, ExecutionStatus.NotStarted) => arePrerequisitesDone(key) && allowNewCalls
         case _ => false
       }
@@ -866,7 +869,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     val entries: Map[ExecutionStoreKey, Try[ExecutionStartResult]] = runnableEntries map {
       case (k: BackendCallKey, _) => k -> processRunnableCall(k)
-      case (k: FinalCallKey, _) => k -> processRunnableCall(k)
       case (k: ScatterKey, _) => k -> processRunnableScatter(k)
       case (k: CollectorKey, _) => k -> processRunnableCollector(k)
       case (k, v) =>
@@ -1243,25 +1245,19 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     }
   }
 
-  private def processRunnableCall(callKey: CallKey): Try[ExecutionStartResult] = {
+  private def processRunnableCall(callKey: BackendCallKey): Try[ExecutionStartResult] = {
     // In the `startRunnableCalls` context, record the call as Starting and initiate persistence.
     // The restart scenario assumes a restartable/resumable call is already in Running.
     executionStore += callKey -> ExecutionStatus.Starting
     persistStatus(callKey, ExecutionStatus.Starting)
 
-    callKey match {
-      case backendCallKey: BackendCallKey =>
-        fetchLocallyQualifiedInputs(backendCallKey) match {
-          case Success(callInputs) =>
-            sendStartMessage(backendCallKey, callInputs)
-            Success(ExecutionStartResult(Set(StartEntry(callKey, ExecutionStatus.Starting))))
-          case Failure(t) =>
-            logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
-            Failure(t)
-        }
-      case finalCallKey: FinalCallKey =>
-        self ! InitialStartCall(finalCallKey, CallActor.StartFinalCall)
+    fetchLocallyQualifiedInputs(callKey) match {
+      case Success(callInputs) =>
+        sendStartMessage(callKey, callInputs)
         Success(ExecutionStartResult(Set(StartEntry(callKey, ExecutionStatus.Starting))))
+      case Failure(t) =>
+        logger.error(s"Failed to fetch locally qualified inputs for call ${callKey.tag}", t)
+        Failure(t)
     }
   }
 

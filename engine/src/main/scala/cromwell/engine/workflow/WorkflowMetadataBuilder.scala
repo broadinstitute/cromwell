@@ -83,6 +83,7 @@ object WorkflowMetadataBuilder {
   Future[WorkflowMetadataResponse] = {
     val executionAndAux = WorkflowExecutionAndAux(workflowExecution, workflowExecutionAux)
     workflowDescriptorFromExecutionAndAux(executionAndAux) map { workflowDescriptor =>
+      val nonFinalRuntimeAttributes = runtimeAttributes.filterKeys(!_.fqn.isFinalCall)
       val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
       val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
 
@@ -93,7 +94,7 @@ object WorkflowMetadataBuilder {
 
       val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
       val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs, nonFinalEvents,
-        runtimeAttributes, cacheData, callFailures)
+        nonFinalRuntimeAttributes, cacheData, callFailures)
       buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
     }
   }

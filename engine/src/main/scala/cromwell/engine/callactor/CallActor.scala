@@ -9,7 +9,7 @@ import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
-import cromwell.engine.workflow.{CallKey, WorkflowActor}
+import cromwell.engine.workflow.WorkflowActor
 import cromwell.logging.WorkflowLogger
 import wdl4s.Scope
 import wdl4s.values.WdlValue
@@ -83,13 +83,12 @@ object CallActor {
   }
 
   def props(backendCallDescriptor: BackendCallJobDescriptor): Props = Props(new BackendCallActor(backendCallDescriptor))
-  def props(finalCallDescriptor: FinalCallJobDescriptor) = Props(new FinalCallActor(finalCallDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
 // FIXME It feels like I shouldn't need to restate the type bounds of JobDescriptor's CallKey type variable.
-trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
-  def jobDescriptor: D
+trait CallActor extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
+  def jobDescriptor: BackendCallJobDescriptor
   def key = jobDescriptor.key
   def workflowDescriptor = jobDescriptor.workflowDescriptor
   protected def callExecutionActor: ActorRef
@@ -103,7 +102,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
   implicit val ec = context.system.dispatcher
 
   val call = key.scope
-  val akkaLogger = Logging(context.system, classOf[CallActor[D]])
+  val akkaLogger = Logging(context.system, classOf[CallActor])
   val logger = WorkflowLogger(
     "CallActor",
     workflowDescriptor,

@@ -3,8 +3,7 @@ package cromwell.engine.backend
 import cromwell.backend.JobKey
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.workflow.{BackendCallKey, FinalCallKey}
-import cromwell.webservice.WorkflowMetadataResponse
+import cromwell.engine.workflow.BackendCallKey
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -15,19 +14,11 @@ import scala.util.Try
 /** Aspires to be an equivalent of `TaskDescriptor` in the pluggable backends world, describing a job in a way
   * that is complete enough for it to be executed on any backend and free of references to engine types.
   * Currently a ways to go in freedom from engine types.
-  *
-  * @tparam K CallKey subtype
   */
-sealed trait JobDescriptor[K <: JobKey] {
-  def workflowDescriptor: WorkflowDescriptor
-  def key: K
-  def locallyQualifiedInputs: CallInputs
-}
-
 case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
                                     key: BackendCallKey,
                                     locallyQualifiedInputs: CallInputs = Map.empty,
-                                    abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
+                                    abortRegistrationFunction: Option[AbortRegistrationFunction] = None) {
 
   lazy val call = key.scope
 
@@ -67,13 +58,4 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
   def resume(jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, jobKey)
 
   def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
-}
-
-case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
-                                  key: FinalCallKey,
-                                  workflowMetadataResponse: WorkflowMetadataResponse) extends JobDescriptor[FinalCallKey] {
-
-  override val locallyQualifiedInputs = Map.empty[String, WdlValue]
-
-  lazy val call = key.scope
 }

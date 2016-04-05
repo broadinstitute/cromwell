@@ -1072,6 +1072,55 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
+    it should "not deadlock with upserts" taggedAs DbmsTest in {
+      assume(canConnect || testRequired)
+
+      val workflowId = WorkflowId(UUID.randomUUID())
+      val sources = WorkflowSourceFiles(
+        wdlSource="""task a {command{}}
+          |workflow w {
+          |  call a
+          |  call a as b
+          |  call a as c
+          |}
+        """.stripMargin,
+        inputsJson="{}",
+        workflowOptionsJson="{}"
+      )
+
+      val descriptor = materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = sources)
+      def getCall(name: String): Call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == name).get
+      val key1 = BackendCallKey(getCall("a"), None, 1)
+      val key2 = BackendCallKey(getCall("b"), None, 1)
+      val key3 = BackendCallKey(getCall("c"), None, 1)
+
+      val infos = Map(
+        "a" -> Option("foobar"),
+        "b" -> Option("foobar"),
+        "c" -> Option("foobar"),
+        "d" -> Option("foobar"),
+        "e" -> Option("foobar"),
+        "f" -> Option("foobar")
+      )
+
+      (for {
+        _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+        executions <- dataAccess.getExecutions(descriptor.id)
+        _ = executions should have size 3
+        _ <- Future.sequence(Seq(
+          dataAccess.upsertExecutionInfo(workflowId, key1, infos, actorSystem),
+          dataAccess.upsertExecutionInfo(workflowId, key2, infos, actorSystem),
+          dataAccess.upsertExecutionInfo(workflowId, key3, infos, actorSystem)
+        ))
+        executionInfos <- dataAccess.infosByExecution(workflowId)
+        _ = executionInfos should have size 3
+        _ = Seq("w.a", "w.b", "w.c") foreach { fqn =>
+          val callExecutionInfos = executionInfos.find(_.execution.callFqn == fqn).get.executionInfos
+          callExecutionInfos.collect({ case i if infos.contains(i.key) => i.key -> i.value }).toMap shouldEqual infos
+        }
+      } yield ()).futureValue
+    }
+
     it should "close the database" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       dataAccess.close()

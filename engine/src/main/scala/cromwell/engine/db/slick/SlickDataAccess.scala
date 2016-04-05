@@ -1,25 +1,23 @@
 package cromwell.engine.db.slick
 
-import java.sql.{Clob, Timestamp}
+import java.sql.{Clob, SQLTransactionRollbackException, Timestamp}
 import java.util.concurrent.{ExecutorService, Executors}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
-import slick.backend.DatabaseConfig
-import slick.dbio
-import slick.dbio.Effect.Read
-import slick.driver.JdbcProfile
+import akka.actor.ActorSystem
+import akka.pattern.after
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess.{WorkflowExecutionAndAux, ExecutionKeyToJobKey}
+import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
+import slick.backend.DatabaseConfig
+import slick.driver.JdbcProfile
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.MaterializationResult
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializationResult}
 import cromwell.engine.workflow._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
@@ -30,7 +28,7 @@ import wdl4s._
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values._
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.{implicitConversions, postfixOps}
 
@@ -181,16 +179,39 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     val actionThreadPoolSize = databaseConfig.getIntOr("actionThreadPoolSize", dbNumThreads) min dbMaximumPoolSize
     Executors.newFixedThreadPool(actionThreadPoolSize)
   }
+
   private val actionExecutionContext: ExecutionContext = ExecutionContext.fromExecutor(
-    actionThreadPool, database.executor.executionContext.reportFailure)
+    actionThreadPool, database.executor.executionContext.reportFailure
+  )
+
+  private lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcProfile.capabilities.insertOrUpdate)
 
   override def close(): Unit = {
     actionThreadPool.shutdown()
     database.close()
   }
 
-  // Run action with an outer transaction
-  private def runTransaction[R](action: DBIOAction[R, _ <: NoStream, _ <: Effect]): Future[R] = {
+  private def runTransactionWithRollbackRetry[R](action: DBIO[R], actorSystem: ActorSystem): Future[R] = {
+    def retry[T](f: => Future[T], delay: FiniteDuration, retries: Int): Future[T] = {
+      implicit val ec = actorSystem.dispatcher
+      f recoverWith {
+        case e: SQLTransactionRollbackException if retries > 0 =>
+          /** https://dev.mysql.com/doc/refman/5.5/en/innodb-deadlocks.html
+            *
+            * "Normally, you must write your applications so that they are always
+            *  prepared to re-issue a transaction if it gets rolled back because of a deadlock."
+            */
+          log.warn(s"Transaction rollback detected.  Retrying in $delay ($retries retries remaining)")
+          after(delay, actorSystem.scheduler)(retry(f, delay, retries - 1))
+      }
+    }
+
+    def queryAttempt = database.run(action.transactionally)
+
+    Future(Await.result(retry(queryAttempt, delay=200 millis, retries=10), Duration.Inf))(actionExecutionContext)
+  }
+
+  private def runTransaction[R](action: DBIO[R]): Future[R] = {
     //database.run(action.transactionally) <-- https://github.com/slick/slick/issues/1274
     Future(Await.result(database.run(action.transactionally), Duration.Inf))(actionExecutionContext)
   }
@@ -471,31 +492,39 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def upsertExecutionInfo(workflowId: WorkflowId,
                                    callKey: BackendCallKey,
-                                   keyValues: Map[String, Option[String]])
-                                  (implicit ec: ExecutionContext): Future[Unit] = {
+                                   keyValues: Map[String, Option[String]],
+                                   actorSystem: ActorSystem): Future[Unit] = {
     import ExecutionIndex._
+    implicit val ec = actorSystem.dispatcher
 
     val action = for {
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
         workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt).result.head
 
-      _ <- DBIO.sequence(keyValues map upsertExecutionInfo(executionResult.executionId.get))
+      _ <- DBIO.sequence(keyValues map upsertExecutionInfo(executionResult.executionId.get, actorSystem))
     } yield ()
 
-    runTransaction(action)
+    runTransactionWithRollbackRetry(action, actorSystem)
   }
 
-  private def upsertExecutionInfo(executionId: Int)(keyValue: (String, Option[String]))
-                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
+  private def upsertExecutionInfo(executionId: Int, actorSystem: ActorSystem)(keyValue: (String, Option[String])): DBIO[Unit] = {
     val (key, value) = keyValue
-    for {
-      backendUpdate <- dataAccess.executionInfoValueByExecutionAndKey(executionId, key).update(value)
-      _ <- backendUpdate match {
-        case 0 => dataAccess.executionInfosAutoInc += ExecutionInfo(executionId, key, value)
-        case 1 => DBIO.successful(Unit)
-        case _ => DBIO.failed(new RuntimeException(s"Unexpected backend update count $backendUpdate"))
-      }
-    } yield ()
+    implicit val ec = actorSystem.dispatcher
+
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.executionInfosAutoInc.insertOrUpdate(ExecutionInfo(executionId, key, value))
+      } yield ()
+    } else {
+      for {
+        updateCount <- dataAccess.executionInfoValueByExecutionAndKey(executionId, key).update(value)
+        _ <- updateCount match {
+          case 0 => dataAccess.executionInfosAutoInc += ExecutionInfo(executionId, key, value)
+          case 1 => DBIO.successful(Unit)
+          case _ => DBIO.failed(new RuntimeException(s"Unexpected backend update count $updateCount"))
+        }
+      } yield ()
+    }
   }
 
   private def toSymbolStoreEntries(symbolResults: Traversable[Symbol]) =

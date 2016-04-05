@@ -1,5 +1,6 @@
 package cromwell.engine.db
 
+import akka.actor.ActorSystem
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
@@ -43,8 +44,10 @@ trait DataAccess extends AutoCloseable {
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
                          (implicit ec: ExecutionContext): Future[Unit]
 
-  def upsertExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, keyValues: Map[String, Option[String]])
-                         (implicit ec: ExecutionContext): Future[Unit]
+  def upsertExecutionInfo(workflowId: WorkflowId,
+                          callKey: BackendCallKey,
+                          keyValues: Map[String, Option[String]],
+                          actorSystem: ActorSystem): Future[Unit]
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
                          (implicit ec: ExecutionContext): Future[Unit]

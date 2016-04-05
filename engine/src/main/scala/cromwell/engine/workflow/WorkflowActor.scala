@@ -749,8 +749,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   private def persistCallLogs(storeKey: ExecutionStoreKey, maybeCallLogs: Option[CallLogs]): Future[Unit] = {
     (maybeCallLogs, storeKey) match {
       case (Some(callLogs), backendCallKey: BackendCallKey) =>
-        globalDataAccess.upsertExecutionInfo(workflow.id, backendCallKey,
-          ExecutionInfosByExecution.toCallLogMap(callLogs))
+        globalDataAccess.upsertExecutionInfo(
+          workflow.id,
+          backendCallKey,
+          ExecutionInfosByExecution.toCallLogMap(callLogs),
+          actorSystem
+        )
       case _ => Future.successful(Unit)
     }
   }

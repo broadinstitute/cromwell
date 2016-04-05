@@ -297,6 +297,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     futureCaches onComplete {
       case Success((executions, symbols)) =>
+        executionStore = executions
         symbolCache = symbols
         self ! CachesCreated(startMessage)
       case Failure(t) =>

@@ -7,13 +7,32 @@ import cromwell.engine.backend.JobKey
 import cromwell.services.MetadataServiceActor._
 import cromwell.webservice.WorkflowMetadataResponse
 import org.joda.time.DateTime
+import wdl4s.values.WdlValue
 
 object MetadataServiceActor {
 
-  sealed trait MetadataServiceActorMessage
-  case class SetStartTime(jobKey: JobKey, startTime: DateTime)
-  case class SetEndTime(jobKey: JobKey, time: DateTime)
-  case class AddExecutionEvent(jobKey: JobKey, executionEventEntry: ExecutionEventEntry)
+  sealed trait MetadataEvent[V] {
+    def workflowId: WorkflowId
+    def jobKey: JobKey
+    def eventName: String
+    def eventTime: DateTime
+    def value: V
+  }
+
+  /** Every instance of this received by the MetadataServiceActor is simply appended to the DB table; previously existing rows
+    * for this workflowId + jobKey are not modified.  This retains the full record of what changed and when.  `submission`, `start`, and `end` might
+    * be derived from the appropriate rows with eventName = "Workflow Status".  */
+  final case class WorkflowStatusEvent(workflowId: WorkflowId, jobKey: JobKey, eventTime: DateTime, value: String) extends MetadataEvent[String] {
+    override def eventName = "Workflow Status"
+  }
+
+  /**
+    * Note the additional fqn argument in this one:
+    */
+  final case class WorkflowOutputGenerated(workflowId: WorkflowId, jobKey: JobKey, eventTime: DateTime, fqn: String, value: WdlValue) extends MetadataEvent[WdlValue] {
+    override def eventName = "Output"
+  }
+
   /*
   We'd have a "set" message for each of these:
 
@@ -53,7 +72,12 @@ object MetadataServiceActor {
 class MetadataServiceActor extends Actor {
 
   def receive = {
-    case SetStartTime(jobKey, startTime) => ??? // Write this start time information to the database
+    case WorkflowStatusEvent(workflowId: WorkflowId, jobKey: JobKey, eventTime: DateTime, value: String) =>
+      // Append the status change event to the DB's event journal (wrong word?)
+      ???
+    case WorkflowOutputGenerated(workflowId: WorkflowId, jobKey: JobKey, eventTime: DateTime, fqn: String, value: WdlValue) =>
+      // Append this new output to the DB's event journal as a simple KVP (Output => {fqn, }
+      // Also append to the specialised outputs table?
 
       // This replaces the functionality on WorkflowManagerActor - the slick endpoint would use this service actor instead.
       // NB: Move the messages WorkflowMetadata and WorkflowMetadataResponse into the MetadataServiceActor object instead.

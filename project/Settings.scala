@@ -1,5 +1,6 @@
 import Dependencies.engineDependencies
 import Dependencies.coreDependencies
+import Dependencies.backendDependencies
 import Merging.customMergeStrategy
 import Testing._
 import sbt.Keys._
@@ -51,17 +52,18 @@ object Settings {
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
+  val backendSettings = List(
+    name := "cromwell-backend",
+    version := "0.1",
+    libraryDependencies ++= backendDependencies,
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
   val engineSettings = List(
     name := "cromwell-engine",
     version := engineVersion,
     libraryDependencies ++= engineDependencies,
     assemblyMergeStrategy in assembly := customMergeStrategy,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
-  ) ++ commonSettings
-
-  val backendSettings = List(
-    name := "cromwell-backend",
-    version := "0.1",
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

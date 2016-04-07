@@ -15,6 +15,9 @@ trait WorkflowBackendActorFactory {
     */
   //TODO: Add backend configuration arg.
   //TODO: discuss about actorSystem... should be a backend actor system or the same from engine.
-  def getBackend(initClass: String, actorSystem: ActorSystem, workflowDescriptor: WorkflowDescriptor): ActorRef
+  def getBackend( initClass: String,
+                  actorSystem: ActorSystem,
+                  workflowDescriptor: WorkflowDescriptor,
+                  serviceRegistryActor: ActorRef): ActorRef
 
 }

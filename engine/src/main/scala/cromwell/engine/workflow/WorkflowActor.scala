@@ -7,7 +7,7 @@ import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
-import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, FinalCallJobDescriptor}
+import cromwell.engine.backend.{BackendCallJobDescriptor, FinalCallJobDescriptor}
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._

@@ -58,12 +58,17 @@ object Dependencies {
 
   val coreDependencies = List(
     wdl4sDependency,
-    "com.typesafe" % "config" % "1.3.0"
-  )
+    "com.typesafe" % "config" % "1.3.0",
+    "com.typesafe.akka" %% "akka-actor" % akkaV,
+    "org.apache.commons" % "commons-lang3" % "3.4"
+  ) ++ testDependencies
+
+  val backendDependencies = List(
+    "org.broadinstitute" %% "wdl4s" % wdl4sV
+  ) ++ coreDependencies
 
   val engineDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    wdl4sDependency,
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.joda" % "joda-convert" % "1.8.1",
     "org.webjars" % "swagger-ui" % "2.1.1",
@@ -71,11 +76,10 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.4",
-    "org.apache.commons" % "commons-lang3" % "3.4",
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "ch.qos.logback" % "logback-access" % "1.1.3",
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % "2.13.0"
-  ) ++ testDependencies ++ kamonDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies
+  ) ++ coreDependencies ++ kamonDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies ++ backendDependencies
 }

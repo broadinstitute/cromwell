@@ -2,6 +2,7 @@ package cromwell.engine.db
 
 import akka.actor.ActorSystem
 import akka.pattern.after
+import cromwell.backend.JobKey
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
@@ -68,11 +69,14 @@ trait DataAccess extends AutoCloseable {
 
   def getExecutionInfos(workflowId: WorkflowId, call: Call, attempt: Int)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfo]]
 
+  def getExecutionInfoByKey(workflowId: WorkflowId, call: Call, attempt: Int, key: String)
+                           (implicit ec: ExecutionContext): Future[Option[Option[String]]]
+
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
                          (implicit ec: ExecutionContext): Future[Unit]
 
   protected def upsertExecutionInfo(workflowId: WorkflowId,
-                                    callKey: BackendCallKey,
+                                    callKey: JobKey,
                                     keyValues: Map[String, Option[String]])
                                     (implicit ec: ExecutionContext): Future[Unit]
 
@@ -85,7 +89,7 @@ trait DataAccess extends AutoCloseable {
   Or maybe a larger refactoring will use our own actors. TBD
    */
   def upsertExecutionInfo(workflowId: WorkflowId,
-                          callKey: BackendCallKey,
+                          callKey: JobKey,
                           keyValues: Map[String, Option[String]],
                           actorSystem: ActorSystem): Future[Unit] = {
     implicit val system = actorSystem

@@ -7,16 +7,27 @@ import wdl4s.values.WdlValue
 
 package object backend {
 
+  trait JobKey {
+    def scope: Scope
+    def index: Option[Int]
+    def attempt: Int
+    def tag: String
+  }
+
   /**
     * For uniquely identifying a job which has been or will be sent to the backend.
     */
-  case class BackendJobDescriptorKey(callFqn: String, index: Option[Int], attempt: Int)
+  case class BackendJobDescriptorKey(call: Call, index: Option[Int], attempt: Int) extends JobKey {
+    val scope = call
+    val tag = s"${call.fullyQualifiedName}:$index:$attempt"
+  }
 
   /**
     * For passing to a BackendWorkflowActor for job execution or recovery
     */
-  //case class BackendJobDescriptor(key: BackendJobDescriptorKey, call: Call, locallyQualifiedInputs: CallInputs)
-  case class BackendJobDescriptor(key: BackendJobDescriptorKey, call: Call, symbolMap: Map[FullyQualifiedName, WdlValue])
+  case class BackendJobDescriptor(descriptor: BackendWorkflowDescriptor,
+                                  key: BackendJobDescriptorKey,
+                                  symbolMap: Map[FullyQualifiedName, WdlValue])
 
   /**
     * For passing to a BackendActor construction time

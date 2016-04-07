@@ -9,6 +9,7 @@ import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.backend.JobKey
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
 import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus._
@@ -197,7 +198,7 @@ object JesBackend {
 
   /**
     * Generates a json containing auth information based on the parameters provided.
- *
+    *
     * @return a string representation of the json
     */
   def generateAuthJson(authInformation: Option[JesAuthInformation]*) = {

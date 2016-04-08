@@ -342,11 +342,16 @@ class WorkflowManagerActor(config: Config)
 
     import PromiseActor.EnhancedActorRef
 
+    val shadowExecutionEnabled = config.getBoolean("system.shadowExecutionEnabled")
+
     val message  = MaterializeWorkflowDescriptorActor.MaterializeWorkflow(workflowId, source, config)
     val materializeWorkflowDescriptorActor = context.actorOf(MaterializeWorkflowDescriptorActor.props())
     materializeWorkflowDescriptorActor.askNoTimeout(message) map {
       case MaterializationSuccess(descriptor) =>
-        val wfActor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
+        val wfActor = shadowExecutionEnabled match {
+          case true => context.actorOf(ShadowWorkflowActor.props(), s"WorkflowActor-$workflowId")
+          case _ => context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
+        }
         wfActor ! SubscribeTransitionCallBack(self)
         wfActor ! (if (isRestart) Restart else Start(replyTo))
         logger.debug(s"Successfuly started ${wfActor.path} for Workflow ${workflowId}")

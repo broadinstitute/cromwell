@@ -1072,6 +1072,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
+    // TODO: Still need a test that consistently reproduces the deadlock exception when we do NOT retry.
+    // TODO: We also don't have a unit test for our withRetry.
     it should "not deadlock with upserts" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
 

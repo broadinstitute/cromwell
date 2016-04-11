@@ -1,7 +1,8 @@
 package cromwell.engine.backend.jes
 
 import akka.actor.ActorSystem
-import cromwell.engine.backend.{WorkflowDescriptor, BackendCallJobDescriptor}
+import cromwell.CromwellTestkitSpec
+import cromwell.engine.backend.{BackendCallJobDescriptor, WorkflowDescriptor}
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.BackendCallKey
 import org.scalatest.{FlatSpec, Matchers}
@@ -19,7 +20,7 @@ class JesBackendCallSpec extends FlatSpec with Matchers with Mockito {
     backendCallKeyWithAttempt2.attempt returns 2
 
     val workflow = mock[WorkflowDescriptor]
-    val backend = new JesBackend(ActorSystem("Jessie"))
+    val backend = new JesBackend(CromwellTestkitSpec.JesBackendConfigEntry, ActorSystem("Jessie"))
     workflow.backend returns backend
 
     class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {

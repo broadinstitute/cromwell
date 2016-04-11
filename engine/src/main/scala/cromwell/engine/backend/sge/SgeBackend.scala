@@ -1,21 +1,17 @@
 package cromwell.engine.backend.sge
 
-import java.nio.file.{FileSystem, Files, Path}
+import java.nio.file.{Files, Path}
 
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.backend.JobKey
-import cromwell.core.WorkflowOptions
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.backend.io._
-import cromwell.engine.backend.local.{LocalBackend, SharedFileSystem}
+import cromwell.engine.backend.local.{LocalBackend, SharedFileSystemBackend}
 import cromwell.engine.backend.sge.SgeBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.filesystems.gcs.{GoogleConfigurationAdapter, GoogleConfiguration, GcsFileSystemProvider}
-import cromwell.filesystems.gcs.StorageFactory
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
 
@@ -38,12 +34,9 @@ object SgeBackend {
     def script = jobDescriptor.callRootPath.resolve("script.sh")
     def returnCode = jobDescriptor.callRootPath.resolve("rc")
   }
-
-  private lazy val oldGoogleConf = GoogleConfigurationAdapter.gcloudConf.get
-  lazy val gcsConf = Try(GoogleConfiguration(oldGoogleConf.appName, oldGoogleConf.userAuthMode.getOrElse(oldGoogleConf.cromwellAuthMode)))
 }
 
-case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
+case class SgeBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem: ActorSystem) extends Backend with SharedFileSystemBackend {
   def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
 
   import LocalBackend.WriteWithNewline
@@ -93,12 +86,12 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }).flatten map CompletedExecutionHandle
 
   private def statusString(result: ExecutionResult): String = (result match {
-      case AbortedExecution => ExecutionStatus.Aborted
-      case NonRetryableExecution(_, _, _) => ExecutionStatus.Failed
-      case RetryableExecution(_, _, _) => ExecutionStatus.Failed
-      case SuccessfulBackendCallExecution(_, _, _, _, _) => ExecutionStatus.Done
-      case SuccessfulFinalCallExecution => ExecutionStatus.Done
-    }).toString
+    case AbortedExecution => ExecutionStatus.Aborted
+    case NonRetryableExecution(_, _, _) => ExecutionStatus.Failed
+    case RetryableExecution(_, _, _) => ExecutionStatus.Failed
+    case SuccessfulBackendCallExecution(_, _, _, _, _) => ExecutionStatus.Done
+    case SuccessfulFinalCallExecution => ExecutionStatus.Done
+  }).toString
 
   private def recordDatabaseFailure(logger: WorkflowLogger, status: String, rc: Int): PartialFunction[Throwable, Unit] = {
     case e: Throwable =>
@@ -111,9 +104,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }
 
   /**
-   * Returns the RC of this job when it finishes.  Sleeps and polls
-   * until the 'rc' file is generated
-   */
+    * Returns the RC of this job when it finishes.  Sleeps and polls
+    * until the 'rc' file is generated
+    */
   private def waitUntilComplete(jobDescriptor: BackendCallJobDescriptor): Int = {
     @tailrec
     def recursiveWait(): Int = Files.exists(jobDescriptor.returnCode) match {
@@ -128,9 +121,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }
 
   /**
-   * This returns a zero-parameter function which, when called, will kill the
-   * SGE job with id `sgeJobId`.  It also writes to the 'rc' file the value '143'
-   */
+    * This returns a zero-parameter function which, when called, will kill the
+    * SGE job with id `sgeJobId`.  It also writes to the 'rc' file the value '143'
+    */
   private def killSgeJob(jobDescriptor: BackendCallJobDescriptor, sgeJobId: Int) = () => {
     val qdelStdoutWriter = jobDescriptor.callRootPath.resolve("qdel.stdout").newBufferedWriter
     val qdelStderrWriter = jobDescriptor.callRootPath.resolve("qdel.stderr").newBufferedWriter
@@ -144,20 +137,20 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }
 
   /**
-   * Writes the script file containing the user's command from the WDL as well
-   * as some extra shell code for monitoring jobs
-   */
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String) = {
     jobDescriptor.script.write(
       s"""#!/bin/sh
-         |$instantiatedCommand
-         |echo $$? > rc
-         |""".stripMargin)
+          |$instantiatedCommand
+          |echo $$? > rc
+          |""".stripMargin)
   }
 
   /**
-   * Launches the qsub command, returns a tuple: (rc, Option(sge_job_id))
-   */
+    * Launches the qsub command, returns a tuple: (rc, Option(sge_job_id))
+    */
   private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
     val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
@@ -186,9 +179,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   }
 
   /**
-   * This waits for a given SGE job to finish.  When finished, it post-processes the job
-   * and returns the outputs for the jobDescriptor
-   */
+    * This waits for a given SGE job to finish.  When finished, it post-processes the job
+    * and returns the outputs for the jobDescriptor
+    */
   private def pollForSgeJobCompletionThenPostProcess(jobDescriptor: BackendCallJobDescriptor, sgeJobId: Int)(implicit ec: ExecutionContext): Future[(ExecutionResult, Int)] = {
     val logger = jobLogger(jobDescriptor)
     val abortFunction = killSgeJob(jobDescriptor, sgeJobId)
@@ -226,14 +219,6 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
     new SgeCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
-  }
-
-  override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
-    val refreshToken = options.get(GoogleConfiguration.RefreshTokenOptionKey).toOption
-    val gcsStorage = SgeBackend.gcsConf map { conf => StorageFactory(conf, refreshToken) }
-    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
-
-    List(gcs, Option(defaultFileSystem)).flatten
   }
 
   def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {

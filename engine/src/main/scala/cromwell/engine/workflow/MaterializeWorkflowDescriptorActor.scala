@@ -5,12 +5,12 @@ import java.nio.file.Paths
 import akka.actor.{Actor, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.core.{OptionNotFoundException, ErrorOr, WorkflowOptions, WorkflowId}
+import cromwell.core.{ErrorOr, OptionNotFoundException, WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend._
 import cromwell.util.TryUtil
-import spray.json.{JsObject,_}
+import spray.json.{JsObject, _}
 import wdl4s._
 
 import scala.language.postfixOps
@@ -18,6 +18,8 @@ import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
+
+import scalaz.Validation
 
 
 object MaterializeWorkflowDescriptorActor {
@@ -86,12 +88,20 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
       validateCoercedInputs(rawInputs, namespace) flatMap { coercedInputs =>
         val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(workflowOptions), namespace.workflow.unqualifiedName, id)
         val wfContext = new WorkflowContext(workflowRootPath)
-        val fileSystems = backend.fileSystems(workflowOptions)
-        val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
+        // PBE this is some disgustingness around the fact that creating the filesystems is the first
+        // time we actually exercise the Google auth on the GCS filesystem, and if that auth is bad the
+        // underlying code will throw.  This needs to be cleaned up as part of the explicit backend
+        // initialization.  The auth used for 'genomics' also needs to be validated, which isn't addressed
+        // by this hack.
+        // More thinking is required about the relationship between filesystems and backends in general.
+        val filesystemValidation = Validation.fromTryCatchNonFatal(backend.fileSystems(workflowOptions)).leftMap(_.getMessage).toValidationNel
+        filesystemValidation flatMap { fileSystems =>
+          val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
 
-        validateDeclarations(namespace, workflowOptions, coercedInputs, engineFunctions) flatMap { declarations =>
-          WorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, backend,
-            configCallCaching(conf), lookupDockerHash(conf), workflowFailureMode, wfContext, fileSystems).successNel
+          validateDeclarations(namespace, workflowOptions, coercedInputs, engineFunctions) flatMap { declarations =>
+            WorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, backend,
+              configCallCaching(conf), lookupDockerHash(conf), workflowFailureMode, wfContext, fileSystems).successNel
+          }
         }
       }
     }

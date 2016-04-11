@@ -16,7 +16,6 @@ import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.filesystems.gcs._
-import cromwell.filesystems.gcs._
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}
@@ -39,21 +38,17 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     super.afterAll()
   }
 
-  val clientSecrets = SimpleClientSecrets("id", "secrets")
-  val jesBackend = new JesBackend(actorSystem) {
+  val clientSecrets = RefreshTokenMode(name = "bar", clientId = "secret-id", clientSecret = "secret-secret")
+  val jesBackend = new JesBackend(CromwellTestkitSpec.JesBackendConfigEntry, actorSystem) {
     private val anyString = ""
     private val anyURL: URL = null
-    override lazy val jesConf = new JesAttributes(
+    override lazy val jesAttributes = new JesAttributes(
       project = anyString,
       executionBucket = anyString,
       endpointUrl = anyURL,
-      maxPollingInterval = 600) {
-    }
-    override lazy val genomicsInterface = null
-    override lazy val cromwellGcsFileSystem = null
-    override def userGcsFileSystem(options: WorkflowOptions) = null
-    override lazy val gcsConf = GoogleConfiguration("appName", RefreshTokenMode(clientSecrets))
-    override lazy val genomicsConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"))
+      maxPollingInterval = 600,
+      genomicsAuth = ApplicationDefaultMode(name = "foo"),
+      gcsFilesystemAuth = clientSecrets)
   }
 
   "executionResult" should "handle Failure Status" in {
@@ -151,7 +146,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     // This should only ever be used in this test to grab some locallyQualifiedInputs. So leave the rest null:
     val jobDescriptor = BackendCallJobDescriptor(null, null, inputs)
 
-    val mappedInputs: CallInputs = new JesBackend(actorSystem).adjustInputPaths(jobDescriptor)
+    val mappedInputs: CallInputs = new JesBackend(CromwellTestkitSpec.JesBackendConfigEntry, actorSystem).adjustInputPaths(jobDescriptor)
 
     mappedInputs.get(stringKey).get match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -173,7 +168,6 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     EncryptionSpec.assumeAes256Cbc()
 
     val goodOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "token")).get
-    val missingToken = WorkflowOptions.fromMap(Map.empty).get
 
     try {
       jesBackend.assertWorkflowOptions(goodOptions)
@@ -184,6 +178,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
         fail(s"Unexpected exception: ${t.getMessage}")
     }
 
+    val missingToken = WorkflowOptions.fromMap(Map.empty).get
     the [IllegalArgumentException] thrownBy {
       jesBackend.assertWorkflowOptions(missingToken)
     } should have message s"Missing parameters in workflow options: refresh_token"
@@ -195,7 +190,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     workflowDescriptor.workflowOptions returns mockedWfOptions
     mockedWfOptions.get("refresh_token") returns Success("myRefreshToken")
 
-    jesBackend.getGcsAuthInformation(workflowDescriptor) shouldBe Some(GcsLocalizing(clientSecrets, "myRefreshToken"))
+    jesBackend.refreshTokenAuth(workflowDescriptor) shouldBe Some(GcsLocalizing(clientSecrets, "myRefreshToken"))
   }
 
   it should "generate correct JesFileInputs from a WdlMap" in {
@@ -421,7 +416,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     backendCallKeyWithAttempt2.attempt returns 2
 
     val workflow = mock[WorkflowDescriptor]
-    val backend = new JesBackend(ActorSystem("Jessie"))
+    val backend = new JesBackend(CromwellTestkitSpec.JesBackendConfigEntry, ActorSystem("Jessie"))
     workflow.backend returns backend
 
     class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {

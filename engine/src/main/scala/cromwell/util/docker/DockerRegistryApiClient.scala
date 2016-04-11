@@ -1,5 +1,8 @@
 package cromwell.util.docker
 
+import com.google.api.client.auth.oauth2.Credential
+import com.typesafe.config.Config
+
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -17,7 +20,9 @@ trait DockerRegistryApiClient {
     * @param id The identifier string.
     * @return The docker hash.
     */
-  final def getDockerHash(id: String): Future[DockerHash] = getDockerHash(DockerIdentifierParser.Default.parse(id))
+  final def getDockerHash(config: Config, credential: Option[Credential], id: String): Future[DockerHash] = {
+    getDockerHash(DockerIdentifierParser(config, credential).parse(id))
+  }
 
   /**
     * Returns a docker hash for the identifier, either from the hash, or by contacting the identifier's docker registry.

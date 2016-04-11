@@ -4,7 +4,7 @@ import cromwell.core.ErrorOr
 import cromwell.engine.WorkflowState
 import org.joda.time.DateTime
 
-import scala.language.{postfixOps, reflectiveCalls}
+import scala.language.postfixOps
 import scala.util.{Success, Try}
 import scalaz.Scalaz._
 

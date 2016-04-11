@@ -1,18 +1,29 @@
 package cromwell.util.docker
 
+import com.google.api.client.auth.oauth2.Credential
 import cromwell.CromwellSpec.IntegrationTest
-import cromwell.filesystems.gcs.GoogleCredentialFactory
-import cromwell.filesystems.gcs._
-import cromwell.util.DockerConfiguration
+import cromwell.core.WorkflowOptions
+import cromwell.engine.backend.{BackendConfiguration, EnhancedWorkflowOptions}
+import cromwell.filesystems.gcs.{GoogleConfiguration, GoogleCredentialFactorySpec}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.language.postfixOps
+import EnhancedWorkflowOptions._
+
 class DockerIdentifierParserSpec extends FlatSpec with Matchers {
   behavior of "DockerIdentifierParser"
 
+  private def defaultParser: DockerIdentifierParser = {
+    val backendEntry = BackendConfiguration.DefaultBackendEntry
+    val options = WorkflowOptions.fromMap(Map.empty).get
+    val credential: Option[Credential] = GoogleConfiguration.Instance.auth("default").toOption map { _.credential(options.toGoogleAuthOptions) }
+    DockerIdentifierParser(backendEntry.config, credential)
+  }
+
   it should "parse docker tagged identifiers" in {
-    val parser = DockerIdentifierParser.Default
+    val parser = defaultParser
 
     val identifiers = Table(
       ("identifier", "name", "tag", "namespace"),
@@ -40,11 +51,7 @@ class DockerIdentifierParserSpec extends FlatSpec with Matchers {
   it should "parse gcr.io tagged identifiers" taggedAs IntegrationTest in {
     GoogleCredentialFactorySpec.assumeAccountConfigExists()
 
-    val googleCredentials = GoogleCredentialFactory(GoogleCredentialFactorySpec.GoogleAccountConfig.authMode, GcsScopes)
-
-    val dockerConf = DockerConfiguration.build(GoogleCredentialFactorySpec.AccountConfig)
-
-    val parser = new DockerIdentifierParser(dockerConf, Option(googleCredentials))
+    val parser = defaultParser
 
     val identifiers = Table(
       ("identifier", "name", "tag", "namespace"),

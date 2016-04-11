@@ -4,158 +4,207 @@ import com.typesafe.config.{ConfigException, ConfigFactory}
 import lenthall.config.ConfigValidationException
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.language.postfixOps
+
 class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
   behavior of "GoogleConfiguration"
 
-  it should "parse a configuration stanza with service account" in {
-    val serviceConfig =
+  it should "parse all manner of well-formed auths" in {
+    val righteousGoogleConfig =
       """
-        |applicationName = "cromwell"
+        |google {
+        |  application-name = "cromwell"
         |
-        |authenticationScheme = "service_account"
-        |serviceAuth = {
-        |  serviceAccountId = "accountID"
-        |  pemFile = "path/to/pem"
+        |  auths = [
+        |    {
+        |      name = "name-default"
+        |      scheme = "application_default"
+        |    },
+        |    {
+        |      name = "name-refresh"
+        |      scheme = "refresh_token"
+        |      client-id = "secret_id"
+        |      client-secret = "secret_secret"
+        |    },
+        |    {
+        |      name = "name-user"
+        |      scheme = "user_account"
+        |      user = "me"
+        |      secrets-file = "/very/secret/file.txt"
+        |      data-store-dir = "/where/the/data/at"
+        |    },
+        |    {
+        |      name = "name-service"
+        |      scheme = "service_account"
+        |      service-account-id = "my-google-account"
+        |      pem-file = "/yonder/file.pem"
+        |    }
+        |  ]
+        |}
+        |
+      """.stripMargin
+
+    val gconf = GoogleConfiguration(ConfigFactory.parseString(righteousGoogleConfig))
+
+    gconf.applicationName shouldBe "cromwell"
+    gconf.authsByName should have size 4
+
+    val auths = gconf.authsByName.values
+
+    val appDefault = (auths collectFirst { case a: ApplicationDefaultMode => a }).get
+    appDefault.name shouldBe "name-default"
+
+    val refreshToken = (auths collectFirst { case a: RefreshTokenMode => a }).get
+    refreshToken.name shouldBe "name-refresh"
+    refreshToken.clientSecret shouldBe "secret_secret"
+    refreshToken.clientId shouldBe "secret_id"
+
+    val user = (auths collectFirst { case a: UserMode => a }).get
+    user.name shouldBe "name-user"
+    user.secretsFile shouldBe "/very/secret/file.txt"
+    user.datastoreDir shouldBe "/where/the/data/at"
+
+    val service = (auths collectFirst { case a: ServiceAccountMode => a }).get
+    service.name shouldBe "name-service"
+    service.accountId shouldBe "my-google-account"
+    service.pemPath shouldBe "/yonder/file.pem"
+  }
+
+
+  it should "not parse a configuration stanza without applicationName" in {
+    val applessGoogleConfig =
+      """
+        |google {
+        |  auths = [
+        |    {
+        |      name = "name-default"
+        |      scheme = "application_default"
+        |    }
+        |  ]
         |}
       """.stripMargin
 
-    val gconf = GoogleConfiguration(ConfigFactory.parseString(serviceConfig))
-
-    gconf.appName shouldBe "cromwell"
-    gconf.authMode.isInstanceOf[ServiceAccountMode] shouldBe true
-    val serviceAcccount = gconf.authMode.asInstanceOf[ServiceAccountMode]
-    serviceAcccount.accountId shouldBe "accountID"
-    serviceAcccount.pemPath shouldBe "path/to/pem"
-  }
-
-  it should "parse a configuration stanza with user account" in {
-    val userConfig =
-      """
-        |applicationName = "cromwell"
-        |
-        |authenticationScheme = "user_account"
-        |userAuth {
-        |   user = "username"
-        |   secretsFile = "path/to/secrets"
-        |   dataStoreDir = "path/to/store"
-        | }
-      """.stripMargin
-
-    val gconf = GoogleConfiguration(ConfigFactory.parseString(userConfig))
-
-    gconf.appName shouldBe "cromwell"
-    gconf.authMode.isInstanceOf[UserMode] shouldBe true
-    val userAccount = gconf.authMode.asInstanceOf[UserMode]
-    userAccount.user shouldBe "username"
-    userAccount.secretsFile shouldBe "path/to/secrets"
-    userAccount.datastoreDir shouldBe "path/to/store"
-  }
-
-  it should "parse a configuration stanza with refresh token scheme" in {
-    val refreshConfig =
-      """
-        |applicationName = "cromwell"
-
-        | authenticationScheme = "refresh_token"
-        | refreshTokenAuth = {
-        |   client_id = "clientID"
-        |   client_secret = "clientSecret"
-        | }
-      """.stripMargin
-
-    val gconf = GoogleConfiguration(ConfigFactory.parseString(refreshConfig))
-
-    val refreshConf = gconf.authMode
-    gconf.authMode.isInstanceOf[RefreshTokenMode] shouldBe true
-    val refresh = gconf.authMode.asInstanceOf[RefreshTokenMode]
-    refresh.clientSecrets.clientId shouldBe "clientID"
-    refresh.clientSecrets.clientSecret shouldBe "clientSecret"
-  }
-
-  it should "not parse a configuration stanza without applicationName" in {
-    val wrongConf =
-      """
-        |authenticationScheme = "user_account"
-        |userAuth {
-        |   user = "username"
-        |   secretsFile = "path/to/secrets"
-        |   dataStoreDir = "path/to/store"
-        | }
-      """.stripMargin
-
-    a [ConfigValidationException] shouldBe thrownBy {
-       GoogleConfiguration(ConfigFactory.parseString(wrongConf))
+    a[ConfigValidationException] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(applessGoogleConfig))
     }
   }
 
   it should "not parse a configuration stanza with wrong cromwell auth" in {
     val unsupported =
       """
-        |applicationName = "cromwell"
+        |google {
+        |  application-name = "cromwell"
         |
-        |authenticationScheme = "not supported"
+        |  auths = [
+        |    {
+        |      name = "unsupported-auth"
+        |      scheme = "not supported"
+        |    }
+        |  ]
+        |}
       """.stripMargin
 
-    a [ConfigValidationException] shouldBe thrownBy {
+    a[ConfigValidationException] shouldBe thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(unsupported))
     }
 
-    val wrongSA =
+    val schemeless =
       """
-        |applicationName = "cromwell"
+        |google {
+        |  application-name = "cromwell"
         |
-        |authenticationScheme = "service_account"
-      """.stripMargin
-
-    a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration(ConfigFactory.parseString(wrongSA))
-    }
-
-    val wrongSA2 =
-      """
-        |applicationName = "cromwell"
-        |
-        |authenticationScheme = "service_account"
-        |serviceAuth = {
-        |  wrongKey = "accountID"
-        |  pemFile = "path/to/pem"
+        |  auths = [
+        |    {
+        |      name = "scheme-unspecified"
+        |    }
+        |  ]
         |}
       """.stripMargin
 
-    a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration(ConfigFactory.parseString(wrongSA2))
-    }
-  }
-
-  it should "not parse a configuration stanza with wrong user auth" in {
-
-    val wrongUser =
-      """
-        |applicationName = "cromwell"
-        |
-        |authenticationScheme = "user_account"
-      """.stripMargin
-
-    a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration(ConfigFactory.parseString(wrongUser))
+    a[ConfigException.Missing] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(schemeless))
     }
 
-    val wrongUser2 =
+    val nameless =
       """
-        |applicationName = "cromwell"
+        |google {
+        |  application-name = "cromwell"
         |
-        |authenticationScheme = "user_account"
-        |userAuth {
-        |   wrongKey = "username"
-        |   secretsFile = "path/to/secrets"
-        |   dataStoreDir = "path/to/store"
+        |  auths = [
+        |    {
+        |      scheme = "application-default"
+        |    }
+        |  ]
         |}
       """.stripMargin
 
-    a [ConfigException.Missing] shouldBe thrownBy {
-      GoogleConfiguration(ConfigFactory.parseString(wrongUser2))
+    a[ConfigException.Missing] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(nameless))
+    }
+
+    // The various GoogleAuthModes actually don't complain about spurious keys in their
+    // configurations as long as all the keys they do care about are present.  That's not
+    // necessarily ideal behavior.
+    val badKeyInRefreshTokenMode =
+      """
+        |google {
+        |  application-name = "cromwell"
+        |
+        |  auths = [
+        |    {
+        |      name = "name-refresh"
+        |      scheme = "refresh_token"
+        |      client-id-botched-key = "secret_id"
+        |      client-secret = "secret_secret"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    a[ConfigException.Missing] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(badKeyInRefreshTokenMode))
+    }
+
+    val badKeyInUserMode =
+      """
+        |google {
+        |  application-name = "cromwell"
+        |
+        |  auths = [
+        |    {
+        |      name = "name-user"
+        |      scheme = "user_account"
+        |      user-botched-key = "me"
+        |      secrets-file = "/very/secret/file.txt"
+        |      data-store-dir = "/where/the/data/at"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    a[ConfigException.Missing] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(badKeyInUserMode))
+    }
+
+    val badKeyInServiceAccountMode =
+      """
+        |google {
+        |  application-name = "cromwell"
+        |
+        |  auths = [
+        |    {
+        |      name = "name-service"
+        |      scheme = "service_account"
+        |      service-account-id-botched-key = "my-google-account"
+        |      pem-file = "/yonder/file.pem"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    a[ConfigException.Missing] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(badKeyInServiceAccountMode))
     }
   }
-
 }

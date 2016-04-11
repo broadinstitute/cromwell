@@ -13,7 +13,7 @@ class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBui
 
   val actorSystem = ActorSystem("RestartWorkflowSpec", ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
   val dataAccess = DataAccess.globalDataAccess
-  val localBackend = LocalBackend(actorSystem)
+  val localBackend = new LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   val sources = WorkflowSourceFiles(
     wdlSource="""task a {command{}}
                 |workflow w {

@@ -10,7 +10,6 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
-import cromwell.engine.workflow.ShadowWorkflowActor._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.PromiseActor
@@ -52,9 +51,7 @@ object WorkflowManagerActor {
   private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
-  def props(shadowMode: Boolean): Props =
-    if (shadowMode) Props(new ShadowWorkflowManagerActor())
-    else Props(new WorkflowManagerActor())
+  def props(): Props = Props(new WorkflowManagerActor())
 
   // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
   // as much work as can reasonably be handled.
@@ -105,9 +102,9 @@ class WorkflowManagerActor(config: Config)
   }
 
   private def addShutdownHook(): Unit = {
-    // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
+    // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
     val abortJobsOnTerminate =
-      config.getConfig("backend").getBooleanOr("abortJobsOnTerminate", default = false)
+      config.getConfigOption("system").exists(_.getBooleanOr("abort-jobs-on-terminate", default = false))
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {

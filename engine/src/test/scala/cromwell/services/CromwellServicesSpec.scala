@@ -3,6 +3,7 @@ package cromwell.services
 import akka.actor.ActorRef
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
@@ -22,7 +23,7 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
   val actorSystem = workflowManagerSystem.actorSystem
   val dataAccess = DataAccess.globalDataAccess
 
-  val localBackend = LocalBackend(actorSystem)
+  val localBackend = LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = actorSystem.dispatcher
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))

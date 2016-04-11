@@ -18,8 +18,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CromwellApiHandler {
-  def props(requestHandlerActor: ActorRef, shadowMode: Boolean): Props = {
-    Props(new CromwellApiHandler(requestHandlerActor, shadowMode))
+  def props(requestHandlerActor: ActorRef): Props = {
+    Props(new CromwellApiHandler(requestHandlerActor))
   }
 
   sealed trait ApiHandlerMessage
@@ -65,7 +65,7 @@ object CromwellApiHandler {
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
 }
 
-class CromwellApiHandler(requestHandlerActor: ActorRef, shadowMode: Boolean) extends Actor {
+class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
   import CromwellApiHandler._
   import WorkflowJsonSupport._
 
@@ -108,8 +108,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef, shadowMode: Boolean) ext
       }
 
     case ApiHandlerWorkflowSubmit(source) =>
-      if (shadowMode) requestHandlerActor ! ShadowWorkflowManagerActor.SubmitWorkflowCommand(source)
-      else requestHandlerActor ! WorkflowManagerActor.SubmitWorkflow(source)
+      requestHandlerActor ! WorkflowManagerActor.SubmitWorkflow(source)
     case WorkflowManagerSubmitSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
     case WorkflowManagerSubmitFailure(e) =>

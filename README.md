@@ -36,7 +36,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Configuring Authentication](#configuring-authentication)
       * [Application Default Credentials](#application-default-credentials)
       * [Service Account](#service-account)
-    * [Data Localization](#data-localization)
+      * [Refresh Token](#refresh-token)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
@@ -44,6 +44,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
   * [disks](#disks)
+    * [Boot Disk](#boot-disk)
   * [zones](#zones)
   * [docker](#docker)
   * [failOnStderr](#failonstderr)
@@ -286,22 +287,108 @@ database {
 For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option
 
 ```
-backend {
-  abortJobsOnTerminate=true
+system {
+  abort-jobs-on-terminate=true
 }
 ```
 
-Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
+Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 # Backends
 
-A backend represents a way to run the user's command specified in the `task` section.  Currently three backends are supported:
+A backend represents a way to run the user's command specified in the `task` section.  Cromwell allows for backends conforming to 
+the Cromwell backend specification to be plugged into the Cromwell engine.  Additionally, three backends are included with the
+Cromwell distribution:
 
 * Local - Run jobs as subprocesses.  Supports launching in Docker containers.
 * Sun GridEngine - Use `qsub` and job monitoring to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
 
-Backends are specified via the configuration option `backend.backend` which can accept the values: `sge`, `local`, and `jes` (e.g. `java -Dbackend.backend=sge`).
+Backends are specified in the `backend` configuration block.  Each backend has a configuration that looks like:
+
+```hocon
+{
+  name = "Backend Name"
+  class = "FQN of backend class"
+  config {
+    key = "value"
+    key2 = "value2"
+    ...
+  }
+}
+```
+
+The structure within the `config` block will vary from one backend to another; it is the backend implementation's responsibility
+to be able to interpret its configuration.
+  
+In the example below all three backend types are named within the `providers` section here, so all three
+are available.  The default backend is specified by `backend.default` and must match the `name` of one of the 
+configured backends:
+
+```hocon
+backend {
+  default = "Local"
+  providers = [
+    {
+      name = "Local"
+      class = "cromwell.engine.backend.local.LocalBackend"
+      config {
+        root: "cromwell-executions"
+        filesystems = {
+          local {
+            localization: [
+              "hard-link", "soft-link", "copy"
+            ]
+          }
+          gcs {
+            // References an auth scheme defined in the 'google' stanza.
+            auth = "application-default"
+          }
+        }
+      }
+    },
+    {
+      name = "SGE"
+      class = "cromwell.engine.backend.sge.SgeBackend"
+      config {
+        root: "cromwell-executions"
+        filesystems = {
+          local {
+            localization: [
+              "hard-link", "soft-link", "copy"
+            ]
+          }
+        }
+      }
+    },
+    {
+      name = "JES"
+      class = "cromwell.engine.backend.jes.JesBackend"
+      config {
+        project = "my-cromwell-workflows"
+        root = "gs://my-cromwell-workflows-bucket"
+        endpoint-url = "https://genomics.googleapis.com/"
+        maximum-polling-interval = 600
+        dockerhub {
+          // account = ""
+          // token = ""
+        }
+        genomics {
+          // A reference to an auth defined in the 'google' stanza at the top.  This auth is used to create
+          // Pipelines and manipulate auth JSONs.
+          auth = "application-default"
+        }
+        filesystems = {
+          gcs {
+            // A reference to a potentially different auth for manipulating files via engine functions.
+            auth = "user-via-refresh"
+          }
+        }
+      }
+    }
+  ]
+}
+```
 
 ## Backend Filesystems
 
@@ -313,14 +400,15 @@ The backend/filesystem pairings are as follows:
 * [SGE Backend](#sun-gridengine-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
 * [JES Backend](#google-jes-backend) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
 
+Note that while Local and SGE backends use the local filesystem for the directory structure of a workflow, they are able to localize inputs
+from GCS paths if configured to use a GCS filesystem.  See [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem) for more details.
+
 ### Shared Local Filesystem
 
 For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) backends, the following is required of the underlying filesystem:
 
 * (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
 * (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
-
-The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line, or via [Cromwell's configuration file](#configuring-cromwell)
 
 When cromwell runs a workflow, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
@@ -417,25 +505,16 @@ Any input files to a call need to be localized into the `<call_dir>`.  There are
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
 * `copy` - Make a copy the file
 
-These options can be overridden with command line options to Java.  For instance, to use the strategies `copy` and `hard-link`, in that order:
-
-```
-java -Dbackend.shared-filesystem.localization.0=copy -Dbackend.shared-filesystem.localization.1=hard-link cromwell.jar ...
-```
-
-Backends that use the shared filesystem can accept the following values for `File` variables:
-
-* Local file system paths, either relative or absolute.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
-* [Google Cloud Storage](https://cloud.google.com/storage/) URIs (e.g. `gs://my-bucket/x/y/z.txt`).  Any GCS URI will be downloaded locally
+Backends that use the shared filesystem can accept local file system paths, either relative or absolute.  Relative paths are interpreted as
+ relative to the current working directory of the Cromwell process.
 
 ### Google Cloud Storage Filesystem
 
-The Google Cloud Storage (GCS) Filesystem is only used for when a workflow is run on Google JES.  It uses the same directory structure as the [Shared Local Filesystem](#shared-local-filesystem), however it is rooted at one of the following GCS locations:
-
-* If the `jes_gcs_root` [workflow option](#workflow-options) is set, this is used first.
-* Otherwise, `backend.jes.baseExecutionBucket` in the [configuration file](#configuring-cromwell), which can also be set via `java -Dbackend.jes.baseExecutionBucket="gs://my-bucket/"`, will be used instead.
-
-Google Cloud Storage URIs are the only acceptable values for `File` inputs for workflows using the JES backend.
+On the JES backend the (Google Cloud Storage) GCS filesystem is used for the root of the 
+workflow execution, but on Local and SGE backends this filesystem can be used only for the localization of GCS URI inputs (e.g. `gs://my-bucket/x/y/z.txt`).
+On the Local and SGE backends any GCS URI will be downloaded locally.  For the JES backend the `jes_gcs_root` [workflow option](#workflow-options) will take
+precedence over the `root` specified in the JES backend's `config` stanza. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
+workflows using the JES backend.
 
 ## Local Backend
 
@@ -533,43 +612,68 @@ If your project is `my-project` your bucket is `gs://my-bucket/`, then update yo
 
 ```hocon
 backend {
-  backend = "jes"
-
-  jes {
-    // Google project
-    project = "my-project"
-
-    // Location to store workflow results, must be a gs:// URL
-    baseExecutionBucket = "gs://my-bucket/cromwell-executions"
-
-    // Root URL for the API
-    endpointUrl = "https://genomics.googleapis.com/"
-
-    // Polling for completion backs-off gradually for slower-running jobs.
-    // This is the maximum polling interval (in seconds):
-    maximumPollingInterval = 600
-  }
+  default = "JES"
+  providers = [
+    {
+      name = "JES"
+      class = "cromwell.engine.backend.jes.JesBackend"
+      config {
+        project = "my-project"
+        root = "gs://my-bucket"
+        .
+        .
+        .
+      }
+    }
+  ]
 }
 ```
 
 ### Configuring Authentication
 
-The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are three authentication schemes:
+The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
+authentication schemes that might be used:
 
 * `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
 * `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
 * `user_account` - Authenticate as a user.
+* `refresh_token` - Authenticate using a refresh token supplied in the workflow options.
 
-#### Application Default Credentials
-
-By default, application default credentials will be used.  The configuration file should look like this to use application default credentials:
+The `auths` block in the `google` stanza defines the authorization schemes within a Cromwell deployment:
 
 ```hocon
 google {
-  applicationName = "cromwell"
-  cromwellAuthenticationScheme = "application_default"
+  application-name = "cromwell"
+  auths = [
+    {
+      name = "application-default"
+      scheme = "application_default"
+    },
+    {
+      name = "user-via-refresh"
+      scheme = "refresh_token"
+      client-id = "secret_id"
+      client-secret = "secret_secret"
+    },
+    {
+      name = "service-account"
+      scheme = "service_account"
+      service-account-id = "my-service-account"
+      pem-file = "/path/to/file.pem"
+    }
+  ]
 }
 ```
+
+These authorization schemes can be referenced by name within other portions of the configuration file.  For example, both
+the `genomics` and `filesystems.gcs` sections within a JES configuration block must reference an auth defined in this block.
+The auth for the `genomics` section governs the interactions with JES itself, while `filesystems.gcs` governs the localization
+of data into and out of GCE VMs.
+
+#### Application Default Credentials
+
+By default, application default credentials will be used.  There is no configuration required for application default
+credentials, only `name` and `scheme` are required.
 
 To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
 
@@ -577,8 +681,6 @@ To authenticate, run the following commands from your command line (requires [gc
 $ gcloud auth login
 $ gcloud config set project my-project
 ```
-
-This should be all that's necessary to run Cromwell using the JES backend.
 
 #### Service Account
 
@@ -601,58 +703,15 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 }
 ```
 
-Most importantly, the value of the `client_email` field should go into the `google.serviceAuth.serviceAccountId` field in the configuration (see below).
+Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
+`private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-The `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
-
-```hocon
-google {
-  applicationName = "cromwell"
-  cromwellAuthenticationScheme = "service_account"
-
-  // If cromwellAuthenticationScheme is "service_account"
-  serviceAuth {
-    pemFile = "/path/to/secret/my-key.pem"
-    serviceAccountId = "my-account@my-project.iam.gserviceaccount.com"
-  }
-}
-```
-
-### Data Localization
-
-Data localization can be performed on behalf of an other entity (typically a user).
-
-This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `cromwellAuthenticationScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
-To enable this feature, two pieces of configuration are needed:
-
-**1 - ClientID/Secret**
-
-An entry must be added in the `google` stanza, indicating a pair of client ID / client Secret that have been used to generate a refresh token for the entity that will be used during localization:
-
-```hocon
-google {
-  cromwellAuthenticationScheme = "service_account"
-
-  serviceAuth {
-    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
-    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
-  }
-
-  userAuthenticationScheme = "refresh"
-
-  refreshTokenAuth = {
-    client_id = "myclientid.apps.googleusercontent.com"
-    client_secret = "clientsecretpassphrase"
-  }
-}
-```
-
-**2 - Refresh Token**
+#### Refresh Token
 
 A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
 
-The refresh token is passed to JES along with the client ID and Secret pair, which allows JES to localize and delocalize data as the entity represented by the refresh token.
-Note that upon generation of the refresh token, the application must ask for GCS read/write permission using the appropriate scope.
+The refresh token is passed to JES along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
+
 
 ### Docker
 
@@ -660,9 +719,19 @@ It is possible to reference private docker images in DockerHub to be run on JES.
 However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
 
 ```
-docker {
-  dockerAccount = "mydockeraccount@mail.com"
-  dockerToken = "mydockertoken"
+backend {
+  default = "JES"
+  providers = [
+    { 
+      name = "JES"
+      class = "..."
+      config {
+        dockerhub {
+        account = "mydockeraccount@mail.com"
+        token = "mydockertoken"
+      }
+    }
+  }
 }
 ```
 
@@ -997,11 +1066,11 @@ Valid keys and their meanings:
         * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
         * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish
         * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
-    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.    
+    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.
 * JES Backend Only
-    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
+    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.root` in the [configuration](#configuring-cromwell).
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
-    * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
+    * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
     * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
     * **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.

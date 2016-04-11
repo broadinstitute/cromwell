@@ -1,7 +1,7 @@
 package cromwell.engine.backend.jes
 
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.io.gcs.SimpleClientSecrets
+import cromwell.filesystems.gcs.SimpleClientSecrets
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
 

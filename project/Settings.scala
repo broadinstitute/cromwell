@@ -1,6 +1,7 @@
 import Dependencies.engineDependencies
 import Dependencies.coreDependencies
 import Dependencies.backendDependencies
+import Dependencies.gcsFileSystemDependencies
 import Merging.customMergeStrategy
 import Testing._
 import sbt.Keys._
@@ -34,7 +35,8 @@ object Settings {
 
   lazy val assemblySettings = Seq(
     test in assembly     := {},
-    logLevel in assembly := Level.Info
+    logLevel in assembly := Level.Info,
+    assemblyMergeStrategy in assembly := customMergeStrategy
   )
 
   val commonSettings = releaseSettings ++ testSettings ++ assemblySettings ++ List(
@@ -59,11 +61,17 @@ object Settings {
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
+  val gcsFileSystemSettings = List(
+    name := "cromwell-gcsfilesystem",
+    version := "0.1",
+    libraryDependencies ++= gcsFileSystemDependencies,
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
   val engineSettings = List(
     name := "cromwell-engine",
     version := engineVersion,
     libraryDependencies ++= engineDependencies,
-    assemblyMergeStrategy in assembly := customMergeStrategy,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
@@ -71,7 +79,6 @@ object Settings {
     name := "cromwell",
     version := engineVersion,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
-    packageOptions in assembly += Package.ManifestAttributes("Premain-Class" -> "org.aspectj.weaver.loadtime.Agent"),
-    assemblyMergeStrategy in assembly := customMergeStrategy
+    packageOptions in assembly += Package.ManifestAttributes("Premain-Class" -> "org.aspectj.weaver.loadtime.Agent")
   ) ++ commonSettings
 }

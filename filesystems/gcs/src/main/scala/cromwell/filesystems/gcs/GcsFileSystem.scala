@@ -1,4 +1,4 @@
-package cromwell.engine.backend.io.filesystem.gcs
+package cromwell.filesystems.gcs
 
 import java.lang.Iterable
 import java.nio.file._
@@ -12,7 +12,7 @@ case class NotAGcsPathException(path: String) extends IllegalArgumentException(s
 
 object GcsFileSystem {
   val Separator = "/"
-  private[io] val Protocol = "gs://"
+  private[gcs] val Protocol = "gs://"
   private val GsUriRegex = s"""$Protocol(.*)""".r
   private val AttributeViews = Collections.singleton("basic")
 

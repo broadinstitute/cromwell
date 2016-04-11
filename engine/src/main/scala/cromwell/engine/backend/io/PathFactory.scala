@@ -1,8 +1,8 @@
 package cromwell.engine.backend.io
 
-import java.nio.file.{Path, FileSystem}
+import java.nio.file.{FileSystem, Path}
 
-import cromwell.engine.backend.io.filesystem.gcs.GcsFileSystem
+import cromwell.filesystems.gcs.GcsFileSystem
 
 import scala.util.{Success, Try}
 

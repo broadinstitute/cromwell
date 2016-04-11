@@ -7,16 +7,16 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
-import cromwell.core.{WorkflowOptions, WorkflowId}
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine._
-import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystem, NioGcsPath}
+import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
-import cromwell.engine.backend._
-import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.BackendCallKey
+import cromwell.filesystems.gcs._
+import cromwell.filesystems.gcs._
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}
@@ -52,7 +52,8 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     override lazy val genomicsInterface = null
     override lazy val cromwellGcsFileSystem = null
     override def userGcsFileSystem(options: WorkflowOptions) = null
-    override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
+    override lazy val gcsConf = GoogleConfiguration("appName", RefreshTokenMode(clientSecrets))
+    override lazy val genomicsConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"))
   }
 
   "executionResult" should "handle Failure Status" in {

@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.17"
+  lazy val lenthallV = "0.18-34ff8bd-SNAPSHOT"
   lazy val wdl4sV = "0.4"
   lazy val sprayV = "1.3.2"
   lazy val DowngradedSprayV = "1.3.1"
@@ -45,6 +45,11 @@ object Dependencies {
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
   )
 
+  val gcsFileSystemDependencies = List(
+    "org.broadinstitute" %% "lenthall" % lenthallV,
+    "org.scalaz" % "scalaz-core_2.11" % "7.1.3"
+  ) ++ testDependencies ++ googleDependencies
+
   val dbDependencies = List(
     "com.typesafe.slick" %% "slick" % slickV,
     "com.typesafe.slick" %% "slick-hikaricp" % slickV,
@@ -63,9 +68,7 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies
 
-  val backendDependencies = List(
-    "org.broadinstitute" %% "wdl4s" % wdl4sV
-  ) ++ coreDependencies
+  val backendDependencies = coreDependencies
 
   val engineDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
@@ -81,5 +84,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % "2.13.0"
-  ) ++ coreDependencies ++ kamonDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies ++ backendDependencies
+  ) ++ coreDependencies ++ kamonDependencies ++ sprayDependencies ++ gcsFileSystemDependencies ++ dbDependencies
 }

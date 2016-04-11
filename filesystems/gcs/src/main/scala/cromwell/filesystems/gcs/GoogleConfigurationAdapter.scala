@@ -1,34 +1,26 @@
-package cromwell.engine.io.gcs
+package cromwell.filesystems.gcs
 
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.util.ConfigUtil._
+import lenthall.config.ValidatedConfig._
 
 import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
-// Google Authentication modes supported for Cromwell
-sealed trait GoogleCromwellAuthMode
-final case class ServiceAccountMode(accountId: String, pemPath: String) extends GoogleCromwellAuthMode
-final case class UserMode(user: String, secretsFile: String, datastoreDir: String) extends GoogleCromwellAuthMode
-case object ApplicationDefaultMode extends GoogleCromwellAuthMode
+final case class GoogleConfigurationAdapter(appName: String, cromwellAuthMode: GoogleAuthMode, userAuthMode: Option[GoogleAuthMode]) {
+  lazy val cromwellConf = {
+    GoogleConfiguration(appName, cromwellAuthMode)
+  }
 
-// Google Authentication modes supported for User
-sealed trait GoogleUserAuthMode
-final case class Refresh(clientSecrets: ClientSecrets) extends GoogleUserAuthMode
-
-trait ClientSecrets {
-  val clientId: String
-  val clientSecret: String
+  lazy val userConf = {
+    userAuthMode map { c => GoogleConfiguration(appName, c) }
+  }
 }
 
-final case class SimpleClientSecrets(clientId: String, clientSecret: String) extends ClientSecrets
-final case class GoogleConfiguration(appName: String, cromwellAuthMode: GoogleCromwellAuthMode, userAuthMode: Option[GoogleUserAuthMode])
+object GoogleConfigurationAdapter {
+  lazy val gcloudConf: Try[GoogleConfigurationAdapter] = Try(build())
 
-object GoogleConfiguration {
-  lazy val gcloudConf: Try[GoogleConfiguration] = Try(build())
-
-  def build(conf: Config = ConfigFactory.load()): GoogleConfiguration = {
+  def build(conf: Config = ConfigFactory.load()): GoogleConfigurationAdapter = {
     val googleConf = conf.getConfig("google")
 
     val appName = googleConf.validateString("applicationName")
@@ -54,18 +46,16 @@ object GoogleConfiguration {
     }
 
     val userAuth = googleConf.validateString("userAuthenticationScheme") match {
-      case Success("refresh") => clientSecrets map { secrets => Option(Refresh(secrets)) }
+      case Success("refresh") => clientSecrets map { secrets => Option(RefreshTokenMode(secrets)) }
       case Success(unsupported) => s"Unsupported userAuthenticationMode: $unsupported".failureNel
       case Failure(_) => None.successNel
     }
 
     (appName |@| cromwellAuth |@| userAuth) {
-      GoogleConfiguration(_, _, _)
+      GoogleConfigurationAdapter(_, _, _)
     }  match {
       case Success(r) => r
-      case Failure(f) =>
-        val errorMessages = f.list.mkString(", ")
-        throw new ConfigValidationException("Google", errorMessages)
+      case Failure(f) => throw new Exception(s"""Invalid Google configuration: ${f.list.mkString("\n")}""")
     }
   }
 }

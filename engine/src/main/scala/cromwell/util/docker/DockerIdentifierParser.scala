@@ -1,8 +1,9 @@
 package cromwell.util.docker
 
 import com.google.api.client.auth.oauth2.Credential
+import cromwell.filesystems.gcs.{GoogleCredentialFactory, GoogleConfigurationAdapter}
+import cromwell.filesystems.gcs._
 import cromwell.util.DockerConfiguration
-import cromwell.util.google.GoogleCredentialFactory
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -48,5 +49,8 @@ class DockerIdentifierParser(dockerConf: DockerConfiguration, googleCredentials:
 }
 
 object DockerIdentifierParser {
-  lazy val Default = new DockerIdentifierParser(DockerConfiguration.dockerConf, Try(GoogleCredentialFactory.fromCromwellAuthScheme).toOption)
+  private lazy val oldGoogleConf = GoogleConfigurationAdapter.gcloudConf.get
+  lazy val gcsConf = Try(oldGoogleConf.userConf getOrElse oldGoogleConf.cromwellConf)
+
+  lazy val Default = new DockerIdentifierParser(DockerConfiguration.dockerConf, gcsConf.toOption map { conf => GoogleCredentialFactory(conf.authMode, GcsScopes) })
 }

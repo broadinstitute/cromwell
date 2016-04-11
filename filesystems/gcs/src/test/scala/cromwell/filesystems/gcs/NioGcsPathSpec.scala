@@ -1,8 +1,7 @@
-package engine.backend.io.filesystem.gcs
+package cromwell.filesystems.gcs
 
 import java.nio.file.Path
 
-import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, NioGcsPath}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table

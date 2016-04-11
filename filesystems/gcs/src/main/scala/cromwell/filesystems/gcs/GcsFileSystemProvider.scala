@@ -1,4 +1,4 @@
-package cromwell.engine.backend.io.filesystem.gcs
+package cromwell.filesystems.gcs
 
 import java.io.{FileNotFoundException, OutputStream}
 import java.net.URI
@@ -78,6 +78,7 @@ object ExecutionContextExecutorServiceBridge {
   * Implements java.nio.FileSystemProvider for GoogleCloudStorage
   * This implementation is not complete and mostly a proof of concept that it's possible to *copy* around files from/to local/gcs.
   * Copying is the only functionality that has been successfully tested (same and cross filesystems).
+  *
   * @param storageClient Google API Storage object
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */

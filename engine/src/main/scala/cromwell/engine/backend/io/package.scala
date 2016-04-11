@@ -2,9 +2,8 @@ package cromwell.engine.backend
 
 import java.nio.file._
 
-import cromwell.engine.backend.io.filesystem.gcs.{ContentTypeOption, GcsFileSystem, GcsFileSystemProvider, NioGcsPath}
-
-import scala.util.{Success, Try}
+import cromwell.filesystems.gcs.{NioGcsPath, GcsFileSystemProvider}
+import cromwell.filesystems.gcs.{ContentTypeOption, GcsFileSystem}
 
 package object io {
   val defaultGCSFileSystem = GcsFileSystem.defaultGcsFileSystem

@@ -14,7 +14,6 @@ import cromwell.engine.ExecutionIndex.IndexEnhancedInt
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.backend.io.filesystem.gcs._
 import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.{RunStatus, TerminalRunStatus}
 import cromwell.engine.backend.jes.authentication._
@@ -22,8 +21,10 @@ import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.gcs._
+import cromwell.filesystems.gcs.{GoogleConfiguration, RefreshTokenMode, GoogleAuthMode}
+import cromwell.filesystems.gcs.RefreshTokenMode
 import cromwell.logging.WorkflowLogger
-import cromwell.util.{AggregatedException, SimpleExponentialBackoff, TryUtil}
+import cromwell.util.{CromwellAggregatedException, SimpleExponentialBackoff, TryUtil}
 import spray.json.JsObject
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart
@@ -52,7 +53,7 @@ object JesBackend {
   val WriteToCacheOptionKey = "write_to_cache"
   val ReadFromCacheOptionKey = "read_from_cache"
   val OptionKeys = Set(
-    StorageFactory.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
+    GoogleConfiguration.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
     AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
   ) ++ WorkflowDescriptor.OptionKeys
 
@@ -196,6 +197,7 @@ object JesBackend {
 
   /**
     * Generates a json containing auth information based on the parameters provided.
+ *
     * @return a string representation of the json
     */
   def generateAuthJson(authInformation: Option[JesAuthInformation]*) = {
@@ -267,15 +269,14 @@ case class JesBackend(actorSystem: ActorSystem)
    * Get a GcsLocalizing from workflow options if client secrets and refresh token are available.
    */
   def getGcsAuthInformation(workflow: WorkflowDescriptor): Option[JesAuthInformation] = {
-    def extractSecrets(userAuthMode: GoogleUserAuthMode) = userAuthMode match {
-      case Refresh(secrets) => Option(secrets)
+    def extractSecrets(gcsMode: GoogleAuthMode) = gcsMode match {
+      case RefreshTokenMode(secrets) => Option(secrets)
       case _ => None
     }
 
     for {
-      userAuthMode <- googleConf.userAuthMode
-      secrets <- extractSecrets(userAuthMode)
-      token <- workflow.workflowOptions.get(StorageFactory.RefreshTokenOptionKey).toOption
+      secrets <- extractSecrets(gcsConf.authMode)
+      token <- workflow.workflowOptions.get(GoogleConfiguration.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(secrets, token)
   }
 
@@ -294,12 +295,13 @@ case class JesBackend(actorSystem: ActorSystem)
       case _ =>
     }
 
-    if (googleConf.userAuthMode.isDefined) {
-      Seq(StorageFactory.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
+    gcsConf.authMode match {
+      case _: RefreshTokenMode => Seq(GoogleConfiguration.RefreshTokenOptionKey) filterNot options.toMap.keySet match {
         case missing if missing.nonEmpty =>
           throw new IllegalArgumentException(s"Missing parameters in workflow options: ${missing.mkString(", ")}")
         case _ =>
       }
+      case _ =>
     }
   }
 
@@ -413,7 +415,7 @@ case class JesBackend(actorSystem: ActorSystem)
           case Success(_) => postProcess(callDescriptor) match {
             case Success(outputs) => callDescriptor.hash map { h =>
               SuccessfulExecutionHandle(outputs, List.empty[ExecutionEventEntry], cachedCallDescriptor.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCallDescriptor)) }
-            case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
+            case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
               // TODO: What can we return here to retry this operation?
               // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
               val error = "Socket timeout occurred in evaluating one or more of the output expressions"
@@ -723,7 +725,7 @@ case class JesBackend(actorSystem: ActorSystem)
                             executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
       case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, returnCode, hash)
-      case Failure(ex: AggregatedException) if ex.exceptions collectFirst { case s: SocketTimeoutException => s } isDefined =>
+      case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
       case Failure(ex) => FailedExecutionHandle(ex)
@@ -855,7 +857,7 @@ case class JesBackend(actorSystem: ActorSystem)
 
   // Create an input parameter containing the path to this authentication file, if needed
   def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
-    if (googleConf.userAuthMode.isDefined || dockerConf.isDefined)
+    if (gcsConf.authMode.isInstanceOf[RefreshTokenMode] || dockerConf.isDefined)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor).toString))
     else None
   }

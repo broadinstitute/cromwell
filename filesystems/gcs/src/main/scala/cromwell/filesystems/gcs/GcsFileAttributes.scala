@@ -1,13 +1,13 @@
-package cromwell.engine.backend.io.filesystem.gcs
+package cromwell.filesystems.gcs
 
 import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.StorageObject
-import wdl4s.values._
+import org.apache.commons.codec.digest.DigestUtils
 
 class GcsFileAttributes(path: NioGcsPath, storageClient: Storage) extends BasicFileAttributes {
-  override def fileKey(): AnyRef = path.toString.md5Sum
+  override def fileKey(): AnyRef = DigestUtils.md5Hex(path.toString)
   override def isRegularFile: Boolean = throw new NotImplementedError("To be implemented when/if needed")
   override def isOther: Boolean = throw new NotImplementedError("To be implemented when/if needed")
   override def lastModifiedTime(): FileTime = throw new NotImplementedError("To be implemented when/if needed")

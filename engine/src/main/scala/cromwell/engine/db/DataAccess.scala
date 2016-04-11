@@ -1,6 +1,7 @@
 package cromwell.engine.db
 
 import akka.actor.ActorSystem
+import akka.pattern.after
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
@@ -9,19 +10,44 @@ import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAnd
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 object DataAccess {
+  lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
+
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
   case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: BackendJobKey)
   case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
+
+  // TODO: Nothing DataAccess specific in this retry method. Refactor to lenthall or similar and add a tests.
+  private def withRetry[A](f: => Future[A], delay: FiniteDuration, retries: Int)
+                          (shouldRetry: (Throwable) => Boolean)
+                          (implicit actorSystem: ActorSystem): Future[A] = {
+    // TODO: May want to pass a separate ec, or is the actor system's dispatcher ok?
+    implicit val ec = actorSystem.dispatcher
+    f recoverWith {
+      case throwable if shouldRetry(throwable) && retries > 0 =>
+        log.warn(
+          s"""Transient exception detected: ${throwable.getMessage}
+              |Retrying in $delay ($retries retries remaining)""".stripMargin)
+        after(delay, actorSystem.scheduler)(f)
+    }
+  }
 }
 
 trait DataAccess extends AutoCloseable {
+  protected def isTransient(throwable: Throwable): Boolean
+
+  private def withRetry[A](f: => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
+    DataAccess.withRetry(f, 200.millis, 10)(isTransient)
+  }
+
   /**
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
    * `backend`.  Or perhaps defer this?
@@ -46,8 +72,25 @@ trait DataAccess extends AutoCloseable {
 
   def upsertExecutionInfo(workflowId: WorkflowId,
                           callKey: BackendCallKey,
+                          keyValues: Map[String, Option[String]])
+                         (implicit ec: ExecutionContext): Future[Unit]
+
+  /*
+  TODO: Would love a fancier adapter instead of this overload importing the implicits already available in the caller!
+  Maybe everywhere we'll have our own DBIO-ish object.
+  - dataAccess.upsertWhatever(params).withoutRetry(implicit executionContext)
+  - dataAccess.upsertWhatever(params).withRetry(implicit actorSystem) <-- assumes retrying 10 times
+
+  Or maybe a larger refactoring will use our own actors. TBD
+   */
+  def upsertExecutionInfo(workflowId: WorkflowId,
+                          callKey: BackendCallKey,
                           keyValues: Map[String, Option[String]],
-                          actorSystem: ActorSystem): Future[Unit]
+                          actorSystem: ActorSystem): Future[Unit] = {
+    implicit val system = actorSystem
+    implicit val ec = actorSystem.dispatcher
+    withRetry(upsertExecutionInfo(workflowId, callKey, keyValues))
+  }
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
                          (implicit ec: ExecutionContext): Future[Unit]

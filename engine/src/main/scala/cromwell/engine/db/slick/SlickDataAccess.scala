@@ -1,12 +1,10 @@
 package cromwell.engine.db.slick
 
-import java.sql.{Clob, SQLTransactionRollbackException, Timestamp}
+import java.sql.{Clob, SQLTransientException, Timestamp}
 import java.util.concurrent.{ExecutorService, Executors}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
-import akka.actor.ActorSystem
-import akka.pattern.after
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionIndex._
@@ -191,24 +189,11 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     database.close()
   }
 
-  private def runTransactionWithRollbackRetry[R](action: DBIO[R], actorSystem: ActorSystem): Future[R] = {
-    def retry[T](f: => Future[T], delay: FiniteDuration, retries: Int): Future[T] = {
-      implicit val ec = actorSystem.dispatcher
-      f recoverWith {
-        case e: SQLTransactionRollbackException if retries > 0 =>
-          /** https://dev.mysql.com/doc/refman/5.5/en/innodb-deadlocks.html
-            *
-            * "Normally, you must write your applications so that they are always
-            *  prepared to re-issue a transaction if it gets rolled back because of a deadlock."
-            */
-          log.warn(s"Transaction rollback detected.  Retrying in $delay ($retries retries remaining)")
-          after(delay, actorSystem.scheduler)(retry(f, delay, retries - 1))
-      }
+  override protected def isTransient(throwable: Throwable): Boolean = {
+    throwable match {
+      case e: SQLTransientException => true
+      case _ => false
     }
-
-    def queryAttempt = database.run(action.transactionally)
-
-    Future(Await.result(retry(queryAttempt, delay=200 millis, retries=10), Duration.Inf))(actionExecutionContext)
   }
 
   private def runTransaction[R](action: DBIO[R]): Future[R] = {
@@ -492,24 +477,23 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
 
   override def upsertExecutionInfo(workflowId: WorkflowId,
                                    callKey: BackendCallKey,
-                                   keyValues: Map[String, Option[String]],
-                                   actorSystem: ActorSystem): Future[Unit] = {
+                                   keyValues: Map[String, Option[String]])
+                                  (implicit ec: ExecutionContext): Future[Unit] = {
     import ExecutionIndex._
-    implicit val ec = actorSystem.dispatcher
 
     val action = for {
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
         workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt).result.head
 
-      _ <- DBIO.sequence(keyValues map upsertExecutionInfo(executionResult.executionId.get, actorSystem))
+      _ <- DBIO.sequence(keyValues map upsertExecutionInfo(executionResult.executionId.get))
     } yield ()
 
-    runTransactionWithRollbackRetry(action, actorSystem)
+    runTransaction(action)
   }
 
-  private def upsertExecutionInfo(executionId: Int, actorSystem: ActorSystem)(keyValue: (String, Option[String])): DBIO[Unit] = {
+  private def upsertExecutionInfo(executionId: Int)(keyValue: (String, Option[String]))
+                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
     val (key, value) = keyValue
-    implicit val ec = actorSystem.dispatcher
 
     if (useSlickUpserts) {
       for {

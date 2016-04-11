@@ -105,7 +105,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         val workflowId = WorkflowId.randomId()
         val workflowInfo = materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = testSources)
         for {
-          _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+          _ <- dataAccess.createWorkflow(workflowInfo, Nil, Map.empty)
           _ <- dataAccess.getWorkflowExecutionAndAux(workflowInfo.id) flatMap workflowDescriptorFromExecutionAndAux map (_.id should be(workflowId))
         } yield ()
       }
@@ -207,7 +207,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val workflowInfo = materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = testSources)
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Map.empty[Scope, Backend])
         executionAndAuxes <- dataAccess.getWorkflowExecutionAndAuxByState(Seq(WorkflowSubmitted))
         _ <- Future.sequence(executionAndAuxes map workflowDescriptorFromExecutionAndAux) map { results =>
           results shouldNot be(empty)
@@ -232,7 +232,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val outputs: CallOutputs = Map("wf.a.empty" -> CallOutput(WdlString(""), None))
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Map.empty)
         _ <- dataAccess.setOutputs(workflowId, dbKey, outputs, Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, dbKey) map { results =>
           results shouldNot be(empty)
@@ -253,12 +253,12 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val workflow2Info = materializeWorkflowDescriptorFromSources(workflowSources = test2Sources)
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Map.empty)
         // Update to a terminal state
         _ <- dataAccess.updateWorkflowState(workflowInfo.id, WorkflowSucceeded)
         // Put a bit of space between the two workflows
         _ = Thread.sleep(50)
-        _ <- dataAccess.createWorkflow(workflow2Info, Nil, Nil, localBackend)
+        _ <- dataAccess.createWorkflow(workflow2Info, Nil, Map.empty)
         // Query with no filters
         (test, test2) <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq.empty)) map { response =>
           val test = response.results find { r => r.name == "test" && r.end.isDefined } getOrElse fail
@@ -324,7 +324,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val workflowInfo = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.ThreeStep.asWorkflowSources())
 
       (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls, localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls map { _ -> localBackend} toMap)
         // Unknown workflow
         _ <- assertCallCachingFailure(WorkflowId(UUID.randomUUID()), callName = Option("three_step.ps"), "Workflow not found")
         _ <- dataAccess.setTerminalStatus(workflowInfo.id, ExecutionDatabaseKey("three_step.ps", None, 1), ExecutionStatus.Done, None, None, None)
@@ -350,11 +350,11 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
       // The `inside_scatter` is a to-be-exploded placeholder, but it will conflict with the collector that the
       // scatter explodes below so filter that out.
-        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.unqualifiedName == "inside_scatter"), localBackend)
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, workflowInfo.namespace.workflow.calls.filterNot(_.unqualifiedName == "inside_scatter"), workflowInfo.defaultBackend)
         scatter = workflowInfo.namespace.workflow.scatters.head
         scatterKey = ScatterKey(scatter, None)
         newEntries = scatterKey.populate(5)
-        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys, localBackend)
+        _ <- dataAccess.insertCalls(workflowInfo.id, newEntries.keys map { _ -> workflowInfo.defaultBackend } toMap )
         executions <- dataAccess.getExecutions(workflowInfo.id)
         _ = executions foreach { _.allowsResultReuse shouldBe true }
 

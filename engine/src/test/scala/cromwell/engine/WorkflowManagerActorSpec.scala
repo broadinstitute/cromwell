@@ -77,8 +77,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
           // FIXME? null AST
           val task = Task.empty
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
+          val callToBackendMap: Map[Scope, Backend] = Map(call -> LocalBackend(system))
           for {
-            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(system))
+            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, callToBackendMap)
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
             _ <- globalDataAccess.updateStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()

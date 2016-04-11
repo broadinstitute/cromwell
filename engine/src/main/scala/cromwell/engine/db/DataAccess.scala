@@ -22,13 +22,19 @@ object DataAccess {
 
 trait DataAccess extends AutoCloseable {
   /**
-   * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
-   * `backend`.  Or perhaps defer this?
-   */
+    * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend
+    * `backend`.  Or perhaps defer this?
+    */
   def createWorkflow(workflowDescriptor: WorkflowDescriptor,
-                     workflowInputs: Traversable[SymbolStoreEntry],
-                     calls: Traversable[Scope],
-                     backend: Backend)(implicit ec: ExecutionContext): Future[Unit]
+                              workflowInputs: Traversable[SymbolStoreEntry],
+                              calls: Traversable[Scope],
+                              backend: Backend)(implicit ec: ExecutionContext): Future[Unit]
+  /**
+    * Creates a row in each of the backend-info specific tables for each key in `keys` corresponding to the backend.
+    */
+  def createWorkflow(workflowDescriptor: WorkflowDescriptor,
+                              workflowInputs: Traversable[SymbolStoreEntry],
+                              scopes: Map[Scope, Backend])(implicit ec: ExecutionContext): Future[Unit]
 
   def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowState]]
 
@@ -117,8 +123,8 @@ trait DataAccess extends AutoCloseable {
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey)
                         (implicit ec: ExecutionContext): Future[Option[CallStatus]]
 
-  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
-                 (implicit ec: ExecutionContext): Future[Unit]
+  def insertCalls(workflowId: WorkflowId, keys: Map[ExecutionStoreKey, Backend])(implicit ec: ExecutionContext): Future[Unit]
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)(implicit ec: ExecutionContext): Future[Unit]
 
   def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]]
 

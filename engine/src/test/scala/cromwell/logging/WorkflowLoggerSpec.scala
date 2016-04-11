@@ -30,6 +30,7 @@ class WorkflowLoggerSpec extends FlatSpec with Matchers with BeforeAndAfterAll w
   val backend = LocalBackend(testWorkflowManagerSystem.actorSystem)
   val jobDescriptor = BackendCallJobDescriptor(
     descriptor,
+    backend,
     BackendCallKey(descriptor.namespace.workflow.calls.find(_.unqualifiedName == "x").head, None, 1),
     Map.empty[String, WdlValue])
 

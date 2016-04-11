@@ -24,15 +24,12 @@ sealed trait JobDescriptor[K <: JobKey] {
 }
 
 case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
+                                    backend: Backend,
                                     key: BackendCallKey,
                                     locallyQualifiedInputs: CallInputs = Map.empty,
                                     abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
 
   lazy val call = key.scope
-
-  // PBE temporarily still required.  Once we have call-scoped Backend actors they will know themselves and the
-  // backend won't need to be in the WorkflowDescriptor and this method won't need to exist.
-  lazy val backend = workflowDescriptor.backend
 
   lazy val callRootPath = backend.callRootPath(this)
 

@@ -34,7 +34,27 @@ class WorkflowOptionsSpec extends Matchers with WordSpecLike {
                                                 |  "key": "value",
                                                 |  "refresh_token": "cleared"
                                                 |}""".stripMargin
-        case _ => fail("Expecting workflow options to be parseable")
+        case Failure(t) => fail("Expecting workflow options to be parseable", t)
+      }
+    }
+
+    "find a backendAssignment" in {
+      val backendAssignmentOptions =
+        """
+          |{
+          |  "backendAssignments": {
+          |    "wf.foo": "bar"
+          |  }
+          |}
+        """.stripMargin.parseJson.asInstanceOf[JsObject]
+
+      WorkflowOptions.fromJsonObject(backendAssignmentOptions) match {
+        case Success(options) =>
+          options.getBackendAssignment("wf.foo") match {
+            case Success(x) => x shouldBe "bar"
+            case Failure(t) => fail("Couldn't get backend assignment", t)
+          }
+        case Failure(t) => fail("Couldn't read options!", t)
       }
     }
   }

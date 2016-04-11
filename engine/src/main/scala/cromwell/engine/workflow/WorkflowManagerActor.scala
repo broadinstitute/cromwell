@@ -10,7 +10,7 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess}
-import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
+import cromwell.engine.workflow.workflowactor.WorkflowActorMessages.{RestartWorkflow, StartNewWorkflow, AbortWorkflow}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
@@ -143,7 +143,7 @@ class WorkflowManagerActor(config: Config)
       case Success(Some(s)) if s.isTerminal =>
         sndr ! WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow $id is in terminal state $s and cannot be aborted."))
       case Success(Some(s)) =>
-        workflowActor foreach { _ ! WorkflowActor.AbortWorkflow }
+        workflowActor foreach { _ ! AbortWorkflow }
         sndr ! WorkflowManagerAbortSuccess(id)
       case Failure(x) => sender ! WorkflowManagerAbortFailure(id, x)
     }
@@ -234,7 +234,7 @@ class WorkflowManagerActor(config: Config)
     case Event(AbortAllWorkflows, data) if data.workflows.isEmpty =>
       goto(Done)
     case Event(AbortAllWorkflows, data) =>
-      data.workflows.values.foreach { _ ! WorkflowActor.AbortWorkflow }
+      data.workflows.values.foreach { _ ! AbortWorkflow }
       goto(Aborting)
   }
 
@@ -353,7 +353,7 @@ class WorkflowManagerActor(config: Config)
           case _ => context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
         }
         wfActor ! SubscribeTransitionCallBack(self)
-        wfActor ! (if (isRestart) Restart else Start(replyTo))
+        wfActor ! (if (isRestart) RestartWorkflow else StartNewWorkflow(replyTo))
         logger.debug(s"Successfuly started ${wfActor.path} for Workflow ${workflowId}")
         context.stop(materializeWorkflowDescriptorActor)
         (workflowId -> wfActor)

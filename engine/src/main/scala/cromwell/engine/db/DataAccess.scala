@@ -34,8 +34,9 @@ object DataAccess {
     f recoverWith {
       case throwable if shouldRetry(throwable) && retries > 0 =>
         log.warn(
-          s"""Transient exception detected: ${throwable.getMessage}
-              |Retrying in $delay ($retries retries remaining)""".stripMargin)
+          s"Transient exception detected: ${throwable.getMessage}.  Retrying in $delay ($retries retries remaining)",
+          throwable
+        )
         after(delay, actorSystem.scheduler)(f)
     }
   }
@@ -70,10 +71,10 @@ trait DataAccess extends AutoCloseable {
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
                          (implicit ec: ExecutionContext): Future[Unit]
 
-  def upsertExecutionInfo(workflowId: WorkflowId,
-                          callKey: BackendCallKey,
-                          keyValues: Map[String, Option[String]])
-                         (implicit ec: ExecutionContext): Future[Unit]
+  protected def upsertExecutionInfo(workflowId: WorkflowId,
+                                    callKey: BackendCallKey,
+                                    keyValues: Map[String, Option[String]])
+                                    (implicit ec: ExecutionContext): Future[Unit]
 
   /*
   TODO: Would love a fancier adapter instead of this overload importing the implicits already available in the caller!

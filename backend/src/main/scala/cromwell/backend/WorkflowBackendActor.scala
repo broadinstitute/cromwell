@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, Actor}
 import akka.event.LoggingReceive
 import cromwell.backend.WorkflowBackendActor._
 import cromwell.core.CallOutputs
+import wdl4s.Call
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -29,6 +30,10 @@ object WorkflowBackendActor {
   sealed trait AbortResponse extends WorkflowBackendActorResponse
   case class AbortSucceeded(jobKey: BackendJobDescriptorKey) extends AbortResponse
   case class AbortFailed(jobKey: BackendJobDescriptorKey, throwable: Throwable) extends AbortResponse
+
+  sealed trait ValidationResponse extends WorkflowBackendActorResponse
+  case object ValidationSuccess extends ValidationResponse
+  case class ValidationFailed(reason: Throwable) extends ValidationResponse
 }
 
 /**
@@ -37,29 +42,35 @@ object WorkflowBackendActor {
 trait WorkflowBackendActor extends Actor with ActorLogging {
 
   protected implicit def ec: ExecutionContext
+  protected def calls: Seq[Call]
   protected def workflowDescriptor: BackendWorkflowDescriptor
   protected def configurationDescriptor: BackendConfigurationDescriptor
 
   def receive: Receive = LoggingReceive {
-    case Execute(jobDescriptor) => performActionThenRespond(execute, jobDescriptor, onFailure = descriptorToExecutionFailure)
-    case Recover(jobDescriptor) => performActionThenRespond(recover, jobDescriptor, onFailure = descriptorToExecutionFailure)
-    case Abort(jobKey)          => performActionThenRespond(abort, jobKey, onFailure = AbortFailed)
+    case Execute(jobDescriptor) => performActionThenRespond( () => execute(jobDescriptor), onFailure = executionFailed(jobDescriptor.key))
+    case Recover(jobDescriptor) => performActionThenRespond( () => recover(jobDescriptor), onFailure = executionFailed(jobDescriptor.key))
+    case Abort(jobKey)          => performActionThenRespond( () => abort(jobKey), onFailure = abortFailed(jobKey))
   }
 
-  private def performActionThenRespond[A](operation: A => Future[WorkflowBackendActorResponse],
-                                          operationArgument: A,
-                                          onFailure: (A, Throwable) => WorkflowBackendActorResponse) = {
+  override def preStart = {
+    // Do everything necessary before this actor is ready. Currently just validation:
+    performActionThenRespond(validate, onFailure = ValidationFailed)
+  }
+
+  private def performActionThenRespond(operation: () => Future[WorkflowBackendActorResponse],
+                                       onFailure: (Throwable) => WorkflowBackendActorResponse) = {
     // To avoid sending a response to the wrong `sender` if more than one `execute` arrives before the first one finishes,
     // for example:
     val sndr = sender()
-    operation(operationArgument) onComplete {
+    operation.apply onComplete {
       case Success(r) => sndr ! r
-      case Failure(t) => sndr ! onFailure(operationArgument, t)
+      case Failure(t) => sndr ! onFailure(t)
     }
   }
 
   // We need this for receive because we can't do `onFailure = ExecutionFailure` directly - because BackendJobDescriptor =/= BackendJobDescriptorKey
-  private def descriptorToExecutionFailure = (jd: BackendJobDescriptor, t: Throwable) => ExecutionFailed(jd.key, t)
+  private def executionFailed(key: BackendJobDescriptorKey) = (t: Throwable) => ExecutionFailed(key, t)
+  private def abortFailed(key: BackendJobDescriptorKey) = (t: Throwable) => AbortFailed(key, t)
 
   /**
     * Execute a new job.
@@ -75,4 +86,9 @@ trait WorkflowBackendActor extends Actor with ActorLogging {
     * Abort a running job.
     */
   def abort(jobKey: BackendJobDescriptorKey): Future[AbortResponse]
+
+  /**
+    * Validate that this WorkflowBackendActor can run all of the calls that it's been assigned
+    */
+  def validate(): Future[ValidationResponse]
 }

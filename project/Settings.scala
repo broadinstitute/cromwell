@@ -54,6 +54,13 @@ object Settings {
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
+  val gcsFileSystemSettings = List(
+    name := "cromwell-gcsfilesystem",
+    version := "0.1",
+    libraryDependencies ++= gcsFileSystemDependencies,
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
   val backendSettings = List(
     name := "cromwell-backend",
     version := "0.1",
@@ -61,10 +68,27 @@ object Settings {
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
-  val gcsFileSystemSettings = List(
-    name := "cromwell-gcsfilesystem",
+  val localBackendSettings = List(
+    name := "cromwell-local-backend",
     version := "0.1",
-    libraryDependencies ++= gcsFileSystemDependencies,
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
+  val htCondorBackendSettings = List(
+    name := "cromwell-htcondor-backend",
+    version := "0.1",
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
+  val sgeBackendSettings = List(
+    name := "cromwell-sge-backend",
+    version := "0.1",
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
+  val jesBackendSettings = List(
+    name := "cromwell-jes-backend",
+    version := "0.1",
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

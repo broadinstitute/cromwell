@@ -12,7 +12,6 @@ import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
-  implicit val workflowValidationResponseProtocol = jsonFormat2(WorkflowValidateResponse)
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
   implicit val workflowAbortResponseProtocol = jsonFormat2(WorkflowAbortResponse)
   implicit val workflowSubmitResponseProtocol = jsonFormat2(WorkflowSubmitResponse)

@@ -86,49 +86,6 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/validate':
-    post:
-      summary: Validate a workflow for execution
-      consumes:
-        - multipart/form-data
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: wdlSource
-          description: WDL Source
-          required: true
-          type: file
-          in: formData
-        - name: workflowInputs
-          description: WDL JSON
-          required: false
-          type: file
-          in: formData
-        - name: workflowOptions
-          description: Workflow Options JSON
-          required: false
-          type: file
-          in: formData
-      tags:
-         - Workflows
-      responses:
-        '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/WorkflowValidateResponse'
-        '400':
-          description: Malformed Input
-          schema:
-            $ref: '#/definitions/WorkflowValidateResponse'
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
   '/workflows/{version}/{id}/outputs':
     get:
       summary: Query for workflow outputs based on workflow id
@@ -597,17 +554,6 @@ securityDefinitions:
     scopes:
       openid: open id authorization
 definitions:
-  WorkflowValidateResponse:
-    description: ''
-    required:
-      - valid
-    properties:
-      valid:
-        type: boolean
-        description: The validation of the workflow
-      error:
-        type: string
-        description: The validation error of the workflow
   WorkflowSubmitResponse:
     description: ''
     required:

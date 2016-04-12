@@ -23,12 +23,12 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, validateActorRef: ActorRef, config: Config): Props = {
-    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, validateActorRef, config)
+  def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
+    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config)
   }
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, val workflowDescriptorMaterializer: ActorRef, config: Config)
+class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
   extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
@@ -43,14 +43,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   import CromwellApiServiceActor._
 
   val workflowManager: ActorRef
-  val workflowDescriptorMaterializer: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
   }
 
   val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
+    callOutputsRoute ~ callStdoutStderrRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
 
   def statusRoute =
     path("workflows" / Segment / Segment / "status") { (version, workflowId) =>
@@ -91,16 +90,6 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           requestContext =>
             val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
             perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
-        }
-      }
-    }
-
-  def validateRoute =
-    path("workflows" / Segment / "validate") { version =>
-      post {
-        formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
-          requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowDescriptorMaterializer), CromwellApiHandler.ApiHandlerValidateWorkflow(WorkflowId.randomId(), wdlSource, workflowInputs, workflowOptions))
         }
       }
     }

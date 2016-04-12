@@ -4,17 +4,14 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
 import cromwell.core.WorkflowId
-import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{core, engine}
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
-import wdl4s.WdlJson
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -36,7 +33,6 @@ object CromwellApiHandler {
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowMetadata(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerValidateWorkflow(id: WorkflowId, wdlSource: String, workflowInputs: Option[String], workflowOptions: Option[String]) extends ApiHandlerMessage
 
   sealed trait WorkflowManagerResponse
 
@@ -173,10 +169,5 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
         case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
-
-    case ApiHandlerValidateWorkflow(id, wdlSource, workflowInputs, workflowOptions) =>
-      requestHandlerActor ! MaterializeWorkflow(id, WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{ }"), workflowOptions.getOrElse("{ }")))
-    case MaterializationSuccess(_) => context.parent ! RequestComplete(StatusCodes.OK, APIResponse.success("Validation succeeded."))
-    case MaterializationFailure(reason) => context.parent ! RequestComplete(StatusCodes.BadRequest,APIResponse.fail(reason))
   }
 }

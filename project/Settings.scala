@@ -102,7 +102,6 @@ object Settings {
   val rootSettings = List(
     name := "cromwell",
     version := engineVersion,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
-    packageOptions in assembly += Package.ManifestAttributes("Premain-Class" -> "org.aspectj.weaver.loadtime.Agent")
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 }

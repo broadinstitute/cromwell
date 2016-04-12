@@ -18,7 +18,6 @@ import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure, WorkflowActorSubmitSuccess}
 import cromwell.engine.{HostInputs, _}
-import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
 import org.joda.time.DateTime
@@ -228,8 +227,6 @@ object WorkflowActor {
   def isTerminal(status: ExecutionStatus): Boolean = TerminalStates contains status
   def isShard(key: BackendCallKey): Boolean = key.index.isDefined
 
-  val WorkflowCounter = Monitor.minMaxCounter("workflows-running")
-  val WorkflowDurationTimer = Monitor.histogram("workflow-duration")
   private val MarkdownMaxColumnChars = 100
 }
 
@@ -261,7 +258,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
 
   startWith(WorkflowSubmitted, WorkflowData())
-  WorkflowCounter.increment()
   val startTime = System.nanoTime()
   /**
    * Try to generate output for a collector call, by collecting outputs for all of its shards.
@@ -1326,8 +1322,6 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
   private def shutDown(): Unit = {
     logger.debug(s"WorkflowActor is done, shutting down.")
-    WorkflowCounter.decrement()
-    WorkflowDurationTimer.record(System.nanoTime() - startTime)
     context.stop(self)
   }
 

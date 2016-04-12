@@ -10,7 +10,6 @@ import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
 import cromwell.engine.callexecution.CallExecutionActor
 import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
 import cromwell.engine.workflow.{CallKey, WorkflowActor}
-import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import wdl4s.Scope
 import wdl4s.values.WdlValue
@@ -18,7 +17,6 @@ import wdl4s.values.WdlValue
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 
 object CallActor {
 
@@ -84,8 +82,6 @@ object CallActor {
     def cancelTimer() = timer foreach { _.cancel() }
   }
 
-  val CallCounter = Monitor.minMaxCounter("calls-running")
-
   def props(backendCallDescriptor: BackendCallJobDescriptor): Props = Props(new BackendCallActor(backendCallDescriptor))
   def props(finalCallDescriptor: FinalCallJobDescriptor) = Props(new FinalCallActor(finalCallDescriptor))
 }
@@ -103,7 +99,6 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
   type CallOutputs = Map[String, WdlValue]
 
   startWith(CallNotStarted, CallActorData())
-  CallCounter.increment()
 
   implicit val ec = context.system.dispatcher
 
@@ -228,7 +223,6 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
 
   private def shutDown(): Unit = {
     logger.debug(s"done, shutting down.")
-    CallCounter.decrement()
     context.stop(self)
   }
 }

@@ -3,14 +3,12 @@ package cromwell
 import java.io.{File => JFile}
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.{Actor, Props, Status}
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import cromwell.util.PromiseActor

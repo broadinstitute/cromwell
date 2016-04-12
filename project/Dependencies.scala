@@ -8,18 +8,8 @@ object Dependencies {
   lazy val akkaV = "2.3.12"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
-  lazy val kamonV = "0.5.2"
 
   val wdl4sDependency = "org.broadinstitute" %% "wdl4s" % wdl4sV
-
-  val kamonDependencies = List(
-    "io.kamon" %% "kamon-core" % kamonV,
-    "io.kamon" %% "kamon-akka" % kamonV,
-    "io.kamon" %% "kamon-spray" % kamonV,
-    "io.kamon" %% "kamon-system-metrics" % kamonV,
-    "io.kamon" %% "kamon-statsd" % kamonV,
-    "org.aspectj" % "aspectjweaver" % "1.8.6"
-  )
 
   val testDependencies = List(
     "io.spray" %% "spray-testkit" % sprayV % Test,
@@ -84,5 +74,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % "2.13.0"
-  ) ++ coreDependencies ++ kamonDependencies ++ sprayDependencies ++ gcsFileSystemDependencies ++ dbDependencies
+  ) ++ coreDependencies ++ sprayDependencies ++ gcsFileSystemDependencies ++ dbDependencies
 }

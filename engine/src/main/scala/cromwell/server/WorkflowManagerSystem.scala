@@ -10,6 +10,8 @@ trait WorkflowManagerSystem {
   protected def systemName = "cromwell-system"
 
   protected def newActorSystem(): ActorSystem = ActorSystem(systemName)
+  val conf = ConfigFactory.load()
+  val shadowMode = conf.getBoolean("system.shadowExecutionEnabled")
 
   implicit final lazy val actorSystem = newActorSystem()
 
@@ -21,7 +23,7 @@ trait WorkflowManagerSystem {
 
   def defaultBackend: String = ConfigFactory.load.getConfig("backend").getString("defaultBackend")
 
-  CromwellBackend.initBackends(allowedBackends, defaultBackend, actorSystem)
+  if (!shadowMode) CromwellBackend.initBackends(allowedBackends, defaultBackend, actorSystem)
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
-  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(), "WorkflowManagerActor")
+  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(shadowMode), "WorkflowManagerActor")
 }

@@ -1,34 +1,39 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendWorkflowInitializationActor._
+import cromwell.core.WorkflowId
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
+import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 import wdl4s.Call
+
+import scala.language.postfixOps
 
 object WorkflowInitializationActor {
 
   /**
     * States
     */
-  sealed trait WorkflowInitializationActorState { def terminal = false }
-  sealed trait WorkflowInitializationActorTerminalState extends WorkflowInitializationActorState { override def terminal = true }
+  sealed trait WorkflowInitializationActorState extends WorkflowLifecycleActorState
+  sealed trait WorkflowInitializationActorTerminalState extends WorkflowInitializationActorState with WorkflowLifecycleActorTerminalState
 
   case object InitializationPendingState extends WorkflowInitializationActorState
   case object InitializingWorkflowState extends WorkflowInitializationActorState
   case object InitializationSucceededState extends WorkflowInitializationActorTerminalState
   case object InitializationFailedState extends WorkflowInitializationActorTerminalState
-  case object InitializationsAborted extends WorkflowInitializationActorTerminalState
+  case object InitializationsAbortedState extends WorkflowInitializationActorTerminalState
 
   /**
     * State data:
     *
-    * @param initializationActors The mapping from ActorRef to the backend which that actor is initializing.
+    * @param backendActors The mapping from ActorRef to the backend which that actor is initializing.
     * @param successes The list of successful initializations
     * @param failures The map from ActorRef to the reason why that initialization failed.
     */
-  final case class WorkflowInitializationActorData(initializationActors: Map[ActorRef, String],
-                                                         successes: Seq[ActorRef],
-                                                         failures: Map[ActorRef, Throwable])
+  final case class WorkflowInitializationActorData(backendActors: Map[ActorRef, String],
+                                                   successes: Seq[ActorRef],
+                                                   failures: Map[ActorRef, Throwable]) extends WorkflowLifecycleActorData
 
   /**
     * Commands
@@ -40,79 +45,59 @@ object WorkflowInitializationActor {
   /**
     * Responses
     */
-  sealed trait WorkflowInitializationActorResponse
-  case object WorkflowInitializationSucceededResponse extends WorkflowInitializationActorResponse
-  case object WorkflowInitializationAbortedResponse extends WorkflowInitializationActorResponse
-  final case class WorkflowInitializationFailedResponse(reasons: Map[ActorRef, Throwable]) extends WorkflowInitializationActorResponse
+  case object WorkflowInitializationSucceededResponse extends WorkflowLifecycleSuccessResponse
+  case object WorkflowInitializationAbortedResponse extends WorkflowLifecycleAbortedResponse
+  final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowTag: String, backendAssignments: Map[Call, String]): Props = Props(new WorkflowInitializationActor(workflowTag, backendAssignments))
-
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(new WorkflowInitializationActor(workflowId, workflowDescriptor))
 }
 
-case class WorkflowInitializationActor(workflowTag: String, backendsToInitialize: Map[Call, String]) extends LoggingFSM[WorkflowInitializationActorState, WorkflowInitializationActorData] {
+case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends WorkflowLifecycleActor[WorkflowInitializationActorState, WorkflowInitializationActorData] {
 
   startWith(InitializationPendingState, WorkflowInitializationActorData(Map.empty, List.empty, Map.empty))
+  val tag = self.path.name
+
+  override val successState = InitializationSucceededState
+  override val failureState = InitializationFailedState
+  override val abortedState = InitializationFailedState
+
+  override val successResponse = WorkflowInitializationSucceededResponse
+  override def failureResponse(reasons: Seq[Throwable]) = WorkflowInitializationFailedResponse(reasons)
 
   when(InitializationPendingState) {
     case Event(StartInitializationCommand, _) =>
-      val backendInitializationActors = backendWorkflowInitializationActors // Create each InitializationActor with the list of calls assigned to it.
-      backendInitializationActors.keys foreach { _ ! Initialize }
-      goto(InitializingWorkflowState) using WorkflowInitializationActorData(backendInitializationActors, List.empty, Map.empty)
+      val backendInitializationActors = backendWorkflowActors(workflowDescriptor.backendAssignments)
+      if (backendInitializationActors.isEmpty) {
+        sender ! WorkflowInitializationSucceededResponse // Nothing more to do
+        goto(InitializationFailedState)
+      } else {
+        backendInitializationActors.keys foreach { _ ! Initialize }
+        goto(InitializingWorkflowState) using WorkflowInitializationActorData(backendInitializationActors, List.empty, Map.empty)
+      }
     case Event(AbortInitializationCommand, _) =>
       context.parent ! WorkflowInitializationAbortedResponse
-      goto(InitializationsAborted)
+      goto(InitializationsAbortedState)
   }
 
   when(InitializingWorkflowState) {
     case Event(InitializationSuccess, stateData) =>
-      val newData = stateData.copy(successes = stateData.successes ++ List(sender))
+      val newData = stateData.copy(
+        backendActors = stateData.backendActors - sender,
+        successes = stateData.successes ++ List(sender))
       checkForDoneAndTransition(newData)
     case Event(InitializationFailed(reason), stateData) =>
-      val newData = stateData.copy(failures = stateData.failures ++ Map(sender -> reason))
+      val newData = stateData.copy(
+        backendActors = stateData.backendActors - sender,
+        failures = stateData.failures ++ Map(sender -> reason))
       checkForDoneAndTransition(newData)
     case Event(AbortInitializationCommand, _) => ??? // TODO: Handle this
   }
 
-  private def checkForDoneAndTransition(newData: WorkflowInitializationActorData): State = {
-    if (checkForDone(newData)) {
-      if (newData.failures.isEmpty){
-        context.parent ! WorkflowInitializationSucceededResponse
-        goto(InitializationSucceededState)
-      }
-      else {
-        context.parent ! WorkflowInitializationFailedResponse(newData.failures)
-        goto(InitializationFailedState) using newData
-      }
-    }
-    else {
-      stay using newData
-    }
-  }
-
-  private def checkForDone(stateData: WorkflowInitializationActorData) = {
-    // TODO: Check these are actually the same?
-    val allActorResponses = stateData.successes ++ stateData.failures.keys
-    allActorResponses.size == backendsToInitialize.size
-  }
-
-  whenUnhandled {
-    case unhandledMessage =>
-      log.warning(s"Backends initializer for $workflowTag received an unhandled message: $unhandledMessage")
-      stay
-  }
-
-  onTransition {
-    case _ -> state if state.terminal =>
-      log.debug(s"$workflowTag's initializer is terminal. Shutting down.")
-      context.stop(self)
-    case fromState -> toState =>
-      // Only log this at debug - these states are never seen or used outside of the CallActor itself.
-      log.debug(s"$workflowTag's initializer is transitioning from $fromState to $toState.")
-  }
-
   /**
-    * Based on backendAssignments, creates a BackendWorkflowInitializationActor per backend and maps the actor to the
-    * name of the backend which it is initializing.
+    * Makes a BackendWorkflowInitializationActor for a backend
     */
-  def backendWorkflowInitializationActors:  Map[ActorRef, String] = ??? //TODO: Implement this!
+  override def backendActor(backendName: String, callAssignments: Seq[Call]): Option[ActorRef] = {
+    // TODO: Implement this!
+    None
+  }
 }

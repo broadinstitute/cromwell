@@ -1,9 +1,10 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.{FSM, ActorRef, LoggingFSM, Props}
+import cromwell.core.WorkflowId
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendCallJobDescriptor
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
-import wdl4s.Call
 
 object WorkflowExecutionActor {
 
@@ -11,7 +12,7 @@ object WorkflowExecutionActor {
     * States
     */
   sealed trait WorkflowExecutionActorState { def terminal = false }
-  sealed trait WorkflowExecutionActorTerminalState extends WorkflowExecutionActorState { override def terminal = true }
+  sealed trait WorkflowExecutionActorTerminalState extends WorkflowExecutionActorState { override val terminal = true }
 
   case object WorkflowExecutionPendingState extends WorkflowExecutionActorState
   case object WorkflowExecutionInProgressState extends WorkflowExecutionActorState
@@ -38,20 +39,22 @@ object WorkflowExecutionActor {
   sealed trait WorkflowExecutionActorResponse
   case object WorkflowExecutionSucceededResponse extends WorkflowExecutionActorResponse
   case object WorkflowExecutionAbortedResponse extends WorkflowExecutionActorResponse
-  final case class WorkflowExecutionFailedResponse(reasons: Map[ActorRef, Throwable]) extends WorkflowExecutionActorResponse
+  final case class WorkflowExecutionFailedResponse(reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse
 
-  def props(workflowTag: String, backendAssignments: Map[Call, String]): Props = Props(WorkflowExecutionActor(workflowTag, backendAssignments))
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(WorkflowExecutionActor(workflowId, workflowDescriptor))
 }
 
-final case class WorkflowExecutionActor(workflowTag: String, backendAssignments: Map[Call, String]) extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
+final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
 
-  val tag = s"$workflowTag executor"
+  val tag = self.path.name
   startWith(WorkflowExecutionPendingState, WorkflowExecutionActorData())
 
   when(WorkflowExecutionPendingState) {
     case Event(StartExecutingWorkflowCommand, _) =>
       // TODO: Start executing
-      goto(WorkflowExecutionInProgressState)
+      sender ! WorkflowExecutionFailedResponse(Seq(new Exception("Execution is not implemented yet")))
+      goto(WorkflowExecutionFailedState)
+      // TODO: actually: goto(WorkflowExecutionInProgressState)
     case Event(RestartExecutingWorkflowCommand, _) =>
       // TODO: Restart executing
       goto(WorkflowExecutionInProgressState)
@@ -65,9 +68,13 @@ final case class WorkflowExecutionActor(workflowTag: String, backendAssignments:
     case Event(_, _) => ??? // TODO: Lots of extra stuff to include here...
   }
 
+  when(WorkflowExecutionSuccessfulState) { FSM.NullFunction }
+  when(WorkflowExecutionFailedState) { FSM.NullFunction }
+  when(WorkflowExecutionAbortedState) { FSM.NullFunction }
+
   whenUnhandled {
     case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message: $unhandledMessage")
+      log.warning(s"$tag received an unhandled message: $unhandledMessage in state: $stateName")
       stay
   }
 

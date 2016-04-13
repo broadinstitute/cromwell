@@ -23,12 +23,12 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
-    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config)
+  def props(workflowManagerActorRef: ActorRef, config: Config, shadowMode: Boolean): Props = {
+    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config, shadowMode)
   }
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
+case class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config, shadowMode: Boolean)
   extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
@@ -42,7 +42,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   import CromwellApiServiceActor._
 
-  val workflowManager: ActorRef
+  def shadowMode: Boolean
+  def workflowManager: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
@@ -56,7 +57,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       get {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStatus(w))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowStatus(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -67,7 +68,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       parameterSeq { parameters =>
         get {
           requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowQuery(parameters))
+            perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowQuery(parameters))
         }
       }
     }
@@ -77,7 +78,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       post {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowAbort(w))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowAbort(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -89,7 +90,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
           requestContext =>
             val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
+            perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
         }
       }
     }
@@ -99,7 +100,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       get {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowOutputs(w))
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowOutputs(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -110,7 +111,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
           // This currently does not attempt to parse the call name for conformation to any pattern.
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallOutputs(w, callFqn))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerCallOutputs(w, callFqn))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
@@ -120,7 +121,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
           // This currently does not attempt to parse the call name for conformation to any pattern.
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallStdoutStderr(w, callFqn))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerCallStdoutStderr(w, callFqn))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
@@ -129,7 +130,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / Segment / "logs") { (version, workflowId) =>
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStdoutStderr(w))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowStdoutStderr(w))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
@@ -138,7 +139,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowMetadata(w))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerWorkflowMetadata(w))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
@@ -159,7 +160,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           Try(WorkflowId.fromString(workflowId)) match {
             case Success(w) =>
               requestContext =>
-                perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallCaching(w, queryParameters, callFqn))
+                perRequest(requestContext, CromwellApiHandler.props(workflowManager, shadowMode), CromwellApiHandler.ApiHandlerCallCaching(w, queryParameters, callFqn))
             case Failure(_) => invalidWorkflowId(workflowId)
           }
         }

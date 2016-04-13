@@ -15,8 +15,7 @@ object CromwellServer extends WorkflowManagerSystem {
   implicit val timeout = Timeout(5.seconds)
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  val conf = ConfigFactory.load()
-  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, conf), "cromwell-service")
+  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, conf, shadowMode), "cromwell-service")
   val webserviceConf = conf.getConfig("webservice")
 
   def run(): Future[Any] = {

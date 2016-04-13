@@ -27,7 +27,9 @@ package object backend {
     */
   case class BackendJobDescriptor(descriptor: BackendWorkflowDescriptor,
                                   key: BackendJobDescriptorKey,
-                                  symbolMap: Map[FullyQualifiedName, WdlValue])
+                                  symbolMap: Map[FullyQualifiedName, WdlValue]) {
+    val call = key.call
+  }
 
   /**
     * For passing to a BackendActor construction time

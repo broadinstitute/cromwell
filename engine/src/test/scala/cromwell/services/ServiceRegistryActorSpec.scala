@@ -2,7 +2,7 @@ package cromwell.services
 
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.{WorkflowSourceFiles, WorkflowSucceeded}
 import cromwell.services.KeyValueServiceActor._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
@@ -39,6 +39,8 @@ class ServiceRegistryActorSpec extends FlatSpec with Matchers with ScalaFutures 
       _ = put0 shouldEqual KvPutSuccess(kvPut)
       get1 <- ask(serviceRegistryActor, kvGet).mapTo[KvResponse]
       _ = get1 shouldEqual KvPair(ScopedKey(callKey, "k"), Option("v"))
+      // Put the workflow in a terminal state so tests running after it don't restart it and become confused.
+      _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
     } yield ()
 
     future.futureValue

@@ -4,9 +4,11 @@ import java.nio.file.Paths
 
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.backend.jes.{JesAttachedDisk, JesBackend, JesEmptyMountedDisk, JesWorkingDisk}
+import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesWorkingDisk, JesEmptyMountedDisk}
+import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
+import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes, _}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._

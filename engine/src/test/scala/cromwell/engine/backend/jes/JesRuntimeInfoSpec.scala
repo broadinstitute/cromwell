@@ -1,5 +1,7 @@
 package cromwell.engine.backend.jes
 
+import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk, JesAttachedDisk}
+import cromwell.backend.validation.ContinueOnReturnCodeFlag
 import cromwell.engine.backend.runtimeattributes._
 import org.scalatest.{FlatSpec, Matchers}
 

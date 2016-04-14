@@ -2,6 +2,7 @@ package cromwell.engine.backend
 
 import java.nio.file.Paths
 
+import cromwell.backend.impl.jes.io.JesWorkingDisk
 import wdl4s.values.WdlFile
 
 import scala.util.Try

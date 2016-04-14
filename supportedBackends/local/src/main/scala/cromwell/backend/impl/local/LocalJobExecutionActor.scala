@@ -1,4 +1,4 @@
-package cromwell.backend.impl.htcondor
+package cromwell.backend.impl.local
 
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.BackendLifecycleActor.JobAbortResponse
@@ -7,7 +7,7 @@ import wdl4s.Call
 
 import scala.concurrent.Future
 
-class HtCondorBackend extends BackendJobExecutionActor {
+class LocalJobExecutionActor extends BackendJobExecutionActor {
   /**
     * Restart or resume a previously-started job.
     */

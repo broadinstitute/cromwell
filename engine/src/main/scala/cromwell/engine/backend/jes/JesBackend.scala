@@ -11,6 +11,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.JobKey
+import cromwell.backend.impl.jes.io.{JesWorkingDisk, JesAttachedDisk}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend.EnhancedWorkflowOptions._

@@ -1,10 +1,9 @@
-package cromwell.engine.backend.jes
+package cromwell.backend.impl.jes.io
 
 import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.core.ErrorOr
-import cromwell.engine.backend.runtimeattributes.DiskType
 import wdl4s.ThrowableWithErrors
 import wdl4s.values._
 

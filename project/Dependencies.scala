@@ -58,10 +58,11 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies
 
-  val backendDependencies = coreDependencies
+  val backendDependencies = List(
+    "org.broadinstitute" %% "lenthall" % lenthallV
+  ) ++ coreDependencies
 
   val engineDependencies = List(
-    "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.joda" % "joda-convert" % "1.8.1",
     "org.webjars" % "swagger-ui" % "2.1.1",

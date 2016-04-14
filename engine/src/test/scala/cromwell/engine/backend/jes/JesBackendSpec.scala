@@ -7,13 +7,14 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
+import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
 import cromwell.engine.backend.jes.Run.Failed
 import cromwell.engine.backend.jes.authentication._
-import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, DiskType}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.filesystems.gcs._
 import cromwell.util.{EncryptionSpec, SampleWdl}

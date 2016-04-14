@@ -1,8 +1,10 @@
 package cromwell.engine.finalcall
 
+import cromwell.backend.JobKey
 import cromwell.core.OptionNotFoundException
 import cromwell.engine.FullyQualifiedName
 import cromwell.engine.backend.{BackendCallJobDescriptor, WorkflowDescriptor}
+import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.{FullyQualifiedName => _, _}
@@ -74,35 +76,44 @@ object FinalCall {
     }
   }
 
+  /** Returns a file system safe version of the name. */
+  def escapedFinalCallName(name: String) = name.replaceAll("\\$", "__")
+
+
   /** Return the final call with this fqn. */
-  private def finalCallForFqn(fqn: FullyQualifiedName) = {
+  private def finalCallForFqn(fqn: FullyQualifiedName): Option[FinalCall] = {
     finalCalls.
-      find(finalCall => fqn.endsWith(callName(finalCall.finalCallName))).
-      getOrElse(throw new IllegalArgumentException(s"$fqn is not a final call"))
+      find(finalCall => fqn.endsWith(callName(finalCall.finalCallName)))
   }
 
-  implicit class FinalCallKey(val key: BackendCallKey) extends AnyVal {
-    /** Does this FQN conform to a final call? */
-    def isFinalCall = FinalCallString(key.scope.fullyQualifiedName).isFinalCall
+  trait FinalCallConverter {
+    protected def fullyQualifiedName: FullyQualifiedName
 
-    /** Return a job descriptor for this final call. */
-    def finalCallJobDescriptor(workflow: WorkflowDescriptor, metadata: WorkflowMetadataResponse) = {
-      val finalCall = finalCallForFqn(key.scope.fullyQualifiedName)
-      val callInputs = finalCall.createCallInputs(workflow, metadata)
-      BackendCallJobDescriptor(workflow, key, callInputs, None)
-    }
-  }
-
-  implicit class FinalCallString(val fqn: FullyQualifiedName) extends AnyVal {
     /** Does this FQN conform to a final call? */
-    def isFinalCall = fqn contains FinalCallPrefix
+    def isFinalCall = fullyQualifiedName contains FinalCallPrefix
 
     /** Create a store key for this workflow(descriptor). */
-    def storeKey(workflowDescriptor: WorkflowDescriptor) = {
-      BackendCallKey(createCall(workflowDescriptor)(finalCallForFqn(fqn)), None, 1)
+    def createCall(workflowDescriptor: WorkflowDescriptor): Option[Call] = {
+      finalCallForFqn(fullyQualifiedName) map FinalCall.createCall(workflowDescriptor)
     }
+  }
 
-    /** Returns a file system safe version of the fqn. */
-    def escapedFinalCallName = fqn.replaceAll("\\$", "__")
+  implicit class FinalCallDatabaseKey(val key: ExecutionDatabaseKey) extends FinalCallConverter {
+    override protected val fullyQualifiedName = key.fqn
+  }
+
+  implicit class FinalCallJobKey(val key: JobKey) extends FinalCallConverter {
+    override protected val fullyQualifiedName = key.scope.fullyQualifiedName
+  }
+
+  implicit class FinalCallBackendCallKey(val backendCallKey: BackendCallKey) extends FinalCallJobKey(backendCallKey) {
+    /** Return a job descriptor for this final call. */
+    def finalCallJobDescriptor(workflow: WorkflowDescriptor, metadata: WorkflowMetadataResponse) = {
+      val finalCall = finalCallForFqn(fullyQualifiedName).
+        getOrElse(throw new IllegalArgumentException(s"$fullyQualifiedName is not a final call"))
+
+      val callInputs = finalCall.createCallInputs(workflow, metadata)
+      BackendCallJobDescriptor(workflow, backendCallKey, callInputs, None)
+    }
   }
 }

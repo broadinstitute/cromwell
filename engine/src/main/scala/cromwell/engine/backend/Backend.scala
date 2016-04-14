@@ -5,7 +5,6 @@ import java.nio.file.{FileSystem, Path}
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
-import cromwell.backend.JobKey
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
@@ -57,9 +56,10 @@ object Backend {
   def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
     import io._
     import FinalCall._
-    val callSuffix = jobDescriptor.key.scope.unqualifiedName match {
-      case name if name.isFinalCall => name.escapedFinalCallName
-      case other => other
+    val callSuffix = if (jobDescriptor.key.isFinalCall) {
+      escapedFinalCallName(jobDescriptor.key.scope.unqualifiedName)
+    } else {
+      jobDescriptor.key.scope.unqualifiedName
     }
     val call = s"$CallPrefix-$callSuffix"
     val shard = jobDescriptor.key.index map { s => s"$ShardPrefix-$s" } getOrElse ""

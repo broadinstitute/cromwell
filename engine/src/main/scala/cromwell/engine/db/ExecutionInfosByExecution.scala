@@ -53,11 +53,13 @@ object ExecutionInfosByExecution {
 
   def toWorkflowLogs(executionInfosByExecutions: Traversable[ExecutionInfosByExecution]): WorkflowLogs = {
     import FinalCall._
-    executionInfosByExecutions groupBy {
+    executionInfosByExecutions filter {
+      !_.execution.toKey.isFinalCall
+    } groupBy {
       _.execution.callFqn
-    } filterKeys {
-      !_.isFinalCall
-    } mapValues toAttemptedCallLogs filterNot {
+    } mapValues {
+      toAttemptedCallLogs
+    } filterNot {
       case (_, attemptedCallLogs) => attemptedCallLogs.isEmpty
     }
   }

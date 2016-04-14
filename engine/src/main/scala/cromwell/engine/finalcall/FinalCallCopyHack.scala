@@ -50,7 +50,7 @@ object FinalCallCopyHack {
     */
   def maybeCopyFiles(logger: WorkflowLogger, jobDescriptor: BackendCallJobDescriptor): Unit = {
     import FinalCall._
-    if (jobDescriptor.call.unqualifiedName.isFinalCall) {
+    if (jobDescriptor.key.isFinalCall) {
       val callFqn = jobDescriptor.call.fullyQualifiedName
       val copies = toCopies(jobDescriptor.workflowDescriptor, jobDescriptor.locallyQualifiedInputs)
       logger.info(s"Copying files (via in process APIs) for $callFqn")

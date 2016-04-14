@@ -1055,21 +1055,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   private def createCaches: Future[(ExecutionStore, SymbolCache)] = {
 
     def isInScatterBlock(c: Call) = c.ancestry.exists(_.isInstanceOf[Scatter])
-    import FinalCall.FinalCallString
+    import FinalCall._
 
     val futureExecutionCache = globalDataAccess.getExecutionStatuses(workflow.id) map { statuses =>
       statuses map { case (k, v) =>
-        val key: ExecutionStoreKey = if (k.fqn.isFinalCall) {
-          // Final calls are not part of the workflow namespace, handle these differently from other keys.
-          k.fqn.storeKey(workflow)
-        } else {
-          (workflow.namespace.resolve(k.fqn), k.index, k.attempt) match {
-            case (Some(c: Call), Some(i), a) => BackendCallKey(c, Option(i), a)
-            case (Some(c: Call), None, _) if isInScatterBlock(c) => CollectorKey(c)
-            case (Some(c: Call), None, a) => BackendCallKey(c, None, a)
-            case (Some(s: Scatter), None, _) => ScatterKey(s, None)
-            case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
-          }
+        // Final calls are not part of the workflow namespace, handle these differently from other keys.
+        val scope: Option[Scope] = if (k.isFinalCall) k.createCall(workflow) else workflow.namespace.resolve(k.fqn)
+        val key: ExecutionStoreKey = (scope, k.index, k.attempt) match {
+          case (Some(c: Call), Some(i), a) => BackendCallKey(c, Option(i), a)
+          case (Some(c: Call), None, _) if isInScatterBlock(c) => CollectorKey(c)
+          case (Some(c: Call), None, a) => BackendCallKey(c, None, a)
+          case (Some(s: Scatter), None, _) => ScatterKey(s, None)
+          case _ => throw new UnsupportedOperationException(s"Execution entry invalid: $k -> $v")
         }
         key -> v.executionStatus
       }

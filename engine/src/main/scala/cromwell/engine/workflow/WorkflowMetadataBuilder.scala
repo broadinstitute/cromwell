@@ -83,9 +83,9 @@ object WorkflowMetadataBuilder {
   Future[WorkflowMetadataResponse] = {
     val executionAndAux = WorkflowExecutionAndAux(workflowExecution, workflowExecutionAux)
     workflowDescriptorFromExecutionAndAux(executionAndAux) map { workflowDescriptor =>
-      val nonFinalRuntimeAttributes = runtimeAttributes.filterKeys(!_.fqn.isFinalCall)
-      val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
-      val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
+      val nonFinalRuntimeAttributes = runtimeAttributes.filterKeys(!_.isFinalCall)
+      val nonFinalEvents = executionEvents.filterKeys(!_.isFinalCall)
+      val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.toKey.isFinalCall)
 
       val wfFailures = failures collect {
         case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp)

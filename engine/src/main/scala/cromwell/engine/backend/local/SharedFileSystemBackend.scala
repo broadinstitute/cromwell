@@ -3,7 +3,8 @@ package cromwell.engine.backend.local
 import java.nio.file._
 
 import better.files._
-import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
+import cromwell.WorkflowEngineFunctions
+import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.{ExecutionEventEntry, backend}

@@ -7,7 +7,7 @@ import java.util.Date
 
 import akka.util.Timeout
 import better.files._
-import cromwell.util.FileUtil._
+import cromwell.core.PathFactory._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{EmptyWorkflow, GoodbyeWorld, ThreeStep}
 import org.apache.commons.io.output.TeeOutputStream

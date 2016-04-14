@@ -1,7 +1,8 @@
-package cromwell.engine
+package cromwell.backend
 
-import java.nio.file.FileSystem
+import java.nio.file.Path
 
+import better.files._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.types._
@@ -10,17 +11,13 @@ import wdl4s.{MemorySize, TsvSerializable}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import scala.language.implicitConversions
 
 trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
 
-  import backend.io._
-  import better.files._
+  def toPath(str: String): Path
 
-  def fileSystems: List[FileSystem]
-
-  override final def fileContentsToString(path: String): String = adjustFilePath(path).toAbsolutePath(fileSystems).contentAsString
-
-  def adjustFilePath(path: String): String = path
+  override final def fileContentsToString(path: String): String = toPath(path).toAbsolutePath.contentAsString
 
   private def writeContent(baseName: String, content: String): Try[WdlFile] = {
     Try(WdlFile(writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
@@ -42,7 +39,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
-  override def readFile(path: String): String = path.toAbsolutePath(fileSystems).contentAsString
+  override def readFile(path: String): String = toPath(path).toAbsolutePath.contentAsString
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
@@ -137,7 +134,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(adjustFilePath(value.valueString).toAbsolutePath(fileSystems).size.toDouble, MemoryUnit.Bytes).to(unit).amount
+      } yield MemorySize(toPath(value.valueString).toAbsolutePath.size.toDouble, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {
@@ -155,7 +152,7 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
   override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
     // This may be called multiple times with the same inputs.  Calling this twice with the same
     // parameters should yield the same return value.
-    val rootDir = path.toAbsolutePath(fileSystems)
+    val rootDir = toPath(path).toAbsolutePath
     rootDir.createDirectories
 
     val fullPath = rootDir.resolve(s"$prefix${content.md5Sum}$suffix")

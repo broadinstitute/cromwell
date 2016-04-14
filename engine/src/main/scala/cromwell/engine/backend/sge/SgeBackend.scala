@@ -5,6 +5,7 @@ import java.nio.file.{Files, Path}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
+import cromwell.CallEngineFunctions
 import cromwell.backend.JobKey
 import cromwell.engine._
 import cromwell.engine.backend._

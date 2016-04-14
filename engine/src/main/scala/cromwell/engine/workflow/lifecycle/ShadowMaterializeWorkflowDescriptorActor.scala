@@ -1,14 +1,15 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import akka.actor.{FSM, LoggingFSM, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.WorkflowEngineFunctions
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core.{ErrorOr, OptionNotFoundException, WorkflowId, WorkflowOptions}
+import cromwell.core._
 import cromwell.engine._
-import cromwell.engine.backend.{WorkflowContext, WorkflowEngineFunctions, WorkflowLogOptions}
+import cromwell.engine.backend.WorkflowLogOptions
 import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
@@ -162,9 +163,11 @@ class ShadowMaterializeWorkflowDescriptorActor() extends LoggingFSM[ShadowMateri
   }
 
   // TODO: Probably want to enhance this to include any engine-level filesystem and/or filesystem roots
-  case object NoWorkflowEngineFunctions extends WorkflowEngineFunctions(List.empty, new WorkflowContext("")) {
+  case object NoWorkflowEngineFunctions extends WorkflowEngineFunctions(new WorkflowContext("")) {
     override def glob(path: String, pattern: String): Seq[String] =
       throw new Exception("Cannot use glob in workflow-level declarations because no filesystem yet")
+
+    override def toPath(str: String): Path = throw new Exception("Cannot convert strings to Paths because no filesystem yet")
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,

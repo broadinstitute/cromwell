@@ -2,6 +2,7 @@ import Dependencies.engineDependencies
 import Dependencies.coreDependencies
 import Dependencies.backendDependencies
 import Dependencies.gcsFileSystemDependencies
+import Dependencies.localBackendDependencies
 import Merging.customMergeStrategy
 import Testing._
 import sbt.Keys._
@@ -71,6 +72,7 @@ object Settings {
   val localBackendSettings = List(
     name := "cromwell-local-backend",
     version := "0.1",
+    libraryDependencies ++= localBackendDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

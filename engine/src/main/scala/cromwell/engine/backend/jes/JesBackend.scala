@@ -11,8 +11,8 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.JobKey
-import cromwell.backend.impl.jes.io.{JesWorkingDisk, JesAttachedDisk}
-import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
+import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine._
 import cromwell.engine.backend.EnhancedWorkflowOptions._
 import cromwell.engine.backend._
@@ -23,6 +23,7 @@ import cromwell.engine.io.gcs._
 import cromwell.filesystems.gcs.{GoogleAuthMode, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{CromwellAggregatedException, DockerConfiguration, SimpleExponentialBackoff, TryUtil}
+import cromwell.{CallEngineFunctions, WorkflowEngineFunctions}
 import spray.json.JsObject
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart

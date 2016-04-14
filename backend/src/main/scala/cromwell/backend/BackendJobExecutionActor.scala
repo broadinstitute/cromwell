@@ -21,6 +21,7 @@ object BackendJobExecutionActor {
 
   sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse
   case class BackendJobExecutionSucceededResponse(jobKey: BackendJobDescriptorKey, callOutputs: CallOutputs) extends BackendJobExecutionResponse
+  case class BackendJobExecutionAbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   case class BackendJobExecutionFailedResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable) extends BackendJobExecutionResponse
   case class BackendJobExecutionFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable) extends BackendJobExecutionResponse
 }

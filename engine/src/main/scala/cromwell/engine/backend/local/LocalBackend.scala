@@ -4,19 +4,16 @@ import java.io.Writer
 import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
+import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
+import cromwell.CallEngineFunctions
 import cromwell.backend.JobKey
-import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.db.DataAccess._
-import cromwell.util.FileUtil._
-import better.files._
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
+import cromwell.core.PathFactory._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
-
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps

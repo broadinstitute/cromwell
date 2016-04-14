@@ -109,7 +109,7 @@ class NioGcsPath(private val chunks: Array[String], absolute: Boolean, val isDir
 
   override def getNameCount: Int = chunks.length
 
-  override def toUri: URI = throw new UnsupportedOperationException()
+  override def toUri: URI = new URI(GcsFileSystem.Protocol, bucket, toAbsolutePath.toString, null)
 
   override def compareTo(other: Path): Int = throw new NotImplementedError()
 

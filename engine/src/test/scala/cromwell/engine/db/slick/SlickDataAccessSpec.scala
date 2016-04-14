@@ -10,18 +10,17 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.JobKey
-import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions}
+import cromwell.core.{CallOutput, CallOutputs, WorkflowId, WorkflowOptions, _}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
 import cromwell.util.SampleWdl
-import cromwell.{CromwellTestkitSpec, webservice}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
+import cromwell.{CallEngineFunctions, CromwellTestkitSpec, WorkflowEngineFunctions, webservice}
 import org.joda.time.DateTime
 import org.scalactic.StringNormalizations._
 import org.scalatest.PartialFunctionValues._
@@ -34,7 +33,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlFloat, WdlInteger, WdlArray, WdlString}
+import wdl4s.values.{WdlArray, WdlFloat, WdlInteger, WdlString}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try

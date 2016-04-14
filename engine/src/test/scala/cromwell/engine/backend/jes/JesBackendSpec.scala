@@ -8,7 +8,7 @@ import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{CallContext, WorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}

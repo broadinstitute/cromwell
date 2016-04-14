@@ -62,6 +62,10 @@ object Dependencies {
     "org.broadinstitute" %% "lenthall" % lenthallV
   ) ++ coreDependencies
 
+  val localBackendDependencies = List(
+    "org.broadinstitute" %% "lenthall" % lenthallV
+  )
+
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.joda" % "joda-convert" % "1.8.1",

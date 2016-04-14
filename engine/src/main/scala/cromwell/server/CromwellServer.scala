@@ -16,8 +16,7 @@ object CromwellServer extends WorkflowManagerSystem {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   val conf = ConfigFactory.load()
-  val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(), "MaterializeWorkflowDescriptorActor-CromwellServer")
-  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, materializeWorkflowDescriptorActor, conf), "cromwell-service")
+  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, conf), "cromwell-service")
   val webserviceConf = conf.getConfig("webservice")
 
   def run(): Future[Any] = {

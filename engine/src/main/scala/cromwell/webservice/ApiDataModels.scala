@@ -9,8 +9,6 @@ import wdl4s.{FullyQualifiedName, ThrowableWithErrors}
 
 import scala.language.postfixOps
 
-case class WorkflowValidateResponse(valid: Boolean, error: Option[String])
-
 case class WorkflowStatusResponse(id: String, status: String)
 
 case class WorkflowSubmitResponse(id: String, status: String)

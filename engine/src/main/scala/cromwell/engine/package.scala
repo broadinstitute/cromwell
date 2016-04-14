@@ -8,7 +8,7 @@ import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess, MaterializeWorkflow}
 import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.WdlValue
@@ -93,8 +93,8 @@ package object engine {
     val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props())
 
     materializeWorkflowDescriptorActor.askNoTimeout(MaterializeWorkflow(id, sources))  map {
-      case MaterializationSuccess(workflowDescriptor) => workflowDescriptor
-      case MaterializationFailure(error) => throw error
+      case MaterializeWorkflowDescriptorSuccess(workflowDescriptor) => workflowDescriptor
+      case MaterializeWorkflowDescriptorFailure(error) => throw error
     } andThen {
       case _ => actorSystem.stop(materializeWorkflowDescriptorActor)
     }

@@ -10,7 +10,7 @@ import cromwell.core.WorkflowId
 import cromwell.engine.{ExecutionStatus, WorkflowSucceeded, WorkflowSourceFiles}
 import cromwell.engine.backend.io._
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationResult, MaterializationSuccess}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializationResult, MaterializeWorkflowDescriptorSuccess}
 import cromwell.util.{PromiseActor, SampleWdl}
 import cromwell.webservice.WorkflowMetadataResponse
 import org.joda.time.DateTime
@@ -39,8 +39,8 @@ trait WorkflowDescriptorBuilder {
 
     val wfDesc = materializeWorkflowDescriptorActor.askNoTimeout(MaterializeWorkflowDescriptorActor.MaterializeWorkflow(id, workflowSources, conf)).
       mapTo[MaterializationResult]  map {
-      case MaterializationSuccess(workflowDescriptor) => workflowDescriptor
-      case MaterializationFailure(error) => throw error
+      case MaterializeWorkflowDescriptorSuccess(workflowDescriptor) => workflowDescriptor
+      case MaterializeWorkflowDescriptorFailure(error) => throw error
     }
     val workflowDesc = Await.result(wfDesc, awaitTimeout)
     actorSystem.stop(materializeWorkflowDescriptorActor)

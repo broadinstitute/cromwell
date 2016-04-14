@@ -6,7 +6,7 @@ import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowOptions, WorkflowId}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess, MaterializeWorkflow}
 import cromwell.util.SampleWdl.HelloWorld
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
@@ -72,7 +72,7 @@ class MaterializeWorkflowDescriptorActorSpec
       within(Timeout) {
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), validWorkflowSources)
         expectMsgPF() {
-          case MaterializationSuccess(wfDesc) =>
+          case MaterializeWorkflowDescriptorSuccess(wfDesc) =>
             if (wfDesc.namespace.tasks.size != 1) fail("Number of tasks is not equals to one.")
             if (!wfDesc.coercedInputs.head._1.contains("hello.hello.addressee")) fail("Input does not contains 'hello.hello.addressee'.")
             if (!wfDesc.workflowOptions.get("backend").get.contains("retryableCallsSpecBackend"))
@@ -90,7 +90,7 @@ class MaterializeWorkflowDescriptorActorSpec
           validWorkflowSources.copy(wdlSource = MalformedWdl)
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
         expectMsgPF() {
-          case MaterializationFailure(failure) =>
+          case MaterializeWorkflowDescriptorFailure(failure) =>
             failure match {
               case validationException: IllegalArgumentException with ThrowableWithErrors =>
                 if (!validationException.message.contains("Workflow input processing failed."))
@@ -111,7 +111,7 @@ class MaterializeWorkflowDescriptorActorSpec
           validWorkflowSources.copy(workflowOptionsJson = malformedOptionsJson)
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
         expectMsgPF() {
-          case MaterializationFailure(failure) =>
+          case MaterializeWorkflowDescriptorFailure(failure) =>
             failure match {
               case validationException: IllegalArgumentException with ThrowableWithErrors =>
                 if (!validationException.message.contains("Workflow input processing failed."))
@@ -134,7 +134,7 @@ class MaterializeWorkflowDescriptorActorSpec
       within(Timeout) {
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), validWorkflowSources)
         expectMsgPF() {
-          case MaterializationFailure(failure) =>
+          case MaterializeWorkflowDescriptorFailure(failure) =>
             failure match {
               case validationException: IllegalArgumentException with ThrowableWithErrors =>
                 if (!validationException.message.contains("Workflow input processing failed."))
@@ -156,7 +156,7 @@ class MaterializeWorkflowDescriptorActorSpec
           validWorkflowSources.copy(inputsJson = malformedInputsJson)
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
         expectMsgPF() {
-          case MaterializationFailure(failure) =>
+          case MaterializeWorkflowDescriptorFailure(failure) =>
             failure match {
               case validationException: IllegalArgumentException with ThrowableWithErrors =>
                 if (!validationException.message.contains("Workflow input processing failed."))
@@ -179,7 +179,7 @@ class MaterializeWorkflowDescriptorActorSpec
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(),
           malformedSources)
         expectMsgPF() {
-          case MaterializationFailure(failure) =>
+          case MaterializeWorkflowDescriptorFailure(failure) =>
             failure match {
               case validationException: IllegalArgumentException with ThrowableWithErrors =>
                 if (!validationException.message.contains("Workflow input processing failed."))
@@ -203,7 +203,7 @@ class MaterializeWorkflowDescriptorActorSpec
           validWorkflowSources.copy(wdlSource = invalidWdlSource)
         materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
         expectMsgPF() {
-          case MaterializationFailure(failure) =>
+          case MaterializeWorkflowDescriptorFailure(failure) =>
             failure match {
               case validationException: IllegalArgumentException with ThrowableWithErrors =>
                 if (!validationException.message.contains("Workflow input processing failed."))

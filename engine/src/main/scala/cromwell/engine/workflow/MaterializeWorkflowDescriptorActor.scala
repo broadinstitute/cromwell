@@ -28,8 +28,8 @@ object MaterializeWorkflowDescriptorActor {
                                  workflowSourceFiles: WorkflowSourceFiles,
                                  conf: Config = ConfigFactory.load) extends MaterializeWorkflowDescriptorActorMessage
   sealed trait MaterializationResult extends MaterializeWorkflowDescriptorActorMessage
-  case class MaterializationSuccess(workflowDescriptor: WorkflowDescriptor) extends MaterializationResult
-  case class MaterializationFailure(reason: Throwable) extends MaterializationResult
+  case class MaterializeWorkflowDescriptorSuccess(workflowDescriptor: WorkflowDescriptor) extends MaterializationResult
+  case class MaterializeWorkflowDescriptorFailure(reason: Throwable) extends Exception with MaterializationResult
 
   import lenthall.config.ScalaConfig._
 
@@ -64,8 +64,8 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     case MaterializeWorkflow(workflowId, workflowSourceFiles, conf) =>
       val backend = CromwellBackend.getBackendFromOptions(workflowSourceFiles.workflowOptionsJson)
       buildWorkflowDescriptor(workflowId, workflowSourceFiles, backend, conf) match {
-        case scalaz.Success(descriptor) => sender() ! MaterializationSuccess(descriptor)
-        case scalaz.Failure(error) => sender() ! MaterializationFailure(
+        case scalaz.Success(descriptor) => sender() ! MaterializeWorkflowDescriptorSuccess(descriptor)
+        case scalaz.Failure(error) => sender() ! MaterializeWorkflowDescriptorFailure(
           new IllegalArgumentException() with ThrowableWithErrors {
             val message = s"Workflow input processing failed."
             val errors = error

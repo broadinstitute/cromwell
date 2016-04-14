@@ -956,6 +956,34 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
+    it should "get execution infos by key" taggedAs DbmsTest in {
+      assume(canConnect || testRequired)
+      val workflowId1 = WorkflowId.randomId()
+      val descriptor = materializeWorkflowDescriptorFromSources(
+        id = workflowId1,
+        workflowSources = WorkflowSourceFiles("task a {command {}} workflow test {call a}", "{}", "{}")
+      )
+      val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == "a").get
+      val infos = Map(
+        "key0" -> Option("foo"),
+        "key1" -> None
+      )
+
+      (for {
+        _ <- dataAccess.createWorkflow(descriptor, Nil, Seq(call), localBackend)
+        _ <- dataAccess.upsertExecutionInfo(workflowId1, BackendCallKey(call, None, 1), infos, actorSystem)
+        _ <- dataAccess.getExecutionInfoByKey(workflowId1, call, 1, "key0") map { info =>
+          info shouldEqual Some(Some("foo"))
+        }
+        _ <- dataAccess.getExecutionInfoByKey(workflowId1, call, 1, "key1") map { info =>
+          info shouldEqual Some(None)
+        }
+        _ <- dataAccess.getExecutionInfoByKey(workflowId1, call, 1, "bad") map { info =>
+          info shouldEqual None
+        }
+      } yield ()).futureValue
+    }
+
     it should "update call start and end dates appropriately" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val callFqn = "call.fully.qualified.scope"

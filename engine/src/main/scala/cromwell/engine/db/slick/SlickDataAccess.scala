@@ -6,6 +6,7 @@ import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import cromwell.backend.JobKey
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
@@ -459,6 +460,19 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
+  override def getExecutionInfoByKey(workflowId: WorkflowId, call: Call, attempt: Int, key: String)
+                                    (implicit ec: ExecutionContext): Future[Option[Option[String]]] = {
+    val action = for {
+      executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndAttempt(
+        workflowId.toString, call.fullyQualifiedName, attempt
+      ).result.head
+
+      executionInfo <- dataAccess.executionInfoValueByExecutionAndKey(executionResult.executionId.get, key).result.headOption
+    } yield executionInfo
+
+    runTransaction(action)
+  }
+
   override def updateExecutionInfo(workflowId: WorkflowId,
                                    callKey: BackendCallKey,
                                    key: String,
@@ -476,22 +490,21 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   override def upsertExecutionInfo(workflowId: WorkflowId,
-                                   callKey: BackendCallKey,
+                                   key: JobKey,
                                    keyValues: Map[String, Option[String]])
                                   (implicit ec: ExecutionContext): Future[Unit] = {
     import ExecutionIndex._
 
     val action = for {
       executionResult <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
-        workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt).result.head
-
+        workflowId.toString, key.scope.fullyQualifiedName, key.index.fromIndex, key.attempt).result.head
       _ <- DBIO.sequence(keyValues map upsertExecutionInfo(executionResult.executionId.get))
     } yield ()
 
     runTransaction(action)
   }
 
-  private def upsertExecutionInfo(executionId: Int)(keyValue: (String, Option[String]))
+  protected def upsertExecutionInfo(executionId: Int)(keyValue: (String, Option[String]))
                                  (implicit ec: ExecutionContext): DBIO[Unit] = {
     val (key, value) = keyValue
 

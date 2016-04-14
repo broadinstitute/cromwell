@@ -11,13 +11,6 @@ package object backend {
 
   final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
 
-  trait JobKey {
-    def scope: Scope
-    def index: Option[Int]
-    def attempt: Int
-    def tag: String
-  }
-
   // Ordered by shards, and then ordered by attempts
   type AttemptedCallLogs = Seq[Seq[CallLogs]]
   // Grouped by FQNS

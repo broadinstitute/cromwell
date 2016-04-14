@@ -5,6 +5,7 @@ import java.nio.file.{FileSystem, Path}
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
+import cromwell.backend.JobKey
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend

@@ -1,5 +1,6 @@
 package cromwell.engine.backend
 
+import cromwell.backend.JobKey
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.{BackendCallKey, FinalCallKey}

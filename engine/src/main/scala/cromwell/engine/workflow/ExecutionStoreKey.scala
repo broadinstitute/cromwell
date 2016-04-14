@@ -1,7 +1,7 @@
 package cromwell.engine.workflow
 
+import cromwell.backend.JobKey
 import cromwell.engine.ExecutionStatus
-import cromwell.engine.backend.JobKey
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor.ExecutionStore
 import wdl4s._
@@ -36,6 +36,7 @@ case class ScatterKey(scope: Scatter, index: Option[Int], attempt: Int = 1) exte
 
   /**
    * Creates a sub-ExecutionStore with Starting entries for each of the scoped children.
+   *
    * @param count Number of ways to scatter the children.
    * @return ExecutionStore of scattered children.
    */

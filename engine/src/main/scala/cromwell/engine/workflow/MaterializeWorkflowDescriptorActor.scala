@@ -5,19 +5,17 @@ import java.nio.file.Paths
 import akka.actor.{Actor, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.core.{OptionNotFoundException, ErrorOr, WorkflowOptions, WorkflowId}
+import cromwell.core.{ErrorOr, OptionNotFoundException, WorkflowId, WorkflowOptions}
 import cromwell.engine._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend._
-import cromwell.util.TryUtil
-import spray.json.{JsObject,_}
+import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import spray.json.{JsObject, _}
 import wdl4s._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
 
 object MaterializeWorkflowDescriptorActor {
@@ -62,6 +60,8 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
 
   override def receive = {
     case MaterializeWorkflow(workflowId, workflowSourceFiles, conf) =>
+      // TODO: This class should be oblivious to backends.
+      // We should remove the `backend` from WorkflowDescriptor (and corressponding context, engine functions etc.)
       val backend = CromwellBackend.getBackendFromOptions(workflowSourceFiles.workflowOptionsJson)
       buildWorkflowDescriptor(workflowId, workflowSourceFiles, backend, conf) match {
         case scalaz.Success(descriptor) => sender() ! MaterializeWorkflowDescriptorSuccess(descriptor)
@@ -97,16 +97,15 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     }
 
     val namespaceValidation = validateNamespace(sourceFiles.wdlSource)
-    val workflowOptionsValidation = validateWorkflowOptions(backend, sourceFiles.workflowOptionsJson)
+    val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     (namespaceValidation |@| workflowOptionsValidation) {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
-      val runtimeAttributes = validateRuntimeAttributes(namespace, backend.backendType)
       val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
       val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
-      (runtimeAttributes |@| rawInputsValidation |@| failureModeValidation) {
-        (_, _, _)
-      } flatMap { case (_, rawInputs, failureMode) =>
+      (rawInputsValidation |@| failureModeValidation) {
+        (_, _)
+      } flatMap { case (rawInputs, failureMode) =>
         buildWorkflowDescriptor(namespace, workflowOptions, rawInputs, failureMode)
       }
     }
@@ -147,19 +146,9 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     }
   }
 
-  // TODO: With PBE, this should be defined in the backend.
-  private def validateWorkflowOptions(backend: Backend, workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
-    def validateBackendOptions(backend: Backend, workflowOpt: WorkflowOptions): ErrorOr[WorkflowOptions] = {
-      try {
-        backend.assertWorkflowOptions(workflowOpt)
-        workflowOpt.successNel
-      } catch {
-        case e: Exception => s"Workflow has invalid options for backend ${backend.backendType}: ${e.getMessage}".failureNel
-      }
-    }
-
+  private def validateWorkflowOptions(workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
     WorkflowOptions.fromJsonString(workflowOptions) match {
-      case Success(o) => validateBackendOptions(backend, o)
+      case Success(o) => o.successNel
       case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".failureNel
     }
   }
@@ -174,18 +163,6 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
     modeString flatMap WorkflowFailureMode.tryParse match {
         case Success(mode) => mode.successNel
         case Failure(t) => t.getMessage.failureNel
-    }
-  }
-
-  // TODO: With PBE, this should be defined in the backend.
-  // TODO: Add CromwellRuntimeAttributes as a dependency for this actor (arg in ctor) in case is not moved to specific
-  // backend when PBE is merged.
-  private def validateRuntimeAttributes(namespaceWithWorkflow: NamespaceWithWorkflow, backendType: BackendType): ErrorOr[Seq[Set[String]]] = {
-    TryUtil.sequence(namespaceWithWorkflow.workflow.calls map {
-      call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, backendType)
-    }) match {
-      case Success(validatedRuntimeAttrs) => validatedRuntimeAttrs.successNel
-      case Failure(reason) => "Failed to validate runtime attributes.".failureNel
     }
   }
 }

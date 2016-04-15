@@ -3,14 +3,12 @@ package cromwell.engine.workflow
 import akka.actor.ActorRef
 import akka.testkit.TestDuration
 import cromwell.CromwellTestkitSpec
-import cromwell.core.{WorkflowOptions, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.backend.{Backend, BackendType, CromwellBackend}
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess, MaterializeWorkflow}
+import cromwell.engine.backend.CromwellBackend
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflow, MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
 import cromwell.util.SampleWdl.HelloWorld
-import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
-import org.scalatest.mock.MockitoSugar
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import wdl4s.ThrowableWithErrors
@@ -19,7 +17,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class MaterializeWorkflowDescriptorActorSpec
-  extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
+  extends CromwellTestkitSpec with BeforeAndAfter {
   val MissingInputsJson = "{}"
   val MalformedJson = "foobar bad json!"
   val MalformedWdl = "foobar bad wdl!"
@@ -43,13 +41,12 @@ class MaterializeWorkflowDescriptorActorSpec
   val invalidRunAttr =
     """
       |runtime {
-      |  asda: "sda"
+      |  asda: sda"
       |}
     """.stripMargin
   val validWdlSource = HelloWorld.wdlSource(validRunAttr)
   val invalidWdlSource = HelloWorld.wdlSource(invalidRunAttr)
 
-  val backendMock = mock[Backend]
   val Timeout = 1.second.dilated
   var materializeWfActor: ActorRef = _
   var validWorkflowSources = WorkflowSourceFiles(
@@ -59,12 +56,10 @@ class MaterializeWorkflowDescriptorActorSpec
     materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props())
     // Needed since we might want to run this test as test-only
     CromwellBackend.initBackends(List("local"), "local", system)
-    CromwellBackend.registerCustomBackend("retryableCallsSpecBackend", backendMock)
   }
 
   after {
     system.stop(materializeWfActor)
-    reset(backendMock)
   }
 
   "MaterializeWorkflowDescriptorActor" should {
@@ -81,7 +76,6 @@ class MaterializeWorkflowDescriptorActorSpec
             fail(s"Response is not equal to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return MaterializationFailure when there is an invalid Namespace coming from a WDL source" in {
@@ -102,7 +96,6 @@ class MaterializeWorkflowDescriptorActorSpec
           case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return MaterializationFailure when there are workflow options coming from a malformed workflow options JSON file" in {
@@ -124,30 +117,6 @@ class MaterializeWorkflowDescriptorActorSpec
             fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(0)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
-    }
-
-    "return MaterializationFailure when there are invalid workflow options coming from a workflow options JSON file" in {
-      when(backendMock.assertWorkflowOptions(
-        WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get))
-        .thenThrow(new IllegalStateException("Some exception"))
-      within(Timeout) {
-        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), validWorkflowSources)
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorFailure(failure) =>
-            failure match {
-              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-                if (!validationException.message.contains("Workflow input processing failed."))
-                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-                if (validationException.errors.size != 1)  fail("Number of errors coming from validation exception is not equals to one.")
-                if (!validationException.errors.head.contains("Workflow has invalid options for backend"))
-                  fail("Message from error nr 1 in validation exception does not contains 'Workflow has invalid options for backend'.")
-            }
-          case unknown =>
-            fail(s"Response is not equals to the expected one. Response: $unknown")
-        }
-      }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return MaterializationFailure when there are workflow inputs coming from a malformed workflow inputs JSON file" in {
@@ -169,7 +138,6 @@ class MaterializeWorkflowDescriptorActorSpec
             fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return MaterializationFailure when there are invalid workflow inputs coming from a workflow inputs JSON file" in {
@@ -192,12 +160,9 @@ class MaterializeWorkflowDescriptorActorSpec
             fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(
-        WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
 
     "return MaterializationFailure when there are invalid runtime requirements coming from WDL file" in {
-      when(backendMock.backendType).thenReturn(BackendType.JES)
       within(Timeout) {
         val malformedSources =
           validWorkflowSources.copy(wdlSource = invalidWdlSource)
@@ -209,14 +174,11 @@ class MaterializeWorkflowDescriptorActorSpec
                 if (!validationException.message.contains("Workflow input processing failed."))
                   fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
                 if (validationException.errors.size != 1)  fail("Number of errors coming from validation exception is not equals to one.")
-                if (!validationException.errors.head.contains("Failed to validate runtime attributes."))
-                  fail("Message from error nr 1 in validation exception does not contains 'Failed to validate runtime attributes'.")
             }
           case unknown =>
             fail(s"Response is not equals to the expected one. Response: $unknown")
         }
       }
-      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
   }
 }

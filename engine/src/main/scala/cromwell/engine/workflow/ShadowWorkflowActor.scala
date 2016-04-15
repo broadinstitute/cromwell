@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowOptions, WorkflowId}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{WorkflowExecutionFailedResponse, RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand}
@@ -13,6 +13,8 @@ import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeW
 import cromwell.engine.workflow.ShadowWorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
 import wdl4s.Call
+import scala.util.Success
+import scala.util.Failure
 
 object ShadowWorkflowActor {
 
@@ -101,14 +103,17 @@ class ShadowWorkflowActor(workflowId: WorkflowId, startMode: StartMode, wdlSourc
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      // TODO: Begin MaterializingWorkflowDescriptor (by outsourcing to MaterializeWorkflowDescriptorActor)
+      val materializeWorkflowDescriptorActor = context.actorOf(MaterializeWorkflowDescriptorActor.props(), name = s"MaterializeWorkflowDescriptorActor-$workflowId")
+      materializeWorkflowDescriptorActor ! MaterializeWorkflowDescriptorActor.MaterializeWorkflow(workflowId, wdlSource)
+      // Kill when done
+      materializeWorkflowDescriptorActor ! PoisonPill
       goto(MaterializingWorkflowDescriptorState)
     case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccess(workflowDescriptor: WorkflowDescriptor), stateData) =>
-      val newBackendAssignments: Map[Call, String] = ??? // TODO: Assign a backend for every call
+      val newBackendAssignments: Map[Call, String] = assignCallsToBackends(workflowDescriptor.namespace.workflow.calls, workflowDescriptor.workflowOptions)
       val initializerActor = context.actorOf(WorkflowInitializationActor.props(tag, newBackendAssignments), name = s"EngineWorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using stateData.copy(backendAssignments = newBackendAssignments)
@@ -163,5 +168,40 @@ class ShadowWorkflowActor(workflowId: WorkflowId, startMode: StartMode, wdlSourc
     case unhandledMessage =>
       log.warning(s"$tag received an unhandled message: $unhandledMessage")
       stay
+  }
+
+  private def assignCallsToBackends(calls: Seq[Call], workflowOptions: WorkflowOptions): Map[Call, String] = {
+    val backendKey = "backend"
+    // ------------------------------------------------------------------//
+    // TODO: This should be obtained from the backend config factory. Part of issue #649
+    // This is currently a stub. Should be removed as part of #649 (?)
+    val listOfPluggedInBackends = Seq("local", "sge", "jes", "htcondor")
+    val defaultBackend = "local"
+    // ------------------------------------------------------------------//
+
+    import scala.collection.breakOut
+    val backendFromOptions = workflowOptions.get(backendKey)
+    val callAssignmentMap = backendFromOptions match {
+      case Success(backendName) =>
+        // Use this backend for all the calls in the workflow
+        calls.map(_ -> backendName)(breakOut): Map[Call, String]
+      case Failure(reason) =>
+        log.warning("Backend was not defined in the workflow options, trying to runtime-attributes based per task backend allocation.", reason)
+        calls.map { call =>
+          val runtimeAttributesMap = call.task.runtimeAttributes.attrs
+          val backend = runtimeAttributesMap.get(backendKey) match {
+            case Some(backendNameAsExp) =>
+              // FIXME: [A Big one!] This expression should be interpreted as a String. How could we do that? Or get the literal value of the parser terminal?
+              // This will always fallback to the default backend currently as it can't possibly hope to
+              // find that expression in the Map of plugged in backends
+              val backendNameAsString = backendNameAsExp.toWdlString
+              if (listOfPluggedInBackends.find(_.equalsIgnoreCase(backendNameAsString)).isDefined) backendNameAsString else defaultBackend
+            case None => defaultBackend
+          }
+          (call -> backend)
+        }(breakOut): Map[Call, String]
+    }
+    log.debug(s"$tag: Call-to-Backend assignments: $callAssignmentMap")
+    callAssignmentMap
   }
 }

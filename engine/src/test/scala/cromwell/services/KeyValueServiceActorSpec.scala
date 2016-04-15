@@ -2,7 +2,7 @@ package cromwell.services
 
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.{WorkflowSucceeded, WorkflowSourceFiles}
 import cromwell.services.KeyValueServiceActor._
 
 class KeyValueServiceActorSpec extends CromwellServicesSpec {
@@ -43,6 +43,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
       _ = put0 shouldEqual KvPutSuccess(put)
       get0 <- ask(kvActor, get).mapTo[KvResponse]
       _ = get0 shouldEqual KvPair(ScopedKey(callKey, "k"), Option("v"))
+      _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
     } yield ()).futureValue
   }
 
@@ -56,6 +57,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
       _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
       get0 <- ask(kvActor, get).mapTo[KvKeyLookupFailed]
       _ = get0.action shouldEqual get
+      _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
     } yield ()).futureValue
   }
 
@@ -77,6 +79,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
       _ = put1 shouldEqual KvPutSuccess(putB)
       get1 <- ask(kvActor, get).mapTo[KvPair]
       _ = get1 shouldEqual KvPair(ScopedKey(callAKey, "k"), Option("v"))
+      _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
     } yield ()).futureValue
   }
 
@@ -93,6 +96,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
       _ = put0 shouldEqual KvPutSuccess(put)
       get0 <- ask(kvActor, get).mapTo[KvPair]
       _ = get0 shouldEqual KvPair(ScopedKey(callAKey, "k"), None)
+      _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
     } yield ()).futureValue
   }
 
@@ -118,6 +122,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
       _ = get1 shouldEqual KvPair(ScopedKey(callAKey, "k"), Option("value_a"))
       get2 <- ask(kvActor, getB).mapTo[KvPair]
       _ = get2 shouldEqual KvPair(ScopedKey(callBKey, "k"), Option("value_b"))
+      _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
     } yield ()).futureValue
   }
 
@@ -147,6 +152,8 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
       _ = get1 shouldEqual KvPair(ScopedKey(callA0, "k"), Option("v"))
       get2 <- ask(kv1, getA1).mapTo[KvPair]
       _ = get2 shouldEqual KvPair(ScopedKey(callA1, "k"), Option("v"))
+      _ <- dataAccess.updateWorkflowState(descriptor0.id, WorkflowSucceeded)
+      _ <- dataAccess.updateWorkflowState(descriptor1.id, WorkflowSucceeded)
     } yield ()).futureValue
   }
 }

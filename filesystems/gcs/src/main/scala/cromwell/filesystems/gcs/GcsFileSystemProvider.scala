@@ -16,7 +16,10 @@ import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.StorageObject
 import com.google.cloud.hadoop.gcsio.{GoogleCloudStorageReadChannel, GoogleCloudStorageWriteChannel, ObjectWriteConditions}
 import com.google.cloud.hadoop.util.{ApiErrorExtractor, AsyncWriteChannelOptions, ClientRequestHelper}
+import com.typesafe.config.ConfigFactory
+import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
@@ -201,15 +204,36 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
   override def isHidden(path: Path): Boolean = throw new NotImplementedError()
 
   private def list(gcsDir: NioGcsPath) = {
-    val listRequest = client.objects().list(gcsDir.bucket)
+    val maxResults = ConfigFactory.load().getIntOr("google.list-max-results", 1000).toLong
+    val listRequest = client.objects().list(gcsDir.bucket).setMaxResults(maxResults)
     listRequest.setPrefix(gcsDir.objectName)
 
-    val paths = for {
-      listedFile <- withRetry(listRequest.execute()).getItems.asScala
-    } yield NioGcsPath(s"$getScheme${listedFile.getBucket}${GcsFileSystem.Separator}${listedFile.getName}")(gcsDir.getFileSystem.asInstanceOf[GcsFileSystem])
+    def objectToPath(storageObject: StorageObject): Path = {
+      NioGcsPath(s"$getScheme${storageObject.getBucket}${GcsFileSystem.Separator}${storageObject.getName}")(gcsDir.getFileSystem.asInstanceOf[GcsFileSystem])
+    }
+
+    // Contains a Seq corresponding to the current page of objects, plus a token for the next page of objects, if any.
+    case class ListPageResult(objects: Seq[StorageObject], nextPageToken: Option[String])
+
+    def requestListPage(pageToken: Option[String] = None): ListPageResult = {
+      val objects = withRetry(listRequest.setPageToken(pageToken.orNull).execute())
+      ListPageResult(objects.getItems.asScala, Option(objects.getNextPageToken))
+    }
+
+    @tailrec
+    def remainingObjects(pageToken: Option[String], acc: Seq[StorageObject]): Seq[StorageObject] = {
+      if (pageToken.isEmpty) acc
+      else {
+        val page = requestListPage(pageToken)
+        remainingObjects(page.nextPageToken, acc ++ page.objects)
+      }
+    }
+
+    val firstPage = requestListPage(pageToken = None)
+    val allObjects = remainingObjects(firstPage.nextPageToken, firstPage.objects)
 
     new DirectoryStream[Path] {
-      override def iterator(): util.Iterator[Path] = paths.toIterator.asJava
+      override def iterator(): util.Iterator[Path] = (allObjects map objectToPath).toIterator.asJava
       override def close(): Unit = {}
     }
   }

@@ -248,7 +248,7 @@ object SampleWdl {
   }
 
   trait ThreeStepTemplate extends SampleWdl {
-    override def wdlSource(runtime: String = "") = sourceString()
+    override def wdlSource(runtime: String = "") = sourceString().replaceAll("RUNTIME", runtime)
     private val outputSectionPlaceholder = "OUTPUTSECTIONPLACEHOLDER"
     def sourceString(outputsSection: String = "") = {
       val withPlaceholders =
@@ -260,6 +260,7 @@ object SampleWdl {
         |  output {
         |    File procs = stdout()
         |  }
+        |  RUNTIME
         |}
         |
         |task cgrep {
@@ -272,6 +273,7 @@ object SampleWdl {
         |  output {
         |    Int count = read_int(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |task wc {
@@ -282,6 +284,7 @@ object SampleWdl {
         |  output {
         |    Int count = read_int(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow three_step {
@@ -312,7 +315,7 @@ object SampleWdl {
         | cgrep.count
         | wc.count
         |}
-      """.stripMargin)
+      """.stripMargin).replaceAll("RUNTIME", runtime)
   }
 
   object ThreeStepWithInputsInTheOutputsSection extends ThreeStepTemplate {
@@ -321,7 +324,7 @@ object SampleWdl {
         |output {
         | cgrep.pattern
         |}
-      """.stripMargin)
+      """.stripMargin).replaceAll("RUNTIME", runtime)
   }
 
   object ThreeStepLargeJson extends ThreeStepTemplate {

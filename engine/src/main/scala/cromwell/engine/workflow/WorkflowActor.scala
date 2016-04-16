@@ -5,15 +5,15 @@ import java.sql.SQLException
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.backend.JobKey
 import cromwell.core.{CallOutput, CallOutputs}
+import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.{Execution, ExecutionInfo}
+import cromwell.engine.db.EngineConverters.EnhancedExecution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor._

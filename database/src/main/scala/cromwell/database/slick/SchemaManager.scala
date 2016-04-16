@@ -1,13 +1,13 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
 import java.sql.Connection
 
 import com.typesafe.config.Config
-import cromwell.engine.db.LiquibaseUtils
+import cromwell.database.liquibase.LiquibaseUtils
+import lenthall.config.ScalaConfig._
 import liquibase.diff.DiffResult
 import slick.dbio.DBIO
 import slick.driver.JdbcProfile
-import lenthall.config.ScalaConfig._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}

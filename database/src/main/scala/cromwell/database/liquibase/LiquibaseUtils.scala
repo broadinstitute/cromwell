@@ -1,4 +1,4 @@
-package cromwell.engine.db
+package cromwell.database.liquibase
 
 import java.sql.Connection
 

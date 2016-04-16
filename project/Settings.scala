@@ -1,8 +1,4 @@
-import Dependencies.engineDependencies
-import Dependencies.coreDependencies
-import Dependencies.backendDependencies
-import Dependencies.gcsFileSystemDependencies
-import Dependencies.localBackendDependencies
+import Dependencies._
 import Merging.customMergeStrategy
 import Testing._
 import sbt.Keys._
@@ -59,6 +55,13 @@ object Settings {
     name := "cromwell-gcsfilesystem",
     version := "0.1",
     libraryDependencies ++= gcsFileSystemDependencies,
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
+  val databaseSettings = List(
+    name := "cromwell-database",
+    version := "0.1",
+    libraryDependencies ++= databaseDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

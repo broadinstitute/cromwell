@@ -2,12 +2,12 @@ package cromwell.engine.workflow
 
 import akka.actor.ActorSystem
 import cromwell.core.WorkflowId
+import cromwell.database.obj.{WorkflowExecution, WorkflowExecutionAux}
 import cromwell.engine
 import cromwell.engine._
 import cromwell.engine.backend.CallMetadata
 import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
-import cromwell.engine.db.slick._
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, ExecutionInfosByExecution}
+import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice._
@@ -107,9 +107,8 @@ object WorkflowMetadataBuilder {
       workflowState <- globalDataAccess.getWorkflowState(id)
       // TODO: This assertion could be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
       _ <- assertWorkflowExistence(id, workflowState)
-      workflowExecution <- globalDataAccess.getWorkflowExecution(id)
+      workflowExecutionAndAux <- globalDataAccess.getWorkflowExecutionAndAux(id)
       workflowOutputs <- globalDataAccess.getWorkflowOutputs(id)
-      workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(id)
       callToStatusMap <- globalDataAccess.getExecutionStatuses(id)
       callInputs <- globalDataAccess.getAllInputs(id)
       callOutputs <- globalDataAccess.getAllOutputs(id)
@@ -118,8 +117,9 @@ object WorkflowMetadataBuilder {
       runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
       executionEvents <- globalDataAccess.getAllExecutionEvents(id)
       failures <- globalDataAccess.getFailureEvents(id)
-      wfMetadata <- buildWorkflowMetadata(id, workflowExecution, workflowOutputs, workflowExecutionAux,
-        callToStatusMap, callInputs, callOutputs, infosByExecution, runtimeAttributes, executionEvents, callCacheData, failures)
+      wfMetadata <- buildWorkflowMetadata(id, workflowExecutionAndAux.execution, workflowOutputs,
+        workflowExecutionAndAux.aux, callToStatusMap, callInputs, callOutputs, infosByExecution, runtimeAttributes,
+        executionEvents, callCacheData, failures)
     } yield wfMetadata
   }
 }

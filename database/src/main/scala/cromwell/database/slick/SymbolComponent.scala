@@ -1,23 +1,8 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
 import java.sql.Clob
 
-import cromwell.engine.ExecutionIndex
-import cromwell.engine.ExecutionIndex._
-
-case class Symbol
-(
-  workflowExecutionId: Int,
-  scope: String,
-  name: String,
-  index: Int, // https://bugs.mysql.com/bug.php?id=8173
-  io: String,
-  reportableResult: Boolean,
-  wdlType: String,
-  wdlValue: Option[Clob],
-  symbolHash: Option[String],
-  symbolId: Option[Int] = None
-  )
+import cromwell.database.obj.Symbol
 
 trait SymbolComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
@@ -57,19 +42,9 @@ trait SymbolComponent {
 
   protected val symbols = TableQuery[Symbols]
 
-  val symbolsAutoInc = symbols returning symbols.
-    map(_.symbolId) into ((a, id) => a.copy(symbolId = Some(id)))
+  val symbolIdsAutoInc = symbols returning symbols.map(_.symbolId)
 
-  // Convenience function
-  def symbolsByWorkflowExecutionUuidAndIoAndMaybeScope(workflowExecutionUuid: String,
-                                                       io: String, scopeOption: Option[String], indexOption: Option[Int]) = {
-    scopeOption match {
-      case Some(scope) => symbolsByWorkflowExecutionUuidAndIoAndScopeAndIndex(workflowExecutionUuid, io, scope, indexOption.fromIndex)
-      case None => symbolsByWorkflowExecutionUuidAndIoNoIndex(workflowExecutionUuid, io)
-    }
-  }
-
-  val allSymbols = Compiled(
+  val symbolsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       symbol <- symbols
       workflowExecution <- symbol.workflowExecution
@@ -84,34 +59,24 @@ trait SymbolComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)
 
-  val symbolsByWorkflowExecutionUuidAndIoNoIndex = Compiled(
-    (workflowExecutionUuid: Rep[String], io: Rep[String]) => for {
-      symbol <- symbols
-      if symbol.io === io && symbol.index === ExecutionIndex.IndexNone
-      workflowExecution <- symbol.workflowExecution
-      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-    } yield symbol)
-
   val symbolsByWorkflowExecutionUuidAndIoAndScopeAndIndex = Compiled(
     (workflowExecutionUuid: Rep[String], io: Rep[String], scope: Rep[String], index: Rep[Int]) => for {
       symbol <- symbols
-      if symbol.io === io && symbol.scope === scope && symbol.index === index
+      if symbol.io === io
+      if symbol.scope === scope
+      if symbol.index === index
       workflowExecution <- symbol.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield symbol)
 
-  def symbolsFilterByWorkflowAndScopeAndNameAndIndex(workflowExecutionId: Int, scope: String, name: String, index: Int) = {
-    val workflowFilteredQuery = for {
+  val symbolWdlTypeAndWdlValueByWorkflowAndScopeAndIndexAndName = Compiled(
+    (workflowExecutionId: Rep[Int], scope: Rep[String], index: Rep[Int], name: Rep[String]) => for {
       symbol <- symbols
       if symbol.workflowExecutionId === workflowExecutionId
-    } yield symbol
-
-    workflowFilteredQuery filter { s =>
-      s.scope === scope &&
-      s.name === name &&
-      s.index === index
-    }
-  }
+      if symbol.scope === scope
+      if symbol.index === index
+      if symbol.name === name
+    } yield (symbol.wdlType, symbol.wdlValue))
 
   val symbolsForWorkflowOutput = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {

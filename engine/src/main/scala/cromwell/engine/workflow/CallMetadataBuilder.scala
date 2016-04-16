@@ -1,13 +1,14 @@
 package cromwell.engine.workflow
 
+import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{CallLogs, CallMetadata}
-import cromwell.engine.db.slick._
-import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
-import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry, _}
+import cromwell.engine.db.EngineConverters.EnhancedExecution
+import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution, ExecutionWithCacheData}
 import org.joda.time.DateTime
 import wdl4s._
 

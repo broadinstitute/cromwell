@@ -46,7 +46,7 @@ object WorkflowManagerActor {
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
   final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
-  final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
+  final case class RestartWorkflows(workflows: List[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
   private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
@@ -386,7 +386,7 @@ class WorkflowManagerActor(config: Config)
       restartableWorkflowExecutionAndAuxes <- globalDataAccess.getWorkflowExecutionAndAuxByState(Seq(WorkflowSubmitted, WorkflowRunning))
       restartableWorkflows <- Future.sequence(restartableWorkflowExecutionAndAuxes map workflowDescriptorFromExecutionAndAux)
       _ = logRestarts(restartableWorkflows)
-      _ = self ! RestartWorkflows(restartableWorkflows.toSeq)
+      _ = self ! RestartWorkflows(restartableWorkflows.toList)
     } yield ()
 
     result recover {

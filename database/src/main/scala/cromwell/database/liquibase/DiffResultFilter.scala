@@ -1,4 +1,4 @@
-package cromwell.engine.db
+package cromwell.database.liquibase
 
 import liquibase.database.Database
 import liquibase.diff.{DiffResult, Difference, ObjectDifferences}

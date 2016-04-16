@@ -1,9 +1,6 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
-case class RuntimeAttribute(executionId: Int,
-                         name: String,
-                         value: String,
-                         runtimeAttributeId: Option[Int] = None)
+import cromwell.database.obj.RuntimeAttribute
 
 trait RuntimeAttributeComponent {
   this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
@@ -21,15 +18,9 @@ trait RuntimeAttributeComponent {
   }
 
   protected val runtimeAttributes = TableQuery[RuntimeAttributes]
-  val runtimeAttributesAutoInc = runtimeAttributes returning runtimeAttributes.map(_.runtimeAttributeId) into ((a, id) => a.copy(runtimeAttributeId = Option(id)))
+  val runtimeAttributeIdsAutoInc = runtimeAttributes returning runtimeAttributes.map(_.runtimeAttributeId)
 
-  val runtimeAttributesByExecutionId = Compiled(
-    (executionId: Rep[Int]) => for {
-      runtimeAttribute <- runtimeAttributes
-      if runtimeAttribute.executionId === executionId
-    } yield runtimeAttribute)
-
-  val runtimeAttributeValueByExecutionAndName = Compiled(
+  val runtimeAttributeValuesByExecutionIdAndName = Compiled(
     (executionId: Rep[Int], name: Rep[String]) => for {
       runtimeAttribute <- runtimeAttributes
       if runtimeAttribute.name === name
@@ -44,5 +35,5 @@ trait RuntimeAttributeComponent {
       if execution.workflowExecutionId === workflow.workflowExecutionId
       runtimeAttribute <- runtimeAttributes
       if runtimeAttribute.executionId === execution.executionId
-    } yield (execution, runtimeAttribute))
+    } yield (execution.callFqn, execution.index, execution.attempt, runtimeAttribute.name, runtimeAttribute.value))
 }

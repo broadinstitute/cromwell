@@ -1,8 +1,8 @@
 package cromwell.engine.db
 
+import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import wdl4s.values.WdlFile
 
 case class ExecutionInfosByExecution(execution: Execution, executionInfos: Seq[ExecutionInfo]) {

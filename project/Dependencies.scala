@@ -8,6 +8,7 @@ object Dependencies {
   lazy val akkaV = "2.3.12"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
+  lazy val betterFilesV = "2.13.0"
 
   val wdl4sDependency = "org.broadinstitute" %% "wdl4s" % wdl4sV
 
@@ -40,7 +41,8 @@ object Dependencies {
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3"
   ) ++ testDependencies ++ googleDependencies
 
-  val dbDependencies = List(
+  val databaseDependencies = List(
+    "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.typesafe.slick" %% "slick" % slickV,
     "com.typesafe.slick" %% "slick-hikaricp" % slickV,
     "org.hsqldb" % "hsqldb" % "2.3.2",
@@ -48,8 +50,9 @@ object Dependencies {
     "org.liquibase" % "liquibase-core" % "3.4.2",
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
-    "com.mattbertolini" % "liquibase-slf4j" % "2.0.0"
-  )
+    "com.mattbertolini" % "liquibase-slf4j" % "2.0.0",
+    "com.github.pathikrit" %% "better-files" % betterFilesV % Test
+  ) ++ testDependencies
 
   val coreDependencies = List(
     wdl4sDependency,
@@ -78,6 +81,6 @@ object Dependencies {
     "ch.qos.logback" % "logback-access" % "1.1.3",
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
-    "com.github.pathikrit" %% "better-files" % "2.13.0"
-  ) ++ coreDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies ++ backendDependencies ++ gcsFileSystemDependencies
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  ) ++ coreDependencies ++ sprayDependencies ++ googleDependencies ++ databaseDependencies ++ backendDependencies ++ gcsFileSystemDependencies
 }

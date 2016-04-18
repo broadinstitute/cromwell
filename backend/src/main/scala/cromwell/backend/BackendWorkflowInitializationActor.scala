@@ -30,7 +30,7 @@ object BackendWorkflowInitializationActor {
   */
 trait BackendWorkflowInitializationActor extends BackendLifecycleActor with ActorLogging {
 
-  def receive: Receive = LoggingReceive {
+  final def receive: Receive = LoggingReceive {
     case Initialize    => performActionThenRespond(initSequence, onFailure = InitializationFailed)
     case AbortWorkflow => performActionThenRespond(abortInitialization, onFailure = BackendWorkflowAbortFailedResponse)
   }

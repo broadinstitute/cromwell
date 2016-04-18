@@ -3,10 +3,11 @@ package cromwell.webservice
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.{ShadowWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{core, engine}
@@ -17,8 +18,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CromwellApiHandler {
-  def props(requestHandlerActor: ActorRef): Props = {
-    Props(new CromwellApiHandler(requestHandlerActor))
+  def props(requestHandlerActor: ActorRef, shadowMode: Boolean): Props = {
+    Props(new CromwellApiHandler(requestHandlerActor, shadowMode))
   }
 
   sealed trait ApiHandlerMessage
@@ -64,12 +65,13 @@ object CromwellApiHandler {
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
 }
 
-class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
+class CromwellApiHandler(requestHandlerActor: ActorRef, shadowMode: Boolean) extends Actor {
   import CromwellApiHandler._
   import WorkflowJsonSupport._
 
   implicit val timeout = Timeout(2 seconds)
   val log = Logging(context.system, classOf[CromwellApiHandler])
+  val conf = ConfigFactory.load()
 
   def workflowNotFound(id: WorkflowId) = RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Workflow '$id' not found.")))
   def callNotFound(callFqn: String, id: WorkflowId) = {
@@ -105,7 +107,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowManagerActor.SubmitWorkflow(source)
+    case ApiHandlerWorkflowSubmit(source) =>
+      if (shadowMode) requestHandlerActor ! ShadowWorkflowManagerActor.SubmitWorkflowCommand(source)
+      else requestHandlerActor ! WorkflowManagerActor.SubmitWorkflow(source)
     case WorkflowManagerSubmitSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
     case WorkflowManagerSubmitFailure(e) =>

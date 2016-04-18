@@ -228,6 +228,7 @@ object CromwellApiServiceSpec {
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   import spray.httpx.SprayJsonSupport._
 
+  override val shadowMode = false
   override def actorRefFactory = system
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
     override implicit  val actorSystem = context.system

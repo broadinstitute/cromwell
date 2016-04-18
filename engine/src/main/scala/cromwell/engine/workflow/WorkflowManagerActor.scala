@@ -10,7 +10,7 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
-import cromwell.engine.workflow.ShadowWorkflowActor.{StartWorkflowCommand, StartNewWorkflow, RestartExistingWorkflow}
+import cromwell.engine.workflow.ShadowWorkflowActor._
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.util.PromiseActor
@@ -52,7 +52,9 @@ object WorkflowManagerActor {
   private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
-  def props(): Props = Props(new WorkflowManagerActor())
+  def props(shadowMode: Boolean): Props =
+    if (shadowMode) Props(new ShadowWorkflowManagerActor())
+    else Props(new WorkflowManagerActor())
 
   // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
   // as much work as can reasonably be handled.
@@ -343,43 +345,24 @@ class WorkflowManagerActor(config: Config)
 
     import PromiseActor.EnhancedActorRef
 
-    val shadowExecutionEnabled = config.getBoolean("system.shadowExecutionEnabled")
-
-    def startShadowStyle = {
-      val startMode = if (isRestart) RestartExistingWorkflow else StartNewWorkflow
-      val wfActor = context.actorOf(ShadowWorkflowActor.props(workflowId, startMode, source), name = s"WorkflowActor-$workflowId")
-
-      wfActor ! SubscribeTransitionCallBack(self)
-      wfActor ! StartWorkflowCommand
-      logger.debug(s"Successfuly started ${wfActor.path} for Workflow ${workflowId}")
-      workflowId -> wfActor
-    }
-
-    def startOldeSchooleStylee = {
-      val message  = MaterializeWorkflowDescriptorActor.MaterializeWorkflow(workflowId, source, config)
-      val materializeWorkflowDescriptorActor = context.actorOf(MaterializeWorkflowDescriptorActor.props(), name = s"MaterializeWorkflowDescriptorActor-$workflowId")
-      materializeWorkflowDescriptorActor.askNoTimeout(message) map {
-        case MaterializeWorkflowDescriptorSuccess(descriptor) =>
-          val wfActor = context.actorOf(WorkflowActor.props(descriptor), name = s"WorkflowActor-$workflowId")
-          wfActor ! SubscribeTransitionCallBack(self)
-          wfActor ! (if (isRestart) Restart else Start(replyTo))
-          logger.debug(s"Successfuly started ${wfActor.path} for Workflow $workflowId")
-          context.stop(materializeWorkflowDescriptorActor)
-          workflowId -> wfActor
-        case MaterializeWorkflowDescriptorFailure(error) =>
-          val messageOrBlank = Option(error.getMessage).mkString
-          logger.error(error, s"$tag: Workflow failed submission: " + messageOrBlank)
-          replyTo foreach { _ ! WorkflowManagerSubmitFailure(error)}
-          // This error will be ignored currently as the only entity that needs to be notified about it
-          // has already been sent a failure message above
-          context.stop(materializeWorkflowDescriptorActor)
-          throw error
-      }
-    }
-
-    shadowExecutionEnabled match {
-      case true => Future.successful(startShadowStyle)
-      case false => startOldeSchooleStylee
+    val message  = MaterializeWorkflowDescriptorActor.MaterializeWorkflow(workflowId, source, config)
+    val materializeWorkflowDescriptorActor = context.actorOf(MaterializeWorkflowDescriptorActor.props(), name = s"MaterializeWorkflowDescriptorActor-$workflowId")
+    materializeWorkflowDescriptorActor.askNoTimeout(message) map {
+      case MaterializeWorkflowDescriptorSuccess(descriptor) =>
+        val wfActor = context.actorOf(WorkflowActor.props(descriptor), name = s"WorkflowActor-$workflowId")
+        wfActor ! SubscribeTransitionCallBack(self)
+        wfActor ! (if (isRestart) Restart else Start(replyTo))
+        logger.debug(s"Successfuly started ${wfActor.path} for Workflow $workflowId")
+        context.stop(materializeWorkflowDescriptorActor)
+        workflowId -> wfActor
+      case MaterializeWorkflowDescriptorFailure(error) =>
+        val messageOrBlank = Option(error.getMessage).mkString
+        logger.error(error, s"$tag: Workflow failed submission: " + messageOrBlank)
+        replyTo foreach { _ ! WorkflowManagerSubmitFailure(error)}
+        // This error will be ignored currently as the only entity that needs to be notified about it
+        // has already been sent a failure message above
+        context.stop(materializeWorkflowDescriptorActor)
+        throw error
     }
   }
 

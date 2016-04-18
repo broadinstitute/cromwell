@@ -2,17 +2,17 @@ package cromwell.engine.workflow
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
+import com.typesafe.config.Config
 import cromwell.core.WorkflowId
-import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.backend.WorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{WorkflowExecutionFailedResponse, RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand}
+import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
+
+import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorFailureResponse, ShadowMaterializeWorkflowDescriptorSuccessResponse, ShadowMaterializeWorkflowDescriptorCommand}
+import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{WorkflowExecutionSucceededResponse, WorkflowExecutionFailedResponse, RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{WorkflowFinalizationSucceededResponse, WorkflowFinalizationFailedResponse, StartEngineFinalizationCommand}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse, StartInitializationCommand}
-import cromwell.engine.workflow.lifecycle.{WorkflowFinalizationActor, WorkflowExecutionActor, WorkflowInitializationActor}
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
+import cromwell.engine.workflow.lifecycle.{ShadowMaterializeWorkflowDescriptorActor, WorkflowFinalizationActor, WorkflowExecutionActor, WorkflowInitializationActor}
 import cromwell.engine.workflow.ShadowWorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
-import wdl4s.Call
 
 object ShadowWorkflowActor {
 
@@ -27,8 +27,8 @@ object ShadowWorkflowActor {
     * Responses from the ShadowWorkflowActor
     */
   sealed trait ShadowWorkflowActorResponse
-  case class ShadowWorkflowSucceededResponse(outputs: WorkflowOutputs) extends ShadowWorkflowActorResponse
-  case class ShadowWorkflowFailedResponse(reasons: Seq[Throwable]) extends Exception with ShadowWorkflowActorResponse
+  case class ShadowWorkflowSucceededResponse(workflowId: WorkflowId, outputs: WorkflowOutputs) extends ShadowWorkflowActorResponse
+  case class ShadowWorkflowFailedResponse(workflowId: WorkflowId, inState: ShadowWorkflowActorState, reasons: Seq[Throwable]) extends Exception with ShadowWorkflowActorResponse
 
   /**
     * States for the ShadowWorkflowActor FSM
@@ -76,7 +76,9 @@ object ShadowWorkflowActor {
     */
   case object WorkflowFailedState extends ShadowWorkflowActorTerminalState
 
-  case class ShadowWorkflowActorData(backendAssignments: Map[Call, String])
+  sealed trait ShadowWorkflowActorData
+  case object EmptyShadowWorkflowActorData extends ShadowWorkflowActorData
+  case class ShadowWorkflowActorDataWithDescriptor(workflowDescriptor: EngineWorkflowDescriptor) extends ShadowWorkflowActorData
 
   /**
     * Mode in which the workflow should be started:
@@ -85,62 +87,65 @@ object ShadowWorkflowActor {
   case object StartNewWorkflow extends StartMode
   case object RestartExistingWorkflow extends StartMode
 
-  def props(workflowId: WorkflowId, startMode: StartMode, wdlSource: WorkflowSourceFiles): Props = Props(new ShadowWorkflowActor(workflowId, startMode, wdlSource))
+  def props(workflowId: WorkflowId, startMode: StartMode, wdlSource: WorkflowSourceFiles, conf: Config): Props = Props(new ShadowWorkflowActor(workflowId, startMode, wdlSource, conf))
 }
 
 /**
   * Class that orchestrates a single workflow... Shadow style.
   */
-class ShadowWorkflowActor(workflowId: WorkflowId, startMode: StartMode, wdlSource: WorkflowSourceFiles) extends LoggingFSM[ShadowWorkflowActorState, ShadowWorkflowActorData] with ActorLogging{
+class ShadowWorkflowActor(workflowId: WorkflowId,
+                          startMode: StartMode,
+                          workflowSources: WorkflowSourceFiles,
+                          conf: Config) extends LoggingFSM[ShadowWorkflowActorState, ShadowWorkflowActorData] with ActorLogging{
 
-  private val tag = s"$workflowId-${this.getClass.getSimpleName}"
+  val tag = self.path.name
 
-  startWith(WorkflowUnstartedState, ShadowWorkflowActorData(Map.empty))
+  startWith(WorkflowUnstartedState, EmptyShadowWorkflowActorData)
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      // TODO: Begin MaterializingWorkflowDescriptor (by outsourcing to MaterializeWorkflowDescriptorActor)
+      val actor = context.actorOf(ShadowMaterializeWorkflowDescriptorActor.props())
+      actor ! ShadowMaterializeWorkflowDescriptorCommand(workflowId, workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState)
     case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(MaterializingWorkflowDescriptorState) {
-    case Event(MaterializeWorkflowDescriptorSuccess(workflowDescriptor: WorkflowDescriptor), stateData) =>
-      val newBackendAssignments: Map[Call, String] = ??? // TODO: Assign a backend for every call
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(tag, newBackendAssignments), name = s"EngineWorkflowInitializationActor-$workflowId")
+    case Event(ShadowMaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), stateData) =>
+      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor), name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
-      goto(InitializingWorkflowState) using stateData.copy(backendAssignments = newBackendAssignments)
-    case Event(MaterializeWorkflowDescriptorFailure(reason: Throwable), _) =>
-      // TODO: Handle workflow failure
-      ???
+      goto(InitializingWorkflowState) using ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)
+    case Event(ShadowMaterializeWorkflowDescriptorFailureResponse(reason: Throwable), _) =>
+      context.parent ! ShadowWorkflowFailedResponse(workflowId, MaterializingWorkflowDescriptorState, Seq(reason))
+      goto(WorkflowFailedState)
     case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse, stateData) =>
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(tag, stateData.backendAssignments), name = s"EngineWorkflowExecutionActor-$workflowId")
+    case Event(WorkflowInitializationSucceededResponse, ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)) =>
+      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor), name = s"WorkflowExecutionActor-$workflowId")
       val commandToSend = startMode match {
         case StartNewWorkflow => StartExecutingWorkflowCommand
         case RestartExistingWorkflow => RestartExecutingWorkflowCommand
       }
       executionActor ! commandToSend
       goto(ExecutingWorkflowState)
-    case Event(WorkflowInitializationFailedResponse(reasons), _) =>
-      // TODO: Handle workflow failure
-      ???
+    case Event(WorkflowInitializationFailedResponse(reason), _) =>
+      context.parent ! ShadowWorkflowFailedResponse(workflowId, InitializingWorkflowState, reason)
+      goto(WorkflowFailedState)
     case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(ExecutingWorkflowState) {
-    case Event(WorkflowExecutionFailedResponse, stateData) =>
-      val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(tag, stateData.backendAssignments), name = s"EngineWorkflowFinalizationActor-$workflowId")
+    case Event(WorkflowExecutionSucceededResponse, ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)) =>
+      val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor), name = s"WorkflowFinalizationActor-$workflowId")
       finalizationActor ! StartEngineFinalizationCommand
       goto(FinalizingWorkflowState)
     case Event(WorkflowExecutionFailedResponse(reasons), _) =>
-      // TODO: Handle workflow failure
-      ???
+      context.parent ! ShadowWorkflowFailedResponse(workflowId, ExecutingWorkflowState, reasons)
+      goto(WorkflowFailedState)
     case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
@@ -149,19 +154,27 @@ class ShadowWorkflowActor(workflowId: WorkflowId, startMode: StartMode, wdlSourc
       context.parent ! ShadowWorkflowSucceededResponse
       goto(WorkflowSucceededState)
     case Event(WorkflowFinalizationFailedResponse(reasons), _) =>
-      context.parent ! ShadowWorkflowFailedResponse(reasons)
+      context.parent ! ShadowWorkflowFailedResponse(workflowId, FinalizingWorkflowState, reasons)
       goto(WorkflowFailedState)
     case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
+  // Let these messages fall through to the whenUnhandled handler:
+  when(WorkflowAbortedState) { FSM.NullFunction }
+  when(WorkflowFailedState) { FSM.NullFunction }
+  when(WorkflowSucceededState) { FSM.NullFunction }
+
   onTransition {
-    case _ -> newState if newState.terminal =>
+    case oldState -> terminalState if terminalState.terminal =>
+      log.info(s"$tag transition from $oldState to $terminalState: shutting down")
       context.stop(self)
+    case fromState -> toState =>
+      log.info(s"$tag transitioning from $fromState to $toState")
   }
 
   whenUnhandled {
     case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message: $unhandledMessage")
+      log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
       stay
   }
 }

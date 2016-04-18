@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.actor.ActorSystem
+import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.WorkflowDescriptor
@@ -98,5 +99,13 @@ package object engine {
     } andThen {
       case _ => actorSystem.stop(materializeWorkflowDescriptorActor)
     }
+  }
+
+  final case class EngineWorkflowDescriptor(backendDescriptor: BackendWorkflowDescriptor,
+                                            declarations: WorkflowCoercedInputs,
+                                            backendAssignments: Map[Call, String],
+                                            failureMode: WorkflowFailureMode) {
+    def id = backendDescriptor.id
+    def namespace = backendDescriptor.workflowNamespace
   }
 }

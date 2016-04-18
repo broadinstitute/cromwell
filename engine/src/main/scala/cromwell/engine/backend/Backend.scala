@@ -5,13 +5,13 @@ import java.nio.file.{FileSystem, Path}
 import akka.actor.ActorSystem
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
-import cromwell.backend.JobKey
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
+import cromwell.engine.finalcall.FinalCall
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
@@ -55,7 +55,13 @@ object Backend {
 
   def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
     import io._
-    val call = s"$CallPrefix-${jobDescriptor.key.scope.unqualifiedName}"
+    import FinalCall._
+    val callSuffix = if (jobDescriptor.key.isFinalCall) {
+      escapedFinalCallName(jobDescriptor.key.scope.unqualifiedName)
+    } else {
+      jobDescriptor.key.scope.unqualifiedName
+    }
+    val call = s"$CallPrefix-$callSuffix"
     val shard = jobDescriptor.key.index map { s => s"$ShardPrefix-$s" } getOrElse ""
     val retry = if (jobDescriptor.key.attempt > 1) s"$AttemptPrefix-${jobDescriptor.key.attempt}" else ""
     val workflowRoot = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(baseRoot)
@@ -136,7 +142,7 @@ trait Backend {
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
-  def jobLogger(jobDescriptor: JobDescriptor[_ <: JobKey]) = WorkflowLogger(
+  def jobLogger(jobDescriptor: BackendCallJobDescriptor) = WorkflowLogger(
     backendClassString,
     jobDescriptor.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),

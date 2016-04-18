@@ -14,6 +14,7 @@ class BackendCallKeySpec extends FlatSpec with Matchers with Mockito {
     val bucket = "gs://bucket"
     val call = mock[Call]
     call.unqualifiedName returns "callName"
+    call.fullyQualifiedName returns "wfName.callName"
     val wd = mock[WorkflowDescriptor]
     wd.fileSystems returns defaultFileSystems
     wd.workflowRootPathWithBaseRoot(anyString) answers { root => s"$root/wfName/uuid".toPath(defaultFileSystems) }

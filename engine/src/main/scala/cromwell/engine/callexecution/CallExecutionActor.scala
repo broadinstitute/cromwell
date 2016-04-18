@@ -6,14 +6,12 @@ import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callexecution.CallExecutionActor.{ExecutionMode, Finish, IssuePollRequest, PollResponseReceived}
-import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.{CromwellActor, CromwellFatalException}
 import cromwell.logging.WorkflowLogger
-import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.Scope
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -30,9 +28,6 @@ object CallExecutionActor {
   final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor) extends ExecutionMode
 
   def props(backendCall: BackendCallJobDescriptor): Props = Props(new BackendCallExecutionActor(backendCall))
-  def props(finalCall: FinalCall, workflowMetadataResponse: WorkflowMetadataResponse): Props = {
-    Props(new FinalCallExecutionActor(finalCall, workflowMetadataResponse))
-  }
 }
 
 trait CallExecutionActor extends Actor with CromwellActor {

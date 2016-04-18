@@ -1,11 +1,10 @@
 package cromwell.engine.callactor
 
-import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
 import cromwell.engine.backend.BackendCallJobDescriptor
 import cromwell.engine.callexecution.CallExecutionActor
-import cromwell.engine.workflow.BackendCallKey
+import cromwell.engine.{AbortFunction, AbortRegistrationFunction}
 
-case class BackendCallActor(jobDescriptor: BackendCallJobDescriptor) extends CallActor[BackendCallJobDescriptor] {
+case class BackendCallActor(jobDescriptor: BackendCallJobDescriptor) extends CallActor {
 
   override lazy val callExecutionActor = {
     def registerAbortFunction(abortFunction: AbortFunction): Unit = {

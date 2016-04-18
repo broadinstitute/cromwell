@@ -14,8 +14,8 @@ import cromwell.engine.backend.io._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
-import cromwell.filesystems.gcs.{GoogleConfigurationAdapter, GoogleConfiguration, GcsFileSystemProvider}
-import cromwell.filesystems.gcs.StorageFactory
+import cromwell.engine.finalcall.FinalCallCopyHack
+import cromwell.filesystems.gcs.{GcsFileSystemProvider, GoogleConfiguration, GoogleConfigurationAdapter, StorageFactory}
 import cromwell.util.FileUtil._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
@@ -116,6 +116,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
     val logger = jobLogger(jobDescriptor)
+    FinalCallCopyHack.maybeCopyFiles(logger, jobDescriptor)
     jobDescriptor.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")

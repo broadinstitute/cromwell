@@ -19,11 +19,9 @@ import cromwell.engine.backend.jes.JesBackend._
 import cromwell.engine.backend.jes.Run.{RunStatus, TerminalRunStatus}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, globalDataAccess}
-import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.io.gcs._
-import cromwell.filesystems.gcs.{GoogleConfiguration, RefreshTokenMode, GoogleAuthMode}
-import cromwell.filesystems.gcs.RefreshTokenMode
+import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration, RefreshTokenMode}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.{CromwellAggregatedException, SimpleExponentialBackoff, TryUtil}
 import spray.json.JsObject
@@ -163,13 +161,6 @@ object JesBackend {
       )
     }
     val toGoogleRunParameter: String = gcs
-  }
-
-  implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
-    import cromwell.engine.ExecutionIndex._
-    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
-    def isScatter: Boolean = execution.callFqn.contains(Scatter.FQNIdentifier)
-    def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
 
   object InfoKeys {
@@ -793,7 +784,7 @@ case class JesBackend(actorSystem: ActorSystem)
    * resuming the CallActors for these calls.
    */
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
-    import cromwell.engine.backend.jes.JesBackend.EnhancedExecution
+    import cromwell.engine.EnhancedExecution
 
     lazy val tag = s"Workflow ${restartableWorkflow.id.shortString}:"
 

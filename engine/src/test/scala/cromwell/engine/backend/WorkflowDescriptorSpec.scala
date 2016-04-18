@@ -1,24 +1,18 @@
 package cromwell.engine.backend
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 
 import akka.actor.ActorSystem
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
-import cromwell.engine.{ExecutionStatus, WorkflowSucceeded, WorkflowSourceFiles}
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.io._
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializationResult, MaterializeWorkflowDescriptorSuccess}
 import cromwell.util.{PromiseActor, SampleWdl}
-import cromwell.webservice.WorkflowMetadataResponse
-import org.joda.time.DateTime
-import org.scalatest.prop.TableDrivenPropertyChecks._
-import org.scalatest.prop.Tables.Table
-import spray.json.JsObject
-import wdl4s.types.{WdlArrayType, WdlFileType}
-import wdl4s.values.{WdlArray, WdlFile}
+import wdl4s.values.WdlFile
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -117,170 +111,6 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
         case (config, writeToCache, readFromCache) => makeWorkflowDescriptor(config, writeToCache, readFromCache).readFromCache shouldBe false
       }
 
-    }
-
-    "copy workflow outputs to their final (local) destination" in {
-
-      val tmpDir = Files.createTempDirectory("wf-outputs").toAbsolutePath
-      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-        s"""{ "outputs_path": "$tmpDir" }""")
-
-      val workflowOutputs = Map(
-        "wfoutputs.A.out" -> "call-A/out",
-        "wfoutputs.A.out2" -> "call-A/out2",
-        "wfoutputs.B.outs" -> Seq("call-B/out", "call-B/out2"))
-
-      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = ConfigFactory.load)
-
-      val metadataOutputs = workflowOutputs mapValues {
-        case file: String => workflowFile(descriptor, file)
-        case files: Seq[_] => WdlArray(
-          WdlArrayType(WdlFileType), files map {
-            case file: String => workflowFile(descriptor, file)
-          }
-        )
-      }
-
-      val workflowMetadataResponse = WorkflowMetadataResponse(
-        descriptor.id.toString,
-        "wfoutputs",
-        WorkflowSucceeded.toString,
-        new DateTime(0),
-        Option(new DateTime(0)),
-        Option(new DateTime(0)),
-        JsObject(),
-        Option(metadataOutputs),
-        Map.empty,
-        None)
-
-      descriptor.copyWorkflowOutputs(workflowMetadataResponse).futureValue
-      descriptor.maybeDeleteWorkflowLog()
-
-      val expectedOutputs = Table(
-        ("call", "file"),
-        ("call-A", "out"),
-        ("call-A", "out2"),
-        ("call-B", "out"),
-        ("call-B", "out2")
-      )
-
-      forAll(expectedOutputs) { (call, file) =>
-        val path = tmpDir.resolve(Paths.get(descriptor.name, descriptor.id.toString, call, file))
-        path.toFile should exist
-      }
-    }
-
-    "copy call logs to their final (local) destination" in {
-
-      val tmpDir = Files.createTempDirectory("call-logs").toAbsolutePath
-      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-        s"""{ "call_logs_dir": "$tmpDir" }""")
-      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = ConfigFactory.load)
-
-    val calls = Seq("call-A", "call-B").map({
-      case call =>
-        val metadata = CallMetadata(
-          inputs=Map.empty,
-          executionStatus=ExecutionStatus.Done.toString,
-          backend=None,
-          backendStatus=None,
-          outputs=None,
-          start=None,
-          end=None,
-          jobId=None,
-          returnCode=None,
-          shardIndex=0,
-          stdout=Option(workflowFile(descriptor, s"$call/stdout")),
-          stderr=Option(workflowFile(descriptor, s"$call/stderr")),
-          backendLogs=if (call == "call-A") Option(Map("backendLog" -> workflowFile(descriptor, s"$call/backendout"))) else None,
-          executionEvents=Seq.empty,
-          attempt=1,
-          runtimeAttributes=Map.empty,
-          preemptible=None,
-          cache=None,
-          failures=None)
-        call -> Seq(metadata)
-    }).toMap
-
-      val workflowMetadataResponse = WorkflowMetadataResponse(
-        descriptor.id.toString,
-        "wfoutputs",
-        WorkflowSucceeded.toString,
-        new DateTime(0),
-        Option(new DateTime(0)),
-        Option(new DateTime(0)),
-        JsObject(),
-        None,
-        calls,
-        None)
-
-      descriptor.copyCallLogs(workflowMetadataResponse).futureValue
-      descriptor.maybeDeleteWorkflowLog()
-
-      val expectedOutputs = Table(
-        ("call", "file", "checkExists"),
-        ("call-A", "stdout", true),
-        ("call-A", "stderr", true),
-        ("call-A", "backendout", true),
-        ("call-B", "stdout", true),
-        ("call-B", "stderr", true),
-        ("call-B", "backendout", false))
-
-      forAll(expectedOutputs) { (call, file, checkExists) =>
-        val path = tmpDir.resolve(Paths.get(descriptor.name, descriptor.id.toString, call, file))
-        if (checkExists) {
-          path.toFile should exist
-        } else {
-          path.toFile shouldNot exist
-        }
-      }
-    }
-
-    "copy workflow log to its final (local) destination" in {
-
-      val tmpDir = Files.createTempDirectory("workflow-log").toAbsolutePath
-      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-        s"""{ "workflow_log_dir": "$tmpDir" }""")
-
-      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = ConfigFactory.load)
-      descriptor.copyWorkflowLog().futureValue
-      descriptor.maybeDeleteWorkflowLog()
-      val path = tmpDir.resolve(s"workflow.${descriptor.id}.log")
-      path.toFile should exist
-      descriptor.workflowLogPath shouldNot be(empty)
-      descriptor.workflowLogPath.get.toFile shouldNot exist
-    }
-
-    "leave a workflow log in the temporary directory" in {
-
-      val tmpDir = Files.createTempDirectory("workflow-log").toAbsolutePath
-      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}", "{}")
-
-      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources,
-        conf = ConfigFactory.parseString(
-          s"""
-             |workflow-options {
-             |  workflow-log-dir: "$tmpDir"
-             |  workflow-log-temporary: false
-             |}""".stripMargin))
-      descriptor.workflowLogPath shouldNot be(empty)
-      descriptor.workflowLogPath.get.toFile shouldNot exist
-      descriptor.workflowLogPath.foreach(_.createIfNotExists())
-      descriptor.copyWorkflowLog().futureValue
-      descriptor.maybeDeleteWorkflowLog()
-      descriptor.workflowLogPath.get.toFile should exist
-    }
-
-    "not create a workflow log for an empty directory path" in {
-
-      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}", "{}")
-
-      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources,
-        conf = ConfigFactory.parseString("""workflow-options.workflow-log-dir: """""))
-      descriptor.workflowLogPath should be(empty)
-      descriptor.copyWorkflowLog().futureValue
-      descriptor.maybeDeleteWorkflowLog()
-      descriptor.workflowLogPath should be(empty)
     }
 
     "build the workflow root path" in {

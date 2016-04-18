@@ -1,27 +1,19 @@
 package cromwell.engine.finalcall
 
-import cromwell.engine._
 import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.webservice.WorkflowMetadataResponse
-
-import scala.concurrent.ExecutionContext
-
-object CopyWorkflowOutputsCall extends FinalCallCompanion[CopyWorkflowOutputsCall] {
-  override val finalCallName = "copy_workflow_outputs"
-
-  override def createCall(workflow: WorkflowDescriptor) = CopyWorkflowOutputsCall(workflow)
-}
 
 /**
   * Final call implementation that copies workflow outputs to a specified destination.
   */
-case class CopyWorkflowOutputsCall(override val workflow: WorkflowDescriptor) extends FinalCall {
-  override val companion = CopyWorkflowOutputsCall
-  override val handle = CopyWorkflowOutputsHandle
+object CopyWorkflowOutputsCall extends CopyingFinalCall {
+  override val finalCallName = "copy_workflow_outputs"
 
-  override def execute(workflowMetadataResponse: WorkflowMetadataResponse)(implicit ec: ExecutionContext) = {
-    workflow.copyWorkflowOutputs(workflowMetadataResponse)
+  override def createFinalCallCopies(workflow: WorkflowDescriptor, metadata: WorkflowMetadataResponse) = {
+    val workflowOutputsDir = FinalCall.getWorkflowOption(workflow, WorkflowDescriptor.WorkflowOutputsOptionKey)
+    workflowOutputsDir.toSeq flatMap { dir =>
+      val outputs = metadata.outputs.toIndexedSeq.flatMap(_.values)
+      outputs flatMap CopyingFinalCall.copyToDir(workflow, dir)
+    }
   }
 }
-
-case object CopyWorkflowOutputsHandle extends FinalCallHandle

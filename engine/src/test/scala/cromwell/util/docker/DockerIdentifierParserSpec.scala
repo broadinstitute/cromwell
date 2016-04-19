@@ -1,28 +1,21 @@
 package cromwell.util.docker
 
-import com.google.api.client.auth.oauth2.Credential
 import cromwell.CromwellSpec.IntegrationTest
-import cromwell.core.WorkflowOptions
-import cromwell.engine.backend.{BackendConfiguration, EnhancedWorkflowOptions}
-import cromwell.filesystems.gcs.{GoogleConfiguration, GoogleCredentialFactorySpec}
+import cromwell.engine.backend.BackendConfiguration
+import cromwell.filesystems.gcs.GoogleCredentialFactorySpec
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.language.postfixOps
-import EnhancedWorkflowOptions._
 
 class DockerIdentifierParserSpec extends FlatSpec with Matchers {
   behavior of "DockerIdentifierParser"
 
   private def defaultParser: DockerIdentifierParser = {
     val backendEntry = BackendConfiguration.DefaultBackendEntry
-    val options = WorkflowOptions.fromMap(Map.empty).get
-    val credential: Option[Credential] = GoogleConfiguration.Instance.auth("default").toOption map { _.credential(options.toGoogleAuthOptions) }
-    DockerIdentifierParser(backendEntry.config, credential)
+    DockerIdentifierParser(backendEntry.config, Option(GoogleCredentialFactorySpec.applicationDefaultCredential))
   }
 
-  it should "parse docker tagged identifiers" in {
+  it should "parse docker tagged identifiers" taggedAs IntegrationTest in {
     val parser = defaultParser
 
     val identifiers = Table(
@@ -49,8 +42,6 @@ class DockerIdentifierParserSpec extends FlatSpec with Matchers {
   }
 
   it should "parse gcr.io tagged identifiers" taggedAs IntegrationTest in {
-    GoogleCredentialFactorySpec.assumeAccountConfigExists()
-
     val parser = defaultParser
 
     val identifiers = Table(

@@ -1,12 +1,10 @@
 package cromwell.util.docker
 
 import akka.actor.ActorSystem
-import com.google.api.client.auth.oauth2.Credential
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
-import cromwell.core.WorkflowOptions
-import cromwell.engine.backend.{BackendConfiguration, EnhancedWorkflowOptions}
-import cromwell.filesystems.gcs.{GoogleConfiguration, GoogleCredentialFactorySpec}
+import cromwell.engine.backend.BackendConfiguration
+import cromwell.filesystems.gcs.GoogleCredentialFactorySpec
 import cromwell.util.DockerConfiguration
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -16,7 +14,6 @@ import spray.http.HttpResponse
 import spray.httpx.UnsuccessfulResponseException
 
 import scala.language.postfixOps
-import EnhancedWorkflowOptions._
 
 class SprayDockerRegistryApiClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with ScalaFutures
 with IntegrationPatience {
@@ -24,13 +21,7 @@ with IntegrationPatience {
   private var actorSystem: ActorSystem = _
   private var client: SprayDockerRegistryApiClient = _
 
-  private def defaultCredential: Option[Credential] = {
-    val options = WorkflowOptions.fromMap(Map.empty).get
-    GoogleConfiguration.Instance.auth("default").toOption map { _.credential(options.toGoogleAuthOptions) }
-  }
-
   private val config = BackendConfiguration.DefaultBackendEntry.config
-  private val cromwellAuthCredential: Option[Credential] = defaultCredential
 
   override protected def beforeAll() = {
     actorSystem = ActorSystem("spray-docker-test-actor-system")
@@ -54,7 +45,7 @@ with IntegrationPatience {
       "library/ubuntu:latest")
 
     forAll(identifiers) { identifier =>
-      val dockerHash = client.getDockerHash(config, cromwellAuthCredential, identifier).futureValue
+      val dockerHash = client.getDockerHash(config, None, identifier).futureValue
       dockerHash.hashType should be("layerBlobs-sha256-md5")
       dockerHash.hashString should have length 32
     }
@@ -69,7 +60,7 @@ with IntegrationPatience {
       "library/ubuntu:latest")
 
     forAll(identifiers) { identifier =>
-      val parsed = DockerIdentifierParser(config, cromwellAuthCredential).parse(identifier)
+      val parsed = DockerIdentifierParser(config, None).parse(identifier)
       val tagId = parsed.asInstanceOf[DockerTagIdentifier]
       val dockerHash = client.getImageId(tagId).futureValue.dockerHash.get
       dockerHash.hashType should be("layerIds-sha256Part-md5")
@@ -86,7 +77,7 @@ with IntegrationPatience {
       "gcr.io/broad-dsde-dev/fauxbuntu@sha256:f91f9bab1fe6d0db0bfecc751d127a29d36e85483b1c68e69a246cf1df9b4251")
 
     forAll(identifiers) { identifier =>
-      val dockerHash = client.getDockerHash(config, cromwellAuthCredential, identifier).futureValue
+      val dockerHash = client.getDockerHash(config, None, identifier).futureValue
       dockerHash.hashType should be("digest-sha256")
       dockerHash.hashString should be("f91f9bab1fe6d0db0bfecc751d127a29d36e85483b1c68e69a246cf1df9b4251")
     }
@@ -147,7 +138,7 @@ with IntegrationPatience {
       "us.gcr.io/broad-dsde-dev/cromwell:dev")
 
     forAll(identifiers) { identifier =>
-      val exception = client.getDockerHash(config, cromwellAuthCredential, identifier).failed.futureValue
+      val exception = client.getDockerHash(config, None, identifier).failed.futureValue
       exception shouldBe an[UnsuccessfulResponseException]
       exception.getMessage should startWith("Status: 404 Not Found\nBody:")
     }
@@ -178,14 +169,12 @@ with IntegrationPatience {
   }
 
   it should "resolve gcr image tags when google authentication is setup" taggedAs IntegrationTest in {
-    GoogleCredentialFactorySpec.assumeAccountConfigExists()
-
     val identifiers = Table(
       "identifier",
       "gcr.io/broad-dsde-dev/ubuntu",
       "us.gcr.io/broad-dsde-dev/cromwell:dev")
 
-    val parser = DockerIdentifierParser(config, defaultCredential)
+    val parser = DockerIdentifierParser(config, Option(GoogleCredentialFactorySpec.applicationDefaultCredential))
 
     forAll(identifiers) { identifier =>
       val parsed = parser.parse(identifier)

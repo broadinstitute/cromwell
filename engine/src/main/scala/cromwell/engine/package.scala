@@ -57,19 +57,6 @@ package object engine {
     }
   }
 
-  implicit class EnhancedExecution(val execution: Execution) extends AnyVal {
-    import cromwell.engine.ExecutionIndex._
-
-    def isShard = execution.index.toIndex.isShard
-    def isScatter = execution.callFqn.contains(Scatter.FQNIdentifier)
-    def isCollector(keys: Traversable[Execution]): Boolean = {
-      !execution.isShard &&
-        (keys exists { e => (e.callFqn == execution.callFqn) && e.isShard })
-    }
-    def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
-    def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
-  }
-
   object WorkflowFailureMode {
     def tryParse(mode: String): Try[WorkflowFailureMode] = {
       val modes = Seq(ContinueWhilePossible, NoNewCalls)

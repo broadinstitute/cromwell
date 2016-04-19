@@ -4,10 +4,14 @@ import java.sql.Timestamp
 
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus
+import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.workflow.BackendCallKey
 import slick.profile.RelationalProfile.ColumnOption.Default
+import wdl4s.{NamespaceWithWorkflow, Scatter}
 
 import scala.language.postfixOps
+import scala.util.{Success, Failure, Try}
 
 case class CallCacheHit(workflowId: String, callName: String)
 case class ExecutionWithCacheData(execution: Execution, cacheHit: Option[CallCacheHit])
@@ -25,7 +29,20 @@ case class Execution(workflowExecutionId: Int,
                      resultsClonedFrom: Option[Int] = None,
                      overallHash: Option[String] = None,
                      attempt: Int = 1,
-                     executionId: Option[Int] = None)
+                     executionId: Option[Int] = None) {
+  def isShard = index.toIndex.isShard
+  def isScatter = callFqn.contains(Scatter.FQNIdentifier)
+  def isCollector(keys: Traversable[Execution]): Boolean = !isShard && (keys exists { e => (e.callFqn == callFqn) && e.isShard })
+  def toKey: ExecutionDatabaseKey = ExecutionDatabaseKey(callFqn, index.toIndex, attempt)
+  def executionStatus: ExecutionStatus = ExecutionStatus.withName(status)
+  def toBackendCallKey(ns: NamespaceWithWorkflow): Try[BackendCallKey] = {
+    val call = ns.workflow.calls.find(_.fullyQualifiedName == callFqn)
+    call.map(BackendCallKey(_, index.toIndex, attempt)) match {
+      case Some(key) => Success(key)
+      case None => Failure(new IllegalStateException(s"Could not find call with FQN '$callFqn'"))
+    }
+  }
+}
 
 trait ExecutionComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
@@ -144,25 +161,11 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
-  val executionsForRestartByWorkflowExecutionUuid = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
-      execution <- executions
-      workflowExecution <- execution.workflowExecution
-      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-      if !(execution.status === ExecutionStatus.NotStarted.toString || execution.status === ExecutionStatus.Done.toString)
-    } yield execution)
-
   val executionsWithReusableResultsByExecutionHash = Compiled(
     (executionHash: Rep[String]) => for {
       execution <- executions
       if execution.executionHash === executionHash && execution.allowsResultReuse
     } yield execution)
-
-  val executionStatusesAndReturnCodesByExecutionId = Compiled(
-    (executionId: Rep[Int]) => for {
-      execution <- executions
-      if execution.executionId === executionId
-    } yield (execution.status, execution.rc))
 
   /** Returns a tuple of (execution, cache hit workflow UUID, cache hit call FQN)
     *

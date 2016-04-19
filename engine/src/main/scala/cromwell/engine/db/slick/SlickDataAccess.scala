@@ -12,7 +12,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
+import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import slick.backend.DatabaseConfig
 import slick.driver.JdbcProfile
 import cromwell.engine.db._
@@ -247,18 +247,36 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit] = {
-    def toRuntimeAttrInsert(executionId: Int, name: String, value: String) = dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, name, value)
-
+  override def upsertRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])
+                                      (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
-      execution <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(id.toString, key.fqn, key.index.fromIndex, key.attempt).result.head
-      inserts = attributes map {
-        case (k, v) => toRuntimeAttrInsert(execution.executionId.get, k, v.valueString)
-      }
-      _ <- DBIO.sequence(inserts)
+      execution <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
+        id.toString, key.fqn, key.index.fromIndex, key.attempt
+      ).result.head
+      _ <- DBIO.sequence(attributes map upsertRuntimeAttribute(execution.executionId.get))
     } yield ()
 
     runTransaction(action)
+  }
+
+  private def upsertRuntimeAttribute(executionId: Int)(keyValue: (String, WdlValue))
+                                    (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (key, value) = keyValue
+
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.runtimeAttributesAutoInc.insertOrUpdate(RuntimeAttribute(executionId, key, value.valueString))
+      } yield ()
+    } else {
+      for {
+        updateCount <- dataAccess.runtimeAttributeValueByExecutionAndName(executionId, key).update(value.valueString)
+        _ <- updateCount match {
+          case 0 => dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, key, value.valueString)
+          case 1 => DBIO.successful(Unit)
+          case _ => DBIO.failed(new RuntimeException(s"Unexpected backend update count $updateCount"))
+        }
+      } yield ()
+    }
   }
 
   override def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]] = {
@@ -505,7 +523,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   protected def upsertExecutionInfo(executionId: Int)(keyValue: (String, Option[String]))
-                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
+                                   (implicit ec: ExecutionContext): DBIO[Unit] = {
     val (key, value) = keyValue
 
     if (useSlickUpserts) {
@@ -803,13 +821,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def getExecutionsForRestart(id: WorkflowId)
-                                      (implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
-    val action = dataAccess.executionsForRestartByWorkflowExecutionUuid(id.toString).result
-
-    runTransaction(action)
-  }
-
   override def getExecutionsWithResuableResultsByHash(hash: String)
                                                      (implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
     val action = dataAccess.executionsWithReusableResultsByExecutionHash(hash).result
@@ -853,32 +864,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     } yield ()
 
     runTransaction(action)
-  }
-
-  override def resetTransientExecutions(workflowId: WorkflowId, isResetable: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result
-      executionsAndInfos = tuples groupBy { _._1 } mapValues { _ map { _._2 } }
-
-      transientDatabaseKeys = (executionsAndInfos filter Function.tupled(isResetable)).keys map { _.toKey }
-      _ <- updateStatusAction(workflowId, transientDatabaseKeys, ExecutionStatus.NotStarted)
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def findResumableExecutions(workflowId: WorkflowId,
-                                       isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
-                                       jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => BackendJobKey)
-                                      (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = {
-    val action = for {
-      tuples <- dataAccess.executionsAndExecutionInfosByWorkflowId(workflowId.toString).result
-      executionsAndInfos = tuples groupBy { _._1 } mapValues { _ map { _._2 } }
-
-      resumablePairs = executionsAndInfos collect { case (e, ei) if isResumable(e, ei) => e.toKey -> jobKeyBuilder(e, ei) }
-    } yield resumablePairs
-
-    runTransaction(action) map { _ map { case (e, j) => ExecutionKeyToJobKey(e, j) } toTraversable }
   }
 
   override def queryWorkflows(queryParameters: WorkflowQueryParameters)
@@ -929,6 +914,13 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
       ExecutionInfosByExecution.fromRawTuples
 
     runTransaction(action)
+  }
+
+  override def runningExecutionsAndExecutionInfos(id: WorkflowId)
+                                                 (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
+    runTransaction(
+      dataAccess.runningExecutionsAndExecutionInfosByWorkflowId(id.toString).result map ExecutionInfosByExecution.fromRawTuples
+    )
   }
 
   override def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]] = {

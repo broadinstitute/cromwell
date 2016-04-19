@@ -9,9 +9,6 @@ import wdl4s._
 import scala.language.postfixOps
 
 sealed trait ExecutionStoreKey extends JobKey {
-  def scope: Scope
-  def index: Option[Int]
-  def attempt: Int
   def tag: String = {
     val shard = index.map(x => s":$x").getOrElse("")
     val attemptTag = if (attempt == 1) "" else s":$attempt"
@@ -21,7 +18,7 @@ sealed trait ExecutionStoreKey extends JobKey {
 }
 
 sealed trait OutputKey extends ExecutionStoreKey
-sealed trait CallKey extends OutputKey with JobKey
+sealed trait CallKey extends OutputKey
 
 case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int) extends CallKey {
   def retryClone = this.copy(attempt = this.attempt + 1)

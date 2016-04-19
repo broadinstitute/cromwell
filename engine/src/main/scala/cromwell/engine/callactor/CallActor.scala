@@ -32,8 +32,8 @@ object CallActor {
   final case class StartBackendCall(maybeCallLogs: Option[CallLogs]) extends StartMode {
     override val executionMessage = CallExecutionActor.Execute
   }
-  final case class Resume(jobKey: BackendJobKey) extends StartMode {
-    override val executionMessage = CallExecutionActor.Resume(jobKey)
+  final case class Resume(executionInfos: Map[String, Option[String]]) extends StartMode {
+    override val executionMessage = CallExecutionActor.Resume(executionInfos)
     override val maybeCallLogs = None
   }
   final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor,

@@ -5,6 +5,7 @@ import java.nio.file.{FileSystem, Files, Path}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
+import cromwell.backend.JobKey
 import cromwell.core.WorkflowOptions
 import cromwell.engine._
 import cromwell.engine.backend._
@@ -108,11 +109,6 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
                                (implicit ec: ExecutionContext): Future[Unit] = {
     globalDataAccess.updateExecutionInfo(jobDescriptor.workflowDescriptor.id, BackendCallKey(jobDescriptor.call, jobDescriptor.key.index, jobDescriptor.key.attempt), InfoKeys.JobNumber, Option(sgeJobId.toString))
   }
-
-  /** TODO restart isn't currently implemented for SGE, there is probably work that needs to be done here much like
-    * JES restart, which perhaps could be factored out into a common "remote executor" trait.
-    */
-  override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful(())
 
   /**
    * Returns the RC of this job when it finishes.  Sleeps and polls
@@ -247,7 +243,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 
-  override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def resume(descriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     Future.failed(new Throwable("resume invoked on non-resumable SGE backend"))
   }
+  override def isResumable(key: JobKey, executionInfo: Map[String, Option[String]]) = false
+  override def isRestartable(key: JobKey, executionInfo: Map[String, Option[String]]) = true
 }

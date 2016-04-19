@@ -7,7 +7,7 @@ import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, _}
-import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
+import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
@@ -23,7 +23,6 @@ object DataAccess {
   lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
 
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
-  case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: BackendJobKey)
   case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
 
   // TODO: Nothing DataAccess specific in this retry method. Refactor to lenthall or similar and add a tests.
@@ -35,10 +34,9 @@ object DataAccess {
     f recoverWith {
       case throwable if shouldRetry(throwable) && retries > 0 =>
         log.warn(
-          s"Transient exception detected: ${throwable.getMessage}.  Retrying in $delay ($retries retries remaining)",
-          throwable
+          s"Transient exception detected: ${throwable.getMessage}.  Retrying in $delay ($retries retries remaining)"
         )
-        after(delay, actorSystem.scheduler)(f)
+        after(delay, actorSystem.scheduler)(withRetry(f, delay, retries-1)(shouldRetry))
     }
   }
 }
@@ -75,19 +73,19 @@ trait DataAccess extends AutoCloseable {
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
                          (implicit ec: ExecutionContext): Future[Unit]
 
+  /**
+    * TODO: the interface for retrying SQL commands that might fail because
+    * of transient reasons (e.g. upsertExecutionInfo and upsertRuntimeAttributes)
+    * could be made better.  Also it'd be nice if it were transparently
+    * turned on/off for all methods in dataAccess.
+    *
+    * https://github.com/broadinstitute/cromwell/issues/693
+    */
   protected def upsertExecutionInfo(workflowId: WorkflowId,
                                     callKey: JobKey,
                                     keyValues: Map[String, Option[String]])
                                     (implicit ec: ExecutionContext): Future[Unit]
 
-  /*
-  TODO: Would love a fancier adapter instead of this overload importing the implicits already available in the caller!
-  Maybe everywhere we'll have our own DBIO-ish object.
-  - dataAccess.upsertWhatever(params).withoutRetry(implicit executionContext)
-  - dataAccess.upsertWhatever(params).withRetry(implicit actorSystem) <-- assumes retrying 10 times
-
-  Or maybe a larger refactoring will use our own actors. TBD
-   */
   def upsertExecutionInfo(workflowId: WorkflowId,
                           callKey: JobKey,
                           keyValues: Map[String, Option[String]],
@@ -95,6 +93,18 @@ trait DataAccess extends AutoCloseable {
     implicit val system = actorSystem
     implicit val ec = actorSystem.dispatcher
     withRetry(upsertExecutionInfo(workflowId, callKey, keyValues))
+  }
+
+  protected def upsertRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])
+                                       (implicit ec: ExecutionContext): Future[Unit]
+
+  def upsertRuntimeAttributes(workflowId: WorkflowId,
+                              key: ExecutionDatabaseKey,
+                              attributes: Map[String, WdlValue],
+                              actorSystem: ActorSystem): Future[Unit] = {
+    implicit val system = actorSystem
+    implicit val ec = actorSystem.dispatcher
+    withRetry(upsertRuntimeAttributes(workflowId, key, attributes))
   }
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
@@ -115,8 +125,6 @@ trait DataAccess extends AutoCloseable {
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
                 (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-
-  def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
 
   def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]]
 
@@ -173,8 +181,6 @@ trait DataAccess extends AutoCloseable {
 
   def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]]
 
-  def getExecutionsForRestart(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]]
-
   def getExecutionsWithResuableResultsByHash(hash: String)
                                             (implicit ec: ExecutionContext): Future[Traversable[Execution]]
 
@@ -185,13 +191,6 @@ trait DataAccess extends AutoCloseable {
 
   def updateWorkflowOptions(workflowId: WorkflowId, workflowOptionsJson: String)(implicit ec: ExecutionContext): Future[Unit]
 
-  def resetTransientExecutions(workflowId: WorkflowId, isTransient: (Execution, Seq[ExecutionInfo]) => Boolean)(implicit ec: ExecutionContext): Future[Unit]
-
-  def findResumableExecutions(workflowId: WorkflowId,
-                              isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
-                              jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => BackendJobKey)
-                             (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]]
-
   def queryWorkflows(queryParameters: WorkflowQueryParameters)
                     (implicit ec: ExecutionContext): Future[WorkflowQueryResponse]
 
@@ -201,6 +200,8 @@ trait DataAccess extends AutoCloseable {
 
   def infosByExecution(id: WorkflowId, fqn: FullyQualifiedName)
                       (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
+
+  def runningExecutionsAndExecutionInfos(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
 
   def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]]
 }

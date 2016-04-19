@@ -5,6 +5,7 @@ import java.sql.SQLException
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
+import cromwell.backend.JobKey
 import cromwell.core.{CallOutput, CallOutputs}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
@@ -12,7 +13,7 @@ import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.Execution
+import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor._
@@ -21,9 +22,9 @@ import cromwell.engine.{HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
 import org.joda.time.DateTime
-import wdl4s.{Scope, _}
 import wdl4s.types.WdlArrayType
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
+import wdl4s.{Scope, _}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -125,31 +126,83 @@ object WorkflowActor {
 
   case object Restart extends WorkflowActorMessage with StartMode {
 
+    private def executionInfosToMap(infos: Seq[ExecutionInfo]): Map[String, Option[String]] = {
+      infos.map(i => i.key -> i.value).toMap
+    }
+
+    private def restartOrResume(actor: WorkflowActor, runningExecutions: Map[Execution, Seq[ExecutionInfo]]): Future[Unit] = {
+      val executionsByCallFqn = runningExecutions.keys.groupBy(_.callFqn)
+
+      def isRunningCollector(execution: Execution): Boolean = {
+        executionsByCallFqn.get(execution.callFqn) match {
+          case Some(xs) if xs.size > 1 && execution.index.toIndex.isEmpty && execution.executionStatus == ExecutionStatus.Running => true
+          case _ => false
+        }
+      }
+
+      val restartOrResumeAttempts = runningExecutions map { case (execution, executionInfos) =>
+        val infos = executionInfosToMap(executionInfos)
+        execution.toBackendCallKey(actor.workflow.namespace) match {
+          case Success(backendCallKey) =>
+            if (actor.backend.isResumable(backendCallKey, infos)) {
+              Future.successful(())
+            } else if (isRunningCollector(execution) || actor.backend.isRestartable(backendCallKey, infos)) {
+              globalDataAccess.updateStatus(actor.workflow.id, Seq(execution.toKey), ExecutionStatus.NotStarted)
+            } else {
+              Future.failed(new Exception(s"Execution ${execution.executionId} is neither restartable or resumable"))
+            }
+          case Failure(ex) => Future.failed(ex)
+        }
+      }
+
+      Future.sequence(restartOrResumeAttempts).map(_ => ())
+    }
+
+    private def filterResumableExecutions(actor: WorkflowActor, runningExecutions: Map[Execution, Seq[ExecutionInfo]]): Future[Map[Execution, Seq[ExecutionInfo]]] = {
+      val x = runningExecutions map { case (execution, executionInfos) =>
+        val infos = executionInfosToMap(executionInfos)
+        execution.toBackendCallKey(actor.workflow.namespace) match {
+          case Success(backendCallKey) if actor.backend.isResumable(backendCallKey, infos) =>
+            Future.successful(Option(execution -> executionInfos))
+          case Success(_) => Future.successful(None)
+          case Failure(ex) => Future.failed(ex)
+        }
+      }
+      Future.sequence(x).map(_.flatten).map(_.toMap)
+    }
+
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
+      def isWorkflowRestartable(allExecutions: Traversable[Execution]): Future[Unit] = {
+        allExecutions.filter(e => Seq(ExecutionStatus.Aborted, ExecutionStatus.Failed).contains(e.executionStatus)) match {
+          case es if es.nonEmpty =>
+            val string = es.toSeq.sortWith((lt, rt) => lt.callFqn < rt.callFqn || (lt.callFqn == rt.callFqn && lt.index < rt.index)).mkString(" ")
+            Future.failed(new Throwable(s"Workflow ${actor.workflow.id.shortString}: Cannot restart, found Failed and/or Aborted executions: $string"))
+          case _ => Future.successful(())
+        }
+      }
+
       for {
-        _ <- actor.backend.prepareForRestart(actor.workflow)
-        _ <- actor.dumpTables()
+        allExecutions <- globalDataAccess.getExecutions(actor.workflow.id)
+        _ <- isWorkflowRestartable(allExecutions)
+        runningExecutionsAndInfos <- globalDataAccess.runningExecutionsAndExecutionInfos(actor.workflow.id)
+        executionsAndInfosMap = runningExecutionsAndInfos.map(x => x.execution -> x.executionInfos).toMap
+        _ <- restartOrResume(actor, executionsAndInfosMap)
       } yield ()
     }
 
     override def start(actor: WorkflowActor) = {
-
-      def filterResumableCallKeys(resumableExecutionsAndJobIds: Traversable[ExecutionKeyToJobKey]): Traversable[BackendCallKey] = {
-        actor.executionStore.keys.collect {
-          case callKey: BackendCallKey if resumableExecutionsAndJobIds.exists(_.executionKey == callKey.toDatabaseKey) => callKey }
-      }
-
       val resumptionWork = for {
-        resumableExecutionsAndJobIds <- actor.backend.findResumableExecutions(actor.workflow.id)
-        resumableCallKeys = filterResumableCallKeys(resumableExecutionsAndJobIds)
-        // Construct a pairing of resumable CallKeys with backend-specific job ids.
-        resumableCallKeysAndJobIds = resumableCallKeys map { callKey => callKey -> resumableExecutionsAndJobIds.find(_.executionKey == callKey.toDatabaseKey).get }
-
-        _ = resumableCallKeysAndJobIds foreach { case (callKey, ej) => actor.self ! RestartCall(callKey, CallActor.Resume(ej.jobKey)) }
+        runningExecutionsAndInfos <- globalDataAccess.runningExecutionsAndExecutionInfos(actor.workflow.id)
+        executionsAndInfosAsMap = runningExecutionsAndInfos.map(x => x.execution -> x.executionInfos).toMap
+        resumableExecutionsAndInfos <- filterResumableExecutions(actor, executionsAndInfosAsMap)
+        _ = resumableExecutionsAndInfos foreach { case (exec, executionInfos) =>
+          val executionInfosAsMap = executionInfosToMap(executionInfos)
+          actor.self ! RestartCall(exec.toBackendCallKey(actor.workflow.namespace).get, CallActor.Resume(executionInfosAsMap))
+        }
         _ = actor.self ! StartRunnableCalls
       } yield ()
 
-      resumptionWork onFailure  {
+      resumptionWork onFailure {
         case t => actor.self ! AsyncFailure(t)
       }
     }
@@ -1230,7 +1283,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     Try(descriptor.callRuntimeAttributes) map { attrs =>
       val databaseKey = ExecutionDatabaseKey(descriptor.key.scope.fullyQualifiedName, descriptor.key.index, descriptor.key.attempt)
-      globalDataAccess.setRuntimeAttributes(workflow.id, databaseKey, attrs.attributes) onComplete {
+      globalDataAccess.upsertRuntimeAttributes(workflow.id, databaseKey, attrs.attributes, context.system) onComplete {
         case Success(_) => startCall
         case Failure(f) =>
           logger.error("Could not persist runtime attributes", f)

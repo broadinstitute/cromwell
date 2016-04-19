@@ -1,5 +1,7 @@
 package cromwell.engine.db.slick
 
+import cromwell.engine.ExecutionStatus
+
 case class ExecutionInfo(executionId: Int,
                          key: String,
                          value: Option[String] = None,
@@ -42,6 +44,19 @@ trait ExecutionInfoComponent {
       execution <- executionInfo.execution
       workflowExecution <- execution.workflowExecution
       if workflowExecution.workflowExecutionUuid === id
+    } yield (execution, executionInfo)
+  )
+
+  val runningExecutionsAndExecutionInfosByWorkflowId = Compiled(
+    // Used by restart workflow code to get all executions that were
+    // in-flight when the engine is restarted.
+    (id: Rep[String]) => for {
+      executionInfo <- executionInfos
+      execution <- executionInfo.execution
+      workflowExecution <- execution.workflowExecution
+      if workflowExecution.workflowExecutionUuid === id
+      if execution.status === ExecutionStatus.Running.toString ||
+         execution.status === ExecutionStatus.Starting.toString
     } yield (execution, executionInfo)
   )
 

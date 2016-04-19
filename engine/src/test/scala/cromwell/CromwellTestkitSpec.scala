@@ -361,7 +361,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     runWdlWithWorkflowManagerActor(actor, workflowSources, eventFilter, stdout, stderr, Map.empty, terminalState)
   }
 
-  private def verifyWorkflowState(wma: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
+  def verifyWorkflowState(wma: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
     // Continuously check the state of the workflow until it is in a terminal state
     awaitCond(pollWorkflowState(wma, workflowId).isTerminal)
     // Now that it's complete verify that we ended up in the state we're expecting

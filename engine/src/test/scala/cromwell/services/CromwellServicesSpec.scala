@@ -10,7 +10,6 @@ import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.{WorkflowDescriptor, WorkflowDescriptorBuilder}
 import cromwell.engine.db.DataAccess
-import cromwell.engine.db.slick.SlickDataAccess
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}

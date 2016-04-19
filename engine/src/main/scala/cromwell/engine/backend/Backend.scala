@@ -11,7 +11,6 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
@@ -64,8 +63,6 @@ object Backend {
   }
 }
 
-trait BackendJobKey
-
 final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
   def toPair = name -> value
 }
@@ -108,9 +105,10 @@ trait Backend {
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions
 
   /**
-   * Do any work that needs to be done <b>before</b> attempting to restart a workflow.
-   */
-  def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit]
+    * Assume JobKey was in a 'Running' state when the server was shut down.
+    */
+  def isResumable(key: JobKey, executionInfo: Map[String, Option[String]]): Boolean
+  def isRestartable(key: JobKey, executionInfo: Map[String, Option[String]]): Boolean
 
   /**
    * Return CallLogs which contains the stdout/stderr of the particular call
@@ -126,9 +124,6 @@ trait Backend {
   def assertWorkflowOptions(options: WorkflowOptions): Unit = {}
 
   private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
-
-  /** Default implementation assumes backends do not support resume, returns an empty Map. */
-  def findResumableExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]] = Future.successful(List.empty)
 
   def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
     backendClassString,
@@ -225,5 +220,5 @@ trait Backend {
 
   def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
 
-  def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def resume(descriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle]
 }

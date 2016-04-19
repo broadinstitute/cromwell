@@ -38,14 +38,9 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState, D <: WorkflowLife
 
   val successState: S
   val failureState: S
-  val abortedState: S
 
   def successResponse: WorkflowLifecycleSuccessResponse
   def failureResponse(reasons: Seq[Throwable]): WorkflowLifecycleFailureResponse
-
-  when(successState) { FSM.NullFunction }
-  when(failureState) { FSM.NullFunction }
-  when(abortedState) { FSM.NullFunction }
 
   whenUnhandled {
     case unhandledMessage =>

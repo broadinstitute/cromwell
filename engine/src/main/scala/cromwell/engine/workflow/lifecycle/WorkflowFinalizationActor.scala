@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{Props, ActorRef}
+import akka.actor.{FSM, Props, ActorRef}
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
@@ -52,7 +52,6 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
 
   override val successState = WorkflowFinalizationSucceededState
   override val failureState = WorkflowFinalizationFailedState
-  override val abortedState = WorkflowFinalizationAbortedState
 
   override val successResponse = WorkflowFinalizationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowFinalizationFailedResponse(reasons)
@@ -83,6 +82,10 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
       checkForDoneAndTransition(newData)
     case Event(AbortEngineFinalizationCommand, stateData) => ??? // TODO: Implement
   }
+
+  when(WorkflowFinalizationSucceededState) { FSM.NullFunction }
+  when(WorkflowFinalizationFailedState) { FSM.NullFunction }
+  when(WorkflowFinalizationAbortedState) { FSM.NullFunction }
 
   whenUnhandled {
     case unhandledMessage =>

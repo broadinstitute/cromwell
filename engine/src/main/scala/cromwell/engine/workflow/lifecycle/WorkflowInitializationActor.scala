@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{FSM, ActorRef, Props}
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
@@ -59,7 +59,6 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
 
   override val successState = InitializationSucceededState
   override val failureState = InitializationFailedState
-  override val abortedState = InitializationFailedState
 
   override val successResponse = WorkflowInitializationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowInitializationFailedResponse(reasons)
@@ -92,6 +91,10 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
       checkForDoneAndTransition(newData)
     case Event(AbortInitializationCommand, _) => ??? // TODO: Handle this
   }
+
+  when(InitializationSucceededState) { FSM.NullFunction }
+  when(InitializationFailedState) { FSM.NullFunction }
+  when(InitializationsAbortedState) { FSM.NullFunction }
 
   /**
     * Makes a BackendWorkflowInitializationActor for a backend

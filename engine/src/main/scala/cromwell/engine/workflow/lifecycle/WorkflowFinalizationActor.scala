@@ -17,11 +17,11 @@ object WorkflowFinalizationActor {
     */
   sealed trait WorkflowFinalizationActorState extends WorkflowLifecycleActorState
   sealed trait WorkflowFinalizationActorTerminalState extends WorkflowFinalizationActorState
-  case object ReadyToFinalize extends WorkflowFinalizationActorState
-  case object WorkflowFinalizing extends WorkflowFinalizationActorState
-  case object WorkflowFinalizationSucceededState extends WorkflowFinalizationActorTerminalState
+  case object FinalizationPendingState extends WorkflowFinalizationActorState
+  case object FinalizationInProgressState extends WorkflowFinalizationActorState
+  case object FinalizationSucceededState extends WorkflowFinalizationActorTerminalState
   case object WorkflowFinalizationFailedState extends WorkflowFinalizationActorTerminalState
-  case object WorkflowFinalizationAbortedState extends WorkflowFinalizationActorTerminalState
+  case object FinalizationAbortedState extends WorkflowFinalizationActorTerminalState
 
   final case class WorkflowFinalizationActorData(backendActors: Map[ActorRef, String],
                                                  successes: Seq[ActorRef],
@@ -31,8 +31,8 @@ object WorkflowFinalizationActor {
     * Commands
     */
   sealed trait WorkflowFinalizationActorCommand
-  case object StartEngineFinalizationCommand extends WorkflowFinalizationActorCommand
-  case object AbortEngineFinalizationCommand extends WorkflowFinalizationActorCommand
+  case object StartFinalizationCommand extends WorkflowFinalizationActorCommand
+  case object AbortFinalizationCommand extends WorkflowFinalizationActorCommand
 
   /**
     * Responses
@@ -50,26 +50,30 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
   val tag = self.path.name
   val backendAssignments = workflowDescriptor.backendAssignments
 
-  override val successState = WorkflowFinalizationSucceededState
+  override val successState = FinalizationSucceededState
   override val failureState = WorkflowFinalizationFailedState
 
   override val successResponse = WorkflowFinalizationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowFinalizationFailedResponse(reasons)
 
-  startWith(ReadyToFinalize, WorkflowFinalizationActorData(Map.empty, List.empty, Map.empty))
+  startWith(FinalizationPendingState, WorkflowFinalizationActorData(Map.empty, List.empty, Map.empty))
 
-  when(ReadyToFinalize) {
-    case Event(StartEngineFinalizationCommand, _) =>
-      // Create each FinalizationActor with the list of calls which ere assigned to that backend.
-      val backendFinalizationActors = backendWorkflowActors(backendAssignments)
-      backendFinalizationActors.keys foreach { _ ! Finalize }
-      goto(WorkflowFinalizing) using WorkflowFinalizationActorData(backendFinalizationActors, List.empty, Map.empty)
-    case Event(AbortEngineFinalizationCommand, _) =>
+  when(FinalizationPendingState) {
+    case Event(StartFinalizationCommand, _) =>
+      val backendFinalizationActors = backendWorkflowActors(workflowDescriptor.backendAssignments)
+      if (backendFinalizationActors.isEmpty) {
+        sender ! WorkflowFinalizationSucceededResponse // Nothing more to do
+        goto(FinalizationSucceededState)
+      } else {
+        backendFinalizationActors.keys foreach { _ ! Finalize }
+        goto(FinalizationInProgressState) using WorkflowFinalizationActorData(backendFinalizationActors, List.empty, Map.empty)
+      }
+    case Event(AbortFinalizationCommand, _) =>
       context.parent ! WorkflowFinalizationAbortedResponse
-      goto(WorkflowFinalizationAbortedState)
+      goto(FinalizationAbortedState)
   }
 
-  when(WorkflowFinalizing) {
+  when(FinalizationInProgressState) {
     case Event(FinalizationSuccess, stateData) =>
       val newData = stateData.copy(
         backendActors = stateData.backendActors - sender,
@@ -80,26 +84,12 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         backendActors = stateData.backendActors - sender,
         failures = stateData.failures ++ Map(sender -> reason))
       checkForDoneAndTransition(newData)
-    case Event(AbortEngineFinalizationCommand, stateData) => ??? // TODO: Implement
+    case Event(AbortFinalizationCommand, _) => ??? // TODO: Handle this
   }
 
-  when(WorkflowFinalizationSucceededState) { FSM.NullFunction }
+  when(FinalizationSucceededState) { FSM.NullFunction }
   when(WorkflowFinalizationFailedState) { FSM.NullFunction }
-  when(WorkflowFinalizationAbortedState) { FSM.NullFunction }
-
-  whenUnhandled {
-    case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message: $unhandledMessage")
-      stay
-  }
-
-  onTransition {
-    case _ -> toState if toState.terminal =>
-      log.debug(s"$tag state is now terminal. Shutting down.")
-      context.stop(self)
-    case fromState -> toState =>
-      log.debug(s"$tag transitioning from $fromState to $toState.")
-  }
+  when(FinalizationAbortedState) { FSM.NullFunction }
 
   /**
     * Makes a BackendWorkflowFinalizationActor for a backend

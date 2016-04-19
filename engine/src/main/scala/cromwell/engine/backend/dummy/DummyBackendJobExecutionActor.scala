@@ -1,5 +1,6 @@
 package cromwell.engine.backend.dummy
 
+import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionSucceededResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.{BackendJobExecutionAbortSucceededResponse, JobAbortResponse}
 import cromwell.backend._
@@ -10,12 +11,16 @@ import wdl4s.{TaskOutput, Call}
 
 import scala.concurrent.Future
 
-case class DummyBackendJobExecutionActor(workflowDescriptor: BackendWorkflowDescriptor, configurationDescriptor: BackendConfigurationDescriptor, calls: Seq[Call]) extends BackendJobExecutionActor {
+object DummyBackendJobExecutionActor {
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = Props(DummyBackendJobExecutionActor(jobDescriptor, configurationDescriptor))
+}
+
+case class DummyBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   /**
     * Execute a new job.
     */
   override def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = {
-    val outputs = (jobDescriptor.call.task.outputs map taskOutputToJobOutput _).toMap
+    val outputs = (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap
     Future.successful(BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs))
   }
 

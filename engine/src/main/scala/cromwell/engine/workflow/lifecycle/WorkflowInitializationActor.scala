@@ -68,7 +68,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
       val backendInitializationActors = backendWorkflowActors(workflowDescriptor.backendAssignments)
       if (backendInitializationActors.isEmpty) {
         sender ! WorkflowInitializationSucceededResponse // Nothing more to do
-        goto(InitializationFailedState)
+        goto(InitializationSucceededState)
       } else {
         backendInitializationActors.keys foreach { _ ! Initialize }
         goto(InitializingWorkflowState) using WorkflowInitializationActorData(backendInitializationActors, List.empty, Map.empty)

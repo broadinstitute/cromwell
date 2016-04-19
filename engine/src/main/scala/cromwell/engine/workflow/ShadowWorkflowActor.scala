@@ -8,7 +8,7 @@ import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 
 import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorFailureResponse, ShadowMaterializeWorkflowDescriptorSuccessResponse, ShadowMaterializeWorkflowDescriptorCommand}
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{WorkflowExecutionSucceededResponse, WorkflowExecutionFailedResponse, RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand}
-import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{WorkflowFinalizationSucceededResponse, WorkflowFinalizationFailedResponse, StartEngineFinalizationCommand}
+import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{WorkflowFinalizationSucceededResponse, WorkflowFinalizationFailedResponse, StartFinalizationCommand}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse, StartInitializationCommand}
 import cromwell.engine.workflow.lifecycle.{ShadowMaterializeWorkflowDescriptorActor, WorkflowFinalizationActor, WorkflowExecutionActor, WorkflowInitializationActor}
 import cromwell.engine.workflow.ShadowWorkflowActor._
@@ -27,7 +27,7 @@ object ShadowWorkflowActor {
     * Responses from the ShadowWorkflowActor
     */
   sealed trait ShadowWorkflowActorResponse
-  case class ShadowWorkflowSucceededResponse(workflowId: WorkflowId, outputs: WorkflowOutputs) extends ShadowWorkflowActorResponse
+  case class ShadowWorkflowSucceededResponse(workflowId: WorkflowId) extends ShadowWorkflowActorResponse
   case class ShadowWorkflowFailedResponse(workflowId: WorkflowId, inState: ShadowWorkflowActorState, reasons: Seq[Throwable]) extends Exception with ShadowWorkflowActorResponse
 
   /**
@@ -141,7 +141,7 @@ class ShadowWorkflowActor(workflowId: WorkflowId,
   when(ExecutingWorkflowState) {
     case Event(WorkflowExecutionSucceededResponse, ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)) =>
       val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor), name = s"WorkflowFinalizationActor-$workflowId")
-      finalizationActor ! StartEngineFinalizationCommand
+      finalizationActor ! StartFinalizationCommand
       goto(FinalizingWorkflowState)
     case Event(WorkflowExecutionFailedResponse(reasons), _) =>
       context.parent ! ShadowWorkflowFailedResponse(workflowId, ExecutingWorkflowState, reasons)
@@ -151,7 +151,7 @@ class ShadowWorkflowActor(workflowId: WorkflowId,
 
   when(FinalizingWorkflowState) {
     case Event(WorkflowFinalizationSucceededResponse, stateData) =>
-      context.parent ! ShadowWorkflowSucceededResponse
+      context.parent ! ShadowWorkflowSucceededResponse(workflowId)
       goto(WorkflowSucceededState)
     case Event(WorkflowFinalizationFailedResponse(reasons), _) =>
       context.parent ! ShadowWorkflowFailedResponse(workflowId, FinalizingWorkflowState, reasons)

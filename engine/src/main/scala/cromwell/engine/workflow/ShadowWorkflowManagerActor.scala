@@ -141,7 +141,7 @@ class ShadowWorkflowManagerActor(config: Config)
     /*
      Responses from services
      */
-    case Event(ShadowWorkflowSucceededResponse(workflowId, outputs), data) =>
+    case Event(ShadowWorkflowSucceededResponse(workflowId), data) =>
       log.info(s"Workflow $workflowId succeeded!")
       stay()
     case Event(ShadowWorkflowFailedResponse(workflowId, inState, reasons), data) =>

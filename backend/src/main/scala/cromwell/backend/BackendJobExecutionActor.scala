@@ -28,7 +28,7 @@ object BackendJobExecutionActor {
 /**
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
-trait BackendJobExecutionActor extends BackendLifecycleActor with ActorLogging {
+trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLogging {
 
   def receive: Receive = LoggingReceive {
     case ExecuteJobCommand(jobDescriptor) => performActionThenRespond(execute(jobDescriptor), onFailure = executionFailed(jobDescriptor.key))

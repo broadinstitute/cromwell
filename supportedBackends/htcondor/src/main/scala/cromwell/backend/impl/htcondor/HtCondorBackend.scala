@@ -18,14 +18,9 @@ class HtCondorBackend extends BackendJobExecutionActor {
     */
   override def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = ???
 
-  override protected def workflowDescriptor: BackendWorkflowDescriptor = ???
+  override protected def jobDescriptor: BackendJobDescriptor = ???
 
   override protected def configurationDescriptor: BackendConfigurationDescriptor = ???
-
-  /**
-    * The set of calls which this backend will be expected to run
-    */
-  override protected def calls: Seq[Call] = ???
 
   /**
     * Abort a running job.

@@ -50,11 +50,11 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState, D <: WorkflowLife
 
   onTransition {
     case _ -> state if state.terminal =>
-      log.debug("State is now terminal. Shutting down.")
+      log.info("State is now terminal. Shutting down.")
       context.stop(self)
     case fromState -> toState =>
       // Only log this at debug - these states are never seen or used outside of the CallActor itself.
-      log.debug(s"State is transitioning from $fromState to $toState.")
+      log.info(s"State is transitioning from $fromState to $toState.")
   }
 
   /**

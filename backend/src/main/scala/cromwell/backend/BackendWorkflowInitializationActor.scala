@@ -5,8 +5,6 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.BackendLifecycleActor._
 
-import wdl4s.Call
-
 import scala.concurrent.Future
 
 object BackendWorkflowInitializationActor {
@@ -28,7 +26,7 @@ object BackendWorkflowInitializationActor {
 /**
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
-trait BackendWorkflowInitializationActor extends BackendLifecycleActor with ActorLogging {
+trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
 
   final def receive: Receive = LoggingReceive {
     case Initialize    => performActionThenRespond(initSequence, onFailure = InitializationFailed)

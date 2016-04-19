@@ -1,20 +1,19 @@
 package cromwell.engine.backend.local
 
 import java.io.Writer
-import java.nio.file.{FileSystem, Files, Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.ActorSystem
-import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.JobKey
-import cromwell.core.WorkflowOptions
+import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.backend.io._
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.filesystems.gcs.{GcsFileSystemProvider, GoogleConfiguration, GoogleConfigurationAdapter, StorageFactory}
+import cromwell.engine.db.DataAccess._
 import cromwell.util.FileUtil._
+import better.files._
+import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
 
@@ -26,9 +25,6 @@ import scala.util.{Failure, Success, Try}
 
 object LocalBackend {
 
-  private lazy val oldGoogleConf = GoogleConfigurationAdapter.gcloudConf.get
-  lazy val gcsConf = Try(GoogleConfiguration(oldGoogleConf.appName, oldGoogleConf.userAuthMode.getOrElse(oldGoogleConf.cromwellAuthMode)))
-
   val ContainerRoot = "/root"
   val CallPrefix = "call"
   val ShardPrefix = "shard"
@@ -38,16 +34,14 @@ object LocalBackend {
   }
 
   /**
-   * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
-   */
+    * Simple utility implicit class adding a method that writes a line and appends a newline in one shot.
+    */
   implicit class WriteWithNewline(val writer: Writer) extends AnyVal {
     def writeWithNewline(string: String): Unit = {
       writer.write(string)
       writer.write("\n")
     }
   }
-
-  lazy val logger = LoggerFactory.getLogger("cromwell")
 
   implicit class LocalEnhancedJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
     def dockerContainerExecutionDir = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(LocalBackend.ContainerRoot)
@@ -60,6 +54,26 @@ object LocalBackend {
     def script = jobDescriptor.callRootPath.resolve("script")
     def returnCode = jobDescriptor.callRootPath.resolve("rc")
   }
+}
+
+
+/**
+  * Handles both local Docker runs as well as local direct command line executions.
+  */
+case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem: ActorSystem) extends Backend with SharedFileSystemBackend {
+
+  private lazy val logger = LoggerFactory.getLogger("cromwell")
+
+  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
+
+  /**
+    * Exponential Backoff Builder to be used when polling for call status.
+    */
+  final private lazy val pollBackoffBuilder = new Builder()
+    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
+    .setMaxElapsedTimeMillis(Int.MaxValue)
+    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
+    .setMultiplier(1.1D)
 
   /**
     * If using Mac OS X with Docker Machine, by default Cromwell can only use the -v flag to 'docker run'
@@ -70,9 +84,7 @@ object LocalBackend {
     * This function will at least detect this case and log some WARN messages.
     */
   def detectDockerMachinePossibleMisusage() = {
-    val backendConf = ConfigFactory.load.getConfig("backend")
-    val sharedFileSystemConf = backendConf.getConfig("shared-filesystem")
-    val cromwellExecutionRoot = Paths.get(sharedFileSystemConf.getString("root")).toAbsolutePath.toString
+    val cromwellExecutionRoot = Paths.get(backendConfig.getString("root")).toAbsolutePath.toString
     val os = Option(System.getProperty("os.name"))
     val homeDir = Option(System.getProperty("user.home")).map(Paths.get(_).toAbsolutePath.toString)
     val dockerMachineName = sys.env.get("DOCKER_MACHINE_NAME")
@@ -87,24 +99,6 @@ object LocalBackend {
   }
 
   detectDockerMachinePossibleMisusage()
-}
-
-
-/**
- * Handles both local Docker runs as well as local direct command line executions.
- */
-case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-
-  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
-
-  /**
-    * Exponential Backoff Builder to be used when polling for call status.
-    */
-  final private lazy val pollBackoffBuilder = new Builder()
-    .setInitialIntervalMillis(10.seconds.toMillis.toInt)
-    .setMaxElapsedTimeMillis(Int.MaxValue)
-    .setMaxIntervalMillis(10.minutes.toMillis.toInt)
-    .setMultiplier(1.1D)
 
   override def pollBackoff = pollBackoffBuilder.build()
 
@@ -123,30 +117,29 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
   }).flatten map CompletedExecutionHandle
 
-
   override def isRestartable(key: JobKey, executionInfos: Map[String, Option[String]]): Boolean = true
   override def isResumable(key: JobKey, executionInfos: Map[String, Option[String]]): Boolean = false
 
   override def backendType = BackendType.LOCAL
 
   /**
-   * Writes the script file containing the user's command from the WDL as well
-   * as some extra shell code for monitoring jobs
-   */
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String, containerRoot: Path) = {
     jobDescriptor.script.write(
       s"""#!/bin/sh
-         |cd $containerRoot
-         |$instantiatedCommand
-         |echo $$? > rc
-         |""".stripMargin)
+          |cd $containerRoot
+          |$instantiatedCommand
+          |echo $$? > rc
+          |""".stripMargin)
   }
 
   /**
-   * --rm automatically deletes the container upon exit
-   * -v maps the host workflow executions directory to /root/<workflow id> on the container.
-   * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
-   */
+    * --rm automatically deletes the container upon exit
+    * -v maps the host workflow executions directory to /root/<workflow id> on the container.
+    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
+    */
   private def buildDockerRunCommand(jobDescriptor: BackendCallJobDescriptor, image: String): String = {
     val callPath = jobDescriptor.containerCallRoot
     s"docker run --rm -v ${jobDescriptor.callRootPath.toAbsolutePath}:$callPath -i $image"
@@ -195,7 +188,7 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       }
 
       val badReturnCodeMessage =
-         s"""Call ${jobDescriptor.call.fullyQualifiedName}, Workflow ${jobDescriptor.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
+        s"""Call ${jobDescriptor.call.fullyQualifiedName}, Workflow ${jobDescriptor.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
             |
             |Full command was: $backendCommandString
             |
@@ -222,14 +215,6 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
     new LocalCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
-  }
-
-  override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
-    val refreshToken = options.get(GoogleConfiguration.RefreshTokenOptionKey).toOption
-    val gcsStorage = LocalBackend.gcsConf map { conf => StorageFactory(conf, refreshToken) }
-    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
-
-    List(gcs, Option(defaultFileSystem)).flatten
   }
 
   def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {

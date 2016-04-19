@@ -10,14 +10,24 @@ class JesAttributesSpec extends FlatSpec with Matchers {
 
   it should "parse correct JES config" in {
     val configString = """
-          backend {
-           jes {
+          {
              project = "myProject"
-             baseExecutionBucket = "gs://myBucket"
-             endpointUrl = "http://myEndpoint"
-             maximumPollingInterval = 600
+             root = "gs://myBucket"
+             maximum-polling-interval = 600
              [PREEMPTIBLE]
-           }
+             genomics {
+               // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
+               // Pipelines and manipulate auth JSONs.
+               auth = "cromwell-system-account"
+               endpoint-url = "http://myEndpoint"
+             }
+
+             filesystems = {
+               gcs {
+                 // A reference to a potentially different auth for manipulating files via engine functions.
+                 auth = "cromwell-system-account"
+               }
+             }
           }""".stripMargin
 
     val fullConfig = ConfigFactory.parseString(configString.replace("[PREEMPTIBLE]", "preemptible = 3"))
@@ -40,10 +50,10 @@ class JesAttributesSpec extends FlatSpec with Matchers {
   it should "not parse invalid config" in {
     val nakedConfig =
       ConfigFactory.parseString("""
-        |backend {
-        | jes {
-        |   endpointUrl = "myEndpoint"
-        | }
+        |{
+        |   genomics {
+        |     endpoint-url = "myEndpoint"
+        |   }
         |}
       """.stripMargin)
 
@@ -52,7 +62,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     }
     val errorsList = exception.errors.list
     errorsList should contain ("Could not find key: project")
-    errorsList should contain ("Could not find key: baseExecutionBucket")
+    errorsList should contain ("Could not find key: root")
     errorsList should contain ("no protocol: myEndpoint")
   }
 

@@ -9,7 +9,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.backend.{CallLogs, CromwellBackend, WorkflowDescriptor}
+import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{CallStdoutStderr, WorkflowStdoutStderr}
 import cromwell.engine.{WorkflowOutputs, _}
@@ -54,7 +54,6 @@ object CromwellTestkitSpec {
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-    defaultBackend // Force initialization
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
@@ -153,6 +152,64 @@ object CromwellTestkitSpec {
       Await.result(manager.ask(message).mapTo[WorkflowManagerCallStdoutStderrSuccess], Duration.Inf).logs
     }
   }
+
+  lazy val DefaultLocalBackendConfig = ConfigFactory.parseString(
+    """
+      |  {
+      |    root: "cromwell-executions"
+      |
+      |    filesystems {
+      |      local {
+      |        localization: [
+      |          "hard-link", "soft-link", "copy"
+      |        ]
+      |      }
+      |    }
+      |  }
+    """.stripMargin)
+
+  lazy val DefaultLocalBackendConfigEntry = BackendConfigurationEntry(
+    name = "local", className = "cromwell.engine.backend.local.LocalBackend", DefaultLocalBackendConfig)
+
+  lazy val JesBackendConfig = ConfigFactory.parseString(
+    """
+      |{
+      |  // Google project
+      |  project = "my-cromwell-workflows"
+      |
+      |  // Base bucket for workflow executions
+      |  root = "gs://my-cromwell-workflows-bucket"
+      |
+      |  // Polling for completion backs-off gradually for slower-running jobs.
+      |  // This is the maximum polling interval (in seconds):
+      |  maximum-polling-interval = 600
+      |
+      |  // Optional Dockerhub Credentials. Can be used to access private docker images.
+      |  dockerhub {
+      |    // account = ""
+      |    // token = ""
+      |  }
+      |
+      |  genomics {
+      |    // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
+      |    // Pipelines and manipulate auth JSONs.
+      |    auth = "cromwell-service-account"
+      |
+      |    // Endpoint for APIs, no reason to change this unless directed by Google.
+      |    endpoint-url = "https://genomics.googleapis.com/"
+      |  }
+      |
+      |  filesystems {
+      |    gcs {
+      |      // A reference to a potentially different auth for manipulating files via engine functions.
+      |      auth = "user-via-refresh"
+      |    }
+      |  }
+      |}
+    """.stripMargin)
+
+    lazy val JesBackendConfigEntry = BackendConfigurationEntry(
+      name = "JES", className = "cromwell.engine.backend.jes.JesBackend", JesBackendConfig)
 }
 
 abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)

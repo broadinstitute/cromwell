@@ -4,7 +4,6 @@ import java.io.File
 import java.nio.file.{FileSystem, Files, Path, Paths}
 
 import better.files.{File => ScalaFile, _}
-import com.typesafe.config.ConfigFactory
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs.GcsPath
@@ -21,25 +20,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object SharedFileSystem {
+object SharedFileSystemBackend {
   type LocalizationStrategy = (String, Path, WorkflowDescriptor) => Try[Unit]
-
-  val SharedFileSystemConf = ConfigFactory.load.getConfig("backend").getConfig("shared-filesystem")
-  val CromwellExecutionRoot = SharedFileSystemConf.getString("root")
-  val LocalizationStrategies = SharedFileSystemConf.getStringList("localization").asScala
-
-  val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
-    case "hard-link" => localizePathViaHardLink _
-    case "soft-link" => localizePathViaSymbolicLink _
-    case "copy" => localizePathViaCopy _
-    case unsupported => throw new UnsupportedOperationException(s"Localization strategy $unsupported is not recognized")
-  }).+:(localizeFromGcs _)
-
-  // Note that any unrecognized configuration will be raised when Localizers (just above) gets resolved.
-  val DockerLocalizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies collect {
-    case "hard-link" => localizePathViaHardLink _
-    case "copy" => localizePathViaCopy _
-  }).+:(localizeFromGcs _)
 
   private def localizeFromGcs(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = Try {
     import backend.io._
@@ -87,9 +69,25 @@ object SharedFileSystem {
   val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
 }
 
-trait SharedFileSystem { self: Backend =>
-  import SharedFileSystem._
+trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
+  import SharedFileSystemBackend._
   import backend.io._
+
+  val CromwellExecutionRoot = backendConfig.getString("root")
+  val LocalizationStrategies = backendConfig.getConfig("filesystems.local").getStringList("localization").asScala
+
+  val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
+    case "hard-link" => localizePathViaHardLink _
+    case "soft-link" => localizePathViaSymbolicLink _
+    case "copy" => localizePathViaCopy _
+    case unsupported => throw new UnsupportedOperationException(s"Localization strategy $unsupported is not recognized")
+  }).+:(localizeFromGcs _)
+
+  // Note that any unrecognized configuration will be raised when Localizers (just above) gets resolved.
+  val DockerLocalizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies collect {
+    case "hard-link" => localizePathViaHardLink _
+    case "copy" => localizePathViaCopy _
+  }).+:(localizeFromGcs _)
 
   def useCachedCall(cachedJobDescriptor: BackendCallJobDescriptor, jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     val source = cachedJobDescriptor.callRootPath
@@ -125,7 +123,7 @@ trait SharedFileSystem { self: Backend =>
       val unwrappedMap = outputMappings collect { case (name, Success(wdlValue)) =>
         name -> CallOutput(wdlValue, jobDescriptor.workflowDescriptor.hash(wdlValue))
       }
-      Success(unwrappedMap.toMap)
+      Success(unwrappedMap)
     } else {
       val message = taskOutputFailures collect { case (name, Failure(e)) => s"$name: $e\n${ExceptionUtils.getStackTrace(e)}" }
       Failure(new Throwable(s"Workflow ${jobDescriptor.workflowDescriptor.id}: ${message.mkString("\n")}"))
@@ -323,5 +321,10 @@ trait SharedFileSystem { self: Backend =>
     val stderr = callRoot.resolve("stderr")
 
     new CallContext(callRoot.fullPath, stdout.fullPath, stderr.fullPath)
+  }
+
+  override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
+    // The default local filesystem should already have been validated, check the GCS filesystem.
+    List(gcsFilesystem(options), Option(defaultFileSystem)).flatten
   }
 }

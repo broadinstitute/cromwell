@@ -5,7 +5,8 @@ import java.util.Base64
 
 import com.google.api.client.auth.oauth2.Credential
 import com.typesafe.config.Config
-import cromwell.filesystems.gcs.GoogleCredentialFactory
+import cromwell.filesystems.gcs.GoogleAuthMode
+import GoogleAuthMode._
 import lenthall.config.ScalaConfig._
 
 /** A username and password combination. */
@@ -31,7 +32,6 @@ class DockerHubLoginProvider(dockerTokenOption: Option[String]) extends DockerLo
 }
 
 class GcrLoginProvider(credential: Credential) extends DockerLoginProvider {
-  import GoogleCredentialFactory.EnhancedCredentials
 
   override def dockerLogin = credential.freshCredential.toOption map { credential =>
     DockerLogin("_token", credential.getAccessToken)

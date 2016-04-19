@@ -6,7 +6,7 @@ import scala.util.{Failure, Success, Try}
 /** Represents a Google Cloud Storage path, like gs://bucket/path/to/object.txt
   *
   * @param bucket - should adhere to https://cloud.google.com/storage/docs/bucket-naming?hl=en#requirements
-  * @param objectName
+  * @param objectName - the name of the thing
   */
 case class GcsPath(bucket: String, objectName: String) {
   override def toString = {

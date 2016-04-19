@@ -3,14 +3,13 @@ package cromwell.engine.backend
 import java.nio.file.{FileSystem, Path}
 
 import akka.actor.ActorSystem
+import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
 import cromwell.backend.JobKey
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import cromwell.engine.backend.jes.JesBackend
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
-import cromwell.engine.backend.sge.SgeBackend
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory
@@ -24,19 +23,7 @@ import scala.util.{Success, Try}
 object Backend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
 
-  def from(backendConf: Config, actorSystem: ActorSystem): Backend = Backend.from(backendConf.getString("backend"), actorSystem)
-
-  def from(backendType: BackendType, actorSystem: ActorSystem): Backend = backendType match {
-    case BackendType.LOCAL => LocalBackend(actorSystem)
-    case BackendType.JES => JesBackend(actorSystem)
-    case BackendType.SGE => SgeBackend(actorSystem)
-    case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
-  }
-
-  def from(name: String, actorSystem: ActorSystem): Backend = {
-    val backendType = name.toBackendType
-    Backend.from(backendType, actorSystem)
-  }
+  case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
 
   implicit class BackendyString(val backendType: String) extends AnyVal {
     def toBackendType: BackendType = {
@@ -81,6 +68,12 @@ object AttemptedLookupResult {
 trait Backend {
 
   def actorSystem: ActorSystem
+
+  def backendConfigEntry: BackendConfigurationEntry
+
+  def backendConfig: Config = backendConfigEntry.config
+
+  def name: String = backendConfigEntry.name
 
   def rootPath(workflowOptions: WorkflowOptions): String
 
@@ -197,12 +190,12 @@ trait Backend {
   /**
     * Compute a hash that uniquely identifies this call
     */
-  def hash(descriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHash] = {
+  def hash(descriptor: BackendCallJobDescriptor, credential: Option[Credential] = None)(implicit ec: ExecutionContext): Future[ExecutionHash] = {
     // If a Docker image is defined in the task's runtime attributes, return a `Future[Option[String]]` of the Docker
     // hash string, otherwise return a `Future.successful` of `None`.
     def hashDockerImage(dockerImage: String): Future[Option[String]] =
       if (descriptor.workflowDescriptor.lookupDockerHash)
-        dockerHashClient.getDockerHash(dockerImage) map { dh => Option(dh.hashString) }
+        dockerHashClient.getDockerHash(backendConfig, credential, dockerImage) map { dh => Option(dh.hashString) }
       else
         Future.successful(Option(dockerImage))
 

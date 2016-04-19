@@ -74,5 +74,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % "2.13.0"
-  ) ++ coreDependencies ++ sprayDependencies ++ gcsFileSystemDependencies ++ dbDependencies
+  ) ++ coreDependencies ++ sprayDependencies ++ googleDependencies ++ dbDependencies ++ backendDependencies ++ gcsFileSystemDependencies
 }

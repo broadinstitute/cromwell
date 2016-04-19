@@ -20,7 +20,7 @@ import cromwell.engine.db.slick.SlickDataAccessSpec.{AllowFalse, AllowTrue}
 import cromwell.engine.db.{DiffResultFilter, ExecutionDatabaseKey}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
 import cromwell.util.SampleWdl
-import cromwell.webservice
+import cromwell.{CromwellTestkitSpec, webservice}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
 import org.joda.time.DateTime
 import org.scalactic.StringNormalizations._
@@ -60,7 +60,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
-  lazy val localBackend = LocalBackend(workflowManagerSystem.actorSystem)
+  lazy val localBackend = LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, workflowManagerSystem.actorSystem)
 
   val testSources = WorkflowSourceFiles("workflow test {}", "{}", "{}")
 
@@ -72,6 +72,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = throw new NotImplementedError
 
     override val actorSystem = workflowManagerSystem.actorSystem
+
+    override val backendConfigEntry = CromwellTestkitSpec.DefaultLocalBackendConfigEntry
 
     override def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor) = throw new NotImplementedError()
     override def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = throw new NotImplementedError

@@ -25,4 +25,7 @@ workflow stdout_stderr_passing {
   call a
   call b {input: in_file=a.out}
   call b as b_prime {input: in_file=a.err}
+  output {
+    b_prime.out
+  }
 }

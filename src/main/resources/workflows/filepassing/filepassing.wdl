@@ -3,7 +3,7 @@ task a {
   String out_name = "out"
 
   command {
-    cat ${in} > ${out_name}
+    cat ${in_file} > ${out_name}
   }
   runtime {
     docker: "ubuntu:latest"
@@ -20,4 +20,7 @@ workflow filepassing {
 
   call a {input: in_file=f}
   call a as b {input: in_file=a.out}
+  output {
+      b.contents
+  }
 }

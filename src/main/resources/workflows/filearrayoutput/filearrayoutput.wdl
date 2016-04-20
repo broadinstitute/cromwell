@@ -24,4 +24,7 @@ task combiner {
 workflow filearrayoutput {
     call createFileArray
     call combiner { input: in_file = createFileArray.out }
+    output {
+       combiner.result
+    }
 }

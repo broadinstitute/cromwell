@@ -1,24 +1,26 @@
 package centaur
 
 import java.util.UUID
+import java.nio.file.Files
 
 import akka.actor.ActorSystem
 import centaur.api._
+import centaur.api.{CromwellStatusJsonSupport, CromwellStatus}
+import cats.Monad
 import spray.client.pipelining._
 import spray.http.{HttpResponse, HttpRequest, FormData}
-import cats.Monad
 import spray.httpx.{PipelineException, UnsuccessfulResponseException}
 import spray.httpx.unmarshalling._
-import spray.json._
+import better.files._
 
 import scala.annotation.tailrec
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 import spray.httpx.SprayJsonSupport._
-import CromwellStatusJsonSupport._
-import OutputResponseJsonSupport._
 import FailedWorkflowSubmissionJsonSupport._
+import CromwellStatusJsonSupport._
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -115,29 +117,75 @@ object Operations {
     }
   }
 
-  def verifyOutputs(workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    // NB need "DefaultJsonProtocol" to allow convertTo[Map[String, String]]
+  /**
+    * This method uses a Metadata JSON returned by Cromwell as it's parameter,
+    * and creates a test map. Since there can be many attempts per call,
+    * this method takes the last call attempt, and filters the metadata
+    * key value pairs by those of interest.
+    */
+  private def convertMetadataToTestMap(metadataJson: String): Map[String, JsObject] = {
+    val calls = metadataJson.parseJson.asJsObject.fields.get("calls").get.asJsObject
+    val listOfkeys = Seq("runtimeAttributes", "preemptible", "executionStatus")
+
+    val lastCallAttempt = calls.fields map {
+      case (k1, allCallAttempts: JsArray) =>
+        val lastCallAttempt = allCallAttempts.elements.last.asJsObject
+        val filteredCallAttributes = lastCallAttempt.fields collect {
+          case (k2, callAttributes) if listOfkeys.contains(k2) => k2 -> callAttributes
+        }
+        k1 -> JsObject(filteredCallAttributes)
+
+      case(k, v) => throw new Exception(s"Wrong Js parameter for $k, Call attempts are expected to be in a JsArray")
+    }
+
+    lastCallAttempt
+  }
+
+  private def makeOutputMap(metadataJson: String): Map[String, JsValue] = {
+    // Need DefaultJsonProtocol export to use convertTo[Map[String,String]]
     import DefaultJsonProtocol._
+    val outputs = metadataJson.parseJson.asJsObject.fields.get("outputs").get.asJsObject.toString
+
+    outputs.parseJson.convertTo[Map[String, JsValue]]
+  }
+
+
+  def verifyMetadataAndOutputs(workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
     new Test[Workflow] {
-      val expectedMap: Option[Map[String, String]] = {
-        request.outputs map { outputString: String => outputString.parseJson.convertTo[Map[String, String]] }
+      val expectedMap: Option[Map[String, JsObject]] = request.metadata map { metadataString: String => convertMetadataToTestMap(metadataString) }
+      val expectedOutputMap: Option[Map[String, JsValue]] = request.metadata map { metadataString: String => makeOutputMap(metadataString) }
+
+      def verifyWorkflowMetadata(metadata: Map[String, JsObject]) = {
+        expectedMap match {
+          case Some(expected) if !expected.equals(metadata) => throw new Exception(s"Bad Metadata for Workflow ${request.name}")
+          case _ =>
+        }
       }
 
-      def verifyWorkflowOutputs(outputs: Map[String, String]) = {
-        // If "expectedMap is not None, check that the outputs match the expected"
-        expectedMap match {
-          case Some(expected) => if (!expected.equals(outputs)) {
-            throw new Exception(s"Bad outputs. Expected ${expected.mkString} but got ${outputs.mkString}")
-          }
-          case None =>
+      def verifyWorkflowOutputs(outputs: Map[String, JsValue]) = {
+        expectedOutputMap match {
+          case Some(expected) if !expected.equals(outputs) => throw new Exception(s"Bad outputs for Workflow ${request.name}")
+          case _ =>
         }
       }
+
       override def run: Try[Workflow] = {
-        val response = Pipeline[OutputResponse].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/outputs"))
-        sendReceiveFutureCompletion(response map { _.outputs }) map { outputs =>
-          verifyWorkflowOutputs(outputs)
-          workflow
+        def ensureExpectedFile(metadata: String): Unit = {
+          val expectedFile = request.base.getParent.resolve(s"${request.name}.metadata")
+          if (!Files.exists(expectedFile)) {
+            expectedFile.write(metadata)
+          }
         }
+
+        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
+        sendReceiveFutureCompletion(response map { allMetadata =>
+          ensureExpectedFile(allMetadata)
+          verifyWorkflowMetadata(convertMetadataToTestMap(allMetadata))
+          verifyWorkflowOutputs(makeOutputMap(allMetadata))
+
+          workflow
+        })
+
       }
     }
   }
@@ -152,6 +200,7 @@ object Operations {
 
   // Spray needs an implicit ActorSystem
   implicit val system = ActorSystem("centaur-foo")
+  val MetadataRequest: HttpRequest => Future[String] = sendReceive ~> unmarshal[String]
 
   def Pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
   def FailingPipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[FailedWorkflowSubmission] = sendReceive ~> unmarshalFailure[FailedWorkflowSubmission]
@@ -170,6 +219,3 @@ object Operations {
   class SuccessfulResponseException(val response: HttpResponse) extends RuntimeException(s"Status: ${response.status}\n" +
     s"Body: ${if (response.entity.data.length < 1024) response.entity.asString else response.entity.data.length + " bytes"}")
 }
-
-
-

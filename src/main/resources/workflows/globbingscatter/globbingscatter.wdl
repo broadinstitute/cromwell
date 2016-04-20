@@ -43,4 +43,7 @@ workflow globbingscatter {
     call catter as catter2 { input: in_file=catter1.result }
   }
   call combiner as combiner2 { input: in_file=catter2.result }
+  output {
+     combiner2.result
+  }
 }

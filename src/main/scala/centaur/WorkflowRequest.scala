@@ -2,7 +2,6 @@ package centaur
 
 import java.io.FileNotFoundException
 import java.nio.file.Path
-
 import scala.util.{Failure, Success, Try}
 
 object WorkflowRequest {
@@ -12,14 +11,13 @@ object WorkflowRequest {
     */
   def apply(path: Path): WorkflowRequest = {
     val name = path.getFileName
-
     val base = path.resolve(name)
     val wdl = base.slurpExtension("wdl")
     val inputs = base.slurpExtensionIfExists("inputs")
     val options = base.slurpExtensionIfExists("options")
-    val outputs = base.slurpExtensionIfExists("outputs")
+    val metadata = base.slurpExtensionIfExists("metadata")
 
-    WorkflowRequest(name.toString, wdl, inputs, options, outputs)
+    WorkflowRequest(name.toString, base, wdl, inputs, options, metadata)
   }
 
   implicit class EnhancedPath(val path: Path) extends AnyVal {
@@ -43,4 +41,4 @@ object WorkflowRequest {
   }
 }
 
-case class WorkflowRequest(name: String, wdl: String, inputs: Option[String], options: Option[String], outputs: Option[String])
+case class WorkflowRequest(name: String, base: Path, wdl: String, inputs: Option[String], options: Option[String], metadata: Option[String])

@@ -22,6 +22,7 @@ task a2f {
 
   output {
     File out = stdout()
+    String x = read_string(out)
   }
   runtime {docker:"ubuntu:latest"}
 }
@@ -37,5 +38,8 @@ workflow write_lines {
 
   call a2f as a2f_second {
     input: strings=f2a.out
+  }
+  output {
+    a2f_second.x
   }
 }

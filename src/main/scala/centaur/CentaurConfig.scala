@@ -18,6 +18,6 @@ object CentaurConfig {
   lazy val submissionFailureTestCasePath = Paths.get(conf.getString("centaur.submissionFailureTestCasePath"))
 
   implicit class EnhancedJavaDuration(val javaDuration: java.time.Duration) extends AnyVal {
-    def toScala: FiniteDuration = FiniteDuration(javaDuration.toNanos, TimeUnit.NANOSECONDS)
+    def toScala: FiniteDuration = FiniteDuration(javaDuration.toMillis, TimeUnit.MILLISECONDS)
   }
 }

@@ -23,4 +23,8 @@ task t {
 
 workflow custom_mount_point {
   call t {input: version="latest"}
+
+  output {
+     t.out2
+   }
 }

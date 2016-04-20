@@ -1,5 +1,0 @@
-{
-    "write_tsv.a2f.out0": [["a", "b"], ["c", "d"]],
-    "write_tsv.a2f.out1": [["a", "b"], ["c", "d"]],
-    "write_tsv.a2f.out2": "a\tb\nc\td"
-}

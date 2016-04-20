@@ -35,4 +35,7 @@ workflow three_step {
   call ps
   call cgrep { input: in_file=ps.procs }
   call wc { input: in_file=ps.procs }
+  output {
+    wc.count
+  }
 }

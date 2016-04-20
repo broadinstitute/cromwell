@@ -3,7 +3,7 @@ package centaur
 import java.nio.file.Path
 
 import scala.language.postfixOps
-import org.scalatest.{Tag, Matchers, FlatSpec, ParallelTestExecution}
+import org.scalatest._
 
 /**
   * Tests with this tag expect their initial submission to Cromwell to fail
@@ -13,32 +13,34 @@ object SubmissionFailureTest extends Tag("SubmissionFailureTest")
   * Tests with this tag expect to fail
   */
 object FailureTest extends Tag("FailureTest")
+/**
+  * Tests with this tag expect to succeed
+  */
+object SuccessTest extends Tag("SuccessTest")
 
-class CentaurSpec extends FlatSpec with Matchers with ParallelTestExecution {
+
+class CentaurSpec extends FlatSpec with Matchers {
 
   def testCases(basePath: Path): List[WorkflowRequest] = {
     basePath.toFile.listFiles.toList collect { case x if x.isDirectory => x.toPath } map WorkflowRequest.apply
   }
 
   testCases(CentaurConfig.successfulTestCasePath) foreach { case w =>
-    w.name should "successfully run ${w.name}" in {
+    it should s"successfully run ${w.name}" taggedAs SuccessTest in {
       TestFormulas.runSuccessfulWorkflow(w).run.get
-      Thread.sleep(1000)
     }
   }
 
-  testCases(CentaurConfig.failingTestCasePath) foreach { case w =>
-    w.name should s"fail ${w.name}" taggedAs FailureTest in {
-      TestFormulas.runFailingWorkflow(w).run.get
-      Thread.sleep(1000)
+    testCases(CentaurConfig.failingTestCasePath) foreach { case w =>
+      it should s"fail ${w.name}" taggedAs FailureTest in {
+        TestFormulas.runFailingWorkflow(w).run.get
+      }
     }
-  }
 
   testCases(CentaurConfig.submissionFailureTestCasePath) foreach { case w =>
-    w.name should s"fail ${w.name}" taggedAs SubmissionFailureTest in {
+    it should s"fail ${w.name}" taggedAs SubmissionFailureTest in {
       // TODO: This returns a string error message. With extra test metadata, we can verify that the error message is correct!
       TestFormulas.runSubmissionFailureWorkflow(w).run.get
-      Thread.sleep(1000)
     }
   }
 }

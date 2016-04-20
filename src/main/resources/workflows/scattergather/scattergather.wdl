@@ -42,4 +42,7 @@ workflow scattergather {
     call analysis {input: str=x}
   }
   call gather {input: array=analysis.out}
+  output {
+    gather.str
+  }
 }

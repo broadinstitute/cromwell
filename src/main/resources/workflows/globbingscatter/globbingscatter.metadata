@@ -1,0 +1,1121 @@
+{
+  "workflowName": "globbingscatter",
+  "calls": {
+    "globbingscatter.combiner2": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-combiner2/combiner2-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": -1,
+        "outputs": {
+          "result": "globbing is my number 1 best hobby\nglobbing is my number 2 best hobby\nglobbing is my number 3 best hobby\nglobbing is my number 4 best hobby\nglobbing is my number 5 best hobby"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": [
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-0/catter2-0-stdout.log",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-1/catter2-1-stdout.log",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-2/catter2-2-stdout.log",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-3/catter2-3-stdout.log",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-4/catter2-4-stdout.log"
+          ]
+        },
+        "returnCode": 0,
+        "jobId": "operations/EMbngNrAKhiotsaIkYmRm0kg0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:15:57.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-combiner2/combiner2-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:15:40.000-04:00",
+            "endTime": "2016-04-12T12:15:56.394-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:15:37.309-04:00",
+            "endTime": "2016-04-12T12:15:40.099-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:14:21.000-04:00",
+            "endTime": "2016-04-12T12:15:08.367-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:15:24.781-04:00",
+            "endTime": "2016-04-12T12:15:36.709-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:15:40.099-04:00",
+            "endTime": "2016-04-12T12:15:40.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:15:08.368-04:00",
+            "endTime": "2016-04-12T12:15:24.781-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:15:36.709-04:00",
+            "endTime": "2016-04-12T12:15:37.309-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:15:08.367-04:00",
+            "endTime": "2016-04-12T12:15:08.368-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:13:57.000-04:00",
+            "endTime": "2016-04-12T12:14:21.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-combiner2/combiner2.log"
+        },
+        "start": "2016-04-12T12:13:56.000-04:00"
+      }
+    ],
+    "globbingscatter.catter2": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-0/catter2-0-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 0,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-0/catter2-0-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "catter1.result"
+        },
+        "returnCode": 0,
+        "jobId": "operations/ENqM99nAKhi-hODeueu6ndoBINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+        "backend": "JES",
+        "end": "2016-04-12T12:13:08.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-0/catter2-0-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:12:52.000-04:00",
+            "endTime": "2016-04-12T12:13:08.096-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:12:49.365-04:00",
+            "endTime": "2016-04-12T12:12:52.248-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:11:42.000-04:00",
+            "endTime": "2016-04-12T12:12:29.239-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:12:43.710-04:00",
+            "endTime": "2016-04-12T12:12:48.776-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:12:52.248-04:00",
+            "endTime": "2016-04-12T12:12:52.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:12:29.239-04:00",
+            "endTime": "2016-04-12T12:12:43.710-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:12:48.776-04:00",
+            "endTime": "2016-04-12T12:12:49.365-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:12:29.239-04:00",
+            "endTime": "2016-04-12T12:12:29.239-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:11:18.000-04:00",
+            "endTime": "2016-04-12T12:11:42.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-0/catter2-0.log"
+        },
+        "start": "2016-04-12T12:11:18.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-1/catter2-1-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 1,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-1/catter2-1-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "catter1.result"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EOvg-NnAKhjN6dfFx4PJz78BINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+        "backend": "JES",
+        "end": "2016-04-12T12:13:56.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-1/catter2-1-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:13:28.000-04:00",
+            "endTime": "2016-04-12T12:13:55.688-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:13:25.366-04:00",
+            "endTime": "2016-04-12T12:13:28.117-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:12:09.000-04:00",
+            "endTime": "2016-04-12T12:12:55.408-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:13:16.595-04:00",
+            "endTime": "2016-04-12T12:13:24.790-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:13:28.117-04:00",
+            "endTime": "2016-04-12T12:13:28.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:12:55.408-04:00",
+            "endTime": "2016-04-12T12:13:16.595-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:13:24.790-04:00",
+            "endTime": "2016-04-12T12:13:25.366-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:12:55.408-04:00",
+            "endTime": "2016-04-12T12:12:55.408-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:11:45.000-04:00",
+            "endTime": "2016-04-12T12:12:09.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-1/catter2-1.log"
+        },
+        "start": "2016-04-12T12:11:45.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-2/catter2-2-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 2,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-2/catter2-2-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "catter1.result"
+        },
+        "returnCode": 0,
+        "jobId": "operations/ENXS99nAKhi3ja7ji9bRgV4g0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:13:06.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-2/catter2-2-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:13:02.000-04:00",
+            "endTime": "2016-04-12T12:13:05.360-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:12:58.522-04:00",
+            "endTime": "2016-04-12T12:13:01.907-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:11:52.000-04:00",
+            "endTime": "2016-04-12T12:12:32.995-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:12:52.348-04:00",
+            "endTime": "2016-04-12T12:12:57.947-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:13:01.907-04:00",
+            "endTime": "2016-04-12T12:13:02.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:12:32.995-04:00",
+            "endTime": "2016-04-12T12:12:52.348-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:12:57.947-04:00",
+            "endTime": "2016-04-12T12:12:58.522-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:12:32.995-04:00",
+            "endTime": "2016-04-12T12:12:32.995-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:11:27.000-04:00",
+            "endTime": "2016-04-12T12:11:52.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-2/catter2-2.log"
+        },
+        "start": "2016-04-12T12:11:27.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-3/catter2-3-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 3,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-3/catter2-3-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "catter1.result"
+        },
+        "returnCode": 0,
+        "jobId": "operations/ENTp99nAKhjy5qeonrGCvwcg0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:13:18.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-3/catter2-3-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:13:05.000-04:00",
+            "endTime": "2016-04-12T12:13:17.986-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:13:02.003-04:00",
+            "endTime": "2016-04-12T12:13:04.973-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:11:54.000-04:00",
+            "endTime": "2016-04-12T12:12:43.831-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:12:55.169-04:00",
+            "endTime": "2016-04-12T12:13:01.418-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:13:04.973-04:00",
+            "endTime": "2016-04-12T12:13:05.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:12:43.831-04:00",
+            "endTime": "2016-04-12T12:12:55.169-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:13:01.418-04:00",
+            "endTime": "2016-04-12T12:13:02.003-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:12:43.831-04:00",
+            "endTime": "2016-04-12T12:12:43.831-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:11:30.000-04:00",
+            "endTime": "2016-04-12T12:11:54.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-3/catter2-3.log"
+        },
+        "start": "2016-04-12T12:11:29.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-4/catter2-4-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 4,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-4/catter2-4-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "catter1.result"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EP-z-dnAKhjXk6v9u670yqsBINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+        "backend": "JES",
+        "end": "2016-04-12T12:13:46.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-4/catter2-4-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:13:30.000-04:00",
+            "endTime": "2016-04-12T12:13:45.248-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:13:26.613-04:00",
+            "endTime": "2016-04-12T12:13:29.891-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:12:20.000-04:00",
+            "endTime": "2016-04-12T12:13:01.726-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:13:20.555-04:00",
+            "endTime": "2016-04-12T12:13:26.087-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:13:29.891-04:00",
+            "endTime": "2016-04-12T12:13:30.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:13:01.727-04:00",
+            "endTime": "2016-04-12T12:13:20.555-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:13:26.087-04:00",
+            "endTime": "2016-04-12T12:13:26.613-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:13:01.726-04:00",
+            "endTime": "2016-04-12T12:13:01.727-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:11:56.000-04:00",
+            "endTime": "2016-04-12T12:12:20.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter2/shard-4/catter2-4.log"
+        },
+        "start": "2016-04-12T12:11:56.000-04:00"
+      }
+    ],
+    "globbingscatter.combiner1": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-combiner1/combiner1-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": -1,
+        "outputs": {
+          "result": "globbing is my number 1 best hobby\nglobbing is my number 2 best hobby\nglobbing is my number 3 best hobby\nglobbing is my number 4 best hobby\nglobbing is my number 5 best hobby"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": [
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/1.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/2.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/3.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/4.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/5.txt"
+          ]
+        },
+        "returnCode": 0,
+        "jobId": "operations/ENC-8dnAKhiMzr__lOTy7nwg0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:11:31.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-combiner1/combiner1-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:11:27.000-04:00",
+            "endTime": "2016-04-12T12:11:30.494-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:11:25.518-04:00",
+            "endTime": "2016-04-12T12:11:27.474-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:10:11.000-04:00",
+            "endTime": "2016-04-12T12:10:52.979-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:11:13.518-04:00",
+            "endTime": "2016-04-12T12:11:24.907-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:11:27.474-04:00",
+            "endTime": "2016-04-12T12:11:27.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:10:52.979-04:00",
+            "endTime": "2016-04-12T12:11:13.518-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:11:24.907-04:00",
+            "endTime": "2016-04-12T12:11:25.518-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:10:52.979-04:00",
+            "endTime": "2016-04-12T12:10:52.979-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:09:46.000-04:00",
+            "endTime": "2016-04-12T12:10:11.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-combiner1/combiner1.log"
+        },
+        "start": "2016-04-12T12:09:46.000-04:00"
+      }
+    ],
+    "globbingscatter.globber": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/globber-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": -1,
+        "outputs": {
+          "out": [
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/1.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/2.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/3.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/4.txt",
+            "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/glob-143f2e99f34ac0b1d39c89e18cfc507b/5.txt"
+          ]
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "count": 5
+        },
+        "returnCode": 0,
+        "jobId": "operations/EKzP69nAKhj5s9iPsfKp9dsBINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+        "backend": "JES",
+        "end": "2016-04-12T12:09:46.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/globber-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:09:42.000-04:00",
+            "endTime": "2016-04-12T12:09:43.968-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:09:38.835-04:00",
+            "endTime": "2016-04-12T12:09:41.909-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:08:34.000-04:00",
+            "endTime": "2016-04-12T12:09:16.760-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:09:34.670-04:00",
+            "endTime": "2016-04-12T12:09:38.253-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:09:41.909-04:00",
+            "endTime": "2016-04-12T12:09:42.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:09:16.760-04:00",
+            "endTime": "2016-04-12T12:09:34.670-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:09:38.253-04:00",
+            "endTime": "2016-04-12T12:09:38.835-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:09:16.760-04:00",
+            "endTime": "2016-04-12T12:09:16.760-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:08:10.000-04:00",
+            "endTime": "2016-04-12T12:08:34.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-globber/globber.log"
+        },
+        "start": "2016-04-12T12:08:09.000-04:00"
+      }
+    ],
+    "globbingscatter.catter1": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-0/catter1-0-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 0,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-0/catter1-0-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "x"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EJfC8dnAKhiCyJrx65rcvcsBINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+        "backend": "JES",
+        "end": "2016-04-12T12:11:18.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-0/catter1-0-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:11:16.000-04:00",
+            "endTime": "2016-04-12T12:11:17.321-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:11:14.174-04:00",
+            "endTime": "2016-04-12T12:11:16.528-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:10:12.000-04:00",
+            "endTime": "2016-04-12T12:10:52.729-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:11:09.385-04:00",
+            "endTime": "2016-04-12T12:11:13.573-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:11:16.528-04:00",
+            "endTime": "2016-04-12T12:11:16.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:10:52.729-04:00",
+            "endTime": "2016-04-12T12:11:09.385-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:11:13.573-04:00",
+            "endTime": "2016-04-12T12:11:14.174-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:10:52.729-04:00",
+            "endTime": "2016-04-12T12:10:52.729-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:09:47.000-04:00",
+            "endTime": "2016-04-12T12:10:12.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-0/catter1-0.log"
+        },
+        "start": "2016-04-12T12:09:46.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-1/catter1-1-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 1,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-1/catter1-1-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "x"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EMnC8dnAKhiQ8ob_sZy6__kBINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+        "backend": "JES",
+        "end": "2016-04-12T12:11:45.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-1/catter1-1-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:11:14.000-04:00",
+            "endTime": "2016-04-12T12:11:44.705-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:11:11.997-04:00",
+            "endTime": "2016-04-12T12:11:14.025-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:10:12.000-04:00",
+            "endTime": "2016-04-12T12:10:53.175-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:11:06.769-04:00",
+            "endTime": "2016-04-12T12:11:11.376-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:11:14.025-04:00",
+            "endTime": "2016-04-12T12:11:14.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:10:53.176-04:00",
+            "endTime": "2016-04-12T12:11:06.769-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:11:11.376-04:00",
+            "endTime": "2016-04-12T12:11:11.997-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:10:53.175-04:00",
+            "endTime": "2016-04-12T12:10:53.176-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:09:47.000-04:00",
+            "endTime": "2016-04-12T12:10:12.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-1/catter1-1.log"
+        },
+        "start": "2016-04-12T12:09:46.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-2/catter1-2-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 2,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-2/catter1-2-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "x"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EMHB8dnAKhj62anUlOmGinog0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:11:27.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-2/catter1-2-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:11:16.000-04:00",
+            "endTime": "2016-04-12T12:11:26.085-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:11:14.286-04:00",
+            "endTime": "2016-04-12T12:11:16.423-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:10:11.000-04:00",
+            "endTime": "2016-04-12T12:10:53.000-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:11:08.480-04:00",
+            "endTime": "2016-04-12T12:11:13.727-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:11:16.423-04:00",
+            "endTime": "2016-04-12T12:11:16.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:10:53.000-04:00",
+            "endTime": "2016-04-12T12:11:08.480-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:11:13.727-04:00",
+            "endTime": "2016-04-12T12:11:14.286-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:10:53.000-04:00",
+            "endTime": "2016-04-12T12:10:53.000-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:09:46.000-04:00",
+            "endTime": "2016-04-12T12:10:11.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-2/catter1-2.log"
+        },
+        "start": "2016-04-12T12:09:46.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-3/catter1-3-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 3,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-3/catter1-3-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "x"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EKfC8dnAKhjHmJ34-IiXjDwg0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:11:29.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-3/catter1-3-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:11:18.000-04:00",
+            "endTime": "2016-04-12T12:11:29.216-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:11:15.688-04:00",
+            "endTime": "2016-04-12T12:11:18.122-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:10:12.000-04:00",
+            "endTime": "2016-04-12T12:10:58.323-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:11:10.873-04:00",
+            "endTime": "2016-04-12T12:11:15.145-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:11:18.122-04:00",
+            "endTime": "2016-04-12T12:11:18.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:10:58.323-04:00",
+            "endTime": "2016-04-12T12:11:10.873-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:11:15.145-04:00",
+            "endTime": "2016-04-12T12:11:15.688-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:10:58.323-04:00",
+            "endTime": "2016-04-12T12:10:58.323-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:09:47.000-04:00",
+            "endTime": "2016-04-12T12:10:12.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-3/catter1-3.log"
+        },
+        "start": "2016-04-12T12:09:46.000-04:00"
+      },
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-4/catter1-4-stdout.log",
+        "backendStatus": "Success",
+        "shardIndex": 4,
+        "outputs": {
+          "result": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-4/catter1-4-stdout.log"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "cpu": "1",
+          "zones": "us-central1-a",
+          "memory": "2GB"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "inputs": {
+          "in_file": "x"
+        },
+        "returnCode": 0,
+        "jobId": "operations/EMnB8dnAKhiq3_P8ktu3rSIg0e2BmaAdKgxzdGFnaW5nUXVldWU",
+        "backend": "JES",
+        "end": "2016-04-12T12:11:56.000-04:00",
+        "stderr": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-4/catter1-4-stderr.log",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "description": "cromwell poll interval",
+            "startTime": "2016-04-12T12:11:15.000-04:00",
+            "endTime": "2016-04-12T12:11:54.742-04:00"
+          },
+          {
+            "description": "delocalizing-files",
+            "startTime": "2016-04-12T12:11:12.350-04:00",
+            "endTime": "2016-04-12T12:11:14.668-04:00"
+          },
+          {
+            "description": "initializing VM",
+            "startTime": "2016-04-12T12:10:12.000-04:00",
+            "endTime": "2016-04-12T12:10:52.808-04:00"
+          },
+          {
+            "description": "localizing-files",
+            "startTime": "2016-04-12T12:11:06.905-04:00",
+            "endTime": "2016-04-12T12:11:11.802-04:00"
+          },
+          {
+            "description": "ok",
+            "startTime": "2016-04-12T12:11:14.668-04:00",
+            "endTime": "2016-04-12T12:11:15.000-04:00"
+          },
+          {
+            "description": "pulling-image",
+            "startTime": "2016-04-12T12:10:52.808-04:00",
+            "endTime": "2016-04-12T12:11:06.905-04:00"
+          },
+          {
+            "description": "running-docker",
+            "startTime": "2016-04-12T12:11:11.802-04:00",
+            "endTime": "2016-04-12T12:11:12.350-04:00"
+          },
+          {
+            "description": "start",
+            "startTime": "2016-04-12T12:10:52.808-04:00",
+            "endTime": "2016-04-12T12:10:52.808-04:00"
+          },
+          {
+            "description": "waiting for quota",
+            "startTime": "2016-04-12T12:09:46.000-04:00",
+            "endTime": "2016-04-12T12:10:12.000-04:00"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev/cromwell-executions/globbingscatter/ad6eaa01-6344-49ed-b14b-c44f836f5c56/call-catter1/shard-4/catter1-4.log"
+        },
+        "start": "2016-04-12T12:09:46.000-04:00"
+      }
+    ]
+  },
+  "outputs": {
+    "globbingscatter.combiner2.result": "globbing is my number 1 best hobby\nglobbing is my number 2 best hobby\nglobbing is my number 3 best hobby\nglobbing is my number 4 best hobby\nglobbing is my number 5 best hobby"
+  },
+  "id": "ad6eaa01-6344-49ed-b14b-c44f836f5c56",
+  "inputs": {},
+  "submission": "2016-04-12T12:08:09.000-04:00",
+  "status": "Succeeded",
+  "end": "2016-04-12T12:15:58.000-04:00",
+  "start": "2016-04-12T12:08:09.000-04:00"
+}

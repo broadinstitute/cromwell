@@ -27,6 +27,9 @@ task consumeFiles {
     command {
         cat ${sep='; cat ' in_file}
     }
+    output {
+        String x = read_string(stdout())
+    }
     runtime {docker: "ubuntu:latest"}
 }
 
@@ -41,4 +44,8 @@ workflow multplesourcedarray {
 
     call consume { input: in_file = [source1.result, source2.result, source3.result, source4.result, source5.result, source6.result, source7.result] }
     call consumeFiles { input: in_file = [source1.resultFile, source2.resultFile, source3.resultFile, source4.resultFile, source5.resultFile, source6.resultFile, source7.resultFile] }
+
+    output {
+        consumeFiles.x
+    }
 }

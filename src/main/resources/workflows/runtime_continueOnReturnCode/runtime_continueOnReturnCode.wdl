@@ -71,4 +71,8 @@ workflow runtime_continueOnRC {
         in2=continueOnRC2.ohno,
         in3=continueOnRC3.ohno
     }
+
+    output {
+        finisher.finished
+    }
 }

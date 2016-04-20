@@ -64,9 +64,9 @@ task outputRedirecting {
         echo "should be on stderr" >&2
     >>>
     output {
-        String stdout = read_string(stdout())
-        String stderr = read_string(stderr())
-    }
+             String stdout = read_string(stdout())
+             String stderr = read_string(stderr())
+         }
     runtime {
         failOnStderr: false
         docker: "ubuntu:latest"
@@ -90,4 +90,8 @@ workflow JES_Exercises {
                 file3suffix="hahaha"
     }
     call outputRedirecting as testRedirect
+    output{
+       testRedirect.stdout
+       testRedirect.stderr
+    }
 }

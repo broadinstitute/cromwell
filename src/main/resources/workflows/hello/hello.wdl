@@ -13,4 +13,7 @@ task hello {
 
 workflow hello {
   call hello
+  output {
+     hello.salutation
+  }
 }

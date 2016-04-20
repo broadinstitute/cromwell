@@ -1,0 +1,132 @@
+{
+  "workflowName": "filepassing",
+  "calls": {
+    "filepassing.a": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-a/a-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "out": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-a/out",
+        "out_interpolation": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-a/out",
+        "contents": "small test file says hello"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "in_file": "gs://cloud-cromwell-tyburn-test-files/test-files/smalltestfile.txt",
+        "out_name": "out"
+      },
+      "returnCode": 0,
+      "jobId": "operations/EN_j5469Khj8nYq_n6XNn-kBINHtgZmgHSoMc3RhZ2luZ1F1ZXVl",
+      "backend": "JES",
+      "end": "2016-04-01T08:45:54.874-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-a/a-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-04-01T08:45:35.000-04:00",
+        "endTime": "2016-04-01T08:45:53.868-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-04-01T08:45:31.850-04:00",
+        "endTime": "2016-04-01T08:45:34.664-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-04-01T08:44:21.000-04:00",
+        "endTime": "2016-04-01T08:45:00.924-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-04-01T08:45:27.410-04:00",
+        "endTime": "2016-04-01T08:45:31.325-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-04-01T08:45:34.664-04:00",
+        "endTime": "2016-04-01T08:45:35.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-04-01T08:45:00.924-04:00",
+        "endTime": "2016-04-01T08:45:27.410-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-04-01T08:45:31.325-04:00",
+        "endTime": "2016-04-01T08:45:31.850-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-04-01T08:45:00.924-04:00",
+        "endTime": "2016-04-01T08:45:00.924-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-04-01T08:43:54.000-04:00",
+        "endTime": "2016-04-01T08:44:21.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-a/a.log"
+      },
+      "start": "2016-04-01T08:43:53.483-04:00"
+    }],
+    "filepassing.b": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-b/b-stdout.log",
+      "shardIndex": -1,
+      "outputs": {
+        "out": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-b/out",
+        "out_interpolation": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-b/out",
+        "contents": "small test file says hello"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true,
+        "cacheHitWorkflow": "b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c",
+        "cacheHitCall": "filepassing.a"
+      },
+      "inputs": {
+        "in_file": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-a/out",
+        "out_name": "out"
+      },
+      "returnCode": 0,
+      "backend": "JES",
+      "end": "2016-04-01T08:46:01.479-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-b/b-stderr.log",
+      "attempt": 1,
+      "executionEvents": [],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/filepassing/b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c/call-b/b.log"
+      },
+      "start": "2016-04-01T08:45:55.035-04:00"
+    }]
+  },
+  "outputs": {
+    "filepassing.b.contents": "small test file says hello"
+  },
+  "id": "b5d50d7e-9d98-4ad0-9d7e-950cd92dc07c",
+  "inputs": {
+    "filepassing.f": "gs://cloud-cromwell-tyburn-test-files/test-files/smalltestfile.txt"
+  },
+  "submission": "2016-04-01T08:43:53.461-04:00",
+  "status": "Succeeded",
+  "end": "2016-04-01T08:46:01.981-04:00",
+  "start": "2016-04-01T08:43:53.461-04:00"
+}

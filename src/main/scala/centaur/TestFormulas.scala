@@ -1,4 +1,7 @@
 package centaur
+
+import java.nio.file.Path
+
 import cats.implicits._
 import Operations._
 import Test.testMonad
@@ -18,7 +21,7 @@ object TestFormulas {
   def runSuccessfulWorkflow(request: WorkflowRequest) = {
     for {
       s <- runWorkflowUntilTerminalStatus(request, Succeeded)
-      _ <- verifyOutputs(s, request)
+      _ <- verifyMetadataAndOutputs(s, request)
     } yield ()
   }
 

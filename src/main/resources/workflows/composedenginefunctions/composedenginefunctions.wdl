@@ -31,4 +31,7 @@ workflow composedenginefunctions {
   call grep {
     input: in_file=cat.stuff
   }
+  output {
+    grep.x
+  }
 }

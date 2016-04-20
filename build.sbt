@@ -26,6 +26,6 @@ libraryDependencies ++= Seq(
   "io.spray" %% "spray-client" % sprayV,
   "io.spray" %% "spray-http" % sprayV,
   "io.spray" %% "spray-json" % downgradedSprayV,
-  "org.scalatest" %% "scalatest" % "2.2.6" % Test
+  "org.scalatest" %% "scalatest" % "2.2.6" % Test,
+  "com.github.pathikrit" %% "better-files" % "2.13.0"
 )
-

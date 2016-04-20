@@ -13,8 +13,8 @@ object BackendJobExecutionActor {
 
   // Commands
   sealed trait BackendJobExecutionActorCommand extends BackendWorkflowLifecycleActorCommand
-  final case class ExecuteJobCommand(jobDescriptor: BackendJobDescriptor) extends BackendJobExecutionActorCommand
-  final case class RecoverJobCommand(jobDescriptor: BackendJobDescriptor) extends BackendJobExecutionActorCommand
+  case object ExecuteJobCommand extends BackendJobExecutionActorCommand
+  case object RecoverJobCommand extends BackendJobExecutionActorCommand
 
   // Responses
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
@@ -28,30 +28,30 @@ object BackendJobExecutionActor {
 /**
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
-trait BackendJobExecutionActor extends BackendLifecycleActor with ActorLogging {
+trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLogging {
 
   def receive: Receive = LoggingReceive {
-    case ExecuteJobCommand(jobDescriptor) => performActionThenRespond(execute(jobDescriptor), onFailure = executionFailed(jobDescriptor.key))
-    case RecoverJobCommand(jobDescriptor) => performActionThenRespond(recover(jobDescriptor), onFailure = executionFailed(jobDescriptor.key))
-    case AbortJob(jobKey)                 => performActionThenRespond(abortJob(jobKey), onFailure = abortFailed(jobKey))
+    case ExecuteJobCommand => performActionThenRespond(execute, onFailure = executionFailed)
+    case RecoverJobCommand => performActionThenRespond(recover, onFailure = executionFailed)
+    case AbortJob          => performActionThenRespond(abortJob, onFailure = abortFailed)
   }
 
   // We need this for receive because we can't do `onFailure = ExecutionFailure` directly - because BackendJobDescriptor =/= BackendJobDescriptorKey
-  private def executionFailed(key: BackendJobDescriptorKey) = (t: Throwable) => BackendJobExecutionFailedResponse(key, t)
-  private def abortFailed(key: BackendJobDescriptorKey) = (t: Throwable) => BackendJobExecutionAbortFailedResponse(key, t)
+  private def executionFailed = (t: Throwable) => BackendJobExecutionFailedResponse(jobDescriptor.key, t)
+  private def abortFailed = (t: Throwable) => BackendJobExecutionAbortFailedResponse(jobDescriptor.key, t)
 
   /**
     * Execute a new job.
     */
-  def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse]
+  def execute: Future[BackendJobExecutionResponse]
 
   /**
     * Restart or resume a previously-started job.
     */
-  def recover(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse]
+  def recover: Future[BackendJobExecutionResponse]
 
   /**
     * Abort a running job.
     */
-  def abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse]
+  def abortJob: Future[JobAbortResponse]
 }

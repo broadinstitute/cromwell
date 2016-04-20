@@ -40,16 +40,6 @@ trait BackendLifecycleActor extends Actor {
   protected implicit def ec: ExecutionContext = context.dispatcher
 
   /**
-    * The set of calls which this backend will be expected to run
-    */
-  protected def calls: Seq[Call]
-
-  /**
-    * The workflow descriptor for the workflow in which this Backend is being used
-    */
-  protected def workflowDescriptor: BackendWorkflowDescriptor
-
-  /**
     * The configuration for the backend, in the context of the entire Cromwell configuration file.
     */
   protected def configurationDescriptor: BackendConfigurationDescriptor
@@ -62,4 +52,20 @@ trait BackendLifecycleActor extends Actor {
       case Failure(t) => respondTo ! onFailure(t)
     }
   }
+}
+
+trait BackendWorkflowLifecycleActor extends BackendLifecycleActor {
+  /**
+    * The workflow descriptor for the workflow in which this Backend is being used
+    */
+  protected def workflowDescriptor: BackendWorkflowDescriptor
+
+  /**
+    * The subset of calls which this backend will be expected to run
+    */
+  protected def calls: Seq[Call]
+}
+
+trait BackendJobLifecycleActor extends BackendLifecycleActor {
+  protected def jobDescriptor: BackendJobDescriptor
 }

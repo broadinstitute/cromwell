@@ -11,24 +11,19 @@ class HtCondorBackend extends BackendJobExecutionActor {
   /**
     * Restart or resume a previously-started job.
     */
-  override def recover(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = ???
+  override def recover: Future[BackendJobExecutionResponse] = ???
 
   /**
     * Execute a new job.
     */
-  override def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = ???
+  override def execute: Future[BackendJobExecutionResponse] = ???
 
-  override protected def workflowDescriptor: BackendWorkflowDescriptor = ???
+  override protected def jobDescriptor: BackendJobDescriptor = ???
 
   override protected def configurationDescriptor: BackendConfigurationDescriptor = ???
 
   /**
-    * The set of calls which this backend will be expected to run
-    */
-  override protected def calls: Seq[Call] = ???
-
-  /**
     * Abort a running job.
     */
-  override def abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse] = ???
+  override def abortJob: Future[JobAbortResponse] = ???
 }

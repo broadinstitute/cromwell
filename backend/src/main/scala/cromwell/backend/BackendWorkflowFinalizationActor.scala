@@ -26,7 +26,7 @@ object BackendWorkflowFinalizationActor {
 /**
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
-trait BackendWorkflowFinalizationActor extends BackendLifecycleActor with ActorLogging {
+trait BackendWorkflowFinalizationActor extends BackendWorkflowLifecycleActor with ActorLogging {
 
   def receive: Receive = LoggingReceive {
     case Finalize => performActionThenRespond(afterAll, onFailure = FinalizationFailed)

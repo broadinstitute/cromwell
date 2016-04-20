@@ -1,21 +1,26 @@
 package cromwell.engine.backend.dummy
 
+import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionSucceededResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.{BackendJobExecutionAbortSucceededResponse, JobAbortResponse}
 import cromwell.backend._
 import cromwell.core.CallOutput
 import wdl4s.types._
 import wdl4s.values._
-import wdl4s.{TaskOutput, Call}
+import wdl4s.TaskOutput
 
 import scala.concurrent.Future
 
-case class DummyBackendJobExecutionActor(workflowDescriptor: BackendWorkflowDescriptor, configurationDescriptor: BackendConfigurationDescriptor, calls: Seq[Call]) extends BackendJobExecutionActor {
+object DummyBackendJobExecutionActor {
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = Props(DummyBackendJobExecutionActor(jobDescriptor, configurationDescriptor))
+}
+
+case class DummyBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   /**
     * Execute a new job.
     */
-  override def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = {
-    val outputs = (jobDescriptor.call.task.outputs map taskOutputToJobOutput _).toMap
+  override def execute: Future[BackendJobExecutionResponse] = {
+    val outputs = (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap
     Future.successful(BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs))
   }
 
@@ -36,11 +41,11 @@ case class DummyBackendJobExecutionActor(workflowDescriptor: BackendWorkflowDesc
   /**
     * Restart or resume a previously-started job.
     */
-  override def recover(jobDescriptor: BackendJobDescriptor) = execute(jobDescriptor)
+  override def recover = execute
 
   /**
     * Abort a running job.
     */
-  override def abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse] = Future.successful(BackendJobExecutionAbortSucceededResponse(jobKey))
+  override def abortJob: Future[JobAbortResponse] = Future.successful(BackendJobExecutionAbortSucceededResponse(jobDescriptor.key))
 
 }

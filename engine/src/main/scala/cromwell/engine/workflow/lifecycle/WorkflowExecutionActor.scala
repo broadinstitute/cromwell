@@ -1,10 +1,14 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{FSM, ActorRef, LoggingFSM, Props}
+import com.typesafe.config.ConfigFactory
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
+import cromwell.backend.{BackendJobDescriptorKey, BackendJobDescriptor, BackendConfigurationDescriptor}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.BackendCallJobDescriptor
+import cromwell.engine.backend.dummy.DummyBackendJobExecutionActor
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
+import wdl4s.Call
 
 object WorkflowExecutionActor {
 
@@ -49,12 +53,24 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   val tag = self.path.name
   startWith(WorkflowExecutionPendingState, WorkflowExecutionActorData())
 
+  def startJob(call: Call) = {
+    // TODO: Support indexes and retries:
+    val jobKey = BackendJobDescriptorKey(call, None, 1)
+    val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, Map.empty)
+    val executionActor = backendForExecution(jobDescriptor, workflowDescriptor.backendAssignments(call))
+    executionActor ! ExecuteJobCommand
+  }
+
   when(WorkflowExecutionPendingState) {
     case Event(StartExecutingWorkflowCommand, _) =>
-      // TODO: Start executing
-      sender ! WorkflowExecutionFailedResponse(Seq(new Exception("Execution is not implemented yet")))
-      goto(WorkflowExecutionFailedState)
-      // TODO: actually: goto(WorkflowExecutionInProgressState)
+      if (workflowDescriptor.namespace.workflow.calls.size == 1) {
+        startJob(workflowDescriptor.namespace.workflow.calls.head)
+        goto(WorkflowExecutionInProgressState)
+      } else {
+        // TODO: We probably do want to support > 1 call in a workflow!
+        sender ! WorkflowExecutionFailedResponse(Seq(new Exception("Execution is not implemented for call count != 1")))
+        goto(WorkflowExecutionFailedState)
+      }
     case Event(RestartExecutingWorkflowCommand, _) =>
       // TODO: Restart executing
       goto(WorkflowExecutionInProgressState)
@@ -64,6 +80,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   }
 
   when(WorkflowExecutionInProgressState) {
+    case Event(BackendJobExecutionSucceededResponse(jobKey, callOutputs), stateData) =>
+      log.info(s"Job ${jobKey.call.fullyQualifiedName} succeeded! Outputs: ${callOutputs.mkString("\n")}")
+      context.parent ! WorkflowExecutionSucceededResponse
+      goto(WorkflowExecutionSuccessfulState)
+    case Event(BackendJobExecutionFailedResponse(jobKey, reason), stateData) =>
+      log.warning(s"Job ${jobKey.call.fullyQualifiedName} failed! Reason: $reason")
+      goto(WorkflowExecutionFailedState)
     case Event(AbortExecutingWorkflowCommand, stateData) => ??? // TODO: Implement!
     case Event(_, _) => ??? // TODO: Lots of extra stuff to include here...
   }
@@ -80,14 +103,23 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
 
   onTransition {
     case _ -> toState if toState.terminal =>
-      log.debug(s"$tag done. Shutting down.")
+      log.info(s"$tag done. Shutting down.")
       context.stop(self)
     case fromState -> toState =>
-      log.debug(s"$tag transitioning from $fromState to $toState.")
+      log.info(s"$tag transitioning from $fromState to $toState.")
   }
 
   /**
-    * Creates an appropraite BackendJobExecutionActor to run a single job, according to the backend assignments.
+    * Creates an appropriate BackendJobExecutionActor to run a single job, according to the backend assignments.
     */
-  def backendForExecution(jobDescriptor: BackendCallJobDescriptor): ActorRef = ??? //TODO: Implement!
+  def backendForExecution(jobDescriptor: BackendJobDescriptor, backendName: String): ActorRef =
+    if (backendName == "dummy") {
+      // Don't judge me! This is obviously not "production ready"!
+      val configDescriptor = BackendConfigurationDescriptor("", ConfigFactory.load())
+      val props = DummyBackendJobExecutionActor.props(jobDescriptor, configDescriptor)
+      val key = jobDescriptor.key
+      context.actorOf(props, name = s"${jobDescriptor.descriptor.id}-BackendExecutionActor-${key.call.taskFqn}-${key.index}-${key.attempt}")
+    } else {
+      ??? //TODO: Implement!
+    }
 }

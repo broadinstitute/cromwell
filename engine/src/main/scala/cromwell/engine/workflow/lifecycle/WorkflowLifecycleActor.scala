@@ -50,11 +50,11 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState, D <: WorkflowLife
 
   onTransition {
     case _ -> state if state.terminal =>
-      log.debug("State is now terminal. Shutting down.")
+      log.info("State is now terminal. Shutting down.")
       context.stop(self)
     case fromState -> toState =>
       // Only log this at debug - these states are never seen or used outside of the CallActor itself.
-      log.debug(s"State is transitioning from $fromState to $toState.")
+      log.info(s"State is transitioning from $fromState to $toState.")
   }
 
   /**
@@ -69,10 +69,10 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState, D <: WorkflowLife
     */
   protected def backendWorkflowActors(backendAssignments: Map[Call, String]):  Map[ActorRef, String] = {
     val callAssignmentMap = callAssignments(backendAssignments)
-    val backendsToInitialize = backendAssignments.values.toSet
-    backendsToInitialize
-      .map { backend => (backendActor(backend, callAssignmentMap(backend)), backend) } // Create the initializationActors
-      .collect { case (Some(actorRef), backend) => actorRef -> backend } // Only track the backends which need initialization
+    val backendsNeedingActors = backendAssignments.values.toSet
+    backendsNeedingActors
+      .map { backend => (backendActor(backend, callAssignmentMap(backend)), backend) } // Create the actors
+      .collect { case (Some(actorRef), backend) => actorRef -> backend } // Only track the backends which have actors
       .toMap
   }
 

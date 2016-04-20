@@ -19,8 +19,7 @@ object FailureTest extends Tag("FailureTest")
 object SuccessTest extends Tag("SuccessTest")
 
 
-class CentaurSpec extends FlatSpec with Matchers {
-
+class CentaurSpec extends FlatSpec with Matchers with ParallelTestExecution{
   def testCases(basePath: Path): List[WorkflowRequest] = {
     basePath.toFile.listFiles.toList collect { case x if x.isDirectory => x.toPath } map WorkflowRequest.apply
   }

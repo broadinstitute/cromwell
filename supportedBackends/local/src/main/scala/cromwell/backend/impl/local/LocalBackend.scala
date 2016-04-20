@@ -11,12 +11,12 @@ class LocalBackend extends BackendJobExecutionActor {
   /**
     * Restart or resume a previously-started job.
     */
-  override def recover(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = ???
+  override def recover: Future[BackendJobExecutionResponse] = ???
 
   /**
     * Execute a new job.
     */
-  override def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = ???
+  override def execute: Future[BackendJobExecutionResponse] = ???
 
   override protected def jobDescriptor: BackendJobDescriptor = ???
 
@@ -25,5 +25,5 @@ class LocalBackend extends BackendJobExecutionActor {
   /**
     * Abort a running job.
     */
-  override def abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse] = ???
+  override def abortJob: Future[JobAbortResponse] = ???
 }

@@ -7,7 +7,7 @@ import cromwell.backend._
 import cromwell.core.CallOutput
 import wdl4s.types._
 import wdl4s.values._
-import wdl4s.{TaskOutput, Call}
+import wdl4s.TaskOutput
 
 import scala.concurrent.Future
 
@@ -19,7 +19,7 @@ case class DummyBackendJobExecutionActor(override val jobDescriptor: BackendJobD
   /**
     * Execute a new job.
     */
-  override def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse] = {
+  override def execute: Future[BackendJobExecutionResponse] = {
     val outputs = (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap
     Future.successful(BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs))
   }
@@ -41,11 +41,11 @@ case class DummyBackendJobExecutionActor(override val jobDescriptor: BackendJobD
   /**
     * Restart or resume a previously-started job.
     */
-  override def recover(jobDescriptor: BackendJobDescriptor) = execute(jobDescriptor)
+  override def recover = execute
 
   /**
     * Abort a running job.
     */
-  override def abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse] = Future.successful(BackendJobExecutionAbortSucceededResponse(jobKey))
+  override def abortJob: Future[JobAbortResponse] = Future.successful(BackendJobExecutionAbortSucceededResponse(jobDescriptor.key))
 
 }

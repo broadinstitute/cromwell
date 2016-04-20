@@ -58,7 +58,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, Map.empty)
     val executionActor = backendForExecution(jobDescriptor, workflowDescriptor.backendAssignments(call))
-    executionActor ! ExecuteJobCommand(jobDescriptor)
+    executionActor ! ExecuteJobCommand
   }
 
   when(WorkflowExecutionPendingState) {

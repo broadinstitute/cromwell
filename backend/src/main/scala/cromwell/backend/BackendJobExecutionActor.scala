@@ -40,18 +40,20 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   private def executionFailed(key: BackendJobDescriptorKey) = (t: Throwable) => BackendJobExecutionFailedResponse(key, t)
   private def abortFailed(key: BackendJobDescriptorKey) = (t: Throwable) => BackendJobExecutionAbortFailedResponse(key, t)
 
+  override def jobDescriptor: BackendJobDescriptor
+
   /**
     * Execute a new job.
     */
-  def execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse]
+  def execute(): Future[BackendJobExecutionResponse]
 
   /**
     * Restart or resume a previously-started job.
     */
-  def recover(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse]
+  def recover(): Future[BackendJobExecutionResponse]
 
   /**
     * Abort a running job.
     */
-  def abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse]
+  def abortJob(): Future[JobAbortResponse]
 }

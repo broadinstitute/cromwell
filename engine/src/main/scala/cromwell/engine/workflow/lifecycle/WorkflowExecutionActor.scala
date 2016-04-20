@@ -81,11 +81,11 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
 
   when(WorkflowExecutionInProgressState) {
     case Event(BackendJobExecutionSucceededResponse(jobKey, callOutputs), stateData) =>
-      log.info(s"Job ${jobKey.call.fullyQualifiedName} succeeded! Outputs: ${callOutputs.mkString(" |:::| ")}")
+      log.info(s"Job ${jobKey.call.fullyQualifiedName} succeeded! Outputs: ${callOutputs.mkString("\n")}")
       context.parent ! WorkflowExecutionSucceededResponse
       goto(WorkflowExecutionSuccessfulState)
     case Event(BackendJobExecutionFailedResponse(jobKey, reason), stateData) =>
-      log.warning(s"Job ${jobKey.call.fullyQualifiedName} succeeded! Reason: $reason")
+      log.warning(s"Job ${jobKey.call.fullyQualifiedName} failed! Reason: $reason")
       goto(WorkflowExecutionFailedState)
     case Event(AbortExecutingWorkflowCommand, stateData) => ??? // TODO: Implement!
     case Event(_, _) => ??? // TODO: Lots of extra stuff to include here...

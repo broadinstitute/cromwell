@@ -1,15 +1,13 @@
 package cromwell.engine.backend.local
 
-import java.io.File
-import java.nio.file.{FileSystem, Files, Path, Paths}
+import java.nio.file._
 
-import better.files.{File => ScalaFile, _}
+import better.files._
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions}
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs.GcsPath
 import cromwell.engine.{ExecutionEventEntry, backend}
 import cromwell.util.TryUtil
-import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
 import wdl4s.values.{WdlValue, _}
@@ -23,31 +21,41 @@ import scala.util.{Failure, Success, Try}
 object SharedFileSystemBackend {
   type LocalizationStrategy = (String, Path, WorkflowDescriptor) => Try[Unit]
 
-  private def localizeFromGcs(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = Try {
+  private[local] def localizeFromGcs(originalPath: String, executionPath: Path,
+                                     descriptor: WorkflowDescriptor): Try[Unit] = Try {
     import backend.io._
     assert(originalPath.isGcsUrl)
+    Option(executionPath.parent) map { _.createDirectories }
     originalPath.toAbsolutePath(descriptor.fileSystems).copyTo(executionPath)
   }
 
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = {
-    if (Files.exists(executionPath)) Success(()) else Failure(new Throwable)
-  }
-
-  private def localizePathViaCopy(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = {
-    Try(Paths.get(originalPath)) map { srcPath =>
-      if (Files.isDirectory(srcPath)) {
-        FileUtils.copyDirectory(srcPath.toFile, executionPath.toFile)
-      } else {
-        FileUtils.copyFile(srcPath.toFile, executionPath.toFile)
-      }
+  private[local] def localizePathAlreadyLocalized(originalPath: String, executionPath: Path,
+                                                  descriptor: WorkflowDescriptor): Try[Unit] = {
+    Try {
+      if (!Files.exists(executionPath))
+        throw new NoSuchFileException(s"$executionPath does not exist")
     }
   }
 
-  private def localizePathViaHardLink(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] =
-    Try(Files.createLink(executionPath, Paths.get(originalPath)))
+  private[local] def localizePathViaCopy(originalPath: String, executionPath: Path,
+                                         descriptor: WorkflowDescriptor): Try[Unit] = {
+    Try {
+      val srcPath = File(originalPath)
+      Option(executionPath.parent) map { _.createDirectories }
+      srcPath.copyTo(executionPath)
+    }
+  }
+
+  private[local] def localizePathViaHardLink(originalPath: String, executionPath: Path,
+                                             descriptor: WorkflowDescriptor): Try[Unit] =
+    Try {
+      val srcPath = File(originalPath)
+      Option(executionPath.parent) map { _.createDirectories }
+      executionPath.linkTo(srcPath, symbolic = false)
+    }
 
   /**
     * TODO: The 'call' parameter here represents the call statement in WDL that references this path.
@@ -58,15 +66,18 @@ object SharedFileSystemBackend {
     * indirectly through one of its input expressions
     */
 
-  private def localizePathViaSymbolicLink(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = {
-    Try(Paths.get(originalPath)) map { srcPath =>
-      if (srcPath.toFile.isDirectory)
-        Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
-      else Files.createSymbolicLink(executionPath, srcPath.toAbsolutePath)
+  private[local] def localizePathViaSymbolicLink(originalPath: String, executionPath: Path,
+                                                 descriptor: WorkflowDescriptor): Try[Unit] = {
+    Try {
+      val srcPath = File(originalPath)
+      if (srcPath.isDirectory)
+        throw new UnsupportedOperationException("Cannot localize directory with symbolic links")
+      Option(executionPath.parent) map { _.createDirectories }
+      executionPath.linkTo(srcPath, symbolic = true)
     }
   }
 
-  val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
+  val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(File(wdlFile.value).md5) }
 }
 
 trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
@@ -279,7 +290,11 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
     ))
 
   private def hostAbsoluteFilePath(jobDescriptor: BackendCallJobDescriptor, pathString: String): String =
-    if (new File(pathString).isAbsolute) pathString else Paths.get(jobDescriptor.callRootPath.toAbsolutePath.toString, pathString).toString
+    if (Paths.get(pathString).isAbsolute) {
+      pathString
+    } else {
+      Paths.get(jobDescriptor.callRootPath.fullPath, pathString).fullPath
+    }
 
   /**
    * Handle possible auto-conversion from an output expression `WdlString` to a `WdlFile` task output.

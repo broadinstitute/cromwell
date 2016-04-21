@@ -12,6 +12,7 @@ import java.util.Collections
 import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.client.googleapis.media.MediaHttpUploader
 import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.StorageObject
 import com.google.cloud.hadoop.gcsio.{GoogleCloudStorageReadChannel, GoogleCloudStorageWriteChannel, ObjectWriteConditions}
@@ -82,11 +83,20 @@ object ExecutionContextExecutorServiceBridge {
   * This implementation is not complete and mostly a proof of concept that it's possible to *copy* around files from/to local/gcs.
   * Copying is the only functionality that has been successfully tested (same and cross filesystems).
   *
+  * If/when switching to Google's GCS NIO implementation, callers may need to implement various utilities built into
+  * this implementation, including:
+  *
+  * - Minimizing the upload buffer size, assuming the default is also on the order of megabytes of memory per upload
+  * - Automatically retrying transient errors
+  * - etc.
+  *
   * @param storageClient Google API Storage object
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
 class GcsFileSystemProvider private (storageClient: Try[Storage], executionContext: ExecutionContext) extends FileSystemProvider {
   import GcsFileSystemProvider._
+
+  private[this] lazy val config = ConfigFactory.load()
 
   // We want to throw an exception here if we try to use this class with a failed gcs interface
   lazy val client = storageClient.get
@@ -121,6 +131,18 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
     }
   }
 
+  /*
+  For now, default all upload buffers as small as possible, 256K per upload. Without this default the buffers are 64M.
+  In the future, we may possibly be able to pass information to the NioGcsPath with the expected... or Google's GCS NIO
+  implementation will be finished we'll need to revisit this issue again.
+
+  See also:
+  - com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel.setUploadBufferSize
+  - com.google.api.client.googleapis.media.MediaHttpUploader.setContentAndHeadersOnCurrentRequest
+   */
+  private[this] lazy val uploadBufferBytes = config.getBytesOr("google.upload-buffer-bytes",
+    MediaHttpUploader.MINIMUM_CHUNK_SIZE).toInt
+
   /**
     * Overrides the default implementation to provide a writable channel (which newByteChannel doesn't).
     * NOTE: options are not honored.
@@ -137,7 +159,7 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
         new ClientRequestHelper[StorageObject](),
         gcsPath.bucket,
         gcsPath.objectName,
-        AsyncWriteChannelOptions.newBuilder().build(),
+        AsyncWriteChannelOptions.newBuilder().setUploadBufferSize(uploadBufferBytes).build(),
         new ObjectWriteConditions(),
         Map.empty[String, String].asJava,
         contentType)
@@ -203,8 +225,9 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
 
   override def isHidden(path: Path): Boolean = throw new NotImplementedError()
 
+  private[this] lazy val maxResults = config.getIntOr("google.list-max-results", 1000).toLong
+
   private def list(gcsDir: NioGcsPath) = {
-    val maxResults = ConfigFactory.load().getIntOr("google.list-max-results", 1000).toLong
     val listRequest = client.objects().list(gcsDir.bucket).setMaxResults(maxResults)
     listRequest.setPrefix(gcsDir.objectName)
 

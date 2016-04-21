@@ -9,8 +9,8 @@ import cromwell.WorkflowEngineFunctions
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.engine._
-import cromwell.engine.backend.WorkflowLogOptions
-import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData}
+import cromwell.engine.backend.{CromwellBackend, WorkflowLogOptions}
+import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorActorData, ShadowMaterializeWorkflowDescriptorActorState}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -24,13 +24,7 @@ import scalaz.Validation.FlatMap._
 
 object ShadowMaterializeWorkflowDescriptorActor {
 
-  // ------------------------------------------------------------------//
-  // TODO: This should be obtained from the config factory. Part of issue #649
-  // This is currently a stub. Should be removed as part of #649 (?)
-  val PluggedInBackends = List("dummy", "local", "sge", "jes", "htcondor")
-  lazy val ValidatedDefaultBackend = validateBackend("dummy")
-  // ------------------------------------------------------------------//
-  val RuntimeBackendKey: String = "runtime"
+  val RuntimeBackendKey: String = "backend"
 
   def props(): Props = Props(new ShadowMaterializeWorkflowDescriptorActor)
 
@@ -77,16 +71,6 @@ object ShadowMaterializeWorkflowDescriptorActor {
       dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
     } yield WorkflowLogOptions(Paths.get(dir), temporary)
-  }
-
-  /**
-    * Checks if a given backend name is plugged-in in to the Cromwell sub-system and returns if true.
-    * Throws an exception if `backendName` is not found in the list
-    */
-  private def validateBackend(backendName: String): String = {
-    if (PluggedInBackends.exists(_.equalsIgnoreCase(backendName))) backendName
-    else throw new Exception(s"$backendName not found in the list of plugged in backends!")
-
   }
 }
 
@@ -137,7 +121,6 @@ class ShadowMaterializeWorkflowDescriptorActor() extends LoggingFSM[ShadowMateri
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFiles,
                                       conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
-
     val namespaceValidation = validateNamespace(sourceFiles.wdlSource)
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     (namespaceValidation |@| workflowOptionsValidation) {
@@ -185,24 +168,27 @@ class ShadowMaterializeWorkflowDescriptorActor() extends LoggingFSM[ShadowMateri
   }
 
   private def validateBackendAssignments(calls: Seq[Call], workflowOptions: WorkflowOptions): ErrorOr[Map[Call, String]] = {
-    val assignmentAttempt = Try {
-      val backendFromOptions = workflowOptions.get(RuntimeBackendKey)
-      val callAssignmentMap: Map[Call, String] = backendFromOptions match {
-        case Success(backendName) =>
-          // Found an entry for backendKey in the workflow options.
-          // Use this backend for all the calls in the workflow
-          // If this backend is not in the list of plugged in backends, return the default one for the whole workflow
-          calls.map(_ -> validateBackend(backendName)).toMap[Call, String]
-        case Failure(reason) =>
-          log.warning("Backend was not defined in the workflow options, trying for runtime-attributes based per call backend allocation.", reason)
-          (calls zip (calls map { call => assignBackendUsingRuntimeAttrs(call) getOrElse ValidatedDefaultBackend })).toMap[Call, String]
-      }
-      log.debug(s"$tag: Call-to-Backend assignments: $callAssignmentMap")
-      callAssignmentMap
+    val callToBackendMap = Try {
+      calls map { call =>
+        val backendPriorities = Seq(
+          workflowOptions.get(RuntimeBackendKey).toOption,
+          assignBackendUsingRuntimeAttrs(call),
+          Option(CromwellBackend.shadowDefaultBackend)
+        )
+
+        backendPriorities.flatten.headOption match {
+          case Some(backendName) if CromwellBackend.isValidBackendName(backendName) => call -> backendName
+          case Some(backendName) => throw new Exception(s"Invalid backend for call ${call.fullyQualifiedName}: $backendName")
+          case None => throw new Exception(s"No backend could be found for call ${call.fullyQualifiedName}")
+        }
+      } toMap
     }
 
-    assignmentAttempt match {
-      case Success(x) => x.successNel
+    callToBackendMap match {
+      case Success(backendMap) =>
+        val backendMapAsString = backendMap.map({case (k, v) => s"${k.fullyQualifiedName} -> $v"}).mkString(", ")
+        log.info(s"$tag: Call-to-Backend assignments: $backendMapAsString")
+        backendMap.successNel
       case Failure(t) => t.getMessage.failureNel
     }
   }
@@ -211,13 +197,11 @@ class ShadowMaterializeWorkflowDescriptorActor() extends LoggingFSM[ShadowMateri
     * Map a call to a backend name depending on the runtime attribute key
     */
   private def assignBackendUsingRuntimeAttrs(call: Call): Option[String] = {
-
     val runtimeAttributesMap = call.task.runtimeAttributes.attrs
-    runtimeAttributesMap.get(RuntimeBackendKey) map { wdlExpr => validateBackend(evaluateBackendNameExpression(call.fullyQualifiedName, wdlExpr)) }
+    runtimeAttributesMap.get(RuntimeBackendKey) map { wdlExpr => evaluateBackendNameExpression(call.fullyQualifiedName, wdlExpr) }
   }
 
   private def evaluateBackendNameExpression(callName: String, backendNameAsExp: WdlExpression): String = {
-    // Don't allow *any* lookup or functions. The runtime must be static!
     backendNameAsExp.evaluate(NoLookup, NoFunctions) match {
       case Success(runtimeString: WdlString) => runtimeString.valueString
       case Success(x: WdlValue) =>

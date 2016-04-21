@@ -1,16 +1,17 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{FSM, Props, ActorRef}
+import akka.actor.{FSM, Props}
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowFinalizationActor
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.backend.CromwellBackend
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
-import wdl4s.Call
 
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object WorkflowFinalizationActor {
 
@@ -62,13 +63,24 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
 
   when(FinalizationPendingState) {
     case Event(StartFinalizationCommand, _) =>
-      val backendFinalizationActors = backendWorkflowActors(workflowDescriptor.backendAssignments)
-      if (backendFinalizationActors.isEmpty) {
-        sender ! WorkflowFinalizationSucceededResponse // Nothing more to do
-        goto(FinalizationSucceededState)
-      } else {
-        backendFinalizationActors.keys foreach { _ ! Finalize }
-        goto(FinalizationInProgressState) using stateData.withBackendActors(backendFinalizationActors)
+      val backendFinalizationActors = Try {
+        (for {
+          backend <- workflowDescriptor.backendAssignments.values
+          props <- CromwellBackend.shadowBackendLifecycleFactory(backend).map(_.workflowFinalizationActorProps()).get
+          actor = context.actorOf(props)
+        } yield (actor, backend)).toMap
+      }
+
+      backendFinalizationActors match {
+        case Failure(ex) =>
+          sender ! WorkflowFinalizationFailedResponse(Seq(ex))
+          goto(WorkflowFinalizationFailedState)
+        case Success(actors) if actors.isEmpty =>
+          sender ! WorkflowFinalizationSucceededResponse
+          goto(FinalizationSucceededState)
+        case Success(actors) =>
+          actors.keys.foreach(_ ! Finalize)
+          goto(FinalizationInProgressState) using stateData.withBackendActors(actors)
       }
     case Event(AbortFinalizationCommand, _) =>
       context.parent ! WorkflowFinalizationAbortedResponse
@@ -92,12 +104,4 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
   when(FinalizationSucceededState) { FSM.NullFunction }
   when(WorkflowFinalizationFailedState) { FSM.NullFunction }
   when(FinalizationAbortedState) { FSM.NullFunction }
-
-  /**
-    * Makes a BackendWorkflowFinalizationActor for a backend
-    */
-  override def backendActor(backendName: String, callAssignments: Seq[Call]): Option[ActorRef] = {
-    // TODO: Implement this!
-    None
-  }
 }

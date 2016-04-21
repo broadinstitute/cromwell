@@ -36,7 +36,7 @@ class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationA
       |}
     """.stripMargin
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor("sge-config", ConfigFactory.load())
+  val defaultBackendConfig = new BackendConfigurationDescriptor(ConfigFactory.parseString("{}"), ConfigFactory.load())
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
                                       inputs: Map[String, WdlValue] = Map.empty,

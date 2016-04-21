@@ -36,7 +36,7 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
       |}
     """.stripMargin
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor("config", ConfigFactory.load())
+  val defaultBackendConfig = new BackendConfigurationDescriptor(ConfigFactory.parseString("{}"), ConfigFactory.load())
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
                                       inputs: Map[String, WdlValue] = Map.empty,

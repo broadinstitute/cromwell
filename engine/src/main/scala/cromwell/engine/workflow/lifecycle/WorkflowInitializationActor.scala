@@ -3,14 +3,17 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{FSM, ActorRef, Props}
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor
+import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.backend.{BackendConfiguration, CromwellBackend}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 import wdl4s.Call
 
 import scala.language.postfixOps
+import scala.util.{Success, Failure, Try}
 
 object WorkflowInitializationActor {
 
@@ -59,15 +62,30 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
 
   when(InitializationPendingState) {
     case Event(StartInitializationCommand, _) =>
-      val backendInitializationActors = backendWorkflowActors(workflowDescriptor.backendAssignments)
-      if (backendInitializationActors.isEmpty) {
-        sender ! WorkflowInitializationSucceededResponse // Nothing more to do
-        goto(InitializationSucceededState)
-      } else {
-        backendInitializationActors.keys foreach { _ ! Initialize }
-        goto(InitializationInProgressState) using stateData.withBackendActors(backendInitializationActors)
+      val backendInitializationActors = Try {
+        for {
+          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
+          backendConfiguration = BackendConfiguration.backendConfigurationDescriptor(backend).get
+          props <- CromwellBackend.shadowBackendLifecycleFactory(backend).map(factory =>
+            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, backendConfiguration)
+          ).get
+          actor = context.actorOf(props)
+        } yield (actor, backend)
       }
-    case Event(EngineLifecycleActorAbortCommand, _) =>
+
+      backendInitializationActors match {
+        case Failure(ex) =>
+          sender ! WorkflowInitializationFailedResponse(Seq(ex))
+          goto(InitializationFailedState)
+        case Success(actors) if actors.isEmpty=>
+          sender ! WorkflowInitializationSucceededResponse
+          goto(InitializationSucceededState)
+        case Success(actors) =>
+          actors.keys.foreach(_ ! Initialize)
+          goto(InitializationInProgressState) using stateData.withBackendActors(actors)
+      }
+
+    case Event(InitializationAbortingState, _) =>
       context.parent ! WorkflowInitializationAbortedResponse
       goto(InitializationsAbortedState)
   }
@@ -89,12 +107,4 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
   when(InitializationSucceededState) { FSM.NullFunction }
   when(InitializationFailedState) { FSM.NullFunction }
   when(InitializationsAbortedState) { FSM.NullFunction }
-
-  /**
-    * Makes a BackendWorkflowInitializationActor for a backend
-    */
-  override def backendActor(backendName: String, callAssignments: Seq[Call]): Option[ActorRef] = {
-    // TODO: Implement this!
-    None
-  }
 }

@@ -19,15 +19,16 @@ import wdl4s.values.WdlValue
 object BackendTestkitSpec {
   implicit val testActorSystem = ActorSystem("LocalBackendSystem")
   object DockerTest extends Tag("DockerTest")
-
 }
 
 trait BackendTestkitSpec extends ScalaFutures with Matchers {
   import BackendTestkitSpec._
 
   val localFileSystem = List(FileSystems.getDefault)
-  val defaultBackendConfig = new BackendConfigurationDescriptor("config", ConfigFactory.load())
-  val defaultConfig = defaultBackendConfig.config.getConfig(defaultBackendConfig.configPath)
+
+  val globalConfig = ConfigFactory.load()
+  val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
+  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(500, Millis))
 

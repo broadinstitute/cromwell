@@ -2,6 +2,7 @@ package cromwell.backend.impl.local
 
 import java.nio.file.{FileSystems, Path, Paths}
 
+import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
 import cromwell.backend._
 import cromwell.core.CallContext
@@ -27,10 +28,14 @@ object LocalJobExecutionActor {
   case class Command(argv: Seq[String]) {
     override def toString = argv.map(s => "\"" + s + "\"").mkString(" ")
   }
+
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props =
+    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor))
 }
 
 class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                   override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor with SharedFileSystem {
+                             override val configurationDescriptor: BackendConfigurationDescriptor)
+  extends BackendJobExecutionActor with SharedFileSystem {
 
   import LocalJobExecutionActor._
   import better.files._
@@ -45,8 +50,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private var process: Option[Process] = None
 
   val workflowDescriptor = jobDescriptor.descriptor
-  val jobPaths = new JobPaths(workflowDescriptor, backendConfiguration, jobDescriptor.key)
-  val fileSystemsConfig = backendConfiguration.getConfig("filesystems")
+  val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
 
   val call = jobDescriptor.key.call

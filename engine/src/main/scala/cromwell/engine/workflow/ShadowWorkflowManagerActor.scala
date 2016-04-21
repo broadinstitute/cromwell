@@ -9,8 +9,7 @@ import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.ShadowWorkflowActor._
-import cromwell.engine.workflow.ShadowWorkflowManagerActor.AbortWorkflowCommand
-import cromwell.engine.workflow.ShadowWorkflowManagerActor._
+import cromwell.engine.workflow.ShadowWorkflowManagerActor.{AbortWorkflowCommand, _}
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
@@ -38,7 +37,6 @@ object ShadowWorkflowManagerActor {
     * Responses
     */
   sealed trait ShadowWorkflowManagerActorResponse extends ShadowWorkflowManagerActorMessage
-  // None yet?
 
   def props(): Props = Props(new ShadowWorkflowManagerActor())
 
@@ -66,14 +64,12 @@ object ShadowWorkflowManagerActor {
       idFromActor(actor) map without getOrElse this
     }
   }
-
-  lazy val defaultConfig = ConfigFactory.load
 }
 
 class ShadowWorkflowManagerActor(config: Config)
   extends LoggingFSM[ShadowWorkflowManagerState, ShadowWorkflowManagerData] with CromwellActor {
 
-  def this() = this(ShadowWorkflowManagerActor.defaultConfig)
+  def this() = this(ConfigFactory.load)
   implicit val actorSystem = context.system
 
   private val RestartDelay: FiniteDuration = 200 milliseconds

@@ -37,9 +37,6 @@ trait BackendLifecycleActor extends Actor {
     */
   protected def configurationDescriptor: BackendConfigurationDescriptor
 
-  // Boilerplate code to load the configuration from the descriptor
-  lazy val backendConfiguration = configurationDescriptor.config.getConfig(configurationDescriptor.configPath)
-
   protected def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
                                          onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse) = {
     val respondTo: ActorRef = sender

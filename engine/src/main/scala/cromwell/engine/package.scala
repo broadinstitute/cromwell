@@ -3,8 +3,6 @@ package cromwell
 import akka.actor.ActorSystem
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.{CallOutput, WorkflowId}
-import cromwell.database.obj.Execution
-import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.ExecutionDatabaseKey

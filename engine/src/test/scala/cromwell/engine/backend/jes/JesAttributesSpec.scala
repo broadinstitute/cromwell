@@ -18,14 +18,14 @@ class JesAttributesSpec extends FlatSpec with Matchers {
              genomics {
                // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
                // Pipelines and manipulate auth JSONs.
-               auth = "cromwell-system-account"
+               auth = "service-account"
                endpoint-url = "http://myEndpoint"
              }
 
              filesystems = {
                gcs {
                  // A reference to a potentially different auth for manipulating files via engine functions.
-                 auth = "cromwell-system-account"
+                 auth = "service-account"
                }
              }
           }""".stripMargin

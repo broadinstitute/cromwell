@@ -66,31 +66,6 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
       log.info(s"State is transitioning from $fromState to $toState.")
   }
 
-  /**
-    * Turns a mapping from Call => backendName into a mapping from backendName => List[Call]
-    */
-  protected def callAssignments(backendAssignments: Map[Call, String]): Map[String, List[Call]] =
-    backendAssignments.groupBy(_._2).mapValues(_.keys.toList)
-
-  /**
-    * Based on backendAssignments, creates a BackendWorkflowInitializationActor per backend and maps the actor to the
-    * name of the backend which it is initializing.
-    */
-  protected def backendWorkflowActors(backendAssignments: Map[Call, String]):  Map[ActorRef, String] = {
-    val callAssignmentMap = callAssignments(backendAssignments)
-    val backendsNeedingActors = backendAssignments.values.toSet
-    backendsNeedingActors
-      .map { backend => (backendActor(backend, callAssignmentMap(backend)), backend) } // Create the actors
-      .collect { case (Some(actorRef), backend) => actorRef -> backend } // Only track the backends which have actors
-      .toMap
-  }
-
-  /**
-    * Makes an appropriate Backend actor for this backend. The call assignments are a list of calls which this
-    * backend will be or has been requested to perform.
-    */
-  protected def backendActor(backendName: String, callAssignments: Seq[Call]): Option[ActorRef]
-
   protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
     if (checkForDone(newData)) {
       if (stateName == abortingState) {

@@ -8,6 +8,7 @@ import better.files._
 import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine
 import cromwell.engine._
+import cromwell.engine.workflow.ShadowWorkflowManagerActor.SubmitWorkflowCommand
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice.CromwellApiHandler._
@@ -17,8 +18,8 @@ import spray.json._
 import scala.util._
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef): Props = {
-    Props(classOf[SingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager)
+  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef, shadowMode: Boolean = false): Props = {
+    Props(classOf[SingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager, shadowMode)
   }
 
   sealed trait RunnerMessage
@@ -52,7 +53,8 @@ object SingleWorkflowRunnerActor {
  */
 case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                      metadataOutputPath: Option[Path],
-                                     workflowManager: ActorRef) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
+                                     workflowManager: ActorRef,
+                                     shadowMode: Boolean = false) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
 
   import SingleWorkflowRunnerActor._
 
@@ -73,7 +75,8 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   when (NotStarted) {
     case Event(RunWorkflow, data) =>
       log.info(s"$tag: launching workflow")
-      workflowManager ! SubmitWorkflow(source)
+      val submitMessage = if (shadowMode) SubmitWorkflowCommand(source) else SubmitWorkflow(source)
+      workflowManager ! submitMessage
       goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
   }
 

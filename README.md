@@ -7,9 +7,26 @@ Centaur expects to find a Cromwell server properly configured and running in ser
 
 # Running
 
-There are two ways run invoke the intergration tests:
+There are two ways to invoke the intergration tests:
 * `sbt test` - compiles and run via sbt directly, simple but also has the problem of running 2*cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
 * `run_tests_parallel.sh [THREADS]` - runs the same tests with an enforced parallelism limit.  Defaults to `3` if not specified
+
+# Adding custom tests
+
+You can add your own tests to the test suite by adding `-Dcentaur.optionalTestPath=DIR` on your sbt invocation, 
+e.g. `sbt -Dcentaur.optionalTestPath=/some/path/to/tests test`. The value of `DIR` is expected to be a directory
+which contains one or more test cases. At the moment the only test cases supported are those where the workflow is submitted to your Cromwell server, it will
+verify the workflow successfully terminates and will optionally verify the outputs & metadata if supplied. The structure is required to be as follows:
+
+```
+DIR
+└── testCase
+    ├── testCase.wdl
+    ├── testCase.inputs (optional)
+    ├── testCase.options (optional)
+    ├── testCase.metadata (optional)
+```
+
 
 # FAQs
 

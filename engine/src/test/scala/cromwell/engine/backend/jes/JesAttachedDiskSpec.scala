@@ -3,7 +3,7 @@ package cromwell.engine.backend.jes
 import java.nio.file.Paths
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.engine.backend.runtimeattributes.DiskType
+import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk, DiskType, JesEmptyMountedDisk}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers, TryValues}

@@ -1,7 +1,7 @@
-package cromwell.engine.backend.runtimeattributes
+package cromwell.backend.validation
 
 /**
-  * Decides is a call/job continues upon a specific return code.
+  * Decides if a call/job continues upon a specific return code.
   */
 sealed trait ContinueOnReturnCode {
   /**

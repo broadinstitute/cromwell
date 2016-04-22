@@ -25,11 +25,12 @@ lazy val sgeBackend = (project in backendRoot / "sge")
   .settings(sgeBackendSettings:_*)
 
 lazy val jesBackend = (project in backendRoot / "jes")
-  .dependsOn(backend % "test->test;compile->compile", gcsfilesystem)
+  .dependsOn(backend % "test->test;compile->compile", gcsfilesystem % "test->test;compile->compile")
   .settings(jesBackendSettings:_*)
 
+//TODO: remove jesBackend once refactoring has finished.
 lazy val engine = (project in file("engine"))
-  .dependsOn(core % "test->test;compile->compile", gcsfilesystem % "test->test;compile->compile", backend)
+  .dependsOn(core % "test->test;compile->compile", jesBackend % "test->test;compile->compile")
   .settings(engineSettings:_*)
   .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
   .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)

@@ -1,7 +1,8 @@
 package cromwell.engine.backend.runtimeattributes
 
+import cromwell.backend.impl.jes.io.{JesWorkingDisk, JesAttachedDisk}
+import cromwell.backend.validation.{ContinueOnReturnCodeSet, ContinueOnReturnCode, ContinueOnReturnCodeFlag, RuntimeAttributesValidation}
 import cromwell.core.{ErrorOr, WorkflowOptions}
-import cromwell.engine.backend.jes.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
 import cromwell.engine.backend.{BackendCallJobDescriptor, BackendType}
 import cromwell.util.TryUtil
@@ -131,10 +132,11 @@ object CromwellRuntimeAttributes {
 
   private def validateRuntimeAttributes(attributes: Map[String, WdlValue]): Try[CromwellRuntimeAttributes] = {
     val attributeMap = attributes.collect({ case (k, v) if Try(RuntimeKey.from(k)).isSuccess => RuntimeKey.from(k) -> v })
-    val docker = validateDocker(attributeMap.get(DOCKER))
+    val docker = RuntimeAttributesValidation.validateDocker(attributeMap.get(DOCKER), () => None.successNel)
     val zones = validateZone(attributeMap.get(ZONES))
-    val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
-    val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.get(CONTINUE_ON_RETURN_CODE))
+    val failOnStderr = RuntimeAttributesValidation.validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR), () => defaults.failOnStderr.successNel)
+    val continueOnReturnCode = RuntimeAttributesValidation.validateContinueOnReturnCode(attributeMap.get(CONTINUE_ON_RETURN_CODE),
+      () => defaults.continueOnReturnCode.successNel)
     val cpu = validateCpu(attributeMap.get(CPU))
     val disks = validateLocalDisks(attributeMap.get(DISKS))
     val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))

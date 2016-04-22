@@ -7,7 +7,7 @@ import wdl4s.Call
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class SgeBackend extends BackendJobExecutionActor {
+class SgeJobExecutionActor extends BackendJobExecutionActor {
   override protected implicit def ec: ExecutionContext = ???
 
   /**

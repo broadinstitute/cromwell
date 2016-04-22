@@ -7,7 +7,7 @@ import wdl4s.Call
 
 import scala.concurrent.Future
 
-class JesBackend extends BackendJobExecutionActor {
+class JesJobExecutionActor extends BackendJobExecutionActor {
   /**
     * Restart or resume a previously-started job.
     */

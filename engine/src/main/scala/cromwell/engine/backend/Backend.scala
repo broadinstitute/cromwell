@@ -7,9 +7,10 @@ import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
 import cromwell.backend.JobKey
+import cromwell.backend.validation.{ContinueOnReturnCodeSet, ContinueOnReturnCodeFlag}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
 import org.slf4j.LoggerFactory

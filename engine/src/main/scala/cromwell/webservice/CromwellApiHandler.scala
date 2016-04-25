@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend.{Backend, CallLogs}
+import cromwell.engine.workflow.ShadowWorkflowManagerActor.SubmitWorkflowCommand
 import cromwell.engine.workflow.{ShadowWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.engine.workflow.WorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
@@ -72,6 +73,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
   implicit val timeout = Timeout(2 seconds)
   val log = Logging(context.system, classOf[CromwellApiHandler])
   val conf = ConfigFactory.load()
+  lazy val shadowMode = conf.getBoolean("system.shadowExecutionEnabled")
 
   def workflowNotFound(id: WorkflowId) = RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Workflow '$id' not found.")))
   def callNotFound(callFqn: String, id: WorkflowId) = {
@@ -108,7 +110,8 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
       }
 
     case ApiHandlerWorkflowSubmit(source) =>
-      requestHandlerActor ! WorkflowManagerActor.SubmitWorkflow(source)
+      val submitMsg = if (shadowMode) ShadowWorkflowManagerActor.SubmitWorkflowCommand(source) else WorkflowManagerActor.SubmitWorkflow(source)
+      requestHandlerActor ! submitMsg
     case WorkflowManagerSubmitSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
     case WorkflowManagerSubmitFailure(e) =>

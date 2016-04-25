@@ -906,14 +906,6 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   override def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]] = {
-    val action = dataAccess.executionsWithCacheHitWorkflowAndCall(id.toString).result
-    runTransaction(action).map(_.map {
-      case (execution, Some(cacheHitWorkflowUuid), Some(cacheHitCallFqn)) =>
-        ExecutionWithCacheData(execution, Option(CallCacheHit(cacheHitWorkflowUuid, cacheHitCallFqn)))
-      case (execution, None, None) =>
-        ExecutionWithCacheData(execution, None)
-      case (execution, cacheHitWorkflowUuid, cacheHitCallFqn) =>
-        throw new IllegalStateException(s"Expecting no cache hit or (workflow UUID, call FQN) tuple.  Got ($cacheHitWorkflowUuid, $cacheHitCallFqn)")
-    })
+    runTransaction(dataAccess.executionsWithCacheHitWorkflowAndCall(id.toString))
   }
 }

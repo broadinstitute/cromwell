@@ -5,6 +5,8 @@ import java.sql.Timestamp
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.db.ExecutionDatabaseKey
+import slick.dbio.Effect.Read
+import slick.jdbc.GetResult
 import slick.profile.RelationalProfile.ColumnOption.Default
 
 import scala.language.postfixOps
@@ -164,39 +166,34 @@ trait ExecutionComponent {
       if execution.executionId === executionId
     } yield (execution.status, execution.rc))
 
-  /** Returns a tuple of (execution, cache hit workflow UUID, cache hit call FQN)
-    *
-    * If the execution was not satisfied by a cache hit, then the second two values in the tuple are None.
-    *
-    * The query that is being created here is:
-    *
-    * SELECT
-    *     e.*
-    *     we1.WORKFLOW_EXECUTION_UUID as cache_hit_workflow,
-    *     e1.CALL_FQN as cache_hit_call
-    * FROM execution e
-    *     LEFT JOIN execution e1 ON e.results_cloned_from=e1.execution_id
-    *     LEFT JOIN workflow_execution we1 ON e1.workflow_execution_id=we1.workflow_execution_id
-    *     LEFT JOIN workflow_execution we ON e.workflow_execution_id=we.workflow_execution_id
-    * WHERE we.workflow_execution_uuid = 'UUID';
-    *
-    * See the following resources for how to construct queries like this in Slick
-    *
-    *   - http://stackoverflow.com/questions/32061552/slick-3-multiple-outer-joins/32062677
-    *   - http://slick.typesafe.com/doc/3.1.1/queries.html
-    */
-  val executionsWithCacheHitWorkflowAndCall = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
-      (((execution, cacheHitExecution), cacheHitWorkflow), workflowExecution) <- executions joinLeft executions on {
-        case (e, cacheHitExecution) => e.resultsClonedFrom === cacheHitExecution.executionId
-      } joinLeft workflowExecutions on {
-        case ((e, maybeCacheHitExecution), we1) => maybeCacheHitExecution.map(_.workflowExecutionId) === we1.workflowExecutionId
-      } joinLeft workflowExecutions on {
-        case (((e, _), _), we) => e.workflowExecutionId === we.workflowExecutionId
-      }
-      if workflowExecution.map(_.workflowExecutionUuid) === workflowExecutionUuid
-    } yield (execution, cacheHitWorkflow.map(_.workflowExecutionUuid), cacheHitExecution.map(_.callFqn))
-  )
+  import slick.dbio.DBIOAction
+  def executionsWithCacheHitWorkflowAndCall(workflowExecutionUuid: String): DBIOAction[Vector[ExecutionWithCacheData], NoStream, Read] = {
+    implicit val converter = GetResult { r =>
+      /** NOTE: the columns must be in the same order as the attributes in the Execution class for this to work */
+      val execution = Execution(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
+      val cacheHitWorkflow: Option[String] = r.<<
+      val cacheHitCallName: Option[String] = r.<<
+
+      val cacheHit = for {
+        workflow <- cacheHitWorkflow
+        call <- cacheHitCallName
+      } yield CallCacheHit(workflow, call)
+
+      ExecutionWithCacheData(execution, cacheHit)
+    }
+
+    sql"""
+       SELECT e.WORKFLOW_EXECUTION_ID, e.CALL_FQN, e.IDX, e.STATUS, e.RC, e.START_DT,
+              e.END_DT, e.BACKEND_TYPE, e.ALLOWS_RESULT_REUSE, e.DOCKER_IMAGE_HASH,
+              e.RESULTS_CLONED_FROM, e.EXECUTION_HASH, e.ATTEMPT, e.EXECUTION_ID,
+              we1.WORKFLOW_EXECUTION_UUID, e1.CALL_FQN
+       FROM EXECUTION e
+       LEFT JOIN EXECUTION e1 ON e.RESULTS_CLONED_FROM=e1.EXECUTION_ID
+       LEFT JOIN WORKFLOW_EXECUTION we1 ON e1.WORKFLOW_EXECUTION_ID=we1.WORKFLOW_EXECUTION_ID
+       LEFT JOIN WORKFLOW_EXECUTION we ON e.WORKFLOW_EXECUTION_ID=we.WORKFLOW_EXECUTION_ID
+       WHERE we.WORKFLOW_EXECUTION_UUID=$workflowExecutionUuid
+       """.as[ExecutionWithCacheData]
+  }
 
   // see workflowExecutionsByStatuses
   def executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {

@@ -1,29 +1,220 @@
 package cromwell.backend.impl.local
 
-import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
-import cromwell.backend.BackendLifecycleActor.JobAbortResponse
+import java.nio.file.{FileSystems, Path, Paths}
+
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
+import cromwell.backend.BackendLifecycleActor.{BackendJobExecutionAbortFailedResponse, BackendJobExecutionAbortSucceededResponse, JobAbortResponse}
 import cromwell.backend._
-import wdl4s.Call
+import cromwell.core.CallContext
+import org.slf4j.LoggerFactory
+import wdl4s._
+import wdl4s.values.{WdlFile, WdlValue}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
-class LocalJobExecutionActor extends BackendJobExecutionActor {
+object LocalJobExecutionActor {
+  val ProcessKilledCode = 143
+  val logger = LoggerFactory.getLogger("LocalBackend")
+  // TODO Support GCS ?
+  val fileSystems = List(FileSystems.getDefault)
+
+  private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {
+    val lastIndex = fullyQualifiedName.lastIndexOf(".")
+    (fullyQualifiedName.substring(0, lastIndex), fullyQualifiedName.substring(lastIndex + 1))
+  }
+
+  case class Command(argv: Seq[String]) {
+    override def toString = argv.map(s => "\"" + s + "\"").mkString(" ")
+  }
+}
+
+class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
+                   override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor with SharedFileSystem {
+
+  import LocalJobExecutionActor._
+  import better.files._
+  import cromwell.core.PathFactory._
+
+  import scala.sys.process._
+
+  override implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  // Mutable process variable assigned when the execute method is called.
+  // Needs to be accessible to be killed when the job is aborted.
+  private var process: Option[Process] = None
+
+  val workflowDescriptor = jobDescriptor.descriptor
+  val jobPaths = new JobPaths(workflowDescriptor, backendConfiguration, jobDescriptor.key)
+  val fileSystemsConfig = backendConfiguration.getConfig("filesystems")
+  override val sharedFsConfig = fileSystemsConfig.getConfig("local")
+
+  val call = jobDescriptor.key.call
+  val callEngineFunction = {
+    val callContext = new CallContext(
+      jobPaths.callRoot.toString,
+      jobPaths.stdout.toAbsolutePath.toString,
+      jobPaths.stderr.toAbsolutePath.toString
+    )
+
+    new LocalCallEngineFunctions(fileSystems, callContext)
+  }
+
+  val lookup = {
+    val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
+    val unqualifiedWorkflowInputs = workflowDescriptor.inputs map {
+      case (fqn, v) => splitFqn(fqn)._2 -> v
+    }
+    val knownInputs = unqualifiedWorkflowInputs ++ jobDescriptor.symbolMap
+    WdlExpression.standardLookupFunction(knownInputs, declarations, callEngineFunction)
+  }
+
+  private def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, callEngineFunction)
+
+  val runtimeAttributes = {
+    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
+    // Fail the call if runtime attributes can't be evaluated
+    val evaluatedAttributes = TryUtils.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
+    LocalRuntimeAttributes(evaluatedAttributes)
+  }
+
+  lazy val runsOnDocker = runtimeAttributes.dockerImage.isDefined
+  lazy val processArgs = {
+    val dockerRun = runtimeAttributes.dockerImage map buildDockerRunCommand getOrElse ""
+    Command(Seq("/bin/bash", "-c", s"cat ${jobPaths.script} | $dockerRun /bin/bash <&0"))
+  }
+
+  // Stream Writers
+  lazy val stdoutWriter = jobPaths.stdout.untailed
+  lazy val stderrTailed = jobPaths.stderr.tailed(100)
+
+  override def preStart() = {
+    // workflowPaths.workflowRoot.createDirectories() TODO move to initialize actor
+    jobPaths.callRoot.createDirectories()
+  }
+
+  lazy val instantiatedScript = {
+    def toDockerPath(path: WdlValue): WdlValue = path match {
+      case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toAbsolutePath.toString)
+      case v => v
+    }
+    val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
+
+    // Inputs coming from the workflow inputs (json input mapping)
+    val workflowInputEntries = workflowDescriptor.inputs collect {
+      case (fqn, value) if splitFqn(fqn)._1 == call.fullyQualifiedName => splitFqn(fqn)._2 -> value
+    }
+
+    // Inputs coming from the "input" keyword in the workflow declaration. These need to be evaluated because they're expressions
+    val evaluatedInputMappings = call.inputMappings mapValues evaluate
+
+    TryUtils.sequenceMap(evaluatedInputMappings, "Job Input evaluation") flatMap { inputs =>
+      val localizedInputs = localizeInputs(jobPaths, runsOnDocker, fileSystems, inputs ++ workflowInputEntries)
+      call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
+    }
+  }
+
+  private def executeScript(script: String): Future[BackendJobExecutionResponse] = {
+    logger.info(s"`$script`")
+    writeScript(script, if (runsOnDocker) jobPaths.callDockerRoot else jobPaths.callRoot)
+    logger.info(s"command: $processArgs")
+    process = Option(processArgs.argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline)))
+    /* This can't run on the context.dispatcher EC because it blocks incoming message processing (in particular abort)
+     * TODO use a new separate, backend scoped EC ?
+     */
+    /*
+     * Also note that we only create an asynchronous future now,
+     * which guarantees that we won't process another message (say abort) before we have started a process.
+     */
+    waitAndPostProcess()
+  }
+
+  override def execute: Future[BackendJobExecutionResponse] = instantiatedScript match {
+    case Success(command) => executeScript(command)
+    case Failure(ex) => Future.successful(BackendJobExecutionFailedResponse(jobDescriptor.key, ex))
+  }
+
+  override def abortJob: Future[JobAbortResponse] = {
+    process map { p =>
+      p.destroy()
+      process = None
+      Future.successful(BackendJobExecutionAbortSucceededResponse(jobDescriptor.key))
+    } getOrElse {
+      Future.successful(BackendJobExecutionAbortFailedResponse(jobDescriptor.key, new RuntimeException(s"Tried to abort ${jobDescriptor.key} before executing it.")))
+    }
+  }
+
+  override def recover: Future[BackendJobExecutionResponse] = execute
+
   /**
-    * Restart or resume a previously-started job.
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
     */
-  override def recover: Future[BackendJobExecutionResponse] = ???
+  private def writeScript(instantiatedCommand: String, containerRoot: Path) = {
+    jobPaths.script.write(
+      s"""#!/bin/sh
+          |cd $containerRoot
+          |$instantiatedCommand
+          |echo $$? > rc
+          |""".stripMargin)
+  }
 
   /**
-    * Execute a new job.
+    * --rm automatically deletes the container upon exit
+    * -v maps the host workflow executions directory to /root/<workflow id> on the container.
+    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
     */
-  override def execute: Future[BackendJobExecutionResponse] = ???
+  private def buildDockerRunCommand(image: String): String = {
+    val dockerDir = jobPaths.callDockerRoot
+    s"docker run --rm -v ${jobPaths.callRoot.toAbsolutePath}:$dockerDir -i $image"
+  }
 
-  override protected def jobDescriptor: BackendJobDescriptor = ???
+  private def waitAndPostProcess(): Future[BackendJobExecutionResponse] = Future {
+    val processReturnCode = process map { _.exitValue() } getOrElse (throw new RuntimeException("No process was running"))
+    stdoutWriter.writer.flushAndClose()
+    stderrTailed.writer.flushAndClose()
 
-  override protected def configurationDescriptor: BackendConfigurationDescriptor = ???
+    processReturnCode match {
+      case ProcessKilledCode => BackendJobExecutionAbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+      case other if other == 0 || runtimeAttributes.dockerImage.isEmpty => postProcessJob()
+      case failed =>
+        logger.error(s"Non-zero return code: $failed")
+        logger.error(s"Standard error was:\n\n${stderrTailed.tailString}\n")
+        throw new Exception(s"Unexpected process exit code: $failed")
+    }
+  }
 
-  /**
-    * Abort a running job.
-    */
-  override def abortJob: Future[JobAbortResponse] = ???
+  private def postProcessJob(): BackendJobExecutionResponse = {
+    val stderrFileLength = Try(jobPaths.stderr.size).getOrElse(0L)
+    val returnCode = Try(jobPaths.returnCode.contentAsString.stripLineEnd.toInt)
+    logger.info(s"Return code: $returnCode")
+
+    if (runtimeAttributes.failOnStderr && stderrFileLength > 0) {
+      BackendJobExecutionFailedResponse(jobDescriptor.key, new Throwable(s"Call ${call.fullyQualifiedName}, " +
+        s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength"))
+    } else {
+      lazy val badReturnCodeMessage =
+        s"""Call ${call.fullyQualifiedName}, Workflow ${workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
+            |Full command was: $processArgs
+            |${stderrTailed.tailString}""".stripMargin
+
+      returnCode match {
+        case Success(143) =>
+          BackendJobExecutionAbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+        case Success(otherReturnCode) if runtimeAttributes.continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
+        case Success(badReturnCode) => BackendJobExecutionFailedResponse(jobDescriptor.key, new Exception(badReturnCodeMessage))
+        case Failure(e) => BackendJobExecutionFailedResponse(jobDescriptor.key, new Exception(badReturnCodeMessage, e))
+      }
+    }
+  }
+
+  private def processSuccess(rc: Int) = {
+    processOutputs(jobDescriptor, workflowDescriptor.id, lookup, callEngineFunction, jobPaths) match {
+      case Success(outputs) => BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs)
+      case Failure(e) =>
+        val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
+        BackendJobExecutionFailedResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e))
+    }
+  }
 }

@@ -8,6 +8,7 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core._
+import better.files._
 import wdl4s.Call
 
 import scala.concurrent.Future
@@ -24,6 +25,9 @@ object LocalInitializationActor {
 class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                                override val calls: Seq[Call],
                                override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
+
+  private val workflowPaths = new WorkflowPaths(workflowDescriptor, backendConfiguration)
+
   /**
     * Abort all initializations.
     */
@@ -32,7 +36,9 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   /**
     * A call which happens before anything else runs
     */
-  override def beforeAll(): Future[Unit] = Future.successful(())
+  override def beforeAll(): Future[Unit] = {
+    Future.successful(workflowPaths.workflowRoot.createDirectories())
+  }
 
   /**
     * Validates runtime attributes for one specific call.

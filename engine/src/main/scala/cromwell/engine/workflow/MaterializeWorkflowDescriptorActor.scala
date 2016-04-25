@@ -5,21 +5,21 @@ import java.nio.file.Paths
 import akka.actor.{Actor, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.core.{ErrorOr, OptionNotFoundException, WorkflowId, WorkflowOptions}
+import cromwell.WorkflowEngineFunctions
+import cromwell.core.{ErrorOr, OptionNotFoundException, WorkflowId, WorkflowOptions, _}
 import cromwell.engine._
-import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.backend._
+import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.util.TryUtil
+import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
-import scalaz.Validation.FlatMap._
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
-
 import scalaz.Validation
+import scalaz.Validation.FlatMap._
 
 
 object MaterializeWorkflowDescriptorActor {

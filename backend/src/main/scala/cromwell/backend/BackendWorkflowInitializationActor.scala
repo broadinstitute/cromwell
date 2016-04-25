@@ -8,24 +8,23 @@ import cromwell.backend.validation.TryUtils
 import cromwell.backend.validation.exception.ValidationAggregatedException
 import cromwell.core._
 import lenthall.exception.AggregatedException
-import wdl4s.expression.{NoFunctions, ValueEvaluator}
+import wdl4s.WdlExpression.ScopedLookupFunction
+import wdl4s.expression.NoFunctions
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
-import scalaz.{Validation, Failure, NonEmptyList}
+import scalaz.{Failure, NonEmptyList, Validation}
 
 object BackendWorkflowInitializationActor {
 
   // Commands
   sealed trait BackendWorkflowInitializationActorCommand extends BackendWorkflowLifecycleActorCommand
-
   case object Initialize extends BackendWorkflowInitializationActorCommand
 
   final case class Abort(jobKey: BackendJobDescriptorKey) extends BackendWorkflowInitializationActorCommand
 
   // Responses
   sealed trait BackendWorkflowInitializationActorResponse extends BackendWorkflowLifecycleActorResponse
-
   sealed trait InitializationResponse extends BackendWorkflowInitializationActorResponse
 
   case object InitializationSuccess extends InitializationResponse
@@ -96,11 +95,10 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * @param call Call which contains WDL expressions in it.
     * @return A WDL ValueEvaluator.
     */
-  protected def createEvaluator(call: Call): ValueEvaluator = {
+  protected def createLookup(call: Call): ScopedLookupFunction = {
     val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
     val knownInputs = workflowDescriptor.inputs
-    val lookup = WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
-    new ValueEvaluator(lookup, NoFunctions)
+   WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
   }
 
   /**
@@ -110,8 +108,8 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * @return Evaluated runtime attributes.
     */
   private def evaluateRuntimeAttributesWdlExpressions(call: Call): EvaluatedRuntimeAttributes = {
-    val evaluator = createEvaluator(call)
-    def evaluate(wdlExpression: WdlExpression) = evaluator.evaluate(wdlExpression.ast)
+    val lookup = createLookup(call)
+    def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, NoFunctions)
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     TryUtils.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
   }

@@ -7,7 +7,7 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{WorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine.{WorkflowFailureMode, WorkflowSourceFiles}
 import cromwell.engine.backend.io._
 import cromwell.logging.WorkflowLogger

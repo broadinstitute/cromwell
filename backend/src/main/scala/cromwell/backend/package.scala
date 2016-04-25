@@ -36,7 +36,7 @@ package object backend {
     */
   case class BackendWorkflowDescriptor(id: WorkflowId,
                                        workflowNamespace: NamespaceWithWorkflow,
-                                       inputs: Map[String, WdlValue],
+                                       inputs: Map[FullyQualifiedName, WdlValue],
                                        workflowOptions: WorkflowOptions)
 
   /**

@@ -3,7 +3,6 @@ package cromwell
 import akka.testkit.EventFilter
 import cromwell.engine.WorkflowFailed
 import cromwell.util.SampleWdl
-import org.scalatest.prop.TableDrivenPropertyChecks._
 
 class ContinueOnReturnCodeSpec extends CromwellTestkitSpec {
   "A workflow with tasks that produce non-zero return codes" should {

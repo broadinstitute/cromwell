@@ -6,8 +6,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.immutable.Seq
 
 package object backend {
-  class WorkflowContext(val root: String)
-  class CallContext(override val root: String, val stdout: String, val stderr: String) extends WorkflowContext(root)
 
   final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
 

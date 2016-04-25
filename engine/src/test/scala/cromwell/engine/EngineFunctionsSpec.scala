@@ -1,7 +1,8 @@
 package cromwell.engine
 
-import java.nio.file.{FileSystem, FileSystems}
+import java.nio.file.{Path, Paths}
 
+import cromwell.backend.WdlStandardLibraryImpl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
@@ -28,8 +29,9 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
 
   "sub" should "replace a string according to a pattern" in {
     class TestEngineFn extends WdlStandardLibraryImpl {
-      override def fileSystems: List[FileSystem] = List(FileSystems.getDefault)
       override def glob(path: String, pattern: String): Seq[String] = ???
+
+      override def toPath(str: String): Path = Paths.get(str)
     }
 
     val engineFn = new TestEngineFn

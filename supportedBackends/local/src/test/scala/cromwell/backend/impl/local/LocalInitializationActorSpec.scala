@@ -68,7 +68,7 @@ class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializat
       |}
     """.stripMargin
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor("local-config", ConfigFactory.load())
+  val defaultBackendConfig = new BackendConfigurationDescriptor("config", ConfigFactory.load())
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
                                       inputs: Map[String, WdlValue] = Map.empty,

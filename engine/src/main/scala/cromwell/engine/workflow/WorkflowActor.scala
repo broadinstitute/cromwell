@@ -21,6 +21,7 @@ import cromwell.engine.{HostInputs, _}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
+import cromwell.webservice.WorkflowMetadataQueryParameters
 import org.joda.time.DateTime
 import wdl4s.{Scope, _}
 import wdl4s.types.WdlArrayType
@@ -259,6 +260,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   private var symbolCache: SymbolCache = _
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
+
+  private[this] lazy val futureMetadata = new WorkflowMetadataBuilder(workflow.id,
+    WorkflowMetadataQueryParameters(timings = false)).build()
 
   startWith(WorkflowSubmitted, WorkflowData())
   WorkflowCounter.increment()
@@ -776,9 +780,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         // just set its special backend cleanly in config, and all this awfulness can go away.
         val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
         Future.successful(CallActor.props(descriptor))
-      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
-        metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
-      }
+      case finalCallKey: FinalCallKey =>
+        futureMetadata map { metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata)) }
     }
 
     futureCallActorProps onComplete {

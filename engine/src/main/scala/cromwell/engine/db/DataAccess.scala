@@ -536,11 +536,6 @@ trait DataAccess extends AutoCloseable {
     insertCalls(workflowId.toString, executions, executionInfos)
   }
 
-  def getExecutionsAsExecutionInfos(id: WorkflowId)
-                                   (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
-    getExecutions(id) map { _ map { ExecutionInfosByExecution(_, Seq.empty) } }
-  }
-
   def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
     getExecutions(id.toString)
   }

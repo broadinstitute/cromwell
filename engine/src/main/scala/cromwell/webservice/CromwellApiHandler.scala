@@ -34,7 +34,8 @@ object CromwellApiHandler {
   final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowMetadata(id: WorkflowId) extends ApiHandlerMessage
+  final case class ApiHandlerWorkflowMetadata(id: WorkflowId,
+                                              parameters: WorkflowMetadataQueryParameters) extends ApiHandlerMessage
 
   sealed trait WorkflowManagerResponse
 
@@ -159,7 +160,8 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowMetadata(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowMetadata(id)
+    case ApiHandlerWorkflowMetadata(id, parameters) =>
+      requestHandlerActor ! WorkflowManagerActor.WorkflowMetadata(id, parameters)
     case WorkflowManagerWorkflowMetadataSuccess(id, response) => context.parent ! RequestComplete(StatusCodes.OK, response)
     case WorkflowManagerWorkflowMetadataFailure(id, e) =>
       error(e) {

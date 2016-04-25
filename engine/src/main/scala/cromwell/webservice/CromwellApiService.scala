@@ -39,9 +39,6 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
-
-  import CromwellApiServiceActor._
-
   val workflowManager: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
@@ -136,10 +133,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   def metadataRoute =
     path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
-      Try(WorkflowId.fromString(workflowId)) match {
-        case Success(w) =>
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowMetadata(w))
-        case Failure(_) => invalidWorkflowId(workflowId)
+      parameters('outputs ? true, 'timings ? true).as(WorkflowMetadataQueryParameters) { parameters =>
+        Try(WorkflowId.fromString(workflowId)) match {
+          case Success(w) =>
+            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager),
+              CromwellApiHandler.ApiHandlerWorkflowMetadata(w, parameters))
+          case Failure(_) => invalidWorkflowId(workflowId)
+        }
       }
     }
 

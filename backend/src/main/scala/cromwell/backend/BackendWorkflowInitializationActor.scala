@@ -62,71 +62,8 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   def beforeAll(): Future[Unit]
 
   /**
-    * Validates runtime attributes for one specific call.
-    *
-    * @param runtimeAttributes Runtime Attributes with already evaluated values.
-    * @return If all entries from runtime attributes section are valid Success otherwise
-    *         Failure with the aggregation of errors.
-    */
-  def validateRuntimeAttributes(runtimeAttributes: EvaluatedRuntimeAttributes): Future[scalaz.Validation[NonEmptyList[String], Unit]]
-
-  /**
     * Validate that this WorkflowBackendActor can run all of the calls that it's been assigned
     */
-  protected def validate(): Future[Unit] = {
-    def eval(call: Call) = validateRuntimeAttributes(evaluateRuntimeAttributesWdlExpressions(call))
+  def validate(): Future[Unit]
 
-    val validationResult: Future[Seq[(Call, Validation[NonEmptyList[String], Unit])]] =
-      Future.sequence(calls map { call => eval(call) map { valRes => (call, valRes) } })
-
-    val failedValidations = validationResult.map(evaluateValidationResultPerCall)
-
-    //TODO: Add recover or not but refactor this as part of https://github.com/broadinstitute/cromwell/issues/725.
-    failedValidations map { failures =>
-      if (failures.nonEmpty) {
-        throw new AggregatedException("Runtime attribute validation failed", failures)
-      }
-    }
-  }
-
-  /**
-    * Creates WDL expression evaluator for the specific call.
-    *
-    * @param call Call which contains WDL expressions in it.
-    * @return A WDL ValueEvaluator.
-    */
-  protected def createLookup(call: Call): ScopedLookupFunction = {
-    val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-    val knownInputs = workflowDescriptor.inputs
-    WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
-  }
-
-  /**
-    * Evaluates WDL expressions within call runtime attributes.
-    *
-    * @param call Call which contains WDL expressions in it.
-    * @return Evaluated runtime attributes.
-    */
-  private def evaluateRuntimeAttributesWdlExpressions(call: Call): EvaluatedRuntimeAttributes = {
-    val lookup = createLookup(call)
-    def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, NoFunctions)
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
-    TryUtils.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-  }
-
-  /**
-    * Checks if there was any validation failure.
-    *
-    * @param evaluation Tuple with a call and related validation result.
-    * @return A list with all validation exceptions.
-    */
-  private def evaluateValidationResultPerCall(evaluation: Seq[(Call, ErrorOr[Unit])]): Seq[ValidationAggregatedException] = {
-    evaluation collect {
-      case (call, validation: Failure[NonEmptyList[String]]) =>
-        validation match {
-          case failureWithStringErr: Failure[NonEmptyList[String]] =>
-            ValidationAggregatedException(s"Runtime attribute validation failed for task '${call.taskFqn}'.", failureWithStringErr.e.list)
-        }
-    }
-  }
 }

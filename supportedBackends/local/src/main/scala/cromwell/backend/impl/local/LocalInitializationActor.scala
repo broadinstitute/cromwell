@@ -1,25 +1,21 @@
 package cromwell.backend.impl.local
 
 import akka.actor.Props
+import better.files._
 import cromwell.backend.BackendLifecycleActor.WorkflowAbortResponse
 import cromwell.backend.impl.local.LocalInitializationActor._
-import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core._
-import better.files._
 import wdl4s.Call
 
 import scala.concurrent.Future
-import scalaz.Scalaz._
 
 object LocalInitializationActor {
-  val FailOnStderrDefaultValue = false
-  val ContinueOnRcDefaultValue = 0
+  val SupportedKeys = Set(Docker, FailOnStderr, ContinueOnReturnCode)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
     Props(new LocalInitializationActor(workflowDescriptor, calls, configurationDescriptor))
+
 }
 
 class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
@@ -41,20 +37,18 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   }
 
   /**
-    * Validates runtime attributes for one specific call.
-    *
-    * @param runtimeAttributes Runtime Attributes with already evaluated values.
-    * @return If all entries from runtime attributes section are valid Success otherwise
-    *         Failure with the aggregation of errors.
+    * Log a warning if there are non-supported runtime attributes defined for the call.
     */
-  override def validateRuntimeAttributes(runtimeAttributes: EvaluatedRuntimeAttributes): Future[ErrorOr[Unit]] = {
+  override def validate(): Future[Unit] = {
     Future {
-      val docker = validateDocker(runtimeAttributes.get(Docker), None.successNel)
-      val failOnStderr = validateFailOnStderr(runtimeAttributes.get(FailOnStderr), FailOnStderrDefaultValue.successNel)
-      val continueOnReturnCode = validateContinueOnReturnCode(runtimeAttributes.get(ContinueOnReturnCode),
-        ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
-      (docker |@| failOnStderr |@| continueOnReturnCode) {
-        (_, _, _)
+      calls foreach { call =>
+        val runtimeAttributes = call.task.runtimeAttributes.attrs
+        val notSupportedAttributes = runtimeAttributes filterKeys { !SupportedKeys.contains(_) }
+
+        if (notSupportedAttributes.nonEmpty) {
+          val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
+          log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by LocalBackend. Unsupported attributes will not be part of jobs executions.")
+        }
       }
     }
   }

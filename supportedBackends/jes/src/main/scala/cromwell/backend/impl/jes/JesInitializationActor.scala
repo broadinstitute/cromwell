@@ -4,14 +4,12 @@ import akka.actor.Props
 import cromwell.backend.BackendLifecycleActor.WorkflowAbortResponse
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
-import cromwell.backend.impl.jes.model.MemorySize
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core._
 import wdl4s.Call
-import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlInteger, WdlString, WdlValue}
 
@@ -20,7 +18,6 @@ import scalaz.Scalaz._
 
 object JesInitializationActor {
   //TODO: check if these need to be configurable.
-  val CpuKey = "cpu"
   val CpuDefaultValue = 1
   val ZonesKey = "zones"
   val ZoneDefaultValue = Seq("us-central1-a")
@@ -28,7 +25,6 @@ object JesInitializationActor {
   val PreemptibleDefaultValue = 0
   val BootDiskSizeKey = "bootDiskSizeGb"
   val BootDiskSizeDefaultValue = 10
-  val MemoryKey = "memory"
   val MemoryDefaultValue = "2 GB"
   val DisksKey = "disks"
   val DisksDefaultValue = s"${JesWorkingDisk.Name} 10 SSD"
@@ -64,29 +60,19 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     */
   override def validateRuntimeAttributes(runtimeAttributes: EvaluatedRuntimeAttributes): Future[ErrorOr[Unit]] = {
     Future {
-      val cpu = validateCpu(runtimeAttributes.get(CpuKey))
+      val cpu = validateCpu(runtimeAttributes.get(Cpu), CpuDefaultValue.successNel)
       val zones = validateZone(runtimeAttributes.get(ZonesKey))
       val preemptible = validatePreemptible(runtimeAttributes.get(PreemptibleKey))
       val bootDiskSize = validateBootDisk(runtimeAttributes.get(BootDiskSizeKey))
-      val memory = validateMemory(runtimeAttributes.get(MemoryKey))
+      val memory = validateMemory(runtimeAttributes.get(Memory), parseMemoryString(WdlString(MemoryDefaultValue)))
       val disks = validateLocalDisks(runtimeAttributes.get(DisksKey))
-      val docker = validateDocker(runtimeAttributes.get(Docker), () => "Failed to get Docker mandatory key from runtime attributes".failureNel)
-      val failOnStderr = validateFailOnStderr(runtimeAttributes.get(FailOnStderr), () => FailOnStderrDefaultValue.successNel)
+      val docker = validateDocker(runtimeAttributes.get(Docker), "Failed to get Docker mandatory key from runtime attributes".failureNel)
+      val failOnStderr = validateFailOnStderr(runtimeAttributes.get(FailOnStderr), FailOnStderrDefaultValue.successNel)
       val continueOnReturnCode = validateContinueOnReturnCode(runtimeAttributes.get(ContinueOnReturnCode),
-        () => ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
+        ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
       (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode) {
         (_, _, _, _, _, _, _, _, _)
       }
-    }
-  }
-
-  private def validateCpu(cpu: Option[WdlValue]): ErrorOr[Int] = {
-    val cpuValidation = cpu.map(validateInt).getOrElse(CpuDefaultValue.successNel)
-    if (cpuValidation.isFailure) {
-      s"Expecting $CpuKey runtime attribute to be an Integer".failureNel
-    }
-    else {
-      cpuValidation
     }
   }
 
@@ -118,22 +104,6 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
         case scala.util.Failure(t) => s"Expecting $BootDiskSizeKey runtime attribute to be an Integer".failureNel
       }
     case None => BootDiskSizeDefaultValue.successNel
-  }
-
-  private def validateMemory(value: Option[WdlValue]): ErrorOr[MemorySize] = {
-    val errMsg = s"Expecting $MemoryKey runtime attribute to be an Integer or String with format '8 GB'"
-    def parseMemoryString(s: WdlString) = {
-      MemorySize.parse(s.valueString) match {
-        case scala.util.Success(x: MemorySize) => x.to(MemoryUnit.GB).successNel
-        case scala.util.Failure(t) => errMsg.failureNel
-      }
-    }
-    value match {
-      case Some(i: WdlInteger) => MemorySize(i.value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).successNel
-      case Some(s: WdlString) => parseMemoryString(s)
-      case Some(_) => errMsg.failureNel
-      case None => parseMemoryString(WdlString(MemoryDefaultValue))
-    }
   }
 
   private def validateLocalDisks(value: Option[WdlValue]): ErrorOr[Seq[JesAttachedDisk]] = {

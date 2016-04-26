@@ -43,10 +43,10 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
     */
   override def validateRuntimeAttributes(runtimeAttributes: EvaluatedRuntimeAttributes): Future[ErrorOr[Unit]] = {
     Future {
-      val docker = validateDocker(runtimeAttributes.get(Docker), () => "Failed to get Docker mandatory key from runtime attributes".failureNel)
-      val failOnStderr = validateFailOnStderr(runtimeAttributes.get(FailOnStderr), () => FailOnStderrDefaultValue.successNel)
+      val docker = validateDocker(runtimeAttributes.get(Docker), "Failed to get Docker mandatory key from runtime attributes".failureNel)
+      val failOnStderr = validateFailOnStderr(runtimeAttributes.get(FailOnStderr), FailOnStderrDefaultValue.successNel)
       val continueOnReturnCode = validateContinueOnReturnCode(runtimeAttributes.get(ContinueOnReturnCode),
-        () => ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
+        ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
       (docker |@| failOnStderr |@| continueOnReturnCode) {
         (_, _, _)
       }

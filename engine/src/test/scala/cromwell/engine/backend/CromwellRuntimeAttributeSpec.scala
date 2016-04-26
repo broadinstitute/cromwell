@@ -148,14 +148,14 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     val ex = intercept[IllegalArgumentException] {
       runtimeAttributes(SampleWdl.WorkflowWithMessedUpMemory, "messed_up_memory", jesBackend)
     }
-    ex.getMessage should include ("should be of the form 'X Unit'")
+    ex.getMessage should include ("Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
   }
 
   it should "reject a task with an invalid 'memory' attribute (2)" in {
     val ex = intercept[IllegalArgumentException] {
       runtimeAttributes(SampleWdl.WorkflowWithMessedUpMemoryUnit, "messed_up_memory", jesBackend)
     }
-    ex.getMessage should include ("is an invalid memory unit")
+    ex.getMessage should include ("Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
   }
 
   it should "reject a task with an invalid 'disks' parameter" in {

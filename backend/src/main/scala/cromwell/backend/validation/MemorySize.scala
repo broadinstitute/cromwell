@@ -1,4 +1,4 @@
-package cromwell.backend.impl.jes.model
+package cromwell.backend.validation
 
 import wdl4s.parser.MemoryUnit
 

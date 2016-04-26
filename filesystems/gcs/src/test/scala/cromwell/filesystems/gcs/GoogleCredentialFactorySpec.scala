@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs
 
-import java.nio.file.{Files, Paths}
+import java.io.File
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -9,7 +9,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.ConfigFactory
 import cromwell.filesystems.gcs.GcsFileSystemSpec.IntegrationTest
 import cromwell.filesystems.gcs.GoogleAuthMode.EnhancedCredentials
-import org.scalatest.{Assertions, FlatSpec, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.Try
 
@@ -17,20 +17,14 @@ import scala.util.Try
 class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
   import GoogleCredentialFactorySpec._
 
-  val options = GoogleOptionsMap(Map.empty)
-
   behavior of "GoogleCredentialFactory"
 
   it should "refresh a token using user credentials" taggedAs IntegrationTest in {
-    GoogleCredentialFactorySpec.assumeUserConfigExists()
-
-    def user(k: String): String = UserConfig.getString(k)
-
     val credential = UserMode(
       name = "user",
-      user = user("user"),
-      secretsFile = user("secrets-file"),
-      datastoreDir = user("data-store-dir")).credential(options)
+      user = secretConf("user"),
+      secretsFile = secretConf("secrets-file"),
+      datastoreDir = secretConf("data-store-dir")).credential(emptyOptions)
 
     val firstCredentialTry: Try[Credential] = credential.freshCredential
     assert(firstCredentialTry.isSuccess)
@@ -49,9 +43,10 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
   }
 
   it should "refresh a token using a service account" taggedAs IntegrationTest in {
-    GoogleCredentialFactorySpec.assumeAccountConfigExists()
-
-    val credential = ApplicationDefaultMode(name = "default").credential(options)
+    val credential = ServiceAccountMode(
+      name = "service",
+      accountId = secretConf("service-account-id"),
+      pemPath = secretConf("pem-file")).credential(emptyOptions)
 
     val firstCredentialTry: Try[Credential] = credential.freshCredential
     assert(firstCredentialTry.isSuccess)
@@ -70,12 +65,11 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
   }
 
   it should "refresh a token using a refresh token" taggedAs IntegrationTest in {
-    GoogleCredentialFactorySpec.assumeRefreshConfigExists()
+    val opts = GoogleOptionsMap(Map("refresh_token" -> secretConf("refresh_token")))
 
-    def refresh(k: String): String = AccountConfig.getString(k)
-    val opts = GoogleOptionsMap(Map("refresh_token" -> refresh("refresh_token")))
-
-    val credential = RefreshTokenMode(name = "refresh", refresh("client-id"), refresh("client-secret")).credential(opts)
+    val credential = RefreshTokenMode(name = "refresh",
+      clientId = secretConf("client-id"),
+      clientSecret = secretConf("client-secret")).credential(opts)
 
     val firstUserCredentialsTry = credential.freshCredential
 
@@ -110,30 +104,57 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
 
     exception.getMessage should be("Unable to refresh token")
   }
+
+  it should "refresh a token using application default credentials" taggedAs IntegrationTest in {
+    val credential = applicationDefaultCredential
+
+    val firstCredentialTry: Try[Credential] = credential.freshCredential
+    assert(firstCredentialTry.isSuccess)
+    val firstCredential = firstCredentialTry.get
+    firstCredential.getAccessToken shouldNot be(empty)
+
+    firstCredential.setExpiresInSeconds(59L)
+
+    val secondCredentialTry: Try[Credential] = firstCredential.freshCredential
+    assert(secondCredentialTry.isSuccess)
+
+    val secondCredential = secondCredentialTry.get
+    secondCredential.getAccessToken shouldNot be(empty)
+    secondCredential.getExpiresInSeconds shouldNot be(null)
+    secondCredential.getExpiresInSeconds.longValue should be > 60L
+  }
 }
 
 object GoogleCredentialFactorySpec {
-  val AccountConfigPath = Paths.get("cromwell-account.conf")
-  val AccountConfigExists = Files.exists(AccountConfigPath)
-  lazy val AccountConfig = ConfigFactory.parseFile(AccountConfigPath.toFile)
+  /*
 
-  val UserConfigPath = Paths.get("cromwell-user.conf")
-  val UserConfigExists = Files.exists(UserConfigPath)
-  lazy val UserConfig = ConfigFactory.parseFile(UserConfigPath.toFile)
+  To run this integration spec, your cromwell-credentials.conf file should have the following keys for the listed tests:
 
-  val RefreshConfigPath = Paths.get("cromwell-refresh.conf")
-  val RefreshConfigExists = Files.exists(RefreshConfigPath)
-  lazy val RefreshConfig = ConfigFactory.parseFile(RefreshConfigPath.toFile)
+  // For testing UserMode
+  user = "<user email>"
+  secrets-file = "<path to json secrets for above email>"
+  data-store-dir = "<path to where secrets will be stored>"
 
-  import Assertions._
+  // For testing ServiceAccountMode
+  service-account-id = "<service account id>"
+  pem-file = "<path to the pem file>"
 
-  def assumeAccountConfigExists() = assume(AccountConfigExists, s"\nConfig not found $AccountConfigPath")
+  // For testing RefreshTokenMode
+  client-id = "<service account id, preferably one configured to use the oauth playground>"
+  client-secret = "<secret for the above client-id>"
+  refresh_token = "<refresh token created with the above id/secret and the cloud storage api scopes>"
 
-  def assumeUserConfigExists() = assume(UserConfigExists, s"\nConfig not found $UserConfigPath")
+   */
 
-  def assumeRefreshConfigExists() = assume(RefreshConfigExists, s"\nConfig not found $RefreshConfigPath")
+  private lazy val credentialsConfig = ConfigFactory.parseFile(new File("cromwell-credentials.conf"))
 
-  case class GoogleOptionsMap(map: Map[String, String]) extends GoogleAuthMode.GoogleAuthOptions {
+  private def secretConf(path: String) = credentialsConfig.getString(path)
+
+  private val emptyOptions = GoogleOptionsMap(Map.empty)
+
+  private case class GoogleOptionsMap(map: Map[String, String]) extends GoogleAuthMode.GoogleAuthOptions {
     override def get(key: String): Try[String] = Try { map.get(key).get }
   }
+
+  def applicationDefaultCredential = ApplicationDefaultMode(name = "default").credential(emptyOptions)
 }

@@ -1,6 +1,6 @@
 package cromwell.util.docker
 
-import spray.http.MediaTypes
+import spray.http.{ContentTypeRange, MediaType, MediaTypes}
 import spray.httpx.SprayJsonSupport
 import spray.httpx.unmarshalling._
 import spray.json._
@@ -10,7 +10,20 @@ object SprayDockerRegistryApiMarshalling extends DefaultJsonProtocol with SprayJ
 
   implicit val dockerFsLayerFormat = jsonFormat1(DockerFsLayer)
 
-  implicit val dockerManifestResponseFormat = jsonFormat(DockerManifest, "fsLayers")
+  private val dockerManifestResponseFormat = jsonFormat(DockerManifest, "fsLayers")
+
+  implicit val dockerManifestResponseUnmarshaller: Unmarshaller[DockerManifest] = {
+    val contentTypeRanges: Seq[ContentTypeRange] = Seq(
+      // https://github.com/docker/distribution/blob/05b0ab0/docs/spec/manifest-v2-1.md
+      MediaType.custom("application/vnd.docker.distribution.manifest.v1+prettyjws"),
+      MediaType.custom("application/vnd.docker.distribution.manifest.v1+json"),
+      //ContentTypeRange.*, // when DockerHub keeps changing so much that we give up.
+      MediaTypes.`application/json`)
+    Unmarshaller.delegate[String, DockerManifest](contentTypeRanges: _*) {
+      case data =>
+        dockerManifestResponseFormat.read(data.parseJson)
+    }
+  }
 
   // Official Docker Registry API V1 Image ID spec
   // https://docs.docker.com/v1.6/reference/api/registry_api/#get-image-id-for-a-particular-tag

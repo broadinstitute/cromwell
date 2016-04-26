@@ -6,7 +6,6 @@ import spray.client.pipelining._
 import spray.http.HttpHeaders.{Authorization, `WWW-Authenticate`}
 import spray.http._
 import spray.httpx.UnsuccessfulResponseException
-import spray.httpx.unmarshalling._
 
 import scala.concurrent.Future
 

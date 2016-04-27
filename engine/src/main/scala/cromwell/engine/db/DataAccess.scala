@@ -65,7 +65,7 @@ trait DataAccess extends AutoCloseable {
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
                 (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
-  def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
+  def upsertRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
 
   def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]]
 

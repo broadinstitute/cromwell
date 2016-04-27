@@ -240,14 +240,22 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit] = {
-    def toRuntimeAttrInsert(executionId: Int, name: String, value: String) = dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, name, value)
+  private def runtimeAttributeUpsert(executionId: Int)(name: String, wdlValue: WdlValue)
+                                    (implicit ec: ExecutionContext): DBIO[Unit] = {
+    for {
+      runtimeAttributeUpdate <- dataAccess.runtimeAttributeValueByExecutionAndName(executionId, name).update(wdlValue.valueString)
+      _ <- runtimeAttributeUpdate match {
+        case 0 => dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, name, wdlValue.valueString)
+        case 1 => DBIO.successful(Unit)
+        case _ => DBIO.failed(new RuntimeException(s"Unexpected runtime attribute update count $runtimeAttributeUpdate"))
+      }
+    } yield ()
+  }
 
+  override def upsertRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       execution <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(id.toString, key.fqn, key.index.fromIndex, key.attempt).result.head
-      inserts = attributes map {
-        case (k, v) => toRuntimeAttrInsert(execution.executionId.get, k, v.valueString)
-      }
+      inserts = attributes map { case (k, v) => runtimeAttributeUpsert(execution.executionId.get)(k, v) }
       _ <- DBIO.sequence(inserts)
     } yield ()
 

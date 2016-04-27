@@ -2130,6 +2130,7 @@ object SampleWdl {
         |      echo "YO"
         |  }
         |  runtime {
+        |    docker: "ubuntu:latest"
         |    memory: "HI TY"
         |  }
         |}
@@ -2150,6 +2151,7 @@ object SampleWdl {
         |      echo "YO"
         |  }
         |  runtime {
+        |    docker: "ubuntu:latest"
         |    memory: "5 TY"
         |  }
         |}

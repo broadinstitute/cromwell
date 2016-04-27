@@ -3,11 +3,12 @@ package cromwell.backend
 import java.nio.file.Path
 
 import better.files._
+import cromwell.backend.validation.MemorySize
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.types._
 import wdl4s.values._
-import wdl4s.{MemorySize, TsvSerializable}
+import wdl4s.TsvSerializable
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}

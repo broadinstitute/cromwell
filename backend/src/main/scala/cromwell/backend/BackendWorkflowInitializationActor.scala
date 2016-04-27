@@ -98,7 +98,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   protected def createLookup(call: Call): ScopedLookupFunction = {
     val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
     val knownInputs = workflowDescriptor.inputs
-   WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
+    WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
   }
 
   /**

@@ -304,7 +304,7 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
       }
     }
 
-    "return InitializationFailed when tries to validate an invalid memory entry" ignore {
+    "return InitializationFailed when tries to validate an invalid memory entry" in {
       within(Timeout) {
         val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" memory: "value" }""")
         val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)

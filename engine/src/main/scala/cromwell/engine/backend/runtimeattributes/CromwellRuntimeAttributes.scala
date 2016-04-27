@@ -1,7 +1,7 @@
 package cromwell.engine.backend.runtimeattributes
 
-import cromwell.backend.impl.jes.io.{JesWorkingDisk, JesAttachedDisk}
-import cromwell.backend.validation.{ContinueOnReturnCodeSet, ContinueOnReturnCode, ContinueOnReturnCodeFlag, RuntimeAttributesValidation}
+import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.validation.{ContinueOnReturnCode, RuntimeAttributesValidation}
 import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
 import cromwell.engine.backend.{BackendCallJobDescriptor, BackendType}
@@ -34,8 +34,12 @@ object CromwellRuntimeAttributes {
   def apply(wdlRuntimeAttributes: RuntimeAttributes, jobDescriptor: BackendCallJobDescriptor, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
     val supportedKeys = jobDescriptor.backend.backendType.supportedKeys map { _.key }
 
+    val evaluatedAttr = wdlRuntimeAttributes.attrs mapValues {
+      _.evaluate(jobDescriptor.lookupFunction(jobDescriptor.locallyQualifiedInputs), jobDescriptor.callEngineFunctions)
+    }
+
     val attributes = for {
-      attributesFromTask <- TryUtil.sequenceMap(wdlRuntimeAttributes.evaluate(jobDescriptor.lookupFunction(jobDescriptor.locallyQualifiedInputs), jobDescriptor.callEngineFunctions))
+      attributesFromTask <- TryUtil.sequenceMap(evaluatedAttr)
       attributesWithDefaults <- Try(getAttributesWithDefaults(attributesFromTask, workflowOptions))
       _ <- validateKeys(attributesWithDefaults.keySet, jobDescriptor.backend.backendType)
       supportedAttributes = attributesWithDefaults.filterKeys(k => supportedKeys.contains(k))
@@ -57,8 +61,8 @@ object CromwellRuntimeAttributes {
 
   def validateKeys(keys: Set[String], backendType: BackendType): Try[Set[String]] = {
     /**
-      *  Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
-      *  the keys are known to be supported on at least one backend other than this.
+      * Warn if keys are found that are unsupported on this backend.  This is not necessarily an error, at this point
+      * the keys are known to be supported on at least one backend other than this.
       */
     val unsupported = unsupportedKeys(keys, backendType)
     logMessageForUnsupportedKeys(unsupported, backendType) foreach log.warn
@@ -87,15 +91,16 @@ object CromwellRuntimeAttributes {
   val DefaultJesWorkingDisk = JesAttachedDisk.parse(DefaultJesWorkingDiskString).get
 
   private case class ValidKeyType(key: String, validTypes: Set[WdlType])
+
   private val keys = Set(ValidKeyType("cpu", Set(WdlIntegerType)),
-                        ValidKeyType("disks", Set(WdlStringType, WdlArrayType(WdlStringType))),
-                        ValidKeyType("docker", Set(WdlStringType)),
-                        ValidKeyType("zones", Set(WdlStringType, WdlArrayType(WdlStringType))),
-                        ValidKeyType("continueOnReturnCode", Set(WdlBooleanType, WdlArrayType(WdlIntegerType))),
-                        ValidKeyType("failOnStderr", Set(WdlBooleanType)),
-                        ValidKeyType("preemptible", Set(WdlIntegerType)),
-                        ValidKeyType("memory", Set(WdlStringType)),
-                        ValidKeyType("bootDiskSizeGb", Set(WdlStringType)))
+    ValidKeyType("disks", Set(WdlStringType, WdlArrayType(WdlStringType))),
+    ValidKeyType("docker", Set(WdlStringType)),
+    ValidKeyType("zones", Set(WdlStringType, WdlArrayType(WdlStringType))),
+    ValidKeyType("continueOnReturnCode", Set(WdlBooleanType, WdlArrayType(WdlIntegerType))),
+    ValidKeyType("failOnStderr", Set(WdlBooleanType)),
+    ValidKeyType("preemptible", Set(WdlIntegerType)),
+    ValidKeyType("memory", Set(WdlStringType)),
+    ValidKeyType("bootDiskSizeGb", Set(WdlStringType)))
 
   private val defaultValues = Map(
     "cpu" -> WdlInteger(1),
@@ -111,7 +116,9 @@ object CromwellRuntimeAttributes {
   private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
     def fromWorkflowOptions(k: ValidKeyType) = {
       val value = workflowOptions.getDefaultRuntimeOption(k.key).get
-      val coercedValue = k.validTypes map { _.coerceRawValue(value) } find { _.isSuccess } map { _.get } getOrElse {
+      val coercedValue = k.validTypes map { _.coerceRawValue(value) } find { _.isSuccess } map {
+        _.get
+      } getOrElse {
         log.warn(s"Could not coerce $value for runtime attribute ${k.key} to any of the supported target types: ${k.validTypes.mkString(",")}. Using default value instead.")
         defaultValues.get(k.key).get
       }
@@ -132,17 +139,18 @@ object CromwellRuntimeAttributes {
 
   private def validateRuntimeAttributes(attributes: Map[String, WdlValue]): Try[CromwellRuntimeAttributes] = {
     val attributeMap = attributes.collect({ case (k, v) if Try(RuntimeKey.from(k)).isSuccess => RuntimeKey.from(k) -> v })
-    val docker = RuntimeAttributesValidation.validateDocker(attributeMap.get(DOCKER), () => None.successNel)
+    val docker = RuntimeAttributesValidation.validateDocker(attributeMap.get(DOCKER), None.successNel)
     val zones = validateZone(attributeMap.get(ZONES))
-    val failOnStderr = RuntimeAttributesValidation.validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR), () => defaults.failOnStderr.successNel)
+    val failOnStderr = RuntimeAttributesValidation.validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR), defaults.failOnStderr.successNel)
     val continueOnReturnCode = RuntimeAttributesValidation.validateContinueOnReturnCode(attributeMap.get(CONTINUE_ON_RETURN_CODE),
-      () => defaults.continueOnReturnCode.successNel)
-    val cpu = validateCpu(attributeMap.get(CPU))
+      defaults.continueOnReturnCode.successNel)
+    val cpu = RuntimeAttributesValidation.validateCpu(attributeMap.get(CPU), defaults.cpu.toInt.successNel)
     val disks = validateLocalDisks(attributeMap.get(DISKS))
     val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
-    val memory = RuntimeAttributes.validateMemoryValue(attributeMap.getOrElse(MEMORY, WdlString(s"${defaults.memoryGB} GB"))) match {
-      case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
-      case scala.util.Failure(x) => x.getMessage.failureNel
+    val memory = RuntimeAttributesValidation.validateMemory(attributeMap.get(MEMORY),
+      RuntimeAttributesValidation.parseMemoryString(WdlString(s"${defaults.memoryGB} GB"))) match {
+      case Success(x) => x.to(MemoryUnit.GB).amount.successNel
+      case Failure(f) => Failure(f)
     }
     val bootDiskSize = validateBootDisk(attributeMap.get(BOOT_DISK))
 
@@ -154,20 +162,8 @@ object CromwellRuntimeAttributes {
     }
   }
 
-  private def validateCpu(cpu: Option[WdlValue]): ErrorOr[Int] = {
-    cpu.map(validateInt).getOrElse(defaults.cpu.toInt.successNel)
-  }
-
   private def validatePreemptible(preemptible: Option[WdlValue]): ErrorOr[Int] = {
     preemptible.map(validateInt).getOrElse(defaults.preemptible.successNel)
-  }
-
-  private def validateDocker(docker: Option[WdlValue]): ErrorOr[Option[String]] = {
-    docker match {
-      case Some(WdlString(s)) => Some(s).successNel
-      case None => None.successNel
-      case _ => s"Expecting ${DOCKER.key} runtime attribute to a String".failureNel
-    }
   }
 
   private def validateZone(zoneValue: Option[WdlValue]): ErrorOr[Vector[String]] = {
@@ -177,31 +173,6 @@ object CromwellRuntimeAttributes {
         value.map(_.valueString).toVector.successNel
       case Some(_) => s"Expecting ${ZONES.key} runtime attribute to be either a whitespace separated String or an Array[String]".failureNel
       case None => defaults.zones.toVector.successNel
-    }
-  }
-
-  private def validateFailOnStderr(value: Option[WdlValue]): ErrorOr[Boolean] = {
-    value match {
-      case Some(WdlBoolean(b)) => b.successNel
-      case Some(WdlString(s)) if s.toLowerCase == "true" => true.successNel
-      case Some(WdlString(s)) if s.toLowerCase == "false" => false.successNel
-      case Some(_) => s"Expecting ${FAIL_ON_STDERR.key} runtime attribute to be a Boolean or a String with values of 'true' or 'false'".failureNel
-      case None => defaults.failOnStderr.successNel
-    }
-  }
-
-  private def validateContinueOnReturnCode(value: Option[WdlValue]): ErrorOr[ContinueOnReturnCode] = {
-    value match {
-      case Some(b: WdlBoolean) => ContinueOnReturnCodeFlag(b.value).successNel
-      case Some(WdlString(s)) if s.toLowerCase == "true" => ContinueOnReturnCodeFlag(true).successNel
-      case Some(WdlString(s)) if s.toLowerCase == "false" => ContinueOnReturnCodeFlag(false).successNel
-      case Some(WdlInteger(i)) => ContinueOnReturnCodeSet(Set(i)).successNel
-      case Some(WdlArray(wdlType, seq)) =>
-        val nels = seq map validateInt
-        val defaultReturnCodeNel = Set.empty[Int].successNel[String]
-        nels.foldLeft(defaultReturnCodeNel)((acc, v) => (acc |@| v) { (a, v) => a + v }) map ContinueOnReturnCodeSet
-      case Some(_) => s"Expecting ${CONTINUE_ON_RETURN_CODE.key} runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]".failureNel
-      case None => defaults.continueOnReturnCode.successNel
     }
   }
 

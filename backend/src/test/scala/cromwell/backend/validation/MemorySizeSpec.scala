@@ -1,4 +1,4 @@
-package cromwell.backend.impl.jes.model
+package cromwell.backend.validation
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table

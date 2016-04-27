@@ -6,7 +6,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{EvaluatorBuilder, WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.{WorkflowDescriptor, WorkflowDescriptorBuilder}
@@ -14,11 +14,12 @@ import cromwell.engine.db.DataAccess
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.specs2.mock.Mockito
 import spray.json.JsObject
 
 import scala.concurrent.duration._
 
-trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll with WorkflowDescriptorBuilder with ScalaFutures {
+trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll with WorkflowDescriptorBuilder with ScalaFutures with Mockito {
   val workflowManagerSystem = new TestWorkflowManagerSystem
   val actorSystem = workflowManagerSystem.actorSystem
   val dataAccess = DataAccess.globalDataAccess
@@ -42,7 +43,7 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
       WorkflowOptions(JsObject())
     )
     val key = BackendJobDescriptorKey(call, None, 1)
-    BackendJobDescriptor(backendWorkflowDescriptor, key, Map.empty)
+    BackendJobDescriptor(backendWorkflowDescriptor, key, mock[EvaluatorBuilder], Map.empty)
   }
 
   protected def makeWorkflowDescriptor(sources: WorkflowSourceFiles): WorkflowDescriptor = {

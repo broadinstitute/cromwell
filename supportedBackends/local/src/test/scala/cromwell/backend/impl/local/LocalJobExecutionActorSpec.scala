@@ -12,6 +12,8 @@ import cromwell.core._
 import org.scalatest.FlatSpec
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
+import wdl4s.WdlExpression
+import wdl4s.expression.WdlFunctions
 import wdl4s.types._
 import wdl4s.values._
 
@@ -115,13 +117,17 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
   }
 
   it should "evaluate and coerce input values" in {
+    val workflowDeclarations = Map(
+      "str" -> WdlInteger(31380),
+      "f1" -> WdlFloat(26)
+    )
 
     val expectedOutputs: CallOutputs = Map(
       "outInts" -> CallOutput(WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(31380))), None),
       "outFloats" -> CallOutput(WdlArray(WdlArrayType(WdlFloatType), Array(WdlFloat(48), WdlFloat(63))), None)
     )
     val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
-    val wf = new TestWorkflow(buildWorkflowDescriptor(InputExpressions), defaultBackendConfig, expectedResponse)
+    val wf = new TestWorkflow(buildWorkflowDescriptor(InputExpressions, workflowDeclarations), defaultBackendConfig, expectedResponse)
 
     testWorkflow(wf)
   }
@@ -161,11 +167,9 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val call = wf.workflowNamespace.workflow.calls.head
 
     0 to 2 foreach { shard =>
-      // This assumes that engine will give us the evaluated value of the scatter item at the correct index
-      // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
-      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("i" -> WdlInteger(shard))
+      val evaluatorBuilder = buildEvaluatorBuilder(call, Map("i" -> WdlInteger(shard)))
 
-      val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
+      val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), evaluatorBuilder, inputsFor(wf, call))
       val backend = localBackend(jd, defaultBackendConfig)
       val response = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], Map("out" -> CallOutput(WdlInteger(shard), None)))
       executeJobAndAssertOutputs(backend, response)

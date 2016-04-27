@@ -72,7 +72,7 @@ object TestWorkflows {
       |task expression {
       |  Int intNumber
       |  Float floatNumber
-      |  Float sum = 15 + floatNumber
+      |  Float sum = 15 + 48.0
       |  command {
       |    echo ${intNumber} > ints
       |    echo ${floatNumber} > floats

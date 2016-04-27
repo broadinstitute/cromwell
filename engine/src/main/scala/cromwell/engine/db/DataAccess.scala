@@ -70,8 +70,7 @@ trait DataAccess extends AutoCloseable {
   def createWorkflow(workflowDescriptor: WorkflowDescriptor,
                      workflowInputs: Traversable[SymbolStoreEntry],
                      calls: Traversable[Scope],
-                     backend: Backend)(implicit ec: ExecutionContext): Future[Unit]
-  = {
+                     backend: Backend)(implicit ec: ExecutionContext): Future[Unit] = {
     val workflowExecution = new WorkflowExecution(
       workflowDescriptor.id.toString,
       workflowDescriptor.name,
@@ -122,8 +121,7 @@ trait DataAccess extends AutoCloseable {
     createWorkflow(workflowExecution, workflowExecutionAux, workflowSymbols, executions, executionInfos)
   }
 
-  def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowState]]
-  = {
+  def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
     getWorkflowStateString(workflowId.toString) map {
       _ map WorkflowState.fromString
     }
@@ -136,41 +134,39 @@ trait DataAccess extends AutoCloseable {
     }
   }
 
-  def getWorkflowExecutionAndAux(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux]
-  = {
+  def getWorkflowExecutionAndAux(workflowId: WorkflowId)
+                                (implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux] = {
     getWorkflowExecutionAndAuxTuple(workflowId.toString) map {
       case (execution, aux) => WorkflowExecutionAndAux(execution, aux)
     }
   }
 
-  def getWorkflowExecutionAndAux(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux]
-  = {
+  def getWorkflowExecutionAndAux(workflowExecutionId: Int)
+                                (implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux] = {
     getWorkflowExecutionAndAuxTuple(workflowExecutionId) map {
       case (execution, aux) => WorkflowExecutionAndAux(execution, aux)
     }
   }
 
-  def getWorkflowExecutionAndAuxByState(states: Traversable[WorkflowState])(implicit ec: ExecutionContext): Future[Traversable[WorkflowExecutionAndAux]]
-  = {
+  def getWorkflowExecutionAndAuxByState(states: Traversable[WorkflowState])
+                                       (implicit ec: ExecutionContext): Future[Traversable[WorkflowExecutionAndAux]] = {
     getWorkflowExecutionAndAuxTuples(states.map(_.toString)) map {
       _ map { case (execution, aux) => WorkflowExecutionAndAux(execution, aux) }
     }
   }
 
-  def getExecutionInfos(workflowId: WorkflowId, call: Call, attempt: Int)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfo]]
-  = {
+  def getExecutionInfos(workflowId: WorkflowId, call: Call, attempt: Int)
+                       (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfo]] = {
     getExecutionInfos(workflowId.toString, call.fullyQualifiedName, attempt)
   }
 
   def getExecutionInfoByKey(workflowId: WorkflowId, call: Call, attempt: Int, key: String)
-                           (implicit ec: ExecutionContext): Future[Option[Option[String]]]
-  = {
+                           (implicit ec: ExecutionContext): Future[Option[Option[String]]] = {
     getExecutionInfoByKey(workflowId.toString, call.fullyQualifiedName, attempt, key)
   }
 
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
-                         (implicit ec: ExecutionContext): Future[Unit]
-  = {
+                         (implicit ec: ExecutionContext): Future[Unit] = {
     updateExecutionInfo(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt,
       key, value)
   }
@@ -204,16 +200,14 @@ trait DataAccess extends AutoCloseable {
   }
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
-                         (implicit ec: ExecutionContext): Future[Unit]
-  = {
+                         (implicit ec: ExecutionContext): Future[Unit] = {
     updateWorkflowState(workflowId.toString, workflowState.toString,
       if (workflowState.isTerminal) Option(new Date().toTimestamp) else None
     )
   }
 
   def getAllSymbolStoreEntries(workflowId: WorkflowId)
-                              (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-  = {
+                              (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val symbols = getAllSymbols(workflowId.toString)
     symbols map { _ map { _.toSymbolStoreEntry } }
   }
@@ -221,34 +215,31 @@ trait DataAccess extends AutoCloseable {
   // TODO needed to support compatibility with current code, this seems like an inefficient way of getting
   // TODO workflow outputs.
   /** Returns all outputs for this workflowId */
-  def getWorkflowOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-  = {
+  def getWorkflowOutputs(workflowId: WorkflowId)
+                        (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val symbols = getWorkflowOutputSymbols(workflowId.toString)
     symbols map { _ map { _.toSymbolStoreEntry } }
   }
 
-  def getAllOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-  = {
+  def getAllOutputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val symbols = getAllSymbols(workflowId.toString, IoOutput)
     symbols map { _ map { _.toSymbolStoreEntry } }
   }
 
-  def getAllInputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-  = {
+  def getAllInputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val symbols = getAllSymbols(workflowId.toString, IoInput)
     symbols map { _ map { _.toSymbolStoreEntry } }
   }
 
   /** Get all outputs for the scope of this call. */
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
-                (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-  = {
+                (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val symbols = getAllSymbols(workflowId.toString, IoOutput, key.fqn, key.index.fromIndex)
     symbols map { _ map { _.toSymbolStoreEntry } }
   }
 
-  def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]]
-  = {
+  def getAllRuntimeAttributes(id: WorkflowId)
+                             (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]] = {
     val results = getAllRuntimeAttributes(id.toString)
     results map {
       _ map {
@@ -265,8 +256,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   /** Get all inputs for the scope of this call. */
-  def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
-  = {
+  def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]] = {
     val symbols = getAllSymbols(id.toString, IoInput, call.fullyQualifiedName, ExecutionIndex.IndexNone)
     symbols map { _ map { _.toSymbolStoreEntry } }
   }
@@ -278,8 +268,7 @@ trait DataAccess extends AutoCloseable {
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
   def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
-                 workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit]
-  = {
+                 workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit] = {
     val reportableResultNames = workflowOutputFqns map { _.fullyQualifiedName }
     val outputSymbols = (workflowExecutionId: Int) => {
       callOutputs.toSeq map {
@@ -305,8 +294,7 @@ trait DataAccess extends AutoCloseable {
 
   /** Updates the existing input symbols to replace expressions with real values **/
   def updateCallInputs(workflowId: WorkflowId, key: BackendCallKey, callInputs: CallInputs)
-                      (implicit ec: ExecutionContext): Future[Int]
-  = {
+                      (implicit ec: ExecutionContext): Future[Int] = {
 
     val mappedInputs = callInputs.toSeq map {
       case (inputName, wdlValue) =>
@@ -316,8 +304,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int,
-                         events: Seq[ExecutionEventEntry])(implicit ec: ExecutionContext): Future[Unit]
-  = {
+                         events: Seq[ExecutionEventEntry])(implicit ec: ExecutionContext): Future[Unit] = {
     val executionEvents = (executionId: Int) => {
       events map { executionEventEntry =>
         new ExecutionEvent(
@@ -336,9 +323,8 @@ trait DataAccess extends AutoCloseable {
   }
 
   /** Gets a mapping from call FQN to an execution event entry list */
-  def getAllExecutionEvents(workflowId: WorkflowId)
-                           (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]]
-  = {
+  def getAllExecutionEvents(workflowId: WorkflowId)(implicit ec: ExecutionContext):
+  Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]] = {
     // The database query gives us a Seq[(CallFqn, ExecutionEvent)]. We want a Map[CallFqn -> ExecutionEventEntry].
     // So let's do some functional programming!
     val results = getAllExecutionEvents(workflowId.toString)
@@ -362,8 +348,7 @@ trait DataAccess extends AutoCloseable {
 
   /** Add a new failure event for a call into the database. */
   def addCallFailureEvent(workflowId: WorkflowId, executionKey: ExecutionDatabaseKey,
-                          failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit]
-  = {
+                          failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit] = {
     val failureEvents = (workflowExecutionId: Int, executionId: Int) => {
       new FailureEvent(
         workflowExecutionId,
@@ -380,8 +365,8 @@ trait DataAccess extends AutoCloseable {
   }
 
   /** Add a new failure event for a workflow into the database. */
-  def addWorkflowFailureEvent(workflowId: WorkflowId, failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit]
-  = {
+  def addWorkflowFailureEvent(workflowId: WorkflowId, failure: FailureEventEntry)
+                             (implicit ec: ExecutionContext): Future[Unit] = {
 
     val failureEvents = (workflowExecutionId: Int) => {
       new FailureEvent(
@@ -394,8 +379,8 @@ trait DataAccess extends AutoCloseable {
   }
 
   /** Retrieve all recorded failures for a Workflow */
-  def getFailureEvents(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Seq[QualifiedFailureEventEntry]]
-  = {
+  def getFailureEvents(workflowId: WorkflowId)
+                      (implicit ec: ExecutionContext): Future[Seq[QualifiedFailureEventEntry]] = {
     val results = getFailureEvents(workflowId.toString)
     results map {
       _.toSeq map {
@@ -412,8 +397,8 @@ trait DataAccess extends AutoCloseable {
 
 
   /** Set the status of one or several calls to starting and update the start date. */
-  def setStartingStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])(implicit ec: ExecutionContext): Future[Unit]
-  = {
+  def setStartingStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])
+                       (implicit ec: ExecutionContext): Future[Unit] = {
     if (scopeKeys.isEmpty) {
       Future.successful(())
     } else {
@@ -426,8 +411,8 @@ trait DataAccess extends AutoCloseable {
   }
 
   /** Simply set the status of one of several calls. Status cannot be Starting or a Terminal status. */
-  def updateStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey], status: ExecutionStatus)(implicit ec: ExecutionContext): Future[Unit]
-  = {
+  def updateStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey], status: ExecutionStatus)
+                  (implicit ec: ExecutionContext): Future[Unit] = {
     if (scopeKeys.isEmpty) {
       Future.successful(())
     } else {
@@ -441,8 +426,9 @@ trait DataAccess extends AutoCloseable {
 
   /** Set the status of a Call to a terminal status, and update associated information (return code, hash, cache). */
   def setTerminalStatus(workflowId: WorkflowId, scopeKeys: ExecutionDatabaseKey, status: ExecutionStatus,
-                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor])(implicit ec: ExecutionContext): Future[Unit]
-  = {
+                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash],
+                        resultsClonedFrom: Option[BackendCallJobDescriptor])
+                       (implicit ec: ExecutionContext): Future[Unit] = {
     require(status.isTerminal)
 
     val workflowUuid = workflowId.toString
@@ -469,8 +455,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   def getExecutionStatuses(workflowId: WorkflowId)
-                          (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]]
-  = {
+                          (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
     val results = getExecutionStatuses(workflowId.toString)
     results map {
       _ map {
@@ -491,8 +476,7 @@ trait DataAccess extends AutoCloseable {
 
   /** Return all execution entries for the FQN, including collector and shards if any */
   def getExecutionStatuses(workflowId: WorkflowId, fqn: FullyQualifiedName)
-                          (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]]
-  = {
+                          (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]] = {
     val results = getExecutionStatuses(workflowId.toString, fqn)
     results map {
       _ map {
@@ -512,8 +496,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   def getExecutionStatus(workflowId: WorkflowId, key: ExecutionDatabaseKey)
-                        (implicit ec: ExecutionContext): Future[Option[CallStatus]]
-  = {
+                        (implicit ec: ExecutionContext): Future[Option[CallStatus]] = {
     val results = getExecutionStatus(workflowId.toString, key.fqn, key.index.fromIndex, key.attempt)
     results map {
       _ map {
@@ -526,8 +509,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
-                 (implicit ec: ExecutionContext): Future[Unit]
-  = {
+                 (implicit ec: ExecutionContext): Future[Unit] = {
     val executions = (workflowExecutionId: Int) => {
       keys.toSeq map { key =>
         new Execution(
@@ -559,8 +541,7 @@ trait DataAccess extends AutoCloseable {
     getExecutions(id) map { _ map { ExecutionInfosByExecution(_, Seq.empty) } }
   }
 
-  def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]]
-  = {
+  def getExecutions(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[Execution]] = {
     getExecutions(id.toString)
   }
 
@@ -573,8 +554,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)
-                    (implicit ec: ExecutionContext): Future[WorkflowQueryResponse]
-  = {
+                    (implicit ec: ExecutionContext): Future[WorkflowQueryResponse] = {
     val workflowExecutions = queryWorkflowExecutions(queryParameters.statuses, queryParameters.names,
       queryParameters.startDate.map(_.toDate.toTimestamp), queryParameters.endDate.map(_.toDate.toTimestamp))
     workflowExecutions map { workflows =>
@@ -591,8 +571,7 @@ trait DataAccess extends AutoCloseable {
     }
   }
 
-  def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int]
-  = {
+  def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int] = {
     // Figure out which of the three possible queries to use based on whether a call has been specified and
     // if so whether an index has been specified.
     (cachingParameters.callKey, cachingParameters.callKey flatMap {
@@ -606,27 +585,25 @@ trait DataAccess extends AutoCloseable {
     }
   }
 
-  def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
-  = {
+  def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
     infosByExecution(id.toString) map (_.toSeq) map ExecutionInfosByExecution.fromRawTuples
   }
 
   def infosByExecution(id: WorkflowId, fqn: FullyQualifiedName)
-                      (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
-  = {
+                      (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]] = {
     infosByExecution(id.toString, fqn) map (_.toSeq) map db.ExecutionInfosByExecution.fromRawTuples
   }
 
   /** Used by restart workflow code to get all executions that were in-flight when the engine is restarted. */
-  def runningExecutionsAndExecutionInfos(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
-  = {
+  def runningExecutionsAndExecutionInfos(id: WorkflowId)(implicit ec: ExecutionContext):
+  Future[Traversable[ExecutionInfosByExecution]] = {
     val statuses = Set(ExecutionStatus.Starting, ExecutionStatus.Running) map (_.toString)
     val results = runningExecutionsAndExecutionInfos(id.toString, statuses)
     results map (_.toSeq) map db.ExecutionInfosByExecution.fromRawTuples
   }
 
-  def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]]
-  = {
+  def callCacheDataByExecution(id: WorkflowId)
+                              (implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]] = {
     val tuple3s = callCacheDataByExecution(id.toString)
     tuple3s map {
       _.map {

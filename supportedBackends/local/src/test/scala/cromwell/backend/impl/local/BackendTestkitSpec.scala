@@ -103,8 +103,9 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = new BackendJobDescriptorKey(call, None, 1)
     val unqualifiedWorkflowInputs = workflowDescriptor.inputs map { case (k, v) => k.unqualified -> v }
-    val fullSymbolsMap = symbolsMap ++ unqualifiedWorkflowInputs
-    new BackendJobDescriptor(workflowDescriptor, jobKey, buildEvaluatorBuilder(call, fullSymbolsMap), inputsFor(workflowDescriptor, call))
+    val inputsForCall: Map[wdl4s.LocallyQualifiedName, WdlValue] = inputsFor(workflowDescriptor, call)
+    val fullSymbolsMap = symbolsMap ++ unqualifiedWorkflowInputs ++ inputsForCall
+    new BackendJobDescriptor(workflowDescriptor, jobKey, buildEvaluatorBuilder(call, fullSymbolsMap), inputsForCall)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {

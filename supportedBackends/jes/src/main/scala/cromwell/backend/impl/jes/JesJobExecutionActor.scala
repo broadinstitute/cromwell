@@ -1,9 +1,7 @@
 package cromwell.backend.impl.jes
 
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
-import cromwell.backend.BackendLifecycleActor.JobAbortResponse
 import cromwell.backend._
-import wdl4s.Call
 
 import scala.concurrent.Future
 
@@ -25,5 +23,5 @@ class JesJobExecutionActor extends BackendJobExecutionActor {
   /**
     * Abort a running job.
     */
-  override def abortJob: Future[JobAbortResponse] = ???
+  override def abortJob: Unit = ???
 }

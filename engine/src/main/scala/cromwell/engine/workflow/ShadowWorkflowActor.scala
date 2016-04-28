@@ -10,9 +10,9 @@ import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorAct
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{WorkflowExecutionSucceededResponse, WorkflowExecutionFailedResponse, RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{WorkflowFinalizationSucceededResponse, WorkflowFinalizationFailedResponse, StartFinalizationCommand}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse, StartInitializationCommand}
-import cromwell.engine.workflow.lifecycle.{ShadowMaterializeWorkflowDescriptorActor, WorkflowFinalizationActor, WorkflowExecutionActor, WorkflowInitializationActor}
+import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.ShadowWorkflowActor._
-import cromwell.engine.workflow.WorkflowManagerActor.WorkflowOutputs
+import scala.language.postfixOps
 
 object ShadowWorkflowActor {
 
@@ -28,6 +28,7 @@ object ShadowWorkflowActor {
     */
   sealed trait ShadowWorkflowActorResponse
   case class ShadowWorkflowSucceededResponse(workflowId: WorkflowId) extends ShadowWorkflowActorResponse
+  case class ShadowWorkflowAbortedResponse(workflowId: WorkflowId) extends ShadowWorkflowActorResponse
   case class ShadowWorkflowFailedResponse(workflowId: WorkflowId, inState: ShadowWorkflowActorState, reasons: Seq[Throwable]) extends Exception with ShadowWorkflowActorResponse
 
   /**
@@ -62,6 +63,12 @@ object ShadowWorkflowActor {
   case object FinalizingWorkflowState extends ShadowWorkflowActorState
 
   /**
+    * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
+    * manager.
+    */
+  case object AbortingWorkflowState extends ShadowWorkflowActorState
+
+  /**
     * We're done.
     */
   case object WorkflowSucceededState extends ShadowWorkflowActorTerminalState
@@ -76,9 +83,15 @@ object ShadowWorkflowActor {
     */
   case object WorkflowFailedState extends ShadowWorkflowActorTerminalState
 
-  sealed trait ShadowWorkflowActorData
-  case object EmptyShadowWorkflowActorData extends ShadowWorkflowActorData
-  case class ShadowWorkflowActorDataWithDescriptor(workflowDescriptor: EngineWorkflowDescriptor) extends ShadowWorkflowActorData
+  /**
+    * @param currentLifecycleStateActor The current lifecycle stage, represented by an ActorRef.
+    */
+  case class ShadowWorkflowActorData(currentLifecycleStateActor: Option[ActorRef],
+                                     workflowDescriptor: Option[EngineWorkflowDescriptor])
+  object ShadowWorkflowActorData {
+    def empty = ShadowWorkflowActorData(None, None)
+    def apply(currentLifecycleStateActor: ActorRef, workflowDescriptor: EngineWorkflowDescriptor): ShadowWorkflowActorData = ShadowWorkflowActorData(Option(currentLifecycleStateActor), Option(workflowDescriptor))
+  }
 
   /**
     * Mode in which the workflow should be started:
@@ -100,7 +113,7 @@ class ShadowWorkflowActor(workflowId: WorkflowId,
 
   val tag = self.path.name
 
-  startWith(WorkflowUnstartedState, EmptyShadowWorkflowActorData)
+  startWith(WorkflowUnstartedState, ShadowWorkflowActorData.empty)
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -108,45 +121,45 @@ class ShadowWorkflowActor(workflowId: WorkflowId,
     case Event(StartWorkflowCommand, _) =>
       val actor = context.actorOf(ShadowMaterializeWorkflowDescriptorActor.props())
       actor ! ShadowMaterializeWorkflowDescriptorCommand(workflowId, workflowSources, conf)
-      goto(MaterializingWorkflowDescriptorState)
-    case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
+      goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
+    case Event(AbortWorkflowCommand, stateData) =>
+      // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
+      sender ! ShadowWorkflowAbortedResponse(workflowId)
+      goto(WorkflowAbortedState)
   }
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(ShadowMaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), stateData) =>
       val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor), name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
-      goto(InitializingWorkflowState) using ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)
+      goto(InitializingWorkflowState) using ShadowWorkflowActorData(initializerActor, workflowDescriptor)
     case Event(ShadowMaterializeWorkflowDescriptorFailureResponse(reason: Throwable), _) =>
       context.parent ! ShadowWorkflowFailedResponse(workflowId, MaterializingWorkflowDescriptorState, Seq(reason))
       goto(WorkflowFailedState)
-    case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse, ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)) =>
+    case Event(WorkflowInitializationSucceededResponse, ShadowWorkflowActorData(_, Some(workflowDescriptor))) =>
       val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor), name = s"WorkflowExecutionActor-$workflowId")
       val commandToSend = startMode match {
         case StartNewWorkflow => StartExecutingWorkflowCommand
         case RestartExistingWorkflow => RestartExecutingWorkflowCommand
       }
       executionActor ! commandToSend
-      goto(ExecutingWorkflowState)
+      goto(ExecutingWorkflowState) using ShadowWorkflowActorData(executionActor, workflowDescriptor)
     case Event(WorkflowInitializationFailedResponse(reason), _) =>
       context.parent ! ShadowWorkflowFailedResponse(workflowId, InitializingWorkflowState, reason)
       goto(WorkflowFailedState)
-    case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(ExecutingWorkflowState) {
-    case Event(WorkflowExecutionSucceededResponse, ShadowWorkflowActorDataWithDescriptor(workflowDescriptor)) =>
+    case Event(WorkflowExecutionSucceededResponse, ShadowWorkflowActorData(_, Some(workflowDescriptor))) =>
       val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor), name = s"WorkflowFinalizationActor-$workflowId")
       finalizationActor ! StartFinalizationCommand
-      goto(FinalizingWorkflowState)
+      goto(FinalizingWorkflowState) using ShadowWorkflowActorData(finalizationActor, workflowDescriptor)
     case Event(WorkflowExecutionFailedResponse(reasons), _) =>
       context.parent ! ShadowWorkflowFailedResponse(workflowId, ExecutingWorkflowState, reasons)
       goto(WorkflowFailedState)
-    case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
   }
 
   when(FinalizingWorkflowState) {
@@ -156,7 +169,13 @@ class ShadowWorkflowActor(workflowId: WorkflowId,
     case Event(WorkflowFinalizationFailedResponse(reasons), _) =>
       context.parent ! ShadowWorkflowFailedResponse(workflowId, FinalizingWorkflowState, reasons)
       goto(WorkflowFailedState)
-    case Event(AbortWorkflowCommand, stateData) => ??? // TODO: Handle abort
+  }
+
+  when(AbortingWorkflowState) {
+    case Event(x: EngineLifecycleStateCompleteResponse, _) =>
+      context.parent ! ShadowWorkflowAbortedResponse(workflowId)
+      goto(WorkflowAbortedState)
+    case _ => stay()
   }
 
   // Let these messages fall through to the whenUnhandled handler:
@@ -173,6 +192,9 @@ class ShadowWorkflowActor(workflowId: WorkflowId,
   }
 
   whenUnhandled {
+    case Event(AbortWorkflowCommand, ShadowWorkflowActorData(Some(actor), _)) =>
+      actor ! EngineLifecycleActorAbortCommand
+      goto(AbortingWorkflowState)
     case unhandledMessage =>
       log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
       stay

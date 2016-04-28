@@ -1,7 +1,6 @@
 package cromwell.backend.impl.sge
 
 import akka.actor.Props
-import cromwell.backend.BackendLifecycleActor.WorkflowAbortResponse
 import cromwell.backend.impl.sge.SgeInitializationActor._
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -26,7 +25,7 @@ class SgeInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   /**
     * Abort all initializations.
     */
-  override def abortInitialization(): Future[WorkflowAbortResponse] = ???
+  override def abortInitialization(): Unit = ???
 
   /**
     * A call which happens before anything else runs

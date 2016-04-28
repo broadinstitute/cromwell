@@ -30,13 +30,15 @@ trait BackendWorkflowFinalizationActor extends BackendWorkflowLifecycleActor wit
 
   def receive: Receive = LoggingReceive {
     case Finalize => performActionThenRespond(afterAll, onFailure = FinalizationFailed)
-    case AbortWorkflow => performActionThenRespond(abortFinalization, onFailure = BackendWorkflowAbortFailedResponse)
+    case AbortWorkflowCommand => abortFinalization
   }
 
   /**
+    * Trigger an abort of all finalizations.
+    *
     * Abort all finalizations.
     */
-  def abortFinalization: Future[WorkflowAbortResponse]
+  def abortFinalization: Unit
 
   /**
     * Happens after everything else runs

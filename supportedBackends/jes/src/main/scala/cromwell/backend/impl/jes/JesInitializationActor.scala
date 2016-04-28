@@ -1,7 +1,6 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.Props
-import cromwell.backend.BackendLifecycleActor.WorkflowAbortResponse
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
@@ -23,7 +22,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   /**
     * Abort all initializations.
     */
-  override def abortInitialization(): Future[WorkflowAbortResponse] = ???
+  override def abortInitialization(): Unit = ???
 
   //TODO: Workflow options may need to be validated for JES.
 

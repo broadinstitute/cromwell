@@ -15,21 +15,14 @@ object BackendLifecycleActor {
    * Commands
    */
   trait BackendWorkflowLifecycleActorCommand extends BackendWorkflowLifecycleActorMessage
-  case object AbortWorkflow extends BackendWorkflowLifecycleActorCommand
-  final case class AbortJob(jobKey: BackendJobDescriptorKey) extends BackendWorkflowLifecycleActorCommand
+  case object AbortWorkflowCommand extends BackendWorkflowLifecycleActorCommand
+  case object AbortJobCommand extends BackendWorkflowLifecycleActorCommand
 
   /*
    * Responses
    */
   trait BackendWorkflowLifecycleActorResponse extends BackendWorkflowLifecycleActorMessage
-
-  sealed trait JobAbortResponse extends BackendWorkflowLifecycleActorResponse
-  sealed trait WorkflowAbortResponse extends BackendWorkflowLifecycleActorResponse
-
-  case object BackendWorkflowAbortSucceededResponse extends WorkflowAbortResponse
-  final case class BackendWorkflowAbortFailedResponse(throwable: Throwable) extends WorkflowAbortResponse
-  final case class BackendJobExecutionAbortSucceededResponse(jobKey: BackendJobDescriptorKey) extends JobAbortResponse
-  final case class BackendJobExecutionAbortFailedResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable) extends JobAbortResponse
+  case object BackendActorAbortedResponse extends BackendWorkflowLifecycleActorResponse
 }
 
 trait BackendLifecycleActor extends Actor {

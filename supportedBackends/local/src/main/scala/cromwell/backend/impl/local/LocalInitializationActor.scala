@@ -2,7 +2,6 @@ package cromwell.backend.impl.local
 
 import akka.actor.Props
 import better.files._
-import cromwell.backend.BackendLifecycleActor.WorkflowAbortResponse
 import cromwell.backend.impl.local.LocalInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
@@ -27,7 +26,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   /**
     * Abort all initializations.
     */
-  override def abortInitialization(): Future[WorkflowAbortResponse] = ???
+  override def abortInitialization(): Unit = ???
 
   /**
     * A call which happens before anything else runs

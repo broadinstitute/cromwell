@@ -1,11 +1,11 @@
+package cromwell.backend.impl.htcondor
+
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestDuration, TestKit}
+import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, Initialize}
-import cromwell.backend.impl.htcondor.HtCondorInitializationActor
+import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import lenthall.exception.AggregatedException
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import spray.json.{JsObject, JsValue}
 import wdl4s.values.WdlValue
@@ -13,8 +13,8 @@ import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
 
 import scala.concurrent.duration._
 
-class HtCondorInitializationActorSpec extends TestKit(ActorSystem("HtCondorInitializationActorSpec"))
-  with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+class HtCondorInitializationActorSpec extends TestKit(ActorSystem("HtCondorInitializationActorSpec", ConfigFactory.parseString(
+  """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
   val Timeout = 5.second.dilated
 
   val HelloWorld =
@@ -59,22 +59,13 @@ class HtCondorInitializationActorSpec extends TestKit(ActorSystem("HtCondorIniti
   }
 
   "HtCondorInitializationActor" should {
-    "return InitializationFailed when there are no runtime attributes defined." in {
+    "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
         val backend = getHtCondorBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
         backend ! Initialize
-        expectMsgPF() {
-          case InitializationFailed(failure) =>
-            failure match {
-              case exception: AggregatedException =>
-                if (!exception.exceptionContext.equals("Runtime attribute validation failed"))
-                  fail("Exception message does not contains 'Runtime attribute validation failed'.")
-                if (exception.throwables.size != 1)
-                  fail("Number of errors coming from AggregatedException is not equals to one.")
-                if (!exception.throwables.head.getMessage.contains("Failed to get Docker mandatory key from runtime attributes"))
-                  fail("Message from error nr 1 in validation exception does not contains 'Failed to get Docker mandatory key from runtime attributes'.")
-            }
+        EventFilter.warning(message = s"Key/s [memory] is/are not supported by HtCondorBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
+          //Log message was intercepted.
         }
       }
     }

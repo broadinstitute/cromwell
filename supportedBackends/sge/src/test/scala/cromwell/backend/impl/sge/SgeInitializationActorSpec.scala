@@ -1,20 +1,20 @@
 package cromwell.backend.impl.sge
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestDuration, TestKit}
+import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
-import cromwell.backend.{BackendWorkflowDescriptor, BackendConfigurationDescriptor}
+import cromwell.backend.BackendWorkflowInitializationActor.Initialize
+import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import spray.json.{JsValue, JsObject}
-import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
+import spray.json.{JsObject, JsValue}
 import wdl4s.values.WdlValue
+import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
 
 import scala.concurrent.duration._
 
-class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationActorSpec"))
-  with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationActorSpec", ConfigFactory.parseString(
+  """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
   val Timeout = 5.second.dilated
 
   val HelloWorld =
@@ -59,14 +59,13 @@ class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationA
   }
 
   "SgeInitializationActor" should {
-    "return InitializationSuccess when there are no runtime attributes defined." in {
+    "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
         val backend = getSgeBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
         backend ! Initialize
-        expectMsgPF() {
-          case InitializationSuccess => //Entry is valid as expected.
-          case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+        EventFilter.warning(message = s"Key/s [memory] is/are not supported by SgeBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
+          //Log message was intercepted.
         }
       }
     }

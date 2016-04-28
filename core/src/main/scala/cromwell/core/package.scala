@@ -12,15 +12,20 @@ package object core {
   class WorkflowContext(val root: String)
   class CallContext(override val root: String, val stdout: String, val stderr: String) extends WorkflowContext(root)
 
+  type StringMapper = String => String
+  type WdlValueMapper = WdlValue => WdlValue
+
   // Can evaluate a wdl value
   class Evaluator(evaluator: WdlValue => Try[WdlValue]) {
     def evaluate(wdlValue: WdlValue): Try[WdlValue] = evaluator(wdlValue)
   }
 
   // Can build an evaluator from engine functions and valueMapper
-  class EvaluatorBuilder(builder: (WdlFunctions[WdlValue], WdlValue => WdlValue) => WdlValue => Try[WdlValue]) {
-    def build(engineFunctions: WdlFunctions[WdlValue], preValueMapper: WdlValue => WdlValue = identity): Evaluator = {
-      new Evaluator(builder(engineFunctions, preValueMapper))
+  class EvaluatorBuilder(builder: (WdlFunctions[WdlValue], StringMapper, WdlValueMapper) => WdlValue => Try[WdlValue]) {
+    def build(engineFunctions: WdlFunctions[WdlValue],
+              preValueMapper: StringMapper = identity,
+              postValueMapper: WdlValueMapper = identity): Evaluator = {
+      new Evaluator(builder(engineFunctions, preValueMapper, postValueMapper))
     }
   }
 

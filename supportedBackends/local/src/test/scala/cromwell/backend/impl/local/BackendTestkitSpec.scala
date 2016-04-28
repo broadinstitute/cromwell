@@ -83,8 +83,8 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
   }
 
   def buildEvaluatorBuilder(call: Call, symbolsMap: Map[LocallyQualifiedName, WdlValue]) = {
-    def builder(engineFunctions: WdlFunctions[WdlValue], valueMapper: WdlValue => WdlValue)(wdlValue: WdlValue) = {
-      val lookup = valueMapper compose WdlExpression.standardLookupFunction(symbolsMap, call.task.declarations, engineFunctions)
+    def builder(engineFunctions: WdlFunctions[WdlValue], preValueMapper: StringMapper, postValueMapper: WdlValueMapper)(wdlValue: WdlValue) = {
+      val lookup = postValueMapper compose WdlExpression.standardLookupFunction(symbolsMap, call.task.declarations, engineFunctions) compose preValueMapper
       wdlValue match {
         case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions)
         case v: WdlValue => Success(v)

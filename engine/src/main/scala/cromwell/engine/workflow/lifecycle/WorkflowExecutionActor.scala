@@ -130,28 +130,28 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       ??? //TODO: Implement!
     }
 
-  /**
-    * Gather all useful (and only those) symbols for this call from the JSON mappings.
-    */
-  private def workflowInputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
-    // Useful inputs are workflow level inputs and inputs for this specific call
-    def isUsefulInput(fqn: String) = fqn == call.fullyQualifiedName || fqn == workflowDescriptor.namespace.workflow.unqualifiedName
 
-    // inputs contains evaluated workflow level declarations and coerced json inputs.
-    // This evaluation work is done during the Materialization of WorkflowDescriptor
-    val splitFqns = workflowDescriptor.backendDescriptor.inputs map {
-      case (fqn, v) => fqn.splitFqn -> v
-    }
-    splitFqns collect {
-      case((root, inputName), v) if isUsefulInput(root) => inputName -> v // Variables are looked up with LQNs, not FQNs
-    }
+  // Split inputs map (= evaluated workflow declarations + coerced json inputs) into [init\.*].last
+  private lazy val splitInputs = workflowDescriptor.backendDescriptor.inputs map {
+    case (fqn, v) => fqn.splitFqn -> v
+  }
+
+  // Unqualified workflow level inputs
+  private lazy val unqualifiedWorkflowInputs: Map[LocallyQualifiedName, WdlValue] = splitInputs collect {
+    case((root, inputName), v) if root == workflowDescriptor.namespace.workflow.unqualifiedName => inputName -> v
+  }
+
+  // Unqualified call inputs for a specific call, from the input json
+  private def unqualifiedCallInputs(call: Call): Map[LocallyQualifiedName, WdlValue] = splitInputs collect {
+    case((root, inputName), v) if root == call.fullyQualifiedName => inputName -> v
   }
 
   /**
-    * Currently only existing symbols are workflow and task declarations
-    * When multi call / scatter features are added, this method will need to be updated
+    * Symbols used by the lookup function for a job evaluator.
     */
-  private def symbolsFor(call: Call) = inputsFor(call)
+  private def symbolsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
+    unqualifiedWorkflowInputs ++ inputsFor(call)
+  }
 
   /**
     * Create a map of inputs for a specific call.
@@ -164,13 +164,18 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       case declaration if declaration.expression.isDefined => declaration.name -> declaration.expression.get
     } toMap
 
-    staticDeclarations ++ workflowInputsFor(call) ++ call.inputMappings
+    staticDeclarations ++ unqualifiedCallInputs(call) ++ call.inputMappings
   }
 
-  // This needs to handle folding
-  private def evaluatorBuilderFor(call: Call)(engineFunctions: WdlFunctions[WdlValue], valueMapper: WdlValue => WdlValue)(wdlValue: WdlValue): Try[WdlValue] = {
+  private def evaluatorBuilderFor(call: Call)
+                                 (engineFunctions: WdlFunctions[WdlValue],
+                                  preValueMapper: StringMapper,
+                                  postValueMapper: WdlValueMapper)
+                                 (wdlValue: WdlValue): Try[WdlValue] = {
     def lookup = {
-      valueMapper compose WdlExpression.standardLookupFunction(symbolsFor(call), call.task.declarations, engineFunctions)
+      val rawLookupFunction = WdlExpression.standardLookupFunction(symbolsFor(call), call.task.declarations, engineFunctions)
+
+      postValueMapper compose rawLookupFunction compose preValueMapper
     }
 
     wdlValue match {

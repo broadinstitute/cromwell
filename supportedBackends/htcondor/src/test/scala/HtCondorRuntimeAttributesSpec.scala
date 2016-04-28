@@ -2,12 +2,13 @@ package cromwell.backend.impl.htcondor
 
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.validation.{TryUtils, ContinueOnReturnCode, ContinueOnReturnCodeSet}
+import cromwell.backend.validation.{ContinueOnReturnCode, ContinueOnReturnCodeSet}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsValue, JsObject}
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
+import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, WdlExpression, WdlSource, NamespaceWithWorkflow}
 
@@ -108,7 +109,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     workflowDescriptor.workflowNamespace.workflow.calls map {
       call =>
         val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtils.sequenceMap(ra, "Runtime attributes evaluation").get
+        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
     }
   }
 

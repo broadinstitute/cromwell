@@ -3,7 +3,6 @@ package cromwell.backend
 import java.nio.file.Path
 
 import better.files._
-import cromwell.backend.validation.MemorySize
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.types._

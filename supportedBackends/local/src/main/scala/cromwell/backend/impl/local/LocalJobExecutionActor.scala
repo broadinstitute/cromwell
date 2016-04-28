@@ -8,6 +8,7 @@ import cromwell.backend._
 import cromwell.core.CallContext
 import org.slf4j.LoggerFactory
 import wdl4s._
+import wdl4s.util.TryUtil
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -79,7 +80,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   val runtimeAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     // Fail the call if runtime attributes can't be evaluated
-    val evaluatedAttributes = TryUtils.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
+    val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
     LocalRuntimeAttributes(evaluatedAttributes)
   }
 
@@ -113,7 +114,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     // Inputs coming from the "input" keyword in the workflow declaration. These need to be evaluated because they're expressions
     val evaluatedInputMappings = call.inputMappings mapValues evaluate
 
-    TryUtils.sequenceMap(evaluatedInputMappings, "Job Input evaluation") flatMap { inputs =>
+    TryUtil.sequenceMap(evaluatedInputMappings, "Job Input evaluation") flatMap { inputs =>
       val localizedInputs = localizeInputs(jobPaths, runsOnDocker, fileSystems, inputs ++ workflowInputEntries)
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }

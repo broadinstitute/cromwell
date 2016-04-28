@@ -1,4 +1,4 @@
-package cromwell.backend.validation
+package cromwell.backend
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table

@@ -1,5 +1,6 @@
 package cromwell.backend.validation
 
+import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core._
 import wdl4s.parser.MemoryUnit

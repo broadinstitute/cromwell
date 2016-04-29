@@ -4,7 +4,7 @@ import wdl4s._
 import wdl4s.expression.WdlFunctions
 import wdl4s.values.{SymbolHash, WdlValue}
 
-import scala.util.Try
+import scala.util.{Success, Try}
 import scalaz._
 
 package object core {
@@ -16,18 +16,10 @@ package object core {
   type WdlValueMapper = WdlValue => WdlValue
 
   // Can evaluate a wdl value
-  class Evaluator(evaluator: WdlValue => Try[WdlValue]) {
-    def evaluate(wdlValue: WdlValue): Try[WdlValue] = evaluator(wdlValue)
-  }
+  case class Evaluator(evaluate: WdlValue => Try[WdlValue])
 
   // Can build an evaluator from engine functions and valueMapper
-  class EvaluatorBuilder(builder: (WdlFunctions[WdlValue], StringMapper, WdlValueMapper) => WdlValue => Try[WdlValue]) {
-    def build(engineFunctions: WdlFunctions[WdlValue],
-              preValueMapper: StringMapper = identity,
-              postValueMapper: WdlValueMapper = identity): Evaluator = {
-      new Evaluator(builder(engineFunctions, preValueMapper, postValueMapper))
-    }
-  }
+  case class EvaluatorBuilder(build: (WdlFunctions[WdlValue], StringMapper, WdlValueMapper) => Evaluator)
 
   type ErrorOr[+A] = ValidationNel[String, A]
   type LocallyQualifiedName = String

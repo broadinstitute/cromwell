@@ -146,10 +146,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     case((root, inputName), v) if root == call.fullyQualifiedName => inputName -> v
   }
 
-  /**
-    * Symbols used by the lookup function for a job evaluator.
-    */
-  private def symbolsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
+  // Workflow inputs + call inputs, potentially unevaluated
+  private def staticInputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
     unqualifiedWorkflowInputs ++ inputsFor(call)
   }
 
@@ -167,20 +165,30 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     staticDeclarations ++ unqualifiedCallInputs(call) ++ call.inputMappings
   }
 
+  /**
+    *
+    * @param preValueMapper applies a String => String function to the identifier, before attempting to resolve it
+    * @param postValueMapper applies a WdlValue => WdlValue function to the result of the evaluation
+    * @return a function that takes engineFunctions and pre/post value mappers, and returns an Evaluator
+    */
   private def evaluatorBuilderFor(call: Call)
                                  (engineFunctions: WdlFunctions[WdlValue],
                                   preValueMapper: StringMapper,
-                                  postValueMapper: WdlValueMapper)
-                                 (wdlValue: WdlValue): Try[WdlValue] = {
+                                  postValueMapper: WdlValueMapper): Evaluator = {
     def lookup = {
-      val rawLookupFunction = WdlExpression.standardLookupFunction(symbolsFor(call), call.task.declarations, engineFunctions)
-
-      postValueMapper compose rawLookupFunction compose preValueMapper
+      // The lookup function will need to be aware of call outputs, shards, scatter variables etc...
+      // This could be done by adding several type fo lookup (like in the old WA), or adding more information to the parameters map.
+      val standardLookupFunction = WdlExpression.standardLookupFunction(staticInputsFor(call), call.task.declarations, engineFunctions)
+       standardLookupFunction compose preValueMapper
     }
 
-    wdlValue match {
-      case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions)
-      case v: WdlValue => Success(v)
+    def evaluator(wdlValue: WdlValue) = {
+      wdlValue match {
+        case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions) map postValueMapper
+        case v: WdlValue => Success(v)
+      }
     }
+
+    new Evaluator(evaluator)
   }
 }

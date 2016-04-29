@@ -15,7 +15,6 @@ import cromwell.{core, engine}
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -125,10 +124,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
       }
 
     case ApiHandlerWorkflowSubmitBatch(sources) =>
-      import akka.pattern._
-      import context.dispatcher
-      val batchSubmitResponse = Future.traverse(sources)(source => (requestHandlerActor ? WorkflowManagerActor.SubmitWorkflow(source)).asInstanceOf[Future[WorkflowManagerResponse]]).map(WorkflowManagerBatchSubmitResponse)
-      pipe(batchSubmitResponse) to self
+      context.actorOf(
+        Props(new WorkflowSubmitBatchActor(self, requestHandlerActor, sources)),
+        "WorkflowSubmitBatchActor")
 
     case WorkflowManagerBatchSubmitResponse(responses) =>
       val requestResponse: Seq[Either[WorkflowSubmitResponse, FailureResponse]] = responses.map {

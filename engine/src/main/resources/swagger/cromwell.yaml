@@ -330,6 +330,18 @@ paths:
           required: true
           type: string
           in: path
+        - name: outputs
+          description: Include output metadata
+          required: false
+          type: boolean
+          in: query
+          default: true
+        - name: timings
+          description: Include timing metadata
+          required: false
+          type: boolean
+          in: query
+          default: true
       tags:
         - Workflows
       responses:

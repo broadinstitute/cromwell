@@ -1,14 +1,8 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
 import java.sql.Timestamp
 
-case class FailureEvent (
-  workflowExecutionId: Int,
-  executionId: Option[Int],
-  failure: String,
-  timestamp: Timestamp,
-  failureId: Option[Int] = None
-)
+import cromwell.database.obj.FailureEvent
 
 trait FailureEventComponent {
   this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
@@ -31,15 +25,17 @@ trait FailureEventComponent {
 
   protected val failureEvents = TableQuery[FailureEvents]
 
-  val failureEventsAutoInc = failureEvents returning failureEvents.
-    map(_.failureId) into ((a, id) => a.copy(failureId = Option(id)))
+  val failureEventIdsAutoInc = failureEvents returning failureEvents.map(_.failureId)
 
   // Convenience function
-  def failuresByWorkflowExecutionUuid = Compiled(
+  val failureEventsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
-        failureEvent <- failureEvents
-        workflowExecution <- failureEvent.workflowExecution
-        if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-      } yield (workflowExecution.workflowExecutionUuid, failureEvent)
+      (failureEvent, maybeExecution) <- failureEvents joinLeft executions on {
+        case (failureEvent, execution) => failureEvent.executionId === execution.executionId
+      }
+      workflowExecution <- failureEvent.workflowExecution
+      if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
+    } yield (workflowExecution.workflowExecutionUuid, failureEvent.message, failureEvent.timestamp,
+      maybeExecution.map(_.callFqn), maybeExecution.map(_.index), maybeExecution.map(_.attempt))
   )
 }

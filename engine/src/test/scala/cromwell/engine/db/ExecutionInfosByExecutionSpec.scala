@@ -1,9 +1,9 @@
 package cromwell.engine.db
 
+import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.CallLogs
-import cromwell.engine.db.slick.{Execution, ExecutionInfo}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.values.WdlFile
 
@@ -226,7 +226,8 @@ class ExecutionInfosByExecutionSpec extends FlatSpec with Matchers {
 
   private def execution(fqn: String, index: ExecutionIndex, attempt: Int): Execution = {
     import ExecutionIndex._
-    Execution(-1, fqn, index.fromIndex, ExecutionStatus.NotStarted.toString, None, None, None, "unknown", allowsResultReuse = false, None, None, None, attempt, None)
+    Execution(-1, fqn, index.fromIndex, attempt, ExecutionStatus.NotStarted.toString, None, None, None, "unknown",
+      allowsResultReuse = false, None, None, None, None)
   }
 
   private def infoByExecution(name: String, filePath: String): ExecutionInfo = {

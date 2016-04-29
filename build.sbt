@@ -5,6 +5,16 @@ lazy val core = (project in file("core")).settings(coreSettings:_*)
 
 lazy val gcsfilesystem = (project in file("filesystems/gcs"))
   .settings(gcsFileSystemSettings:_*)
+  .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
+  .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
+  .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
+
+lazy val database = (project in file("database"))
+  .settings(databaseSettings:_*)
+  .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
+  .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
+  .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
+  .configs(DbmsTest).settings(inConfig(DbmsTest)(Defaults.testTasks): _*)
 
 lazy val backendRoot = Path("supportedBackends")
 
@@ -30,7 +40,9 @@ lazy val jesBackend = (project in backendRoot / "jes")
 
 //TODO: remove jesBackend once refactoring has finished.
 lazy val engine = (project in file("engine"))
-  .dependsOn(core % "test->test;compile->compile", jesBackend % "test->test;compile->compile")
+  .dependsOn(core % "test->test;compile->compile",
+      jesBackend % "test->test;compile->compile",
+      database % "test->test;compile->compile")
   .settings(engineSettings:_*)
   .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
   .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)

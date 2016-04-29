@@ -1,4 +1,4 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
 import slick.driver.JdbcProfile
 

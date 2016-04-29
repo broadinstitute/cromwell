@@ -1,18 +1,8 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
-import java.sql.{Timestamp, Clob}
+import java.sql.Timestamp
 
-import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.ExecutionIndex
-import cromwell.engine.ExecutionIndex._
-
-case class ExecutionEvent (
-  executionId: Int,
-  description: String,
-  startTime: Timestamp,
-  endTime: Timestamp,
-  executionEventId: Option[Int] = None
-)
+import cromwell.database.obj.ExecutionEvent
 
 trait ExecutionEventComponent {
   this: DriverComponent with ExecutionComponent =>
@@ -35,16 +25,16 @@ trait ExecutionEventComponent {
 
   protected val executionEvents = TableQuery[ExecutionEvents]
 
-  val executionEventsAutoInc = executionEvents returning executionEvents.
-    map(_.executionEventId) into ((a, id) => a.copy(executionEventId = Some(id)))
+  val executionEventIdsAutoInc = executionEvents returning executionEvents.map(_.executionEventId)
 
   // Convenience function
-  def executionEventsByWorkflowExecutionUuid = Compiled(
+  val executionEventsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
         executionEvent <- executionEvents
         execution <- executionEvent.execution
         workflowExecution <- execution.workflowExecution
         if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-      } yield ((execution.callFqn, execution.index, execution.attempt), executionEvent)
+      } yield (execution.callFqn, execution.index, execution.attempt,
+      executionEvent.description, executionEvent.startTime, executionEvent.endTime)
   )
 }

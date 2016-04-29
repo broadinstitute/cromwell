@@ -1,13 +1,14 @@
 package cromwell.engine.workflow
 
+import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionIndex._
+import cromwell.engine._
 import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.sge.SgeBackend
 import cromwell.engine.backend.{CallLogs, CallMetadata}
-import cromwell.engine.db.slick._
-import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
-import cromwell.engine.{EnhancedFullyQualifiedName, ExecutionEventEntry, SymbolStoreEntry, _}
+import cromwell.engine.db.EngineConverters.EnhancedExecution
+import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution, ExecutionWithCacheData}
 import org.joda.time.DateTime
 import wdl4s._
 
@@ -71,8 +72,8 @@ object CallMetadataBuilder {
     _ =>
       (for {
         execution <- executions
-        key = ExecutionDatabaseKey(execution.callFqn, execution.index.toIndex, execution.attempt)
-        if !execution.callFqn.isScatter && !key.isCollector(executionKeys)
+        key = execution.toKey
+        if !key.isScatter && !key.isCollector(executionKeys)
       } yield key -> AssembledCallMetadata(key, execution)).toMap
 
 
@@ -83,16 +84,14 @@ object CallMetadataBuilder {
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
       val inputsNoCollectors = filterCollectorSymbols(callInputs)
-      val inputsByKey = inputsNoCollectors.groupBy(i => ExecutionDatabaseKey(i.scope, i.key.index, 1))
 
       for {
-        (inputKey, inputs) <- inputsByKey
+        (executionKey, assembledMetadata) <- executionMap
         // Inputs always have index None, but execution entries may have real indexes.  Look for executions by
         // FQN only, then give them copies of the inputs with matching indexes.
-        (executionKey, assembledMetadata) <- executionMap
-        if executionKey.fqn == inputKey.fqn
-        indexedInputs = inputs map { case SymbolStoreEntry(key, wdlType, maybeWdlValue, maybeSymbolHash) =>
-          new SymbolStoreEntry(key.copy(index = executionKey.index), wdlType, maybeWdlValue, maybeSymbolHash)
+        indexedInputs = inputsNoCollectors.filter(_.scope == executionKey.fqn) map {
+          case SymbolStoreEntry(key, wdlType, maybeWdlValue, maybeSymbolHash) =>
+            new SymbolStoreEntry(key.copy(index = executionKey.index), wdlType, maybeWdlValue, maybeSymbolHash)
         }
       } yield executionKey -> assembledMetadata.copy(inputs = indexedInputs)
     }
@@ -104,11 +103,13 @@ object CallMetadataBuilder {
     executionMap => {
       // Remove collector entries for the purposes of this endpoint.
       val outputsNoCollectors = filterCollectorSymbols(callOutputs)
-      val outputsByKey = outputsNoCollectors.groupBy(o => ExecutionDatabaseKey(o.scope, o.key.index, findLastAttempt(executionMap, o.scope, o.key.index)))
       for {
-        (key, outputs) <- outputsByKey
-        baseMetadata = executionMap.get(key).get
-      } yield key -> baseMetadata.copy(outputs = Option(outputs))
+        (executionKey, assembledMetadata) <- executionMap
+        outputs = outputsNoCollectors filter { o =>
+          val lastAttempt = findLastAttempt(executionMap, o.scope, o.key.index)
+          ExecutionDatabaseKey(o.scope, o.key.index, lastAttempt) == executionKey
+        }
+      } yield executionKey -> assembledMetadata.copy(outputs = Option(outputs))
     }
 
   /**
@@ -117,9 +118,9 @@ object CallMetadataBuilder {
   private def buildExecutionEventsTransformer(eventsMap: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]): ExecutionMapTransformer =
     executionMap => {
       for {
-        (key, events) <- eventsMap
-        baseMetadata = executionMap.get(key).get
-      } yield key -> baseMetadata.copy(executionEvents = events)
+        (executionKey, assembledMetadata) <- executionMap
+        events = eventsMap.getOrElse(executionKey, Seq.empty)
+      } yield executionKey -> assembledMetadata.copy(executionEvents = events)
     }
 
   /**
@@ -128,9 +129,9 @@ object CallMetadataBuilder {
   private def buildRuntimeAttributesTransformer(runtimeAttributesMap: Map[ExecutionDatabaseKey, Map[String, String]]): ExecutionMapTransformer =
     executionMap => {
       for {
-        (key, attrs) <- runtimeAttributesMap
-        baseMetadata = executionMap.get(key).get
-      } yield key -> baseMetadata.copy(runtimeAttributes = attrs)
+        (executionKey, assembledMetadata) <- executionMap
+        attrs = runtimeAttributesMap.getOrElse(executionKey, Map.empty)
+      } yield executionKey -> assembledMetadata.copy(runtimeAttributes = attrs)
     }
 
   /**
@@ -152,25 +153,29 @@ object CallMetadataBuilder {
   private def buildCallFailureTransformer(callFailureMap: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): ExecutionMapTransformer =
     executionMap => {
       for {
-        (key, failureEvents) <- callFailureMap
-        baseMetadata = executionMap.get(key).get
-      } yield key -> baseMetadata.copy(failures = failureEvents)
+        (executionKey, assembledMetadata) <- executionMap
+        failureEvents = callFailureMap.getOrElse(executionKey, Seq.empty)
+      } yield executionKey -> assembledMetadata.copy(failures = failureEvents)
     }
 
   /**
    * Function to build a transformer that adds job data to the entries in the input `ExecutionMap`.
    */
-  private def buildExecutionInfoTransformer(executionsAndInfos: Traversable[ExecutionInfosByExecution]): ExecutionMapTransformer =
+  private def buildExecutionInfoTransformer(executionsAndInfos: Traversable[ExecutionInfosByExecution],
+                                            executionKeys: Traversable[ExecutionDatabaseKey]): ExecutionMapTransformer =
     executionMap => {
-      val allExecutions = executionsAndInfos map { _.execution }
       for {
+        (executionKey, assembledMetadata) <- executionMap
+        if !executionKey.isScatter && !executionKey.isCollector(executionKeys)
         ei <- executionsAndInfos
+        if ei.execution.toKey == executionKey
         e = ei.execution
-        if !e.isScatter && !e.isCollector(allExecutions)
-        baseMetadata = executionMap.get(e.toKey).get
         backendValues = BackendValues.extract(ei)
-      } yield e.toKey -> baseMetadata.copy(backend = Option(e.backendType), jobId = backendValues.jobId, backendStatus = backendValues.status)
-    }.toMap
+      } yield executionKey -> assembledMetadata.copy(
+        backend = Option(e.backendType),
+        jobId = backendValues.jobId,
+        backendStatus = backendValues.status)
+    }
 
   /**
    * Function to build a transformer that adds standard streams data to the entries in the input `ExecutionMap`.
@@ -179,15 +184,13 @@ object CallMetadataBuilder {
   ExecutionMapTransformer = {
     executionMap => {
       for {
-        (key, baseMetadata) <- executionMap
-        callLogs = executionsAndInfos find { executionInfosByExecution =>
-          val execution = executionInfosByExecution.execution
-          import ExecutionIndex._
-          key.fqn == execution.callFqn && key.index == execution.index.toIndex && key.attempt == execution.attempt
+        (executionKey, assembledMetadata) <- executionMap
+        callLogs = executionsAndInfos find {
+          _.execution.toKey == executionKey
         } flatMap {
           _.callLogs
         }
-      } yield key -> baseMetadata.copy(streams = callLogs)
+      } yield executionKey -> assembledMetadata.copy(streams = callLogs)
     }
   }
 
@@ -213,7 +216,7 @@ object CallMetadataBuilder {
             cacheData: Traversable[ExecutionWithCacheData],
             callFailures: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
 
-    val executionKeys = infosByExecution map { x => ExecutionDatabaseKey(x.execution.callFqn, x.execution.index.toIndex, x.execution.attempt) }
+    val executionKeys = infosByExecution map { _.execution.toKey }
 
     // Define a sequence of ExecutionMap transformer functions.
     val executionMapTransformers = Seq(
@@ -221,7 +224,7 @@ object CallMetadataBuilder {
       buildInputsTransformer(callInputs),
       buildOutputsTransformer(callOutputs),
       buildExecutionEventsTransformer(executionEvents),
-      buildExecutionInfoTransformer(infosByExecution),
+      buildExecutionInfoTransformer(infosByExecution, executionKeys),
       buildStreamsTransformer(infosByExecution),
       buildRuntimeAttributesTransformer(runtimeAttributes),
       buildCallFailureTransformer(callFailures),

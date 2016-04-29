@@ -1,17 +1,8 @@
-package cromwell.engine.db.slick
+package cromwell.database.slick
 
 import java.sql.Clob
 
-// TODO switch to UUID on WorkflowExecution rather than synthetic PK, update this to reference that.
-// TODO probably don't need a synthetic PK on this table as the WorkflowExecution ID serves that purpose.
-case class WorkflowExecutionAux
-(
-  workflowExecutionId: Int,
-  wdlSource: Clob,
-  jsonInputs: Clob,
-  workflowOptions: Clob,
-  workflowExecutionAuxId: Option[Int] = None
-)
+import cromwell.database.obj.WorkflowExecutionAux
 
 trait WorkflowExecutionAuxComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
@@ -37,19 +28,38 @@ trait WorkflowExecutionAuxComponent {
 
   protected val workflowExecutionAuxes = TableQuery[WorkflowExecutionAuxes]
 
-  val workflowExecutionAuxesAutoInc = workflowExecutionAuxes returning workflowExecutionAuxes.
-    map(_.workflowExecutionAuxId) into ((a, id) => a.copy(workflowExecutionAuxId = Some(id)))
+  val workflowExecutionAuxIdsAutoInc = workflowExecutionAuxes returning workflowExecutionAuxes.
+    map(_.workflowExecutionAuxId)
 
-  val workflowExecutionAuxesByWorkflowExecutionUuid = Compiled(
+  val workflowExecutionsAndAuxesByWorkflowExecutionId = Compiled(
+    (workflowExecutionId: Rep[Int]) => for {
+      workflowExecutionAux <- workflowExecutionAuxes
+      workflowExecution <- workflowExecutionAux.workflowExecution
+      if workflowExecution.workflowExecutionId === workflowExecutionId
+    } yield (workflowExecution, workflowExecutionAux))
+
+  val workflowExecutionsAndAuxesByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowExecutionAux <- workflowExecutionAuxes
       workflowExecution <- workflowExecutionAux.workflowExecution
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowExecutionAux)
+    } yield (workflowExecution, workflowExecutionAux))
 
-  val workflowOptionsFromWorkflowId = Compiled(
+  val workflowOptionsByWorkflowExecutionId = Compiled(
     (workflowExecutionId: Rep[Int]) => for {
       workflowExecutionAux <- workflowExecutionAuxes
       if workflowExecutionAux.workflowExecutionId === workflowExecutionId
     } yield workflowExecutionAux.workflowOptions)
+
+  // NOTE: No precompile for you!
+  // [Compile] works for all functions ... consisting only of individual columns
+  // - http://slick.typesafe.com/doc/3.0.0/queries.html
+  // - https://groups.google.com/forum/#!topic/scalaquery/2d_r4DEthfY
+  def workflowExecutionAndAuxesByStatuses(statuses: Traversable[String]) = {
+    for {
+      workflowExecutionAux <- workflowExecutionAuxes
+      workflowExecution <- workflowExecutionAux.workflowExecution
+      if workflowExecution.status inSet statuses
+    } yield (workflowExecution, workflowExecutionAux)
+  }
 }

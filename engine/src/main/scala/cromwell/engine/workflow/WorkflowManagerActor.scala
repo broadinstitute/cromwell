@@ -45,8 +45,14 @@ object WorkflowManagerActor {
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
-  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
-  final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
+
+  final case class WorkflowMetadata
+  (
+    id: WorkflowId,
+    parameters: WorkflowMetadataQueryParameters = WorkflowMetadataQueryParameters()
+  ) extends WorkflowManagerActorMessage
+
+  final case class RestartWorkflows(workflows: List[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
   private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
@@ -206,8 +212,9 @@ class WorkflowManagerActor(config: Config)
       val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
       reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
       stay()
-    case Event(WorkflowMetadata(id), _) =>
-      reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
+    case Event(WorkflowMetadata(id, parameters), _) =>
+      reply(id, workflowMetadata(id, parameters),
+        WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
       stay()
     case Event(SubscribeToWorkflow(id), data) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
@@ -321,15 +328,14 @@ class WorkflowManagerActor(config: Config)
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[WorkflowLogs] = {
     for {
-      workflowState <- globalDataAccess.getWorkflowState(workflowId)
-      // TODO: This assertion could also be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
-      _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
+      _ <- globalDataAccess.assertWorkflowExistsByState(workflowId)
       callLogOutputs <- globalDataAccess.infosByExecution(workflowId)
     } yield ExecutionInfosByExecution.toWorkflowLogs(callLogOutputs)
   }
 
-  private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
-    WorkflowMetadataBuilder.workflowMetadata(id)
+  private def workflowMetadata(id: WorkflowId,
+                               parameters: WorkflowMetadataQueryParameters): Future[WorkflowMetadataResponse] = {
+    new WorkflowMetadataBuilder(id, parameters).build()
   }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
@@ -386,7 +392,7 @@ class WorkflowManagerActor(config: Config)
       restartableWorkflowExecutionAndAuxes <- globalDataAccess.getWorkflowExecutionAndAuxByState(Seq(WorkflowSubmitted, WorkflowRunning))
       restartableWorkflows <- Future.sequence(restartableWorkflowExecutionAndAuxes map workflowDescriptorFromExecutionAndAux)
       _ = logRestarts(restartableWorkflows)
-      _ = self ! RestartWorkflows(restartableWorkflows.toSeq)
+      _ = self ! RestartWorkflows(restartableWorkflows.toList)
     } yield ()
 
     result recover {

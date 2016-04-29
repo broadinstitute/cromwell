@@ -3,13 +3,13 @@ package cromwell
 import akka.actor.ActorSystem
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.{CallOutput, WorkflowId}
+import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.WorkflowDescriptor
 import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.db.slick.Execution
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess, MaterializeWorkflow}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflow, MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
 import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.WdlValue
@@ -44,7 +44,6 @@ package object engine {
   class PreemptedException(msg: String) extends Exception(msg)
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
-    def isScatter = fqn.contains(Scatter.FQNIdentifier)
     def scopeAndVariableName: (String, String) = {
       val array = fqn.split("\\.(?=[^\\.]+$)")
       (array(0), array(1))
@@ -72,7 +71,7 @@ package object engine {
   // Used to convert the database returned value `executionAndAux` to a WorkflowDescriptor
   def workflowDescriptorFromExecutionAndAux(executionAndAux: WorkflowExecutionAndAux)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowDescriptor] = {
     //imports for implicits
-    import cromwell.engine.db.slick.SlickDataAccess.ClobToRawString
+    import cromwell.database.SqlConverters.ClobToRawString
     import cromwell.util.PromiseActor.EnhancedActorRef
 
     val id = WorkflowId.fromString(executionAndAux.execution.workflowExecutionUuid)

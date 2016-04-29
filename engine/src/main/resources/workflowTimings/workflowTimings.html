@@ -16,7 +16,7 @@
     }
 
     function drawChart() {
-        $.getJSON("./metadata", function( data ) {
+        $.getJSON("./metadata?outputs=false&timings=true", function( data ) {
 
             var container = document.getElementById('chart_div');
             var chart = new google.visualization.Timeline(container);

@@ -5,15 +5,15 @@ import java.sql.SQLException
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.backend.JobKey
 import cromwell.core.{CallOutput, CallOutputs}
+import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.engine.backend._
 import cromwell.engine.callactor.CallActor
 import cromwell.engine.callactor.CallActor.CallActorMessage
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.slick.{Execution, ExecutionInfo}
+import cromwell.engine.db.EngineConverters.EnhancedExecution
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow.WorkflowActor._
@@ -21,6 +21,7 @@ import cromwell.engine.workflow.WorkflowManagerActor.{WorkflowActorSubmitFailure
 import cromwell.engine.{HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
+import cromwell.webservice.WorkflowMetadataQueryParameters
 import org.joda.time.DateTime
 import wdl4s.types.WdlArrayType
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
@@ -309,6 +310,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   private var symbolCache: SymbolCache = _
   val akkaLogger = Logging(context.system, classOf[WorkflowActor])
   implicit val logger: WorkflowLogger = WorkflowLogger("WorkflowActor", workflow, Option(akkaLogger))
+
+  private[this] lazy val futureMetadata = new WorkflowMetadataBuilder(workflow.id,
+    WorkflowMetadataQueryParameters(timings = false)).build()
 
   startWith(WorkflowSubmitted, WorkflowData())
   val startTime = System.nanoTime()
@@ -829,9 +833,8 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
         // just set its special backend cleanly in config, and all this awfulness can go away.
         val descriptor = BackendCallJobDescriptor(workflow.copy(backend = backend), backendCallKey, locallyQualifiedInputs)
         Future.successful(CallActor.props(descriptor))
-      case finalCallKey: FinalCallKey => WorkflowMetadataBuilder.workflowMetadata(workflow.id) map {
-        metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata))
-      }
+      case finalCallKey: FinalCallKey =>
+        futureMetadata map { metadata => CallActor.props(FinalCallJobDescriptor(workflow, finalCallKey, metadata)) }
     }
 
     futureCallActorProps onComplete {

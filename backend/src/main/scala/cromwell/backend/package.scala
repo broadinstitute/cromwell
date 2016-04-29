@@ -1,7 +1,7 @@
 package cromwell
 
 import com.typesafe.config.Config
-import cromwell.core.{EvaluatorBuilder, WorkflowId, WorkflowOptions}
+import cromwell.core._
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -28,7 +28,7 @@ package object backend {
   case class BackendJobDescriptor(descriptor: BackendWorkflowDescriptor,
                                   key: BackendJobDescriptorKey,
                                   evaluatorBuilder: EvaluatorBuilder,
-                                  unevaluatedInputs: Map[LocallyQualifiedName, WdlValue]) {
+                                  unevaluatedInputs: Seq[ResolvedDeclaration]) {
     val call = key.call
   }
 

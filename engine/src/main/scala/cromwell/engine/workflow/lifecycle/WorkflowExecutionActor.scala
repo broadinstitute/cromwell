@@ -61,7 +61,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   def startJob(call: Call) = {
     // TODO: Support indexes and retries:
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val evaluatorBuilder = new EvaluatorBuilder(evaluatorBuilderFor(call))
+    val evaluatorBuilder = new EvaluatorBuilder(evaluatorFor(call))
     val inputs = inputsFor(call)
     val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, evaluatorBuilder, inputs)
     val executionActor = backendForExecution(jobDescriptor, workflowDescriptor.backendAssignments(call))
@@ -148,7 +148,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
 
   // Workflow inputs + call inputs, potentially unevaluated
   private def staticInputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
-    unqualifiedWorkflowInputs ++ inputsFor(call)
+    val callInputs = inputsFor(call) map { _.toNameValuePair }
+    unqualifiedWorkflowInputs ++ callInputs
   }
 
   /**
@@ -156,13 +157,15 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     * This map may contain WdlExpressions that will need to be evaluated by the backend.
     * TODO This can technically be done in the backend but seems very boilerplate and error prone. Maybe put it in a backend trait ?
     */
-  private def inputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
-    // Task declarations that have a static value assigned
-    val staticDeclarations = call.task.declarations collect {
-      case declaration if declaration.expression.isDefined => declaration.name -> declaration.expression.get
-    } toMap
+  private def inputsFor(call: Call): Seq[ResolvedDeclaration] = {
+    val inputsFromWorkflow = unqualifiedCallInputs(call)
 
-    staticDeclarations ++ unqualifiedCallInputs(call) ++ call.inputMappings
+    call.task.declarations map {
+      case decl if decl.expression.isDefined => ResolvedDeclaration(decl.wdlType, decl.name, decl.expression.get)
+      case decl if call.inputMappings.contains(decl.name) => ResolvedDeclaration(decl.wdlType, decl.name, call.inputMappings(decl.name))
+      case decl if inputsFromWorkflow.contains(decl.name) => ResolvedDeclaration(decl.wdlType, decl.name, inputsFromWorkflow(decl.name))
+      case _ => throw new RuntimeException("Cannot resolve task declaration. This should have already been caught at namespace resolution time.")
+    }
   }
 
   /**
@@ -171,7 +174,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     * @param postValueMapper applies a WdlValue => WdlValue function to the result of the evaluation
     * @return a function that takes engineFunctions and pre/post value mappers, and returns an Evaluator
     */
-  private def evaluatorBuilderFor(call: Call)
+  private def evaluatorFor(call: Call)
                                  (engineFunctions: WdlFunctions[WdlValue],
                                   preValueMapper: StringMapper,
                                   postValueMapper: WdlValueMapper): Evaluator = {
@@ -182,13 +185,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
        standardLookupFunction compose preValueMapper
     }
 
-    def evaluator(wdlValue: WdlValue) = {
-      wdlValue match {
-        case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions) map postValueMapper
-        case v: WdlValue => Success(v)
-      }
-    }
-
-    new Evaluator(evaluator)
+    new Evaluator(lookup, engineFunctions, preValueMapper, postValueMapper)
   }
 }

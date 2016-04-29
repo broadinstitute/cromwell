@@ -19,7 +19,7 @@ import wdl4s.values.WdlValue
 import cromwell.core._
 
 import scala.language.postfixOps
-import scala.util.Success
+import scala.util.{Failure, Try, Success}
 
 object BackendTestkitSpec {
   implicit val testActorSystem = ActorSystem("LocalBackendSystem")
@@ -82,16 +82,14 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
     )
   }
 
-  def buildEvaluatorBuilder(call: Call, symbolsMap: Map[LocallyQualifiedName, WdlValue]) = {
-    def builder(engineFunctions: WdlFunctions[WdlValue], preValueMapper: StringMapper, postValueMapper: WdlValueMapper)(wdlValue: WdlValue) = {
-      val lookup = postValueMapper compose WdlExpression.standardLookupFunction(symbolsMap, call.task.declarations, engineFunctions) compose preValueMapper
-      wdlValue match {
-        case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions)
-        case v: WdlValue => Success(v)
-      }
-    }
+  def buildEvaluatorBuilder(call: Call,
+                            symbolsMap: Map[LocallyQualifiedName, WdlValue])
+                           (engineFunctions: WdlFunctions[WdlValue],
+                     preValueMapper: StringMapper = identity,
+                     postValueMapper: WdlValueMapper = identity) = {
 
-    new EvaluatorBuilder(builder)
+    val lookup = WdlExpression.standardLookupFunction(symbolsMap, call.task.declarations, engineFunctions) compose preValueMapper
+    new Evaluator(lookup, engineFunctions, preValueMapper, postValueMapper)
   }
 
   def localBackend(jobDescriptor: BackendJobDescriptor, conf: BackendConfigurationDescriptor) = {
@@ -105,7 +103,8 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
     val unqualifiedWorkflowInputs = workflowDescriptor.inputs map { case (k, v) => k.unqualified -> v }
     val inputsForCall: Map[wdl4s.LocallyQualifiedName, WdlValue] = inputsFor(workflowDescriptor, call)
     val fullSymbolsMap = symbolsMap ++ unqualifiedWorkflowInputs ++ inputsForCall
-    new BackendJobDescriptor(workflowDescriptor, jobKey, buildEvaluatorBuilder(call, fullSymbolsMap), inputsForCall)
+    val evaluatorBuilder = new EvaluatorBuilder(buildEvaluatorBuilder(call, fullSymbolsMap))
+    new BackendJobDescriptor(workflowDescriptor, jobKey, evaluatorBuilder, inputsForCall)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {

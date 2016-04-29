@@ -12,8 +12,6 @@ import cromwell.core._
 import org.scalatest.FlatSpec
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
-import wdl4s.WdlExpression
-import wdl4s.expression.WdlFunctions
 import wdl4s.types._
 import wdl4s.values._
 
@@ -167,7 +165,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val call = wf.workflowNamespace.workflow.calls.head
 
     0 to 2 foreach { shard =>
-      val evaluatorBuilder = buildEvaluatorBuilder(call, Map("i" -> WdlInteger(shard)))
+      val evaluatorBuilder = new EvaluatorBuilder(buildEvaluatorBuilder(call, Map("i" -> WdlInteger(shard))))
 
       val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), evaluatorBuilder, inputsFor(wf, call))
       val backend = localBackend(jd, defaultBackendConfig)

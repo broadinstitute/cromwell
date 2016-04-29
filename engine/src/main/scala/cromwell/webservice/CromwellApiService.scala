@@ -107,18 +107,17 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   def submitBatchRoute =
     path("workflows" / Segment / "batch") { version =>
-      traceName("submitBatch") {
-        post {
-          formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
+      post {
+        formFields("wdlSource", "workflowInputs", "workflowOptions".?) {
+          (wdlSource, workflowInputs, workflowOptions) =>
             requestContext =>
               import spray.json._
-              workflowInputs.getOrElse("[]").parseJson match {
+              workflowInputs.parseJson match {
                 case JsArray(inputses) =>
                   val sources = inputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
                   perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
                 case _ => reject
               }
-          }
         }
       }
     }

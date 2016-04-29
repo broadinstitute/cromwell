@@ -10,12 +10,15 @@ import GoogleAuthMode._
 import lenthall.config.ScalaConfig._
 
 /** A username and password combination. */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerLogin(username: String, password: String)
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 trait DockerLoginProvider {
   def dockerLogin: Option[DockerLogin]
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class DockerHubLoginProvider(dockerTokenOption: Option[String]) extends DockerLoginProvider {
   def this(config: Config) = {
     this(config.getStringOption("docker.dockerToken"))
@@ -31,6 +34,7 @@ class DockerHubLoginProvider(dockerTokenOption: Option[String]) extends DockerLo
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class GcrLoginProvider(credential: Credential) extends DockerLoginProvider {
 
   override def dockerLogin = credential.freshCredential.toOption map { credential =>

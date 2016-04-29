@@ -18,7 +18,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
 
   "A task which contains a parameter " should {
-    "accept an array for the value" in {
+    "accept an array for the value" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayIO,
         EventFilter.info(pattern = s"starting calls: wf.concat, wf.find, wf.serialize", occurrences = 1),
@@ -32,7 +32,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "A static Array[File] declaration" should {
-    "be a valid declaration" in {
+    "be a valid declaration" ignore {
       val declaration = ns.workflow.declarations.find {_.name == "arr"}.getOrElse {
         fail("Expected declaration 'arr' to be found")
       }
@@ -44,7 +44,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
       }
       value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
     }
-    "be usable as an input" in {
+    "be usable as an input" ignore {
       val catTask = ns.findTask("cat").getOrElse {
         fail("Expected to find task 'cat'")
       }
@@ -53,7 +53,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
       }
       command shouldEqual "cat -s f1 f2 f3"
     }
-    "Coerce Array[String] to Array[File] when running the workflow" in {
+    "Coerce Array[String] to Array[File] when running the workflow" ignore {
       val outputs = Map(
         "wf.cat.lines" -> WdlArray(WdlArrayType(WdlStringType), Seq(
             WdlString("line1"),

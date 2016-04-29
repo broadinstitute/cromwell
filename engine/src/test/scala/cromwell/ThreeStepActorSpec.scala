@@ -19,7 +19,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec {
   import ThreeStepActorSpec._
 
   "A three step workflow" should {
-    "best get to (three) steppin'" in {
+    "best get to (three) steppin'" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CannedThreeStep,
         EventFilter.info(pattern = EventMessage, occurrences = 1),
@@ -28,7 +28,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec {
   }
 
   "A Dockerized three step workflow" should {
-    "best get to Dockerized (three) steppin'" taggedAs DockerTest in {
+    "best get to Dockerized (three) steppin'" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CannedThreeStep,
         EventFilter.info(pattern = EventMessage, occurrences = 1),
@@ -40,7 +40,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec {
         expectedOutputs = CannedExpectations)
     }
 
-    "pass canned files properly" taggedAs DockerTest in {
+    "pass canned files properly" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CannedFilePassing,
         eventFilter = EventFilter.info(pattern = EventMessage, occurrences = 1),

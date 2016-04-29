@@ -1,7 +1,7 @@
 package cromwell.webservice
 
 import cromwell.engine._
-import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
+import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.CallCacheData
 import cromwell.webservice.WdlFileJsonFormatter._
@@ -38,7 +38,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val qualifiedFailureEventEntry = jsonFormat4(QualifiedFailureEventEntry)
   implicit val executionEventProtocol = jsonFormat3(ExecutionEventEntry)
   implicit val callCacheHitProtocol = jsonFormat3(CallCacheData)
-  implicit val callMetadataProtocol = jsonFormat19(CallMetadata)
+  implicit val callMetadataProtocol = jsonFormat19(OldStyleCallMetadata)
   implicit val workflowMetadataResponse = jsonFormat10(WorkflowMetadataResponse)
   implicit val workflowFailuresResponse = jsonFormat4(WorkflowFailuresResponse)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)

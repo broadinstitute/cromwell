@@ -6,9 +6,9 @@ package object local {
     * When they are, all those values can be declared directly in the backend, as it will have a BackendCallJobDescriptor parameter.
     * All values have been turned into defs because Value Classes only support defs.
     */
-  implicit class LocalJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
+  implicit class LocalJobDescriptor(val jobDescriptor: OldStyleBackendCallJobDescriptor) extends AnyVal {
     def containerCallRoot = jobDescriptor.callRuntimeAttributes.docker match {
-      case Some(docker) => jobDescriptor.callRootPathWithBaseRoot(LocalBackend.ContainerRoot)
+      case Some(docker) => jobDescriptor.callRootPathWithBaseRoot(OldStyleLocalBackend.ContainerRoot)
       case None => jobDescriptor.callRootPath
     }
     def returnCode = jobDescriptor.callRootPath.resolve("rc")

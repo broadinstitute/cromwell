@@ -4,7 +4,7 @@ import java.nio.file.{FileSystems, Files, NoSuchFileException}
 
 import better.files._
 import cromwell.CromwellSpec.IntegrationTest
-import cromwell.engine.backend.WorkflowDescriptor
+import cromwell.engine.backend.OldStyleWorkflowDescriptor
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import cromwell.filesystems.gcs._
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,7 +18,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
 
   it should "localize the same path as already localized" in {
     val orig = File.newTemp("file").write("hello world")
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     val result = SharedFileSystemBackend.localizePathAlreadyLocalized(orig.fullPath, orig.path, workflowDescriptor)
     result should be(Success(()))
@@ -31,7 +31,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
   it should "localize a path already localized" in {
     val orig = File.newTemp("file").write("hello world")
     val dest = File.newTemp("file").delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     dest.toJava shouldNot exist
     orig.copyTo(dest)
@@ -49,7 +49,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
   it should "not localize a path not localized" in {
     val orig = File.newTemp("file").write("hello world")
     val dest = File.newTemp("file").delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     dest.toJava shouldNot exist
     val result = SharedFileSystemBackend.localizePathAlreadyLocalized(orig.fullPath, dest.path, workflowDescriptor)
@@ -65,7 +65,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
   it should "localize a path via copy" in {
     val orig = File.newTemp("file").write("hello world")
     val dest = File.newTemp("file").delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     dest.toJava shouldNot exist
     val result = SharedFileSystemBackend.localizePathViaCopy(orig.fullPath, dest.path, workflowDescriptor)
@@ -86,7 +86,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
   it should "localize a path via hard link" in {
     val orig = File.newTemp("file").write("hello world")
     val dest = File.newTemp("file").delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     dest.toJava shouldNot exist
     val result = SharedFileSystemBackend.localizePathViaHardLink(orig.fullPath, dest.path, workflowDescriptor)
@@ -107,7 +107,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
   it should "localize a path via symbolic link" in {
     val orig = File.newTemp("file").write("hello world")
     val dest = File.newTemp("file").delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     dest.toJava shouldNot exist
     val result = SharedFileSystemBackend.localizePathViaSymbolicLink(orig.fullPath, dest.path, workflowDescriptor)
@@ -129,7 +129,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     // via https://cloud.google.com/storage/docs/access-public-data
     val origPath = "gs://uspto-pair/applications/05900002.zip"
     val dest = File.newTemp("file").delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     val auth: GoogleAuthMode = new ApplicationDefaultMode("default")
     val storage = auth.buildStorage(new GoogleAuthOptions {
@@ -152,7 +152,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
   it should "localize the same path as already localized in a directory" in {
     val origDir = File.newTempDir("orig")
     val orig = origDir.createChild("subdir/file").write("hello world")
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     val result = SharedFileSystemBackend.localizePathAlreadyLocalized(orig.fullPath, orig.path, workflowDescriptor)
     result should be(Success(()))
@@ -168,7 +168,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     val destDir = File.newTempDir("dest")
     val dest = destDir./("subdir/file")
     destDir.delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     destDir.toJava shouldNot exist
     dest.toJava shouldNot exist
@@ -194,7 +194,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     destDir.delete(ignoreIOExceptions = false)
     destDir.toJava shouldNot exist
     dest.toJava shouldNot exist
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
     val result = SharedFileSystemBackend.localizePathAlreadyLocalized(orig.fullPath, dest.path, workflowDescriptor)
     result.isFailure should be(true)
 
@@ -211,7 +211,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     val destDir = File.newTempDir("dest")
     val dest = destDir./("subdir/file")
     destDir.delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     destDir.toJava shouldNot exist
     dest.toJava shouldNot exist
@@ -236,7 +236,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     val destDir = File.newTempDir("dest")
     val dest = destDir./("subdir/file")
     destDir.delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     destDir.toJava shouldNot exist
     dest.toJava shouldNot exist
@@ -261,7 +261,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     val destDir = File.newTempDir("dest")
     val dest = destDir./("subdir/file")
     destDir.delete(ignoreIOExceptions = false)
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
 
     destDir.toJava shouldNot exist
     dest.toJava shouldNot exist
@@ -291,7 +291,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
       override def get(key: String) = Failure(new UnsupportedOperationException("empty options"))
     })
     val fileSystem = GcsFileSystemProvider(storage).getFileSystem
-    val workflowDescriptor = mock[WorkflowDescriptor]
+    val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
     workflowDescriptor.fileSystems returns List(fileSystem, FileSystems.getDefault)
 
     destDir.toJava shouldNot exist

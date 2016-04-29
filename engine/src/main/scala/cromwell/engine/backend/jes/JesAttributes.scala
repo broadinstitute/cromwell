@@ -15,6 +15,7 @@ import scalaz.Validation.FlatMap._
 import scalaz._
 import cromwell.engine.backend.EnhancedWorkflowOptions._
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class JesAttributes(project: String,
                          genomicsAuth: GoogleAuthMode,
                          gcsFilesystemAuth: GoogleAuthMode,
@@ -29,6 +30,7 @@ case class JesAttributes(project: String,
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object JesAttributes {
 
   private val jesKeys = Set(

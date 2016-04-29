@@ -2,8 +2,8 @@ package cromwell.engine.backend.jes
 
 import com.google.api.services.genomics.model.{Disk, PipelineParameter}
 import com.google.api.services.genomics.{Genomics, model}
-import cromwell.engine.backend.WorkflowDescriptor
-import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.backend.OldStyleWorkflowDescriptor
+import cromwell.engine.backend.jes.OldStyleJesBackend._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import org.slf4j.LoggerFactory
@@ -77,7 +77,7 @@ case class Pipeline private(command: String,
                             pipelineId: Option[String],
                             projectId: String,
                             gcsPath: String,
-                            workflow: WorkflowDescriptor,
+                            workflow: OldStyleWorkflowDescriptor,
                             key: BackendCallKey,
                             jesParameters: Seq[JesParameter],
                             runtimeInfo: JesRuntimeInfo,

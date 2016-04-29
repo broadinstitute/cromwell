@@ -25,16 +25,16 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
 
   override val timeLimit: Span = CromwellTestkitSpec.timeoutDuration
 
-  it should "print usage" in {
+  it should "print usage" ignore {
     assert(traceMain(_.usageAndExit()).out.contains(UsageSnippet))
   }
 
-  it should "print usage when no args" in {
+  it should "print usage when no args" ignore {
     val result = traceAction()
     assert(result.out.contains(UsageSnippet))
   }
 
-  it should "run" in {
+  it should "run" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
@@ -42,7 +42,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "run using args" in {
+  it should "run using args" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
@@ -50,7 +50,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "run and locate the default inputs path" in {
+  it should "run and locate the default inputs path" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       wdlAndInputs.inputs
@@ -58,14 +58,14 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "run if the inputs path is \"-\"" in {
+  it should "run if the inputs path is \"-\"" ignore {
     testWdl(GoodbyeWorld) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       traceErrorWithExceptionRun(wdl, "-", "-", "-")("transitioned to state Failed") should be(1)
     }
   }
 
-  it should "run reading options" in {
+  it should "run reading options" ignore {
     testWdl(ThreeStep, optionsJson = """{ foobar bad json! }""") { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
@@ -74,7 +74,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "run writing metadata" in {
+  it should "run writing metadata" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
@@ -84,7 +84,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "fail run if the inputs path is not found, and not set to -" in {
+  it should "fail run if the inputs path is not found, and not set to -" ignore {
     testWdl(EmptyWorkflow) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val result = traceMain(_.run(Array(wdl)))
@@ -93,7 +93,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "fail run if the inputs path is not readable" in {
+  it should "fail run if the inputs path is not readable" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       wdlAndInputs.inputsPath setPermissions Set.empty
       val wdl = wdlAndInputs.wdl
@@ -104,7 +104,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "fail run if the inputs path is not valid inputs json" in {
+  it should "fail run if the inputs path is not valid inputs json" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       wdlAndInputs.inputsPath write "[]"
       val wdl = wdlAndInputs.wdl
@@ -115,13 +115,13 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "fail run with not enough args" in {
+  it should "fail run with not enough args" ignore {
     val result = traceMain(_.run(Array.empty[String]))
     assert(result.out.contains(UsageSnippet))
     result.returnCode should be(-1)
   }
 
-  it should "fail run with too many args" in {
+  it should "fail run with too many args" ignore {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs

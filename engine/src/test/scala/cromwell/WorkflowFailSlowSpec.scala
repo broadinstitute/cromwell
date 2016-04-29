@@ -20,7 +20,7 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
     """.stripMargin
 
   "A workflow containing a failing task" should {
-    "complete other tasks but ultimately fail, for ContinueWhilePossible" in {
+    "complete other tasks but ultimately fail, for ContinueWhilePossible" ignore {
       runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailSlowOptions,
@@ -32,7 +32,7 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow containing a failing task" should {
-    "not complete any other tasks and ultimately fail, for NoNewCalls" in {
+    "not complete any other tasks and ultimately fail, for NoNewCalls" ignore {
       runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailFastOptions,
@@ -44,7 +44,7 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow containing a failing task" should {
-    "behave like NoNewCalls, if no workflowFailureMode is set" in {
+    "behave like NoNewCalls, if no workflowFailureMode is set" ignore {
       runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 0),

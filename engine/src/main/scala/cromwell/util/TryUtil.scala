@@ -10,12 +10,15 @@ import org.slf4j.LoggerFactory
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object CromwellAggregatedException {
   val logger = LoggerFactory.getLogger("AggregatedException")
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "") extends ThrowableAggregation
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object TryUtil {
   private def stringifyFailure[T](failure: Try[T]): String = {
     val stringWriter = new StringWriter()

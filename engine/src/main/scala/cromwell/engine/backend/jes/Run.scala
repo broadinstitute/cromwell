@@ -3,8 +3,8 @@ package cromwell.engine.backend.jes
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.BackendCallJobDescriptor
-import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.backend.OldStyleBackendCallJobDescriptor
+import cromwell.engine.backend.jes.OldStyleJesBackend._
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
@@ -54,7 +54,7 @@ object Run  {
       val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setPipelineArgs(rpargs)
 
       val logging = new LoggingOptions()
-      logging.setGcsPath(s"${pipeline.gcsPath}/${JesBackend.jesLogFilename(pipeline.key)}")
+      logging.setGcsPath(s"${pipeline.gcsPath}/${OldStyleJesBackend.jesLogFilename(pipeline.key)}")
       rpargs.setLogging(logging)
 
       val runId = pipeline.genomicsService.pipelines().run(rpr).execute().getName
@@ -142,7 +142,7 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
     }
   }
 
-  def checkStatus(jobDescriptor: BackendCallJobDescriptor, previousStatus: Option[RunStatus]): RunStatus = {
+  def checkStatus(jobDescriptor: OldStyleBackendCallJobDescriptor, previousStatus: Option[RunStatus]): RunStatus = {
     val currentStatus = status()
 
     if (!(previousStatus contains currentStatus)) {
@@ -160,8 +160,8 @@ case class Run(runId: String, pipeline: Pipeline, logger: WorkflowLogger) {
 
       // Update the database state:
       // TODO the database API should probably be returning DBIOs so callers can compose and wrap with a transaction.
-      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index, pipeline.key.attempt), JesBackend.InfoKeys.JesRunId, Option(runId))(ExecutionContext.global)
-      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index, pipeline.key.attempt), JesBackend.InfoKeys.JesStatus, Option(currentStatus.toString))(ExecutionContext.global)
+      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index, pipeline.key.attempt), OldStyleJesBackend.InfoKeys.JesRunId, Option(runId))(ExecutionContext.global)
+      globalDataAccess.updateExecutionInfo(workflowId, BackendCallKey(call, pipeline.key.index, pipeline.key.attempt), OldStyleJesBackend.InfoKeys.JesStatus, Option(currentStatus.toString))(ExecutionContext.global)
 
       // If this has transitioned to a running or complete state from a state that is not running or complete,
       // register the abort function.

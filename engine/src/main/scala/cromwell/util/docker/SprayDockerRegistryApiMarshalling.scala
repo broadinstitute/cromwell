@@ -5,6 +5,7 @@ import spray.httpx.SprayJsonSupport
 import spray.httpx.unmarshalling._
 import spray.json._
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object SprayDockerRegistryApiMarshalling extends DefaultJsonProtocol with SprayJsonSupport {
   implicit val dockerV2TokenResponseFormat = jsonFormat1(DockerV2TokenResponse)
 

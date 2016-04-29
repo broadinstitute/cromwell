@@ -7,7 +7,7 @@ import spray.json._
 
 
 class JesVMAuthenticationSpec extends FlatSpec with Matchers {
-  import JesBackend._
+  import OldStyleJesBackend._
 
   def normalize(str: String) = {
     str.parseJson.prettyPrint

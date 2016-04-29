@@ -9,7 +9,7 @@ import scala.language.postfixOps
 
 class ArrayOfArrayCoercionSpec extends CromwellTestkitSpec {
   "A workflow that has an Array[Array[File]] input " should {
-    "accept an Array[Array[String]] as the value for the input" in {
+    "accept an Array[Array[String]] as the value for the input" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayOfArrays,
         EventFilter.info(pattern = s"starting calls: wf.subtask, wf.subtask", occurrences = 1),

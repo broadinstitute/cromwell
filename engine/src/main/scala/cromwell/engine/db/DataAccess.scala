@@ -14,11 +14,11 @@ import cromwell.database.slick.SlickDatabase
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
-import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, _}
+import cromwell.engine.backend.{OldStyleBackend, OldStyleBackendCallJobDescriptor, _}
 import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.EngineConverters._
-import cromwell.engine.finalcall.FinalCall
-import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.finalcall.OldStyleFinalCall
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, _}
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import org.apache.commons.lang3.StringUtils
@@ -31,11 +31,14 @@ import wdl4s.{CallInputs, _}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object DataAccess {
   lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   val globalDataAccess: DataAccess = new SlickDatabase() with DataAccess
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
 
   val FailureEventMaxMessageLength = 1024
@@ -56,6 +59,7 @@ object DataAccess {
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 trait DataAccess extends AutoCloseable {
   this: SqlDatabase =>
 
@@ -67,10 +71,10 @@ trait DataAccess extends AutoCloseable {
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
-  def createWorkflow(workflowDescriptor: WorkflowDescriptor,
+  def createWorkflow(workflowDescriptor: OldStyleWorkflowDescriptor,
                      workflowInputs: Traversable[SymbolStoreEntry],
                      calls: Traversable[Scope],
-                     backend: Backend)(implicit ec: ExecutionContext): Future[Unit] = {
+                     backend: OldStyleBackend)(implicit ec: ExecutionContext): Future[Unit] = {
     val workflowExecution = new WorkflowExecution(
       workflowDescriptor.id.toString,
       workflowDescriptor.name,
@@ -93,7 +97,7 @@ trait DataAccess extends AutoCloseable {
     val scopeKeys: Seq[ExecutionStoreKey] = calls.toSeq collect {
       case call: Call => BackendCallKey(call, None, 1)
       case scatter: Scatter => ScatterKey(scatter, None)
-      case finalCall: FinalCall => FinalCallKey(finalCall)
+      case finalCall: OldStyleFinalCall => FinalCallKey(finalCall)
     }
     val executions = (workflowExecutionId: Int) => {
       scopeKeys map { key =>
@@ -427,7 +431,7 @@ trait DataAccess extends AutoCloseable {
   /** Set the status of a Call to a terminal status, and update associated information (return code, hash, cache). */
   def setTerminalStatus(workflowId: WorkflowId, scopeKeys: ExecutionDatabaseKey, status: ExecutionStatus,
                         scriptReturnCode: Option[Int], hash: Option[ExecutionHash],
-                        resultsClonedFrom: Option[BackendCallJobDescriptor])
+                        resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor])
                        (implicit ec: ExecutionContext): Future[Unit] = {
     require(status.isTerminal)
 
@@ -508,7 +512,7 @@ trait DataAccess extends AutoCloseable {
     }
   }
 
-  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: Backend)
+  def insertCalls(workflowId: WorkflowId, keys: Traversable[ExecutionStoreKey], backend: OldStyleBackend)
                  (implicit ec: ExecutionContext): Future[Unit] = {
     val executions = (workflowExecutionId: Int) => {
       keys.toSeq map { key =>

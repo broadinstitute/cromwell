@@ -10,7 +10,7 @@ import cromwell.CallEngineFunctions
 import cromwell.backend.JobKey
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.backend.local.LocalBackend.InfoKeys
+import cromwell.engine.backend.local.OldStyleLocalBackend.InfoKeys
 import cromwell.core.PathFactory._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
@@ -20,7 +20,8 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
-object LocalBackend {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleLocalBackend {
 
   val ContainerRoot = "/root"
   val CallPrefix = "call"
@@ -40,10 +41,10 @@ object LocalBackend {
     }
   }
 
-  implicit class LocalEnhancedJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
-    def dockerContainerExecutionDir = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(LocalBackend.ContainerRoot)
+  implicit class LocalEnhancedJobDescriptor(val jobDescriptor: OldStyleBackendCallJobDescriptor) extends AnyVal {
+    def dockerContainerExecutionDir = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(OldStyleLocalBackend.ContainerRoot)
     def containerCallRoot = jobDescriptor.callRuntimeAttributes.docker match {
-      case Some(docker) => jobDescriptor.callRootPathWithBaseRoot(LocalBackend.ContainerRoot)
+      case Some(docker) => jobDescriptor.callRootPathWithBaseRoot(OldStyleLocalBackend.ContainerRoot)
       case None => jobDescriptor.callRootPath
     }
     def stdout = jobDescriptor.callRootPath.resolve("stdout")
@@ -57,11 +58,12 @@ object LocalBackend {
 /**
   * Handles both local Docker runs as well as local direct command line executions.
   */
-case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem: ActorSystem) extends Backend with SharedFileSystemBackend {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class OldStyleLocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem: ActorSystem) extends OldStyleBackend with SharedFileSystemBackend {
 
   private lazy val logger = LoggerFactory.getLogger("cromwell")
 
-  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
+  override def adjustInputPaths(jobDescriptor: OldStyleBackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
   /**
     * Exponential Backoff Builder to be used when polling for call status.
@@ -99,18 +101,18 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
 
   override def pollBackoff = pollBackoffBuilder.build()
 
-  def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
+  def returnCode(jobDescriptor: OldStyleBackendCallJobDescriptor) = jobDescriptor.returnCode
 
-  def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)
+  def stdoutStderr(jobDescriptor: OldStyleBackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)
 
-  def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
+  def execute(jobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = Future({
     val logger = jobLogger(jobDescriptor)
     jobDescriptor.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(jobDescriptor, instantiatedCommand, jobDescriptor.containerCallRoot)
         runSubprocess(jobDescriptor)
-      case Failure(ex) => NonRetryableExecution(ex).future
+      case Failure(ex) => OldStyleNonRetryableFailedExecution(ex).future
     }
   }).flatten map CompletedExecutionHandle
 
@@ -123,7 +125,7 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
-  private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String, containerRoot: Path) = {
+  private def writeScript(jobDescriptor: OldStyleBackendCallJobDescriptor, instantiatedCommand: String, containerRoot: Path) = {
     jobDescriptor.script.write(
       s"""#!/bin/sh
           |cd $containerRoot
@@ -137,12 +139,12 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
     * -v maps the host workflow executions directory to /root/<workflow id> on the container.
     * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
     */
-  private def buildDockerRunCommand(jobDescriptor: BackendCallJobDescriptor, image: String): String = {
+  private def buildDockerRunCommand(jobDescriptor: OldStyleBackendCallJobDescriptor, image: String): String = {
     val callPath = jobDescriptor.containerCallRoot
     s"docker run --rm -v ${jobDescriptor.callRootPath.toAbsolutePath}:$callPath -i $image"
   }
 
-  private def runSubprocess(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
+  private def runSubprocess(jobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionResult] = {
     val logger = jobLogger(jobDescriptor)
     val stdoutWriter = jobDescriptor.stdout.untailed
     val stderrTailed = jobDescriptor.stderr.tailed(100)
@@ -171,16 +173,16 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
     )
 
     if (jobDescriptor.callRuntimeAttributes.failOnStderr && stderrFileLength > 0) {
-      NonRetryableExecution(new Throwable(s"Call ${jobDescriptor.call.fullyQualifiedName}, " +
+      OldStyleNonRetryableFailedExecution(new Throwable(s"Call ${jobDescriptor.call.fullyQualifiedName}, " +
         s"Workflow ${jobDescriptor.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
 
       def processSuccess(rc: Int) = {
         postProcess(jobDescriptor) match {
-          case Success(outputs) => jobDescriptor.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
+          case Success(outputs) => jobDescriptor.hash map { h => OldStyleSuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
-            NonRetryableExecution(new Throwable("Failed post processing of outputs" + message, e)).future
+            OldStyleNonRetryableFailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future
         }
       }
 
@@ -194,15 +196,15 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
 
       val continueOnReturnCode = jobDescriptor.callRuntimeAttributes.continueOnReturnCode
       returnCode match {
-        case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
+        case Success(143) => OldStyleAbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-        case Success(badReturnCode) => NonRetryableExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
-        case Failure(e) => NonRetryableExecution(new Throwable(badReturnCodeMessage, e)).future
+        case Success(badReturnCode) => OldStyleNonRetryableFailedExecution(new Exception(badReturnCodeMessage), Option(badReturnCode)).future
+        case Failure(e) => OldStyleNonRetryableFailedExecution(new Throwable(badReturnCodeMessage, e)).future
       }
     }
   }
 
-  override def callRootPathWithBaseRoot(descriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+  override def callRootPathWithBaseRoot(descriptor: OldStyleBackendCallJobDescriptor, baseRoot: String): Path = {
     val path = super.callRootPathWithBaseRoot(descriptor, baseRoot)
     if (!path.toFile.exists()) path.toFile.mkdirs()
     path
@@ -210,11 +212,11 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
 
   override def executionInfoKeys: List[String] = List(InfoKeys.Pid)
 
-  override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
-    new LocalCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
+  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions = {
+    new OldStyleLocalCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
   }
 
-  def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {
+  def instantiateCommand(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[String] = {
     val backendInputs = adjustInputPaths(jobDescriptor)
     val pathTransformFunction: WdlValue => WdlValue = jobDescriptor.callRuntimeAttributes.docker match {
       case Some(_) => toDockerPath
@@ -223,9 +225,9 @@ case class LocalBackend(backendConfigEntry: BackendConfigurationEntry, actorSyst
     jobDescriptor.call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
   }
 
-  override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
+  override def poll(jobDescriptor: OldStyleBackendCallJobDescriptor, previous: OldStyleExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
 
-  override def resume(descriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def resume(descriptor: OldStyleBackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = {
     Future.failed(new Throwable("resume invoked on non-resumable Local backend"))
   }
 }

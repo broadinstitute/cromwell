@@ -1,5 +1,6 @@
 package cromwell.engine.backend;
 
+@Deprecated
 public enum BackendType {
     LOCAL {
         @Override

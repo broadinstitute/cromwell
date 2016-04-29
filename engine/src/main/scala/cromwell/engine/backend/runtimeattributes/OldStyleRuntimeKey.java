@@ -7,7 +7,8 @@ import static cromwell.engine.backend.BackendType.SGE;
 /**
  * Backend runtime keys and the backends which are known to support them.
  */
-public enum RuntimeKey {
+@Deprecated
+public enum OldStyleRuntimeKey {
     CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES),
     CPU("cpu", JES),
     DISKS("disks", JES),
@@ -31,11 +32,11 @@ public enum RuntimeKey {
      */
     public final BackendType[] optional;
 
-    RuntimeKey(String key, BackendType... optional) {
+    OldStyleRuntimeKey(String key, BackendType... optional) {
         this(key, new BackendType[0], optional);
     }
 
-    RuntimeKey(String key, BackendType [] mandatory, BackendType... optional) {
+    OldStyleRuntimeKey(String key, BackendType [] mandatory, BackendType... optional) {
         this.key = key;
         this.mandatory = mandatory;
         this.optional = optional;
@@ -59,8 +60,8 @@ public enum RuntimeKey {
         return false;
     }
 
-    public static RuntimeKey from(String str) {
-        for (RuntimeKey k : RuntimeKey.values()) {
+    public static OldStyleRuntimeKey from(String str) {
+        for (OldStyleRuntimeKey k : OldStyleRuntimeKey.values()) {
             if (str.equalsIgnoreCase(k.key)) return k;
         }
         throw new UnsupportedOperationException("Runtime key " + str + " is not valid");

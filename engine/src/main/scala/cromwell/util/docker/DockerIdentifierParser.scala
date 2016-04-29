@@ -9,6 +9,7 @@ import scala.annotation.tailrec
 /**
   * Parses a String into a DockerIdentifier.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class DockerIdentifierParser(dockerConf: DockerConfiguration, googleCredentials: Option[Credential]) {
 
   private lazy val dockerHubRegistryParser = new DockerHubRegistryParser(dockerConf)
@@ -46,6 +47,7 @@ class DockerIdentifierParser(dockerConf: DockerConfiguration, googleCredentials:
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object DockerIdentifierParser {
   def apply(config: Config, credential: Option[Credential]) = {
     new DockerIdentifierParser(DockerConfiguration.build(config), credential)

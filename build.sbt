@@ -41,8 +41,10 @@ lazy val jesBackend = (project in backendRoot / "jes")
 //TODO: remove jesBackend once refactoring has finished.
 lazy val engine = (project in file("engine"))
   .dependsOn(core % "test->test;compile->compile",
-      jesBackend % "test->test;compile->compile",
-      database % "test->test;compile->compile")
+    backend % "test->test;compile->compile",
+    jesBackend % "test->test;compile->compile",
+    localBackend % "test->test;compile->compile",
+    database % "test->test;compile->compile")
   .settings(engineSettings:_*)
   .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
   .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)

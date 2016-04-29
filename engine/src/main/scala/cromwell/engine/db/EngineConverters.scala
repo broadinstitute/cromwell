@@ -11,6 +11,7 @@ import wdl4s.{NamespaceWithWorkflow, ReportableSymbol, Scatter}
 
 import scala.util.{Failure, Success, Try}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object EngineConverters {
 
   private def wdlValueToDbValue(v: WdlValue): String = v.wdlType match {

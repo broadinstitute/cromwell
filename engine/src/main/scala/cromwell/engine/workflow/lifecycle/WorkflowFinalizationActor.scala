@@ -6,7 +6,7 @@ import cromwell.backend.BackendWorkflowFinalizationActor
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.CromwellBackend
+import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 
@@ -66,7 +66,7 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
       val backendFinalizationActors = Try {
         (for {
           backend <- workflowDescriptor.backendAssignments.values
-          props <- CromwellBackend.shadowBackendLifecycleFactory(backend).map(_.workflowFinalizationActorProps()).get
+          props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(_.workflowFinalizationActorProps()).get
           actor = context.actorOf(props)
         } yield (actor, backend)).toMap
       }

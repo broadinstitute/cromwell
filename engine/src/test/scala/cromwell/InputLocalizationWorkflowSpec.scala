@@ -16,7 +16,7 @@ class InputLocalizationWorkflowSpec extends CromwellTestkitSpec {
       "wf.fromSameDirectory.ls" -> WdlString("2")
     )
 
-    "ensure task inputs isolation" in {
+    "ensure task inputs isolation" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.InputIsolationWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.echo_int", occurrences = 1),
@@ -24,7 +24,7 @@ class InputLocalizationWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "ensure task inputs isolation in a docker container"  taggedAs DockerTest in {
+    "ensure task inputs isolation in a docker container"  taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.InputIsolationWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.echo_int", occurrences = 1),

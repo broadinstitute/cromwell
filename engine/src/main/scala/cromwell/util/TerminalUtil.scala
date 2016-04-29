@@ -1,5 +1,6 @@
 package cromwell.util
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object TerminalUtil {
   def highlight(colorCode:Int, string:String) = s"\033[38;5;${colorCode}m$string\033[0m"
   def mdTable(rows: Seq[Seq[String]], header: Seq[String]): String = {

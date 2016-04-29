@@ -6,9 +6,9 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFa
 import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
 
-case class BackendConfigurationEntry(name: String, className: String, shadowLifecycleActorFactoryClass: String, config: Config) {
+case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
   def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
-    Class.forName(shadowLifecycleActorFactoryClass)
+    Class.forName(lifecycleActorFactoryClass)
          .getConstructor(classOf[Config])
          .newInstance(config)
          .asInstanceOf[BackendLifecycleActorFactory]
@@ -28,7 +28,6 @@ object BackendConfiguration {
     // TODO PBE: "class" can be removed when switching to the shadow world; "actor-factory" renamed?
     BackendConfigurationEntry(
       backendName,
-      entry.getString("class"),
       entry.getString("actor-factory"),
       entry.getConfig("config")
     )

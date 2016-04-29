@@ -16,7 +16,7 @@ import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine._
 import cromwell.engine.backend.EnhancedWorkflowOptions._
 import cromwell.engine.backend._
-import cromwell.engine.backend.jes.JesBackend._
+import cromwell.engine.backend.jes.OldStyleJesBackend._
 import cromwell.engine.backend.jes.Run.{RunStatus, TerminalRunStatus}
 import cromwell.engine.backend.jes.authentication._
 import cromwell.engine.io.gcs._
@@ -36,7 +36,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object JesBackend {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleJesBackend {
   val ExecParamName = "exec"
   val MonitoringParamName = "monitoring"
   val ExtraConfigParamName = "__extra_config_gcs_path"
@@ -54,7 +55,7 @@ object JesBackend {
   val OptionKeys = Set(
     GoogleAuthMode.RefreshTokenOptionKey, GcsRootOptionKey, MonitoringScriptOptionKey, GoogleProjectOptionKey,
     AuthFilePathOptionKey, WriteToCacheOptionKey, ReadFromCacheOptionKey
-  ) ++ WorkflowDescriptor.OptionKeys
+  ) ++ OldStyleWorkflowDescriptor.OptionKeys
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesLiteralInput(ExtraConfigParamName, gcsPath)
 
@@ -111,14 +112,17 @@ object JesBackend {
     )
   }
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   sealed trait JesParameter {
     def name: String
     def toGooglePipelineParameter: PipelineParameter
     def toGoogleRunParameter: String
   }
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   sealed trait JesInput extends JesParameter
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   final case class JesFileInput(name: String, gcs: String, local: Path, mount: JesAttachedDisk) extends JesInput {
     def toGooglePipelineParameter = {
       new PipelineParameter().setName(name).setLocalCopy(
@@ -129,11 +133,13 @@ object JesBackend {
     def containerPath: Path = mount.mountPoint.resolve(local)
   }
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   final case class JesLiteralInput(name: String, value: String) extends JesInput {
     def toGooglePipelineParameter = new PipelineParameter().setName(name)
     val toGoogleRunParameter: String = value
   }
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   final case class JesFileOutput(name: String, gcs: String, local: Path, mount: JesAttachedDisk) extends JesParameter {
     def toGooglePipelineParameter = {
       new PipelineParameter().setName(name).setLocalCopy(
@@ -143,6 +149,7 @@ object JesBackend {
     val toGoogleRunParameter: String = gcs
   }
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   object InfoKeys {
     val JesRunId = "JES_RUN_ID"
     val JesStatus = "JES_STATUS"
@@ -160,8 +167,8 @@ object JesBackend {
   def globDirectory(glob: String) = s"glob-${glob.md5Sum}/"
   def rootPath(jesAttributes: JesAttributes, options: WorkflowOptions): String = options.getOrElse(GcsRootOptionKey, jesAttributes.executionBucket).stripSuffix("/")
   def globOutputPath(callPath: Path, glob: String) = callPath.resolve(s"glob-${glob.md5Sum}/")
-  def preemptible(jobDescriptor: BackendCallJobDescriptor, maxPreemption: Int) = jobDescriptor.key.attempt <= maxPreemption
-  def monitoringIO(jobDescriptor: BackendCallJobDescriptor): Option[JesInput] = {
+  def preemptible(jobDescriptor: OldStyleBackendCallJobDescriptor, maxPreemption: Int) = jobDescriptor.key.attempt <= maxPreemption
+  def monitoringIO(jobDescriptor: OldStyleBackendCallJobDescriptor): Option[JesInput] = {
     jobDescriptor.workflowDescriptor.workflowOptions.get(MonitoringScriptOptionKey) map { path =>
       JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), jobDescriptor.workingDisk)
     } toOption
@@ -186,16 +193,18 @@ object JesBackend {
  * Representing a running JES execution, instances of this class are never Done and it is never okay to
  * ask them for results.
  */
-case class JesPendingExecutionHandle(jobDescriptor: BackendCallJobDescriptor,
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class JesPendingExecutionHandle(jobDescriptor: OldStyleBackendCallJobDescriptor,
                                      jesOutputs: Seq[JesFileOutput],
                                      run: Run,
-                                     previousStatus: Option[RunStatus]) extends ExecutionHandle {
+                                     previousStatus: Option[RunStatus]) extends OldStyleExecutionHandle {
   override val isDone = false
-  override val result = NonRetryableExecution(new IllegalStateException("JesPendingExecutionHandle cannot yield a result"))
+  override val result = OldStyleNonRetryableFailedExecution(new IllegalStateException("JesPendingExecutionHandle cannot yield a result"))
 }
 
-case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem: ActorSystem)
-  extends Backend
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem: ActorSystem)
+  extends OldStyleBackend
   with MustHaveGcsFilesystem
   with LazyLogging {
 
@@ -219,7 +228,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
 
   // FIXME: Add proper validation of jesConf and have it happen up front to provide fail-fast behavior (will do as a separate PR)
 
-  override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
+  override def adjustInputPaths(jobDescriptor: OldStyleBackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
   private lazy val dockerConfiguration: Option[JesDockerCredentials] = DockerConfiguration.build(backendConfig).dockerCredentials map JesDockerCredentials.apply
 
@@ -227,7 +236,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     GenomicsFactory(jesAttributes.genomicsAuth.credential(options.toGoogleAuthOptions), jesAttributes.endpointUrl)
   }
 
-  private def writeAuthenticationFile(workflow: WorkflowDescriptor): Try[Unit] = {
+  private def writeAuthenticationFile(workflow: OldStyleWorkflowDescriptor): Try[Unit] = {
     val log = workflowLogger(workflow)
 
     generateAuthJson(dockerConfiguration, refreshTokenAuth(workflow)) map { content =>
@@ -248,7 +257,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     * Get a GcsLocalizing from workflow options iff client secrets and refresh token are available as this method
     * is called only if an auth.json needs to be written.
     */
-  def refreshTokenAuth(workflow: WorkflowDescriptor): Option[JesAuthInformation] = {
+  def refreshTokenAuth(workflow: OldStyleWorkflowDescriptor): Option[JesAuthInformation] = {
     for {
       clientSecrets <- List(jesAttributes.gcsFilesystemAuth) collectFirst { case s: ClientSecrets => s }
       token <- workflow.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption
@@ -259,7 +268,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
    * No need to copy GCS inputs for the workflow we should be able to directly reference them
    * Create an authentication json file containing docker credentials and/or user account information
    */
-  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[Unit] = {
+  override def initializeForWorkflow(workflow: OldStyleWorkflowDescriptor): Try[Unit] = {
     writeAuthenticationFile(workflow)
   }
 
@@ -279,7 +288,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
    * First queries for the existence of the auth file, then deletes it if it exists.
    * If either of these operations fails, then a Future.failure is returned
    */
-  override def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def cleanUpForWorkflow(workflow: OldStyleWorkflowDescriptor)(implicit ec: ExecutionContext): Future[Unit] = {
     Future(gcsAuthFilePath(workflow)) map { path =>
       deleteAuthFile(path, workflowLogger(workflow))
       ()
@@ -309,7 +318,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
       }
   }
 
-  def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = {
+  def stdoutStderr(jobDescriptor: OldStyleBackendCallJobDescriptor): CallLogs = {
     CallLogs(
       stdout = WdlFile(jobDescriptor.jesStdoutGcsPath.toString),
       stderr = WdlFile(jobDescriptor.jesStderrGcsPath.toString),
@@ -317,7 +326,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     )
   }
 
-  private def executeOrResume(jobDescriptor: BackendCallJobDescriptor, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+  private def executeOrResume(jobDescriptor: OldStyleBackendCallJobDescriptor, runIdForResumption: Option[String])(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = Future {
     val log = jobLogger(jobDescriptor)
     log.info(s"Call GCS path: ${jobDescriptor.callRootPath}")
     val monitoringScript: Option[JesInput] = monitoringIO(jobDescriptor)
@@ -335,14 +344,14 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   }
 
-  def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = executeOrResume(jobDescriptor, runIdForResumption = None)
+  def execute(jobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = executeOrResume(jobDescriptor, runIdForResumption = None)
 
-  def resume(jobDescriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  def resume(jobDescriptor: OldStyleBackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = {
     val runId = executionInfos.get(InfoKeys.JesRunId).flatten
     executeOrResume(jobDescriptor, runIdForResumption = runId)
   }
 
-  def useCachedCall(cachedCallDescriptor: BackendCallJobDescriptor, callDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  def useCachedCall(cachedCallDescriptor: OldStyleBackendCallJobDescriptor, callDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = {
 
     import better.files._
     // FIXME Temporary workaround so both paths share the same FileSystemProvider, which allows copy in the cloud instead of streaming through cromwell
@@ -350,10 +359,10 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
 
     def renameCallSpecificFiles = {
       val namesBuilder = List(
-        JesBackend.jesLogStdoutFilename _,
-        JesBackend.jesLogStderrFilename _,
-        JesBackend.jesLogFilename _,
-        JesBackend.jesReturnCodeFilename _
+        OldStyleJesBackend.jesLogStdoutFilename _,
+        OldStyleJesBackend.jesLogStderrFilename _,
+        OldStyleJesBackend.jesLogFilename _,
+        OldStyleJesBackend.jesReturnCodeFilename _
       )
 
       /* Paths of the files in the cached call. */
@@ -408,7 +417,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   }
 
-  def generateJesInputs(jobDescriptor: BackendCallJobDescriptor): Iterable[JesInput] = {
+  def generateJesInputs(jobDescriptor: OldStyleBackendCallJobDescriptor): Iterable[JesInput] = {
     /**
       * Commands in WDL tasks can also generate input files.  For example: ./my_exec --file=${write_lines(arr)}
       *
@@ -446,14 +455,14 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
   private def jesInputsFromWdlFiles(jesNamePrefix: String,
                                     remotePathArray: Seq[WdlFile],
                                     localPathArray: Seq[WdlFile],
-                                    jobDescriptor: BackendCallJobDescriptor): Iterable[JesInput] = {
+                                    jobDescriptor: OldStyleBackendCallJobDescriptor): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
         Seq(JesFileInput(s"$jesNamePrefix-$index", remotePath.valueString, Paths.get(localPath.valueString), jobDescriptor.workingDisk))
     }
   }
 
-  def generateJesOutputs(jobDescriptor: BackendCallJobDescriptor): Seq[JesFileOutput] = {
+  def generateJesOutputs(jobDescriptor: OldStyleBackendCallJobDescriptor): Seq[JesFileOutput] = {
     val log = jobLogger(jobDescriptor)
     val wdlFileOutputs = jobDescriptor.key.scope.task.outputs flatMap { taskOutput =>
       taskOutput.requiredExpression.evaluateFiles(jobDescriptor.lookupFunction(Map.empty), NoFunctions, taskOutput.wdlType) match {
@@ -502,7 +511,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
-  private def uploadCommandScript(jobDescriptor: BackendCallJobDescriptor, command: String, withMonitoring: Boolean): Try[Unit] = {
+  private def uploadCommandScript(jobDescriptor: OldStyleBackendCallJobDescriptor, command: String, withMonitoring: Boolean): Try[Unit] = {
     val monitoring = if (withMonitoring) {
       s"""|touch $JesMonitoringLogFile
           |chmod u+x $JesMonitoringScript
@@ -510,7 +519,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     } else ""
 
     val tmpDir = Paths.get(JesWorkingDisk.MountPoint).resolve("tmp")
-    val rcPath = Paths.get(JesWorkingDisk.MountPoint).resolve(JesBackend.jesReturnCodeFilename(jobDescriptor.key))
+    val rcPath = Paths.get(JesWorkingDisk.MountPoint).resolve(OldStyleJesBackend.jesReturnCodeFilename(jobDescriptor.key))
 
     val fileContent =
       s"""
@@ -529,7 +538,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     withRetry(attemptToUploadObject, log, s"${jobLogger(jobDescriptor).tag} Exception occurred while uploading script to ${jobDescriptor.gcsExecPath}")
   }
 
-  private def createJesRun(jobDescriptor: BackendCallJobDescriptor, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] = {
+  private def createJesRun(jobDescriptor: OldStyleBackendCallJobDescriptor, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] = {
       def attemptToCreateJesRun(priorAttempt: Option[Run]): Run = Pipeline(
         jobDescriptor,
         jesParameters,
@@ -556,7 +565,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
    * This function is more useful in working out the common prefix when the filename is modified somehow
    * in the workflow (e.g. "-new.txt" is appended)
    */
-  private def gcsInputToGcsOutput(jobDescriptor: BackendCallJobDescriptor, inputValue: WdlValue): WdlValue = {
+  private def gcsInputToGcsOutput(jobDescriptor: OldStyleBackendCallJobDescriptor, inputValue: WdlValue): WdlValue = {
     // Convert to the local path where the file is localized to in the VM:
     val vmLocalizationPath = gcsPathToLocal(inputValue)
 
@@ -571,7 +580,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   }
 
-  private def customLookupFunction(jobDescriptor: BackendCallJobDescriptor, alreadyGeneratedOutputs: Map[String, WdlValue]): String => WdlValue = toBeLookedUp => {
+  private def customLookupFunction(jobDescriptor: OldStyleBackendCallJobDescriptor, alreadyGeneratedOutputs: Map[String, WdlValue]): String => WdlValue = toBeLookedUp => {
     val originalLookup = jobDescriptor.lookupFunction(alreadyGeneratedOutputs)
     gcsInputToGcsOutput(jobDescriptor, originalLookup(toBeLookedUp))
   }
@@ -588,7 +597,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   }
 
-  def postProcess(jobDescriptor: BackendCallJobDescriptor): Try[CallOutputs] = {
+  def postProcess(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[CallOutputs] = {
     val outputs = jobDescriptor.call.task.outputs
     val outputFoldingFunction = getOutputFoldingFunction(jobDescriptor)
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
@@ -599,13 +608,13 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   }
 
-  private def getOutputFoldingFunction(jobDescriptor: BackendCallJobDescriptor): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
+  private def getOutputFoldingFunction(jobDescriptor: OldStyleBackendCallJobDescriptor): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
     (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
       currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, jobDescriptor, currentList)))
     }
   }
 
-  private def outputLookup(taskOutput: TaskOutput, jobDescriptor: BackendCallJobDescriptor, currentList: Seq[AttemptedLookupResult]) = for {
+  private def outputLookup(taskOutput: TaskOutput, jobDescriptor: OldStyleBackendCallJobDescriptor, currentList: Seq[AttemptedLookupResult]) = for {
   /**
     * This will evaluate the task output expression and coerces it to the task output's type.
     * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
@@ -626,7 +635,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     value = wdlValueToGcsPath(generateJesOutputs(jobDescriptor))(coercedValue)
   } yield value
 
-  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+  def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = Future {
     val log = jobLogger(handle.jobDescriptor)
 
     try {
@@ -662,12 +671,12 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   } flatten
 
-  private def runWithJes(jobDescriptor: BackendCallJobDescriptor,
+  private def runWithJes(jobDescriptor: OldStyleBackendCallJobDescriptor,
                          command: String,
                          jesInputs: Seq[JesInput],
                          jesOutputs: Seq[JesFileOutput],
                          runIdForResumption: Option[String],
-                         withMonitoring: Boolean): ExecutionHandle = {
+                         withMonitoring: Boolean): OldStyleExecutionHandle = {
     val log = jobLogger(jobDescriptor)
     val jesParameters = jobDescriptor.standardParameters ++ gcsAuthParameter(jobDescriptor.workflowDescriptor) ++ jesInputs ++ jesOutputs
     log.info(s"`$command`")
@@ -686,11 +695,11 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
   }
 
   private def handleSuccess(outputMappings: Try[CallOutputs],
-                            workflowDescriptor: WorkflowDescriptor,
+                            workflowDescriptor: OldStyleWorkflowDescriptor,
                             executionEvents: Seq[ExecutionEventEntry],
                             returnCode: Int,
                             hash: ExecutionHash,
-                            executionHandle: ExecutionHandle): ExecutionHandle = {
+                            executionHandle: OldStyleExecutionHandle): OldStyleExecutionHandle = {
     outputMappings match {
       case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, returnCode, hash)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
@@ -704,7 +713,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     errorMessage.substring(0, errorMessage.indexOf(':')).toInt
   }
 
-  private def preempted(errorCode: Int, errorMessage: Option[String], jobDescriptor: BackendCallJobDescriptor, logger: WorkflowLogger): Boolean = {
+  private def preempted(errorCode: Int, errorMessage: Option[String], jobDescriptor: OldStyleBackendCallJobDescriptor, logger: WorkflowLogger): Boolean = {
     def isPreemptionCode(code: Int) = code == 13 || code == 14
 
     try {
@@ -716,7 +725,7 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
     }
   }
 
-  private def handleFailure(jobDescriptor: BackendCallJobDescriptor, errorCode: Int, errorMessage: Option[String], events: Seq[ExecutionEventEntry], logger: WorkflowLogger) = {
+  private def handleFailure(jobDescriptor: OldStyleBackendCallJobDescriptor, errorCode: Int, errorMessage: Option[String], events: Seq[ExecutionEventEntry], logger: WorkflowLogger) = {
     import lenthall.numeric.IntegerUtil._
 
     val taskName = s"${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.call.unqualifiedName}"
@@ -756,26 +765,26 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
 
   override def backendType = BackendType.JES
 
-  def gcsAuthFilePath(descriptor: WorkflowDescriptor): Path =  {
+  def gcsAuthFilePath(descriptor: OldStyleWorkflowDescriptor): Path =  {
     // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
     val bucket = descriptor.workflowOptions.get(AuthFilePathOptionKey) getOrElse descriptor.workflowRootPath.toString
     bucket.toPath(gcsFilesystem(descriptor.workflowOptions).get).resolve(s"${descriptor.id}_auth.json")
   }
 
-  def googleProject(descriptor: WorkflowDescriptor): String = {
+  def googleProject(descriptor: OldStyleWorkflowDescriptor): String = {
     descriptor.workflowOptions.getOrElse(GoogleProjectOptionKey, jesAttributes.project)
   }
 
   // Create an input parameter containing the path to this authentication file, if needed
-  def gcsAuthParameter(descriptor: WorkflowDescriptor): Option[JesInput] = {
+  def gcsAuthParameter(descriptor: OldStyleWorkflowDescriptor): Option[JesInput] = {
     if (jesAttributes.gcsFilesystemAuth.requiresAuthFile || dockerConfiguration.isDefined)
       Option(authGcsCredentialsPath(gcsAuthFilePath(descriptor).toString))
     else None
   }
 
-  override def executionInfoKeys: List[String] = List(JesBackend.InfoKeys.JesRunId, JesBackend.InfoKeys.JesStatus)
+  override def executionInfoKeys: List[String] = List(OldStyleJesBackend.InfoKeys.JesRunId, OldStyleJesBackend.InfoKeys.JesStatus)
 
-  override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
+  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions = {
     lazy val callRootPath = descriptor.callRootPath.toString
     lazy val jesStdoutPath = descriptor.jesStdoutGcsPath.toString
     lazy val jesStderrPath = descriptor.jesStderrGcsPath.toString
@@ -786,12 +795,12 @@ case class JesBackend(backendConfigEntry: BackendConfigurationEntry, actorSystem
 
   override def fileSystems(options: WorkflowOptions): List[FileSystem] = List(gcsFilesystem(options).get)
 
-  override def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String] = {
+  override def instantiateCommand(descriptor: OldStyleBackendCallJobDescriptor): Try[String] = {
     val backendInputs = adjustInputPaths(descriptor)
-    descriptor.call.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, JesBackend.gcsPathToLocal)
+    descriptor.call.instantiateCommandLine(backendInputs, descriptor.callEngineFunctions, OldStyleJesBackend.gcsPathToLocal)
   }
 
-  override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future {
+  override def poll(jobDescriptor: OldStyleBackendCallJobDescriptor, previous: OldStyleExecutionHandle)(implicit ec: ExecutionContext) = Future {
     previous match {
       case handle: JesPendingExecutionHandle =>
         val wfId = handle.jobDescriptor.workflowDescriptor.shortId

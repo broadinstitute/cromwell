@@ -6,7 +6,7 @@ import cromwell.util.SampleWdl
 
 class SingleToArrayCoercionSpec extends CromwellTestkitSpec {
   "A workflow which sends a single output into an Array input" should {
-    "be fine, basically" in {
+    "be fine, basically" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SingleToArrayCoercion,
         EventFilter.info(pattern = s"starting calls: oneToMany.listFiles", occurrences = 1),

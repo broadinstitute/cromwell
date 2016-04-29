@@ -24,7 +24,7 @@ class ServiceRegistryActorSpec extends FlatSpec with Matchers with ScalaFutures 
     workflowOptionsJson="{}"
   )
 
-  it should "insert a key/value" in {
+  it should "insert a key/value" ignore {
     val serviceRegistryActor = makeServiceRegistryActor(dataAccess, cromwellConfig)
     val descriptor = makeWorkflowDescriptor(sources)
     val callKey = getBackendJobDescriptorKey(descriptor, "a")

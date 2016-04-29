@@ -8,6 +8,7 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
   * Connects to a Docker Registry using the API.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 trait DockerRegistryApiClient {
 
   /** The context used for Future.flatMap, etc. */
@@ -91,8 +92,10 @@ trait DockerRegistryApiClient {
 }
 
 /** Thrown/returned when an expected header is not found during an HTTP request. */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class DockerHeaderNotFoundException(name: String) extends Exception(s"Response did not contain header $name")
 
 /** Thrown/returned when a docker manifest is not found. */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class DockerManifestNotFoundException(cause: Throwable)
   extends Exception(s"Did not find a manifest for the docker tag", cause)

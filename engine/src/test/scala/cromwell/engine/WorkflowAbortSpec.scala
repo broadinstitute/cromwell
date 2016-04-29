@@ -3,8 +3,8 @@ package cromwell.engine
 import akka.testkit.TestActorRef
 import cromwell.{CromwellTestkitSpec, CromwellSpec}
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
-import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.{OldStyleWorkflowActor, OldStyleWorkflowManagerActor}
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
 import cromwell.util.SampleWdl.{TripleSleep, HelloWorld}
 
 class WorkflowAbortSpec extends CromwellTestkitSpec {

@@ -7,8 +7,8 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.workflow.SingleWorkflowRunnerActor
-import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
+import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor
+import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import cromwell.util.PromiseActor
@@ -162,8 +162,8 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
     val workflowManagerSystem = managerSystem
     implicit val actorSystem = workflowManagerSystem.actorSystem
-    val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
-      workflowManagerSystem.workflowManagerActor, workflowManagerSystem.shadowMode)
+    val runnerProps = OldStyleSingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
+      workflowManagerSystem.workflowManagerActor)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import PromiseActor.EnhancedActorRef

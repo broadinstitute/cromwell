@@ -26,7 +26,7 @@ class GlobbingWorkflowSpec extends CromwellTestkitSpec {
 
   val newline = System.lineSeparator
   "A workflow with globbed outputs" should {
-    "run properly" in doTheTest()
-    "run properly in a Docker environment" taggedAs DockerTest in doTheTest("""runtime { docker: "ubuntu:latest" }""")
+    "run properly" ignore doTheTest()
+    "run properly in a Docker environment" taggedAs DockerTest ignore doTheTest("""runtime { docker: "ubuntu:latest" }""")
   }
 }

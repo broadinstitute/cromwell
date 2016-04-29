@@ -3,10 +3,10 @@ package cromwell.engine.workflow
 import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
-import cromwell.engine.backend.jes.JesBackend
-import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.sge.SgeBackend
-import cromwell.engine.backend.{CallLogs, CallMetadata}
+import cromwell.engine.backend.jes.OldStyleJesBackend
+import cromwell.engine.backend.local.OldStyleLocalBackend
+import cromwell.engine.backend.sge.OldStyleSgeBackend
+import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
 import cromwell.engine.db.EngineConverters.EnhancedExecution
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution, ExecutionWithCacheData}
 import org.joda.time.DateTime
@@ -15,11 +15,13 @@ import wdl4s._
 import scala.language.postfixOps
 import scala.util.Try
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class CallCacheData(allowResultReuse: Boolean, cacheHitWorkflow: Option[String], cacheHitCall: Option[String])
 
 /**
  * Builds call metadata suitable for return as part of a workflow metadata request.
  */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object CallMetadataBuilder {
 
   // The various data passed into the `build` method has a very different shape from what the workflow/metadata
@@ -50,9 +52,9 @@ object CallMetadataBuilder {
       def extractValue(key: String): Option[String] = infos.executionInfos collectFirst { case i if i.key == key => i.value } flatten
 
       infos.execution.backendType match {
-        case "Local" => BackendValues("Local", jobId = extractValue(LocalBackend.InfoKeys.Pid))
-        case "JES" => BackendValues("JES", jobId = extractValue(JesBackend.InfoKeys.JesRunId), status = extractValue(JesBackend.InfoKeys.JesStatus))
-        case "SGE" => BackendValues("SGE", jobId = extractValue(SgeBackend.InfoKeys.JobNumber))
+        case "Local" => BackendValues("Local", jobId = extractValue(OldStyleLocalBackend.InfoKeys.Pid))
+        case "JES" => BackendValues("JES", jobId = extractValue(OldStyleJesBackend.InfoKeys.JesRunId), status = extractValue(OldStyleJesBackend.InfoKeys.JesStatus))
+        case "SGE" => BackendValues("SGE", jobId = extractValue(OldStyleSgeBackend.InfoKeys.JobNumber))
       }
     }
   }
@@ -214,7 +216,7 @@ object CallMetadataBuilder {
             executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
             runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
             cacheData: Traversable[ExecutionWithCacheData],
-            callFailures: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): Map[FullyQualifiedName, Seq[CallMetadata]] = {
+            callFailures: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): Map[FullyQualifiedName, Seq[OldStyleCallMetadata]] = {
 
     val executionKeys = infosByExecution map { _.execution.toKey }
 
@@ -237,7 +239,7 @@ object CallMetadataBuilder {
 
     // Convert from the convenience AssembledCallMetadata format to the CallMetadata format
     // that the endpoint needs to serve up.
-    def constructCallMetadata(metadata: AssembledCallMetadata): CallMetadata = {
+    def constructCallMetadata(metadata: AssembledCallMetadata): OldStyleCallMetadata = {
       val inputsMap = metadata.inputs map { entry => entry.key.name -> entry.wdlValue.get } toMap
       val outputsMap = for {
         outputs <- metadata.outputs.toSeq
@@ -248,7 +250,7 @@ object CallMetadataBuilder {
       val preemptible = metadata.runtimeAttributes.get("preemptible") flatMap { x => Try(x.toInt).toOption } map { _ >= attempt }
       val failures = if (metadata.failures.isEmpty) None else Option(metadata.failures)
 
-      CallMetadata(
+      OldStyleCallMetadata(
         inputs = inputsMap,
         executionStatus = metadata.execution.status,
         backend = metadata.backend,

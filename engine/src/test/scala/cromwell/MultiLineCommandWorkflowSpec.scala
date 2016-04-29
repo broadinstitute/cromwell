@@ -9,14 +9,14 @@ import scala.language.postfixOps
 
 class MultiLineCommandWorkflowSpec extends CromwellTestkitSpec {
   "A workflow that calls a task with a multi-line command" should {
-    "honor the newlines in the command" in {
+    "honor the newlines in the command" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.MultiLineCommandWorkflowWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.blah", occurrences = 1),
         expectedOutputs = Map("wf.blah.ab" -> WdlString("ab"))
       )
     }
-    "honor the newlines in the command in a Docker environment" taggedAs DockerTest in {
+    "honor the newlines in the command in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.MultiLineCommandWorkflowWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.blah", occurrences = 1),

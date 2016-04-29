@@ -10,7 +10,8 @@ import lenthall.exception.MessageAggregation
 
 import scalaz.NonEmptyList
 
-trait CanUseGcsFilesystem { self: Backend =>
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+trait CanUseGcsFilesystem { self: OldStyleBackend =>
 
   protected def gcsFilesystem(options: WorkflowOptions): Option[FileSystem] = {
 
@@ -40,7 +41,8 @@ trait CanUseGcsFilesystem { self: Backend =>
   }
 }
 
-trait MustHaveGcsFilesystem extends CanUseGcsFilesystem { self: Backend =>
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+trait MustHaveGcsFilesystem extends CanUseGcsFilesystem { self: OldStyleBackend =>
   override protected def gcsFilesystem(options: WorkflowOptions): Option[FileSystem] = {
     super.gcsFilesystem(options).orElse(
       throw new RuntimeException(s"Could not build GCS filesystem for backend '$name'"))

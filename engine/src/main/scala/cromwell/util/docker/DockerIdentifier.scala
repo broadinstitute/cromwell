@@ -3,6 +3,7 @@ package cromwell.util.docker
 /**
   * A user specification of a docker identifier.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait DockerIdentifier {
   /**
     * The name of the docker image, including the user/project.
@@ -22,6 +23,7 @@ sealed trait DockerIdentifier {
   * A user specified image with a digest identifier. NOTE: The digest includes the image type.
   * Ex: broadinstitute/scala-baseimage@sha256:265feb82d1a9fc8593bb1f2605a63cb0e30ad9ac8d1e74d8ed9113bb129c1885
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerDigestIdentifier(name: String, digest: String, registry: DockerRegistry) extends DockerIdentifier
 
 /**
@@ -30,6 +32,7 @@ case class DockerDigestIdentifier(name: String, digest: String, registry: Docker
   * - library/ubuntu:latest
   * - broad-dsde-dev/cromwell:dev
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerTagIdentifier(name: String, tag: String, registry: DockerRegistry) extends DockerIdentifier {
   private lazy val repositoryUri = s"https://${registry.v1Hostname}/v1/repositories/$name"
 

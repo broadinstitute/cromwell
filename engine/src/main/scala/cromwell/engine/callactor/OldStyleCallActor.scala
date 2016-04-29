@@ -6,10 +6,10 @@ import akka.event.Logging
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.callactor.CallActor.{CallActorData, CallActorState}
-import cromwell.engine.callexecution.CallExecutionActor
-import cromwell.engine.callexecution.CallExecutionActor.CallExecutionActorMessage
-import cromwell.engine.workflow.{CallKey, WorkflowActor}
+import cromwell.engine.callactor.OldStyleCallActor.{CallActorData, CallActorState}
+import cromwell.engine.callexecution.OldStyleCallExecutionActor
+import cromwell.engine.callexecution.OldStyleCallExecutionActor.CallExecutionActorMessage
+import cromwell.engine.workflow.{CallKey, OldStyleWorkflowActor}
 import cromwell.logging.WorkflowLogger
 import wdl4s.Scope
 import wdl4s.values.WdlValue
@@ -17,51 +17,70 @@ import wdl4s.values.WdlValue
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleCallActor {
 
-object CallActor {
-
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   sealed trait CallActorMessage
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   sealed trait StartMode extends CallActorMessage {
     def executionMessage: CallExecutionActorMessage
     def maybeCallLogs: Option[CallLogs]
   }
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object StartFinalCall extends StartMode {
-    override val executionMessage = CallExecutionActor.Execute
+    override val executionMessage = OldStyleCallExecutionActor.Execute
     override val maybeCallLogs = None
   }
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   final case class StartBackendCall(maybeCallLogs: Option[CallLogs]) extends StartMode {
-    override val executionMessage = CallExecutionActor.Execute
+    override val executionMessage = OldStyleCallExecutionActor.Execute
   }
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   final case class Resume(executionInfos: Map[String, Option[String]]) extends StartMode {
-    override val executionMessage = CallExecutionActor.Resume(executionInfos)
+    override val executionMessage = OldStyleCallExecutionActor.Resume(executionInfos)
     override val maybeCallLogs = None
   }
-  final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor,
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+  final case class UseCachedCall(cachedBackendCall: OldStyleBackendCallJobDescriptor, backendCall: OldStyleBackendCallJobDescriptor,
                                  callLogs: CallLogs) extends StartMode {
-    override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall)
+    override val executionMessage = OldStyleCallExecutionActor.UseCachedCall(cachedBackendCall)
     override val maybeCallLogs = Option(callLogs)
   }
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object AbortCall extends CallActorMessage
-  final case class ExecutionFinished(call: Scope, executionResult: ExecutionResult) extends CallActorMessage
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+  final case class ExecutionFinished(call: Scope, executionResult: OldStyleExecutionResult) extends CallActorMessage
 
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   sealed trait CallActorState
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object CallNotStarted extends CallActorState
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object CallRunningAbortUnavailable extends CallActorState
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object CallRunningAbortAvailable extends CallActorState
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object CallRunningAbortRequested extends CallActorState
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object CallAborting extends CallActorState
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case object CallDone extends CallActorState
 
   /** The `WorkflowActor` will drop `TerminalCallMessage`s that it is unable to immediately process.  This message
     * represents the acknowledgment from the `WorkflowActor` that the `callMessage` was processed and the status
     * change has been successfully committed to the database. */
-  final case class Ack(callMessage: WorkflowActor.TerminalCallMessage) extends CallActorMessage
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+  final case class Ack(callMessage: OldStyleWorkflowActor.TerminalCallMessage) extends CallActorMessage
 
   /** Message to self to retry sending the `callMessage` to the `WorkflowActor` in the absence of an `Ack`. */
-  final case class Retry(callMessage: WorkflowActor.CallMessage) extends CallActorMessage
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+  final case class Retry(callMessage: OldStyleWorkflowActor.CallMessage) extends CallActorMessage
 
   /** FSM data class with an optional abort function and exponential backoff. */
+  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case class CallActorData(abortFunction: Option[AbortFunction] = None,
                            backoff: Option[ExponentialBackOff] = None,
                            timer: Option[Cancellable] = None) {
@@ -71,7 +90,7 @@ object CallActor {
      * `CallActorData` holding a reference to the timer to allow for its cancellation in the event an `Ack` is
      * received prior to its expiration.
      */
-    def copyWithRetry(actor: Actor, callMessage: WorkflowActor.CallMessage)(implicit ec: ExecutionContext): CallActorData = {
+    def copyWithRetry(actor: Actor, callMessage: OldStyleWorkflowActor.CallMessage)(implicit ec: ExecutionContext): CallActorData = {
       val timer = actor.context.system.scheduler.scheduleOnce(backoff.get.nextBackOffMillis().millis) {
         actor.self ! Retry(callMessage)
       }
@@ -82,19 +101,20 @@ object CallActor {
     def cancelTimer() = timer foreach { _.cancel() }
   }
 
-  def props(backendCallDescriptor: BackendCallJobDescriptor): Props = Props(new BackendCallActor(backendCallDescriptor))
-  def props(finalCallDescriptor: FinalCallJobDescriptor) = Props(new FinalCallActor(finalCallDescriptor))
+  def props(backendCallDescriptor: OldStyleBackendCallJobDescriptor): Props = Props(new OldStyleBackendCallActor(backendCallDescriptor))
+  def props(finalCallDescriptor: FinalCallJobDescriptor) = Props(new OldStyleFinalCallActor(finalCallDescriptor))
 }
 
 /** Actor to manage the execution of a single call. */
 // FIXME It feels like I shouldn't need to restate the type bounds of JobDescriptor's CallKey type variable.
-trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+trait OldStyleCallActor[D <: OldStyleJobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorState, CallActorData] with CromwellActor {
   def jobDescriptor: D
   def key = jobDescriptor.key
   def workflowDescriptor = jobDescriptor.workflowDescriptor
   protected def callExecutionActor: ActorRef
 
-  import CallActor._
+  import OldStyleCallActor._
 
   type CallOutputs = Map[String, WdlValue]
 
@@ -103,7 +123,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
   implicit val ec = context.system.dispatcher
 
   val call = key.scope
-  val akkaLogger = Logging(context.system, classOf[CallActor[D]])
+  val akkaLogger = Logging(context.system, classOf[OldStyleCallActor[D]])
   val logger = WorkflowLogger(
     "CallActor",
     workflowDescriptor,
@@ -123,10 +143,10 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
-      context.parent ! WorkflowActor.CallStarted(key, startMode.maybeCallLogs)
+      context.parent ! OldStyleWorkflowActor.CallStarted(key, startMode.maybeCallLogs)
       callExecutionActor ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)
-    case Event(AbortCall, _) => handleFinished(call, AbortedExecution)
+    case Event(AbortCall, _) => handleFinished(call, OldStyleAbortedExecution)
   }
 
   when(CallRunningAbortUnavailable) {
@@ -168,7 +188,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
       context.parent ! message
       val updatedData = data.copyWithRetry(this, message)
       stay() using updatedData
-    case Event(Ack(message: WorkflowActor.TerminalCallMessage), data) =>
+    case Event(Ack(message: OldStyleWorkflowActor.TerminalCallMessage), data) =>
       logger.debug(s"CallActor received ack for ${message.callKey.tag}")
       data.cancelTimer()
       val updatedData = data.copy(backoff = None, timer = None)
@@ -178,7 +198,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
       stay()
   }
 
-  private def tryAbort(data: CallActorData): CallActor.this.State = {
+  private def tryAbort(data: CallActorData): OldStyleCallActor.this.State = {
     data.abortFunction match {
       case Some(af) =>
         logger.info("Abort function called.")
@@ -190,7 +210,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
     }
   }
 
-  private def handleFinished(call: Scope, executionResult: ExecutionResult): State = {
+  private def handleFinished(call: Scope, executionResult: OldStyleExecutionResult): State = {
 
     def createBackoff: Option[ExponentialBackOff] = Option(
       new ExponentialBackOff.Builder()
@@ -202,16 +222,16 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
     )
 
     val message = executionResult match {
-      case SuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
-        WorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
-      case SuccessfulFinalCallExecution => WorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
-      case AbortedExecution => WorkflowActor.CallAborted(key)
-      case RetryableExecution(e, returnCode, events) =>
+      case OldStyleSuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
+        OldStyleWorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+      case OldStyleSuccessfulFinalCallExecution => OldStyleWorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
+      case OldStyleAbortedExecution => OldStyleWorkflowActor.CallAborted(key)
+      case OldStyleRetryableFailedExecution(e, returnCode, events) =>
         logger.error("Failing call with retryable Failure: " + e.getMessage, e)
-        WorkflowActor.CallFailedRetryable(key, events, returnCode, e)
-      case NonRetryableExecution(e, returnCode, events) =>
+        OldStyleWorkflowActor.CallFailedRetryable(key, events, returnCode, e)
+      case OldStyleNonRetryableFailedExecution(e, returnCode, events) =>
         logger.error("Failing call: " + e.getMessage, e)
-        WorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
+        OldStyleWorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
     }
 
     context.parent ! message

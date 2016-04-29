@@ -8,7 +8,7 @@ import scala.language.postfixOps
 
 class WorkflowOutputsSpec extends CromwellTestkitSpec {
   "Workflow outputs" should {
-    "use all outputs if none are specified" in {
+    "use all outputs if none are specified" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ThreeStep,
         eventFilter = EventFilter.info(pattern = s"starting calls: three_step.cgrep, three_step.wc", occurrences = 1),
@@ -22,7 +22,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
       )
     }
 
-    "Respect the workflow output section" in {
+    "Respect the workflow output section" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ThreeStepWithOutputsSection,
         eventFilter = EventFilter.info(pattern = s"starting calls: three_step.cgrep, three_step.wc", occurrences = 1),
@@ -35,7 +35,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
       )
     }
 
-    "Not list scatter shards" in {
+    "Not list scatter shards" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.inside_scatter", occurrences = 1),
@@ -48,7 +48,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
       )
     }
 
-    "Not list scatter shards, even for wildcards" in {
+    "Not list scatter shards, even for wildcards" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdlWithOutputs,
         eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.inside_scatter", occurrences = 1),
@@ -60,7 +60,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
       )
     }
 
-    "Allow explicitly named inputs in the output section" in {
+    "Allow explicitly named inputs in the output section" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ThreeStepWithInputsInTheOutputsSection,
         eventFilter = EventFilter.info(pattern = s"starting calls: three_step.cgrep, three_step.wc", occurrences = 1),

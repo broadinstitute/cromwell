@@ -21,16 +21,16 @@ import scalaz.Scalaz._
 import scalaz.Validation
 import scalaz.Validation.FlatMap._
 
-
-object MaterializeWorkflowDescriptorActor {
-  def props(): Props = Props(new MaterializeWorkflowDescriptorActor)
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleMaterializeWorkflowDescriptorActor {
+  def props(): Props = Props(new OldStyleMaterializeWorkflowDescriptorActor)
 
   sealed trait MaterializeWorkflowDescriptorActorMessage
   case class MaterializeWorkflow(id: WorkflowId,
                                  workflowSourceFiles: WorkflowSourceFiles,
                                  conf: Config = ConfigFactory.load) extends MaterializeWorkflowDescriptorActorMessage
   sealed trait MaterializationResult extends MaterializeWorkflowDescriptorActorMessage
-  case class MaterializeWorkflowDescriptorSuccess(workflowDescriptor: WorkflowDescriptor) extends MaterializationResult
+  case class MaterializeWorkflowDescriptorSuccess(workflowDescriptor: OldStyleWorkflowDescriptor) extends MaterializationResult
   case class MaterializeWorkflowDescriptorFailure(reason: Throwable) extends Exception with MaterializationResult
 
   import lenthall.config.ScalaConfig._
@@ -49,22 +49,23 @@ object MaterializeWorkflowDescriptorActor {
     } yield value) getOrElse default
   }
 
-  def workflowLogOptions(conf: Config): Option[WorkflowLogOptions] = {
+  def workflowLogOptions(conf: Config): Option[OldStyleWorkflowLogOptions] = {
     for {
       workflowConfig <- conf.getConfigOption("workflow-options")
       dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
-    } yield WorkflowLogOptions(Paths.get(dir), temporary)
+    } yield OldStyleWorkflowLogOptions(Paths.get(dir), temporary)
   }
 }
 
-class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+class OldStyleMaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
 
-  import MaterializeWorkflowDescriptorActor._
+  import OldStyleMaterializeWorkflowDescriptorActor._
 
   override def receive = {
     case MaterializeWorkflow(workflowId, workflowSourceFiles, conf) =>
-      val backend = CromwellBackend.getBackendFromOptions(workflowSourceFiles.workflowOptionsJson)
+      val backend = CromwellBackends.getBackendFromOptions(workflowSourceFiles.workflowOptionsJson)
       buildWorkflowDescriptor(workflowId, workflowSourceFiles, backend, conf) match {
         case scalaz.Success(descriptor) => sender() ! MaterializeWorkflowDescriptorSuccess(descriptor)
         case scalaz.Failure(error) => sender() ! MaterializeWorkflowDescriptorFailure(
@@ -78,13 +79,13 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
 
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFiles,
-                                      backend: Backend,
-                                      conf: Config): ErrorOr[WorkflowDescriptor] = {
+                                      backend: OldStyleBackend,
+                                      conf: Config): ErrorOr[OldStyleWorkflowDescriptor] = {
 
     def buildWorkflowDescriptor(namespace: NamespaceWithWorkflow,
                                 workflowOptions: WorkflowOptions,
                                 rawInputs: Map[String, JsValue],
-                                workflowFailureMode: WorkflowFailureMode): ErrorOr[WorkflowDescriptor] = {
+                                workflowFailureMode: WorkflowFailureMode): ErrorOr[OldStyleWorkflowDescriptor] = {
       validateCoercedInputs(rawInputs, namespace) flatMap { coercedInputs =>
         val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(workflowOptions), namespace.workflow.unqualifiedName, id)
         val wfContext = new WorkflowContext(workflowRootPath)
@@ -99,7 +100,7 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
           val engineFunctions = backend.engineFunctions(fileSystems, wfContext)
 
           validateDeclarations(namespace, workflowOptions, coercedInputs, engineFunctions) flatMap { declarations =>
-            WorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, backend,
+            OldStyleWorkflowDescriptor(id, sourceFiles, workflowOptions, workflowLogOptions(conf), rawInputs, namespace, coercedInputs, declarations, backend,
               configCallCaching(conf), lookupDockerHash(conf), workflowFailureMode, wfContext, fileSystems).successNel
           }
         }
@@ -158,8 +159,8 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
   }
 
   // TODO: With PBE, this should be defined in the backend.
-  private def validateWorkflowOptions(backend: Backend, workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
-    def validateBackendOptions(backend: Backend, workflowOpt: WorkflowOptions): ErrorOr[WorkflowOptions] = {
+  private def validateWorkflowOptions(backend: OldStyleBackend, workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
+    def validateBackendOptions(backend: OldStyleBackend, workflowOpt: WorkflowOptions): ErrorOr[WorkflowOptions] = {
       try {
         backend.assertWorkflowOptions(workflowOpt)
         workflowOpt.successNel

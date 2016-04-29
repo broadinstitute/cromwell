@@ -16,14 +16,14 @@ class WriteLinesSpec extends CromwellTestkitSpec {
   )
 
   "A task that calls write_lines() in the command section" should {
-    "run properly" in {
+    "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteLinesWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: write_lines.a2f", occurrences = 1),
         expectedOutputs = outputs
       )
     }
-    "run properly in a Docker environment" taggedAs DockerTest in {
+    "run properly in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteLinesWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: write_lines.a2f", occurrences = 1),

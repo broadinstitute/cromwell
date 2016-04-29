@@ -16,7 +16,7 @@ class InvalidRuntimeAttributesSpec extends CromwellTestkitSpec with BeforeAndAft
   }
 
   "A workflow with a task with one invalid runtime attribute" should {
-    "succeed" in {
+    "succeed" ignore {
       runWdl(
         sampleWdl = SampleWdl.HelloWorld,
         runtime = """ runtime { wrongAttribute: "nop" }""".stripMargin,

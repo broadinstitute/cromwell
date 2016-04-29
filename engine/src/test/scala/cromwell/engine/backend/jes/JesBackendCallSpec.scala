@@ -2,7 +2,7 @@ package cromwell.engine.backend.jes
 
 import akka.actor.ActorSystem
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.{BackendCallJobDescriptor, WorkflowDescriptor}
+import cromwell.engine.backend.{OldStyleBackendCallJobDescriptor, OldStyleWorkflowDescriptor}
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.BackendCallKey
 import org.scalatest.{FlatSpec, Matchers}
@@ -19,11 +19,11 @@ class JesBackendCallSpec extends FlatSpec with Matchers with Mockito {
     val backendCallKeyWithAttempt2 = mock[BackendCallKey]
     backendCallKeyWithAttempt2.attempt returns 2
 
-    val workflow = mock[WorkflowDescriptor]
-    val backend = new JesBackend(CromwellTestkitSpec.JesBackendConfigEntry, ActorSystem("Jessie"))
+    val workflow = mock[OldStyleWorkflowDescriptor]
+    val backend = new OldStyleJesBackend(CromwellTestkitSpec.JesBackendConfigEntry, ActorSystem("Jessie"))
     workflow.backend returns backend
 
-    class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends BackendCallJobDescriptor(workflow, key, mock[CallInputs]) {
+    class MaxMockingDescriptor(max: Int, key: BackendCallKey) extends OldStyleBackendCallJobDescriptor(workflow, key, mock[CallInputs]) {
       val attributes = mock[CromwellRuntimeAttributes]
       override lazy val callRuntimeAttributes: CromwellRuntimeAttributes = attributes.preemptible returns max
     }

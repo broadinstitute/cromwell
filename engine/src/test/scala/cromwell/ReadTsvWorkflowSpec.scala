@@ -7,7 +7,7 @@ import wdl4s.values.{WdlFile, WdlString, WdlInteger, WdlArray}
 
 class ReadTsvWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with array/map indexes in expressions" should {
-    "run locally" in {
+    "run locally" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ReadTsvWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: test.output_file_table, test.output_matrix, test.output_table", occurrences = 1),

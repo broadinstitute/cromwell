@@ -5,21 +5,17 @@ import java.util.concurrent.{ExecutorService, Executors}
 import java.util.{Date, UUID}
 import javax.sql.rowset.serial.SerialClob
 
-import slick.backend.DatabaseConfig
-import slick.dbio
-import slick.dbio.Effect.Read
-import slick.driver.JdbcProfile
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess.{WorkflowExecutionAndAux, ExecutionKeyToJobKey}
+import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
+import slick.backend.DatabaseConfig
+import slick.driver.JdbcProfile
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.MaterializationResult
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializationResult}
 import cromwell.engine.workflow._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
@@ -184,6 +180,8 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   private val actionExecutionContext: ExecutionContext = ExecutionContext.fromExecutor(
     actionThreadPool, database.executor.executionContext.reportFailure)
 
+  private lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcProfile.capabilities.insertOrUpdate)
+
   override def close(): Unit = {
     actionThreadPool.shutdown()
     database.close()
@@ -240,18 +238,36 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
     runTransaction(action)
   }
 
-  override def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit] = {
-    def toRuntimeAttrInsert(executionId: Int, name: String, value: String) = dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, name, value)
-
+  override def upsertRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])
+                                      (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
-      execution <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(id.toString, key.fqn, key.index.fromIndex, key.attempt).result.head
-      inserts = attributes map {
-        case (k, v) => toRuntimeAttrInsert(execution.executionId.get, k, v.valueString)
-      }
-      _ <- DBIO.sequence(inserts)
+      execution <- dataAccess.executionsByWorkflowExecutionUuidAndCallFqnAndShardIndexAndAttempt(
+        id.toString, key.fqn, key.index.fromIndex, key.attempt
+      ).result.head
+      _ <- DBIO.sequence(attributes map upsertRuntimeAttribute(execution.executionId.get))
     } yield ()
 
     runTransaction(action)
+  }
+
+  private def upsertRuntimeAttribute(executionId: Int)(keyValue: (String, WdlValue))
+                                    (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (key, value) = keyValue
+
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.runtimeAttributesAutoInc.insertOrUpdate(RuntimeAttribute(executionId, key, value.valueString))
+      } yield ()
+    } else {
+      for {
+        updateCount <- dataAccess.runtimeAttributeValueByExecutionAndName(executionId, key).update(value.valueString)
+        _ <- updateCount match {
+          case 0 => dataAccess.runtimeAttributesAutoInc += RuntimeAttribute(executionId, key, value.valueString)
+          case 1 => DBIO.successful(Unit)
+          case _ => DBIO.failed(new RuntimeException(s"Unexpected backend update count $updateCount"))
+        }
+      } yield ()
+    }
   }
 
   override def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]] = {

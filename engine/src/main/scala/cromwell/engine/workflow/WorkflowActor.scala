@@ -1230,7 +1230,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
 
     Try(descriptor.callRuntimeAttributes) map { attrs =>
       val databaseKey = ExecutionDatabaseKey(descriptor.key.scope.fullyQualifiedName, descriptor.key.index, descriptor.key.attempt)
-      globalDataAccess.setRuntimeAttributes(workflow.id, databaseKey, attrs.attributes) onComplete {
+      globalDataAccess.upsertRuntimeAttributes(workflow.id, databaseKey, attrs.attributes) onComplete {
         case Success(_) => startCall
         case Failure(f) =>
           logger.error("Could not persist runtime attributes", f)

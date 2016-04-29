@@ -8,7 +8,6 @@ import cromwell.engine._
 import cromwell.engine.backend.{CallMetadata, WorkflowDescriptor}
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall._
-import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
@@ -20,14 +19,6 @@ object WorkflowMetadataBuilder {
 
   private type DBMap[+V] = Map[ExecutionDatabaseKey, V]
 
-  // TODO: This assertion could be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
-  def assertWorkflowExistence(id: WorkflowId, workflowState: Option[WorkflowState]): Future[Unit] = {
-    // Confirm the workflow exists by querying its state.  If no state is found the workflow doesn't exist.
-    workflowState match {
-      case None => Future.failed(new WorkflowNotFoundException(s"Workflow '$id' not found"))
-      case _ => Future.successful(Unit)
-    }
-  }
   private def build(workflowDescriptor: WorkflowDescriptor,
                     execution: WorkflowExecution,
                     workflowOutputs: engine.WorkflowOutputs,
@@ -86,18 +77,14 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
 
   import WorkflowMetadataBuilder._
 
-  private def futureAssertWorkflowExistsByState = for {
-    workflowState <- globalDataAccess.getWorkflowState(id)
-    // TODO: This assertion could be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
-    _ <- assertWorkflowExistence(id, workflowState)
-  } yield ()
+  private def futureAssertWorkflowExistsByState = globalDataAccess.assertWorkflowExistsByState(id)
 
   private def futureWorkflowExecutionAndAux = globalDataAccess.getWorkflowExecutionAndAux(id)
 
   // If outputs requested, don't retrieve the execution infos, only executions
   private def futureInfosByExecution = retrieveTraversable(parameters.outputs,
     globalDataAccess.infosByExecution(id),
-    globalDataAccess.getExecutions(id) map { _ map { ExecutionInfosByExecution(_, Seq.empty) } })
+    globalDataAccess.getExecutionsAsExecutionInfos(id))
 
   // If outputs requested, get the workflow outputs
   private def futureWorkflowOutputs = retrieveTraversable(parameters.outputs, globalDataAccess.getWorkflowOutputs(id))

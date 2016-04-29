@@ -3,6 +3,7 @@ package cromwell.engine
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.backend.{BackendCallJobDescriptor, ExecutionHash}
+import wdl4s.Scatter
 
 package object db {
   case class CallStatus(executionStatus: ExecutionStatus, returnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor]) {
@@ -18,6 +19,8 @@ package object db {
           (e.fqn == fqn) && e.index.isDefined
         })
     }
+
+    def isScatter = fqn.contains(Scatter.FQNIdentifier)
   }
 
   case class JesId(id: String)

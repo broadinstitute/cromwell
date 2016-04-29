@@ -328,9 +328,7 @@ class WorkflowManagerActor(config: Config)
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[WorkflowLogs] = {
     for {
-      workflowState <- globalDataAccess.getWorkflowState(workflowId)
-      // TODO: This assertion could also be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
-      _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
+      _ <- globalDataAccess.assertWorkflowExistsByState(workflowId)
       callLogOutputs <- globalDataAccess.infosByExecution(workflowId)
     } yield ExecutionInfosByExecution.toWorkflowLogs(callLogOutputs)
   }

@@ -44,7 +44,6 @@ package object engine {
   class PreemptedException(msg: String) extends Exception(msg)
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
-    def isScatter = fqn.contains(Scatter.FQNIdentifier)
     def scopeAndVariableName: (String, String) = {
       val array = fqn.split("\\.(?=[^\\.]+$)")
       (array(0), array(1))

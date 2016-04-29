@@ -15,6 +15,7 @@ import cromwell.{core, engine}
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -26,6 +27,7 @@ object CromwellApiHandler {
   sealed trait ApiHandlerMessage
 
   final case class ApiHandlerWorkflowSubmit(source: WorkflowSourceFiles) extends ApiHandlerMessage
+  final case class ApiHandlerWorkflowSubmitBatch(sources: Seq[WorkflowSourceFiles]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowQuery(parameters: Seq[(String, String)]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStatus(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowOutputs(id: WorkflowId) extends ApiHandlerMessage
@@ -65,6 +67,7 @@ object CromwellApiHandler {
   final case class WorkflowManagerWorkflowMetadataFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallCachingSuccess(id: WorkflowId, updateCount: Int) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
+  final case class WorkflowManagerBatchSubmitResponse(responses: Seq[WorkflowManagerResponse]) extends WorkflowManagerResponse
 }
 
 class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
@@ -120,6 +123,25 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
         case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
+
+    case ApiHandlerWorkflowSubmitBatch(sources) =>
+      import akka.pattern._
+      import context.dispatcher
+      val batchSubmitResponse = Future.traverse(sources)(source => (requestHandlerActor ? WorkflowManagerActor.SubmitWorkflow(source)).asInstanceOf[Future[WorkflowManagerResponse]]).map(WorkflowManagerBatchSubmitResponse)
+      pipe(batchSubmitResponse) to self
+
+    case WorkflowManagerBatchSubmitResponse(responses) =>
+      val requestResponse: Seq[Either[WorkflowSubmitResponse, FailureResponse]] = responses.map {
+        case WorkflowManagerSubmitSuccess(id) => Left(WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
+        case WorkflowManagerSubmitFailure(e) =>
+          Right(e match {
+            case _: IllegalArgumentException => APIResponse.fail(e)
+            case _ => APIResponse.error(e)
+          })
+        case unexpected => Right(FailureResponse("error", s"unexpected message: $unexpected", None))
+      }
+      context.parent ! RequestComplete(StatusCodes.OK, requestResponse)
+
 
     case ApiHandlerWorkflowOutputs(id) => requestHandlerActor ! WorkflowManagerActor.WorkflowOutputs(id)
     case WorkflowManagerWorkflowOutputsSuccess(id, outputs) =>

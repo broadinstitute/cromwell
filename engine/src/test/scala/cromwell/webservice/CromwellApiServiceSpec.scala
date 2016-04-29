@@ -369,6 +369,23 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  s"Cromwell batch submit workflow API $version" should "return 200 for a successful workflow submission " in {
+    Post("/workflows/$version/batch", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> s"[${HelloWorld.rawInputs.toJson.toString()}]"))) ~>
+      submitBatchRoute ~>
+      check {
+        assertResult(
+          s"""[{
+             |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
+                                                                                 |  "status": "Submitted"
+                                                                                 |}]""".stripMargin) {
+          responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
+        }
+      }
+  }
+
   it should "return 400 for a malformed workflow inputs JSON " in {
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
       submitRoute ~>

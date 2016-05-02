@@ -2,7 +2,6 @@ package cromwell.engine.backend.dummy
 
 import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionSucceededResponse, BackendJobExecutionResponse}
-import cromwell.backend.BackendLifecycleActor.{BackendJobExecutionAbortSucceededResponse, JobAbortResponse}
 import cromwell.backend._
 import cromwell.core.CallOutput
 import wdl4s.types._
@@ -46,6 +45,5 @@ case class DummyBackendJobExecutionActor(override val jobDescriptor: BackendJobD
   /**
     * Abort a running job.
     */
-  override def abortJob: Future[JobAbortResponse] = Future.successful(BackendJobExecutionAbortSucceededResponse(jobDescriptor.key))
-
+  override def abortJob: Unit = ()
 }

@@ -21,7 +21,7 @@ object BackendWorkflowInitializationActor {
   sealed trait BackendWorkflowInitializationActorCommand extends BackendWorkflowLifecycleActorCommand
   case object Initialize extends BackendWorkflowInitializationActorCommand
 
-  final case class Abort(jobKey: BackendJobDescriptorKey) extends BackendWorkflowInitializationActorCommand
+  case object Abort extends BackendWorkflowInitializationActorCommand
 
   // Responses
   sealed trait BackendWorkflowInitializationActorResponse extends BackendWorkflowLifecycleActorResponse
@@ -40,7 +40,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
 
   def receive: Receive = LoggingReceive {
     case Initialize => performActionThenRespond(initSequence(), onFailure = InitializationFailed)
-    case AbortWorkflow => performActionThenRespond(abortInitialization(), onFailure = BackendWorkflowAbortFailedResponse)
+    case AbortWorkflowCommand => abortInitialization()
   }
 
   /**
@@ -54,7 +54,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   /**
     * Abort all initializations.
     */
-  def abortInitialization(): Future[WorkflowAbortResponse]
+  def abortInitialization(): Unit
 
   /**
     * A call which happens before anything else runs

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{FSM, ActorRef, LoggingFSM}
+import akka.actor.{ActorRef, LoggingFSM}
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 import wdl4s.Call
 
@@ -9,38 +9,47 @@ object WorkflowLifecycleActor {
   trait WorkflowLifecycleActorState { def terminal = false }
   trait WorkflowLifecycleActorTerminalState extends WorkflowLifecycleActorState { override val terminal = true }
 
-  trait WorkflowLifecycleSuccessResponse
-  trait WorkflowLifecycleFailureResponse
-  trait WorkflowLifecycleAbortedResponse
+  trait WorkflowLifecycleSuccessResponse extends EngineLifecycleStateCompleteResponse
+  trait WorkflowLifecycleFailureResponse extends EngineLifecycleStateCompleteResponse
+
+  object WorkflowLifecycleActorData {
+    def empty = WorkflowLifecycleActorData(Map.empty, List.empty, Map.empty, List.empty)
+  }
 
   /**
     * State data
     */
-  trait WorkflowLifecycleActorData{
-    /**
-      * The mapping from ActorRef to the backend-specific actor for that backend
-      */
-    def backendActors: Map[ActorRef, String]
+  case class WorkflowLifecycleActorData (backendActors: Map[ActorRef, String],
+                                         successes: Seq[ActorRef],
+                                         failures: Map[ActorRef, Throwable],
+                                         aborted: Seq[ActorRef]) {
 
-    /**
-      * The list of successful backend-specific actors
-      */
-    def successes: Seq[ActorRef]
-
-    /**
-      * The list of failed backend-specific actors
-      */
-    def failures: Map[ActorRef, Throwable]
+    def withBackendActors(backendActors: Map[ActorRef, String]) = this.copy(
+      backendActors = this.backendActors ++ backendActors
+    )
+    def withSuccess(successfulActor: ActorRef) = this.copy(
+      backendActors = this.backendActors - successfulActor,
+      successes = successes :+ successfulActor)
+    def withFailure(failedActor: ActorRef, reason: Throwable) = this.copy(
+      backendActors = this.backendActors - failedActor,
+      failures = failures + (failedActor -> reason))
+    def withAborted(abortedActor: ActorRef) = this.copy(
+      backendActors = this.backendActors - abortedActor,
+      aborted = aborted :+ abortedActor
+    )
   }
 }
 
-trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState, D <: WorkflowLifecycleActorData] extends LoggingFSM[S, D] {
+trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFSM[S, WorkflowLifecycleActorData] {
 
+  val abortingState: S
   val successState: S
   val failureState: S
+  val abortedState: S
 
   def successResponse: WorkflowLifecycleSuccessResponse
   def failureResponse(reasons: Seq[Throwable]): WorkflowLifecycleFailureResponse
+  def abortedResponse: EngineLifecycleActorAbortedResponse
 
   whenUnhandled {
     case unhandledMessage =>
@@ -82,18 +91,21 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState, D <: WorkflowLife
     */
   protected def backendActor(backendName: String, callAssignments: Seq[Call]): Option[ActorRef]
 
-  protected def checkForDoneAndTransition(newData: D): State = {
+  protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
     if (checkForDone(newData)) {
-      if (newData.failures.isEmpty){
-        context.parent ! successResponse
-        goto(successState)
+      if (stateName == abortingState) {
+        context.parent ! abortedResponse
+        goto(abortedState) using newData
+      } else {
+        if (newData.failures.isEmpty) {
+          context.parent ! successResponse
+          goto(successState) using newData
+        } else {
+          context.parent ! failureResponse(newData.failures.values.toSeq)
+          goto(failureState) using newData
+        }
       }
-      else {
-        context.parent ! failureResponse(newData.failures.values.toSeq)
-        goto(failureState) using newData
-      }
-    }
-    else {
+    } else {
       stay using newData
     }
   }

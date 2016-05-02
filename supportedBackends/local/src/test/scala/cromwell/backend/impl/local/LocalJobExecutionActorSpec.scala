@@ -4,7 +4,6 @@ import java.nio.file.{Files, Paths}
 
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse}
-import cromwell.backend.BackendLifecycleActor.{BackendJobExecutionAbortFailedResponse, BackendJobExecutionAbortSucceededResponse}
 import cromwell.backend.impl.local.BackendTestkitSpec.DockerTest
 import cromwell.backend.impl.local.TestWorkflows._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
@@ -134,24 +133,21 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val execute = backend.execute
     val abort = backend.abortJob
 
-    whenReady(abort) { abortResponse =>
-      abortResponse shouldBe a[BackendJobExecutionAbortSucceededResponse]
-    }
-
     whenReady(execute) { executionResponse =>
       executionResponse shouldBe a[BackendJobExecutionAbortedResponse]
     }
   }
 
-  it should "fail to abort if execution hasn't been requested" in {
+  it should "preemptively abort if execution hasn't been requested yet" in {
     val wf = buildWorkflowDescriptor(Sleep10)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
     val backend = localBackend(jobDescriptor, defaultBackendConfig)
 
-    val abort = backend.abortJob
+    backend.abortJob
+    val execute = backend.execute
 
-    whenReady(abort) { abortResponse =>
-      abortResponse shouldBe a[BackendJobExecutionAbortFailedResponse]
+    whenReady(execute) { executionResponse =>
+      executionResponse shouldBe a[BackendJobExecutionAbortedResponse]
     }
   }
 

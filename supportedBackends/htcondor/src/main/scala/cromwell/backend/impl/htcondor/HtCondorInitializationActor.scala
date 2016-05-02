@@ -1,7 +1,6 @@
 package cromwell.backend.impl.htcondor
 
 import akka.actor.Props
-import cromwell.backend.BackendLifecycleActor.WorkflowAbortResponse
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -26,7 +25,7 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
   /**
     * Abort all initializations.
     */
-  override def abortInitialization(): Future[WorkflowAbortResponse] = ???
+  override def abortInitialization(): Unit = ???
 
   /**
     * A call which happens before anything else runs

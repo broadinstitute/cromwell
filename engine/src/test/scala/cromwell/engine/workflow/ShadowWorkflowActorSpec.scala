@@ -7,6 +7,7 @@ import cromwell.core.WorkflowId
 import cromwell.engine.workflow.ShadowWorkflowActor._
 import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorCommand, ShadowMaterializeWorkflowDescriptorFailureResponse, ShadowMaterializeWorkflowDescriptorSuccessResponse, ShadowWorkflowDescriptorMaterializationResult}
+import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor.WorkflowLifecycleActorData
 import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 import cromwell.util.SampleWdl.{HelloWorld, ThreeStep}
 import spray.json.DefaultJsonProtocol._
@@ -44,7 +45,7 @@ class ShadowWorkflowActorSpec extends CromwellTestkitSpec {
       val wdlSources = WorkflowSourceFiles(HelloWorld.wdlSource("runtime { }"),
         HelloWorld.rawInputs.toJson.toString(), "{ }")
       val testActor = createWorkflowActor(wdlSource = wdlSources)
-      testActor.setState(stateName = WorkflowUnstartedState, stateData = EmptyShadowWorkflowActorData)
+      testActor.setState(stateName = WorkflowUnstartedState, stateData = ShadowWorkflowActorData.empty)
       testActor ! StartWorkflowCommand
       testActor.stateName should be (ShadowWorkflowActor.MaterializingWorkflowDescriptorState)
       testActor.stop()
@@ -64,13 +65,13 @@ class ShadowWorkflowActorSpec extends CromwellTestkitSpec {
       // WorkflowOptions (Jes) should trump runtime attributes (SGE)
       val wdlSources = ThreeStep.asWorkflowSources(runtime = runtimeAttributes, workflowOptions = wfOptions)
       val descriptor = createMaterializedEngineWorkflowDescriptor(workflowSources = wdlSources)
-      val expectedStateData = ShadowWorkflowActorDataWithDescriptor(descriptor)
       val testActor = createWorkflowActor(wdlSource = wdlSources)
-      testActor.setState(stateName = MaterializingWorkflowDescriptorState, stateData = EmptyShadowWorkflowActorData)
+      testActor.setState(stateName = MaterializingWorkflowDescriptorState, stateData = ShadowWorkflowActorData.empty)
       within(5.seconds) {
         testActor ! ShadowMaterializeWorkflowDescriptorSuccessResponse(descriptor)
         testActor.stateName should be(ShadowWorkflowActor.InitializingWorkflowState)
-        testActor.stateData should be(expectedStateData)
+        testActor.stateData.workflowDescriptor should be(Some(descriptor))
+        testActor.stateData.currentLifecycleStateActor.isDefined should be(true)
       }
       testActor.stop()
     }
@@ -83,13 +84,13 @@ class ShadowWorkflowActorSpec extends CromwellTestkitSpec {
           |}""".stripMargin
       val wdlSources = ThreeStep.asWorkflowSources(runtime = runtimeAttributes)
       val descriptor = createMaterializedEngineWorkflowDescriptor(workflowSources = wdlSources)
-      val expectedStateData = ShadowWorkflowActorDataWithDescriptor(descriptor)
       val testActor = createWorkflowActor(wdlSource = wdlSources)
-      testActor.setState(stateName = MaterializingWorkflowDescriptorState, stateData = EmptyShadowWorkflowActorData)
+      testActor.setState(stateName = MaterializingWorkflowDescriptorState, stateData = ShadowWorkflowActorData.empty)
       within(5.seconds) {
         testActor ! ShadowMaterializeWorkflowDescriptorSuccessResponse(descriptor)
         testActor.stateName should be(ShadowWorkflowActor.InitializingWorkflowState)
-        testActor.stateData should be(expectedStateData)
+        testActor.stateData.workflowDescriptor should be(Some(descriptor))
+        testActor.stateData.currentLifecycleStateActor.isDefined should be(true)
       }
       testActor.stop()
     }

@@ -116,11 +116,10 @@ class ShadowWorkflowManagerActor(config: Config)
       val workflowActor = stateData.workflows.get(id)
       workflowActor match {
         case Some(actor) =>
-          // TODO: This case needs implementing
-          sender ! WorkflowManagerAbortFailure(id, new NotImplementedError(s"Couldn't abort $id because abort is missing"))
+          actor ! AbortWorkflowCommand
           stay()
         case None =>
-          sender ! WorkflowManagerAbortFailure(id, new NotImplementedError(s"Couldn't abort $id because no workflow with that ID is in progress"))
+          sender ! WorkflowManagerAbortFailure(id, new Exception(s"Couldn't abort $id because no workflow with that ID is in progress"))
           stay()
       }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
@@ -161,7 +160,9 @@ class ShadowWorkflowManagerActor(config: Config)
       val updatedData = data.without(workflowActor)
       logger.info(s"$tag: Waiting for all workflows to abort (${updatedData.workflows.size} remaining).")
       // If there are no more workflows to abort we're done, otherwise just stay in the current state.
-      (if (updatedData.workflows.isEmpty) goto(Done) else stay()) using updatedData
+      val resultAction = if (updatedData.workflows.isEmpty) goto(Done) else stay()
+      // Whatever the result action, use the updated data:
+      resultAction using updatedData
   }
 
   when (Done) { FSM.NullFunction }
@@ -177,7 +178,7 @@ class ShadowWorkflowManagerActor(config: Config)
 
   onTransition {
     case _ -> Done =>
-      logger.info(s"$tag: All workflows aborted.")
+      logger.info(s"$tag: All workflows finished. Shutting down.")
       donePromise.trySuccess(())
     case fromState -> toState =>
       logger.info(s"$tag transitioning from $fromState to $toState")

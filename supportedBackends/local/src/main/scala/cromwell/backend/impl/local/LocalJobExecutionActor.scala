@@ -3,7 +3,6 @@ package cromwell.backend.impl.local
 import java.nio.file.{FileSystems, Path, Paths}
 
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
-import cromwell.backend.BackendLifecycleActor.{BackendJobExecutionAbortFailedResponse, BackendJobExecutionAbortSucceededResponse, JobAbortResponse}
 import cromwell.backend._
 import cromwell.core.CallContext
 import org.slf4j.LoggerFactory
@@ -135,13 +134,10 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     case Failure(ex) => Future.successful(BackendJobExecutionFailedResponse(jobDescriptor.key, ex))
   }
 
-  override def abortJob: Future[JobAbortResponse] = {
-    process map { p =>
+  override def abortJob: Unit = {
+    process foreach { p =>
       p.destroy()
       process = None
-      Future.successful(BackendJobExecutionAbortSucceededResponse(jobDescriptor.key))
-    } getOrElse {
-      Future.successful(BackendJobExecutionAbortFailedResponse(jobDescriptor.key, new RuntimeException(s"Tried to abort ${jobDescriptor.key} before executing it.")))
     }
   }
 

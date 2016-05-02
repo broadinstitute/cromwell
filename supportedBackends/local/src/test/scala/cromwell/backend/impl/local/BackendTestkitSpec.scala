@@ -8,13 +8,18 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionFailedRetryableResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.local.TestWorkflows.TestWorkflow
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{EvaluatorBuilder, WorkflowId, WorkflowOptions}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{Matchers, Tag}
 import spray.json.{JsObject, JsValue}
 import wdl4s._
+import wdl4s.expression.WdlFunctions
 import wdl4s.values.WdlValue
+import cromwell.core._
+
+import scala.language.postfixOps
+import scala.util.Success
 
 object BackendTestkitSpec {
   implicit val testActorSystem = ActorSystem("LocalBackendSystem")
@@ -36,16 +41,57 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
+
+  // FIXME this is copy/paste from the engine...
+  def workflowInputsFor(workflowDescriptor: BackendWorkflowDescriptor, call: Call): Map[LocallyQualifiedName, WdlValue] = {
+    // Useful inputs are workflow level inputs and inputs for this specific call
+    def isUsefulInput(fqn: String) = fqn == call.fullyQualifiedName || fqn == workflowDescriptor.workflowNamespace.workflow.unqualifiedName
+
+    // inputs contains evaluated workflow level declarations and coerced json inputs.
+    // This evaluation work is done during the Materialization of WorkflowDescriptor
+    val splitFqns = workflowDescriptor.inputs map {
+      case (fqn, v) => fqn.splitFqn -> v
+    }
+    splitFqns collect {
+      case((root, inputName), v) if isUsefulInput(root) => inputName -> v // Variables are looked up with LQNs, not FQNs
+    }
+  }
+
+  def inputsFor(descriptor: BackendWorkflowDescriptor, call: Call): Map[LocallyQualifiedName, WdlValue] = {
+    // Task declarations that have a static value assigned
+    val staticDeclarations = call.task.declarations collect {
+      case declaration if declaration.expression.isDefined => declaration.name -> declaration.expression.get
+    } toMap
+
+    staticDeclarations ++ workflowInputsFor(descriptor, call) ++ call.inputMappings
+  }
+
   def buildWorkflowDescriptor(wdl: WdlSource,
+                              workflowDeclarations: Map[String, WdlValue] = Map.empty,
                               inputs: Map[String, WdlValue] = Map.empty,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
+    // Workflow declarations are evaluated in the engine. We have to pass them as an argument for now
+    // When https://github.com/broadinstitute/wdl4s/pull/25 is merged we could use staticWorkflowDeclarationsRecursive with stub engine functions to evaluate them
+
     new BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
+      workflowDeclarations ++ inputs,
       options
     )
+  }
+
+  def buildEvaluatorBuilder(call: Call, symbolsMap: Map[LocallyQualifiedName, WdlValue]) = {
+    def builder(engineFunctions: WdlFunctions[WdlValue], preValueMapper: StringMapper, postValueMapper: WdlValueMapper)(wdlValue: WdlValue) = {
+      val lookup = postValueMapper compose WdlExpression.standardLookupFunction(symbolsMap, call.task.declarations, engineFunctions) compose preValueMapper
+      wdlValue match {
+        case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions)
+        case v: WdlValue => Success(v)
+      }
+    }
+
+    new EvaluatorBuilder(builder)
   }
 
   def localBackend(jobDescriptor: BackendJobDescriptor, conf: BackendConfigurationDescriptor) = {
@@ -56,7 +102,10 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
                                           symbolsMap: Map[String, WdlValue] = Map.empty) = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    new BackendJobDescriptor(workflowDescriptor, jobKey, symbolsMap)
+    val unqualifiedWorkflowInputs = workflowDescriptor.inputs map { case (k, v) => k.unqualified -> v }
+    val inputsForCall: Map[wdl4s.LocallyQualifiedName, WdlValue] = inputsFor(workflowDescriptor, call)
+    val fullSymbolsMap = symbolsMap ++ unqualifiedWorkflowInputs ++ inputsForCall
+    new BackendJobDescriptor(workflowDescriptor, jobKey, buildEvaluatorBuilder(call, fullSymbolsMap), inputsForCall)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {

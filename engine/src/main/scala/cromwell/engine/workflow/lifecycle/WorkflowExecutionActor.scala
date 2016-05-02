@@ -1,14 +1,19 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{FSM, ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
-import cromwell.backend.{BackendJobDescriptorKey, BackendJobDescriptor, BackendConfigurationDescriptor}
-import cromwell.core.WorkflowId
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.core.{EvaluatorBuilder, WorkflowId, _}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.dummy.DummyBackendJobExecutionActor
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
-import wdl4s.Call
+import wdl4s.expression.WdlFunctions
+import wdl4s.values.WdlValue
+import wdl4s.{Call, LocallyQualifiedName, WdlExpression}
+
+import scala.language.postfixOps
+import scala.util.{Success, Try}
 
 object WorkflowExecutionActor {
 
@@ -56,7 +61,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   def startJob(call: Call) = {
     // TODO: Support indexes and retries:
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, Map.empty)
+    val evaluatorBuilder = new EvaluatorBuilder(evaluatorBuilderFor(call))
+    val inputs = inputsFor(call)
+    val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, evaluatorBuilder, inputs)
     val executionActor = backendForExecution(jobDescriptor, workflowDescriptor.backendAssignments(call))
     executionActor ! ExecuteJobCommand
   }
@@ -122,4 +129,66 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     } else {
       ??? //TODO: Implement!
     }
+
+
+  // Split inputs map (= evaluated workflow declarations + coerced json inputs) into [init\.*].last
+  private lazy val splitInputs = workflowDescriptor.backendDescriptor.inputs map {
+    case (fqn, v) => fqn.splitFqn -> v
+  }
+
+  // Unqualified workflow level inputs
+  private lazy val unqualifiedWorkflowInputs: Map[LocallyQualifiedName, WdlValue] = splitInputs collect {
+    case((root, inputName), v) if root == workflowDescriptor.namespace.workflow.unqualifiedName => inputName -> v
+  }
+
+  // Unqualified call inputs for a specific call, from the input json
+  private def unqualifiedCallInputs(call: Call): Map[LocallyQualifiedName, WdlValue] = splitInputs collect {
+    case((root, inputName), v) if root == call.fullyQualifiedName => inputName -> v
+  }
+
+  // Workflow inputs + call inputs, potentially unevaluated
+  private def staticInputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
+    unqualifiedWorkflowInputs ++ inputsFor(call)
+  }
+
+  /**
+    * Create a map of inputs for a specific call.
+    * This map may contain WdlExpressions that will need to be evaluated by the backend.
+    * TODO This can technically be done in the backend but seems very boilerplate and error prone. Maybe put it in a backend trait ?
+    */
+  private def inputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
+    // Task declarations that have a static value assigned
+    val staticDeclarations = call.task.declarations collect {
+      case declaration if declaration.expression.isDefined => declaration.name -> declaration.expression.get
+    } toMap
+
+    staticDeclarations ++ unqualifiedCallInputs(call) ++ call.inputMappings
+  }
+
+  /**
+    *
+    * @param preValueMapper applies a String => String function to the identifier, before attempting to resolve it
+    * @param postValueMapper applies a WdlValue => WdlValue function to the result of the evaluation
+    * @return a function that takes engineFunctions and pre/post value mappers, and returns an Evaluator
+    */
+  private def evaluatorBuilderFor(call: Call)
+                                 (engineFunctions: WdlFunctions[WdlValue],
+                                  preValueMapper: StringMapper,
+                                  postValueMapper: WdlValueMapper): Evaluator = {
+    def lookup = {
+      // The lookup function will need to be aware of call outputs, shards, scatter variables etc...
+      // This could be done by adding several type fo lookup (like in the old WA), or adding more information to the parameters map.
+      val standardLookupFunction = WdlExpression.standardLookupFunction(staticInputsFor(call), call.task.declarations, engineFunctions)
+       standardLookupFunction compose preValueMapper
+    }
+
+    def evaluator(wdlValue: WdlValue) = {
+      wdlValue match {
+        case wdlExpression: WdlExpression => wdlExpression.evaluate(lookup, engineFunctions) map postValueMapper
+        case v: WdlValue => Success(v)
+      }
+    }
+
+    new Evaluator(evaluator)
+  }
 }

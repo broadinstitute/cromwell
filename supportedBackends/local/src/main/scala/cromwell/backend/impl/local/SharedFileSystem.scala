@@ -7,7 +7,7 @@ import com.typesafe.config.Config
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core._
 import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.WdlFunctions
+import wdl4s.expression.{WdlEvaluator, WdlFunctions}
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlValue, _}
@@ -89,7 +89,7 @@ trait SharedFileSystem {
     case "copy" => localizePathViaCopy _
   })
 
-  def processOutputs(jobDescriptor: BackendJobDescriptor, workflowId: WorkflowId, evaluator: Evaluator, jobPaths: JobPaths): Try[CallOutputs] = {
+  def processOutputs(jobDescriptor: BackendJobDescriptor, workflowId: WorkflowId, evaluator: WdlEvaluator, jobPaths: JobPaths): Try[CallOutputs] = {
     def outputFoldingFunction = {
       (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
         currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, currentList)))
@@ -97,7 +97,7 @@ trait SharedFileSystem {
     }
 
     def outputLookup(taskOutput: TaskOutput, currentList: Seq[AttemptedLookupResult]) = for {
-      expressionValue <- evaluator.evaluate(taskOutput.requiredExpression)
+      expressionValue <- evaluator.evaluateValue(taskOutput.requiredExpression)
       convertedValue <- outputAutoConversion(jobDescriptor, taskOutput, expressionValue, jobPaths)
       pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, jobPaths.callRoot))
     } yield pathAdjustedValue

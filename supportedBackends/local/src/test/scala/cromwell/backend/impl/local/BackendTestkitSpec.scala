@@ -8,18 +8,17 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionFailedRetryableResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.local.TestWorkflows.TestWorkflow
-import cromwell.core.{EvaluatorBuilder, WorkflowId, WorkflowOptions}
+import cromwell.core.{WorkflowId, WorkflowOptions, _}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{Matchers, Tag}
 import spray.json.{JsObject, JsValue}
 import wdl4s._
-import wdl4s.expression.WdlFunctions
+import wdl4s.expression.WdlEvaluator.{StringMapper, WdlValueMapper}
+import wdl4s.expression.{WdlEvaluator, WdlEvaluatorBuilder, WdlFunctions}
 import wdl4s.values.WdlValue
-import cromwell.core._
 
 import scala.language.postfixOps
-import scala.util.{Failure, Try, Success}
 
 object BackendTestkitSpec {
   implicit val testActorSystem = ActorSystem("LocalBackendSystem")
@@ -89,22 +88,34 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
                      postValueMapper: WdlValueMapper = identity) = {
 
     val lookup = WdlExpression.standardLookupFunction(symbolsMap, call.task.declarations, engineFunctions) compose preValueMapper
-    new Evaluator(lookup, engineFunctions, preValueMapper, postValueMapper)
+    new WdlEvaluator(lookup, engineFunctions, preValueMapper, postValueMapper)
   }
 
   def localBackend(jobDescriptor: BackendJobDescriptor, conf: BackendConfigurationDescriptor) = {
     TestActorRef(new LocalJobExecutionActor(jobDescriptor, conf)).underlyingActor
   }
 
+  def resolveCallDeclarations(call: Call, symbols: Map[String, WdlValue]): Seq[ResolvedDeclaration] = {
+    call.task.declarations collect {
+      case decl if decl.expression.isDefined => decl.resolveWith(decl.expression.get)
+      case decl if call.inputMappings.contains(decl.name) => decl.resolveWith(call.inputMappings(decl.name))
+      case decl if symbols.contains(decl.name) => decl.resolveWith(symbols(decl.name))
+    }
+  }
+
+  def symbolsMapFor(call: Call, workflowDescriptor: BackendWorkflowDescriptor) = {
+    val unqualifiedWorkflowInputs = workflowDescriptor.inputs map { case (k, v) => k.unqualified -> v }
+    unqualifiedWorkflowInputs ++ inputsFor(workflowDescriptor, call)
+  }
+
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
                                           symbolsMap: Map[String, WdlValue] = Map.empty) = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    val unqualifiedWorkflowInputs = workflowDescriptor.inputs map { case (k, v) => k.unqualified -> v }
-    val inputsForCall: Map[wdl4s.LocallyQualifiedName, WdlValue] = inputsFor(workflowDescriptor, call)
-    val fullSymbolsMap = symbolsMap ++ unqualifiedWorkflowInputs ++ inputsForCall
-    val evaluatorBuilder = new EvaluatorBuilder(buildEvaluatorBuilder(call, fullSymbolsMap))
-    new BackendJobDescriptor(workflowDescriptor, jobKey, evaluatorBuilder, inputsForCall)
+    val fullSymbolsMap = symbolsMap ++ symbolsMapFor(call, workflowDescriptor)
+    val evaluatorBuilder = new WdlEvaluatorBuilder(buildEvaluatorBuilder(call, fullSymbolsMap))
+    val callDeclarations = resolveCallDeclarations(call, fullSymbolsMap)
+    new BackendJobDescriptor(workflowDescriptor, jobKey, evaluatorBuilder, callDeclarations)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {

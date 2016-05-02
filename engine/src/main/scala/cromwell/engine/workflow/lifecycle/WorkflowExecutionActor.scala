@@ -4,16 +4,16 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
-import cromwell.core.{EvaluatorBuilder, WorkflowId, _}
+import cromwell.core.{WorkflowId, _}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.dummy.DummyBackendJobExecutionActor
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
-import wdl4s.expression.WdlFunctions
+import wdl4s.expression.WdlEvaluator.{WdlValueMapper, StringMapper}
+import wdl4s.{LocallyQualifiedName, _}
+import wdl4s.expression.{WdlEvaluator, WdlEvaluatorBuilder, WdlFunctions}
 import wdl4s.values.WdlValue
-import wdl4s.{Call, LocallyQualifiedName, WdlExpression}
 
 import scala.language.postfixOps
-import scala.util.{Success, Try}
 
 object WorkflowExecutionActor {
 
@@ -61,8 +61,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   def startJob(call: Call) = {
     // TODO: Support indexes and retries:
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val evaluatorBuilder = new EvaluatorBuilder(evaluatorFor(call))
-    val inputs = inputsFor(call)
+    val evaluatorBuilder = new WdlEvaluatorBuilder(evaluatorFor(call))
+    val inputs = resolveCallDeclarations(call)
     val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, evaluatorBuilder, inputs)
     val executionActor = backendForExecution(jobDescriptor, workflowDescriptor.backendAssignments(call))
     executionActor ! ExecuteJobCommand
@@ -148,23 +148,26 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
 
   // Workflow inputs + call inputs, potentially unevaluated
   private def staticInputsFor(call: Call): Map[LocallyQualifiedName, WdlValue] = {
-    val callInputs = inputsFor(call) map { _.toNameValuePair }
-    unqualifiedWorkflowInputs ++ callInputs
+    val resolvedDeclarations = resolveCallDeclarations(call) collect {
+      case declaration => declaration.name -> declaration.unevaluatedValue
+    }
+    unqualifiedWorkflowInputs ++ (resolvedDeclarations toMap)
   }
 
   /**
-    * Create a map of inputs for a specific call.
-    * This map may contain WdlExpressions that will need to be evaluated by the backend.
-    * TODO This can technically be done in the backend but seems very boilerplate and error prone. Maybe put it in a backend trait ?
+    * Try to resolve call input declarations (= find the corresponding WdlExpression)
+    * using workflow level inputs, input mappings, or declaration definition.
+    * Note 1: workflow level declarations are evaluated WdlValues
+    * Note 2: Unresolved declarations are removed from the list,
+    * it's up to the backend to verify that all inputs are resolved if they want to.
     */
-  private def inputsFor(call: Call): Seq[ResolvedDeclaration] = {
+  private def resolveCallDeclarations(call: Call): Seq[ResolvedDeclaration] = {
     val inputsFromWorkflow = unqualifiedCallInputs(call)
 
-    call.task.declarations map {
-      case decl if decl.expression.isDefined => ResolvedDeclaration(decl.wdlType, decl.name, decl.expression.get)
-      case decl if call.inputMappings.contains(decl.name) => ResolvedDeclaration(decl.wdlType, decl.name, call.inputMappings(decl.name))
-      case decl if inputsFromWorkflow.contains(decl.name) => ResolvedDeclaration(decl.wdlType, decl.name, inputsFromWorkflow(decl.name))
-      case _ => throw new RuntimeException("Cannot resolve task declaration. This should have already been caught at namespace resolution time.")
+    call.task.declarations collect {
+      case decl if decl.expression.isDefined => decl.resolveWith(decl.expression.get)
+      case decl if call.inputMappings.contains(decl.name) => decl.resolveWith(call.inputMappings(decl.name))
+      case decl if inputsFromWorkflow.contains(decl.name) => decl.resolveWith(inputsFromWorkflow(decl.name))
     }
   }
 
@@ -177,14 +180,11 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   private def evaluatorFor(call: Call)
                                  (engineFunctions: WdlFunctions[WdlValue],
                                   preValueMapper: StringMapper,
-                                  postValueMapper: WdlValueMapper): Evaluator = {
-    def lookup = {
-      // The lookup function will need to be aware of call outputs, shards, scatter variables etc...
-      // This could be done by adding several type fo lookup (like in the old WA), or adding more information to the parameters map.
-      val standardLookupFunction = WdlExpression.standardLookupFunction(staticInputsFor(call), call.task.declarations, engineFunctions)
-       standardLookupFunction compose preValueMapper
-    }
+                                  postValueMapper: WdlValueMapper): WdlEvaluator = {
+    // The lookup function will need to be aware of call outputs, shards, scatter variables etc...
+    // This could be done by adding several type fo lookup (like in the old WA), or adding more information to the parameters map.
+    def lookup = WdlExpression.standardLookupFunction(staticInputsFor(call), call.task.declarations, engineFunctions)
 
-    new Evaluator(lookup, engineFunctions, preValueMapper, postValueMapper)
+    new WdlEvaluator(lookup, engineFunctions, preValueMapper, postValueMapper)
   }
 }

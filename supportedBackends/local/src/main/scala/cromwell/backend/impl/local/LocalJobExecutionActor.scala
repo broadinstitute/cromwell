@@ -64,7 +64,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val evaluator = jobDescriptor.evaluatorBuilder.build(callEngineFunction)
 
   val runtimeAttributes = {
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluator.evaluate
+    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluator.evaluateValue
     // Fail the call if runtime attributes can't be evaluated
     val evaluatedAttributes = TryUtils.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
     LocalRuntimeAttributes(evaluatedAttributes)
@@ -81,7 +81,6 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   lazy val stderrTailed = jobPaths.stderr.tailed(100)
 
   override def preStart() = {
-    // workflowPaths.workflowRoot.createDirectories() TODO move to initialize actor
     jobPaths.callRoot.createDirectories()
   }
 
@@ -92,7 +91,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
     val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
 
-    val callInputs = evaluateInputs(evaluator)
+    val callInputs = evaluateInputs(evaluator) map { case (decl, v) => decl.name -> v }
 
     TryUtils.sequenceMap(callInputs, "Job Input evaluation") flatMap { inputs =>
       val localizedInputs = localizeInputs(jobPaths, runsOnDocker, fileSystems, inputs)

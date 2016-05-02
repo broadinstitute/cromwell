@@ -2,13 +2,14 @@ package cromwell.backend
 
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.core._
-import cromwell.core.Evaluator
-import wdl4s.Call
+import wdl4s.values.WdlValue
+import wdl4s.{Declaration, Call}
+import wdl4s.expression.WdlEvaluator
+import wdl4s.expression.WdlEvaluator.ExpressionNotFound
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 object BackendLifecycleActor {
 
@@ -74,5 +75,8 @@ trait BackendWorkflowLifecycleActor extends BackendLifecycleActor {
 
 trait BackendJobLifecycleActor extends BackendLifecycleActor {
   protected def jobDescriptor: BackendJobDescriptor
-  protected def evaluateInputs(evaluator: Evaluator) = evaluator.evaluateDeclarations(jobDescriptor.unevaluatedInputs)
+
+  protected def evaluateInputs(evaluator: WdlEvaluator): Map[Declaration, Try[WdlValue]] = {
+    evaluator.evaluateDeclarations(jobDescriptor.unevaluatedInputs)
+  }
 }

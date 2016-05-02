@@ -21,7 +21,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
                                override val calls: Seq[Call],
                                override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
 
-  private val workflowPaths = new WorkflowPaths(workflowDescriptor, backendConfiguration)
+  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig)
 
   /**
     * Abort all initializations.

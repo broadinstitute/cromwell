@@ -1,14 +1,16 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{FSM, ActorRef, LoggingFSM, Props}
-import com.typesafe.config.ConfigFactory
+import akka.actor.{FSM, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
-import cromwell.backend.{BackendJobDescriptorKey, BackendJobDescriptor, BackendConfigurationDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.dummy.DummyBackendJobExecutionActor
+import cromwell.engine.backend.{BackendConfiguration, CromwellBackend}
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
-import wdl4s.Call
+import wdl4s._
+import wdl4s.values.WdlValue
+
+import scala.util.Success
 
 object WorkflowExecutionActor {
 
@@ -53,19 +55,59 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   val tag = self.path.name
   startWith(WorkflowExecutionPendingState, WorkflowExecutionActorData())
 
-  def startJob(call: Call) = {
-    // TODO: Support indexes and retries:
-    val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor: BackendJobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, Map.empty)
-    val executionActor = backendForExecution(jobDescriptor, workflowDescriptor.backendAssignments(call))
-    executionActor ! ExecuteJobCommand
+  /** PBE: the return value of WorkflowExecutionActorState is just temporary.
+    *      This should probably return a Try[BackendJobDescriptor], Unit, Boolean,
+    *      Try[ActorRef], or something to indicate if the job was started
+    *      successfully.  Or, if it can fail to start, some indication of why it
+    *      failed to start
+    */
+  private def startJob(jobKey: BackendJobDescriptorKey,
+                       inputs: Map[FullyQualifiedName, WdlValue],
+                       configDescriptor: BackendConfigurationDescriptor,
+                       factory: BackendLifecycleActorFactory): WorkflowExecutionActorState = {
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, inputs)
+    val jobExecutionActor = context.actorOf(
+      factory.jobExecutionActorProps(
+        jobDescriptor,
+        BackendConfigurationDescriptor(configDescriptor.backendConfig, configDescriptor.globalConfig)
+      ),
+      s"$workflowId-BackendExecutionActor-${jobDescriptor.key.tag}"
+    )
+    jobExecutionActor ! ExecuteJobCommand
+    WorkflowExecutionInProgressState
+  }
+
+  private def startJob(jobKey: BackendJobDescriptorKey, inputs: Map[FullyQualifiedName, WdlValue]): WorkflowExecutionActorState = {
+    workflowDescriptor.backendAssignments.get(jobKey.call) match {
+      case None =>
+        val message = s"Could not start call ${jobKey.tag} because it was not assigned a backend"
+        log.error(s"$tag $message")
+        context.parent ! WorkflowExecutionFailedResponse(Seq(new Exception(message)))
+        WorkflowExecutionFailedState
+      case Some(backendName) =>
+        val attemptedConfigurationDescriptor = BackendConfiguration.backendConfigurationDescriptor(backendName)
+        val attemptedActorFactory = CromwellBackend.shadowBackendLifecycleFactory(backendName)
+
+        (attemptedConfigurationDescriptor, attemptedActorFactory) match {
+          case (Success(configDescriptor), Success(factory)) =>
+            startJob(jobKey, inputs, configDescriptor, factory)
+          case (_, _) =>
+            val errors = List(
+              attemptedActorFactory.failed.map(new Exception(s"Could not get BackendLifecycleActor for backend $backendName", _)).toOption,
+              attemptedConfigurationDescriptor.failed.map(new Exception(s"Could not get BackendConfigurationDescriptor for backend $backendName", _)).toOption
+            ).flatten
+            context.parent ! WorkflowExecutionFailedResponse(errors)
+            WorkflowExecutionFailedState
+        }
+    }
   }
 
   when(WorkflowExecutionPendingState) {
     case Event(StartExecutingWorkflowCommand, _) =>
       if (workflowDescriptor.namespace.workflow.calls.size == 1) {
-        startJob(workflowDescriptor.namespace.workflow.calls.head)
-        goto(WorkflowExecutionInProgressState)
+        val jobKey = BackendJobDescriptorKey(workflowDescriptor.namespace.workflow.calls.head, None, 1)
+        val nextState = startJob(jobKey, Map.empty)
+        goto(nextState)
       } else {
         // TODO: We probably do want to support > 1 call in a workflow!
         sender ! WorkflowExecutionFailedResponse(Seq(new Exception("Execution is not implemented for call count != 1")))
@@ -108,18 +150,4 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     case fromState -> toState =>
       log.info(s"$tag transitioning from $fromState to $toState.")
   }
-
-  /**
-    * Creates an appropriate BackendJobExecutionActor to run a single job, according to the backend assignments.
-    */
-  def backendForExecution(jobDescriptor: BackendJobDescriptor, backendName: String): ActorRef =
-    if (backendName == "dummy") {
-      // Don't judge me! This is obviously not "production ready"!
-      val configDescriptor = BackendConfigurationDescriptor("", ConfigFactory.load())
-      val props = DummyBackendJobExecutionActor.props(jobDescriptor, configDescriptor)
-      val key = jobDescriptor.key
-      context.actorOf(props, name = s"${jobDescriptor.descriptor.id}-BackendExecutionActor-${key.call.taskFqn}-${key.index}-${key.attempt}")
-    } else {
-      ??? //TODO: Implement!
-    }
 }

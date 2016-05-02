@@ -23,7 +23,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       "salutation" -> CallOutput(WdlString("Hello you !"), None)
     )
     val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
-    val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld), defaultBackendConfig, expectedResponse)
+    val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
   }
@@ -33,24 +33,23 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       "salutation" -> CallOutput(WdlString("Hello you !"), None)
     )
     val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
-    val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""), defaultBackendConfig, expectedResponse)
+    val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
   }
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse = BackendJobExecutionFailedResponse(mock[BackendJobDescriptorKey], new Exception())
-    val wf = new TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), defaultBackendConfig, expectedResponse)
+    val wf = new TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
   }
 
   it should "execute calls with input files and localize them appropriately" in {
 
-    def templateConf(localizers: String) = BackendConfigurationDescriptor("config",
+    def templateConf(localizers: String) = BackendConfigurationDescriptor(
       ConfigFactory.parseString(
-        s"""
-           |config {
+        s"""{
            |  root = "local-cromwell-executions"
            |  filesystems {
            |    local {
@@ -60,7 +59,8 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
            |    }
            |  }
            |}
-        """.stripMargin)
+        """.stripMargin),
+      ConfigFactory.parseString("{}")
     )
 
     val hardConf = templateConf("hard-link")
@@ -95,7 +95,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
       val expectedResponse = BackendJobExecutionSucceededResponse(jobDescriptor.key, expectedOutputs)
 
-      val jobPaths = new JobPaths(wf, defaultConfig, jobDescriptor.key)
+      val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key)
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
@@ -120,7 +120,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       "outFloats" -> CallOutput(WdlArray(WdlArrayType(WdlFloatType), Array(WdlFloat(48), WdlFloat(63))), None)
     )
     val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
-    val wf = new TestWorkflow(buildWorkflowDescriptor(InputExpressions), defaultBackendConfig, expectedResponse)
+    val wf = new TestWorkflow(buildWorkflowDescriptor(InputExpressions), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
   }
@@ -128,23 +128,10 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
   it should "abort a job and kill a process" in {
     val wf = buildWorkflowDescriptor(Sleep10)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
-    val backend = localBackend(jobDescriptor, defaultBackendConfig)
+    val backend = localBackend(jobDescriptor, defaultBackendConfigDescriptor)
 
     val execute = backend.execute
     val abort = backend.abortJob
-
-    whenReady(execute) { executionResponse =>
-      executionResponse shouldBe a[BackendJobExecutionAbortedResponse]
-    }
-  }
-
-  it should "preemptively abort if execution hasn't been requested yet" in {
-    val wf = buildWorkflowDescriptor(Sleep10)
-    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
-    val backend = localBackend(jobDescriptor, defaultBackendConfig)
-
-    backend.abortJob
-    val execute = backend.execute
 
     whenReady(execute) { executionResponse =>
       executionResponse shouldBe a[BackendJobExecutionAbortedResponse]
@@ -162,7 +149,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("i" -> WdlInteger(shard))
 
       val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
-      val backend = localBackend(jd, defaultBackendConfig)
+      val backend = localBackend(jd, defaultBackendConfigDescriptor)
       val response = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], Map("out" -> CallOutput(WdlInteger(shard), None)))
       executeJobAndAssertOutputs(backend, response)
     }

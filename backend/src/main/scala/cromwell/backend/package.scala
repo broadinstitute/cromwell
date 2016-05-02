@@ -42,5 +42,5 @@ package object backend {
   /**
     * For passing to a BackendActor construction time
     */
-  case class BackendConfigurationDescriptor(configPath: String, config: Config)
+  case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config)
 }

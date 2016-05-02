@@ -1,12 +1,13 @@
 package cromwell
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
 import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
+import cromwell.backend.{BackendJobDescriptor, BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendLifecycleActorFactory}
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
@@ -19,6 +20,7 @@ import cromwell.webservice.CromwellApiHandler._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
+import wdl4s.Call
 import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 
 import scala.concurrent.duration._
@@ -26,6 +28,19 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
+
+case class TestBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {
+  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                                calls: Seq[Call],
+                                                configurationDescriptor: BackendConfigurationDescriptor): Option[Props] = None
+
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                      configurationDescriptor: BackendConfigurationDescriptor): Props = {
+    throw new NotImplementedError("this is not implemented")
+  }
+
+  override def workflowFinalizationActorProps(): Option[Props] = None
+}
 
 object CromwellTestkitSpec {
   val ConfigText =
@@ -169,7 +184,11 @@ object CromwellTestkitSpec {
     """.stripMargin)
 
   lazy val DefaultLocalBackendConfigEntry = BackendConfigurationEntry(
-    name = "local", className = "cromwell.engine.backend.local.LocalBackend", DefaultLocalBackendConfig)
+    name = "local",
+    className = "cromwell.engine.backend.local.LocalBackend",
+    shadowLifecycleActorFactoryClass = "cromwell.TestBackendLifecycleActorFactory",
+    DefaultLocalBackendConfig
+  )
 
   lazy val JesBackendConfig = ConfigFactory.parseString(
     """
@@ -193,7 +212,7 @@ object CromwellTestkitSpec {
       |  genomics {
       |    // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
       |    // Pipelines and manipulate auth JSONs.
-      |    auth = "cromwell-service-account"
+      |    auth = "service-account"
       |
       |    // Endpoint for APIs, no reason to change this unless directed by Google.
       |    endpoint-url = "https://genomics.googleapis.com/"
@@ -208,8 +227,12 @@ object CromwellTestkitSpec {
       |}
     """.stripMargin)
 
-    lazy val JesBackendConfigEntry = BackendConfigurationEntry(
-      name = "JES", className = "cromwell.engine.backend.jes.JesBackend", JesBackendConfig)
+  lazy val JesBackendConfigEntry = BackendConfigurationEntry(
+    name = "JES",
+    className = "cromwell.engine.backend.jes.JesBackend",
+    shadowLifecycleActorFactoryClass = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory",
+    JesBackendConfig
+  )
 }
 
 abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)

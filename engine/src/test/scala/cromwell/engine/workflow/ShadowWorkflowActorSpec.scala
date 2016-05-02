@@ -4,40 +4,30 @@ import akka.testkit.TestFSMRef
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
+import cromwell.engine.backend.{CromwellBackend, WorkflowDescriptorBuilder}
 import cromwell.engine.workflow.ShadowWorkflowActor._
 import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorCommand, ShadowMaterializeWorkflowDescriptorFailureResponse, ShadowMaterializeWorkflowDescriptorSuccessResponse, ShadowWorkflowDescriptorMaterializationResult}
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor.WorkflowLifecycleActorData
 import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 import cromwell.util.SampleWdl.{HelloWorld, ThreeStep}
+import org.scalatest.BeforeAndAfter
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.Await
 
-class ShadowWorkflowActorSpec extends CromwellTestkitSpec {
-
-  // Blocking call to get the `EngineWorkflowDescriptor`
-  private def createMaterializedEngineWorkflowDescriptor(workflowSources: WorkflowSourceFiles): EngineWorkflowDescriptor = {
-    import akka.pattern.ask
-
-    import scala.concurrent.duration._
-
-    val actor = system.actorOf(ShadowMaterializeWorkflowDescriptorActor.props())
-    val workflowDescriptorFuture =
-      (actor ? ShadowMaterializeWorkflowDescriptorCommand(WorkflowId.randomId(), workflowSources, ConfigFactory.load))
-        .mapTo[ShadowWorkflowDescriptorMaterializationResult]
-
-    Await.result(workflowDescriptorFuture map {
-      case ShadowMaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor) => workflowDescriptor
-      case ShadowMaterializeWorkflowDescriptorFailureResponse(reason) => throw reason
-    }, 3.seconds)
-  }
-
+class ShadowWorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {
+  override implicit val actorSystem = system
   private def createWorkflowActor(workflowId: WorkflowId = WorkflowId.randomId(),
                                   startMode: StartMode = StartNewWorkflow,
                                   wdlSource: WorkflowSourceFiles) = {
-    TestFSMRef(new ShadowWorkflowActor(workflowId, startMode, wdlSource,ConfigFactory.load()))
+    TestFSMRef(new ShadowWorkflowActor(workflowId, startMode, wdlSource, ConfigFactory.load))
+  }
+
+  before {
+    val local = CromwellTestkitSpec.DefaultLocalBackendConfigEntry
+    CromwellBackend.initBackends(List(local), local, system, shadowExecutionEnabled = true)
   }
 
   "ShadowWorkflowActor" should {
@@ -53,18 +43,19 @@ class ShadowWorkflowActorSpec extends CromwellTestkitSpec {
 
     "transition to InitializingWorkflowState with correct call assignments given workflow options" in {
       import scala.concurrent.duration._
+
       val wfOptions =
         """{
-          | "backend": "Jes"
+          | "backend": "local"
           |}
         """.stripMargin
       val runtimeAttributes =
         """runtime {
           | backend: "SGE"
           |}""".stripMargin
-      // WorkflowOptions (Jes) should trump runtime attributes (SGE)
+      // WorkflowOptions (local) should trump runtime attributes (SGE)
       val wdlSources = ThreeStep.asWorkflowSources(runtime = runtimeAttributes, workflowOptions = wfOptions)
-      val descriptor = createMaterializedEngineWorkflowDescriptor(workflowSources = wdlSources)
+      val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = wdlSources)
       val testActor = createWorkflowActor(wdlSource = wdlSources)
       testActor.setState(stateName = MaterializingWorkflowDescriptorState, stateData = ShadowWorkflowActorData.empty)
       within(5.seconds) {
@@ -80,10 +71,10 @@ class ShadowWorkflowActorSpec extends CromwellTestkitSpec {
       import scala.concurrent.duration._
       val runtimeAttributes =
         """runtime {
-          | backend: "SGE"
+          | backend: "local"
           |}""".stripMargin
       val wdlSources = ThreeStep.asWorkflowSources(runtime = runtimeAttributes)
-      val descriptor = createMaterializedEngineWorkflowDescriptor(workflowSources = wdlSources)
+      val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = wdlSources)
       val testActor = createWorkflowActor(wdlSource = wdlSources)
       testActor.setState(stateName = MaterializingWorkflowDescriptorState, stateData = ShadowWorkflowActorData.empty)
       within(5.seconds) {

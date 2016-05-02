@@ -7,10 +7,12 @@ import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
-import cromwell.engine.{ExecutionStatus, WorkflowSucceeded, WorkflowSourceFiles}
 import cromwell.engine.backend.io._
 import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializationResult, MaterializeWorkflowDescriptorSuccess}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationResult, MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
+import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorFailureResponse, ShadowMaterializeWorkflowDescriptorSuccessResponse, ShadowWorkflowDescriptorMaterializationResult, ShadowMaterializeWorkflowDescriptorCommand}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, WorkflowSourceFiles, WorkflowSucceeded}
 import cromwell.util.{PromiseActor, SampleWdl}
 import cromwell.webservice.WorkflowMetadataResponse
 import org.joda.time.DateTime
@@ -32,19 +34,34 @@ trait WorkflowDescriptorBuilder {
                                                workflowSources: WorkflowSourceFiles,
                                                conf: Config = ConfigFactory.load): WorkflowDescriptor = {
     import PromiseActor.EnhancedActorRef
-
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props())
-
-    val wfDesc = materializeWorkflowDescriptorActor.askNoTimeout(MaterializeWorkflowDescriptorActor.MaterializeWorkflow(id, workflowSources, conf)).
-      mapTo[MaterializationResult]  map {
+    val wfDesc = materializeWorkflowDescriptorActor.askNoTimeout(
+      MaterializeWorkflowDescriptorActor.MaterializeWorkflow(id, workflowSources, conf)
+    ).mapTo[MaterializationResult] map {
       case MaterializeWorkflowDescriptorSuccess(workflowDescriptor) => workflowDescriptor
       case MaterializeWorkflowDescriptorFailure(error) => throw error
     }
     val workflowDesc = Await.result(wfDesc, awaitTimeout)
     actorSystem.stop(materializeWorkflowDescriptorActor)
     workflowDesc
+  }
+
+  def createMaterializedEngineWorkflowDescriptor(id: WorkflowId, workflowSources: WorkflowSourceFiles): EngineWorkflowDescriptor = {
+    import akka.pattern.ask
+    implicit val timeout = akka.util.Timeout(awaitTimeout)
+    implicit val ec = actorSystem.dispatcher
+
+    val actor = actorSystem.actorOf(ShadowMaterializeWorkflowDescriptorActor.props())
+    val workflowDescriptorFuture = actor.ask(
+      ShadowMaterializeWorkflowDescriptorCommand(id, workflowSources, ConfigFactory.load)
+    ).mapTo[ShadowWorkflowDescriptorMaterializationResult]
+
+    Await.result(workflowDescriptorFuture map {
+      case ShadowMaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor) => workflowDescriptor
+      case ShadowMaterializeWorkflowDescriptorFailureResponse(reason) => throw reason
+    }, awaitTimeout)
   }
 }
 

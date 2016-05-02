@@ -2,15 +2,11 @@ package cromwell.backend.impl.htcondor
 
 import akka.actor.Props
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
-import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core._
 import wdl4s.Call
 
 import scala.concurrent.Future
-import scalaz.Scalaz._
 
 object HtCondorInitializationActor {
   val SupportedKeys = Set(Docker, FailOnStderr, ContinueOnReturnCode)

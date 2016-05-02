@@ -2,6 +2,7 @@ package cromwell.engine.workflow
 
 import akka.actor.ActorRef
 import akka.testkit.TestDuration
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
@@ -58,8 +59,8 @@ class MaterializeWorkflowDescriptorActorSpec
   before {
     materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props())
     // Needed since we might want to run this test as test-only
-    val local = BackendConfigurationEntry("local", "cromwell.engine.backend.local.LocalBackend", CromwellTestkitSpec.DefaultLocalBackendConfig)
-    CromwellBackend.initBackends(List(local), local, system)
+    val local = CromwellTestkitSpec.DefaultLocalBackendConfigEntry
+    CromwellBackend.initBackends(List(local), local, system, shadowExecutionEnabled = false)
     CromwellBackend.registerCustomBackend("retryableCallsSpecBackend", backendMock)
   }
 

@@ -304,34 +304,36 @@ Cromwell distribution:
 * Sun GridEngine - Use `qsub` and job monitoring to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
 
-Backends are specified in the `backend` configuration block.  Each backend has a configuration that looks like:
+Backends are specified in the `backend` configuration block under `providers`.  Each backend has a configuration that looks like:
 
 ```hocon
-{
-  name = "Backend Name"
-  class = "FQN of backend class"
-  config {
-    key = "value"
-    key2 = "value2"
-    ...
+backend {
+  providers {
+    BackendName {
+      actor-factory = "FQN of BackendLifecycleActorFactory instance"
+      config {
+        key = "value"
+        key2 = "value2"
+        ...
+      }
+    }
   }
 }
 ```
 
 The structure within the `config` block will vary from one backend to another; it is the backend implementation's responsibility
 to be able to interpret its configuration.
-  
+
 In the example below all three backend types are named within the `providers` section here, so all three
-are available.  The default backend is specified by `backend.default` and must match the `name` of one of the 
+are available.  The default backend is specified by `backend.default` and must match the `name` of one of the
 configured backends:
 
 ```hocon
 backend {
   default = "Local"
-  providers = [
-    {
-      name = "Local"
-      class = "cromwell.engine.backend.local.LocalBackend"
+  providers {
+    Local {
+      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
       config {
         root: "cromwell-executions"
         filesystems = {
@@ -347,9 +349,8 @@ backend {
         }
       }
     },
-    {
-      name = "SGE"
-      class = "cromwell.engine.backend.sge.SgeBackend"
+    SGE {
+      actor-factory = "cromwell.backend.impl.sge.SgeBackendLifecycleActorFactory"
       config {
         root: "cromwell-executions"
         filesystems = {
@@ -361,9 +362,8 @@ backend {
         }
       }
     },
-    {
-      name = "JES"
-      class = "cromwell.engine.backend.jes.JesBackend"
+    JES {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
       config {
         project = "my-cromwell-workflows"
         root = "gs://my-cromwell-workflows-bucket"
@@ -613,10 +613,9 @@ If your project is `my-project` your bucket is `gs://my-bucket/`, then update yo
 ```hocon
 backend {
   default = "JES"
-  providers = [
-    {
-      name = "JES"
-      class = "cromwell.engine.backend.jes.JesBackend"
+  providers {
+    JES {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
       config {
         project = "my-project"
         root = "gs://my-bucket"
@@ -718,13 +717,13 @@ The refresh token is passed to JES along with the `client-id` and `client-secret
 It is possible to reference private docker images in DockerHub to be run on JES.
 However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
 
+
 ```
 backend {
   default = "JES"
-  providers = [
-    { 
-      name = "JES"
-      class = "..."
+  providers {
+    JES {
+      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
       config {
         dockerhub {
         account = "mydockeraccount@mail.com"

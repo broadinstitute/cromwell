@@ -7,7 +7,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendTestkitSpec {
   "WorkflowPaths" should "provide correct paths for a workflow" in {
 
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
-    val workflowPaths = new WorkflowPaths(wd, defaultConfig)
+    val workflowPaths = new WorkflowPaths(wd, backendConfig)
     val id = wd.id
     workflowPaths.workflowRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id"

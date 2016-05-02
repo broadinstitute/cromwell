@@ -12,6 +12,7 @@ import spray.http.{HttpResponse, HttpRequest, FormData}
 import spray.httpx.{PipelineException, UnsuccessfulResponseException}
 import spray.httpx.unmarshalling._
 import better.files._
+import centaur.json.JsonUtils._
 
 import scala.annotation.tailrec
 import scala.concurrent.{Await, Future}
@@ -117,55 +118,58 @@ object Operations {
     }
   }
 
+  private val AllowedKeys = Set("runtimeAttributes", "preemptible", "executionStatus")
+
   /**
-    * This method uses a Metadata JSON returned by Cromwell as it's parameter,
-    * and creates a test map. Since there can be many attempts per call,
-    * this method takes the last call attempt, and filters the metadata
-    * key value pairs by those of interest.
+    * This method uses a Metadata JSON returned by Cromwell as its parameter,
+    * and creates a test map. It flattens the nested JSON into a Map[String, JsValue]
+    * and it filters the keys of interest.
     */
-  private def convertMetadataToTestMap(metadataJson: String): Map[String, JsObject] = {
-    val calls = metadataJson.parseJson.asJsObject.fields.get("calls").get.asJsObject
-    val listOfkeys = Seq("runtimeAttributes", "preemptible", "executionStatus")
-
-    val lastCallAttempt = calls.fields map {
-      case (k1, allCallAttempts: JsArray) =>
-        val lastCallAttempt = allCallAttempts.elements.last.asJsObject
-        val filteredCallAttributes = lastCallAttempt.fields collect {
-          case (k2, callAttributes) if listOfkeys.contains(k2) => k2 -> callAttributes
-        }
-        k1 -> JsObject(filteredCallAttributes)
-
-      case(k, v) => throw new Exception(s"Wrong Js parameter for $k, Call attempts are expected to be in a JsArray")
-    }
-
-    lastCallAttempt
+  private def makeMetadataMap(metadataJson: String): Map[String, JsValue] = {
+    metadataJson.parseJson.asJsObject.flatten().fields filter { case (k, v) => AllowedKeys exists { x => k.contains(x) } }
   }
 
   private def makeOutputMap(metadataJson: String): Map[String, JsValue] = {
     // Need DefaultJsonProtocol export to use convertTo[Map[String,String]]
     import DefaultJsonProtocol._
     val outputs = metadataJson.parseJson.asJsObject.fields.get("outputs").get.asJsObject.toString
-
     outputs.parseJson.convertTo[Map[String, JsValue]]
   }
 
+  /**
+    * This method accepts the two maps being compared, Workflow Request, and type of Map
+    * (metadata/output). It finds and prints the differences in the keys/values of the two maps.
+    */
+  def printMapDiff(expectedMetadata: Option[Map[String, JsValue]], actualMetadata: Map[String, JsValue], request: WorkflowRequest, testType: String) = {
+    val expectedMap = expectedMetadata.get
+
+    val diff = expectedMap.keySet -- actualMetadata.keySet
+    println(s"For workflow ${request.name}: \nMissing expected $testType fields: $diff")
+
+    expectedMap foreach { case (k, v: JsValue) =>
+      if (actualMetadata.contains(k) && (!v.toString.equals(actualMetadata.get(k).mkString))) {
+          println(s"Unexpected $testType for key: $k. Found: ${v.toString} Expected: ${actualMetadata.get(k).mkString}")
+      }
+    }
+  }
 
   def verifyMetadataAndOutputs(workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
     new Test[Workflow] {
-      val expectedMap: Option[Map[String, JsObject]] = request.metadata map { metadataString: String => convertMetadataToTestMap(metadataString) }
+      val expectedMap: Option[Map[String, JsValue]] = request.metadata map { metadataString: String => makeMetadataMap(metadataString) }
       val expectedOutputMap: Option[Map[String, JsValue]] = request.metadata map { metadataString: String => makeOutputMap(metadataString) }
 
-      def verifyWorkflowMetadata(metadata: Map[String, JsObject]) = {
-        expectedMap match {
-          case Some(expected) if !expected.equals(metadata) => throw new Exception(s"Bad Metadata for Workflow ${request.name}")
-          case _ =>
+
+      def verifyWorkflowMetadata(metadata: Map[String, JsValue]) = {
+        if (!expectedMap.equals(Some(metadata))) {
+          printMapDiff(expectedMap, metadata, request, "metadata")
+          throw new Exception(s"Metadata mismatch found for workflow ${request.name}.")
         }
       }
 
       def verifyWorkflowOutputs(outputs: Map[String, JsValue]) = {
-        expectedOutputMap match {
-          case Some(expected) if !expected.equals(outputs) => throw new Exception(s"Bad outputs for Workflow ${request.name}")
-          case _ =>
+        if (!expectedOutputMap.equals(Some(outputs))) {
+        printMapDiff(expectedOutputMap, outputs, request, "outputs")
+        throw new Exception(s"Output mismatch found for workflow ${request.name}.")
         }
       }
 
@@ -180,7 +184,7 @@ object Operations {
         val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
         sendReceiveFutureCompletion(response map { allMetadata =>
           ensureExpectedFile(allMetadata)
-          verifyWorkflowMetadata(convertMetadataToTestMap(allMetadata))
+          verifyWorkflowMetadata(makeMetadataMap(allMetadata))
           verifyWorkflowOutputs(makeOutputMap(allMetadata))
 
           workflow

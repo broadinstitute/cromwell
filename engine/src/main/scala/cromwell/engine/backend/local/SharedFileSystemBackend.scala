@@ -3,8 +3,8 @@ package cromwell.engine.backend.local
 import java.nio.file._
 
 import better.files._
-import cromwell.WorkflowEngineFunctions
 import cromwell.backend.ExecutionEventEntry
+import cromwell.backend.wdl.OldWorkflowEngineFunctions
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine.backend
 import cromwell.engine.backend._
@@ -122,7 +122,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: OldStyleBacken
 
   def rootPath(workflowOptions: WorkflowOptions) = CromwellExecutionRoot
 
-  def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
+  def engineFunctions(fileSystems: List[FileSystem], workflowContext: OldWorkflowContext): OldWorkflowEngineFunctions = {
     new OldStyleLocalWorkflowEngineFunctions(fileSystems, workflowContext)
   }
 
@@ -334,12 +334,12 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: OldStyleBacken
     case x => x
   }
 
-  protected def buildCallContext(descriptor: OldStyleBackendCallJobDescriptor): CallContext = {
+  protected def buildCallContext(descriptor: OldStyleBackendCallJobDescriptor): OldCallContext = {
     val callRoot = callRootPath(descriptor)
     val stdout = callRoot.resolve("stdout")
     val stderr = callRoot.resolve("stderr")
 
-    new CallContext(callRoot.fullPath, stdout.fullPath, stderr.fullPath)
+    new OldCallContext(callRoot.fullPath, stdout.fullPath, stderr.fullPath)
   }
 
   override def fileSystems(options: WorkflowOptions): List[FileSystem] = {

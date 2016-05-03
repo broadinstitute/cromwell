@@ -6,7 +6,7 @@ import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesEmptyMountedDisk, JesWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
-import cromwell.core.WorkflowContext
+import cromwell.core.OldWorkflowContext
 import cromwell.engine.backend.jes.OldStyleJesBackend
 import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
@@ -31,7 +31,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
     }
 
     val descriptor: OldStyleWorkflowDescriptor = materializeWorkflowDescriptorFromSources(workflowSources =
-      wdl.asWorkflowSources(workflowOptions = workflowOptionsJson)).copy(wfContext = new WorkflowContext(root))
+      wdl.asWorkflowSources(workflowOptions = workflowOptionsJson)).copy(wfContext = new OldWorkflowContext(root))
 
     val call = descriptor.namespace.workflow.callByName(callName).get
     val coercedInputs = descriptor.namespace.coerceRawInputs(wdl.rawInputs).get

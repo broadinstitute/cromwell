@@ -6,8 +6,7 @@ import com.typesafe.config.Config
 import cromwell.backend.async.{ExecutionHandle, NonRetryableExecution}
 import cromwell.backend.impl.jes.Run.RunStatus
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.PathFactory._
-import cromwell.core.{CallContext, WorkflowOptions}
+import cromwell.core.{CallContext, PathFactory, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode, GoogleConfiguration}
 
@@ -16,11 +15,13 @@ import scala.util.Try
 
 package object jes {
 
+  object PathBuilder extends PathFactory
+
   implicit class PathString(val str: String) extends AnyVal {
     def isGcsUrl: Boolean = str.startsWith("gs://")
     def isUriWithProtocol: Boolean = "^[a-z]+://".r.findFirstIn(str).nonEmpty
 
-    def toPath(fss: List[FileSystem]): Path = buildPath(str, fss)
+    def toPath(fss: List[FileSystem]): Path = PathBuilder.buildPath(str, fss)
     def toPath(fs: FileSystem): Path = str.toPath(List(fs))
 
     def toAbsolutePath(fss: List[FileSystem]): Path = str.toPath(fss).toAbsolutePath
@@ -31,7 +32,7 @@ package object jes {
 
     // TODO this needs to go away because it's gcs specific. Replacing gcs FS with google implementatio (when available) will take care of it
     private def buildPathAsDirectory(rawString: String, fileSystems: List[FileSystem]): Path = {
-      findFileSystem(rawString, fileSystems, {
+      PathBuilder.findFileSystem(rawString, fileSystems, {
         case fs: GcsFileSystem => Try(fs.getPathAsDirectory(rawString))
         case fs => Try(fs.getPath(rawString))
       })
@@ -114,7 +115,7 @@ package object jes {
     lazy val stderrPath: Path = callRootPath.resolve(stderrFilename)
 
     def buildCallContext: CallContext = {
-      new CallContext(callRootPath.toString, stdoutFilename, stderrFilename)
+      new CallContext(callRootPath, stdoutFilename, stderrFilename)
     }
   }
 }

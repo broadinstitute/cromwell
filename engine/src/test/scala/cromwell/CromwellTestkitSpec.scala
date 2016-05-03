@@ -1,6 +1,6 @@
 package cromwell
 
-import akka.actor.{Props, ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout

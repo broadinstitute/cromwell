@@ -23,7 +23,9 @@ package object backend {
     */
   case class BackendJobDescriptorKey(call: Call, index: Option[Int], attempt: Int) extends JobKey {
     val scope = call
-    val tag = s"${call.fullyQualifiedName}:$index:$attempt"
+    private val indexString = index map { _.toString } getOrElse "NA"
+    val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
+    val isShard = index.isDefined
   }
 
   /**

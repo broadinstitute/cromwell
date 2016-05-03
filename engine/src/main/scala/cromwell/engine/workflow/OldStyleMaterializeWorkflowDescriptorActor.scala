@@ -5,7 +5,7 @@ import java.nio.file.Paths
 import akka.actor.{Actor, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.WorkflowEngineFunctions
+import cromwell.backend.wdl.OldWorkflowEngineFunctions
 import cromwell.core.{ErrorOr, OptionNotFoundException, WorkflowId, WorkflowOptions, _}
 import cromwell.engine._
 import cromwell.engine.backend._
@@ -88,7 +88,7 @@ class OldStyleMaterializeWorkflowDescriptorActor() extends Actor with LazyLoggin
                                 workflowFailureMode: WorkflowFailureMode): ErrorOr[OldStyleWorkflowDescriptor] = {
       validateCoercedInputs(rawInputs, namespace) flatMap { coercedInputs =>
         val workflowRootPath = backend.buildWorkflowRootPath(backend.rootPath(workflowOptions), namespace.workflow.unqualifiedName, id)
-        val wfContext = new WorkflowContext(workflowRootPath)
+        val wfContext = new OldWorkflowContext(workflowRootPath)
         // PBE this is some disgustingness around the fact that creating the filesystems is the first
         // time we actually exercise the Google auth on the GCS filesystem, and if that auth is bad the
         // underlying code will throw.  This needs to be cleaned up as part of the explicit backend
@@ -126,7 +126,7 @@ class OldStyleMaterializeWorkflowDescriptorActor() extends Actor with LazyLoggin
   private def validateDeclarations(namespace: NamespaceWithWorkflow,
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
-                                   engineFunctions: WorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {
+                                   engineFunctions: OldWorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {
     namespace.staticDeclarationsRecursive(coercedInputs, engineFunctions) match {
       case Success(d) => d.successNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".failureNel

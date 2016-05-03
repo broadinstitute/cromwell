@@ -5,9 +5,10 @@ import java.nio.file.{FileSystems, Paths}
 import java.util.UUID
 
 import akka.actor.ActorSystem
+import com.google.api.client.http.{HttpResponse, HttpResponseException}
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
-import cromwell.core.{WorkflowOptions, WorkflowId}
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystem, NioGcsPath}
 import cromwell.engine.backend.jes.JesBackend.{JesFileInput, JesFileOutput}
@@ -17,7 +18,9 @@ import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, Dis
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.util.{EncryptionSpec, SampleWdl}
+import cromwell.util.{EncryptionSpec, SampleWdl, SimpleExponentialBackoff, TryUtil}
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
@@ -25,11 +28,16 @@ import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values._
 import wdl4s.{Call, CallInputs, Task}
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Success, Try}
 
-class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll with WorkflowDescriptorBuilder {
+class JesBackendSpec extends FlatSpec
+  with Matchers
+  with Mockito
+  with BeforeAndAfterAll
+  with ScalaFutures
+  with WorkflowDescriptorBuilder {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
   override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
   val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
@@ -53,6 +61,90 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     override lazy val cromwellGcsFileSystem = null
     override def userGcsFileSystem(options: WorkflowOptions) = null
     override lazy val googleConf = GoogleConfiguration("appName", ServiceAccountMode("accountID", "pem"), Option(Refresh(clientSecrets)))
+  }
+
+  // TransientException and MockWork basically stolen from TryUtilSpec, slightly modified to ease the difference in signatures
+  class TransientException extends Exception
+  class MockWork(n: Int, transients: Int = 0) {
+    implicit val ec = actorSystem.dispatcher
+
+    var counter = n
+
+    def doIt(): Future[Int] = {
+      if (counter == 0)
+        Future.successful(9)
+      else {
+        counter -= 1
+        val ex = if (counter <= transients) new TransientException else new IllegalArgumentException("Failed")
+        Future.failed(ex)
+      }
+    }
+  }
+
+  implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
+  
+  private def runRetry(retries: Int,
+                       work: MockWork,
+                       isTransient: Throwable => Boolean = JesBackend.isTransientJesException,
+                       isFatal: Throwable => Boolean = JesBackend.isFatalJesException): Future[Int] = {
+    implicit val ec = actorSystem.dispatcher
+
+    val logger: Logger = LoggerFactory.getLogger("JesBackendSpecLogger")
+    val wd = mock[WorkflowDescriptor]
+    wd.workflowLogger returns logger
+    val backoff = SimpleExponentialBackoff(1.millis, 2.millis, 1)
+
+    JesBackend.retryAsync(
+      f = work.doIt(),
+      logger = jesBackend.workflowLogger(wd),
+      failureMessage = "failed attempt (on purpose)",
+      retries = retries,
+      isTransient = isTransient,
+      isFatal = isFatal
+    )
+  }
+
+  "retryAsync" should "retry a function until it works" in {
+    val work = new MockWork(2)
+
+    whenReady(runRetry(3, work)) { x =>
+      x shouldBe 9
+      work.counter shouldBe 0
+    }
+  }
+
+  it should "fail if it hits the max retry count" in {
+    whenReady(runRetry(1, new MockWork(3)).failed) { x =>
+      x shouldBe an [CromwellFatalException]
+    }
+  }
+
+  it should "fail if it hits a fatal exception" in {
+    val work = new MockWork(3)
+
+    whenReady(runRetry(3, work, isFatal=(t: Throwable) => t.isInstanceOf[IllegalArgumentException]).failed) { x =>
+      x shouldBe an [CromwellFatalException]
+      work.counter shouldBe 2
+    }
+
+    val work2 = new MockWork(4, 2)
+    val retry = runRetry(4,
+      work2,
+      isFatal=(t: Throwable) => t.isInstanceOf[IllegalArgumentException],
+      isTransient = (t: Throwable) => t.isInstanceOf[TransientException])
+
+    whenReady(retry.failed) { x =>
+      x shouldBe an [CromwellFatalException]
+      work2.counter shouldBe 3
+    }
+  }
+
+  it should "not count transient errors against the max limit" in {
+    val work = new MockWork(3, 1)
+    whenReady(runRetry(3, work, isTransient=(t: Throwable) => t.isInstanceOf[TransientException])) { x =>
+      x shouldBe 9
+      work.counter shouldBe 0
+    }
   }
 
   "executionResult" should "handle Failure Status" in {

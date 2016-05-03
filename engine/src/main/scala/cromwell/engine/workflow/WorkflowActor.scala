@@ -116,10 +116,10 @@ object WorkflowActor {
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
       // This only does the initialization for a newly created workflow.  For a restarted workflow we should be able
       // to assume the adjusted symbols already exist in the DB, but is it safe to assume the staged files are in place?
-      actor.initializeWorkflow match {
-        case Success(_) => actor.createWorkflow
-        case Failure(ex) => Future.failed(ex)
-      }
+      for {
+        _ <- actor.initializeWorkflow
+        _ <- actor.createWorkflow
+      } yield ()
     }
 
     override def start(actor: WorkflowActor) = actor.self ! StartRunnableCalls
@@ -355,7 +355,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     futureCaches map { _ => () }
   }
 
-  private def initializeWorkflow: Try[Unit] = backend.initializeForWorkflow(workflow)
+  private def initializeWorkflow: Future[Unit] = backend.initializeForWorkflow(workflow)
 
   /**
    * Dump symbol and execution tables, start runnable calls, and message self to transition to the appropriate

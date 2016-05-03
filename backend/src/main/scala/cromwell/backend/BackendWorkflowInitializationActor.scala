@@ -4,31 +4,20 @@ import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
-import cromwell.backend.validation.TryUtils
-import cromwell.backend.validation.exception.ValidationAggregatedException
-import cromwell.core._
-import lenthall.exception.AggregatedException
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.NoFunctions
-import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
-import scalaz.{Failure, NonEmptyList, Validation}
 
 object BackendWorkflowInitializationActor {
 
   // Commands
   sealed trait BackendWorkflowInitializationActorCommand extends BackendWorkflowLifecycleActorCommand
   case object Initialize extends BackendWorkflowInitializationActorCommand
-
   case object Abort extends BackendWorkflowInitializationActorCommand
 
   // Responses
   sealed trait BackendWorkflowInitializationActorResponse extends BackendWorkflowLifecycleActorResponse
   sealed trait InitializationResponse extends BackendWorkflowInitializationActorResponse
-
   case object InitializationSuccess extends InitializationResponse
-
   case class InitializationFailed(reason: Throwable) extends Exception with InitializationResponse
 
 }

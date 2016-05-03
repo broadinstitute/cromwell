@@ -1,5 +1,6 @@
 package cromwell.backend.impl.jes
 
+import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesWorkingDisk, JesAttachedDisk}
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._

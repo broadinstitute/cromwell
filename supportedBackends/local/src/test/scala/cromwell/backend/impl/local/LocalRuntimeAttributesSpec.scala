@@ -8,6 +8,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsValue, JsObject}
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
+import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, WdlExpression, WdlSource, NamespaceWithWorkflow}
 
@@ -108,7 +109,7 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
     workflowDescriptor.workflowNamespace.workflow.calls map {
       call =>
         val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtils.sequenceMap(ra, "Runtime attributes evaluation").get
+        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
     }
   }
 

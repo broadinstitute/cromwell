@@ -163,7 +163,7 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
     val workflowManagerSystem = managerSystem
     implicit val actorSystem = workflowManagerSystem.actorSystem
     val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
-      workflowManagerSystem.workflowManagerActor)
+      workflowManagerSystem.workflowManagerActor, workflowManagerSystem.shadowMode)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import PromiseActor.EnhancedActorRef

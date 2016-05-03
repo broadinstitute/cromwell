@@ -110,7 +110,7 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
    * For the declarations that have an expression attached to it already, evaluate the expression
    * and return the value for storage in the symbol store
    */
-  def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
+  private def evaluateStaticDeclarations(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions, scopedDeclarations: Seq[Seq[ScopedDeclaration]]): Try[WorkflowCoercedInputs] = {
     def evalDeclaration(accumulated: Map[String, Try[WdlValue]], current: ScopedDeclaration): Map[String, Try[WdlValue]] = {
       current.expression match {
         case Some(expr) =>
@@ -122,9 +122,22 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
     }
 
     // declarationsByScope is a Seq[Seq[ScopedDeclaration]] where each Declaration in the Seq[ScopedDeclaration] have the same scope
-    val declarationsByScope = workflow.calls.map(_.scopedDeclarations) ++ Seq(workflow.scopedDeclarations)
-    val attemptedEvaluations = declarationsByScope.flatMap(d => d.foldLeft(Map.empty[String, Try[WdlValue]])(evalDeclaration)).toMap
+    val attemptedEvaluations = scopedDeclarations.flatMap(d => d.foldLeft(Map.empty[String, Try[WdlValue]])(evalDeclaration)).toMap
     TryUtil.sequenceMap(attemptedEvaluations)
+  }
+
+  /**
+    * Evaluates workflow (and only workflow) statically defined declarations sequentially and in order.
+    */
+  def staticWorkflowDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
+    evaluateStaticDeclarations(userInputs, wdlFunctions, Seq(workflow.scopedDeclarations))
+  }
+
+  /**
+    * Evaluates ALL statically defined declarations (workflow + task) sequentially and in order.
+    */
+  def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
+    evaluateStaticDeclarations(userInputs, wdlFunctions, Seq(workflow.scopedDeclarations) ++ workflow.calls.map(_.scopedDeclarations))
   }
 
   /**

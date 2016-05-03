@@ -1,17 +1,15 @@
 package cromwell.backend.impl.local
 
-import java.io.File
 import java.nio.file.{FileSystem, Files, Path, Paths}
 
 import com.typesafe.config.Config
-import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.BackendJobExecutionActor
 import cromwell.core._
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.WdlFunctions
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}
+import wdl4s.CallInputs
+import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlValue, _}
-import wdl4s.{CallInputs, TaskOutput}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -70,8 +68,9 @@ object SharedFileSystem {
   }
 }
 
-trait SharedFileSystem {
+trait SharedFileSystem { this: BackendJobExecutionActor =>
   import SharedFileSystem._
+  import better.files._
 
   def sharedFsConfig: Config
 
@@ -89,26 +88,30 @@ trait SharedFileSystem {
     case "copy" => localizePathViaCopy _
   })
 
-  def processOutputs(jobDescriptor: BackendJobDescriptor, workflowId: WorkflowId, lookup: ScopedLookupFunction, engineFunctions: WdlFunctions[WdlValue], jobPaths: JobPaths): Try[CallOutputs] = {
-    def outputFoldingFunction = {
-      (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
-        currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, currentList)))
-      }
-    }
+  def processOutputs(engineFunctions: WdlStandardLibraryFunctions, jobPaths: JobPaths): Try[CallOutputs] = {
+    val evaluatedOutputs = evaluateOutputs(engineFunctions, outputMapper(jobPaths))
+    lazy val workflowId = jobDescriptor.descriptor.id
 
-    def outputLookup(taskOutput: TaskOutput, currentList: Seq[AttemptedLookupResult]) = for {
-      expressionValue <- taskOutput.requiredExpression.evaluate(lookup, engineFunctions)
-      convertedValue <- outputAutoConversion(jobDescriptor, taskOutput, expressionValue, jobPaths)
-      pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, jobPaths.callRoot))
-    } yield pathAdjustedValue
+    TryUtil.sequenceMap(evaluatedOutputs, s"Workflow $workflowId post processing failed")
+  }
 
-    val outputs = jobDescriptor.key.call.task.outputs
-    val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
+  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
+    val wdlPath = Paths.get(pathString)
+    callRoot.resolve(wdlPath).toAbsolutePath
+  }
 
-    TryUtil.sequenceMap(outputMappings, s"Workflow $workflowId post processing failed") map {
-      _.mapValues { wdlValue => CallOutput(wdlValue, None) }
+  private def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
+    wdlValue match {
+      case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).exists =>
+        Failure(new RuntimeException(s"Could not process output, file not found: ${hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).toString}"))
+      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callRoot, file.valueString).toString))
+      case array: WdlArray =>
+        val mappedArray = array.value map outputMapper(job)
+        TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
+      case other => Success(other)
     }
   }
+
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
@@ -196,51 +199,5 @@ trait SharedFileSystem {
       case WdlMap(t, values) => adjustMap(t, values)
       case x => Success(x)
     }
-  }
-
-  private def assertTaskOutputPathExists(path: String, taskOutput: TaskOutput, callFqn: String): Try[WdlFile] =
-    if (Files.exists(Paths.get(path))) Success(WdlFile(path))
-    else Failure(new RuntimeException(
-      s"""ERROR: Could not process output '${taskOutput.wdlType.toWdlString} ${taskOutput.name}' of $callFqn:
-         |
-         |Invalid path: $path
-       """.stripMargin
-    ))
-
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): String =
-    if (new File(pathString).isAbsolute) pathString else Paths.get(callRoot.toAbsolutePath.toString, pathString).toString
-
-  /**
-   * Handle possible auto-conversion from an output expression `WdlString` to a `WdlFile` task output.
-   * The following should work:
-   *
-   * <pre>
-   * File bam = "foo.bam"
-   * </pre>
-   *
-   * This also handles coercions to target types.  For example, a task output may look like this:
-   *
-   * <pre>
-   * Map[Int, String] my_map = read_map(stdout())
-   * </pre>
-   *
-   * read_map() will return a Map[String, String] but if the target type is Map[Int, String], this
-   * function will attempt to do the coercion.
-   *
-   * read_lines() will return an Array[String] but if the target type is Array[Float], then this
-   * function will do that conversion.
-   */
-  private def outputAutoConversion(jobDescriptor: BackendJobDescriptor, taskOutput: TaskOutput, rawOutputValue: WdlValue, job: JobPaths): Try[WdlValue] = {
-    rawOutputValue match {
-      case rhs if rhs.wdlType == taskOutput.wdlType => Success(rhs)
-      case rhs: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(job.callRoot, rhs.value), taskOutput, jobDescriptor.key.call.fullyQualifiedName)
-      case rhs => taskOutput.wdlType.coerceRawValue(rhs)
-    }
-  }
-
-  private def absolutizeOutputWdlFile(value: WdlValue, cwd: Path): WdlValue = value match {
-    case f: WdlFile if f.valueString(0) != '/' => WdlFile(cwd.resolve(f.valueString).toAbsolutePath.toString)
-    case a: WdlArray => a map {absolutizeOutputWdlFile(_, cwd)}
-    case x => x
   }
 }

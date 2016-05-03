@@ -7,7 +7,7 @@ import akka.util.Timeout
 import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
-import cromwell.backend.{BackendJobDescriptor, BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendLifecycleActorFactory}
+import cromwell.backend._
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
@@ -21,6 +21,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
 import wdl4s.Call
+import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 
 import scala.concurrent.duration._
@@ -40,6 +41,12 @@ case class TestBackendLifecycleActorFactory(config: Config) extends BackendLifec
   }
 
   override def workflowFinalizationActorProps(): Option[Props] = None
+
+  override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
+                                           jobKey: BackendJobDescriptorKey,
+                                           configurationDescriptor: BackendConfigurationDescriptor): WdlStandardLibraryFunctions = {
+    NoFunctions
+  }
 }
 
 object CromwellTestkitSpec {

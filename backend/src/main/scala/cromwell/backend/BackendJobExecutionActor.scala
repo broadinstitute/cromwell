@@ -2,12 +2,15 @@ package cromwell.backend
 
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
-import cromwell.backend.BackendJobExecutionActor._
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, _}
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.core.CallOutputs
+import cromwell.core.{CallOutput, CallOutputs}
+import wdl4s._
+import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
-import BackendJobExecutionActor.BackendJobExecutionFailedResponse
+import scala.util.{Success, Try}
 
 object BackendJobExecutionActor {
 
@@ -54,4 +57,20 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
     * Abort a running job.
     */
   def abortJob: Unit
+
+  def evaluateOutputs(wdlFunctions: WdlStandardLibraryFunctions,
+                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)) = {
+    val inputs = jobDescriptor.inputs
+    jobDescriptor.call.task.outputs.foldLeft(Map.empty[LocallyQualifiedName, Try[CallOutput]])((outputMap, output) => {
+      val currentOutputs = outputMap collect {
+        case (name, value) if value.isSuccess => name -> value.get.wdlValue
+      }
+      def lookup = (currentOutputs ++ inputs).apply _
+      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
+      val callOutput = output.name -> (coerced flatMap postMapper map { CallOutput(_, None) })
+
+      outputMap + callOutput
+
+    })
+  }
 }

@@ -5,13 +5,16 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionFailedRetryableResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, JobKey}
 import cromwell.core.{WorkflowId, _}
+import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.engine.workflow.JobInputEvaluator
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, _}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
 import cromwell.webservice.WdlValueJsonFormatter
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
+import wdl4s.types.WdlType
 import wdl4s.values.WdlValue
 
 import scala.annotation.tailrec
@@ -32,44 +35,44 @@ object WorkflowExecutionActor {
   case object WorkflowExecutionFailedState extends WorkflowExecutionActorTerminalState
   case object WorkflowExecutionAbortedState extends WorkflowExecutionActorTerminalState
 
-  case class SymbolCacheKey(scopeName: String, input: Boolean)
-
-  type SymbolCache = Map[SymbolCacheKey, Traversable[SymbolStoreEntry]]
   type ExecutionStore = Map[JobKey, ExecutionStatus]
   type ExecutionStoreEntry = (JobKey, ExecutionStatus)
+
+  case class OutputEntry(name: String, wdlType: WdlType, wdlValue: Option[WdlValue])
+  case class OutputCallKey(call: Call, index: ExecutionIndex)
+  type OutputStore = Map[OutputCallKey, Traversable[OutputEntry]]
 
   /**
     * State data
     */
   final case class WorkflowExecutionActorData(executionStore: ExecutionStore,
-                                              symbolCache: SymbolCache) {
+                                              outputStore: OutputStore) {
 
     /** This method updates: The ExecutionStore with the updated status and the symbol cache with the new outputs */
-    def updateJob(jobKey: JobKey,
+    def updateJob(jobKey: BackendJobDescriptorKey,
                   outputs: CallOutputs,
                   status: ExecutionStatus): WorkflowExecutionActorData = {
       this.copy(executionStore = executionStore + (jobKey -> status),
-        symbolCache = symbolCache ++ updateSymbolStoreEntry(jobKey, outputs))
+        outputStore = outputStore ++ updateSymbolStoreEntry(jobKey, outputs))
     }
 
     /** Add the outputs for the specified `JobKey` to the symbol cache. */
-    private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs) = {
-      val newEntriesMap = outputs map { case (lqn, value) =>
-        val storeKey = SymbolStoreKey(jobKey.scope.fullyQualifiedName, lqn, jobKey.index, input = false)
-        // TODO: SymbolStoreEntry should no longer contain the symbol hashes
-        new SymbolStoreEntry(storeKey, value.wdlValue.wdlType, Option(value.wdlValue), None)
-      } groupBy { entry => SymbolCacheKey(entry.scope, entry.isInput) }
-
-      newEntriesMap map { case (key, entries) =>
-        // SymbolCache is essentially a MultiMap, but that's a trait only for mutable Maps.
-        key -> (symbolCache.getOrElse(key, Seq.empty) ++ entries)
+    private def updateSymbolStoreEntry(jobKey: BackendJobDescriptorKey, outputs: CallOutputs) = {
+      val newOutputEntries = outputs map {
+        case (name, value) => OutputEntry(name, value.wdlValue.wdlType, Option(value.wdlValue))
       }
+
+      outputStore + (OutputCallKey(jobKey.call, jobKey.index) -> newOutputEntries)
     }
 
     /** Checks if the workflow is completed by scanning through the executionStore */
     def isWorkflowComplete: Boolean = {
       def isDone(executionStatus: ExecutionStatus): Boolean = (executionStatus == ExecutionStatus.Done) || (executionStatus == ExecutionStatus.Preempted)
       executionStore.values.forall(isDone)
+    }
+
+    def containsFailedJob: Boolean = {
+      executionStore.values.exists(_ == ExecutionStatus.Failed)
     }
 
     /** Updates the status of a a job by the new entry */
@@ -92,6 +95,8 @@ object WorkflowExecutionActor {
   case object WorkflowExecutionAbortedResponse extends WorkflowExecutionActorResponse
   final case class WorkflowExecutionFailedResponse(reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse
 
+  private case class JobInitializationFailed(jobKey: JobKey, throwable: Throwable)
+
   case class WorkflowExecutionException(override val throwables: List[Throwable]) extends ThrowableAggregation {
     override val exceptionContext = s"WorkflowExecutionActor"
   }
@@ -108,6 +113,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   private lazy val DefaultMaxRetriesFallbackValue = 10
 
   private val calls = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.calls
+  private val inputResolver = new JobInputEvaluator(workflowDescriptor)
 
   // TODO: We should probably create a trait which loads all the configuration (once per application), and let classes mix it in
   // to avoid doing ConfigFactory.load() at multiple places
@@ -123,52 +129,44 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(
       executionStore = (calls map (BackendJobDescriptorKey(_, None, 1) -> NotStarted)) toMap,
-      symbolCache = buildSymbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))))
+      outputStore = Map.empty))
 
-  /** PBE: the return value of WorkflowExecutionActorState is just temporary.
-    *      This should probably return a Try[BackendJobDescriptor], Unit, Boolean,
-    *      Try[ActorRef], or something to indicate if the job was started
-    *      successfully.  Or, if it can fail to start, some indication of why it
-    *      failed to start
-    */
-  private def startJob(jobKey: BackendJobDescriptorKey,
-                       symbolCache: SymbolCache,
-                       configDescriptor: BackendConfigurationDescriptor,
-                       factory: BackendLifecycleActorFactory): Try[ExecutionStatus] = {
-
-      val call = jobKey.call
-      fetchLocallyQualifiedInputs(jobKey, symbolCache) match {
-        case Success(symbolStoreForCall) =>
-          val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, symbolStoreForCall)
-          val actorName = s"${jobDescriptor.descriptor.id}-BackendExecutionActor-${jobKey.call.fullyQualifiedName}-${jobKey.index.getOrElse("")}-${jobKey.attempt}"
-          val jobExecutionActor = context.actorOf(
-            factory.jobExecutionActorProps(
-              jobDescriptor,
-              BackendConfigurationDescriptor(configDescriptor.backendConfig, configDescriptor.globalConfig)
-            ),
-            actorName
-          )
-          jobExecutionActor ! ExecuteJobCommand
-          Success(ExecutionStatus.Starting)
-        case Failure(reason) =>
-          log.error(s"Failed to fetch locally qualified inputs for call ${call.fullyQualifiedName}", reason)
-          throw new WorkflowExecutionException(List(reason))
-      }
+  // Return a more meaningful value that execution status
+  private def executeJob(jobKey: BackendJobDescriptorKey,
+                         outputStore: OutputStore,
+                         configDescriptor: BackendConfigurationDescriptor,
+                         factory: BackendLifecycleActorFactory): Try[ExecutionStatus] = {
+    // FIXME This is a potential bottleneck as input evaluation can be arbitrarily long and executes code coming from the backend.
+    // It should probably be actorified / isolated
+    inputResolver.resolveAndEvaluate(jobKey, factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, configDescriptor), outputStore) map { inputs =>
+      val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, inputs)
+      val actorName = s"${jobDescriptor.descriptor.id}-BackendExecutionActor-${jobKey.tag}"
+      val jobExecutionActor = context.actorOf(
+        factory.jobExecutionActorProps(
+          jobDescriptor,
+          BackendConfigurationDescriptor(configDescriptor.backendConfig, configDescriptor.globalConfig)
+        ),
+        actorName
+      )
+      jobExecutionActor ! ExecuteJobCommand
+      ExecutionStatus.Starting
+    }
   }
 
-  private def startJob(jobKey: BackendJobDescriptorKey, symbolCache: SymbolCache): Try[ExecutionStatus] = {
+  private def startJob(jobKey: BackendJobDescriptorKey, symbolCache: OutputStore): Try[ExecutionStatus] = {
     workflowDescriptor.backendAssignments.get(jobKey.call) match {
       case None =>
         val message = s"Could not start call ${jobKey.tag} because it was not assigned a backend"
         log.error(s"$tag $message")
         throw new IllegalStateException(s"$tag $message")
       case Some(backendName) =>
+        // TODO these shouldn't be re-instantiated for every call
         val attemptedConfigurationDescriptor = BackendConfiguration.backendConfigurationDescriptor(backendName)
         val attemptedActorFactory = CromwellBackends.shadowBackendLifecycleFactory(backendName)
 
         (attemptedConfigurationDescriptor, attemptedActorFactory) match {
           case (Success(configDescriptor), Success(factory)) =>
-            startJob(jobKey, symbolCache, configDescriptor, factory)
+            executeJob(jobKey, symbolCache, configDescriptor, factory)
           case (_, _) =>
             val errors = List(
               attemptedActorFactory.failed.map(new Exception(s"Could not get BackendLifecycleActor for backend $backendName", _)).toOption,
@@ -197,7 +195,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       log.info(s"Job ${jobKey.call.fullyQualifiedName} succeeded! Outputs: ${callOutputs.mkString("\n")}")
       val newData = stateData.updateJob(jobKey, callOutputs, ExecutionStatus.Done)
       if (newData.isWorkflowComplete) {
-        printOutputs(newData)
+        printOutputs(newData.outputStore)
         goto(WorkflowExecutionSuccessfulState) using newData
       }
       else
@@ -208,6 +206,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     case Event(BackendJobExecutionFailedRetryableResponse(jobKey, reason), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
       handleRetryableFailure(jobKey)
+    case Event(JobInitializationFailed(jobKey, reason), stateData) =>
+      log.warning(s"Job ${jobKey.tag} failed: $reason")
+      goto(WorkflowExecutionFailedState)
+    case Event(JobInitializationFailed(jobKey, reason), stateData) =>
+      log.warning(s"Job ${jobKey.tag} failed to initialize: $reason")
+      goto(WorkflowExecutionFailedState)
     case Event(AbortExecutingWorkflowCommand, stateData) => ??? // TODO: Implement!
     case Event(_, _) => ??? // TODO: Lots of extra stuff to include here...
   }
@@ -249,24 +253,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       log.warning(s"Exhausted maximum number of retries for job ${jobKey.tag}. Failing.")
       goto(WorkflowExecutionFailedState) using stateData.updateExecutionStoreStatus(jobKey -> ExecutionStatus.Failed)
     }
-  }
-
-  private def fetchCallInputEntries(callKey: JobKey, symbolCache: SymbolCache): Traversable[SymbolStoreEntry] = {
-    symbolCache.getOrElse(SymbolCacheKey(callKey.scope.fullyQualifiedName, input = true), Seq.empty)
-  }
-
-  private def buildSymbolStoreEntries: Traversable[SymbolStoreEntry] = {
-    val actualInputs = workflowDescriptor.backendDescriptor.inputs ++ workflowDescriptor.declarations
-    val inputSymbols = actualInputs map {
-      case (name, value) => SymbolStoreEntry(name, value, None, input = true)
-    }
-
-    val callSymbols = for {
-      call <- workflowDescriptor.namespace.workflow.calls
-      (k, v) <- call.inputMappings
-    } yield SymbolStoreEntry(s"${call.fullyQualifiedName}.$k", v, None, input = true)
-
-    inputSymbols.toSet ++ callSymbols.toSet
   }
 
   private def upstreamEntries(entry: JobKey, prerequisiteScope: Scope, executionStore: ExecutionStore): Seq[ExecutionStoreEntry] = {
@@ -323,41 +309,34 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       log.info(s"Starting calls: " + runnableCalls.map(_.fullyQualifiedName).toSeq.sorted.mkString(", "))
 
     val entries: Map[JobKey, Try[ExecutionStatus]] = runnableEntries map {
-      case (k: BackendJobDescriptorKey, _) => k -> startJob(k, data.symbolCache)
+      case (k: BackendJobDescriptorKey, _) => k -> startJob(k, data.outputStore)
       case (k, v) =>
         val message = s"Unknown entry in execution store:\nKEY: ${k.tag}\nVALUE:$v"
         log.error(message)
         k -> Failure(new UnsupportedOperationException(message))
     }
 
-    entries.filter(_._2.isFailure) foreach { case (key, status) => log.error(s"Failed to start Job ${key.scope.fullyQualifiedName}: ${status.failed.get.getMessage}")}
+    val updatedData = entries.foldLeft(data)((newData, entry) => {
+      entry match {
+        case (key, status) if status.isSuccess => newData.updateExecutionStoreStatus(key, ExecutionStatus.Starting)
+        case (key, status) =>
+          self ! JobInitializationFailed(key, status.failed.get)
+          newData.updateExecutionStoreStatus(key, ExecutionStatus.Failed)
+      }
+    })
 
-    val updatedData = entries.filter(_._2.isSuccess).foldLeft(data)((newData, entry) => newData.updateExecutionStoreStatus(entry._1, entry._2.get))
     if (entries.nonEmpty) startRunnableJobs(updatedData) else updatedData
   }
 
-  private def fetchLocallyQualifiedInputs(callKey: JobKey, symbolCache: SymbolCache): Try[Map[String, WdlValue]] = Try {
-    val entries = fetchCallInputEntries(callKey, symbolCache)
-    entries.map { entry =>
-      val value = entry.wdlValue match {
-        case Some(v) => v
-        case _ => throw new WdlExpressionException("Unknown error")
-      }
-
-      // TODO: Coercion to happen here? We don't have EngineFunctions here because of which the abpve pattern match
-      // cannot have the WdlExpressions evaluated.
-      // val coercedValue = value.flatMap(x => declaration.wdlType.coerceRawValue(x))
-      entry.key.name -> value
-    }.toMap
-  }
-
-  private def printOutputs(stateData: WorkflowExecutionActorData) = {
+  private def printOutputs(outputStore: OutputStore) = {
     // Printing the final outputs, temporarily here until SingleWorkflowManagerActor is made in-sync with the shadow mode
     import WdlValueJsonFormatter._
     import spray.json._
-    val workflowOutputs = stateData.symbolCache.flatMap(_._2).collect {
-      case x if x.isOutput => s"${x.key.scope}.${x.key.name}" -> x.wdlValue
-    }.toMap
+    val workflowOutputs = outputStore flatMap {
+      case (key, outputs) => outputs map { output =>
+        s"${key.call.fullyQualifiedName}.${output.name}" -> (output.wdlValue map { _.valueString } getOrElse "N/A")
+      }
+    }
     log.info("Workflow complete. Final Outputs: \n" + workflowOutputs.toJson.prettyPrint)
   }
 }

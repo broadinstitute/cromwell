@@ -251,6 +251,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       assume(canConnect || testRequired)
       val workflowInfo = materializeWorkflowDescriptorFromSources(workflowSources = testSources)
       val workflow2Info = materializeWorkflowDescriptorFromSources(workflowSources = test2Sources)
+      val workflowId = workflowInfo.id.toString
+      val workflow2Id = workflow2Info.id.toString
+      val randomIds = Seq.fill(10)(WorkflowId.randomId().toString)
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
@@ -274,6 +277,24 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test", WorkflowQueryKey.Name.name -> "test2"))) map { response =>
           val resultsByName = response.results groupBy { _.name }
           resultsByName.keys.toSet should equal(Set("test", "test2"))
+        }
+        // Filter by workflow id
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(
+          Seq(WorkflowQueryKey.Id.name -> workflowId))) map { response =>
+          val resultsById = response.results groupBy { _.name }
+          resultsById.keys.toSet should equal(Set("test"))
+        }
+        // Filter by multiple workflow ids
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(
+          Seq(workflowId, workflow2Id).map(id => WorkflowQueryKey.Id.name -> id))) map { response =>
+          val resultsById = response.results groupBy { _.name }
+          resultsById.keys.toSet should equal(Set("test", "test2"))
+        }
+        // Filter by workflow id within random Ids
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(
+          (randomIds :+ workflowId).map(id => WorkflowQueryKey.Id.name -> id))) map { response =>
+          val resultsById = response.results groupBy { _.name }
+          resultsById.keys.toSet should equal(Set("test"))
         }
         // Filter by status
         _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted"))) map { response =>

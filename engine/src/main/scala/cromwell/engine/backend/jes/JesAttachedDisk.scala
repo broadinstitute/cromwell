@@ -75,7 +75,7 @@ trait JesAttachedDisk {
 }
 
 case class JesEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends JesAttachedDisk {
-  val name = mountPoint.toString.md5Sum
+  val name = s"d-${mountPoint.toString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
 }
 

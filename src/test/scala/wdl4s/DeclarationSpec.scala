@@ -130,6 +130,18 @@ class DeclarationSpec extends FlatSpec with Matchers {
     }
   }
 
+  "A workflow" should "Be able to evaluate static workflow declarations" in {
+    namespace.staticWorkflowDeclarationsRecursive(Map.empty[String, WdlValue], NoFunctions) match {
+      case Failure(ex) => fail("Expected all declarations to be statically evaluable", ex)
+      case Success(values) =>
+        values shouldEqual Map(
+          "w.foo" -> WdlString("foo"),
+          "w.bar" -> WdlString("bar"),
+          "w.foobar" -> WdlString("foobar")
+        )
+    }
+  }
+
   "A namespace" should "Be able to coerce inputs" in {
     namespace.coerceRawInputs(Map.empty).get shouldEqual Map.empty[FullyQualifiedName, WdlValue]
   }

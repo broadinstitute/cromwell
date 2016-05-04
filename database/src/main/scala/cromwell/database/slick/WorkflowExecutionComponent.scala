@@ -62,26 +62,28 @@ trait WorkflowExecutionComponent {
   /**
    * Query workflow execution using the filter criteria encapsulated by the `WorkflowExecutionQueryParameters`.
    */
-  def queryWorkflowExecutions(statuses: Set[String], names: Set[String], startDate: Option[Timestamp],
-                              endDate: Option[Timestamp]) = {
+  def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
+                              startDate: Option[Timestamp], endDate: Option[Timestamp]) = {
     val include: Rep[Boolean] = true
     val exclude: Rep[Boolean] = false
-    workflowExecutions filter { workflow =>
+    workflowExecutions filter { workflowExecution =>
       // All query parameters are either Options or Sets, so they might have no values specified at all.  The general
       // pattern for these criteria is to map Options and map/reduceLeftOption Sets, resulting in optional filters.
 
       // Start date is a non-null field and at most single-valued in the query parameters.
-      val startDateTimeFilter = startDate.map(start => workflow.startDt >= start)
+      val startDateTimeFilter = startDate.map(start => workflowExecution.startDt >= start)
       // End date is nullable, necessitating the fold.  If the end date is null in the database we want to filter the
       // row if an end date filter has been specified.
-      val endDateTimeFilter = endDate.map(end => workflow.endDt.fold(ifEmpty = exclude) { _ <= end })
-      // Names and statuses are potentially multi-valued, the reduceLeftOption ORs together any name or status criteria
-      // to include all matching names and statuses.
-      val nameFilter = names.map(name => workflow.name === name).reduceLeftOption(_ || _)
-      val statusFilter = statuses.map(status => workflow.status === status).reduceLeftOption(_ || _)
+      val endDateTimeFilter = endDate.map(end => workflowExecution.endDt.fold(ifEmpty = exclude) { _ <= end })
+      // Names, UUIDs, and statuses are potentially multi-valued, the reduceLeftOption ORs together any name, UUID, or
+      // status criteria to include all matching names, UUIDs, and statuses.
+      val nameFilter = names.map(name => workflowExecution.name === name).reduceLeftOption(_ || _)
+      val uuidFilter = uuids.map(uuid => workflowExecution.workflowExecutionUuid === uuid).reduceLeftOption(_ || _)
+      val statusFilter = statuses.map(status => workflowExecution.status === status).reduceLeftOption(_ || _)
 
       // Put all the optional filters above together in one place.
-      val optionalFilters: List[Option[Rep[Boolean]]] = List(nameFilter, statusFilter, startDateTimeFilter, endDateTimeFilter)
+      val optionalFilters: List[Option[Rep[Boolean]]] =
+        List(nameFilter, uuidFilter, statusFilter, startDateTimeFilter, endDateTimeFilter)
       // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
       // rows which might otherwise have been filtered.
       val filters = optionalFilters.map(_.getOrElse(include))

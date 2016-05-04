@@ -16,6 +16,7 @@ object Dependencies {
     "io.spray" %% "spray-testkit" % sprayV % Test,
     "org.scalatest" %% "scalatest" % "2.2.5" % Test,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+    "io.swagger" % "swagger-parser" % "1.0.19" % Test,
     "org.yaml" % "snakeyaml" % "1.16" % Test
   )
 
@@ -28,6 +29,7 @@ object Dependencies {
   )
 
   val googleDependencies = List(
+    "com.fasterxml.jackson.core" % "jackson-core" % "2.4.5", // Used by swagger, but only in tests
     "com.google.gcloud" % "gcloud-java" % "0.0.9",
     "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
     "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
@@ -82,5 +84,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % betterFilesV
-  ) ++ coreDependencies ++ sprayDependencies ++ googleDependencies ++ databaseDependencies ++ backendDependencies ++ gcsFileSystemDependencies
+  ) ++ coreDependencies ++ sprayDependencies
 }

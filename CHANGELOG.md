@@ -12,3 +12,6 @@ types](https://github.com/docker/distribution/blob/05b0ab0/docs/spec/manifest-v2
 * Added a `/batch` submit endpoint that accepts a single wdl with
 multiple input files.
 
+* The `/query` endpoint now supports querying by `id`, and submitting
+parameters as a HTTP POST.
+

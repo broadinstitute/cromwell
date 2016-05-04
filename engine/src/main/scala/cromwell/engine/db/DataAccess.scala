@@ -559,7 +559,8 @@ trait DataAccess extends AutoCloseable {
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)
                     (implicit ec: ExecutionContext): Future[WorkflowQueryResponse] = {
-    val workflowExecutions = queryWorkflowExecutions(queryParameters.statuses, queryParameters.names,
+    val workflowExecutions = queryWorkflowExecutions(
+      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
       queryParameters.startDate.map(_.toDate.toTimestamp), queryParameters.endDate.map(_.toDate.toTimestamp))
     workflowExecutions map { workflows =>
       WorkflowQueryResponse(workflows.toSeq map { workflow =>
@@ -568,9 +569,7 @@ trait DataAccess extends AutoCloseable {
           name = workflow.name,
           status = workflow.status,
           start = new DateTime(workflow.startDt),
-          end = workflow.endDt map {
-            new DateTime(_)
-          })
+          end = workflow.endDt map { new DateTime(_) })
       })
     }
   }

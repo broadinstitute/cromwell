@@ -51,7 +51,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
   }
 
-  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
+  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
     callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
 
   def statusRoute =
@@ -101,6 +101,23 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
               val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
               perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
           }
+        }
+      }
+    }
+
+  def submitBatchRoute =
+    path("workflows" / Segment / "batch") { version =>
+      post {
+        formFields("wdlSource", "workflowInputs", "workflowOptions".?) {
+          (wdlSource, workflowInputs, workflowOptions) =>
+            requestContext =>
+              import spray.json._
+              workflowInputs.parseJson match {
+                case JsArray(inputses) =>
+                  val sources = inputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
+                  perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
+                case _ => reject
+              }
         }
       }
     }

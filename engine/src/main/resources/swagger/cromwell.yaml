@@ -86,6 +86,49 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/workflows/{version}/batch':
+    post:
+      summary: Submit a batch of new workflows for execution
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: wdlSource
+          description: WDL Source
+          required: true
+          type: file
+          in: formData
+        - name: workflowInputs
+          description: WDL Inputs JSON as an array
+          required: true
+          type: file
+          in: formData
+        - name: workflowOptions
+          description: Workflow Options JSON
+          required: false
+          type: file
+          in: formData
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/WorkflowSubmitResponse'
+        '400':
+          description: Malformed Input
+        '500':
+          description: Internal Error
+      security:
+        - google_oauth:
+            - openid
   '/workflows/{version}/validate':
     post:
       summary: Validate a workflow for execution

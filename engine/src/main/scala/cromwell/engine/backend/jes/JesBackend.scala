@@ -34,7 +34,7 @@ import wdl4s.values._
 import wdl4s.{CallInputs, UnsatisfiedInputsException, _}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, blocking}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -136,7 +136,8 @@ object JesBackend {
                     retries: Int = 10,
                     isTransient: Throwable => Boolean = isTransientJesException,
                     isFatal: Throwable => Boolean = isFatalJesException)
-                    (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
+                    (implicit actorSystem: ActorSystem): Future[A] = {
+    implicit val ec = actorSystem.dispatcher
     val delay = backoff.backoffMillis.millis
 
     if (retries > 0) {
@@ -288,14 +289,15 @@ case class JesBackend(actorSystem: ActorSystem)
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor): Future[Unit] = {
+    implicit val ec = actorSystem.dispatcher
     val log = workflowLogger(workflow)
 
     generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) match {
       case Some(content) =>
         val path = gcsAuthFilePath(workflow)
-        def upload(): Future[Unit] = Future { path.writeAsJson(content) }
+        def upload(): Future[Unit] = Future { blocking { path.writeAsJson(content) } }
         log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
-        retryAsync(upload(), log, s"Exception occurred while uploading auth file to $path")(actorSystem, ec)
+        retryAsync(upload(), log, s"Exception occurred while uploading auth file to $path")(actorSystem)
       case None => Future.successful(())
     }
   }

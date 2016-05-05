@@ -5,7 +5,6 @@ import java.nio.file.{FileSystems, Paths}
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import com.google.api.client.http.{HttpResponse, HttpResponseException}
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions}
@@ -18,7 +17,7 @@ import cromwell.engine.backend.runtimeattributes.{CromwellRuntimeAttributes, Dis
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs._
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.util.{EncryptionSpec, SampleWdl, SimpleExponentialBackoff, TryUtil}
+import cromwell.util.{EncryptionSpec, SampleWdl, SimpleExponentialBackoff}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -28,7 +27,7 @@ import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values._
 import wdl4s.{Call, CallInputs, Task}
 
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.{Success, Try}
 
@@ -130,7 +129,7 @@ class JesBackendSpec extends FlatSpec
     val work2 = new MockWork(4, 2)
     val retry = runRetry(4,
       work2,
-      isFatal=(t: Throwable) => t.isInstanceOf[IllegalArgumentException],
+      isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException],
       isTransient = (t: Throwable) => t.isInstanceOf[TransientException])
 
     whenReady(retry.failed) { x =>
@@ -141,7 +140,7 @@ class JesBackendSpec extends FlatSpec
 
   it should "not count transient errors against the max limit" in {
     val work = new MockWork(3, 1)
-    whenReady(runRetry(3, work, isTransient=(t: Throwable) => t.isInstanceOf[TransientException])) { x =>
+    whenReady(runRetry(3, work, isTransient = (t: Throwable) => t.isInstanceOf[TransientException])) { x =>
       x shouldBe 9
       work.counter shouldBe 0
     }

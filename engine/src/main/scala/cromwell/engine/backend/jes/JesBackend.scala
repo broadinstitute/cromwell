@@ -140,7 +140,7 @@ object JesBackend {
                     isTransient: Throwable => Boolean = isTransientJesException,
                     isFatal: Throwable => Boolean = isFatalJesException)
                     (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
-    val delay = Duration.apply(backoff.backoffMillis, TimeUnit.MILLISECONDS)
+    val delay = backoff.backoffMillis.millis
 
     if (retries > 0) {
       f recoverWith {
@@ -239,7 +239,7 @@ object JesBackend {
 
   /**
     * Generates a json containing auth information based on the parameters provided.
- *
+    *
     * @return a string representation of the json
     */
   def generateAuthJson(authInformation: Option[JesAuthInformation]*) = {

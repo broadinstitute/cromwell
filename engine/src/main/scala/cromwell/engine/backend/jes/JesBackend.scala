@@ -60,9 +60,6 @@ object JesBackend {
 
   def authGcsCredentialsPath(gcsPath: String): JesInput = JesLiteralInput(ExtraConfigParamName, gcsPath)
 
-  // Strictly speaking this could cause OOM issues but should be fine. Something to monitor
-  val GcsUploadThreadPool = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
-
   // Only executions in Running state with a recorded operation ID are resumable.
   private val IsResumable: (Execution, Seq[ExecutionInfo]) => Boolean = (e: Execution, eis: Seq[ExecutionInfo]) => {
     e.status.toExecutionStatus == ExecutionStatus.Running &&
@@ -291,7 +288,6 @@ case class JesBackend(actorSystem: ActorSystem)
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
   private def writeAuthenticationFile(workflow: WorkflowDescriptor): Future[Unit] = {
-    implicit val ec = GcsUploadThreadPool
     val log = workflowLogger(workflow)
 
     generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) match {

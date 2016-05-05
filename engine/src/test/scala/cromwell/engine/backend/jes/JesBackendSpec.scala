@@ -121,7 +121,7 @@ class JesBackendSpec extends FlatSpec
   it should "fail if it hits a fatal exception" in {
     val work = new MockWork(3)
 
-    whenReady(runRetry(3, work, isFatal=(t: Throwable) => t.isInstanceOf[IllegalArgumentException]).failed) { x =>
+    whenReady(runRetry(3, work, isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException]).failed) { x =>
       x shouldBe an [CromwellFatalException]
       work.counter shouldBe 2
     }

@@ -4,10 +4,10 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import cromwell.core.{CallOutput, WorkflowId}
-import cromwell.engine.{WorkflowAborted, WorkflowRunning}
 import cromwell.engine.backend.{CallLogs, WorkflowDescriptorBuilder, WorkflowQueryResult}
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.{WorkflowAborted, WorkflowRunning}
+import cromwell.server.WorkflowManagerSystem
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
@@ -228,6 +228,16 @@ object CromwellApiServiceSpec {
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   import spray.httpx.SprayJsonSupport._
 
+  // BUG: Must be called once to statically initialize the backends, otherwise this Spec won't run if run alone.
+  new WorkflowManagerSystem {}
+
+  import akka.testkit._
+
+  import scala.concurrent.duration._
+
+  // The submit route takes a bit longer than the default 1 s while things initialize, when this spec is run by itself
+  implicit val defaultTimeout = RouteTestTimeout(5.seconds.dilated)
+
   override def actorRefFactory = system
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
     override implicit  val actorSystem = context.system
@@ -418,6 +428,32 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+
+  s"Cromwell batch submit workflow API $version" should "return 200 for a successful workflow submission " in {
+    val inputs = HelloWorld.rawInputs.toJson
+
+    Post("/workflows/$version/batch",
+      FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> s"[$inputs, $inputs]"))) ~>
+      submitBatchRoute ~>
+      check {
+        assertResult(
+          s"""[{
+              |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}, {
+              |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}]""".stripMargin) {
+          responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
+        }
+      }
+  }
+
+  // TODO: Test tha batch submission returns expected workflow ids in order
+  // TODO: Also (assuming we still validate on submit) test a batch of mixed inputs that return submitted and failed
 
   s"Cromwell workflow outputs API $version" should "return 200 with GET of outputs on successful execution of workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>

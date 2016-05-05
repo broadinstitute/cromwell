@@ -2,8 +2,10 @@ package cromwell.engine.backend.jes
 
 import java.net.SocketTimeoutException
 import java.nio.file.{FileSystem, Path, Paths}
+import java.util.concurrent.{Executors, TimeUnit}
 
 import akka.actor.ActorSystem
+import akka.pattern.after
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
@@ -119,6 +121,44 @@ object JesBackend {
     case _ => false
   }
 
+
+  /**
+    * A short term (i.e. hotfix) attempt at allowing things in this file to not block on threads when needing
+    * to retry. Unabashed hodgepodge of TryUtil.retryBlock, the 'after' based retry in DataAccess and Rawls' Retry.
+    * Many hardcodes due to reproducing what the withRetry below was doing in conjuction with retryBlock
+    *
+    * Expect a more unifying solution in the non-hotfix branch
+    */
+  def retryAsync[A](f: => Future[A],
+                    logger: WorkflowLogger,
+                    failureMessage: String,
+                    backoff: SimpleExponentialBackoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
+                    retries: Int = 10,
+                    isTransient: Throwable => Boolean = isTransientJesException,
+                    isFatal: Throwable => Boolean = isFatalJesException)
+                    (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
+    val delay = backoff.backoffMillis.millis
+
+    if (retries > 0) {
+      f recoverWith {
+        case throwable if isFatal(throwable) => Future.failed(new CromwellFatalException(throwable))
+        case throwable if !isFatal(throwable) =>
+          val retriesLeft = if (isTransient(throwable)) retries else retries - 1
+          val retryMessage = s"$failureMessage Retrying in $delay${retryCountMessage(isTransient(throwable), retriesLeft)}..."
+          logger.warn(retryMessage)
+          after(delay, actorSystem.scheduler)(retryAsync(f, logger, failureMessage, backoff, retries = retriesLeft))
+      }
+    } else f recoverWith {
+      case e: Exception =>
+        Future.failed(new CromwellFatalException(e))
+    }
+  }
+
+  private def retryCountMessage(isTransient: Boolean, retriesLeft: Int): String = {
+    val transientMessage = if (isTransient) " - This error is transient and does not count against the retry limit." else ""
+    if (retriesLeft > 0) s" ($retriesLeft more retries)$transientMessage" else ""
+  }
+
   protected def withRetry[T](f: Option[T] => T, logger: WorkflowLogger, failureMessage: String) = {
     TryUtil.retryBlock(
       fn = f,
@@ -196,6 +236,7 @@ object JesBackend {
 
   /**
     * Generates a json containing auth information based on the parameters provided.
+    *
     * @return a string representation of the json
     */
   def generateAuthJson(authInformation: Option[JesAuthInformation]*) = {
@@ -246,17 +287,17 @@ case class JesBackend(actorSystem: ActorSystem)
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = jobDescriptor.locallyQualifiedInputs mapValues gcsPathToLocal
 
-  private def writeAuthenticationFile(workflow: WorkflowDescriptor): Try[Unit] = {
+  private def writeAuthenticationFile(workflow: WorkflowDescriptor): Future[Unit] = {
     val log = workflowLogger(workflow)
 
-    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) map { content =>
-
-      val path = gcsAuthFilePath(workflow)
-      def upload(prev: Option[Unit]): Unit = path.writeAsJson(content)
-
-      log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
-      withRetry(upload, log, s"Exception occurred while uploading auth file to $path")
-    } getOrElse Success(())
+    generateAuthJson(dockerConf, getGcsAuthInformation(workflow)) match {
+      case Some(content) =>
+        val path = gcsAuthFilePath(workflow)
+        def upload(): Future[Unit] = Future { path.writeAsJson(content) }
+        log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
+        retryAsync(upload(), log, s"Exception occurred while uploading auth file to $path")(actorSystem, ec)
+      case None => Future.successful(())
+    }
   }
 
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
@@ -283,9 +324,7 @@ case class JesBackend(actorSystem: ActorSystem)
    * No need to copy GCS inputs for the workflow we should be able to directly reference them
    * Create an authentication json file containing docker credentials and/or user account information
    */
-  override def initializeForWorkflow(workflow: WorkflowDescriptor): Try[Unit] = {
-    writeAuthenticationFile(workflow)
-  }
+  override def initializeForWorkflow(workflow: WorkflowDescriptor): Future[Unit] = writeAuthenticationFile(workflow)
 
   override def assertWorkflowOptions(options: WorkflowOptions): Unit = {
     // Warn for unrecognized option keys

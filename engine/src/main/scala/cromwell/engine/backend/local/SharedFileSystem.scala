@@ -157,7 +157,11 @@ trait SharedFileSystem { self: Backend =>
   /**
    * Creates host execution directory.
    */
-  def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[Unit] = Try {
+  def initializeForWorkflow(descriptor: WorkflowDescriptor): Future[Unit] = {
+    Future.fromTry(makeExecutionDirectory(descriptor))
+  }
+
+  private def makeExecutionDirectory(descriptor: WorkflowDescriptor): Try[Unit] = Try {
     val hostExecutionDirectory = descriptor.workflowRootPath.toFile
     hostExecutionDirectory.mkdirs()
   }

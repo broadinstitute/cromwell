@@ -97,7 +97,7 @@ trait Backend {
    * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s
    * adjusted for the host workflow execution path.
    */
-  def initializeForWorkflow(workflow: WorkflowDescriptor): Try[Unit]
+  def initializeForWorkflow(workflow: WorkflowDescriptor): Future[Unit]
 
   /**
    * Do whatever cleaning up work is required when a workflow reaches a terminal state.

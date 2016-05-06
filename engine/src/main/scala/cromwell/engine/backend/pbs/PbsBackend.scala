@@ -158,7 +158,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def launchQsub(backendCall: BackendCall): (Int, Option[Int]) = {
     val logger = workflowLoggerWithCall(backendCall)
-    val pbsJobName = s"cromwell_${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}"
+    val pbsJobName = s"${backendCall.workflowDescriptor.shortId}_${backendCall.call.unqualifiedName}" take 15
     val queueSpec = backendCall.runtimeAttributes.queue match {
       case Some(q) => List("-q", q)
       case None => List()

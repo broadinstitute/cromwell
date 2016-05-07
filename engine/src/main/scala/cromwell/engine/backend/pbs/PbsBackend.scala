@@ -146,11 +146,21 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def writeScript(backendCall: BackendCall, instantiatedCommand: String) = {
     backendCall.script.write(
+      /*
+       * Use ':' as stripMargin token, as we've had pipe '|' appear legitimately
+       * at the beginning of a backslash-continued line of shell script in
+       * $instantiatedCommand and get stripped out. We don't want that! Colon
+       * seems a kind of unlikely thing to appear there, additionally, ':' in
+       * bash is a no-op so it's probably safe to remove on the rare occasions
+       * it does occur at start of a line. We could just forget about it and
+       * have an ugly left margin-abutted embedded string but this seems a nice
+       * compromise even if it has required a long comment to justify... haha.
+       */
       s"""#!/bin/sh
-         |cd $$PBS_O_WORKDIR
-         |$instantiatedCommand
-         |echo $$? > rc
-         |""".stripMargin)
+         :cd $$PBS_O_WORKDIR
+         :$instantiatedCommand
+         :echo $$? > rc
+         :""".stripMargin(':'))
   }
 
   /**

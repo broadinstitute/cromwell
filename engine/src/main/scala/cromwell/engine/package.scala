@@ -25,7 +25,6 @@ package object engine {
   final case class AbortFunction(function: () => Unit)
   final case class AbortRegistrationFunction(register: AbortFunction => Unit)
 
-  final case class ExecutionEventEntry(description: String, startTime: DateTime, endTime: DateTime)
   final case class QualifiedFailureEventEntry(workflowId: String, execution: Option[ExecutionDatabaseKey], failure: String, timestamp: DateTime) {
     def dequalify = FailureEventEntry(failure, timestamp)
   }
@@ -37,9 +36,6 @@ package object engine {
   type FullyQualifiedName = String
 
   type HostInputs = Map[String, WdlValue]
-
-  class CromwellFatalException(exception: Throwable) extends Exception(exception)
-  class PreemptedException(msg: String) extends Exception(msg)
 
   implicit class EnhancedFullyQualifiedName(val fqn: FullyQualifiedName) extends AnyVal {
     def scopeAndVariableName: (String, String) = {

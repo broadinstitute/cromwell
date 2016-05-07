@@ -1,14 +1,9 @@
 package cromwell.engine
 
-import wdl4s.{Call, Scope}
-
-import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.immutable.Seq
+import scala.concurrent.{ExecutionContext, Future}
 
 package object backend {
-  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-  final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
-
   // Ordered by shards, and then ordered by attempts
   type AttemptedCallLogs = Seq[Seq[CallLogs]]
   // Grouped by FQNS

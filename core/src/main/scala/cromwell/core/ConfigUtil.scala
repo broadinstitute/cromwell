@@ -1,4 +1,4 @@
-package cromwell.util
+package cromwell.core
 
 import java.net.URL
 
@@ -7,11 +7,9 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.reflect.{ClassTag, classTag}
-import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object ConfigUtil {
 
   val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
@@ -51,7 +49,6 @@ object ConfigUtil {
 
   }
 
-  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   implicit class EnhancedValidation[I <: AnyRef](val value: I) extends AnyVal {
     /**
      * Validates this value by applying validationFunction to it and returning a Validation:

@@ -8,7 +8,7 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.backend.JobKey
+import cromwell.backend.{ExecutionEventEntry, JobKey}
 import cromwell.core._
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.Execution

@@ -7,11 +7,12 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
+import cromwell.backend.SimpleExponentialBackoff
 import cromwell.core.{WorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine.{WorkflowFailureMode, WorkflowSourceFiles}
 import cromwell.engine.backend.io._
 import cromwell.logging.WorkflowLogger
-import cromwell.util.{SimpleExponentialBackoff, TryUtil}
+import cromwell.util.TryUtil
 import cromwell.webservice.WorkflowMetadataResponse
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
@@ -44,7 +45,6 @@ case class OldStyleWorkflowDescriptor(id: WorkflowId,
                                       fileSystems: List[FileSystem]) {
   import OldStyleWorkflowDescriptor._
 
-  val shortId = id.toString.split("-")(0)
   val name = namespace.workflow.unqualifiedName
   val actualInputs: WorkflowCoercedInputs = coercedInputs ++ declarations
   private val relativeWorkflowRootPath = s"$name/$id"

@@ -2,7 +2,7 @@ package cromwell.util.docker
 
 import com.google.api.client.auth.oauth2.Credential
 import com.typesafe.config.Config
-import cromwell.util.DockerConfiguration
+import cromwell.core.DockerConfiguration
 
 import scala.annotation.tailrec
 

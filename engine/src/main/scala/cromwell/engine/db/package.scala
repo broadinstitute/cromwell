@@ -1,8 +1,9 @@
 package cromwell.engine
 
+import cromwell.backend.ExecutionHash
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{OldStyleBackendCallJobDescriptor, ExecutionHash}
+import cromwell.engine.backend.OldStyleBackendCallJobDescriptor
 import wdl4s.Scatter
 
 package object db {

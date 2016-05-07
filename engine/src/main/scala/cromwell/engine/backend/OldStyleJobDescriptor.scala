@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.backend.JobKey
+import cromwell.backend.{ExecutionHash, JobKey}
 import cromwell.CallEngineFunctions
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes

@@ -1,10 +1,9 @@
-package cromwell.util
+package cromwell.backend
 
 import com.google.api.client.util.ExponentialBackOff
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait Backoff {
   /** Next interval in millis */
   def backoffMillis: Long
@@ -12,7 +11,6 @@ sealed trait Backoff {
   def next: Backoff
 }
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object InitialGapBackoff {
   def apply(initialGap: FiniteDuration, initialInterval: FiniteDuration, maxInterval: FiniteDuration, multiplier: Double) = {
     new InitialGapBackoff(initialGap, new ExponentialBackOff.Builder()
@@ -24,7 +22,6 @@ object InitialGapBackoff {
   }
 }
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class InitialGapBackoff(initialGapMillis: FiniteDuration, googleBackoff: ExponentialBackOff) extends Backoff {
   assert(initialGapMillis.compareTo(Duration.Zero) != 0, "Initial gap cannot be null, use SimpleBackoff instead.")
 
@@ -33,7 +30,6 @@ case class InitialGapBackoff(initialGapMillis: FiniteDuration, googleBackoff: Ex
   override def next = new SimpleExponentialBackoff(googleBackoff)
 }
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object SimpleExponentialBackoff {
   def apply(initialInterval: FiniteDuration, maxInterval: FiniteDuration, multiplier: Double) = {
     new SimpleExponentialBackoff(new ExponentialBackOff.Builder()
@@ -45,7 +41,6 @@ object SimpleExponentialBackoff {
   }
 }
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class SimpleExponentialBackoff(googleBackoff: ExponentialBackOff) extends Backoff {
   override def backoffMillis = googleBackoff.nextBackOffMillis()
   /** google ExponentialBackOff is mutable so we can keep returning the same instance */

@@ -5,6 +5,7 @@ import java.sql.SQLException
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
+import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
 import cromwell.core.{CallOutput, CallOutputs}
 import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex._
@@ -1235,7 +1236,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
       workflow.namespace.resolve(cachedExecution.callFqn) match {
         case Some(c: Call) =>
           val jobDescriptor = OldStyleBackendCallJobDescriptor(workflow, BackendCallKey(c, cachedExecution.index.toIndex, cachedExecution.attempt), callInputs)
-          log.info(s"Call Caching: Cache hit. Using UUID(${jobDescriptor.workflowDescriptor.shortId}):${jobDescriptor.key.tag} as results for UUID(${descriptor.workflowDescriptor.shortId}):${descriptor.key.tag}")
+          log.info(s"Call Caching: Cache hit. Using UUID(${jobDescriptor.workflowDescriptor.id.shortString}):${jobDescriptor.key.tag} as results for UUID(${descriptor.workflowDescriptor.id.shortString}):${descriptor.key.tag}")
           self ! UseCachedCall(callKey, OldStyleCallActor.UseCachedCall(jobDescriptor, descriptor,
             backend.stdoutStderr(descriptor)))
         case _ =>

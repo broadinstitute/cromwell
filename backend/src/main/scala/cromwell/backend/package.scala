@@ -27,7 +27,7 @@ package object backend {
     */
   case class BackendJobDescriptor(descriptor: BackendWorkflowDescriptor,
                                   key: BackendJobDescriptorKey,
-                                  symbolMap: Map[FullyQualifiedName, WdlValue]) {
+                                  inputs: Map[LocallyQualifiedName, WdlValue]) {
     val call = key.call
   }
 

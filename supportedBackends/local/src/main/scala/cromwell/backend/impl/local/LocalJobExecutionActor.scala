@@ -66,14 +66,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     new LocalCallEngineFunctions(fileSystems, callContext)
   }
 
-  val lookup = {
-    val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-    val unqualifiedWorkflowInputs = workflowDescriptor.inputs map {
-      case (fqn, v) => splitFqn(fqn)._2 -> v
-    }
-    val knownInputs = unqualifiedWorkflowInputs ++ jobDescriptor.symbolMap
-    WdlExpression.standardLookupFunction(knownInputs, declarations, callEngineFunction)
-  }
+  val lookup = jobDescriptor.inputs.apply _
 
   private def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, callEngineFunction)
 
@@ -95,7 +88,6 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   lazy val stderrTailed = jobPaths.stderr.tailed(100)
 
   override def preStart() = {
-    // workflowPaths.workflowRoot.createDirectories() TODO move to initialize actor
     jobPaths.callRoot.createDirectories()
   }
 
@@ -106,18 +98,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
     val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
 
-    // Inputs coming from the workflow inputs (json input mapping)
-    val workflowInputEntries = workflowDescriptor.inputs collect {
-      case (fqn, value) if splitFqn(fqn)._1 == call.fullyQualifiedName => splitFqn(fqn)._2 -> value
-    }
-
-    // Inputs coming from the "input" keyword in the workflow declaration. These need to be evaluated because they're expressions
-    val evaluatedInputMappings = call.inputMappings mapValues evaluate
-
-    TryUtil.sequenceMap(evaluatedInputMappings, "Job Input evaluation") flatMap { inputs =>
-      val localizedInputs = localizeInputs(jobPaths, runsOnDocker, fileSystems, inputs ++ workflowInputEntries)
-      call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
-    }
+    val localizedInputs = localizeInputs(jobPaths, runsOnDocker, fileSystems, jobDescriptor.inputs)
+    call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
   }
 
   private def executeScript(script: String): Future[BackendJobExecutionResponse] = {
@@ -212,7 +194,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def processSuccess(rc: Int) = {
-    processOutputs(jobDescriptor, workflowDescriptor.id, lookup, callEngineFunction, jobPaths) match {
+    processOutputs(callEngineFunction, jobPaths) match {
       case Success(outputs) => BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map { ": " + _ } getOrElse ""

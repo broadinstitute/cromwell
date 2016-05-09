@@ -67,31 +67,6 @@ object TestWorkflows {
       |}
     """.stripMargin
 
-  val InputExpressions =
-    """
-      |task expression {
-      |  Int intNumber
-      |  Float floatNumber
-      |  Float sum = 15 + floatNumber
-      |  command {
-      |    echo ${intNumber} > ints
-      |    echo ${floatNumber} > floats
-      |    echo ${sum} >> floats
-      |  }
-      |  output {
-      |    Array[Int] outInts = read_lines("ints")
-      |    Array[Float] outFloats = read_lines("floats")
-      |  }
-      |}
-      |
-      |workflow expression {
-      |  String str = "31380"
-      |  Float f1 = 26
-      |  call expression { input: intNumber = str,
-      |                         floatNumber = f1 + 22}
-      |}
-    """.stripMargin
-
   val Sleep10 =
     """
       |task abort {
@@ -126,24 +101,41 @@ object TestWorkflows {
       |}
     """.stripMargin
 
-  val EngineFunctions =
+  val OutputProcess = {
     """
-      |task scattering {
-      |  Int intNumber
+      |task localize {
+      |  File inputFile
       |  command {
-      |    echo ${intNumber}
+      |    echo "Hello" > a
+      |    mkdir dir
+      |    echo "world" > dir/b
       |  }
       |  output {
-      |    Int out = read_string(stdout())
-      |    String outStr= read_string(stdout())
+      |    File o1 = "a"
+      |    Array[File] o2 = ["a", "dir/b"]
+      |    File o3 = inputFile
       |  }
       |}
       |
-      |workflow scattering {
-      |  Array[Int] numbers = [1, 2, 3]
-      |  scatter (i in numbers) {
-      |     call scattering { input: intNumber = i }
-      |  }
+      |workflow localize {
+      |  call localize
       |}
     """.stripMargin
+  }
+
+  val MissingOutputProcess = {
+    """
+      |task localize {
+      |  command {
+      |  }
+      |  output {
+      |    File o1 = "c"
+      |  }
+      |}
+      |
+      |workflow localize {
+      |  call localize
+      |}
+    """.stripMargin
+  }
 }

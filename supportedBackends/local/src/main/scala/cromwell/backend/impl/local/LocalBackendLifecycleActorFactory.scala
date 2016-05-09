@@ -2,8 +2,10 @@ package cromwell.backend.impl.local
 
 import akka.actor.Props
 import com.typesafe.config.Config
-import cromwell.backend.{BackendWorkflowDescriptor, BackendConfigurationDescriptor, BackendJobDescriptor, BackendLifecycleActorFactory}
+import cromwell.backend._
+import cromwell.core.CallContext
 import wdl4s.Call
+import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 
 case class LocalBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -18,5 +20,18 @@ case class LocalBackendLifecycleActorFactory(config: Config) extends BackendLife
   }
 
   override def workflowFinalizationActorProps(): Option[Props] = None
+
+  override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
+                                           jobKey: BackendJobDescriptorKey,
+                                           configurationDescriptor: BackendConfigurationDescriptor): WdlStandardLibraryFunctions = {
+    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
+      val callContext = new CallContext(
+        jobPaths.callRoot.toString,
+        jobPaths.stdout.toAbsolutePath.toString,
+        jobPaths.stderr.toAbsolutePath.toString
+      )
+
+      new LocalCallEngineFunctions(LocalJobExecutionActor.fileSystems, callContext)
+  }
 }
 

@@ -1,0 +1,14 @@
+{
+  "cache": {
+    "workflowName": "cacheWithinWF",
+    "cacheWithinWF.four": {
+      "cache": {
+        "cacheHitCall": "cacheWithinWF.two"
+      }
+    }
+  },
+  "assertEqual": {
+    "cacheWithinWF.two.inputs": "cacheWithinWF.four.inputs",
+    "cacheWithinWF.two.outputs": "cacheWithinWF.four.outputs"
+  }
+}

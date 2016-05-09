@@ -17,6 +17,8 @@ object CentaurConfig {
   lazy val successfulTestCasePath = Paths.get(conf.getString("centaur.successfulTestCasePath"))
   lazy val failingTestCasePath = Paths.get(conf.getString("centaur.failingTestCasePath"))
   lazy val submissionFailureTestCasePath = Paths.get(conf.getString("centaur.submissionFailureTestCasePath"))
+  lazy val callCacheTestCasePath = Paths.get(conf.getString("centaur.callCacheTestCasePath"))
+
 
   // If provided, any tests will be appended to the tests in successfulTestCasePath
   lazy val optionalTestPath: Option[Path] = conf.getStringOption("centaur.optionalTestPath") map { Paths.get(_) }

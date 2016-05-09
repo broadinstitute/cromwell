@@ -50,6 +50,7 @@ object JsonUtils {
     // A couple of helper functions to assist with flattening Cromwell metadata responses
     def hasShardIndex = jsObject.fields.keySet contains "shardIndex"
     def shardIndex = jsObject.fields.get("shardIndex") map { _.toString() }
+    def flattenToMap: Map [String, JsValue] = jsObject.flatten().fields map { case (k, v: JsValue) => k -> v}
   }
 
   /**

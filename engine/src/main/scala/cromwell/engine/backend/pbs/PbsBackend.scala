@@ -175,7 +175,6 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     }
     val argv = "qsub" :: queueSpec ++ Seq(
       "-N", pbsJobName,
-      "-V",
       "-e", backendCall.stderr.toAbsolutePath,
       "-o", backendCall.stdout.toAbsolutePath,
       "-l", s"ncpus=${backendCall.runtimeAttributes.cpu}",

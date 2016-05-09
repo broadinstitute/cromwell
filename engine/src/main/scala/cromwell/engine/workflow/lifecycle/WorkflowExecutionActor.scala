@@ -1,13 +1,14 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{FSM, LoggingFSM, Props}
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
+import com.typesafe.config.ConfigFactory
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionFailedRetryableResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, JobKey}
 import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, _}
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, _}
 import cromwell.webservice.WdlValueJsonFormatter
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
@@ -43,7 +44,7 @@ object WorkflowExecutionActor {
   final case class WorkflowExecutionActorData(executionStore: ExecutionStore,
                                               symbolCache: SymbolCache) {
 
-    /** This method updates: The ExecutionStore with the updated status, the symbol cache with the new outputs, and appends to the overall CallOutputs */
+    /** This method updates: The ExecutionStore with the updated status and the symbol cache with the new outputs */
     def updateJob(jobKey: JobKey,
                   outputs: CallOutputs,
                   status: ExecutionStatus): WorkflowExecutionActorData = {
@@ -67,7 +68,7 @@ object WorkflowExecutionActor {
 
     /** Checks if the workflow is completed by scanning through the executionStore */
     def isWorkflowComplete: Boolean = {
-      def isDone(executionStatus: ExecutionStatus): Boolean = executionStatus == ExecutionStatus.Done
+      def isDone(executionStatus: ExecutionStatus): Boolean = (executionStatus == ExecutionStatus.Done) || (executionStatus == ExecutionStatus.Preempted)
       executionStore.values.forall(isDone)
     }
 
@@ -101,10 +102,21 @@ object WorkflowExecutionActor {
 final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
 
   import WorkflowExecutionActor._
+  import lenthall.config.ScalaConfig._
 
   val tag = self.path.name
+  private lazy val DefaultMaxRetriesFallbackValue = 10
 
   private val calls = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.calls
+
+  // TODO: We should probably create a trait which loads all the configuration (once per application), and let classes mix it in
+  // to avoid doing ConfigFactory.load() at multiple places
+  val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {
+    case Some(value) => value
+    case None =>
+      log.warning(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of `$DefaultMaxRetriesFallbackValue`.")
+      DefaultMaxRetriesFallbackValue
+  }
 
   // Initialize the StateData with ExecutionStore (all calls as NotStarted) and SymbolStore
   startWith(
@@ -191,8 +203,11 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       else
         stay() using startRunnableJobs(newData)
     case Event(BackendJobExecutionFailedResponse(jobKey, reason), stateData) =>
-      log.warning(s"Job ${jobKey.call.fullyQualifiedName} failed! Reason: $reason")
-      goto(WorkflowExecutionFailedState)
+      log.warning(s"Job ${jobKey.call.fullyQualifiedName} failed! Reason: ${reason.getMessage}", reason)
+      goto(WorkflowExecutionFailedState) using stateData.updateExecutionStoreStatus(jobKey -> ExecutionStatus.Failed)
+    case Event(BackendJobExecutionFailedRetryableResponse(jobKey, reason), stateData) =>
+      log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
+      handleRetryableFailure(jobKey)
     case Event(AbortExecutingWorkflowCommand, stateData) => ??? // TODO: Implement!
     case Event(_, _) => ??? // TODO: Lots of extra stuff to include here...
   }
@@ -219,6 +234,21 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       context.stop(self)
     case fromState -> toState =>
       log.info(s"$tag transitioning from $fromState to $toState.")
+  }
+
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey) = {
+    // We start with index 1 for #attempts, hence invariant breaks only if jobKey.attempt > MaxRetries
+    if (jobKey.attempt <= MaxRetries) {
+      val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
+      log.info(s"Retrying job execution for ${newJobKey.tag}")
+      /** Currently, we update the status of the old key to Preempted, and add a new entry (with the #attempts incremented by 1)
+        * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
+      val newData = stateData.updateExecutionStoreStatus(jobKey, ExecutionStatus.Preempted).updateExecutionStoreStatus(newJobKey -> ExecutionStatus.NotStarted)
+      stay() using startRunnableJobs(newData)
+    } else {
+      log.warning(s"Exhausted maximum number of retries for job ${jobKey.tag}. Failing.")
+      goto(WorkflowExecutionFailedState) using stateData.updateExecutionStoreStatus(jobKey -> ExecutionStatus.Failed)
+    }
   }
 
   private def fetchCallInputEntries(callKey: JobKey, symbolCache: SymbolCache): Traversable[SymbolStoreEntry] = {

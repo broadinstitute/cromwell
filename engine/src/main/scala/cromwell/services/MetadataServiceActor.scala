@@ -32,7 +32,7 @@ object MetadataServiceActor {
   object MetadataQuery {
     def forWorkflow(workflowId: WorkflowId) = MetadataQuery(Option(workflowId), None, None)
     def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey) = MetadataQuery(Option(workflowId), Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None)
-    def forKey(key: String) = MetadataQuery(None, None, Option(key))
+    def forKey(key: MetadataKey) = MetadataQuery(Option(key.workflowId), key.jobKey map { MetadataQueryJobKey.forMetadataJobKey }, Option(key.key))
   }
 
   trait MetadataServiceMessage
@@ -63,15 +63,43 @@ object MetadataServiceActor {
 }
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor {
+
+  var journal = List.empty[MetadataEvent]
+
   def receive = {
-    case PutMetadataAction(event) =>
-      val result: MetadataPutAcknowledgement = ???
+    case action@PutMetadataAction(event) =>
+      journal = journal :+ event
+      val result: MetadataPutAcknowledgement = MetadataPutAcknowledgement(action)
       sender ! result
     case GetAllMetadataAction(workflowId) =>
-      val result: MetadataLookupResponse = ???
+      val query = MetadataQuery(Option(workflowId), None, None)
+      val filtered = filterByQuery(query)
+      val result: MetadataLookupResponse = MetadataLookupResponse(query, filtered)
       sender ! result
-    case GetMetadataQueryAction(MetadataQuery(workflowId, jobKey, key)) =>
-      val result: MetadataLookupResponse = ???
+    case GetMetadataQueryAction(query@MetadataQuery(workflowId, jobKey, key)) =>
+      val result: MetadataLookupResponse = MetadataLookupResponse(query, filterByQuery(query))
       sender ! result
+  }
+
+  private def filterByQuery(metadataQuery: MetadataQuery): Seq[MetadataEvent] = {
+
+    val possibleJobQueryFilters: List[Option[MetadataEvent => Boolean]] = metadataQuery.jobKey match {
+      case Some(jobKeyQuery) => List(
+        jobKeyQuery.callFqn map { queryCallFqn => (event: MetadataEvent) => event.key.jobKey.isDefined && event.key.jobKey.get.callFqn == queryCallFqn },
+        jobKeyQuery.index map { queryIndex => (event: MetadataEvent) => event.key.jobKey.isDefined && event.key.jobKey.get.index == queryIndex },
+        jobKeyQuery.attempt map { queryAttempt => (event: MetadataEvent) => event.key.jobKey.isDefined && event.key.jobKey.get.attempt == queryAttempt }
+      )
+      case None => List.empty
+    }
+
+    val possibleFilters: List[Option[MetadataEvent => Boolean]] = List(
+      metadataQuery.workflowId map { queryId => (event: MetadataEvent) => event.key.workflowId == queryId },
+      metadataQuery.key map { queryKey => (event: MetadataEvent) => event.key.key == queryKey }
+    ) ++ possibleJobQueryFilters
+
+    val filtersToUse: List[MetadataEvent => Boolean] = possibleFilters collect { case Some(f) => f }
+
+    // Make sure that every filter which is being requested applies to this event:
+    if (filtersToUse.isEmpty) journal else journal filter { event => filtersToUse forall { _(event) } }
   }
 }

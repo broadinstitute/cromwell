@@ -6,7 +6,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, _}
-import cromwell.engine.backend.{BackendConfiguration, CromwellBackend}
+import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
 import cromwell.webservice.WdlValueJsonFormatter
 import lenthall.exception.ThrowableAggregation
@@ -152,7 +152,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
         throw new IllegalStateException(s"$tag $message")
       case Some(backendName) =>
         val attemptedConfigurationDescriptor = BackendConfiguration.backendConfigurationDescriptor(backendName)
-        val attemptedActorFactory = CromwellBackend.shadowBackendLifecycleFactory(backendName)
+        val attemptedActorFactory = CromwellBackends.shadowBackendLifecycleFactory(backendName)
 
         (attemptedConfigurationDescriptor, attemptedActorFactory) match {
           case (Success(configDescriptor), Success(factory)) =>

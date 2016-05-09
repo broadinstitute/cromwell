@@ -9,7 +9,7 @@ import scala.language.postfixOps
 
 class BadDockerName extends CromwellTestkitSpec {
   "A task which has a bad docker image name" should {
-    "fail properly" taggedAs DockerTest in {
+    "fail properly" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.HelloWorld,
         eventFilter = EventFilter.info(pattern = s"transitioning from Running to Failed.", occurrences = 1),

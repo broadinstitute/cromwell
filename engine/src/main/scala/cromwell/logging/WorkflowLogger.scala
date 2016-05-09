@@ -1,7 +1,7 @@
 package cromwell.logging
 
 import akka.event.LoggingAdapter
-import cromwell.engine.backend.WorkflowDescriptor
+import cromwell.engine.backend.OldStyleWorkflowDescriptor
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.slf4j.Logger
 
@@ -25,8 +25,9 @@ import org.slf4j.Logger
  * Each log method called (e.g. warn(), error()) will log to all the
  * above locations
  */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class WorkflowLogger(caller: String,
-                          descriptor: WorkflowDescriptor,
+                          descriptor: OldStyleWorkflowDescriptor,
                           akkaLogger: Option[LoggingAdapter] = None,
                           otherLoggers: Seq[Logger] = Seq.empty[Logger],
                           callTag: Option[String] = None) {

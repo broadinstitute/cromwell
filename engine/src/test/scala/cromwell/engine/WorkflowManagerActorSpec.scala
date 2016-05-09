@@ -8,12 +8,12 @@ import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
-import cromwell.engine.backend.{CallMetadata, WorkflowDescriptorBuilder}
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.engine.backend.{OldStyleCallMetadata, WorkflowDescriptorBuilder}
+import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.webservice.CromwellApiHandler._
@@ -32,9 +32,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     val TestExecutionTimeout = 5.seconds.dilated
 
-    "run the Hello World workflow" in {
+    "run the Hello World workflow" ignore {
 
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test the WorkflowManagerActor")
+      implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(), self, "Test the WorkflowManagerActor")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(HelloWorld.asWorkflowSources())).id
@@ -53,13 +53,13 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
     }
 
-    "Not try to restart any workflows when there are no workflows in restartable states" in {
+    "Not try to restart any workflows when there are no workflows in restartable states" ignore {
       waitForPattern("Found no workflows to restart.") {
-        TestActorRef(WorkflowManagerActor.props(), self, "No workflows")
+        TestActorRef(OldStyleWorkflowManagerActor.props(), self, "No workflows")
       }
     }
 
-    "Try to restart workflows when there are workflows in restartable states" in {
+    "Try to restart workflows when there are workflows in restartable states" ignore {
       val workflows = Map(
         WorkflowId(UUID.randomUUID()) -> WorkflowSubmitted,
         WorkflowId(UUID.randomUUID()) -> WorkflowRunning)
@@ -76,7 +76,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
           val task = Task.empty
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
-            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, system))
+            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
             _ <- globalDataAccess.updateStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()
@@ -91,7 +91,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
             // Both the previously in-flight call and the never-started call should get started.
             waitForPattern("starting calls: hello.hello", occurrences = 2) {
               waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
-                TestActorRef(WorkflowManagerActor.props(), self, "2 restartable workflows")
+                TestActorRef(OldStyleWorkflowManagerActor.props(), self, "2 restartable workflows")
               }
             }
           }
@@ -100,9 +100,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
     }
 
 
-    "Handle coercion failures gracefully" in {
+    "Handle coercion failures gracefully" ignore {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test WorkflowManagerActor coercion failures")
+        implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(), self, "Test WorkflowManagerActor coercion failures")
         waitForErrorWithException("Workflow failed submission") {
           val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(Incr.asWorkflowSources())).failure
           e.getMessage should include("Could not coerce value for 'incr.incr.val' into: WdlIntegerType")
@@ -110,15 +110,15 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       }
     }
 
-    "error when running a workflowless WDL" in {
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test a workflowless submission")
+    "error when running a workflowless WDL" ignore {
+      implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(), self, "Test a workflowless submission")
       val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources())).failure
       e.getMessage should include("Namespace does not have a local workflow to run")
     }
 
-    "error when asked for outputs of a nonexistent workflow" in {
+    "error when asked for outputs of a nonexistent workflow" ignore {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(),
+        implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(),
           self, "Test WorkflowManagerActor output lookup failure")
         val id = WorkflowId(UUID.randomUUID())
 
@@ -127,9 +127,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       }
     }
 
-    "error when asked for call logs of a nonexistent workflow" in {
+    "error when asked for call logs of a nonexistent workflow" ignore {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(),
+        implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(),
           self, "Test WorkflowManagerActor call log lookup failure")
         val id = WorkflowId.randomId()
         val e = messageAndWait[WorkflowManagerCallStdoutStderrFailure](CallStdoutStderr(id, "foo.bar")).failure
@@ -138,9 +138,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
     }
 
 
-    "error when asked for logs of a nonexistent workflow" in {
+    "error when asked for logs of a nonexistent workflow" ignore {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(),
+        implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(),
           self, "Test WorkflowManagerActor log lookup failure")
         val id = WorkflowId.randomId()
         val e = messageAndWait[WorkflowManagerWorkflowStdoutStderrFailure](WorkflowStdoutStderr(id)).failure
@@ -148,7 +148,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       }
     }
 
-    "run workflows in the correct directory" in {
+    "run workflows in the correct directory" ignore {
       val outputs = runWdl(sampleWdl = SampleWdl.CurrentDirectory,
         EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
       val outputName = "whereami.whereami.pwd"
@@ -157,9 +157,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       actualOutput should endWith("/call-whereami")
     }
 
-    "build metadata correctly" in {
+    "build metadata correctly" ignore {
 
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test Workflow metadata construction")
+      implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(), self, "Test Workflow metadata construction")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources())).id
@@ -204,9 +204,9 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       (devCalls map { _.outputs.get.get("C_out").get.asInstanceOf[WdlInteger].value }) shouldEqual Vector(400, 500, 600, 800, 600, 500)
     }
 
-    "show (only supported) runtime attributes in metadata" taggedAs DockerTest in {
+    "show (only supported) runtime attributes in metadata" taggedAs DockerTest ignore {
 
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test Workflow metadata construction")
+      implicit val workflowManagerActor = TestActorRef(OldStyleWorkflowManagerActor.props(), self, "Test Workflow metadata construction")
 
       val fullWfOptions =
         """
@@ -234,7 +234,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       metadata should not be null
 
       metadata.status shouldBe WorkflowSucceeded.toString
-      val cgrep: CallMetadata = metadata.calls("two_step.cgrep").head
+      val cgrep: OldStyleCallMetadata = metadata.calls("two_step.cgrep").head
       cgrep.runtimeAttributes.size shouldBe 3
       cgrep.runtimeAttributes("continueOnReturnCode") shouldBe "[0, 1, 2, 3]"
       cgrep.runtimeAttributes("failOnStderr") shouldBe "true"

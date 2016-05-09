@@ -10,7 +10,7 @@ import scala.language.postfixOps
 
 class ScatterWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with a stand-alone scatter block in it" should {
-    "run properly" in {
+    "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.outside_scatter", occurrences = 1),
@@ -22,7 +22,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     }
   }
   "A workflow with multiple calls in the scatter block" should {
-    "run properly" in {
+    "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = new SampleWdl.ScatterWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: w.A", occurrences = 1),
@@ -37,7 +37,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     }
   }
   "A workflow with sibling scatter blocks" should {
-    "run properly" in {
+    "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SiblingsScatterWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: w.A", occurrences = 1),
@@ -54,7 +54,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow with scatter blocks and File inputs/outputs" should {
-    "run properly" in {
+    "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.PrepareScatterGatherWdl(),
         eventFilter = EventFilter.info(pattern = s"starting calls: sc_test.do_prepare", occurrences = 1),
@@ -66,7 +66,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "run properly in a Docker environment" taggedAs DockerTest in {
+    "run properly in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.PrepareScatterGatherWdl(),
         eventFilter = EventFilter.info(pattern = s"starting calls: sc_test.do_prepare", occurrences = 1),

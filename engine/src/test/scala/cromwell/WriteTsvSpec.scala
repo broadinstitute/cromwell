@@ -20,14 +20,14 @@ class WriteTsvSpec extends CromwellTestkitSpec {
   )
 
   "A task that calls write_tsv() called in the command section or declaration" should {
-    "run properly" in {
+    "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteTsvWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: write_lines.a2f", occurrences = 1),
         expectedOutputs = outputs
       )
     }
-    "run properly in a Docker environment" taggedAs DockerTest in {
+    "run properly in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteTsvWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: write_lines.a2f", occurrences = 1),

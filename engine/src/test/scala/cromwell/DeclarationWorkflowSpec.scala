@@ -17,7 +17,7 @@ class DeclarationWorkflowSpec extends CromwellTestkitSpec {
   )
 
   "A workflow with declarations in it" should {
-    "compute inputs properly" in {
+    "compute inputs properly" ignore {
       NamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime="")).workflow.inputs shouldEqual Map(
         "two_step.cat.file" -> WorkflowInput("two_step.cat.file", WdlFileType, postfixQuantifier = None),
         "two_step.cgrep.str_decl" -> WorkflowInput("two_step.cgrep.str_decl", WdlStringType, postfixQuantifier = None),
@@ -25,14 +25,14 @@ class DeclarationWorkflowSpec extends CromwellTestkitSpec {
         "two_step.flags_suffix" -> WorkflowInput("two_step.flags_suffix", WdlStringType, postfixQuantifier = None)
       )
     }
-    "honor the declarations" in {
+    "honor the declarations" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.DeclarationsWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: two_step.cat", occurrences = 1),
         expectedOutputs = outputs
       )
     }
-    "honor the declarations in a Docker environment" taggedAs DockerTest in {
+    "honor the declarations in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.DeclarationsWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: two_step.cat", occurrences = 1),

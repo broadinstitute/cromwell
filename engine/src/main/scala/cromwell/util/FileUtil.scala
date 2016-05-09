@@ -8,6 +8,7 @@ import wdl4s.values.Hashable
 
 import scala.util.{Failure, Success, Try}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object FileUtil {
   def swapExt(filePath: String, oldExt: String, newExt: String): String = {
     filePath.stripSuffix(oldExt) + newExt

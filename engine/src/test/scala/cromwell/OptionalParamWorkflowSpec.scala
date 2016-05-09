@@ -18,14 +18,14 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec {
   )
 
   "A workflow with optional parameters" should {
-    "accept optional parameters" in {
+    "accept optional parameters" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.OptionalParamWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: optional.hello, optional.hello2, optional.hello_person", occurrences = 1),
         expectedOutputs = outputs
       )
     }
-    "accept optional parameters in a Docker environment" taggedAs DockerTest in {
+    "accept optional parameters in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.OptionalParamWorkflow,
         eventFilter = EventFilter.info(pattern = s"starting calls: optional.hello, optional.hello2, optional.hello_person", occurrences = 1),
@@ -40,7 +40,7 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow with an optional parameter that has a prefix inside the tag" should {
-    "not include that prefix if no value is specified" in {
+    "not include that prefix if no value is specified" ignore {
       val wf = """
          |task find {
          |  String? pattern

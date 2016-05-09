@@ -16,7 +16,7 @@ class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestkitSpec {
   ))
 
   "A workflow with a read_lines() and read_map() at the workflow level" should {
-    "execute those functions properly" in {
+    "execute those functions properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WdlFunctionsAtWorkflowLevel,
         eventFilter = EventFilter.info(pattern = s"starting calls: w.a", occurrences = 1),

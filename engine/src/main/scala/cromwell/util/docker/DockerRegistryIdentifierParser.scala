@@ -6,6 +6,7 @@ import cromwell.util.DockerConfiguration
 /**
   * Parses a String into a DockerIdentifier for a particular registry.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait DockerRegistryIdentifierParser {
   /**
     * @return A function that can possibly parse a String into a DockerIdentifier.
@@ -16,6 +17,7 @@ sealed trait DockerRegistryIdentifierParser {
 /**
   * Parses Docker Hub image strings.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class DockerHubRegistryParser(dockerConfig: DockerConfiguration) extends DockerRegistryIdentifierParser {
   private lazy val dockerHubLoginProvider = new DockerHubLoginProvider(dockerConfig.dockerCredentials map { _.token })
 
@@ -46,6 +48,7 @@ class DockerHubRegistryParser(dockerConfig: DockerConfiguration) extends DockerR
 /**
   * Parses an image hosted on *.gcr.io.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class GoogleContainerRegistryParser(credential: Credential) extends DockerRegistryIdentifierParser {
   private val gcrLoginProvider = new GcrLoginProvider(credential)
   private val gcrLatest = """(.*\.?gcr.io)/(.*)/(.*)""".r

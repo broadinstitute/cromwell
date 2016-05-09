@@ -8,7 +8,7 @@ import scala.language.postfixOps
 
 class FilePassingWorkflowSpec extends CromwellTestkitSpec {
   "A workflow that passes files between tasks" should {
-    "pass files properly" in {
+    "pass files properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.FilePassingWorkflow,
         EventFilter.info(pattern = s"starting calls: file_passing.a", occurrences = 1),

@@ -6,15 +6,19 @@ import cromwell.util.ConfigUtil._
 /**
  * Encapsulate docker credential information.
  */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerCredentials(account: String, token: String)
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerHubConfiguration(namespace: String, v1Registry: String, v2Registry: String)
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerConfiguration(dockerCredentials: Option[DockerCredentials], dockerHubConf: DockerHubConfiguration)
 
 /**
  * Singleton encapsulating a DockerConf instance.
  */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object DockerConfiguration {
   import lenthall.config.ScalaConfig._
 

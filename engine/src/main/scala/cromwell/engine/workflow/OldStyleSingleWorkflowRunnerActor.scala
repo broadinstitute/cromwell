@@ -8,18 +8,19 @@ import better.files._
 import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine
 import cromwell.engine._
-import cromwell.engine.workflow.ShadowWorkflowManagerActor.SubmitWorkflowCommand
-import cromwell.engine.workflow.SingleWorkflowRunnerActor._
-import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowMetadata
+import cromwell.engine.workflow.WorkflowManagerActor.SubmitWorkflowCommand
+import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor._
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.{WdlValueJsonFormatter, WorkflowMetadataResponse}
 import spray.json._
 
 import scala.util._
-
-object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef, shadowMode: Boolean = false): Props = {
-    Props(classOf[SingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager, shadowMode)
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleSingleWorkflowRunnerActor {
+  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef): Props = {
+    Props(classOf[OldStyleSingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager)
   }
 
   sealed trait RunnerMessage
@@ -51,12 +52,12 @@ object SingleWorkflowRunnerActor {
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
  */
-case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
-                                     metadataOutputPath: Option[Path],
-                                     workflowManager: ActorRef,
-                                     shadowMode: Boolean = false) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class OldStyleSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
+                                             metadataOutputPath: Option[Path],
+                                             workflowManager: ActorRef) extends LoggingFSM[RunnerState, RunnerData] with CromwellActor {
 
-  import SingleWorkflowRunnerActor._
+  import OldStyleSingleWorkflowRunnerActor._
 
   val tag = "SingleWorkflowRunnerActor"
 
@@ -75,7 +76,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   when (NotStarted) {
     case Event(RunWorkflow, data) =>
       log.info(s"$tag: launching workflow")
-      val submitMessage = if (shadowMode) SubmitWorkflowCommand(source) else SubmitWorkflow(source)
+      val submitMessage = SubmitWorkflowCommand(source)
       workflowManager ! submitMessage
       goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
   }

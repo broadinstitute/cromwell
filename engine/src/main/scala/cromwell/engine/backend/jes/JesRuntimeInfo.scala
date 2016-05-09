@@ -4,12 +4,12 @@ import com.google.api.services.genomics.model.{DockerExecutor, PipelineResources
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 
 import scala.collection.JavaConverters._
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait JesRuntimeInfo {
   def resources: PipelineResources
   def docker: DockerExecutor
 }
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 trait JesRuntimeInfoBuilder {
   def buildDockerExecutor(commandLine: String, dockerImage: String): DockerExecutor = {
     val docker = new DockerExecutor()
@@ -25,7 +25,7 @@ trait JesRuntimeInfoBuilder {
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSizeGb)
   }
 }
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object NonPreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
   def apply(commandLine: String, runtimeAttributes: CromwellRuntimeAttributes): JesRuntimeInfo = {
     /*
@@ -39,7 +39,7 @@ object NonPreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
     new NonPreemptibleJesRuntimeInfo(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object PreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
   def apply(commandLine: String, runtimeAttributes: CromwellRuntimeAttributes): JesRuntimeInfo = {
     // See comment above
@@ -48,6 +48,7 @@ object PreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
     new PreemptibleJesRuntimeInfo(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class NonPreemptibleJesRuntimeInfo(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class PreemptibleJesRuntimeInfo(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo

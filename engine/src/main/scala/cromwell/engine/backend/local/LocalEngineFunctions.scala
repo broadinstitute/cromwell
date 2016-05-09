@@ -10,16 +10,18 @@ import wdl4s.values.WdlValue
 import scala.language.postfixOps
 import scala.util.Try
 
-object LocalWorkflowEngineFunctions {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleLocalWorkflowEngineFunctions {
   private val LocalFSScheme = "file"
   def isLocalPath(path: Path) = path.toUri.getScheme == LocalFSScheme
 }
 
-class LocalWorkflowEngineFunctions(fileSystems: List[FileSystem], context: WorkflowContext) extends WorkflowEngineFunctions(context) {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+class OldStyleLocalWorkflowEngineFunctions(fileSystems: List[FileSystem], context: WorkflowContext) extends WorkflowEngineFunctions(context) {
   import backend.io._
   import core.PathFactory._
   import better.files._
-  import LocalWorkflowEngineFunctions._
+  import OldStyleLocalWorkflowEngineFunctions._
 
   override def globPath(glob: String): String = context.root
   override def glob(path: String, pattern: String): Seq[String] = {
@@ -32,7 +34,8 @@ class LocalWorkflowEngineFunctions(fileSystems: List[FileSystem], context: Workf
   }
 }
 
-class LocalCallEngineFunctions(fileSystems: List[FileSystem], context: CallContext) extends LocalWorkflowEngineFunctions(fileSystems ,context) with CallEngineFunctions {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+class OldStyleLocalCallEngineFunctions(fileSystems: List[FileSystem], context: CallContext) extends OldStyleLocalWorkflowEngineFunctions(fileSystems ,context) with CallEngineFunctions {
   override def stdout(params: Seq[Try[WdlValue]]) = stdout(context)
   override def stderr(params: Seq[Try[WdlValue]]) = stderr(context)
 }

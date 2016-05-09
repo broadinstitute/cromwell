@@ -12,6 +12,7 @@ package cromwell.util.docker
   * - https://github.com/docker/docker/blob/v1.9.1/registry/config.go#L24-L25
   * - https://github.com/docker/docker/blob/v1.9.1/registry/config_unix.go#L6-L10
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object DockerRegistry {
   /**
     * Creates a registry where the namespace, the registry v1 hostname, and the registry v2 hostname are all the same.
@@ -30,4 +31,5 @@ object DockerRegistry {
   * @param v1Hostname The host for contacting the V1 API.
   * @param v2Hostname The host for contacting the V2 API.
   */
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerRegistry(namespace: String, v1Hostname: String, v2Hostname: String, loginProvider: DockerLoginProvider)

@@ -22,7 +22,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-object Backend {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleBackend {
   class StdoutStderrException(message: String) extends RuntimeException(message)
 
   case class RestartableWorkflow(id: WorkflowId, source: WorkflowSourceFiles)
@@ -41,7 +42,7 @@ object Backend {
   private val ShardPrefix = "shard"
   private val AttemptPrefix = "attempt"
 
-  def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+  def callRootPathWithBaseRoot(jobDescriptor: OldStyleBackendCallJobDescriptor, baseRoot: String): Path = {
     import io._
     val call = s"$CallPrefix-${jobDescriptor.key.scope.unqualifiedName}"
     val shard = jobDescriptor.key.index map { s => s"$ShardPrefix-$s" } getOrElse ""
@@ -52,10 +53,12 @@ object Backend {
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
   def toPair = name -> value
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object AttemptedLookupResult {
   implicit class AugmentedAttemptedLookupSequence(s: Seq[AttemptedLookupResult]) {
     def toLookupMap: Map[String, WdlValue] = s collect {
@@ -67,7 +70,8 @@ object AttemptedLookupResult {
 /**
  * Trait to be implemented by concrete backends.
  */
-trait Backend {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+trait OldStyleBackend {
 
   def actorSystem: ActorSystem
 
@@ -83,19 +87,19 @@ trait Backend {
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def adjustInputPaths(backendCallJobDescriptor: BackendCallJobDescriptor): CallInputs
+  def adjustInputPaths(backendCallJobDescriptor: OldStyleBackendCallJobDescriptor): CallInputs
 
   /**
    * Do whatever work is required to initialize the workflow, returning a copy of
    * the coerced inputs present in the `WorkflowDescriptor` with any input `WdlFile`s
    * adjusted for the host workflow execution path.
    */
-  def initializeForWorkflow(workflow: WorkflowDescriptor): Try[Unit]
+  def initializeForWorkflow(workflow: OldStyleWorkflowDescriptor): Try[Unit]
 
   /**
    * Do whatever cleaning up work is required when a workflow reaches a terminal state.
    */
-  def cleanUpForWorkflow(workflow: WorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
+  def cleanUpForWorkflow(workflow: OldStyleWorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
 
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions
 
@@ -108,7 +112,7 @@ trait Backend {
   /**
    * Return CallLogs which contains the stdout/stderr of the particular call
    */
-  def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs
+  def stdoutStderr(jobDescriptor: OldStyleBackendCallJobDescriptor): CallLogs
 
   def backendType: BackendType
 
@@ -120,13 +124,13 @@ trait Backend {
 
   private[backend] def backendClassString = backendType.toString.toLowerCase.capitalize + "Backend"
 
-  def workflowLogger(descriptor: WorkflowDescriptor) = WorkflowLogger(
+  def workflowLogger(descriptor: OldStyleWorkflowDescriptor) = WorkflowLogger(
     backendClassString,
     descriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName))
   )
 
-  def jobLogger(jobDescriptor: JobDescriptor[_ <: JobKey]) = WorkflowLogger(
+  def jobLogger(jobDescriptor: OldStyleJobDescriptor[_ <: JobKey]) = WorkflowLogger(
     backendClassString,
     jobDescriptor.workflowDescriptor,
     otherLoggers = Seq(LoggerFactory.getLogger(getClass.getName)),
@@ -139,26 +143,26 @@ trait Backend {
 
   def executionInfoKeys: List[String]
 
-  def callRootPathWithBaseRoot(descriptor: BackendCallJobDescriptor, baseRoot: String): Path = Backend.callRootPathWithBaseRoot(descriptor, baseRoot)
+  def callRootPathWithBaseRoot(descriptor: OldStyleBackendCallJobDescriptor, baseRoot: String): Path = OldStyleBackend.callRootPathWithBaseRoot(descriptor, baseRoot)
 
-  def callRootPath(jobDescriptor: BackendCallJobDescriptor) = {
+  def callRootPath(jobDescriptor: OldStyleBackendCallJobDescriptor) = {
     callRootPathWithBaseRoot(jobDescriptor, rootPath(jobDescriptor.workflowDescriptor.workflowOptions))
   }
 
-  def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions
+  def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions
 
-  def instantiateCommand(descriptor: BackendCallJobDescriptor): Try[String]
+  def instantiateCommand(descriptor: OldStyleBackendCallJobDescriptor): Try[String]
 
-  def runtimeAttributes(descriptor: BackendCallJobDescriptor): CromwellRuntimeAttributes =
+  def runtimeAttributes(descriptor: OldStyleBackendCallJobDescriptor): CromwellRuntimeAttributes =
     CromwellRuntimeAttributes(
       descriptor.call.task.runtimeAttributes,
       descriptor,
       Option(descriptor.workflowDescriptor.workflowOptions))
 
-  def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def poll(jobDescriptor: OldStyleBackendCallJobDescriptor, previous: OldStyleExecutionHandle)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle]
 
   /** Given the specified value for the Docker hash, return the overall hash for this `BackendCall`. */
-  private def hashGivenDockerHash(jobDescriptor: BackendCallJobDescriptor)(dockerHash: Option[String]): ExecutionHash = {
+  private def hashGivenDockerHash(jobDescriptor: OldStyleBackendCallJobDescriptor)(dockerHash: Option[String]): ExecutionHash = {
     val call = jobDescriptor.call
     val runtimeAttributes = jobDescriptor.callRuntimeAttributes
     val orderedInputs = jobDescriptor.locallyQualifiedInputs.toSeq.sortBy(_._1)
@@ -192,7 +196,7 @@ trait Backend {
   /**
     * Compute a hash that uniquely identifies this call
     */
-  def hash(descriptor: BackendCallJobDescriptor, credential: Option[Credential] = None)(implicit ec: ExecutionContext): Future[ExecutionHash] = {
+  def hash(descriptor: OldStyleBackendCallJobDescriptor, credential: Option[Credential] = None)(implicit ec: ExecutionContext): Future[ExecutionHash] = {
     // If a Docker image is defined in the task's runtime attributes, return a `Future[Option[String]]` of the Docker
     // hash string, otherwise return a `Future.successful` of `None`.
     def hashDockerImage(dockerImage: String): Future[Option[String]] =
@@ -211,9 +215,9 @@ trait Backend {
 
   def buildWorkflowRootPath(rootPath: String, name: String, workflowId: WorkflowId) = s"$rootPath/$name/$workflowId"
 
-  def useCachedCall(cachedCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def useCachedCall(cachedCall: OldStyleBackendCallJobDescriptor, backendCall: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle]
 
-  def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def execute(jobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle]
 
-  def resume(descriptor: BackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle]
+  def resume(descriptor: OldStyleBackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle]
 }

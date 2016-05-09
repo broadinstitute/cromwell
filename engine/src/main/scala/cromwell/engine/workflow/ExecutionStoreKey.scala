@@ -2,12 +2,13 @@ package cromwell.engine.workflow
 
 import cromwell.backend.JobKey
 import cromwell.engine.ExecutionStatus
-import cromwell.engine.finalcall.FinalCall
-import cromwell.engine.workflow.WorkflowActor.ExecutionStore
+import cromwell.engine.finalcall.OldStyleFinalCall
+import cromwell.engine.workflow.OldStyleWorkflowActor.ExecutionStore
 import wdl4s._
 
 import scala.language.postfixOps
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait ExecutionStoreKey extends JobKey {
   def tag: String = {
     val shard = index.map(x => s":$x").getOrElse("")
@@ -17,18 +18,20 @@ sealed trait ExecutionStoreKey extends JobKey {
   def retryClone: ExecutionStoreKey
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait OutputKey extends ExecutionStoreKey
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 sealed trait CallKey extends OutputKey
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class BackendCallKey(scope: Call, index: Option[Int], attempt: Int) extends CallKey {
   def retryClone = this.copy(attempt = this.attempt + 1)
 }
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class CollectorKey(scope: Call, attempt: Int = 1) extends OutputKey {
   override val index: Option[Int] = None
   def retryClone = this.copy(attempt = this.attempt + 1)
 }
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class ScatterKey(scope: Scatter, index: Option[Int], attempt: Int = 1) extends ExecutionStoreKey {
 
   /**
@@ -56,8 +59,8 @@ case class ScatterKey(scope: Scatter, index: Option[Int], attempt: Int = 1) exte
 
   def retryClone = this.copy(attempt = this.attempt + 1)
 }
-
-case class FinalCallKey(scope: FinalCall, attempt: Int = 1) extends CallKey {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class FinalCallKey(scope: OldStyleFinalCall, attempt: Int = 1) extends CallKey {
   override val index = None
   def retryClone = this.copy(attempt = this.attempt + 1)
 }

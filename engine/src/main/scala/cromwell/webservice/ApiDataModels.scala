@@ -1,7 +1,7 @@
 package cromwell.webservice
 
 import cromwell.engine.{FailureEventEntry, QualifiedFailureEventEntry}
-import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
+import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s.values.WdlValue
@@ -23,6 +23,7 @@ case class CallStdoutStderrResponse(id: String, logs: Map[FullyQualifiedName, Se
 
 case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boolean = true)
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class WorkflowMetadataResponse(id: String,
                                     workflowName: String,
                                     status: String,
@@ -31,7 +32,7 @@ case class WorkflowMetadataResponse(id: String,
                                     end: Option[DateTime],
                                     inputs: JsObject,
                                     outputs: Option[Map[String, WdlValue]],
-                                    calls: Map[String, Seq[CallMetadata]],
+                                    calls: Map[String, Seq[OldStyleCallMetadata]],
                                     failures: Option[Seq[FailureEventEntry]])
 
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])

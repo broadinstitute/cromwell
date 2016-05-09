@@ -8,7 +8,7 @@ import com.google.api.client.json.JsonFactory
 import com.google.api.services.genomics.Genomics
 import cromwell.filesystems.gcs.GoogleConfiguration
 
-
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object GenomicsFactory {
 
   def apply(credential: Credential, endpointUrl: URL): Genomics = {

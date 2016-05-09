@@ -9,6 +9,7 @@ import spray.httpx.UnsuccessfulResponseException
 
 import scala.concurrent.Future
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class SprayDockerRegistryApiClient()(implicit system: ActorSystem) extends DockerRegistryApiClient {
 
   implicit val executionContext = system.dispatcher

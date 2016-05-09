@@ -19,7 +19,7 @@ class ReadLinesFunctionSpec extends CromwellTestkitSpec {
   ))
 
   "A workflow with a read_lines() call in it" should {
-    "convert an output file to an Array[String]" in {
+    "convert an output file to an Array[String]" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ReadLinesFunctionWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: read_lines.cat_to_file, read_lines.cat_to_stdout", occurrences = 1),
@@ -29,7 +29,7 @@ class ReadLinesFunctionSpec extends CromwellTestkitSpec {
         )
       )
     }
-    "convert an output file to an Array[String] in a Docker environment" taggedAs DockerTest in {
+    "convert an output file to an Array[String] in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ReadLinesFunctionWdl,
         eventFilter = EventFilter.info(pattern = s"starting calls: read_lines.cat_to_file, read_lines.cat_to_stdout", occurrences = 1),

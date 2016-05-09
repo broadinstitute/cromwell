@@ -19,16 +19,17 @@ import scala.util.Try
   *
   * @tparam K CallKey subtype
   */
-sealed trait JobDescriptor[K <: JobKey] {
-  def workflowDescriptor: WorkflowDescriptor
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+sealed trait OldStyleJobDescriptor[K <: JobKey] {
+  def workflowDescriptor: OldStyleWorkflowDescriptor
   def key: K
   def locallyQualifiedInputs: CallInputs
 }
-
-case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
-                                    key: BackendCallKey,
-                                    locallyQualifiedInputs: CallInputs = Map.empty,
-                                    abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends JobDescriptor[BackendCallKey] {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class OldStyleBackendCallJobDescriptor(workflowDescriptor: OldStyleWorkflowDescriptor,
+                                            key: BackendCallKey,
+                                            locallyQualifiedInputs: CallInputs = Map.empty,
+                                            abortRegistrationFunction: Option[AbortRegistrationFunction] = None) extends OldStyleJobDescriptor[BackendCallKey] {
 
   lazy val call = key.scope
 
@@ -44,7 +45,7 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
 
   lazy val callRuntimeAttributes: CromwellRuntimeAttributes = backend.runtimeAttributes(this)
 
-  def useCachedCall(cachedJobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.useCachedCall(cachedJobDescriptor, this)
+  def useCachedCall(cachedJobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = backend.useCachedCall(cachedJobDescriptor, this)
 
   /**
     * Attempt to evaluate all the ${...} tags in a command and return a String representation
@@ -58,21 +59,21 @@ case class BackendCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
     WdlExpression.standardLookupFunction(currentlyKnownValues, call.task.declarations, callEngineFunctions)
   }
 
-  def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.poll(this, previous)
+  def poll(previous: OldStyleExecutionHandle)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = backend.poll(this, previous)
 
   /**
     * Compute a hash that uniquely identifies this job w.r.t. its backend.
     */
   def hash(implicit ec: ExecutionContext): Future[ExecutionHash] = backend.hash(this)
 
-  def resume(executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.resume(this, executionInfos)
+  def resume(executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = backend.resume(this, executionInfos)
 
-  def execute(implicit ec: ExecutionContext): Future[ExecutionHandle] = backend.execute(this)
+  def execute(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = backend.execute(this)
 }
-
-case class FinalCallJobDescriptor(workflowDescriptor: WorkflowDescriptor,
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class FinalCallJobDescriptor(workflowDescriptor: OldStyleWorkflowDescriptor,
                                   key: FinalCallKey,
-                                  workflowMetadataResponse: WorkflowMetadataResponse) extends JobDescriptor[FinalCallKey] {
+                                  workflowMetadataResponse: WorkflowMetadataResponse) extends OldStyleJobDescriptor[FinalCallKey] {
 
   override val locallyQualifiedInputs = Map.empty[String, WdlValue]
 

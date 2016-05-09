@@ -10,10 +10,12 @@ import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.{Failure => FailureZ, Success => SuccessZ, _}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class DockerHash(hashType: String, hashString: String) {
   val digest = s"$hashType:$hashString"
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object DockerHash {
   /**
     * Creates a unique hash from a sequence of hashes.

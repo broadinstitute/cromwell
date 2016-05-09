@@ -5,9 +5,9 @@ import cromwell.core.WorkflowId
 import cromwell.database.obj.WorkflowExecution
 import cromwell.engine
 import cromwell.engine._
-import cromwell.engine.backend.{CallMetadata, WorkflowDescriptor}
+import cromwell.engine.backend.{OldStyleCallMetadata, OldStyleWorkflowDescriptor}
 import cromwell.engine.db._
-import cromwell.engine.finalcall.FinalCall._
+import cromwell.engine.finalcall.OldStyleFinalCall._
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
@@ -15,14 +15,15 @@ import wdl4s._
 
 import scala.concurrent.Future
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object WorkflowMetadataBuilder {
 
   private type DBMap[+V] = Map[ExecutionDatabaseKey, V]
 
-  private def build(workflowDescriptor: WorkflowDescriptor,
+  private def build(workflowDescriptor: OldStyleWorkflowDescriptor,
                     execution: WorkflowExecution,
                     workflowOutputs: engine.WorkflowOutputs,
-                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]],
+                    callMetadata: Map[FullyQualifiedName, Seq[OldStyleCallMetadata]],
                     workflowFailures: Traversable[FailureEventEntry]):
   WorkflowMetadataResponse = {
 
@@ -69,6 +70,7 @@ object WorkflowMetadataBuilder {
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryParameters)(implicit actorSystem: ActorSystem) {
 
   private[this] implicit val ec = actorSystem.dispatcher

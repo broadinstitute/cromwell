@@ -1,7 +1,7 @@
 package cromwell
 
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.backend.Backend
+import cromwell.engine.backend.OldStyleBackend$
 import org.scalatest.Tag
 
 object CromwellSpec {

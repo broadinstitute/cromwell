@@ -3,8 +3,8 @@ package cromwell.engine.backend.runtimeattributes
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCode, RuntimeAttributesValidation}
 import cromwell.core.{ErrorOr, WorkflowOptions}
-import cromwell.engine.backend.runtimeattributes.RuntimeKey._
-import cromwell.engine.backend.{BackendCallJobDescriptor, BackendType}
+import OldStyleRuntimeKey._
+import cromwell.engine.backend.{OldStyleBackendCallJobDescriptor, BackendType}
 import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
 import wdl4s._
@@ -17,6 +17,7 @@ import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      docker: Option[String],
                                      zones: Seq[String],
@@ -31,7 +32,7 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
 
-  def apply(wdlRuntimeAttributes: RuntimeAttributes, jobDescriptor: BackendCallJobDescriptor, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
+  def apply(wdlRuntimeAttributes: RuntimeAttributes, jobDescriptor: OldStyleBackendCallJobDescriptor, workflowOptions: Option[WorkflowOptions]): CromwellRuntimeAttributes = {
     val supportedKeys = jobDescriptor.backend.backendType.supportedKeys map { _.key }
 
     val evaluatedAttr = wdlRuntimeAttributes.attrs mapValues {
@@ -138,7 +139,7 @@ object CromwellRuntimeAttributes {
   }
 
   private def validateRuntimeAttributes(attributes: Map[String, WdlValue]): Try[CromwellRuntimeAttributes] = {
-    val attributeMap = attributes.collect({ case (k, v) if Try(RuntimeKey.from(k)).isSuccess => RuntimeKey.from(k) -> v })
+    val attributeMap = attributes.collect({ case (k, v) if Try(OldStyleRuntimeKey.from(k)).isSuccess => OldStyleRuntimeKey.from(k) -> v })
     val docker = RuntimeAttributesValidation.validateDocker(attributeMap.get(DOCKER), None.successNel)
     val zones = validateZone(attributeMap.get(ZONES))
     val failOnStderr = RuntimeAttributesValidation.validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR), defaults.failOnStderr.successNel)
@@ -215,7 +216,7 @@ object CromwellRuntimeAttributes {
   private def validateRequiredKeys(keySet: Set[String],
                                    backendType: BackendType): ErrorOr[Unit] = {
     val requiredKeys = for {
-      key <- RuntimeKey.values().toSet
+      key <- OldStyleRuntimeKey.values().toSet
       if key.isMandatory(backendType)
     } yield key.key
 
@@ -235,8 +236,8 @@ object CromwellRuntimeAttributes {
   }
 
   implicit class EnhancedBackendType(val backendType: BackendType) extends AnyVal {
-    def supportedKeys: Set[RuntimeKey] = for {
-      key <- RuntimeKey.values().toSet
+    def supportedKeys: Set[OldStyleRuntimeKey] = for {
+      key <- OldStyleRuntimeKey.values().toSet
       if key.supports(backendType)
     } yield key
   }

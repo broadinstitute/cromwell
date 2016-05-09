@@ -2,17 +2,18 @@ package cromwell.engine.callexecution
 
 import com.google.api.client.util.ExponentialBackOff
 import com.google.api.client.util.ExponentialBackOff.Builder
-import cromwell.engine.backend.ExecutionHandle
-import cromwell.engine.callexecution.CallExecutionActor._
-import cromwell.engine.finalcall.FinalCall
+import cromwell.engine.backend.OldStyleExecutionHandle
+import cromwell.engine.callexecution.OldStyleCallExecutionActor._
+import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.logging.WorkflowLogger
 import cromwell.webservice.WorkflowMetadataResponse
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-case class FinalCallExecutionActor(override val call: FinalCall, workflowMetadataResponse: WorkflowMetadataResponse)
-  extends CallExecutionActor {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class FinalCallExecutionActor(override val call: OldStyleFinalCall, workflowMetadataResponse: WorkflowMetadataResponse)
+  extends OldStyleCallExecutionActor {
 
   override val logger = WorkflowLogger(
     this.getClass.getSimpleName,
@@ -21,7 +22,7 @@ case class FinalCallExecutionActor(override val call: FinalCall, workflowMetadat
     callTag = Option(call.unqualifiedName)
   )
 
-  override def poll(handle: ExecutionHandle) = call.poll(ec, handle)
+  override def poll(handle: OldStyleExecutionHandle) = call.poll(ec, handle)
   override def execute(mode: ExecutionMode)(implicit ec: ExecutionContext) = mode match {
     case UseCachedCall(cachedBackendCall) =>
       Future.failed(new UnsupportedOperationException("Cannot use cached results for a FinalCall"))

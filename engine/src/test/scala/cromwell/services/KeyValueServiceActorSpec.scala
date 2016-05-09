@@ -30,7 +30,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     workflowOptionsJson="{}"
   )
 
-  it should "insert a key/value" in {
+  it should "insert a key/value" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
     val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
     val callKey = getBackendJobDescriptorKey(descriptor, "a")
@@ -47,7 +47,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     } yield ()).futureValue
   }
 
-  it should "return error if key doesn't exist" in {
+  it should "return error if key doesn't exist" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
     val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
     val callKey = getBackendJobDescriptorKey(descriptor, "a")
@@ -61,7 +61,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     } yield ()).futureValue
   }
 
-  it should "be able to overwrite values" in {
+  it should "be able to overwrite values" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
     val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
     val callAKey = getBackendJobDescriptorKey(descriptor, "a")
@@ -83,7 +83,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     } yield ()).futureValue
   }
 
-  it should "be able to store NULL values" in {
+  it should "be able to store NULL values" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
     val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
     val callAKey = getBackendJobDescriptorKey(descriptor, "a")
@@ -100,7 +100,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     } yield ()).futureValue
   }
 
-  it should "partition keys by call" in {
+  it should "partition keys by call" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
     val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
     val callAKey = getBackendJobDescriptorKey(descriptor, "a")
@@ -126,7 +126,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     } yield ()).futureValue
   }
 
-  it should "partition keys by workflow" in {
+  it should "partition keys by workflow" ignore {
     val descriptor0 = makeWorkflowDescriptor(sources)
     val kv0 = makeKeyValueActor(cromwellConfig, descriptor0)
     val descriptor1 = makeWorkflowDescriptor(sources)

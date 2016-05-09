@@ -8,8 +8,8 @@ import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.backend.local.LocalBackend
-import cromwell.engine.backend.{WorkflowDescriptor, WorkflowDescriptorBuilder}
+import cromwell.engine.backend.local.OldStyleLocalBackend
+import cromwell.engine.backend.{OldStyleWorkflowDescriptor, WorkflowDescriptorBuilder}
 import cromwell.engine.db.DataAccess
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -23,7 +23,7 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
   val actorSystem = workflowManagerSystem.actorSystem
   val dataAccess = DataAccess.globalDataAccess
 
-  val localBackend = LocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
+  val localBackend = OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = actorSystem.dispatcher
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
@@ -33,7 +33,7 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
     super.afterAll()
   }
 
-  protected def getBackendJobDescriptorKey(descriptor: WorkflowDescriptor, callName: String): BackendJobDescriptor = {
+  protected def getBackendJobDescriptorKey(descriptor: OldStyleWorkflowDescriptor, callName: String): BackendJobDescriptor = {
     val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == callName).get
     val backendWorkflowDescriptor = BackendWorkflowDescriptor(
       descriptor.id,
@@ -45,12 +45,12 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
     BackendJobDescriptor(backendWorkflowDescriptor, key, Map.empty)
   }
 
-  protected def makeWorkflowDescriptor(sources: WorkflowSourceFiles): WorkflowDescriptor = {
+  protected def makeWorkflowDescriptor(sources: WorkflowSourceFiles): OldStyleWorkflowDescriptor = {
     val workflowId = WorkflowId.randomId()
     materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = sources)
   }
 
-  protected def makeKeyValueActor(cromwellConfig: Config, workflowDescriptor: WorkflowDescriptor): ActorRef = {
+  protected def makeKeyValueActor(cromwellConfig: Config, workflowDescriptor: OldStyleWorkflowDescriptor): ActorRef = {
     actorSystem.actorOf(
       KeyValueServiceActor.props(ConfigFactory.parseString(""), cromwellConfig)
     )

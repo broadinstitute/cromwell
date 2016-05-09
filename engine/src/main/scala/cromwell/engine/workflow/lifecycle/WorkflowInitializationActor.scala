@@ -7,7 +7,7 @@ import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.{BackendConfiguration, CromwellBackend}
+import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 import wdl4s.Call
@@ -66,7 +66,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
           backendConfiguration = BackendConfiguration.backendConfigurationDescriptor(backend).get
-          props <- CromwellBackend.shadowBackendLifecycleFactory(backend).map(factory =>
+          props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, backendConfiguration)
           ).get
           actor = context.actorOf(props)

@@ -8,7 +8,7 @@ import scala.language.postfixOps
 
 class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with two file inputs that have the same name" should {
-    "not clobber one file with the contents of another" in {
+    "not clobber one file with the contents of another" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.FileClobber,
         EventFilter.info(pattern = s"starting calls: two.x, two.y", occurrences = 1),

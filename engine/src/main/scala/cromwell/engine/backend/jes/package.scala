@@ -13,8 +13,8 @@ package object jes {
     * When they are, all those values can be declared directly in the backend, as it will have a BackendCallJobDescriptor parameter.
     * All values have been turned into defs because Value Classes only support defs.
     */
-  implicit class JesJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
-    import JesBackend._
+  implicit class JesJobDescriptor(val jobDescriptor: OldStyleBackendCallJobDescriptor) extends AnyVal {
+    import OldStyleJesBackend._
     import better.files._
 
     // TODO: Assuming that runtimeAttributes.disks always has a 'local-disk'
@@ -43,7 +43,7 @@ package object jes {
       * TODO: Use configuration as a way to set this globally.
       * Currently workflow options act as default for runtime attributes, configuration could do the same for workflow options.
       */
-    def preemptible = JesBackend.preemptible(jobDescriptor, maxPreemption)
+    def preemptible = OldStyleJesBackend.preemptible(jobDescriptor, maxPreemption)
 
     def downloadRcFile = Try(returnCodeGcsPath.toAbsolutePath.contentAsString)
     /**

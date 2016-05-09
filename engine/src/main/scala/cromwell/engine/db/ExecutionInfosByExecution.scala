@@ -5,6 +5,7 @@ import cromwell.engine._
 import cromwell.engine.backend._
 import wdl4s.values.WdlFile
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class ExecutionInfosByExecution(execution: Execution, executionInfos: Seq[ExecutionInfo]) {
   import ExecutionInfosByExecution._
   lazy val callLogs: Option[CallLogs] = {
@@ -24,6 +25,7 @@ case class ExecutionInfosByExecution(execution: Execution, executionInfos: Seq[E
   }
 }
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object ExecutionInfosByExecution {
   private val CallLogPrefix = "$log"
   private val StdoutSuffix = "stdout"

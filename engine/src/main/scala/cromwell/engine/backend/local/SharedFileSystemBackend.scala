@@ -19,11 +19,12 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object SharedFileSystemBackend {
-  type LocalizationStrategy = (String, Path, WorkflowDescriptor) => Try[Unit]
+  type LocalizationStrategy = (String, Path, OldStyleWorkflowDescriptor) => Try[Unit]
 
   private[local] def localizeFromGcs(originalPath: String, executionPath: Path,
-                                     descriptor: WorkflowDescriptor): Try[Unit] = Try {
+                                     descriptor: OldStyleWorkflowDescriptor): Try[Unit] = Try {
     import backend.io._
     assert(originalPath.isGcsUrl)
     Option(executionPath.parent) map { _.createDirectories }
@@ -34,7 +35,7 @@ object SharedFileSystemBackend {
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
   private[local] def localizePathAlreadyLocalized(originalPath: String, executionPath: Path,
-                                                  descriptor: WorkflowDescriptor): Try[Unit] = {
+                                                  descriptor: OldStyleWorkflowDescriptor): Try[Unit] = {
     Try {
       if (!Files.exists(executionPath))
         throw new NoSuchFileException(s"$executionPath does not exist")
@@ -42,7 +43,7 @@ object SharedFileSystemBackend {
   }
 
   private[local] def localizePathViaCopy(originalPath: String, executionPath: Path,
-                                         descriptor: WorkflowDescriptor): Try[Unit] = {
+                                         descriptor: OldStyleWorkflowDescriptor): Try[Unit] = {
     Try {
       val srcPath = File(originalPath)
       Option(executionPath.parent) map { _.createDirectories }
@@ -51,7 +52,7 @@ object SharedFileSystemBackend {
   }
 
   private[local] def localizePathViaHardLink(originalPath: String, executionPath: Path,
-                                             descriptor: WorkflowDescriptor): Try[Unit] =
+                                             descriptor: OldStyleWorkflowDescriptor): Try[Unit] =
     Try {
       val srcPath = File(originalPath)
       Option(executionPath.parent) map { _.createDirectories }
@@ -68,7 +69,7 @@ object SharedFileSystemBackend {
     */
 
   private[local] def localizePathViaSymbolicLink(originalPath: String, executionPath: Path,
-                                                 descriptor: WorkflowDescriptor): Try[Unit] = {
+                                                 descriptor: OldStyleWorkflowDescriptor): Try[Unit] = {
     Try {
       val srcPath = File(originalPath)
       if (srcPath.isDirectory)
@@ -81,7 +82,8 @@ object SharedFileSystemBackend {
   val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(File(wdlFile.value).md5) }
 }
 
-trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: OldStyleBackend =>
   import SharedFileSystemBackend._
   import backend.io._
 
@@ -101,7 +103,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
     case "copy" => localizePathViaCopy _
   }).+:(localizeFromGcs _)
 
-  def useCachedCall(cachedJobDescriptor: BackendCallJobDescriptor, jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+  def useCachedCall(cachedJobDescriptor: OldStyleBackendCallJobDescriptor, jobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = Future {
     val source = cachedJobDescriptor.callRootPath
     // Use the same filesystems for the destination path as the source path so they share the same providers.
     val dest = jobDescriptor.callRootPath.toAbsolutePath.toString.toAbsolutePath(cachedJobDescriptor.workflowDescriptor.fileSystems)
@@ -112,7 +114,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
 
     outputs match {
       case Success(o) =>
-        cachedJobDescriptor.hash map { h => CompletedExecutionHandle(SuccessfulBackendCallExecution(o, Seq.empty[ExecutionEventEntry], callRootPath(jobDescriptor).resolve("rc").contentAsString.stripLineEnd.toInt, h, Option(cachedJobDescriptor))) }
+        cachedJobDescriptor.hash map { h => CompletedExecutionHandle(OldStyleSuccessfulBackendCallExecution(o, Seq.empty[ExecutionEventEntry], callRootPath(jobDescriptor).resolve("rc").contentAsString.stripLineEnd.toInt, h, Option(cachedJobDescriptor))) }
       case Failure(ex) => FailedExecutionHandle(ex).future
     }
   } flatten
@@ -120,10 +122,10 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
   def rootPath(workflowOptions: WorkflowOptions) = CromwellExecutionRoot
 
   def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
-    new LocalWorkflowEngineFunctions(fileSystems, workflowContext)
+    new OldStyleLocalWorkflowEngineFunctions(fileSystems, workflowContext)
   }
 
-  def postProcess(jobDescriptor: BackendCallJobDescriptor): Try[CallOutputs] = {
+  def postProcess(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[CallOutputs] = {
     implicit val hasher = jobDescriptor.workflowDescriptor.fileHasher
 
     val outputs = jobDescriptor.call.task.outputs
@@ -142,13 +144,13 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
     }
   }
 
-  private def getOutputFoldingFunction(jobDescriptor: BackendCallJobDescriptor): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
+  private def getOutputFoldingFunction(jobDescriptor: OldStyleBackendCallJobDescriptor): (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
     (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
       currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, jobDescriptor, currentList)))
     }
   }
 
-  private def outputLookup(taskOutput: TaskOutput, jobDescriptor: BackendCallJobDescriptor, currentList: Seq[AttemptedLookupResult]) = for {
+  private def outputLookup(taskOutput: TaskOutput, jobDescriptor: OldStyleBackendCallJobDescriptor, currentList: Seq[AttemptedLookupResult]) = for {
     expressionValue <- taskOutput.requiredExpression.evaluate(jobDescriptor.lookupFunction(currentList.toLookupMap), jobDescriptor.callEngineFunctions)
     convertedValue <- outputAutoConversion(jobDescriptor, taskOutput, expressionValue)
     pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, jobDescriptor.callRootPath))
@@ -156,7 +158,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
 
   def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
 
-  def sharedFileSystemStdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = {
+  def sharedFileSystemStdoutStderr(jobDescriptor: OldStyleBackendCallJobDescriptor): CallLogs = {
     val dir = jobDescriptor.callRootPath
     CallLogs(
       stdout = WdlFile(dir.resolve("stdout").toAbsolutePath.toString),
@@ -167,7 +169,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
   /**
    * Creates host execution directory.
    */
-  def initializeForWorkflow(descriptor: WorkflowDescriptor): Try[Unit] = Try {
+  def initializeForWorkflow(descriptor: OldStyleWorkflowDescriptor): Try[Unit] = Try {
     val hostExecutionDirectory = descriptor.workflowRootPath.toFile
     hostExecutionDirectory.mkdirs()
   }
@@ -179,7 +181,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
 
   private def toDockerPath(path: Path): Path = {
     path.toAbsolutePath match {
-      case p if p.startsWith(LocalBackend.ContainerRoot) => p
+      case p if p.startsWith(OldStyleLocalBackend.ContainerRoot) => p
       case p =>
         /** For example:
           *
@@ -193,7 +195,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
           */
         val localExecutionRoot = Paths.get(CromwellExecutionRoot).toAbsolutePath
         val subpath = p.subpath(localExecutionRoot.getNameCount, p.getNameCount)
-        Paths.get(LocalBackend.ContainerRoot).resolve(subpath)
+        Paths.get(OldStyleLocalBackend.ContainerRoot).resolve(subpath)
     }
   }
 
@@ -204,7 +206,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def adjustSharedInputPaths(jobDescriptor: BackendCallJobDescriptor): CallInputs = {
+  def adjustSharedInputPaths(jobDescriptor: OldStyleBackendCallJobDescriptor): CallInputs = {
 
     val strategies = if (jobDescriptor.callRuntimeAttributes.docker.isDefined) DockerLocalizers else Localizers
 
@@ -243,7 +245,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
    * @param wdlValue WdlValue to localize
    * @return localized wdlValue
    */
-  def localizeWdlValue(descriptor: WorkflowDescriptor, toDestPath: (String => Path), strategies: Stream[LocalizationStrategy], postProcessor: Option[Path => Path] = None)(wdlValue: WdlValue): Try[WdlValue] = {
+  def localizeWdlValue(descriptor: OldStyleWorkflowDescriptor, toDestPath: (String => Path), strategies: Stream[LocalizationStrategy], postProcessor: Option[Path => Path] = None)(wdlValue: WdlValue): Try[WdlValue] = {
 
     def localize(source: String, dest: Path) = strategies map { _(source, dest, descriptor) } find { _.isSuccess } getOrElse {
       Failure(new UnsupportedOperationException(s"Could not localize $source -> $dest"))
@@ -290,7 +292,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
        """.stripMargin
     ))
 
-  private def hostAbsoluteFilePath(jobDescriptor: BackendCallJobDescriptor, pathString: String): String =
+  private def hostAbsoluteFilePath(jobDescriptor: OldStyleBackendCallJobDescriptor, pathString: String): String =
     if (Paths.get(pathString).isAbsolute) {
       pathString
     } else {
@@ -317,7 +319,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
    * read_lines() will return an Array[String] but if the target type is Array[Float], then this
    * function will do that conversion.
    */
-  private def outputAutoConversion(jobDescriptor: BackendCallJobDescriptor, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
+  private def outputAutoConversion(jobDescriptor: OldStyleBackendCallJobDescriptor, taskOutput: TaskOutput, rawOutputValue: WdlValue): Try[WdlValue] = {
     rawOutputValue match {
       case rhs if rhs.wdlType == taskOutput.wdlType => Success(rhs)
       case rhs: WdlString if taskOutput.wdlType == WdlFileType => assertTaskOutputPathExists(hostAbsoluteFilePath(jobDescriptor, rhs.value), taskOutput, jobDescriptor.call.fullyQualifiedName)
@@ -331,7 +333,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: Backend =>
     case x => x
   }
 
-  protected def buildCallContext(descriptor: BackendCallJobDescriptor): CallContext = {
+  protected def buildCallContext(descriptor: OldStyleBackendCallJobDescriptor): CallContext = {
     val callRoot = callRootPath(descriptor)
     val stdout = callRoot.resolve("stdout")
     val stderr = callRoot.resolve("stderr")

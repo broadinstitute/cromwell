@@ -9,8 +9,10 @@ import scala.util.Try
 import scalaz.Scalaz._
 import scalaz.{Failure, Success}
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class CallCachingParameters private(workflowId: WorkflowId, callKey: Option[ExecutionDatabaseKey], allow: Boolean)
 
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object CallCachingParameters {
   private [webservice] def validateRecognizedKeys(queryParameters: QueryParameters): ErrorOr[Unit] = {
     val badKeys = queryParameters collect { case q if q.key.toLowerCase != "allow" => q.key }

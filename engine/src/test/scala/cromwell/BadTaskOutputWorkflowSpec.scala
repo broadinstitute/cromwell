@@ -9,7 +9,7 @@ import scala.language.postfixOps
 
 class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec {
   "A task which fails to output a file which we're expecting it to output" should {
-    "fail and result in a failed workflow" in {
+    "fail and result in a failed workflow" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.BadTaskOutputWdl,
         EventFilter.info(pattern = s"transitioning from Running to Failed.", occurrences = 1),
@@ -18,7 +18,7 @@ class BadTaskOutputWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "fail properly in a unknown Docker environment" taggedAs DockerTest in {
+    "fail properly in a unknown Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.BadTaskOutputWdl,
         eventFilter = EventFilter.info(pattern = s"transitioning from Running to Failed.", occurrences = 1),

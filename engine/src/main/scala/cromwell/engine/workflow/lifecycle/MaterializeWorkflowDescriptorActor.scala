@@ -9,8 +9,8 @@ import cromwell.WorkflowEngineFunctions
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.engine._
-import cromwell.engine.backend.{CromwellBackend, WorkflowLogOptions}
-import cromwell.engine.workflow.lifecycle.ShadowMaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorActorData, ShadowMaterializeWorkflowDescriptorActorState}
+import cromwell.engine.backend.{CromwellBackends, OldStyleWorkflowLogOptions}
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -22,39 +22,39 @@ import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
 
-object ShadowMaterializeWorkflowDescriptorActor {
+object MaterializeWorkflowDescriptorActor {
 
   val RuntimeBackendKey: String = "backend"
 
-  def props(): Props = Props(new ShadowMaterializeWorkflowDescriptorActor)
+  def props(): Props = Props(new MaterializeWorkflowDescriptorActor)
 
   /*
   Commands
    */
-  sealed trait ShadowMaterializeWorkflowDescriptorActorMessage
-  case class ShadowMaterializeWorkflowDescriptorCommand(id: WorkflowId,
-                                                        workflowSourceFiles: WorkflowSourceFiles,
-                                                        conf: Config) extends ShadowMaterializeWorkflowDescriptorActorMessage
-  case object ShadowMaterializeWorkflowDescriptorAbortCommand
+  sealed trait MaterializeWorkflowDescriptorActorMessage
+  case class MaterializeWorkflowDescriptorCommand(id: WorkflowId,
+                                                  workflowSourceFiles: WorkflowSourceFiles,
+                                                  conf: Config) extends MaterializeWorkflowDescriptorActorMessage
+  case object MaterializeWorkflowDescriptorAbortCommand
 
   /*
   Responses
    */
-  sealed trait ShadowWorkflowDescriptorMaterializationResult extends ShadowMaterializeWorkflowDescriptorActorMessage
-  case class ShadowMaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor: EngineWorkflowDescriptor) extends ShadowWorkflowDescriptorMaterializationResult
-  case class ShadowMaterializeWorkflowDescriptorFailureResponse(reason: Throwable) extends Exception with ShadowWorkflowDescriptorMaterializationResult
+  sealed trait WorkflowDescriptorMaterializationResult extends MaterializeWorkflowDescriptorActorMessage
+  case class MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor: EngineWorkflowDescriptor) extends WorkflowDescriptorMaterializationResult
+  case class MaterializeWorkflowDescriptorFailureResponse(reason: Throwable) extends Exception with WorkflowDescriptorMaterializationResult
 
   /*
   States
    */
-  sealed trait ShadowMaterializeWorkflowDescriptorActorState { def terminal = false }
-  sealed trait ShadowMaterializeWorkflowDescriptorActorTerminalState extends ShadowMaterializeWorkflowDescriptorActorState {
+  sealed trait MaterializeWorkflowDescriptorActorState { def terminal = false }
+  sealed trait MaterializeWorkflowDescriptorActorTerminalState extends MaterializeWorkflowDescriptorActorState {
     override val terminal = true
   }
-  case object ReadyToMaterializeState extends ShadowMaterializeWorkflowDescriptorActorState
-  case object MaterializationSuccessfulState extends ShadowMaterializeWorkflowDescriptorActorTerminalState
-  case object MaterializationFailedState extends ShadowMaterializeWorkflowDescriptorActorTerminalState
-  case object MaterializationAbortedState extends ShadowMaterializeWorkflowDescriptorActorTerminalState
+  case object ReadyToMaterializeState extends MaterializeWorkflowDescriptorActorState
+  case object MaterializationSuccessfulState extends MaterializeWorkflowDescriptorActorTerminalState
+  case object MaterializationFailedState extends MaterializeWorkflowDescriptorActorTerminalState
+  case object MaterializationAbortedState extends MaterializeWorkflowDescriptorActorTerminalState
 
   /*
   Data
@@ -65,37 +65,37 @@ object ShadowMaterializeWorkflowDescriptorActor {
 
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
 
-  def workflowLogOptions(conf: Config): Option[WorkflowLogOptions] = {
+  def workflowLogOptions(conf: Config): Option[OldStyleWorkflowLogOptions] = {
     for {
       workflowConfig <- conf.getConfigOption("workflow-options")
       dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
-    } yield WorkflowLogOptions(Paths.get(dir), temporary)
+    } yield OldStyleWorkflowLogOptions(Paths.get(dir), temporary)
   }
 }
 
-class ShadowMaterializeWorkflowDescriptorActor() extends LoggingFSM[ShadowMaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging {
+class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging {
 
-  import ShadowMaterializeWorkflowDescriptorActor._
+  import MaterializeWorkflowDescriptorActor._
 
   val tag = self.path.name
 
   startWith(ReadyToMaterializeState, ShadowMaterializeWorkflowDescriptorActorData())
 
   when(ReadyToMaterializeState) {
-    case Event(ShadowMaterializeWorkflowDescriptorCommand(workflowId, workflowSourceFiles, conf), _) =>
+    case Event(MaterializeWorkflowDescriptorCommand(workflowId, workflowSourceFiles, conf), _) =>
       buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf) match {
         case scalaz.Success(descriptor) =>
-          sender() ! ShadowMaterializeWorkflowDescriptorSuccessResponse(descriptor)
+          sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
           goto(MaterializationSuccessfulState)
         case scalaz.Failure(error) =>
-          sender() ! ShadowMaterializeWorkflowDescriptorFailureResponse(new IllegalArgumentException() with ThrowableWithErrors {
+          sender() ! MaterializeWorkflowDescriptorFailureResponse(new IllegalArgumentException() with ThrowableWithErrors {
             val message = s"Workflow input processing failed."
             val errors = error
           })
           goto(MaterializationFailedState)
       }
-    case Event(ShadowMaterializeWorkflowDescriptorAbortCommand, _) =>
+    case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>
       goto(MaterializationAbortedState)
   }
 
@@ -173,11 +173,11 @@ class ShadowMaterializeWorkflowDescriptorActor() extends LoggingFSM[ShadowMateri
         val backendPriorities = Seq(
           workflowOptions.get(RuntimeBackendKey).toOption,
           assignBackendUsingRuntimeAttrs(call),
-          Option(CromwellBackend.shadowDefaultBackend)
+          Option(CromwellBackends.shadowDefaultBackend)
         )
 
         backendPriorities.flatten.headOption match {
-          case Some(backendName) if CromwellBackend.isValidBackendName(backendName) => call -> backendName
+          case Some(backendName) if CromwellBackends.isValidBackendName(backendName) => call -> backendName
           case Some(backendName) => throw new Exception(s"Invalid backend for call ${call.fullyQualifiedName}: $backendName")
           case None => throw new Exception(s"No backend could be found for call ${call.fullyQualifiedName}")
         }

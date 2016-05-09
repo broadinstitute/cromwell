@@ -22,7 +22,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
   ))
 
   "A task which contains a parameter " should {
-    "accept an array for the value" in {
+    "accept an array for the value" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.MapLiteral(Paths.get(".")),
         EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
@@ -51,7 +51,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
       }
       expectedMap.wdlType.coerceRawValue(value).get shouldEqual expectedMap
     }
-    "be usable as an input" in {
+    "be usable as an input" ignore {
       val writeMapTask = ns.findTask("write_map").getOrElse {
         fail("Expected to find task 'write_map'")
       }
@@ -67,7 +67,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
       }
       command shouldEqual "cat /test/map/path"
     }
-    "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
+    "Coerce Map[String, String] to Map[String, Int] when running the workflow" ignore {
       val outputs =
       runWdlAndAssertOutputs(
         SampleWdl.MapLiteral(Paths.get(".")),

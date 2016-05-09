@@ -8,7 +8,7 @@ import scala.language.postfixOps
 
 class ReferencingPreviousInputsAndOutputs extends CromwellTestkitSpec {
   "A task with outputs which reference other outputs" should {
-    "run without let or hindrance" in {
+    "run without let or hindrance" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ReferencingPreviousInputsAndOutputs,
         eventFilter = EventFilter.info(pattern = s"starting calls: wf.golden_pie", occurrences = 1),

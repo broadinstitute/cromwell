@@ -24,23 +24,25 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-case class WorkflowLogOptions(dir: Path, temporary: Boolean)
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class OldStyleWorkflowLogOptions(dir: Path, temporary: Boolean)
 
-case class WorkflowDescriptor(id: WorkflowId,
-                              sourceFiles: WorkflowSourceFiles,
-                              workflowOptions: WorkflowOptions,
-                              workflowLogOptions: Option[WorkflowLogOptions],
-                              rawInputs: Map[String, JsValue],
-                              namespace: NamespaceWithWorkflow,
-                              coercedInputs: WorkflowCoercedInputs,
-                              declarations: WorkflowCoercedInputs,
-                              backend: Backend,
-                              configCallCaching: Boolean,
-                              lookupDockerHash: Boolean,
-                              workflowFailureMode: WorkflowFailureMode,
-                              wfContext: WorkflowContext,
-                              fileSystems: List[FileSystem]) {
-  import WorkflowDescriptor._
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+case class OldStyleWorkflowDescriptor(id: WorkflowId,
+                                      sourceFiles: WorkflowSourceFiles,
+                                      workflowOptions: WorkflowOptions,
+                                      workflowLogOptions: Option[OldStyleWorkflowLogOptions],
+                                      rawInputs: Map[String, JsValue],
+                                      namespace: NamespaceWithWorkflow,
+                                      coercedInputs: WorkflowCoercedInputs,
+                                      declarations: WorkflowCoercedInputs,
+                                      backend: OldStyleBackend,
+                                      configCallCaching: Boolean,
+                                      lookupDockerHash: Boolean,
+                                      workflowFailureMode: WorkflowFailureMode,
+                                      wfContext: WorkflowContext,
+                                      fileSystems: List[FileSystem]) {
+  import OldStyleWorkflowDescriptor._
 
   val shortId = id.toString.split("-")(0)
   val name = namespace.workflow.unqualifiedName
@@ -229,8 +231,8 @@ case class WorkflowDescriptor(id: WorkflowId,
     if (configCallCaching) Option(wdlValue.computeHash(fileHasher)) else None
   }
 }
-
-object WorkflowDescriptor {
+@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
+object OldStyleWorkflowDescriptor {
 
   val WorkflowLogDirOptionKey = "workflow_log_dir"
   val WorkflowOutputsOptionKey = "outputs_path"

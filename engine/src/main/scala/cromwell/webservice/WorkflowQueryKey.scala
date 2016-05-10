@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import cromwell.core.ErrorOr
+import cromwell.core.{ErrorOr, WorkflowId}
 import cromwell.engine.WorkflowState
 import org.joda.time.DateTime
 
@@ -9,7 +9,7 @@ import scala.util.{Success, Try}
 import scalaz.Scalaz._
 
 object WorkflowQueryKey {
-  val ValidKeys = Set(StartDate, EndDate, Name, Status) map { _.name }
+  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
     override val name = "Start"
@@ -33,6 +33,18 @@ object WorkflowQueryKey {
         case v => v.failureNel
       }
       sequenceListOfValidationNels(s"Name values do not match allowed workflow naming pattern", nels)
+    }
+  }
+
+  case object Id extends SeqStringWorkflowQueryKey {
+    override val name = "Id"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
+      val values = valuesFromMap(grouped).toList
+      val nels = values map { v =>
+        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel else v.failureNel
+      }
+      sequenceListOfValidationNels(s"Id values do match allowed workflow id pattern", nels)
     }
   }
 

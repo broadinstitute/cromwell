@@ -852,6 +852,63 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  behavior of "Cromwell query post API"
+
+  it should "return 400 for a bad query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"BadKey":"foo"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "Unrecognized query keys: BadKey"
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return good results for a good query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
+  }
+
+  it should "return good results for a multiple query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`,
+      """[{"status":"Succeeded"}, {"status":"Failed"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
+  }
+
+  it should "return 400 bad request for a bad query format body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":["Succeeded"]}]""")) ~>
+      sealRoute(queryPostRoute) ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
   "Cromwell single call caching API" should "work with good input" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>
     callCachingRoute ~>

@@ -91,10 +91,13 @@ trait WorkflowExecutionComponent {
       // Names and statuses are potentially multi-valued, the reduceLeftOption ORs together any name or status criteria
       // to include all matching names and statuses.
       val nameFilter = queryParameters.names.map(name => workflow.name === name).reduceLeftOption(_ || _)
+      val uuidFilter = queryParameters.ids.map(id => workflow.workflowExecutionUuid === id.toString).
+        reduceLeftOption(_ || _)
       val statusFilter = queryParameters.statuses.map(status => workflow.status === status).reduceLeftOption(_ || _)
 
       // Put all the optional filters above together in one place.
-      val optionalFilters: List[Option[Rep[Boolean]]] = List(nameFilter, statusFilter, startDateTimeFilter, endDateTimeFilter)
+      val optionalFilters: List[Option[Rep[Boolean]]] = List(nameFilter, uuidFilter, statusFilter, startDateTimeFilter,
+        endDateTimeFilter)
       // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
       // rows which might otherwise have been filtered.
       val filters = optionalFilters.map(_.getOrElse(include))

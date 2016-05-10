@@ -69,8 +69,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
   def receive = {
     case action@PutMetadataAction(event) =>
       journal = journal :+ event
-      val result: MetadataPutAcknowledgement = MetadataPutAcknowledgement(action)
-      sender ! result
+      sender ! MetadataPutAcknowledgement(action)
     case GetAllMetadataAction(workflowId) =>
       val query = MetadataQuery(Option(workflowId), None, None)
       val filtered = filterByQuery(query)

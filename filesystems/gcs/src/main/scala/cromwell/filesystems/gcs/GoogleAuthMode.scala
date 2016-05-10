@@ -95,7 +95,7 @@ final case class ServiceAccountMode(override val name: String, accountId: String
   override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
     val pemFile = new File(pemPath)
     if (!pemFile.exists()) {
-      throw new FileNotFoundException(s"Pem file ${Paths.get(pemPath).toAbsolutePath} does not exist")
+      throw new FileNotFoundException(s"PEM file ${Paths.get(pemPath).toAbsolutePath} does not exist")
     }
     new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)

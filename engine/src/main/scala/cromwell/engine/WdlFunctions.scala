@@ -2,21 +2,31 @@ package cromwell.engine
 
 import java.nio.file.{FileSystem, FileSystems}
 
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions}
 import cromwell.core.WorkflowOptions
+import cromwell.engine.backend.EnhancedWorkflowOptions._
+import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleConfiguration}
+import lenthall.config.ScalaConfig._
+import spray.json.JsObject
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.util.{Failure, Try}
 
 class WdlFunctions(workflowOptions: WorkflowOptions) extends WdlStandardLibraryFunctions with ReadLikeFunctions with PureFunctions {
+  def gcsFileSystem: Option[GcsFileSystem] = {
+    for {
+      authModeString <- ConfigFactory.load.getStringOption("engine.filesystems.gcs.auth")
+      authMode <- GoogleConfiguration.Instance.auth(authModeString).toOption
+      fs = GcsFileSystem(GcsFileSystemProvider(authMode.buildStorage(workflowOptions.toGoogleAuthOptions)))
+    } yield fs
+  }
 
-  // TODO: GCS
-  // TODO: Security fo shared FS
   /**
-    * Ordered list of filesystems to be used to execute wdl functions needing IO.
+    * Ordered list of filesystems to be used to execute WDL functions needing IO.
     */
-  override def fileSystems: List[FileSystem] = List(FileSystems.getDefault)
+  override def fileSystems: List[FileSystem] = List(gcsFileSystem, Option(FileSystems.getDefault)).flatten
 
   private def fail(name: String) = Failure(new NotImplementedError(s"$name() not supported at the workflow level yet"))
 

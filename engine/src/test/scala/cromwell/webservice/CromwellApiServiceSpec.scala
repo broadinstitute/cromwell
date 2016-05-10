@@ -12,9 +12,7 @@ import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
 import org.joda.time.DateTime
-import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.yaml.snakeyaml.Yaml
 import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -165,59 +163,6 @@ class MockWorkflowManagerActor extends Actor {
         // If we run the gauntlet of checks, return a made up update count.
         else WorkflowManagerCallCachingSuccess(id, 1)
       sender ! message
-  }
-}
-
-class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRouteTest with Matchers
-with TableDrivenPropertyChecks {
-  def actorRefFactory = system
-
-  // "Cromwell swagger docs" should "return 200" in {
-  ignore should "return 200 for swagger docs" in {
-    Get("/swagger/cromwell.yaml") ~>
-      swaggerUiResourceRoute ~>
-      check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-        assertResult("2.0") {
-          new Yaml()
-            .loadAs(responseAs[String], classOf[java.util.Map[String, AnyRef]])
-            .get("swagger")
-        }
-      }
-
-    Get("/swagger/index.html") ~>
-      swaggerUiResourceRoute ~>
-      check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-        assertResult("<!DOCTYPE html>") {
-          responseAs[String].take(15)
-        }
-      }
-  }
-
-  //"Cromwell swagger route" should "return 200" in {
-  ignore should "return 200 for swagger route" in {
-    val pathExamples = Table("path", "/", "/swagger", "/swagger/cromwell.yaml", "/swagger/index.html", "/api",
-      "/api/workflows/", "/api/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",
-      "/api/workflows/v1/validate", "/workflows", "/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",
-      "/workflows/v1/validate")
-
-    forAll(pathExamples) { path =>
-      Options(path) ~>
-        swaggerUiResourceRoute ~>
-        check {
-          assertResult(StatusCodes.OK) {
-            status
-          }
-          assertResult("OK") {
-            responseAs[String]
-          }
-        }
-    }
   }
 }
 
@@ -771,6 +716,65 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+
+  behavior of "Cromwell query post API"
+
+  ignore should "return 400 for a bad query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"BadKey":"foo"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "Unrecognized query keys: BadKey"
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
+
+  ignore should "return good results for a good query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
+  }
+
+  ignore should "return good results for a multiple query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`,
+      """[{"status":"Succeeded"}, {"status":"Failed"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
+  }
+
+  ignore should "return 400 bad request for a bad query format body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":["Succeeded"]}]""")) ~>
+      sealRoute(queryPostRoute) ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  behavior of "Cromwell single call caching API"
 
   ignore should "disallow call caching for a call" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>

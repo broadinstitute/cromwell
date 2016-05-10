@@ -13,6 +13,7 @@ import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
+import spray.httpx.SprayJsonSupport._
 
 import scala.util.{Failure, Success, Try}
 
@@ -45,8 +46,9 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
   }
 
-  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
+  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
+    workflowStdoutStderrRoute ~ abortRoute ~ callOutputsRoute ~ callStdoutStderrRoute ~ metadataRoute ~ timingRoute ~
+    callCachingRoute ~ statusRoute
 
   def statusRoute =
     path("workflows" / Segment / Segment / "status") { (version, workflowId) =>
@@ -65,6 +67,17 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         get {
           requestContext =>
             perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowQuery(parameters))
+        }
+      }
+    }
+
+  def queryPostRoute =
+    path("workflows" / Segment / "query") { version =>
+      entity(as[Seq[Map[String, String]]]) { parameterMap =>
+        post {
+          requestContext =>
+            perRequest(requestContext, CromwellApiHandler.props(workflowManager),
+              CromwellApiHandler.ApiHandlerWorkflowQuery(parameterMap.flatMap(_.toSeq)))
         }
       }
     }

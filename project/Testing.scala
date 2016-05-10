@@ -25,12 +25,14 @@ object Testing {
   lazy val UseDbmsTaggedTests = Tests.Argument("-n", DbmsTestTag)
   lazy val DontUseDbmsTaggedTests = Tests.Argument("-l", DbmsTestTag)
 
+  lazy val TestReportArgs = Tests.Argument("-h", "target/test-reports")
+
   /*
   The arguments that will be added to the default test config, but removed from all other configs.
   `sbt coverage test` adds other arguments added to generate the coverage reports.
   Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
  */
-  lazy val defaultTestArgs = Seq(DontUseDockerTaggedTests, DontUseCromwellIntegrationTaggedTests, DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests)
+  lazy val defaultTestArgs = Seq(TestReportArgs, DontUseDockerTaggedTests, DontUseCromwellIntegrationTaggedTests, DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests)
 
   val testSettings = List(
     // `test` (or `assembly`) - Run all tests, except docker and integration and DBMS

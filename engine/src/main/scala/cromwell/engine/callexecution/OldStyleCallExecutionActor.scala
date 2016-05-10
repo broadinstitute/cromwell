@@ -3,19 +3,21 @@ package cromwell.engine.callexecution
 import akka.actor.{Actor, Props}
 import akka.event.{Logging, LoggingReceive}
 import com.google.api.client.util.ExponentialBackOff
+import cromwell.core.CromwellFatalException
+import cromwell.engine.CromwellActor
 import cromwell.engine.backend._
 import cromwell.engine.callactor.OldStyleCallActor
 import cromwell.engine.callexecution.OldStyleCallExecutionActor.{ExecutionMode, Finish, IssuePollRequest, PollResponseReceived}
 import cromwell.engine.finalcall.OldStyleFinalCall
-import cromwell.engine.{CromwellActor, CromwellFatalException}
 import cromwell.logging.WorkflowLogger
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s.Scope
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
+
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object OldStyleCallExecutionActor {
   sealed trait CallExecutionActorMessage

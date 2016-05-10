@@ -2,9 +2,10 @@ package cromwell.engine.backend
 
 import cromwell.CallCachingWorkflowSpec._
 import cromwell.CromwellTestkitSpec
+import cromwell.core.CromwellAggregatedException
 import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.util.{CromwellAggregatedException, SampleWdl}
+import cromwell.util.SampleWdl
 import org.scalatest.concurrent.ScalaFutures
 import wdl4s.values.WdlFile
 

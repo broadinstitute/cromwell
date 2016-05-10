@@ -1,14 +1,15 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.client.util.ArrayMap
-import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
+import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.OldStyleBackendCallJobDescriptor
 import cromwell.engine.backend.jes.OldStyleJesBackend._
+import cromwell.backend.ExecutionEventEntry
+import cromwell.engine.AbortFunction
 import cromwell.engine.backend.jes.Run.{Failed, Running, Success, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{AbortFunction, ExecutionEventEntry}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.google.GenomicsScopes
 import org.joda.time.DateTime

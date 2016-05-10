@@ -7,6 +7,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
+import cromwell.backend.PreemptedException
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.core.{CallContext, WorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine._
@@ -59,6 +60,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val logger: Logger = LoggerFactory.getLogger("JesBackendSpecLogger")
     val wd = mock[OldStyleWorkflowDescriptor]
     wd.workflowLogger returns logger
+    wd.id returns WorkflowId.randomId()
     val task = mock[Task]
     task.outputs returns Seq.empty
     val call = mock[Call]

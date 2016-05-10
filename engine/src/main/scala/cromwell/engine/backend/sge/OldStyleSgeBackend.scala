@@ -154,7 +154,7 @@ case class OldStyleSgeBackend(backendConfigEntry: BackendConfigurationEntry, act
     */
   private def launchQsub(jobDescriptor: OldStyleBackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
-    val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
+    val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
     val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, jobDescriptor.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")

@@ -4,10 +4,11 @@ import java.nio.file._
 
 import better.files._
 import cromwell.WorkflowEngineFunctions
+import cromwell.backend.ExecutionEventEntry
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
+import cromwell.engine.backend
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs.GcsPath
-import cromwell.engine.{ExecutionEventEntry, backend}
 import cromwell.util.TryUtil
 import org.apache.commons.lang3.exception.ExceptionUtils
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType}

@@ -28,20 +28,26 @@ object Dependencies {
     "io.spray" %% "spray-json" % DowngradedSprayV
   )
 
-  val googleDependencies = List(
-    "com.fasterxml.jackson.core" % "jackson-core" % "2.4.5", // Used by swagger, but only in tests
+  val googleApiClientDependencies = List(
+    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
+    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
+    "com.fasterxml.jackson.core" % "jackson-core" % "2.4.5",
+    // The exclusions prevent guava 13 from colliding at assembly time with guava 18 brought in elsewhere.
+    "com.google.api-client" % "google-api-client-java6" % googleClientApiV exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV exclude("com.google.guava", "guava-jdk5")
+  )
+
+  val googleCloudDependencies = List(
     "com.google.gcloud" % "gcloud-java" % "0.0.9",
-    "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
-    "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
     "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
     "com.google.cloud.bigdataoss" % "gcsio" % "1.4.4",
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
-  )
+  ) ++ googleApiClientDependencies
 
   val gcsFileSystemDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3"
-  ) ++ testDependencies ++ googleDependencies
+  ) ++ testDependencies ++ googleCloudDependencies
 
   val databaseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
@@ -58,14 +64,16 @@ object Dependencies {
 
   val coreDependencies = List(
     wdl4sDependency,
+    "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.typesafe" % "config" % "1.3.0",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies
 
   val backendDependencies = List(
-    "org.broadinstitute" %% "lenthall" % lenthallV
-  ) ++ coreDependencies
+    "joda-time" % "joda-time" % "2.8.2",
+    "org.joda" % "joda-convert" % "1.8.1"
+  ) ++ coreDependencies ++ googleApiClientDependencies
 
   val localBackendDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV
@@ -73,7 +81,6 @@ object Dependencies {
 
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
-    "org.joda" % "joda-convert" % "1.8.1",
     "org.webjars" % "swagger-ui" % "2.1.1",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
@@ -84,5 +91,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % betterFilesV
-  ) ++ coreDependencies ++ sprayDependencies
+  ) ++ coreDependencies ++ sprayDependencies ++ googleCloudDependencies ++ databaseDependencies ++ backendDependencies ++ gcsFileSystemDependencies
 }

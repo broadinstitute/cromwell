@@ -1,6 +1,6 @@
 package cromwell.util.docker
 
-import cromwell.util.CromwellAggregatedException
+import cromwell.core.CromwellAggregatedException
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}

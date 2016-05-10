@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
+import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
 import cromwell.core.CallOutputs
-import cromwell.engine.ExecutionEventEntry
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction

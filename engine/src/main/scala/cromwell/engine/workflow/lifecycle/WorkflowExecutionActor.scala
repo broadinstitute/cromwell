@@ -6,10 +6,10 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedRespo
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, JobKey}
 import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus._
+import cromwell.engine.ExecutionStatus.{ExecutionStatus, NotStarted}
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.JobInputEvaluator
-import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{WorkflowExecutionActorData, WorkflowExecutionActorState}
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
 import cromwell.webservice.WdlValueJsonFormatter
 import lenthall.exception.ThrowableAggregation
@@ -207,9 +207,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
       handleRetryableFailure(jobKey)
     case Event(JobInitializationFailed(jobKey, reason), stateData) =>
-      log.warning(s"Job ${jobKey.tag} failed: $reason")
-      goto(WorkflowExecutionFailedState)
-    case Event(JobInitializationFailed(jobKey, reason), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed to initialize: $reason")
       goto(WorkflowExecutionFailedState)
     case Event(AbortExecutingWorkflowCommand, stateData) => ??? // TODO: Implement!
@@ -289,7 +286,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
 
   private def isRunnable(entry: ExecutionStoreEntry, executionStore: ExecutionStore) = {
     entry match {
-      case (key, ExecutionStatus.NotStarted) => arePrerequisitesDone(key, executionStore)
+      case (key, NotStarted) => arePrerequisitesDone(key, executionStore)
       case _ => false
     }
   }

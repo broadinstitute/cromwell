@@ -1,7 +1,8 @@
 package cromwell.engine.backend
 
+import cromwell.backend.ExecutionEventEntry
 import cromwell.engine.workflow.CallCacheData
-import cromwell.engine.{ExecutionEventEntry, FailureEventEntry}
+import cromwell.engine.FailureEventEntry
 import org.joda.time.DateTime
 import wdl4s.values.{WdlFile, WdlValue}
 

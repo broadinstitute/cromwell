@@ -1,5 +1,6 @@
 package cromwell
 
+import lenthall.exception.ThrowableAggregation
 import wdl4s.values.{SymbolHash, WdlValue}
 
 import scalaz._
@@ -14,4 +15,7 @@ package object core {
   case class CallOutput(wdlValue: WdlValue, hash: Option[SymbolHash])
   type CallOutputs = Map[LocallyQualifiedName, CallOutput]
   type EvaluatedRuntimeAttributes = Map[String, WdlValue]
+
+  class CromwellFatalException(exception: Throwable) extends Exception(exception)
+  case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "") extends ThrowableAggregation
 }

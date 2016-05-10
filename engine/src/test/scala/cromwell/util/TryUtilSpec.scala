@@ -1,6 +1,7 @@
 package cromwell.util
 
-import cromwell.engine.CromwellFatalException
+import cromwell.backend.SimpleExponentialBackoff
+import cromwell.core.CromwellFatalException
 import cromwell.logging.WorkflowLogger
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}

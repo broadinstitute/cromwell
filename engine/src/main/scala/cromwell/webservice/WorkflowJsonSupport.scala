@@ -1,5 +1,6 @@
 package cromwell.webservice
 
+import cromwell.backend.ExecutionEventEntry
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
 import cromwell.engine.db.ExecutionDatabaseKey

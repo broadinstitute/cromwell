@@ -5,7 +5,7 @@ import java.util.Date
 
 import akka.actor.ActorSystem
 import akka.pattern.after
-import cromwell.backend.JobKey
+import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase

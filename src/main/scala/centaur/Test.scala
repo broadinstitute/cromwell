@@ -252,59 +252,13 @@ object Operations {
   }
 
   /**
-    * Verify that the expected cache key values being passed in (through the .metadata file)
-    * match the cache key values from the actual metadata json. Print the difference if not equal.
-    */
-  def verifyCaching (workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      val expectedCacheMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => flattenToMap(filterByKey(cacheData, "cache")) }
-
-      def verifyWorkflowCaching(cache: Map[String, JsValue]) = {
-        expectedCacheMap match {
-          case Some(expected) if !expected.equals(cache) =>
-            printMapDiff(expectedCacheMap, cache, request, "cache")
-            throw new Exception(s"Mismatching cache for Workflow ${request.name}")
-          case _ =>
-        }
-      }
-
-      override def run: Try[Workflow] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata =>
-          verifyWorkflowCaching(makeCachingMap(allMetadata, expectedCacheMap))
-          workflow
-        })
-      }
-    }
-  }
-
-  /**
-    * Verify that none of the calls wihtin the workflow are cached.
-    */
-  def verifyCachingOff (workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      val expectedCacheMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => flattenToMap(filterByKey(cacheData, "cache")) }
-
-      override def run: Try[Workflow] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata =>
-          val cacheHit = Set("cacheHitCall")
-          val cacheHitMap = allMetadata.parseJson.asJsObject.fields filter { case (k, v) => cacheHit exists { x => k.contains(x) } }
-          if(cacheHitMap.nonEmpty) throw new Exception(s"Found unexpected cache hits for ${request.name}: \n$cacheHitMap")
-          workflow
-        })
-      }
-    }
-  }
-
-  /**
     * Verify that input/output values of interest (listed as a subsection of the .metadata file)
     * match up to confirm that caching is expected.
     */
 
   def assertEqual (workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
     new Test[Workflow] {
-      val equalMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => flattenToMap(filterByKey(cacheData, "assertEqual"))}
+      val equalMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => filterMetadataByKey(cacheData, "assertEqual").flattenToMap}
 
       def verifyEqual(actualMap: Map[String, JsValue]) = {
         //FIXME: Another option .get
@@ -315,31 +269,12 @@ object Operations {
 
       override def run: Try[Workflow] = {
         val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata => val actualMap = flattenToMap(allMetadata.parseJson.asJsObject)
+        sendReceiveFutureCompletion(response  map { allMetadata => val actualMap = allMetadata.parseJson.asJsObject.flattenToMap
           verifyEqual(actualMap)
           workflow
         })
       }
     }
-  }
-
-  private def flattenToMap(cacheCheck: JsObject): Map [String, JsValue] = {
-    cacheCheck.flatten().fields map { case(k, v: JsValue) => k -> v}
-  }
-
-  private def filterByKey(expectedMetadata: String, key: String): JsObject = {
-    expectedMetadata.parseJson.asJsObject.fields.get(key).get.asJsObject
-  }
-
-  /**
-    * Use the keys of from the .metadata file being passed in and only compare
-    * the values for those keys against the actual metadata results.
-    */
-  private def makeCachingMap(metadataJson: String, expectedMap: Option[Map[String, JsValue]]): Map[String, JsValue] = {
-    val actualFlatten = flattenToMap(metadataJson.parseJson.asJsObject) //flattened the entire actual Metadata file
-    val cacheKey = expectedMap.get.keySet //grabbed all keys of expected Map
-    val filteredMap = metadataJson.parseJson.asJsObject.flatten().fields filter { case (k, v) => cacheKey exists { x => k.contains(x) } } //retain all expected Keys
-    filteredMap
   }
 
   /**

@@ -64,7 +64,7 @@ object MetadataServiceActor {
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor {
 
-  var journal = List.empty[MetadataEvent]
+  private var journal = List.empty[MetadataEvent]
 
   def receive = {
     case action@PutMetadataAction(event) =>

@@ -8,7 +8,7 @@ import cromwell.services.MetadataServiceActor._
 class MetadataServiceSpec extends CromwellServicesSpec {
 
   val config = ConfigFactory.load("{}")
-  val Actor = actorSystem.actorOf(MetadataServiceActor.props(config, config))
+  val actor = actorSystem.actorOf(MetadataServiceActor.props(config, config))
 
   val workflowId = WorkflowId.randomId()
 
@@ -30,9 +30,9 @@ class MetadataServiceSpec extends CromwellServicesSpec {
     val putAction2 = PutMetadataAction(event1_2)
     val putAction3 = PutMetadataAction(event2_1)
     (for {
-      response1 <- (Actor ? putAction1).mapTo[MetadataServiceResponse]
-      response2 <- (Actor ? putAction2).mapTo[MetadataServiceResponse]
-      response3 <- (Actor ? putAction3).mapTo[MetadataServiceResponse]
+      response1 <- (actor ? putAction1).mapTo[MetadataServiceResponse]
+      response2 <- (actor ? putAction2).mapTo[MetadataServiceResponse]
+      response3 <- (actor ? putAction3).mapTo[MetadataServiceResponse]
       _ = response1 shouldBe MetadataPutAcknowledgement(putAction1)
       _ = response2 shouldBe MetadataPutAcknowledgement(putAction2)
       _ = response3 shouldBe MetadataPutAcknowledgement(putAction3)
@@ -44,10 +44,10 @@ class MetadataServiceSpec extends CromwellServicesSpec {
     val query2 = MetadataQuery.forKey(key2)
 
     (for {
-      response1 <- (Actor ? GetMetadataQueryAction(query1)).mapTo[MetadataServiceResponse]
+      response1 <- (actor ? GetMetadataQueryAction(query1)).mapTo[MetadataServiceResponse]
       _ = response1 shouldBe MetadataLookupResponse(query1, Seq(event1_1, event1_2))
 
-      response2 <- (Actor ? GetMetadataQueryAction(query2)).mapTo[MetadataServiceResponse]
+      response2 <- (actor ? GetMetadataQueryAction(query2)).mapTo[MetadataServiceResponse]
       _ = response2 shouldBe MetadataLookupResponse(query2, Seq(event2_1))
     } yield ()).futureValue
   }

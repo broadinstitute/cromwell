@@ -32,7 +32,7 @@ object MetadataServiceActor {
   object MetadataQuery {
     def forWorkflow(workflowId: WorkflowId) = MetadataQuery(Option(workflowId), None, None)
     def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey) = MetadataQuery(Option(workflowId), Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None)
-    def forKey(key: MetadataKey) = MetadataQuery(Option(key.workflowId), key.jobKey map { MetadataQueryJobKey.forMetadataJobKey }, Option(key.key))
+    def forKey(key: MetadataKey) = MetadataQuery(Option(key.workflowId), key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key))
   }
 
   trait MetadataServiceMessage
@@ -74,11 +74,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
     case GetAllMetadataAction(workflowId) =>
       val query = MetadataQuery(Option(workflowId), None, None)
       val filtered = filterByQuery(query)
-      val result: MetadataLookupResponse = MetadataLookupResponse(query, filtered)
-      sender ! result
+      sender ! MetadataLookupResponse(query, filtered)
     case GetMetadataQueryAction(query@MetadataQuery(workflowId, jobKey, key)) =>
-      val result: MetadataLookupResponse = MetadataLookupResponse(query, filterByQuery(query))
-      sender ! result
+      sender ! MetadataLookupResponse(query, filterByQuery(query))
   }
 
   private def filterByQuery(metadataQuery: MetadataQuery): Seq[MetadataEvent] = {
@@ -97,9 +95,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
       metadataQuery.key map { queryKey => (event: MetadataEvent) => event.key.key == queryKey }
     ) ++ possibleJobQueryFilters
 
-    val filtersToUse: List[MetadataEvent => Boolean] = possibleFilters collect { case Some(f) => f }
+    val filtersToUse: List[MetadataEvent => Boolean] = possibleFilters.flatten
 
     // Make sure that every filter which is being requested applies to this event:
-    if (filtersToUse.isEmpty) journal else journal filter { event => filtersToUse forall { _(event) } }
+    journal filter { event => filtersToUse forall { _(event) } }
   }
 }

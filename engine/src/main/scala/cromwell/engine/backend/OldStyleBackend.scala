@@ -5,7 +5,7 @@ import java.nio.file.{FileSystem, Path}
 import akka.actor.ActorSystem
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.util.ExponentialBackOff
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{ExecutionHash, JobKey}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
@@ -76,6 +76,8 @@ trait OldStyleBackend {
   def actorSystem: ActorSystem
 
   def backendConfigEntry: BackendConfigurationEntry
+
+  def globalConfig: Config = ConfigFactory.load()
 
   def backendConfig: Config = backendConfigEntry.config
 

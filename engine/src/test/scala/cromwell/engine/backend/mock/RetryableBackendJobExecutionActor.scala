@@ -2,7 +2,7 @@ package cromwell.engine.backend.mock
 
 import akka.actor.Props
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedRetryableResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{FailedRetryableResponse, BackendJobExecutionResponse, SucceededResponse}
 
 import scala.concurrent.Future
 
@@ -16,9 +16,9 @@ case class RetryableBackendJobExecutionActor(override val jobDescriptor: Backend
 
   override def execute: Future[BackendJobExecutionResponse] = {
     if(jobDescriptor.key.attempt < attempts)
-      Future.successful(BackendJobExecutionFailedRetryableResponse(jobDescriptor.key, new RuntimeException("An apparent transient Exception!")))
+      Future.successful(FailedRetryableResponse(jobDescriptor.key, new RuntimeException("An apparent transient Exception!"), None))
     else
-      Future.successful(BackendJobExecutionSucceededResponse(jobDescriptor.key, (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
+      Future.successful(SucceededResponse(jobDescriptor.key, (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
   }
   override def recover = execute
 

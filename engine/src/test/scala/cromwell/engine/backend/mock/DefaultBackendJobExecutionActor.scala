@@ -2,7 +2,7 @@ package cromwell.engine.backend.mock
 
 import akka.actor.Props
 import com.typesafe.config.Config
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse}
 import cromwell.backend._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
@@ -15,7 +15,7 @@ object DefaultBackendJobExecutionActor {
 
 case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   override def execute: Future[BackendJobExecutionResponse] = {
-    Future.successful(BackendJobExecutionSucceededResponse(jobDescriptor.key, (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
+    Future.successful(SucceededResponse(jobDescriptor.key, (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
   }
   override def recover = execute
 

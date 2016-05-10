@@ -28,8 +28,6 @@ object GoogleConfiguration {
 
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
-  lazy val Instance = apply()
-
   private val GoogleScopes = List(
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
     StorageScopes.DEVSTORAGE_READ_WRITE,
@@ -37,7 +35,7 @@ object GoogleConfiguration {
     "https://www.googleapis.com/auth/compute"
   )
 
-  def apply(config: Config = ConfigFactory.load()): GoogleConfiguration = {
+  def apply(config: Config): GoogleConfiguration = {
 
     val googleConfig = config.getConfig("google")
 

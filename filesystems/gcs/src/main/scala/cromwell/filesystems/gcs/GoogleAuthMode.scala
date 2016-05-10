@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import GoogleAuthMode.GcsScopes
+import com.typesafe.config.Config
 
 object GoogleAuthMode {
 
@@ -83,11 +84,11 @@ sealed trait GoogleAuthMode {
 
   protected def buildCredentials(options: GoogleAuthOptions): Credential
 
-  def buildStorage(options: GoogleAuthOptions): Storage = {
+  def buildStorage(options: GoogleAuthOptions, config: Config): Storage = {
     new Storage.Builder(
       httpTransport,
       jsonFactory,
-      credential(options)).setApplicationName(GoogleConfiguration.Instance.applicationName).build()
+      credential(options)).setApplicationName(GoogleConfiguration(config).applicationName).build()
   }
 }
 

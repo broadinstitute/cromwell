@@ -22,7 +22,7 @@ trait CanUseGcsFilesystem { self: OldStyleBackend =>
       class ErrorMessageAggregatedException(override val exceptionContext: String,
                                             override val errorMessages: Traversable[String]) extends MessageAggregation
 
-      GoogleConfiguration.Instance.auth(authName) valueOr { errs => throw new ErrorMessageAggregatedException(s"For backend '$name': ", errs.list) }
+      GoogleConfiguration(globalConfig).auth(authName) valueOr { errs => throw new ErrorMessageAggregatedException(s"For backend '$name': ", errs.list) }
     }
 
     val gcsAuth: Option[GoogleAuthMode] = for {
@@ -32,7 +32,7 @@ trait CanUseGcsFilesystem { self: OldStyleBackend =>
       auth = gcsFilesystemAuthMustBeLegit(authName)
     } yield auth
 
-    val maybeStorage = gcsAuth map { _.buildStorage(options.toGoogleAuthOptions) }
+    val maybeStorage = gcsAuth map { _.buildStorage(options.toGoogleAuthOptions, globalConfig) }
     maybeStorage map GcsFileSystemProvider.apply map { _.getFileSystem }
   }
 }

@@ -3,7 +3,7 @@ package cromwell.backend.impl.local
 import java.nio.file.{FileSystems, Path, Paths}
 
 import akka.actor.Props
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, BackendJobExecutionResponse, SucceededResponse}
 import cromwell.backend._
 import org.slf4j.LoggerFactory
 import wdl4s._
@@ -19,11 +19,6 @@ object LocalJobExecutionActor {
   val logger = LoggerFactory.getLogger("LocalBackend")
   // TODO Support GCS ?
   val fileSystems = List(FileSystems.getDefault)
-
-  private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {
-    val lastIndex = fullyQualifiedName.lastIndexOf(".")
-    (fullyQualifiedName.substring(0, lastIndex), fullyQualifiedName.substring(lastIndex + 1))
-  }
 
   case class Command(argv: Seq[String]) {
     override def toString = argv.map(s => "\"" + s + "\"").mkString(" ")
@@ -110,7 +105,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   override def execute: Future[BackendJobExecutionResponse] = instantiatedScript match {
     case Success(command) => executeScript(command)
-    case Failure(ex) => Future.successful(BackendJobExecutionFailedResponse(jobDescriptor.key, ex))
+    case Failure(ex) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key, ex, None))
   }
 
   override def abortJob: Unit = {
@@ -151,7 +146,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     stderrTailed.writer.flushAndClose()
 
     processReturnCode match {
-      case ProcessKilledCode => BackendJobExecutionAbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+      case ProcessKilledCode => AbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
       case other if other == 0 || runtimeAttributes.dockerImage.isEmpty => postProcessJob()
       case failed =>
         logger.error(s"Non-zero return code: $failed")
@@ -166,8 +161,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     logger.info(s"Return code: $returnCode")
 
     if (runtimeAttributes.failOnStderr && stderrFileLength > 0) {
-      BackendJobExecutionFailedResponse(jobDescriptor.key, new Throwable(s"Call ${call.fullyQualifiedName}, " +
-        s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength"))
+      FailedNonRetryableResponse(jobDescriptor.key, new Throwable(s"Call ${call.fullyQualifiedName}, " +
+        s"Workflow ${workflowDescriptor.id}: stderr has length $stderrFileLength"), returnCode.toOption)
     } else {
       lazy val badReturnCodeMessage =
         s"""Call ${call.fullyQualifiedName}, Workflow ${workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
@@ -176,20 +171,20 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
       returnCode match {
         case Success(143) =>
-          BackendJobExecutionAbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+          AbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if runtimeAttributes.continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
-        case Success(badReturnCode) => BackendJobExecutionFailedResponse(jobDescriptor.key, new Exception(badReturnCodeMessage))
-        case Failure(e) => BackendJobExecutionFailedResponse(jobDescriptor.key, new Exception(badReturnCodeMessage, e))
+        case Success(badReturnCode) => FailedNonRetryableResponse(jobDescriptor.key, new Exception(badReturnCodeMessage), returnCode.toOption)
+        case Failure(e) => FailedNonRetryableResponse(jobDescriptor.key, new Exception(badReturnCodeMessage, e), returnCode.toOption)
       }
     }
   }
 
   private def processSuccess(rc: Int) = {
     processOutputs(callEngineFunction, jobPaths) match {
-      case Success(outputs) => BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs)
+      case Success(outputs) => SucceededResponse(jobDescriptor.key, outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
-        BackendJobExecutionFailedResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e))
+        FailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
     }
   }
 }

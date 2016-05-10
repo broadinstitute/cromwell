@@ -3,8 +3,8 @@ package cromwell.engine.backend.runtimeattributes
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCode, RuntimeAttributesValidation}
 import cromwell.core.{ErrorOr, WorkflowOptions}
-import OldStyleRuntimeKey._
-import cromwell.engine.backend.{OldStyleBackendCallJobDescriptor, BackendType}
+import cromwell.engine.backend.runtimeattributes.OldStyleRuntimeKey._
+import cromwell.engine.backend.{BackendType, OldStyleBackendCallJobDescriptor}
 import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
 import wdl4s._
@@ -93,7 +93,8 @@ object CromwellRuntimeAttributes {
 
   private case class ValidKeyType(key: String, validTypes: Set[WdlType])
 
-  private val keys = Set(ValidKeyType("cpu", Set(WdlIntegerType)),
+  private val keys = Set(
+    ValidKeyType("cpu", Set(WdlIntegerType)),
     ValidKeyType("disks", Set(WdlStringType, WdlArrayType(WdlStringType))),
     ValidKeyType("docker", Set(WdlStringType)),
     ValidKeyType("zones", Set(WdlStringType, WdlArrayType(WdlStringType))),
@@ -115,7 +116,7 @@ object CromwellRuntimeAttributes {
   )
 
   private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
-    def fromWorkflowOptions(k: ValidKeyType) = {
+    def fromWorkflowOptions(k: ValidKeyType): WdlValue = {
       val value = workflowOptions.getDefaultRuntimeOption(k.key).get
       val coercedValue = k.validTypes map { _.coerceRawValue(value) } find { _.isSuccess } map {
         _.get

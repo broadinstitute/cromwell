@@ -2,8 +2,9 @@ package cromwell.engine.backend.jes
 
 import java.net.URL
 
-import com.typesafe.config.Config
+import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.core.{ErrorOr, WorkflowOptions}
+import cromwell.engine.backend.EnhancedWorkflowOptions._
 import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
 import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
@@ -13,7 +14,6 @@ import scala.language.postfixOps
 import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
 import scalaz._
-import cromwell.engine.backend.EnhancedWorkflowOptions._
 
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case class JesAttributes(project: String,
@@ -46,8 +46,8 @@ object JesAttributes {
 
   private val context = "Jes"
 
-  def apply(backendConfig: Config): JesAttributes = {
-
+  def apply(googleConfig: GoogleConfiguration, configurationDescriptor: BackendConfigurationDescriptor): JesAttributes = {
+    val backendConfig = configurationDescriptor.backendConfig
     backendConfig.warnNotRecognized(jesKeys, context)
 
     val project: ErrorOr[String] = backendConfig.validateString("project")
@@ -57,12 +57,10 @@ object JesAttributes {
     val genomicsAuthName: ErrorOr[String] = backendConfig.validateString("genomics.auth")
     val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
 
-    val gconf = GoogleConfiguration.Instance
-
     (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName) {
       (_, _, _, _, _)
     } flatMap { case (p, b, u, genomicsName, gcsName) =>
-      (gconf.auth(genomicsName) |@| gconf.auth(gcsName)) { case (genomicsAuth, gcsAuth) =>
+      (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) { case (genomicsAuth, gcsAuth) =>
         JesAttributes(p, genomicsAuth, gcsAuth, b, u, maxPollingInterval)
       }
     } match {

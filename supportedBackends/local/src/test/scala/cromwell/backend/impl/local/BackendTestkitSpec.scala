@@ -5,7 +5,7 @@ import java.nio.file.FileSystems
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionFailedRetryableResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, FailedRetryableResponse, BackendJobExecutionResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.local.TestWorkflows.TestWorkflow
 import cromwell.core.{WorkflowId, WorkflowOptions}
@@ -62,7 +62,7 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
     (executionResponse, expectedResponse) match {
-      case (BackendJobExecutionSucceededResponse(_, responseOutputs), BackendJobExecutionSucceededResponse(_, expectedOutputs)) =>
+      case (SucceededResponse(_, responseOutputs), SucceededResponse(_, expectedOutputs)) =>
         responseOutputs.size shouldBe expectedOutputs.size
         responseOutputs foreach {
           case (fqn, out) =>
@@ -70,11 +70,11 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
             expectedOut.isDefined shouldBe true
             expectedOut.get.wdlValue.valueString shouldBe out.wdlValue.valueString
         }
-      case (BackendJobExecutionFailedResponse(_, failure), BackendJobExecutionFailedResponse(_, expectedFailure)) =>
+      case (FailedNonRetryableResponse(_, failure, _), FailedNonRetryableResponse(_, expectedFailure, _)) =>
         // TODO improve this
         failure.getClass shouldBe expectedFailure.getClass
         failure.getMessage should include(expectedFailure.getMessage)
-      case (BackendJobExecutionFailedRetryableResponse(_, failure), BackendJobExecutionFailedRetryableResponse(_, expectedFailure)) =>
+      case (FailedRetryableResponse(_, failure, _), FailedRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
       case (response, expectation) =>
         fail(s"Execution response $response wasn't conform to expectation $expectation")

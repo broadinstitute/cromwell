@@ -3,7 +3,7 @@ package cromwell.backend.impl.local
 import java.nio.file.{Files, Paths}
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.impl.local.BackendTestkitSpec.DockerTest
 import cromwell.backend.impl.local.TestWorkflows._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
@@ -22,7 +22,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val expectedOutputs: CallOutputs = Map(
       "salutation" -> CallOutput(WdlString("Hello you !"), None)
     )
-    val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
+    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
@@ -32,14 +32,14 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val expectedOutputs: CallOutputs = Map(
       "salutation" -> CallOutput(WdlString("Hello you !"), None)
     )
-    val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
+    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
   }
 
   it should "send back an execution failure if the task fails" in {
-    val expectedResponse = BackendJobExecutionFailedResponse(mock[BackendJobDescriptorKey], new Exception(""))
+    val expectedResponse = FailedNonRetryableResponse(mock[BackendJobDescriptorKey], new Exception(""), Option(1))
     val wf = new TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
@@ -93,7 +93,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       val wf = buildWorkflowDescriptor(InputFiles, inputs)
       val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf, inputs), conf)
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
-      val expectedResponse = BackendJobExecutionSucceededResponse(jobDescriptor.key, expectedOutputs)
+      val expectedResponse = SucceededResponse(jobDescriptor.key, expectedOutputs)
 
       val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key)
 
@@ -122,7 +122,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val abort = backend.abortJob
 
     whenReady(execute) { executionResponse =>
-      executionResponse shouldBe a[BackendJobExecutionAbortedResponse]
+      executionResponse shouldBe a[AbortedResponse]
     }
   }
 
@@ -138,7 +138,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
 
       val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
       val backend = localBackend(jd, defaultBackendConfigDescriptor)
-      val response = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], Map("out" -> CallOutput(WdlInteger(shard), None)))
+      val response = SucceededResponse(mock[BackendJobDescriptorKey], Map("out" -> CallOutput(WdlInteger(shard), None)))
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -161,13 +161,13 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       ),
       "o3" -> CallOutput(WdlFile(inputFile), None)
     )
-    val expectedResponse = BackendJobExecutionSucceededResponse(jobDescriptor.key, expectedOutputs)
+    val expectedResponse = SucceededResponse(jobDescriptor.key, expectedOutputs)
 
     executeJobAndAssertOutputs(backend, expectedResponse)
   }
 
   it should "fail post processing if an output fail is not found" in {
-    val expectedResponse = BackendJobExecutionFailedResponse(mock[BackendJobDescriptorKey], new Throwable("Failed post processing of outputs"))
+    val expectedResponse = FailedNonRetryableResponse(mock[BackendJobDescriptorKey], new Throwable("Failed post processing of outputs"), Option(0))
     val wf = new TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)

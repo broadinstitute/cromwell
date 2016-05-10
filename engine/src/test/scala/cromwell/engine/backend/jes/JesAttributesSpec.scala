@@ -3,7 +3,9 @@ package cromwell.engine.backend.jes
 import java.net.URL
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{Matchers, FlatSpec}
+import cromwell.backend.BackendConfigurationDescriptor
+import cromwell.filesystems.gcs.GoogleConfiguration
+import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.ThrowableWithErrors
 
 class JesAttributesSpec extends FlatSpec with Matchers {
@@ -31,8 +33,9 @@ class JesAttributesSpec extends FlatSpec with Matchers {
           }""".stripMargin
 
     val fullConfig = ConfigFactory.parseString(configString.replace("[PREEMPTIBLE]", "preemptible = 3"))
+    val googleConfig = GoogleConfiguration(ConfigFactory.load)
 
-    val fullAttributes = JesAttributes.apply(fullConfig)
+    val fullAttributes = JesAttributes.apply(googleConfig, BackendConfigurationDescriptor(fullConfig, ConfigFactory.load()))
     fullAttributes.endpointUrl.toString shouldBe new URL("http://myEndpoint").toString
     fullAttributes.project shouldBe "myProject"
     fullAttributes.executionBucket shouldBe "gs://myBucket"
@@ -40,7 +43,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
 
     val noPreemptibleConfig = ConfigFactory.parseString(configString.replace("[PREEMPTIBLE]", ""))
 
-    val noPreemptibleAttributes = JesAttributes.apply(noPreemptibleConfig)
+    val noPreemptibleAttributes = JesAttributes.apply(googleConfig, BackendConfigurationDescriptor(noPreemptibleConfig, ConfigFactory.load))
     noPreemptibleAttributes.endpointUrl.toString shouldBe new URL("http://myEndpoint").toString
     noPreemptibleAttributes.project shouldBe "myProject"
     noPreemptibleAttributes.executionBucket shouldBe "gs://myBucket"
@@ -57,8 +60,10 @@ class JesAttributesSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin)
 
+    val googleConfig = GoogleConfiguration(ConfigFactory.load)
+
     val exception = intercept[IllegalArgumentException with ThrowableWithErrors] {
-      JesAttributes.apply(nakedConfig)
+      JesAttributes.apply(googleConfig, BackendConfigurationDescriptor(nakedConfig, ConfigFactory.load))
     }
     val errorsList = exception.errors.list
     errorsList should contain ("Could not find key: project")

@@ -16,14 +16,16 @@ object Pipeline {
             jesParameters: Seq[JesParameter],
             projectId: String,
             genomicsInterface: Genomics,
-            runIdForResumption: Option[String]): Pipeline = {
+            runIdForResumption: Option[String],
+            preemptible: Boolean): Pipeline = {
 
     lazy val workflow = jobDescriptor.descriptor
 
     val logger = LoggerFactory.getLogger(Pipeline.getClass)
 
     logger.debug(s"Command line is: $commandLine")
-    val runtimeInfo = /* if (jesJobDescriptor.preemptible) PreemptibleJesRuntimeInfo(commandLine, runtimeAttributes) else */ NonPreemptibleJesRuntimeInfo(commandLine, runtimeAttributes)
+    val runtimeInfoBuilder = if (preemptible) PreemptibleJesRuntimeInfoBuilder else NonPreemptibleJesRuntimeInfoBuilder
+    val runtimeInfo = runtimeInfoBuilder.build(commandLine, runtimeAttributes)
 
     val p = new model.Pipeline
     p.setProjectId(projectId)

@@ -1,9 +1,9 @@
 package cromwell.backend.async
 
 import akka.actor.{Actor, ActorLogging}
-import cromwell.backend.async.AsyncBackendJobExecutionActor._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, _}
+import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
 import cromwell.core.retry.Backoff
 
@@ -40,6 +40,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
   def backoff: Backoff
 
+  def retryable: Boolean
+
   /**
     * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule
     * the execution of the `onFailure` work using an exponential backoff.
@@ -49,7 +51,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       case Success(s) => onSuccess(s)
       case Failure(e: CromwellFatalException) =>
         log.error(e.getMessage, e)
-        completionPromise.success(BackendJobExecutionFailedResponse(jobDescriptor.key, e))
+        val responseBuilder = if (retryable) FailedRetryableResponse else FailedNonRetryableResponse
+        completionPromise.success(responseBuilder.apply(jobDescriptor.key, e, None))
         context.stop(self)
       case Failure(e: Exception) =>
         log.error(e.getMessage, e)
@@ -76,8 +79,16 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) => scheduleWork(self ! IssuePollRequest(handle))
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, hash, resultsClonedFrom)) =>
-      completionPromise.success(BackendJobExecutionSucceededResponse(jobDescriptor.key, outputs))
+      completionPromise.success(SucceededResponse(jobDescriptor.key, outputs))
       context.stop(self)
+    case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>
+      completionPromise.success(FailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))
+      context.stop(self)
+    case Finish(FailedRetryableExecutionHandle(throwable, returnCode)) =>
+      completionPromise.success(FailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
+      context.stop(self)
+    case Finish(cromwell.backend.async.AbortedExecutionHandle) => ???
+
     case badMessage => log.error(s"Unexpected message $badMessage.")
   }
 

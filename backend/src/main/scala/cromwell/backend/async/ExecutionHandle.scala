@@ -12,21 +12,17 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class CompletedExecutionHandle(override val result: ExecutionResult) extends ExecutionHandle {
-  override val isDone = true
-}
-
 final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulExecution(outputs, returnCode, hash, resultsClonedFrom)
 }
 
-final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
+final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = new NonRetryableExecution(throwable, returnCode)
 }
 
-final case class RetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
+final case class FailedRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = new RetryableExecution(throwable, returnCode)
 }

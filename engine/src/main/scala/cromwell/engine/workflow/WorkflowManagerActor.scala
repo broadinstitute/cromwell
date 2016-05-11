@@ -102,9 +102,11 @@ class WorkflowManagerActor(config: Config)
 
   private val donePromise = Promise[Unit]()
 
+  private val conf = ConfigFactory.load
+
   override def preStart() {
     addShutdownHook()
-    restartIncompleteWorkflows()
+    if (conf.getBoolean("system.workflow-restart")) { restartIncompleteWorkflows() }
   }
 
   private def addShutdownHook(): Unit = {

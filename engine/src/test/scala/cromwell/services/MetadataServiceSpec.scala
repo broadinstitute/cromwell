@@ -1,5 +1,6 @@
 package cromwell.services
 
+import akka.actor.PoisonPill
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
@@ -52,4 +53,7 @@ class MetadataServiceSpec extends CromwellServicesSpec {
     } yield ()).futureValue
   }
 
+  override def afterAll = {
+    actor ! PoisonPill
+  }
 }

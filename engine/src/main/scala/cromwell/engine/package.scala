@@ -87,5 +87,6 @@ package object engine {
                                             failureMode: WorkflowFailureMode) {
     def id = backendDescriptor.id
     def namespace = backendDescriptor.workflowNamespace
+    def name = namespace.workflow.unqualifiedName
   }
 }

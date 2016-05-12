@@ -8,6 +8,7 @@ import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.NotStarted
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.engine.workflow.{CromwellProfilerFsm, CromwellFsmStateAndData}
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
@@ -100,10 +101,12 @@ object WorkflowExecutionActor {
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
+  case class WorkflowExecutionActorStateAndData(state: WorkflowExecutionActorState, data: WorkflowExecutionActorData) extends CromwellFsmStateAndData
+
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(WorkflowExecutionActor(workflowId, workflowDescriptor))
 }
 
-final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
+final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends CromwellProfilerFsm[WorkflowExecutionActorState, WorkflowExecutionActorData] {
 
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
@@ -310,4 +313,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
         Success(WorkflowExecutionDiff(Map(collector -> ExecutionStatus.Starting)))
     }
   }
+
+  override def wrappedStateAndData[? <: CromwellFsmStateAndData](state: WorkflowExecutionActorState, data: WorkflowExecutionActorData) =
+    WorkflowExecutionActorStateAndData(state, data)
+
 }

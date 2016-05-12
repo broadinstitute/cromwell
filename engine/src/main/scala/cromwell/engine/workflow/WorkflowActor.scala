@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowId
+import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -11,7 +12,6 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 
 import scala.language.postfixOps
 
@@ -35,54 +35,69 @@ object WorkflowActor {
   /**
     * States for the WorkflowActor FSM
     */
-  sealed trait WorkflowActorState { def terminal = false }
-  sealed trait WorkflowActorTerminalState extends WorkflowActorState { override def terminal = true}
+  sealed trait WorkflowActorState {
+    def terminal = false
+    // Each state in the FSM maps to a state in the `WorkflowState` which is used for Metadata reporting purposes
+    def workflowState: WorkflowState
+  }
+  sealed trait WorkflowActorTerminalState extends WorkflowActorState { override def terminal = true }
+  sealed trait WorkflowActorRunningState extends WorkflowActorState { override val workflowState = WorkflowRunning }
 
   /**
     * Waiting for a Start or Restart command.
     */
-  case object WorkflowUnstartedState extends WorkflowActorState
+  case object WorkflowUnstartedState extends WorkflowActorState {
+    override val workflowState = WorkflowSubmitted
+  }
 
   /**
     * The WorkflowActor is created. It now needs to validate and create its WorkflowDescriptor
     */
-  case object MaterializingWorkflowDescriptorState extends WorkflowActorState
+  case object MaterializingWorkflowDescriptorState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor has a descriptor. It now needs to create its set of WorkflowBackendActors
     */
-  case object InitializingWorkflowState extends WorkflowActorState
+  case object InitializingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor has a descriptor and a set of backends. It now needs to execute the hell out of its jobs.
     */
-  case object ExecutingWorkflowState extends WorkflowActorState
+  case object ExecutingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor has completed. So we're now finalizing whatever needs to be finalized on the backends
     */
-  case object FinalizingWorkflowState extends WorkflowActorState
+  case object FinalizingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
     * manager.
     */
-  case object AbortingWorkflowState extends WorkflowActorState
+  case object AbortingWorkflowState extends WorkflowActorState {
+    override val workflowState = WorkflowAborting
+  }
 
   /**
     * We're done.
     */
-  case object WorkflowSucceededState extends WorkflowActorTerminalState
+  case object WorkflowSucceededState extends WorkflowActorTerminalState {
+    override val workflowState = WorkflowSucceeded
+  }
 
   /**
     * We're done. But we were aborted in the middle of the lifecycle.
     */
-  case object WorkflowAbortedState extends WorkflowActorTerminalState
+  case object WorkflowAbortedState extends WorkflowActorTerminalState {
+    override val workflowState = WorkflowAborted
+  }
 
   /**
     * We're done. But the workflow has failed.
     */
-  case object WorkflowFailedState extends WorkflowActorTerminalState
+  case object WorkflowFailedState extends WorkflowActorTerminalState {
+    override val workflowState = WorkflowFailed
+  }
 
   /**
     * @param currentLifecycleStateActor The current lifecycle stage, represented by an ActorRef.
@@ -93,6 +108,8 @@ object WorkflowActor {
     def empty = WorkflowActorData(None, None)
     def apply(currentLifecycleStateActor: ActorRef, workflowDescriptor: EngineWorkflowDescriptor): WorkflowActorData = WorkflowActorData(Option(currentLifecycleStateActor), Option(workflowDescriptor))
   }
+
+  case class WorkflowActorStateAndData(state: WorkflowActorState, data: WorkflowActorData) extends CromwellFsmStateAndData
 
   /**
     * Mode in which the workflow should be started:
@@ -110,7 +127,7 @@ object WorkflowActor {
 class WorkflowActor(workflowId: WorkflowId,
                     startMode: StartMode,
                     workflowSources: WorkflowSourceFiles,
-                    conf: Config) extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging{
+                    conf: Config) extends CromwellProfilerFsm[WorkflowActorState, WorkflowActorData] with ActorLogging {
 
   val tag = self.path.name
 
@@ -200,4 +217,8 @@ class WorkflowActor(workflowId: WorkflowId,
       log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
       stay
   }
+
+  override def wrappedStateAndData[? <: CromwellFsmStateAndData](state: WorkflowActorState, data: WorkflowActorData) =
+    WorkflowActorStateAndData(state, data)
+
 }

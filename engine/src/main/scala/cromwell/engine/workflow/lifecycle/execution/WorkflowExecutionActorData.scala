@@ -4,7 +4,7 @@ import cromwell.backend.JobKey
 import cromwell.core._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
-import cromwell.engine.{EngineELF, EngineWorkflowDescriptor, ExecutionStatus}
+import cromwell.engine.{WdlFunctions, EngineWorkflowDescriptor, ExecutionStatus}
 import cromwell.webservice.WdlValueJsonFormatter
 
 import scala.language.postfixOps
@@ -21,7 +21,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       executionStore: ExecutionStore,
                                       outputStore: OutputStore) extends WdlLookup {
 
-  override val expressionLanguageFunctions = new EngineELF(workflowDescriptor.backendDescriptor.workflowOptions)
+  override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.backendDescriptor.workflowOptions)
 
   def jobExecutionSuccess(jobKey: JobKey, outputs: CallOutputs) = this.copy(
     executionStore = executionStore.add(Map(jobKey -> Done)),

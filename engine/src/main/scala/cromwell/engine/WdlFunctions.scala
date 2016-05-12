@@ -9,7 +9,7 @@ import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.util.{Failure, Try}
 
-class EngineELF(workflowOptions: WorkflowOptions) extends WdlStandardLibraryFunctions with ReadLikeFunctions with PureFunctions {
+class WdlFunctions(workflowOptions: WorkflowOptions) extends WdlStandardLibraryFunctions with ReadLikeFunctions with PureFunctions {
 
   // TODO: GCS
   // TODO: Security fo shared FS

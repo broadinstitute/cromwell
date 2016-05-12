@@ -206,7 +206,7 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs): ErrorOr[WorkflowCoercedInputs] = {
     // TODO: Need to create engine-only engine functions!
-    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new EngineELF(options)) match {
+    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(options)) match {
       case Success(d) => d.successNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".failureNel
     }

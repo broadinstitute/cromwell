@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.backend.{ExecutionHash, JobKey}
-import cromwell.CallEngineFunctions
+import cromwell.backend.wdl.OldCallEngineFunctions
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.engine.workflow.{BackendCallKey, FinalCallKey}
@@ -41,7 +41,7 @@ case class OldStyleBackendCallJobDescriptor(workflowDescriptor: OldStyleWorkflow
 
   def callRootPathWithBaseRoot(baseRoot: String) = backend.callRootPathWithBaseRoot(this, baseRoot)
 
-  lazy val callEngineFunctions: CallEngineFunctions = backend.callEngineFunctions(this)
+  lazy val callEngineFunctions: OldCallEngineFunctions = backend.callEngineFunctions(this)
 
   lazy val callRuntimeAttributes: CromwellRuntimeAttributes = backend.runtimeAttributes(this)
 

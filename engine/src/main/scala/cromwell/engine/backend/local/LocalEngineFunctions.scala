@@ -2,9 +2,9 @@ package cromwell.engine.backend.local
 
 import java.nio.file.{FileSystem, Path}
 
-import cromwell.core.{CallContext, WorkflowContext}
+import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
+import cromwell.core.{OldCallContext, OldWorkflowContext, PathFactory}
 import cromwell.engine.backend
-import cromwell.{core, CallEngineFunctions, WorkflowEngineFunctions}
 import wdl4s.values.WdlValue
 
 import scala.language.postfixOps
@@ -17,25 +17,21 @@ object OldStyleLocalWorkflowEngineFunctions {
 }
 
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-class OldStyleLocalWorkflowEngineFunctions(fileSystems: List[FileSystem], context: WorkflowContext) extends WorkflowEngineFunctions(context) {
-  import backend.io._
-  import core.PathFactory._
-  import better.files._
+class OldStyleLocalWorkflowEngineFunctions(val fileSystems: List[FileSystem], context: OldWorkflowContext) extends OldWorkflowEngineFunctions(context) with PathFactory {
   import OldStyleLocalWorkflowEngineFunctions._
+  import backend.io._
+  import better.files._
 
   override def globPath(glob: String): String = context.root
   override def glob(path: String, pattern: String): Seq[String] = {
     path.toAbsolutePath(fileSystems).glob(s"**/$pattern") map { _.path.fullPath } toSeq
   }
 
-  override def toPath(str: String): Path = {
-    val path = buildPath(str, fileSystems)
-    if (!path.isAbsolute && isLocalPath(path)) context.root.toPath(fileSystems).resolve(path) else path
-  }
+  override def postMapping(path: Path) = if (!path.isAbsolute && isLocalPath(path)) context.root.toPath(fileSystems).resolve(path) else path
 }
 
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-class OldStyleLocalCallEngineFunctions(fileSystems: List[FileSystem], context: CallContext) extends OldStyleLocalWorkflowEngineFunctions(fileSystems ,context) with CallEngineFunctions {
+class OldStyleLocalCallEngineFunctions(fileSystems: List[FileSystem], context: OldCallContext) extends OldStyleLocalWorkflowEngineFunctions(fileSystems ,context) with OldCallEngineFunctions {
   override def stdout(params: Seq[Try[WdlValue]]) = stdout(context)
   override def stderr(params: Seq[Try[WdlValue]]) = stderr(context)
 }

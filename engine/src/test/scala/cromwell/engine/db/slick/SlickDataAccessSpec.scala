@@ -9,6 +9,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{ExecutionEventEntry, JobKey}
+import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
 import cromwell.core._
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.Execution
@@ -22,7 +23,7 @@ import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
 import cromwell.util.SampleWdl
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
-import cromwell.{CallEngineFunctions, CromwellTestkitSpec, WorkflowEngineFunctions, webservice}
+import cromwell.{CromwellTestkitSpec, webservice}
 import org.joda.time.DateTime
 import org.scalactic.StringNormalizations._
 import org.scalatest.PartialFunctionValues._
@@ -69,7 +70,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
   object UnknownOldStyleBackend$ extends OldStyleBackend {
-    def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = throw new NotImplementedError
+    def engineFunctions(fileSystems: List[FileSystem], workflowContext: OldWorkflowContext): OldWorkflowEngineFunctions = throw new NotImplementedError
 
     override val actorSystem = workflowManagerSystem.actorSystem
 
@@ -84,7 +85,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     override def executionInfoKeys: List[String] = List.empty
     override def instantiateCommand(descriptor: OldStyleBackendCallJobDescriptor): Try[String] = throw new NotImplementedError
     override def poll(jobDescriptor: OldStyleBackendCallJobDescriptor, previous: OldStyleExecutionHandle)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = throw new NotImplementedError()
-    override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions = throw new NotImplementedError()
+    override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): OldCallEngineFunctions = throw new NotImplementedError()
     override def useCachedCall(cachedCall: OldStyleBackendCallJobDescriptor, backendCall: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = throw new NotImplementedError()
     override def execute(jobDescriptor: OldStyleBackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = throw new NotImplementedError()
     override def resume(descriptor: OldStyleBackendCallJobDescriptor, executionInfos: Map[String, Option[String]])(implicit ec: ExecutionContext): Future[OldStyleExecutionHandle] = throw new NotImplementedError()

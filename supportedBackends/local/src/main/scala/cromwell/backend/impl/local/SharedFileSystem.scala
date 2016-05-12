@@ -68,7 +68,7 @@ object SharedFileSystem {
   }
 }
 
-trait SharedFileSystem { this: BackendJobExecutionActor =>
+trait SharedFileSystem extends PathFactory { this: BackendJobExecutionActor =>
   import SharedFileSystem._
   import better.files._
 
@@ -137,7 +137,7 @@ trait SharedFileSystem { this: BackendJobExecutionActor =>
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
     def toCallPath(path: String): PathsPair = {
-      val src = PathFactory.buildPath(path, filesystems)
+      val src = buildPath(path, filesystems)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src).toString
       // Concatenate call directory with absolute input path

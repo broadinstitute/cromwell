@@ -11,6 +11,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException, SimpleExponentialBackoff}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine._
@@ -23,7 +24,6 @@ import cromwell.engine.io.gcs._
 import cromwell.filesystems.gcs.{GoogleAuthMode, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TryUtil
-import cromwell.{CallEngineFunctions, WorkflowEngineFunctions}
 import spray.json.JsObject
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.command.ParameterCommandPart
@@ -249,8 +249,8 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
     } getOrElse Success(())
   }
 
-  def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions = {
-    new JesWorkflowEngineFunctions(fileSystems, workflowContext)
+  def engineFunctions(fileSystems: List[FileSystem], workflowContext: OldWorkflowContext): OldWorkflowEngineFunctions = {
+    new OldJesWorkflowEngineFunctions(fileSystems, workflowContext)
   }
 
   /**
@@ -784,13 +784,13 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
 
   override def executionInfoKeys: List[String] = List(OldStyleJesBackend.InfoKeys.JesRunId, OldStyleJesBackend.InfoKeys.JesStatus)
 
-  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions = {
+  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): OldCallEngineFunctions = {
     lazy val callRootPath = descriptor.callRootPath.toString
     lazy val jesStdoutPath = descriptor.jesStdoutGcsPath.toString
     lazy val jesStderrPath = descriptor.jesStderrGcsPath.toString
 
-    val callContext = new CallContext(callRootPath, jesStdoutPath, jesStderrPath)
-    new JesCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, callContext)
+    val callContext = new OldCallContext(callRootPath, jesStdoutPath, jesStderrPath)
+    new OldJesCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, callContext)
   }
 
   override def fileSystems(options: WorkflowOptions): List[FileSystem] = List(gcsFilesystem(options).get)

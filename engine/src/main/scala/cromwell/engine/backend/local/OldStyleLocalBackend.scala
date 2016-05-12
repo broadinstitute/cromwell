@@ -6,8 +6,8 @@ import java.nio.file.{Files, Path, Paths}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
-import cromwell.CallEngineFunctions
 import cromwell.backend.JobKey
+import cromwell.backend.wdl.OldCallEngineFunctions
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.OldStyleLocalBackend.InfoKeys
@@ -212,7 +212,7 @@ case class OldStyleLocalBackend(backendConfigEntry: BackendConfigurationEntry, a
 
   override def executionInfoKeys: List[String] = List(InfoKeys.Pid)
 
-  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions = {
+  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): OldCallEngineFunctions = {
     new OldStyleLocalCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
   }
 

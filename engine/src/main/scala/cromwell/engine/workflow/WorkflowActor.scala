@@ -6,10 +6,11 @@ import com.typesafe.config.Config
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
-import cromwell.engine.workflow.lifecycle.WorkflowExecutionActor.{RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 
 import scala.language.postfixOps

@@ -153,12 +153,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private val callEngineFunctions = {
     val callContext = new CallContext(
-      callRootPath.toString,
+      callRootPath,
       jesStdoutFile.toString,
       jesStderrFile.toString
     )
 
-    new JesCallEngineFunctions(gcsFileSystem, callContext)
+    new JesExpressionFunctions(List(gcsFileSystem), callContext)
   }
 
   private val lookup: ScopedLookupFunction = {

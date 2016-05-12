@@ -8,9 +8,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import cromwell.backend.SimpleExponentialBackoff
-import cromwell.core.{WorkflowContext, WorkflowId, WorkflowOptions}
-import cromwell.engine.{WorkflowFailureMode, WorkflowSourceFiles}
+import cromwell.core.{OldWorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine.backend.io._
+import cromwell.engine.{WorkflowFailureMode, WorkflowSourceFiles}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TryUtil
 import cromwell.webservice.WorkflowMetadataResponse
@@ -41,7 +41,7 @@ case class OldStyleWorkflowDescriptor(id: WorkflowId,
                                       configCallCaching: Boolean,
                                       lookupDockerHash: Boolean,
                                       workflowFailureMode: WorkflowFailureMode,
-                                      wfContext: WorkflowContext,
+                                      wfContext: OldWorkflowContext,
                                       fileSystems: List[FileSystem]) {
   import OldStyleWorkflowDescriptor._
 

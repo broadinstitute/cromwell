@@ -5,7 +5,7 @@ import com.typesafe.config.Config
 import cromwell.backend._
 import cromwell.core.CallContext
 import wdl4s.Call
-import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
+import wdl4s.expression.WdlStandardLibraryFunctions
 
 case class LocalBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -26,12 +26,12 @@ case class LocalBackendLifecycleActorFactory(config: Config) extends BackendLife
                                            configurationDescriptor: BackendConfigurationDescriptor): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
       val callContext = new CallContext(
-        jobPaths.callRoot.toString,
+        jobPaths.callRoot,
         jobPaths.stdout.toAbsolutePath.toString,
         jobPaths.stderr.toAbsolutePath.toString
       )
 
-      new LocalCallEngineFunctions(LocalJobExecutionActor.fileSystems, callContext)
+      new LocalJobExpressionFunctions(LocalJobExecutionActor.fileSystems, callContext)
   }
 }
 

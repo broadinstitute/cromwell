@@ -27,7 +27,7 @@ case class JesBackendLifecycleActorFactory(config: Config) extends BackendLifecy
 
     val fileSystem = buildGcsFileSystem(configurationDescriptor.backendConfig, workflowDescriptor)
     val jesCallPaths = JesCallPaths(jobKey, fileSystem, workflowDescriptor, configurationDescriptor.backendConfig)
-    new JesCallEngineFunctions(fileSystem, jesCallPaths.buildCallContext)
+    new JesExpressionFunctions(List(fileSystem), jesCallPaths.buildCallContext)
   }
 }
 

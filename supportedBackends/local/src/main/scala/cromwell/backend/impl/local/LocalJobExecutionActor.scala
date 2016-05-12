@@ -5,7 +5,6 @@ import java.nio.file.{FileSystems, Path, Paths}
 import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionAbortedResponse, BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
 import cromwell.backend._
-import cromwell.core.CallContext
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.util.TryUtil
@@ -56,15 +55,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
 
   val call = jobDescriptor.key.call
-  val callEngineFunction = {
-    val callContext = new CallContext(
-      jobPaths.callRoot.toString,
-      jobPaths.stdout.toAbsolutePath.toString,
-      jobPaths.stderr.toAbsolutePath.toString
-    )
-
-    new LocalCallEngineFunctions(fileSystems, callContext)
-  }
+  val callEngineFunction =  LocalJobExpressionFunctions(jobPaths)
 
   val lookup = jobDescriptor.inputs.apply _
 

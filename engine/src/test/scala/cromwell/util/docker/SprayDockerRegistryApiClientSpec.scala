@@ -3,9 +3,9 @@ package cromwell.util.docker
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.core.DockerConfiguration
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.filesystems.gcs.GoogleCredentialFactorySpec
-import cromwell.util.DockerConfiguration
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table

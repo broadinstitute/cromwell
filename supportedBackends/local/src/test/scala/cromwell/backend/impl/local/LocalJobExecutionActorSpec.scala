@@ -39,7 +39,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
   }
 
   it should "send back an execution failure if the task fails" in {
-    val expectedResponse = BackendJobExecutionFailedResponse(mock[BackendJobDescriptorKey], new Exception())
+    val expectedResponse = BackendJobExecutionFailedResponse(mock[BackendJobDescriptorKey], new Exception(""))
     val wf = new TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
@@ -70,8 +70,8 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val jsonInputFile = createCannedFile("localize", "content from json inputs").toPath.toAbsolutePath.toString
     val callInputFile = createCannedFile("localize", "content from call inputs").toPath.toAbsolutePath.toString
     val inputs = Map(
-      "localize.workflowFile" -> WdlFile(callInputFile),
-      "localize.localize.inputFileFromJson" -> WdlFile(jsonInputFile)
+      "inputFileFromCallInputs" -> WdlFile(callInputFile),
+      "inputFileFromJson" -> WdlFile(jsonInputFile)
     )
 
     val expectedOutputs: CallOutputs = Map(
@@ -91,7 +91,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
 
     forAll(localizers) { (conf, isSymlink) =>
       val wf = buildWorkflowDescriptor(InputFiles, inputs)
-      val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf), conf)
+      val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf, inputs), conf)
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
       val expectedResponse = BackendJobExecutionSucceededResponse(jobDescriptor.key, expectedOutputs)
 
@@ -111,18 +111,6 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
         realCallInputFile.exists() shouldBe true
       }
     }
-  }
-
-  it should "evaluate and coerce input values" in {
-
-    val expectedOutputs: CallOutputs = Map(
-      "outInts" -> CallOutput(WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(31380))), None),
-      "outFloats" -> CallOutput(WdlArray(WdlArrayType(WdlFloatType), Array(WdlFloat(48), WdlFloat(63))), None)
-    )
-    val expectedResponse = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
-    val wf = new TestWorkflow(buildWorkflowDescriptor(InputExpressions), defaultBackendConfigDescriptor, expectedResponse)
-
-    testWorkflow(wf)
   }
 
   it should "abort a job and kill a process" in {
@@ -146,12 +134,42 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index
       // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
-      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("i" -> WdlInteger(shard))
+      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("intNumber" -> WdlInteger(shard))
 
       val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
       val backend = localBackend(jd, defaultBackendConfigDescriptor)
       val response = BackendJobExecutionSucceededResponse(mock[BackendJobDescriptorKey], Map("out" -> CallOutput(WdlInteger(shard), None)))
       executeJobAndAssertOutputs(backend, response)
     }
+  }
+
+  it should "post process outputs" in {
+    val inputFile = createCannedFile("localize", "content from json inputs").toPath.toAbsolutePath.toString
+    val inputs = Map {
+      "inputFile" -> WdlFile(inputFile)
+    }
+    val wf = buildWorkflowDescriptor(OutputProcess, inputs)
+    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf, inputs)
+    val backend = localBackend(jobDescriptor, defaultBackendConfigDescriptor)
+    val jobPaths = new JobPaths(wf, defaultBackendConfigDescriptor.backendConfig, jobDescriptor.key)
+    val expectedA = WdlFile(jobPaths.callRoot.resolve("a").toAbsolutePath.toString)
+    val expectedB = WdlFile(jobPaths.callRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
+    val expectedOutputs = Map (
+      "o1" -> CallOutput(expectedA, None),
+      "o2" -> CallOutput(
+        WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB)), None
+      ),
+      "o3" -> CallOutput(WdlFile(inputFile), None)
+    )
+    val expectedResponse = BackendJobExecutionSucceededResponse(jobDescriptor.key, expectedOutputs)
+
+    executeJobAndAssertOutputs(backend, expectedResponse)
+  }
+
+  it should "fail post processing if an output fail is not found" in {
+    val expectedResponse = BackendJobExecutionFailedResponse(mock[BackendJobDescriptorKey], new Throwable("Failed post processing of outputs"))
+    val wf = new TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), defaultBackendConfigDescriptor, expectedResponse)
+
+    testWorkflow(wf)
   }
 }

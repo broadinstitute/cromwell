@@ -32,8 +32,8 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(500, Millis))
 
-  def testWorkflow(workflow: TestWorkflow) = {
-    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor), workflow.config)
+  def testWorkflow(workflow: TestWorkflow, inputs: Map[String, WdlValue] = Map.empty) = {
+    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, inputs), workflow.config)
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
@@ -54,10 +54,10 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
   }
 
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
-                                          symbolsMap: Map[String, WdlValue] = Map.empty) = {
+                                          inputs: Map[String, WdlValue] = Map.empty) = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    new BackendJobDescriptor(workflowDescriptor, jobKey, symbolsMap)
+    new BackendJobDescriptor(workflowDescriptor, jobKey, inputs)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -73,6 +73,7 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
       case (BackendJobExecutionFailedResponse(_, failure), BackendJobExecutionFailedResponse(_, expectedFailure)) =>
         // TODO improve this
         failure.getClass shouldBe expectedFailure.getClass
+        failure.getMessage should include(expectedFailure.getMessage)
       case (BackendJobExecutionFailedRetryableResponse(_, failure), BackendJobExecutionFailedRetryableResponse(_, expectedFailure)) =>
         failure.getClass shouldBe expectedFailure.getClass
       case (response, expectation) =>

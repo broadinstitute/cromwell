@@ -35,7 +35,7 @@ case class WorkflowLogger(caller: String,
 
   lazy val tag: String = {
     val subtag = callTag.map(c => s":$c").getOrElse("")
-    s"$caller [UUID(${descriptor.shortId})$subtag]"
+    s"$caller [UUID(${descriptor.id.shortString})$subtag]"
   }
 
   private def format(msg: String): String = s"$tag: $msg"

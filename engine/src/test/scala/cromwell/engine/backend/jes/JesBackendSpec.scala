@@ -7,8 +7,9 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
 import cromwell.CromwellTestkitSpec
+import cromwell.backend.PreemptedException
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
-import cromwell.core.{CallContext, WorkflowContext, WorkflowId, WorkflowOptions}
+import cromwell.core.{OldCallContext, OldWorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.jes.OldStyleJesBackend.{JesFileInput, JesFileOutput}
@@ -59,6 +60,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val logger: Logger = LoggerFactory.getLogger("JesBackendSpecLogger")
     val wd = mock[OldStyleWorkflowDescriptor]
     wd.workflowLogger returns logger
+    wd.id returns WorkflowId.randomId()
     val task = mock[Task]
     task.outputs returns Seq.empty
     val call = mock[Call]
@@ -241,9 +243,9 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
                         callName: String,
                         inputs: Map[String, WdlValue],
                         lookup: String => WdlValue,
-                        functions: JesCallEngineFunctions = new JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new CallContext("root", "out", "err"))): OldStyleBackendCallJobDescriptor = {
+                        functions: OldJesCallEngineFunctions = new OldJesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), new OldCallContext("root", "out", "err"))): OldStyleBackendCallJobDescriptor = {
 
-    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = wdl.asWorkflowSources()).copy(wfContext = new WorkflowContext("gs://foobar"))
+    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = wdl.asWorkflowSources()).copy(wfContext = new OldWorkflowContext("gs://foobar"))
     val jobDescriptor = mock[OldStyleBackendCallJobDescriptor]
     val runtimeAttributes = mock[CromwellRuntimeAttributes]
     runtimeAttributes.disks returns Seq(workingDisk)
@@ -278,12 +280,12 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val inputs = Map(
       "strs" -> WdlArray(WdlArrayType(WdlStringType), Seq("A", "B", "C").map(WdlString))
     )
-    class TestEngineFunctions(context: CallContext) extends JesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), context) {
+    class TestEngineFunctionsOldJesCallEngineFunctions(context: OldCallContext) extends OldJesCallEngineFunctions(List(GcsFileSystem.defaultGcsFileSystem), context) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))
       }
     }
-    val functions = new TestEngineFunctions(new CallContext("root", "stdout", "stderr"))
+    val functions = new TestEngineFunctionsOldJesCallEngineFunctions(new OldCallContext("root", "stdout", "stderr"))
     val jobDescriptor = makeJobDescriptor(SampleWdl.ArrayIO, "serialize", inputs, (s: String) => inputs.get(s).get, functions)
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
@@ -377,7 +379,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val wd = materializeWorkflowDescriptorFromSources(id = WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), workflowSources = SampleWdl.HelloWorld.asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
-    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
+    )).copy(wfContext = new OldWorkflowContext("gs://path/to/gcs_root")).copy(
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
     ).copy(backend = jesBackend)
 
@@ -398,7 +400,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val wd = materializeWorkflowDescriptorFromSources(id = WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")), workflowSources = new SampleWdl.ScatterWdl().asWorkflowSources(
       runtime = """ runtime {docker: "ubuntu:latest"} """,
       workflowOptions = """ {"jes_gcs_root": "gs://path/to/gcs_root"} """
-    )).copy(wfContext = new WorkflowContext("gs://path/to/gcs_root")).copy(
+    )).copy(wfContext = new OldWorkflowContext("gs://path/to/gcs_root")).copy(
       fileSystems = List(GcsFileSystem.defaultGcsFileSystem, FileSystems.getDefault)
     ).copy(backend = jesBackend)
     val call = wd.namespace.workflow.findCallByName("B").get

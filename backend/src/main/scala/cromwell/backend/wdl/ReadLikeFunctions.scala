@@ -1,27 +1,16 @@
-package cromwell.backend
+package cromwell.backend.wdl
 
-import java.nio.file.Path
-
-import better.files._
+import cromwell.backend.MemorySize
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.types._
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
 import wdl4s.values._
-import wdl4s.TsvSerializable
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scala.language.implicitConversions
 
-trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
-
-  def toPath(str: String): Path
-
-  override final def fileContentsToString(path: String): String = toPath(path).toAbsolutePath.contentAsString
-
-  private def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    Try(WdlFile(writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
-  }
+trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions =>
+  import better.files._
 
   /**
     * Asserts that the parameter list contains a single parameter which will be interpreted
@@ -92,40 +81,11 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
     */
   override def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
 
-  override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = {
-    def extractArguments = params.size match {
-      case 3 => Success((params.head, params(1), params(2)))
-      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function sub: $n. sub takes exactly 3 parameters."))
-    }
-
-    def validateArguments(values: (Try[WdlValue], Try[WdlValue], Try[WdlValue])) = values match {
-      case (Success(strValue), Success(WdlString(pattern)), Success(replaceValue))
-        if WdlStringType.isCoerceableFrom(strValue.wdlType) &&
-           WdlStringType.isCoerceableFrom(replaceValue.wdlType) =>
-        Success((strValue.valueString, pattern, replaceValue.valueString))
-      case _ => Failure(new IllegalArgumentException(s"Invalid parameters for engine function sub: $values."))
-    }
-
-    for {
-      args <- extractArguments
-      (str, pattern, replace) <- validateArguments(args)
-    } yield WdlString(pattern.r.replaceAllIn(str, replace))
-  }
-
   /**
     * Try to read a boolean from the file referenced by the specified `WdlValue`.
     */
   override def read_boolean(params: Seq[Try[WdlValue]]): Try[WdlBoolean] =
     read_string(params) map { s => WdlBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
-
-  private def writeToTsv(params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
-    for {
-      singleArgument <- extractSingleArgument(params)
-      downcast <- Try(wdlClass.cast(singleArgument))
-      tsvSerialized <- downcast.tsvSerialize
-      file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
-    } yield file
-  }
 
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
     def toUnit(wdlValue: Try[WdlValue]) = wdlValue flatMap { unit => Try(MemoryUnit.fromSuffix(unit.valueString)) }
@@ -144,23 +104,6 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
     }
   }
 
-  override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  override def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlMap])
-  override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlObject])
-  override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
-    // This may be called multiple times with the same inputs.  Calling this twice with the same
-    // parameters should yield the same return value.
-    val rootDir = toPath(path).toAbsolutePath
-    rootDir.createDirectories
-
-    val fullPath = rootDir.resolve(s"$prefix${content.md5Sum}$suffix")
-    if (!fullPath.exists) fullPath.write(content)
-
-    fullPath.toString
-  }
-
   override def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
       singleArgument <- extractSingleArgument(params)
@@ -170,9 +113,6 @@ trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions {
     } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
   }
 
-  private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
-  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = fail("read_json")
-  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_json")
-  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stdout")
-  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
+  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError(s"read_json() not implemented yet"))
+
 }

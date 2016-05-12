@@ -6,14 +6,14 @@ import akka.actor.ActorSystem
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
-import cromwell.backend.JobKey
+import cromwell.backend.{ExecutionHash, JobKey}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
-import cromwell.core.{WorkflowContext, WorkflowId, WorkflowOptions}
+import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
+import cromwell.core.{OldWorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
-import cromwell.{CallEngineFunctions, WorkflowEngineFunctions}
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.values._
@@ -101,7 +101,7 @@ trait OldStyleBackend {
    */
   def cleanUpForWorkflow(workflow: OldStyleWorkflowDescriptor)(implicit ec: ExecutionContext): Future[Any] = Future.successful({})
 
-  def engineFunctions(fileSystems: List[FileSystem], workflowContext: WorkflowContext): WorkflowEngineFunctions
+  def engineFunctions(fileSystems: List[FileSystem], workflowContext: OldWorkflowContext): OldWorkflowEngineFunctions
 
   /**
     * Assume JobKey was in a 'Running' state when the server was shut down.
@@ -149,7 +149,7 @@ trait OldStyleBackend {
     callRootPathWithBaseRoot(jobDescriptor, rootPath(jobDescriptor.workflowDescriptor.workflowOptions))
   }
 
-  def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions
+  def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): OldCallEngineFunctions
 
   def instantiateCommand(descriptor: OldStyleBackendCallJobDescriptor): Try[String]
 

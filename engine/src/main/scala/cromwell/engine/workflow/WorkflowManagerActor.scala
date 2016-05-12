@@ -10,8 +10,12 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, _}
+import cromwell.engine.workflow.profiler.{WorkflowProfilerActor, WorkflowProfilerActor$}
+import cromwell.engine.workflow.profiler.WorkflowProfilerActor.WorkflowManagerMetadataMessage
+import cromwell.services.ServiceRegistryActor
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import org.joda.time.DateTime
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -77,6 +81,8 @@ class WorkflowManagerActor(config: Config)
   private val tag = self.path.name
 
   private val donePromise = Promise[Unit]()
+
+  private val serviceRegistoryActor = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistoryActor")
 
   override def preStart() {
     addShutdownHook()
@@ -191,6 +197,11 @@ class WorkflowManagerActor(config: Config)
 
     val startMode = if (isRestart) RestartExistingWorkflow else StartNewWorkflow
     val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config), name = s"WorkflowActor-$workflowId")
+
+    // Profile actor keeps track of a single run of a workflow, handling all workflow related metadata events
+    val profilerActor = context.actorOf(WorkflowProfilerActor.props(workflowId, serviceRegistoryActor), s"Profiler-$workflowId")
+    profilerActor ! WorkflowManagerMetadataMessage(workflowId.toString, DateTime.now.toString)
+
     replyTo.foreach { _ ! WorkflowManagerSubmitSuccess(id = workflowId) }
     wfActor ! SubscribeTransitionCallBack(self)
     wfActor ! StartWorkflowCommand

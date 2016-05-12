@@ -8,6 +8,7 @@ info:
     name: BSD
     url: 'http://opensource.org/licenses/BSD-3-Clause'
   termsOfService: 'http://www.github.com/broadinstitute/cromwell'
+  version: ''
 produces:
   - application/json
 basePath: /api
@@ -194,7 +195,7 @@ paths:
             - openid
   '/workflows/{version}/query':
     get:
-      summary: Query workflows by start dates, end dates, names, or statuses.
+      summary: Query workflows by start dates, end dates, names, ids, or statuses.
       parameters:
         - name: version
           description: API Version
@@ -203,7 +204,6 @@ paths:
           in: path
           default: v1
         - name: start
-          description: Start Date
           required: false
           type: string
           format: date-time
@@ -212,7 +212,6 @@ paths:
             Returns only workflows with an equal or later start datetime.  Can be specified at most once.
             If both start and end date are specified, start date must be before or equal to end date.
         - name: end
-          description: End Date
           required: false
           type: string
           format: date-time
@@ -221,7 +220,6 @@ paths:
             Returns only workflows with an equal or earlier end datetime.  Can be specified at most once.
             If both start and end date are specified, start date must be before or equal to end date.
         - name: status
-          description: Status
           required: false
           in: query
           type: array
@@ -239,7 +237,6 @@ paths:
             Returns only workflows with the specified status.  If specified multiple times,
             returns workflows in any of the specified statuses.
         - name: name
-          description: Name
           required: false
           in: query
           type: array
@@ -250,6 +247,17 @@ paths:
           description: >
             Returns only workflows with the specified name.  If specified multiple times,
             returns workflows with any of the specified names.
+        - name: id
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+          description: >
+            Returns only workflows with the specified workflow id.  If specified multiple times,
+            returns workflows with any of the specified workflow ids.
       tags:
         - Workflows
       responses:
@@ -258,6 +266,39 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowQueryResponse'
         '403':
+          description: Malformed Request
+        '500':
+          description: Internal Error
+      security:
+        - google_oauth:
+            - openid
+    post:
+      summary: Query workflows by start dates, end dates, names, ids, or statuses.
+      parameters:
+        - name: version
+          description: API version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: parameters
+          required: true
+          in: body
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/WorkflowQueryParameter'
+          description: >
+            Same query parameters as GET /query endpoint, submitted as a json list.
+            Example: [{"status":"Success"},{"status":"Failed"}]
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/WorkflowQueryResponse'
+        '400':
           description: Malformed Request
         '500':
           description: Internal Error
@@ -677,20 +718,14 @@ definitions:
         type: object
         description: Map of output keys to output values
       calls:
-        type: object
-        schema:
-          $ref: '#/definitions/CallMetadata'
-        description: Map of call fully qualified names to lists of call metadata
+        $ref: '#/definitions/CallMetadata'
       failures:
-        type: object
-        schema:
-          $ref: '#/definitions/FailureMessage'
-        description: If the workflow failed, a set of recorded failure messages which were not relevant to any individual call.
+        $ref: '#/definitions/FailureMessage'
   CallMetadata:
     description: 'Call level metadata'
     required:
       - inputs
-      - status
+      - executionStatus
     properties:
       inputs:
         type: object
@@ -716,12 +751,9 @@ definitions:
         type: string
         description: Backend-specific job ID
       failures:
-        type: object
-        schema:
-          $ref: '#/definitions/FailureMessage'
-        description: If the call failed, the set of recorded failure messages for the call.
+        $ref: '#/definitions/FailureMessage'
       returnCode:
-        type: int
+        type: integer
         description: Call execution return code
       stdout:
         type: string
@@ -742,8 +774,50 @@ definitions:
         type: string
         description: The failure message
       timestamp:
-        type: date-time
+        type: string
+        format: date-time
         description: The time at which this failure occurred
+  WorkflowQueryParameter:
+    description: Workflow query parameters
+    minProperties: 1
+    maxProperties: 1
+    properties:
+      start:
+        type: string
+        format: date-time
+        description: >
+          Returns only workflows with an equal or later start datetime.  Can be specified at most once.
+          If both start and end date are specified, start date must be before or equal to end date.
+      end:
+        type: string
+        format: date-time
+        description: >
+          Returns only workflows with an equal or earlier end datetime.  Can be specified at most once.
+          If both start and end date are specified, start date must be before or equal to end date.
+      status:
+        type: string
+        enum:
+          - Submitted
+          - Running
+          - Aborting
+          - Failed
+          - Succeeded
+          - Aborted
+        description: >
+          Returns only workflows with the specified status.  If specified multiple times,
+          returns workflows in any of the specified statuses.
+      name:
+        type: string
+        pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+        description: >
+          Returns only workflows with the specified name.  If specified multiple times,
+          returns workflows with any of the specified names.
+      id:
+        type: string
+        pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+        description: >
+          Returns only workflows with the specified workflow id.  If specified multiple times,
+          returns workflows with any of the specified workflow ids.
   WorkflowQueryResponse:
     description: Response to a workflow query
     required:
@@ -752,7 +826,7 @@ definitions:
       results:
         type: array
         items:
-          $ref: WorkflowQueryResult
+          $ref: '#/definitions/WorkflowQueryResult'
   WorkflowQueryResult:
     description: Result for an individual workflow returned by a workflow query
     required:
@@ -784,6 +858,5 @@ definitions:
       - updateCount
     properties:
       updateCount:
-        type: int
+        type: integer
         description: Number of calls updated by this request.
-

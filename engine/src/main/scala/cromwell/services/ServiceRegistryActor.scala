@@ -40,7 +40,7 @@ case class ServiceRegistryActor(globalConfig: Config) extends Actor {
   import ServiceRegistryActor._
 
   val services: Map[String, ActorRef] = serviceNameToPropsMap(globalConfig) map {
-    case (name, props) => name -> context.actorOf(props, "ServiceRegistryActor")
+    case (name, props) => name -> context.actorOf(props)
   }
 
   def receive = {

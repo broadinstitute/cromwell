@@ -1,5 +1,6 @@
 package cromwell.engine.workflow
 
+import cromwell.backend.ExecutionEventEntry
 import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._

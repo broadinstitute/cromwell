@@ -2,21 +2,13 @@ package cromwell.util
 
 import java.io.{PrintWriter, StringWriter}
 
-import cromwell.engine.CromwellFatalException
+import cromwell.backend.Backoff
+import cromwell.core.{CromwellAggregatedException, CromwellFatalException}
 import cromwell.logging.WorkflowLogger
-import lenthall.exception.ThrowableAggregation
-import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-object CromwellAggregatedException {
-  val logger = LoggerFactory.getLogger("AggregatedException")
-}
-
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "") extends ThrowableAggregation
 
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object TryUtil {

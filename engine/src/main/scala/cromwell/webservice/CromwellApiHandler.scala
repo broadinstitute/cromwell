@@ -6,8 +6,8 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine._
-import cromwell.engine.backend.{OldStyleBackend, CallLogs}
-import cromwell.engine.workflow.{WorkflowManagerActor, OldStyleWorkflowManagerActor}
+import cromwell.engine.backend.{CallLogs, OldStyleBackend}
+import cromwell.engine.workflow.{OldStyleWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{core, engine}

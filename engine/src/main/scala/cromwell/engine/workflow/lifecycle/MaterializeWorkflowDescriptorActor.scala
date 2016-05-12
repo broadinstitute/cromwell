@@ -1,16 +1,15 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
 import akka.actor.{FSM, LoggingFSM, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.WorkflowEngineFunctions
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.engine._
 import cromwell.engine.backend.{CromwellBackends, OldStyleWorkflowLogOptions}
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{ShadowMaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -145,14 +144,6 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
     }
   }
 
-  // TODO: Probably want to enhance this to include any engine-level filesystem and/or filesystem roots
-  case object NoWorkflowEngineFunctions extends WorkflowEngineFunctions(new WorkflowContext("")) {
-    override def glob(path: String, pattern: String): Seq[String] =
-      throw new Exception("Cannot use glob in workflow-level declarations because no filesystem yet")
-
-    override def toPath(str: String): Path = throw new Exception("Cannot convert strings to Paths because no filesystem yet")
-  }
-
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       namespace: NamespaceWithWorkflow,
                                       rawInputs: Map[String, JsValue],
@@ -161,7 +152,7 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
                                       failureMode: WorkflowFailureMode): ErrorOr[EngineWorkflowDescriptor] = {
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
-      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, NoWorkflowEngineFunctions)
+      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs)
       declarationsAndInputs = declarations ++ coercedInputs
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
     } yield EngineWorkflowDescriptor(backendDescriptor, declarations, backendAssignments, failureMode)
@@ -213,10 +204,9 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
 
   private def validateDeclarations(namespace: NamespaceWithWorkflow,
                                    options: WorkflowOptions,
-                                   coercedInputs: WorkflowCoercedInputs,
-                                   engineFunctions: WorkflowEngineFunctions): ErrorOr[WorkflowCoercedInputs] = {
+                                   coercedInputs: WorkflowCoercedInputs): ErrorOr[WorkflowCoercedInputs] = {
     // TODO: Need to create engine-only engine functions!
-    namespace.staticDeclarationsRecursive(coercedInputs, engineFunctions) match {
+    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new EngineELF(options)) match {
       case Success(d) => d.successNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".failureNel
     }

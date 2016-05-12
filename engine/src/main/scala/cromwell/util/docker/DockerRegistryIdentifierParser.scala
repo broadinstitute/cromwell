@@ -1,7 +1,7 @@
 package cromwell.util.docker
 
 import com.google.api.client.auth.oauth2.Credential
-import cromwell.util.DockerConfiguration
+import cromwell.core.DockerConfiguration
 
 /**
   * Parses a String into a DockerIdentifier for a particular registry.

@@ -6,7 +6,7 @@ import java.nio.file.{FileSystem, Path}
 import scala.collection.immutable.Queue
 import scala.util.{Success, Try}
 
-object PathFactory {
+trait PathFactory {
   def findFileSystem(rawString: String, fss: List[FileSystem], mapping: PartialFunction[FileSystem, Try[Path]]) = {
     fss.toStream collect mapping collectFirst { case Success(p) => p } getOrElse {
       throw new IllegalArgumentException(s"Could not find suitable filesystem to parse $rawString")
@@ -18,7 +18,9 @@ object PathFactory {
       case fs: FileSystem => Try(fs.getPath(rawString))
     })
   }
+}
 
+object PathFactory {
   def swapExt(filePath: String, oldExt: String, newExt: String): String = {
     filePath.stripSuffix(oldExt) + newExt
   }

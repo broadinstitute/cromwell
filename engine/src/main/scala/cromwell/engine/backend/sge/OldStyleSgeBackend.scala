@@ -5,8 +5,8 @@ import java.nio.file.{Files, Path}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
-import cromwell.CallEngineFunctions
 import cromwell.backend.JobKey
+import cromwell.backend.wdl.OldCallEngineFunctions
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.{OldStyleLocalBackend, SharedFileSystemBackend}
@@ -154,7 +154,7 @@ case class OldStyleSgeBackend(backendConfigEntry: BackendConfigurationEntry, act
     */
   private def launchQsub(jobDescriptor: OldStyleBackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
-    val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
+    val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
     val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, jobDescriptor.script.toAbsolutePath).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
@@ -218,7 +218,7 @@ case class OldStyleSgeBackend(backendConfigEntry: BackendConfigurationEntry, act
 
   override def executionInfoKeys: List[String] = List(InfoKeys.JobNumber)
 
-  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): CallEngineFunctions = {
+  override def callEngineFunctions(descriptor: OldStyleBackendCallJobDescriptor): OldCallEngineFunctions = {
     new SgeCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
   }
 

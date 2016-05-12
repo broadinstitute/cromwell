@@ -72,9 +72,8 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
       sender ! MetadataPutAcknowledgement(action)
     case GetAllMetadataAction(workflowId) =>
       val query = MetadataQuery(Option(workflowId), None, None)
-      val filtered = filterByQuery(query)
-      sender ! MetadataLookupResponse(query, filtered)
-    case GetMetadataQueryAction(query@MetadataQuery(workflowId, jobKey, key)) =>
+      sender ! MetadataLookupResponse(query, filterByQuery(query))
+    case GetMetadataQueryAction(query@MetadataQuery(_, _, _)) =>
       sender ! MetadataLookupResponse(query, filterByQuery(query))
   }
 
@@ -82,9 +81,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
 
     val possibleJobQueryFilters: List[Option[MetadataEvent => Boolean]] = metadataQuery.jobKey match {
       case Some(jobKeyQuery) => List(
-        jobKeyQuery.callFqn map { queryCallFqn => (event: MetadataEvent) => event.key.jobKey.isDefined && event.key.jobKey.get.callFqn == queryCallFqn },
-        jobKeyQuery.index map { queryIndex => (event: MetadataEvent) => event.key.jobKey.isDefined && event.key.jobKey.get.index == queryIndex },
-        jobKeyQuery.attempt map { queryAttempt => (event: MetadataEvent) => event.key.jobKey.isDefined && event.key.jobKey.get.attempt == queryAttempt }
+        jobKeyQuery.callFqn map { queryCallFqn => (event: MetadataEvent) => event.key.jobKey.exists(_.callFqn == queryCallFqn) },
+        jobKeyQuery.index map { queryIndex => (event: MetadataEvent) => event.key.jobKey.exists(_.index == queryIndex) },
+        jobKeyQuery.attempt map { queryAttempt => (event: MetadataEvent) => event.key.jobKey.exists(_.attempt == queryAttempt) }
       )
       case None => List.empty
     }

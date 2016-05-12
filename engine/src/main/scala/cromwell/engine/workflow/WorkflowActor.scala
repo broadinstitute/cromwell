@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowId
+import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -11,7 +12,8 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
+import cromwell.services.MetadataServiceActor._
+import org.joda.time.DateTime
 
 import scala.language.postfixOps
 
@@ -35,54 +37,69 @@ object WorkflowActor {
   /**
     * States for the WorkflowActor FSM
     */
-  sealed trait WorkflowActorState { def terminal = false }
-  sealed trait WorkflowActorTerminalState extends WorkflowActorState { override def terminal = true}
+  sealed trait WorkflowActorState {
+    def terminal = false
+    // Each state in the FSM maps to a state in the `WorkflowState` which is used for Metadata reporting purposes
+    def workflowState: WorkflowState
+  }
+  sealed trait WorkflowActorTerminalState extends WorkflowActorState { override val terminal = true }
+  sealed trait WorkflowActorRunningState extends WorkflowActorState { override val workflowState = WorkflowRunning }
 
   /**
     * Waiting for a Start or Restart command.
     */
-  case object WorkflowUnstartedState extends WorkflowActorState
+  case object WorkflowUnstartedState extends WorkflowActorState {
+    override val workflowState = WorkflowSubmitted
+  }
 
   /**
     * The WorkflowActor is created. It now needs to validate and create its WorkflowDescriptor
     */
-  case object MaterializingWorkflowDescriptorState extends WorkflowActorState
+  case object MaterializingWorkflowDescriptorState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor has a descriptor. It now needs to create its set of WorkflowBackendActors
     */
-  case object InitializingWorkflowState extends WorkflowActorState
+  case object InitializingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor has a descriptor and a set of backends. It now needs to execute the hell out of its jobs.
     */
-  case object ExecutingWorkflowState extends WorkflowActorState
+  case object ExecutingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor has completed. So we're now finalizing whatever needs to be finalized on the backends
     */
-  case object FinalizingWorkflowState extends WorkflowActorState
+  case object FinalizingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
     * manager.
     */
-  case object AbortingWorkflowState extends WorkflowActorState
+  case object AbortingWorkflowState extends WorkflowActorState {
+    override val workflowState = WorkflowAborting
+  }
 
   /**
     * We're done.
     */
-  case object WorkflowSucceededState extends WorkflowActorTerminalState
+  case object WorkflowSucceededState extends WorkflowActorTerminalState {
+    override val workflowState = WorkflowSucceeded
+  }
 
   /**
     * We're done. But we were aborted in the middle of the lifecycle.
     */
-  case object WorkflowAbortedState extends WorkflowActorTerminalState
+  case object WorkflowAbortedState extends WorkflowActorTerminalState {
+    override val workflowState = WorkflowAborted
+  }
 
   /**
     * We're done. But the workflow has failed.
     */
-  case object WorkflowFailedState extends WorkflowActorTerminalState
+  case object WorkflowFailedState extends WorkflowActorTerminalState {
+    override val workflowState = WorkflowFailed
+  }
 
   /**
     * @param currentLifecycleStateActor The current lifecycle stage, represented by an ActorRef.
@@ -101,7 +118,11 @@ object WorkflowActor {
   case object StartNewWorkflow extends StartMode
   case object RestartExistingWorkflow extends StartMode
 
-  def props(workflowId: WorkflowId, startMode: StartMode, wdlSource: WorkflowSourceFiles, conf: Config): Props = Props(new WorkflowActor(workflowId, startMode, wdlSource, conf))
+  def props(workflowId: WorkflowId,
+            startMode: StartMode,
+            wdlSource: WorkflowSourceFiles,
+            conf: Config,
+            serviceRegistryActor: ActorRef): Props = Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor))
 }
 
 /**
@@ -110,9 +131,13 @@ object WorkflowActor {
 class WorkflowActor(workflowId: WorkflowId,
                     startMode: StartMode,
                     workflowSources: WorkflowSourceFiles,
-                    conf: Config) extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging{
+                    conf: Config,
+                    serviceRegistryActor: ActorRef) extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging {
 
   val tag = self.path.name
+
+  implicit val actorSystem = context.system
+  implicit val ec = context.dispatcher
 
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
@@ -141,7 +166,10 @@ class WorkflowActor(workflowId: WorkflowId,
 
   when(InitializingWorkflowState) {
     case Event(WorkflowInitializationSucceededResponse, WorkflowActorData(_, Some(workflowDescriptor))) =>
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor), name = s"WorkflowExecutionActor-$workflowId")
+      // Add Workflow name and inputs to the metadata
+      pushWfNameAndInputsToMetadataService(workflowDescriptor)
+
+      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor, serviceRegistryActor), name = s"WorkflowExecutionActor-$workflowId")
       val commandToSend = startMode match {
         case StartNewWorkflow => StartExecutingWorkflowCommand
         case RestartExistingWorkflow => RestartExecutingWorkflowCommand
@@ -184,15 +212,12 @@ class WorkflowActor(workflowId: WorkflowId,
   when(WorkflowFailedState) { FSM.NullFunction }
   when(WorkflowSucceededState) { FSM.NullFunction }
 
-  onTransition {
-    case oldState -> terminalState if terminalState.terminal =>
-      log.info(s"$tag transition from $oldState to $terminalState: shutting down")
-      context.stop(self)
-    case fromState -> toState =>
-      log.info(s"$tag transitioning from $fromState to $toState")
-  }
-
   whenUnhandled {
+    case Event(MetadataPutFailed(action, error), _) =>
+      // Do something useful here??
+      log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
+      stay
+    case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(AbortingWorkflowState)
@@ -200,4 +225,43 @@ class WorkflowActor(workflowId: WorkflowId,
       log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
       stay
   }
+
+  onTransition {
+    case fromState -> toState =>
+      log.info(s"$tag transitioning from $fromState to $toState")
+      // This updates the workflow status
+      pushCurrentStateToMetadataService(toState.workflowState)
+  }
+
+  onTransition {
+    case oldState -> terminalState if terminalState.terminal =>
+      log.info(s"$tag transition from $oldState to $terminalState: shutting down")
+      // Add the end time of the workflow in the MetadataService
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(DateTime.now.toString))
+      serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+      terminalState match {
+        case WorkflowSucceededState =>
+          context.parent ! WorkflowSucceededResponse(workflowId)
+        case WorkflowFailedState =>
+          context.parent ! WorkflowFailedResponse(workflowId, oldState, Seq.empty[Throwable])
+        case WorkflowAbortedState =>
+          context.parent ! WorkflowAbortedResponse(workflowId)
+        case unknownState => log.warning(s"$tag $unknownState is an unhandled terminal state!")
+      }
+  }
+
+  private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
+    val inputMetadataEvents = workflowDescriptor.backendDescriptor.inputs.map { case (k, v) =>
+      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$k"), MetadataValue(v.toWdlString))
+    }
+    val metadataEventMsgs = List(MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name))) ++ inputMetadataEvents
+    metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )
+  }
+
+  // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service
+  private def pushCurrentStateToMetadataService(workflowState: WorkflowState): Unit = {
+    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(workflowState.toString))
+    serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+  }
+
 }

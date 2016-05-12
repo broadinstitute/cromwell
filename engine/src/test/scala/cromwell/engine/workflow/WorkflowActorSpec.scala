@@ -1,28 +1,33 @@
 package cromwell.engine.workflow
 
-import akka.testkit.TestFSMRef
+import akka.actor.Actor
+import akka.testkit.{TestActorRef, TestFSMRef}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.{CromwellBackends, WorkflowDescriptorBuilder}
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse, WorkflowDescriptorMaterializationResult}
-import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor.WorkflowLifecycleActorData
-import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorSuccessResponse
 import cromwell.util.SampleWdl.{HelloWorld, ThreeStep}
 import org.scalatest.BeforeAndAfter
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-import scala.concurrent.Await
 
-class ShadowWorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {
+class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {
   override implicit val actorSystem = system
+
+  val mockServiceRegistryActor = TestActorRef(new Actor {
+    override def receive = {
+      case _ => // No action
+    }
+  })
+
   private def createWorkflowActor(workflowId: WorkflowId = WorkflowId.randomId(),
                                   startMode: StartMode = StartNewWorkflow,
                                   wdlSource: WorkflowSourceFiles) = {
-    TestFSMRef(new WorkflowActor(workflowId, startMode, wdlSource, ConfigFactory.load))
+    TestFSMRef(new WorkflowActor(workflowId, startMode, wdlSource, ConfigFactory.load, mockServiceRegistryActor))
   }
 
   before {

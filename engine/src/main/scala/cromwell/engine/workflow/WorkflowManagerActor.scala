@@ -10,8 +10,11 @@ import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, _}
+import cromwell.services.MetadataServiceActor._
+import cromwell.services.ServiceRegistryActor
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import org.joda.time.DateTime
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -78,9 +81,11 @@ class WorkflowManagerActor(config: Config)
 
   private val donePromise = Promise[Unit]()
 
+  val serviceRegistryActor = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistoryActor")
+
   override def preStart() {
     addShutdownHook()
-    if (config.getBoolean("system.workflow-restart")) { restartIncompleteWorkflows() }
+    restartIncompleteWorkflows()
   }
 
   private def addShutdownHook(): Unit = {
@@ -164,6 +169,10 @@ class WorkflowManagerActor(config: Config)
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(MetadataPutFailed(action, error), _) =>
+      log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
+      stay()
+    case Event(MetadataPutAcknowledgement(_), _) => stay()
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
     // Anything else certainly IS interesting:
@@ -180,6 +189,16 @@ class WorkflowManagerActor(config: Config)
       logger.info(s"$tag transitioning from $fromState to $toState")
   }
 
+  private def pushToMetadataService(workflowId: WorkflowId): Unit = {
+    val curTime = DateTime.now.toString
+    val metadataEventMsgs = List(
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId.toString)),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(curTime)),
+      // Currently, submission time is the same as start time
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime))
+    )
+    metadataEventMsgs foreach (serviceRegistryActor ! PutMetadataAction(_))
+  }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
@@ -190,7 +209,11 @@ class WorkflowManagerActor(config: Config)
     val isRestart = id.isDefined
 
     val startMode = if (isRestart) RestartExistingWorkflow else StartNewWorkflow
-    val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config), name = s"WorkflowActor-$workflowId")
+    val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config, serviceRegistryActor), name = s"WorkflowActor-$workflowId")
+
+    // We have a valid workflowId for the workflow, send it over to the metadata service
+    pushToMetadataService(workflowId)
+
     replyTo.foreach { _ ! WorkflowManagerSubmitSuccess(id = workflowId) }
     wfActor ! SubscribeTransitionCallBack(self)
     wfActor ! StartWorkflowCommand

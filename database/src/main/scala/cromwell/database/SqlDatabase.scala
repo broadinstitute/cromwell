@@ -22,7 +22,7 @@ trait SqlDatabase extends AutoCloseable {
                               (implicit ec: ExecutionContext): Future[Unit]
 
   protected def getWorkflowExecution(workflowUuid: String)
-                                   (implicit ec: ExecutionContext): Future[WorkflowExecution]
+                                    (implicit ec: ExecutionContext): Future[WorkflowExecution]
 
   protected def getWorkflowStateString(workflowUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
@@ -171,4 +171,39 @@ trait SqlDatabase extends AutoCloseable {
   protected def runningExecutionsAndExecutionInfos(workflowUuid: String, statuses: Set[String])
                                                   (implicit ec: ExecutionContext):
   Future[Traversable[(Execution, ExecutionInfo)]]
+
+  protected def addMetadataEvent(workflowUuid: String,
+                                 key: String,
+                                 value: String,
+                                 timestamp: Timestamp)
+                                (implicit ec: ExecutionContext): Future[Unit]
+
+  protected def addMetadataEvent(workflowUuid: String,
+                                 key: String,
+                                 callFqn: String,
+                                 index: Option[Int],
+                                 attempt: Int,
+                                 value: String,
+                                 timestamp: Timestamp)
+                                (implicit ec: ExecutionContext): Future[Unit]
+
+  protected def queryMetadataEvents(workflowUuid: String)
+                                   (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+
+  protected def queryMetadataEvents(workflowUuid: String,
+                                    key: String)
+                                   (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+
+  protected def queryMetadataEvents(workflowUuid: String,
+                                    callFqn: String,
+                                    index: Option[Int],
+                                    attempt: Int)
+                                   (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+
+  protected def queryMetadataEvents(workflowUuid: String,
+                                    key: String,
+                                    callFqn: String,
+                                    index: Option[Int],
+                                    attempt: Int)
+                                   (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
 }

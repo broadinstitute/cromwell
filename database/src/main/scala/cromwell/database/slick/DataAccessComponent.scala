@@ -11,7 +11,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with ExecutionInfoComponent
   with ExecutionEventComponent
   with RuntimeAttributeComponent
-  with FailureEventComponent {
+  with FailureEventComponent
+  with MetadataComponent {
 
   import driver.api._
 
@@ -23,5 +24,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       executionInfos.schema ++
       executionEvents.schema ++
       runtimeAttributes.schema ++
-      failureEvents.schema
+      failureEvents.schema ++
+      metadata.schema
 }

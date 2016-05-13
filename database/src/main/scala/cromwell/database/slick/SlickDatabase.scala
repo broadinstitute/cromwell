@@ -15,6 +15,7 @@ import slick.driver.JdbcProfile
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
+
 object SlickDatabase {
   lazy val rootConfig = ConfigFactory.load()
   private lazy val rootDatabaseConfig = rootConfig.getConfig("database")
@@ -175,8 +176,8 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
   }
 
   override def upsertRuntimeAttributes(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
-                                        attributes: Map[String, String])
-                                       (implicit ec: ExecutionContext): Future[Unit] = {
+                                       attributes: Map[String, String])
+                                      (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
       executionId <- dataAccess.executionIdsByWorkflowExecutionUuidAndCallKey(
         workflowUuid, callFqn, index, attempt).result.head
@@ -665,6 +666,63 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
   Future[Traversable[(Execution, ExecutionInfo)]] = {
     val action = dataAccess.runningExecutionsAndExecutionInfosByWorkflowExecutionUuid(workflowUuid, statuses).result
 
+    runTransaction(action)
+  }
+
+  override def addMetadataEvent(workflowUuid: String,
+                                key: String,
+                                value: String,
+                                timestamp: Timestamp)(implicit ec: ExecutionContext): Future[Unit] = {
+
+    val action = DBIO.seq(dataAccess.metadataAutoInc += Metadatum(workflowUuid, key, callFqn = None, index = None, attempt = None, Option(value), timestamp))
+    runTransaction(action)
+  }
+
+  override def addMetadataEvent(workflowUuid: String,
+                                key: String,
+                                callFqn: String,
+                                index: Option[Int],
+                                attempt: Int,
+                                value: String,
+                                timestamp: Timestamp)(implicit ec: ExecutionContext): Future[Unit] = {
+
+    val action = DBIO.seq(dataAccess.metadataAutoInc += Metadatum(workflowUuid, key, Option(callFqn), index, Option(attempt), Option(value), timestamp))
+    runTransaction(action)
+  }
+
+  override def queryMetadataEvents(workflowUuid: String)
+                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+
+    val action = dataAccess.metadataByWorkflowUuid(workflowUuid).result
+    runTransaction(action)
+  }
+
+  override def queryMetadataEvents(workflowUuid: String,
+                                   key: String)
+                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+
+    val action = dataAccess.metadataByWorkflowUuidAndKey(workflowUuid, key).result
+    runTransaction(action)
+  }
+
+  override def queryMetadataEvents(workflowUuid: String,
+                                   callFqn: String,
+                                   index: Option[Int],
+                                   attempt: Int)
+                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+
+    val action = dataAccess.metadataByWorkflowUuidAndCallFqnAndIndexAndAttempt(workflowUuid, callFqn, index, attempt).result
+    runTransaction(action)
+  }
+
+  override def queryMetadataEvents(workflowUuid: String,
+                                   key: String,
+                                   callFqn: String,
+                                   index: Option[Int],
+                                   attempt: Int)
+                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+
+    val action = dataAccess.metadataByWorkflowUuidAndKeyAndCallFqnAndIndexAndAttempt(workflowUuid, key, callFqn, index, attempt).result
     runTransaction(action)
   }
 }

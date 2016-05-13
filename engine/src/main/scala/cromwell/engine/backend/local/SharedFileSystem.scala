@@ -80,10 +80,12 @@ object SharedFileSystem {
     */
 
   private def localizePathViaSymbolicLink(originalPath: String, executionPath: Path, descriptor: WorkflowDescriptor): Try[Unit] = {
-    Try(Paths.get(originalPath)) map { srcPath =>
-      if (srcPath.toFile.isDirectory)
-        Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
-      else Files.createSymbolicLink(executionPath, srcPath.toAbsolutePath)
+    Try {
+      val srcPath = ScalaFile(originalPath)
+      if (srcPath.isDirectory)
+        throw new UnsupportedOperationException("Cannot localize directory with symbolic links")
+      Option(executionPath.parent) map { _.createDirectories }
+      executionPath.linkTo(srcPath, symbolic = true)
     }
   }
 

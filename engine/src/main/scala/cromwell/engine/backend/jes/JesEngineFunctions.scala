@@ -12,7 +12,7 @@ import scala.util.Try
 class JesWorkflowEngineFunctions(fileSystems: List[FileSystem], context: WorkflowContext) extends WorkflowEngineFunctions(fileSystems, context) {
   override def globPath(glob: String): String = context.root.toAbsolutePath(fileSystems).resolve(JesBackend.globDirectory(glob)).toString
   override def glob(path: String, pattern: String): Seq[String] = {
-    path.toAbsolutePath(fileSystems).asDirectory.glob("**/*") map { _.path.fullPath } filterNot { _.toString == path } toSeq
+    path.toAbsolutePath(fileSystems).asDirectory.list map { _.path.fullPath } toSeq
   }
   override def adjustFilePath(path: String) = if (!path.isGcsUrl) context.root.toAbsolutePath(fileSystems).resolve(path).toString else path
 }

@@ -130,7 +130,6 @@ object WorkflowActor {
     override def runInitialization(actor: WorkflowActor): Future[Unit] = {
       for {
         _ <- actor.backend.prepareForRestart(actor.workflow)
-        _ <- actor.dumpTables()
       } yield ()
     }
 
@@ -193,8 +192,8 @@ object WorkflowActor {
       keys.foldLeft(this) { case (d, k) => d.removePersisting(k, status) }
     }
 
-    def isPersistedRunning(key: ExecutionStoreKey)(implicit executionStore: ExecutionStore): Boolean = {
-      executionStore.get(key).contains(ExecutionStatus.Running) && !pendingExecutions.contains(key)
+    def isPersistedStatus(key: ExecutionStoreKey, status: ExecutionStatus)(implicit executionStore: ExecutionStore): Boolean = {
+      executionStore.get(key).contains(status) && !pendingExecutions.contains(key)
     }
 
     def addProcessing(key: ExecutionStoreKey) = {
@@ -486,7 +485,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     case Event(message: CallStarted, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
-    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) && !data.isProcessing(callKey) =>
+    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedStatus(callKey, ExecutionStatus.Running) && !data.isProcessing(callKey) =>
       handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
@@ -500,11 +499,11 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       persistStatusThenAck(callKey, status, sender, terminalCallMessage, callOutputs, returnCode = returnCode, hash = hash, resultsClonedFrom = resultsClonedFrom)
       val updatedData = data.addPersisting(callKey, status)
       stay() using updatedData
-    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) && !data.isPending(callKey) =>
+    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedStatus(callKey, ExecutionStatus.Running) && !data.isPending(callKey) =>
       addCallFailureEvent(callKey.toDatabaseKey, failure.getMessage)
       // Note: Currently Retryable == Preempted. If another reason than preemption arises that requires retrying at this level, this will need to be updated
       handleCallFailedRetryable(callKey, ExecutionStatus.Preempted, returnCode, failure, message, data, events)
-    case Event(message @ CallFailedNonRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallFailedNonRetryable(callKey, events, returnCode, failure), data) if readyToHandleNonRetryableFailure(data, callKey) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       addCallFailureEvent(callKey.toDatabaseKey, failure)
@@ -514,7 +513,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = None)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       stay() using updatedData
-    case Event(message @ CallAborted(callKey), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallAborted(callKey), data) if data.isPersistedStatus(callKey, ExecutionStatus.Running) =>
       // Something funky's going on if aborts are coming through while the workflow's still running. But don't second-guess
       // by transitioning the whole workflow - the message is either still in the queue or this command was maybe
       // cancelled by some external system.
@@ -554,6 +553,12 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     case Event(CheckForWorkflowComplete, data) =>
       checkForWorkflowComplete(data)
       stay()
+  }
+
+  private def readyToHandleNonRetryableFailure(data: WorkflowData, callKey: OutputKey) = {
+    // For most tasks, we check it's persisted as running before failing it.
+    // For failed scatter collectors though (which never enter "Running", only "Starting"), we need the second, special case
+    data.isPersistedStatus(callKey, ExecutionStatus.Running) || (data.isPersistedStatus(callKey, ExecutionStatus.Starting) && callKey.toDatabaseKey.isCollector(executionStore.keySet map { _.toDatabaseKey }))
   }
 
   private def checkForWorkflowComplete(data: WorkflowData): Unit = {
@@ -607,18 +612,18 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   }
 
   when(WorkflowAborting) {
-    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedStatus(callKey, ExecutionStatus.Running) =>
       handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
       handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
-    case Event(message @ CallAborted(callKey), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallAborted(callKey), data) if data.isPersistedStatus(callKey, ExecutionStatus.Running) =>
       executionStore += callKey -> ExecutionStatus.Aborted
       persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       stay() using updatedData
-    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedStatus(callKey, ExecutionStatus.Running) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)

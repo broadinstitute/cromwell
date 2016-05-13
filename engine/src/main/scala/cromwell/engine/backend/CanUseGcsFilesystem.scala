@@ -8,8 +8,6 @@ import cromwell.filesystems.gcs.{GcsFileSystemProvider, GoogleAuthMode, GoogleCo
 import lenthall.config.ScalaConfig._
 import lenthall.exception.MessageAggregation
 
-import scalaz.NonEmptyList
-
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 trait CanUseGcsFilesystem { self: OldStyleBackend =>
 
@@ -21,8 +19,6 @@ trait CanUseGcsFilesystem { self: OldStyleBackend =>
     }
 
     def gcsFilesystemAuthMustBeLegit(authName: String): GoogleAuthMode = {
-      def prependName(errs: NonEmptyList[String]): String = s"For backend '$name': " + errs.list.mkString("\n")
-
       class ErrorMessageAggregatedException(override val exceptionContext: String,
                                             override val errorMessages: Traversable[String]) extends MessageAggregation
 

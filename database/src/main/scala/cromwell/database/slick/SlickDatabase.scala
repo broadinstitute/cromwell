@@ -602,9 +602,18 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
   }
 
   override def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                       startDate: Option[Timestamp], endDate: Option[Timestamp])
+                                       startDate: Option[Timestamp], endDate: Option[Timestamp],
+                                       page: Option[Int], pageSize: Option[Int])
                                       (implicit ec: ExecutionContext): Future[Traversable[WorkflowExecution]] = {
-    val action = dataAccess.queryWorkflowExecutions(statuses, names, uuids, startDate, endDate).result
+    val action = dataAccess.queryWorkflowExecutions(statuses, names, uuids, startDate, endDate, page, pageSize).result
+
+    runTransaction(action)
+  }
+
+  override def countWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
+                                       startDate: Option[Timestamp], endDate: Option[Timestamp])
+                                      (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.countWorkflowExecutions(statuses, names, uuids, startDate, endDate).result
 
     runTransaction(action)
   }

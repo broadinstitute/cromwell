@@ -68,7 +68,7 @@ object Dependencies {
     "com.typesafe" % "config" % "1.3.0",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "org.apache.commons" % "commons-lang3" % "3.4"
-  ) ++ testDependencies
+  ) ++ testDependencies ++ googleApiClientDependencies
 
   val backendDependencies = List(
     "joda-time" % "joda-time" % "2.8.2",

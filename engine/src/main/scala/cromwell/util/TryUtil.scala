@@ -2,7 +2,7 @@ package cromwell.util
 
 import java.io.{PrintWriter, StringWriter}
 
-import cromwell.backend.Backoff
+import cromwell.core.retry.Backoff
 import cromwell.core.{CromwellAggregatedException, CromwellFatalException}
 import cromwell.logging.WorkflowLogger
 

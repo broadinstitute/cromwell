@@ -3,8 +3,9 @@ package cromwell.backend.async
 import akka.actor.{Actor, ActorLogging}
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionResponse, BackendJobExecutionSucceededResponse}
-import cromwell.backend.{BackendJobDescriptor, Backoff}
+import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CromwellFatalException
+import cromwell.core.retry.Backoff
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}

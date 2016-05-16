@@ -22,5 +22,5 @@ case class RetryableBackendJobExecutionActor(override val jobDescriptor: Backend
   }
   override def recover = execute
 
-  override def abortJob: Unit = ()
+  override def abort: Unit = ()
 }

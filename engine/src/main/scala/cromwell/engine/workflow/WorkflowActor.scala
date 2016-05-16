@@ -76,7 +76,7 @@ object WorkflowActor {
     * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
     * manager.
     */
-  case object AbortingWorkflowState extends WorkflowActorState {
+  case object WorkflowAbortingState extends WorkflowActorState {
     override val workflowState = WorkflowAborting
   }
 
@@ -135,7 +135,7 @@ class WorkflowActor(workflowId: WorkflowId,
                     serviceRegistryActor: ActorRef)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging with KnowsWhatTimeItIs {
 
-  val tag = self.path.name
+  val tag = s"WorkflowActor [UUID(${workflowId.shortString})]"
 
   implicit val actorSystem = context.system
   implicit val ec = context.dispatcher
@@ -146,20 +146,17 @@ class WorkflowActor(workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props())
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(), s"MaterializeWorkflowDescriptorActor-$workflowId")
       actor ! MaterializeWorkflowDescriptorCommand(workflowId, workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
-    case Event(AbortWorkflowCommand, stateData) =>
-      // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
-      sender ! WorkflowAbortedResponse(workflowId)
-      goto(WorkflowAbortedState)
+    case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)
   }
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), stateData) =>
       val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor), name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
-      goto(InitializingWorkflowState) using WorkflowActorData(initializerActor, workflowDescriptor)
+      goto(InitializingWorkflowState) using WorkflowActorData(Option(initializerActor), Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), _) =>
       context.parent ! WorkflowFailedResponse(workflowId, MaterializingWorkflowDescriptorState, Seq(reason))
       goto(WorkflowFailedState)
@@ -201,10 +198,8 @@ class WorkflowActor(workflowId: WorkflowId,
       goto(WorkflowFailedState)
   }
 
-  when(AbortingWorkflowState) {
-    case Event(x: EngineLifecycleStateCompleteResponse, _) =>
-      context.parent ! WorkflowAbortedResponse(workflowId)
-      goto(WorkflowAbortedState)
+  when(WorkflowAbortingState) {
+    case Event(x: EngineLifecycleStateCompleteResponse, _) => goto(WorkflowAbortedState)
     case _ => stay()
   }
 
@@ -221,19 +216,21 @@ class WorkflowActor(workflowId: WorkflowId,
     case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _)) =>
       actor ! EngineLifecycleActorAbortCommand
-      goto(AbortingWorkflowState)
+      goto(WorkflowAbortingState)
     case unhandledMessage =>
       log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
       stay
   }
 
   onTransition {
-    // Only publish "External" state to metadata service
-    // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
-    case fromState -> toState if fromState.workflowState != toState.workflowState =>
+    case fromState -> toState =>
       log.info(s"$tag transitioning from $fromState to $toState")
       // This updates the workflow status
-      pushCurrentStateToMetadataService(toState.workflowState)
+      // Only publish "External" state to metadata service
+      // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
+      if (fromState.workflowState != toState.workflowState) {
+        pushCurrentStateToMetadataService(toState.workflowState)
+      }
   }
 
   onTransition {

@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Actor, ActorRef}
 import cromwell.backend.BackendLifecycleActor._
 import wdl4s.Call
 

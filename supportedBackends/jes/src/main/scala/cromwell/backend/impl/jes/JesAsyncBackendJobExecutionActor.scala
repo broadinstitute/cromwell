@@ -7,10 +7,13 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, Props}
+import akka.event.LoggingReceive
+import akka.util.Timeout
 import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
-import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
+import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.impl.jes.JesImplicits.{GoogleAuthWorkflowOptions, PathString}
@@ -21,7 +24,7 @@ import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, 
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{JobOutput, CromwellAggregatedException, _}
 import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, GetAllMetadataAction, PutMetadataAction}
 import cromwell.services._
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction
@@ -55,11 +58,6 @@ object JesAsyncBackendJobExecutionActor {
   private val JesMonitoringLogFile = "monitoring.log"
   private val JesExecScript = "exec.sh"
   private val ExtraConfigParamName = "__extra_config_gcs_path"
-
-  private def splitFqn(fullyQualifiedName: FullyQualifiedName): (String, String) = {
-    val lastIndex = fullyQualifiedName.lastIndexOf(".")
-    (fullyQualifiedName.substring(0, lastIndex), fullyQualifiedName.substring(lastIndex + 1))
-  }
 
   /**
     * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
@@ -126,7 +124,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val backendConfig = configurationDescriptor.backendConfig
   private lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, gcsFileSystem, jobDescriptor.descriptor, configurationDescriptor.backendConfig)
   private lazy val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
-  private lazy val genomicsFactory = GenomicsFactory(googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl)
+  private lazy val genomicsInterface = GenomicsFactory(googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl)
   private def workflowPath: Path = jesCallPaths.workflowRootPath
   private def callRootPath: Path = jesCallPaths.callRootPath
   private def returnCodeFilename = jesCallPaths.returnCodeFilename
@@ -157,13 +155,36 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val dockerConfiguration: Option[JesDockerCredentials] = DockerConfiguration.build(backendConfig).dockerCredentials map JesDockerCredentials.apply
   private lazy val maxPreemption = runtimeAttributes.preemptible
   private lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
-  private lazy val tag = self.path.name
+  private lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
 
   private lazy val workflowId = jobDescriptor.descriptor.id
 
   private lazy val metadataJobKey = {
     val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
     MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
+  }
+
+  override def receive: Receive = LoggingReceive {
+    case AbortJobCommand =>
+      serviceRegistryActor ! GetMetadataQueryAction(MetadataQuery.forKey(metadataKey("jobId")))
+    case MetadataLookupResponse(query, events) if query.key.contains("jobId") =>
+      /** Currently this actor can only get a MetadataLookupResponse when requesting a
+        * job ID for abort.  If this actor becomes more complex in the future, then this
+        * should probably be received in an FSM state.
+        */
+      events.headOption foreach { event =>
+        val jobId = event.value.value
+        log.info(s"$tag Aborting $jobId")
+        Try(Run(jobId, jobDescriptor, genomicsInterface).abort()) match {
+          case Success(_) => log.info(s"$tag Aborted $jobId")
+          case Failure(ex) => log.warning(s"$tag Failed to abort $jobId: ${ex.getMessage}")
+        }
+      }
+      context.parent ! AbortedResponse(jobDescriptor.key)
+      context.stop(self)
+
+    // PBE TODO: use PartialFunction.orElse instead of this catch-all case, because Akka might use isDefinedAt over this partial function
+    case message => super.receive(message)
   }
 
   private def globOutputPath(glob: String) = callRootPath.resolve(s"glob-${glob.md5Sum}/")
@@ -368,7 +389,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       jesParameters,
       googleProject(jobDescriptor.descriptor),
       retryable,
-      genomicsFactory
+      genomicsInterface
     ))
 
     implicit val system = context.system
@@ -422,17 +443,16 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     previous match {
       case handle: JesPendingExecutionHandle =>
         val wfId = handle.jobDescriptor.descriptor.id.shortString
-        val tag = handle.jobDescriptor.key.tag
         val runId = handle.run.runId
-        log.debug(s"[UUID($wfId)$tag] Polling JES Job $runId")
+        log.debug(s"$tag Polling JES Job $runId")
         val previousStatus = handle.previousStatus
-        val status = Try(handle.run.checkStatus(jobDescriptor, previousStatus))
+        val status = Try(handle.run.status())
         status foreach { currentStatus =>
           if (!(handle.previousStatus contains currentStatus)) {
             // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
             // just use the state names.
             val prevStateName = previousStatus map { _.toString } getOrElse "-"
-            log.info(s"Status change from $prevStateName to $currentStatus")
+            log.info(s"$tag Status change from $prevStateName to $currentStatus")
             tellMetadata("jesOperationStatus", currentStatus.toString)
           }
         }
@@ -440,7 +460,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           case Success(s: TerminalRunStatus) => executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
-            log.error(s"JES Job ID ${handle.run.runId} has not been found, failing call")
+            log.error(s"$tag JES Job ID ${handle.run.runId} has not been found, failing call")
             FailedNonRetryableExecutionHandle(e).future
           case Failure(e: Exception) =>
             // Log exceptions and return the original handle to try again.

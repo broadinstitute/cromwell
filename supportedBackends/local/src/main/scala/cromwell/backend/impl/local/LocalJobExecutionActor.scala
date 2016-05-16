@@ -16,7 +16,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object LocalJobExecutionActor {
-  val ProcessKilledCode = 143
+  val SIGTERM = 143
+  val SIGINT = 130
   val logger = LoggerFactory.getLogger("LocalBackend")
   // TODO Support GCS ?
   val fileSystems = List(FileSystems.getDefault)
@@ -109,7 +110,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     case Failure(ex) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key, ex, None))
   }
 
-  override def abortJob: Unit = {
+  override def abort: Unit = {
     process foreach { p =>
       p.destroy()
       process = None
@@ -147,7 +148,16 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     stderrTailed.writer.flushAndClose()
 
     processReturnCode match {
-      case ProcessKilledCode => AbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+      /**
+        * SIGTERM is sent to the job process via Process.destroy() when performing an abort
+        * SIGINT  is sent to the job process on CTRL-C.  Presumably, when the Cromwell receives a
+        *         CTRL-C, it *appears* that UNIX is also sending that signal to the child processes
+        *         so sometimes they die with a SIGINT instead of SIGTERM sent from Cromwell
+        *
+        * Because of this oddity, we interpret both SIGINT and SIGTERM as "process aborted".
+        */
+      case SIGTERM => AbortedResponse(jobDescriptor.key)
+      case SIGINT => AbortedResponse(jobDescriptor.key)
       case other if other == 0 || runtimeAttributes.dockerImage.isEmpty => postProcessJob()
       case failed =>
         logger.error(s"Non-zero return code: $failed")
@@ -171,8 +181,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
             |${stderrTailed.tailString}""".stripMargin
 
       returnCode match {
-        case Success(143) =>
-          AbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+        case Success(SIGTERM) => AbortedResponse(jobDescriptor.key) // Special case to check for SIGTERM exit code - implying abort
+        case Success(SIGINT) => AbortedResponse(jobDescriptor.key) // Special case to check for SIGINT exit code - implying abort
         case Success(otherReturnCode) if runtimeAttributes.continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
         case Success(badReturnCode) => FailedNonRetryableResponse(jobDescriptor.key, new Exception(badReturnCodeMessage), returnCode.toOption)
         case Failure(e) => FailedNonRetryableResponse(jobDescriptor.key, new Exception(badReturnCodeMessage, e), returnCode.toOption)

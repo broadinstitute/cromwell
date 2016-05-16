@@ -134,9 +134,9 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     // TODO: PBE: This test needs work. If the abort fires to quickly, it causes a race condition in waitAndPostProcess.
     Thread.sleep(1000L)
     //backend.process shouldNot be(empty) <-- Currently cannot access the private var backend.process
-    backend.abortJob
+    backend.abort
 
-    // TODO: PBE: abortJob doesn't actually seem to abort. It runs the full 10 seconsds, then returns the response.
+    // TODO: PBE: abort doesn't actually seem to abort. It runs the full 10 seconsds, then returns the response.
     whenReady(execute, Timeout(10.seconds)) { executionResponse =>
       executionResponse shouldBe a[AbortedResponse]
     }

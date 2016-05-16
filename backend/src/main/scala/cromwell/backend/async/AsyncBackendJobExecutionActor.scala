@@ -89,8 +89,9 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case Finish(FailedRetryableExecutionHandle(throwable, returnCode)) =>
       completionPromise.success(FailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
-    case Finish(cromwell.backend.async.AbortedExecutionHandle) => ???
-
+    case Finish(cromwell.backend.async.AbortedExecutionHandle) =>
+      completionPromise.success(AbortedResponse(jobDescriptor.key))
+      context.stop(self)
     case response: MetadataServiceResponse => handleMetadataServiceResponse(sender(), response)
 
     case badMessage => log.error(s"Unexpected message $badMessage.")

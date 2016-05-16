@@ -81,6 +81,8 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         case Success(actors) =>
           actors.keys.foreach(_ ! Finalize)
           goto(FinalizationInProgressState) using stateData.withBackendActors(actors)
+        case _ =>
+          goto(WorkflowFinalizationFailedState)
       }
     case Event(AbortFinalizationCommand, _) =>
       context.parent ! WorkflowFinalizationAbortedResponse

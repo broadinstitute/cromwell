@@ -1,10 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import akka.actor.ActorRef
 import cromwell.backend.JobKey
 import cromwell.core._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
-import cromwell.engine.{WdlFunctions, EngineWorkflowDescriptor, ExecutionStatus}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, WdlFunctions}
 import cromwell.webservice.WdlValueJsonFormatter
 
 import scala.language.postfixOps
@@ -19,16 +20,16 @@ final case class WorkflowExecutionDiff(executionStore: Map[JobKey, ExecutionStat
 
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
+                                      backendJobExecutionActors: Map[JobKey, ActorRef],
                                       outputStore: OutputStore) extends WdlLookup {
 
   override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.backendDescriptor.workflowOptions)
 
-  def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = {
-    this.copy(
-      executionStore = executionStore.add(Map(jobKey -> Done)),
-      outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
-    )
-  }
+  def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = this.copy(
+    executionStore = executionStore.add(Map(jobKey -> Done)),
+    backendJobExecutionActors = backendJobExecutionActors - jobKey,
+    outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
+  )
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
   private def updateSymbolStoreEntry(jobKey: JobKey, outputs: JobOutputs) = {
@@ -47,6 +48,14 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   def hasFailedJob: Boolean = {
     executionStore.store.values.exists(_ == ExecutionStatus.Failed)
+  }
+
+  def addBackendJobExecutionActor(jobKey: JobKey, actor: ActorRef): WorkflowExecutionActorData = {
+    this.copy(backendJobExecutionActors = backendJobExecutionActors + (jobKey -> actor))
+  }
+
+  def removeBackendJobExecutionActor(jobKey: JobKey): WorkflowExecutionActorData = {
+    this.copy(backendJobExecutionActors = backendJobExecutionActors - jobKey)
   }
 
   def outputsJson(): String = {

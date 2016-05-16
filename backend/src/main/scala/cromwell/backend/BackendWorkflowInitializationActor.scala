@@ -29,7 +29,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
 
   def receive: Receive = LoggingReceive {
     case Initialize => performActionThenRespond(initSequence(), onFailure = InitializationFailed)
-    case AbortWorkflowCommand => abortInitialization()
+    case Abort => abortInitialization()
   }
 
   /**

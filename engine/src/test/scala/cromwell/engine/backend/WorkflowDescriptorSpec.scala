@@ -53,7 +53,7 @@ trait WorkflowDescriptorBuilder {
     implicit val timeout = akka.util.Timeout(awaitTimeout)
     implicit val ec = actorSystem.dispatcher
 
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props())
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(), "MaterializeWorkflowDescriptorActor")
     val workflowDescriptorFuture = actor.ask(
       MaterializeWorkflowDescriptorCommand(id, workflowSources, ConfigFactory.load)
     ).mapTo[WorkflowDescriptorMaterializationResult]

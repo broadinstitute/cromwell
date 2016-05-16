@@ -9,9 +9,9 @@ import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, _}
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
+import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
@@ -34,6 +34,7 @@ object WorkflowManagerActor {
   case class SubmitWorkflowCommand(source: WorkflowSourceFiles) extends WorkflowManagerActorCommand
   case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
+  case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   private[WorkflowManagerActor] final case class RestartWorkflowsCommand(workflows: Seq[OldStyleWorkflowDescriptor]) extends WorkflowManagerActorCommand
 
   /**
@@ -89,7 +90,7 @@ class WorkflowManagerActor(config: Config)
   private def addShutdownHook(): Unit = {
     // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
     val abortJobsOnTerminate =
-      config.getConfig("backend").getBooleanOr("abortJobsOnTerminate", default = false)
+      config.getConfig("system").getBooleanOr("abort-jobs-on-terminate", default = false)
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {
@@ -108,14 +109,15 @@ class WorkflowManagerActor(config: Config)
      */
     case Event(SubmitWorkflowCommand(source), stateData) =>
       val updatedEntry = submitWorkflow(source, replyTo = Option(sender), id = None)
-      // Submit success brought in from the Cromwell API handler
-      sender ! WorkflowManagerSubmitSuccess(updatedEntry.workflowId)
       stay() using stateData.withAddition(updatedEntry)
-    case Event(AbortWorkflowCommand(id), stateData) =>
+    case Event(SubscribeToWorkflowCommand(id), data) =>
+      data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
+      stay()
+    case Event(WorkflowManagerActor.AbortWorkflowCommand(id), stateData) =>
       val workflowActor = stateData.workflows.get(id)
       workflowActor match {
         case Some(actor) =>
-          actor ! AbortWorkflowCommand
+          actor ! WorkflowActor.AbortWorkflowCommand
           stay()
         case None =>
           sender ! WorkflowManagerAbortFailure(id, new Exception(s"Couldn't abort $id because no workflow with that ID is in progress"))
@@ -124,7 +126,8 @@ class WorkflowManagerActor(config: Config)
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
       goto(Done)
     case Event(AbortAllWorkflowsCommand, data) =>
-      data.workflows.values.foreach { _ ! OldStyleWorkflowActor.AbortWorkflow }
+      log.info(s"$tag Aborting all workflows")
+      data.workflows.values.foreach { _ ! WorkflowActor.AbortWorkflowCommand }
       goto(Aborting)
     /*
      Internal commands
@@ -140,28 +143,34 @@ class WorkflowManagerActor(config: Config)
      Responses from services
      */
     case Event(WorkflowSucceededResponse(workflowId), data) =>
-      log.info(s"Workflow $workflowId succeeded!")
+      log.info(s"$tag Workflow $workflowId succeeded!")
       stay()
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), data) =>
-      log.error(s"Workflow $workflowId failed (during $inState): ${reasons.mkString("\n")}")
+      log.error(s"$tag Workflow $workflowId failed (during $inState): ${reasons.mkString("\n")}")
       stay()
     /*
      Watched transitions
      */
     case Event(Transition(workflowActor, _, toState: WorkflowActorTerminalState), data) =>
-      log.info(workflowActor.path.name + " has gone terminal")
+      log.info(s"$tag ${workflowActor.path.name} is in a terminal state: $toState")
       stay using data.without(workflowActor)
   }
 
   when (Aborting) {
-    case Event(Transition(workflowActor, _, toState: WorkflowState), data) if toState.isTerminal =>
+    case Event(Transition(workflowActor, _, toState: WorkflowActorState), data) if toState.terminal =>
       // Remove this terminal actor from the workflowStore and log a progress message.
       val updatedData = data.without(workflowActor)
-      logger.info(s"$tag: Waiting for all workflows to abort (${updatedData.workflows.size} remaining).")
       // If there are no more workflows to abort we're done, otherwise just stay in the current state.
-      val resultAction = if (updatedData.workflows.isEmpty) goto(Done) else stay()
+      val resultAction = if (updatedData.workflows.isEmpty) {
+        logger.info(s"$tag All workflows are aborted")
+        goto(Done)
+      } else {
+        logger.info(s"$tag Waiting for all workflows to abort (${updatedData.workflows.size} remaining).")
+        stay()
+      }
       // Whatever the result action, use the updated data:
       resultAction using updatedData
+    case Event(_, _) => stay()
   }
 
   when (Done) { FSM.NullFunction }
@@ -175,13 +184,13 @@ class WorkflowManagerActor(config: Config)
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>
-      log.warning(s"$tag: Unhandled message: $unhandled")
+      log.warning(s"$tag Unhandled message: $unhandled")
       stay()
   }
 
   onTransition {
     case _ -> Done =>
-      logger.info(s"$tag: All workflows finished. Shutting down.")
+      logger.info(s"$tag All workflows finished. Shutting down.")
       donePromise.trySuccess(())
     case fromState -> toState =>
       logger.info(s"$tag transitioning from $fromState to $toState")
@@ -203,24 +212,29 @@ class WorkflowManagerActor(config: Config)
     */
   private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): WorkflowIdToActorRef = {
     val workflowId: WorkflowId = id.getOrElse(WorkflowId.randomId())
-    logger.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
     val isRestart = id.isDefined
 
-    val startMode = if (isRestart) RestartExistingWorkflow else StartNewWorkflow
+    val startMode = if (isRestart) {
+      logger.info(s"$tag Restarting workflow UUID($workflowId)")
+      RestartExistingWorkflow
+    } else {
+      logger.info(s"$tag Starting workflow UUID($workflowId)")
+      StartNewWorkflow
+    }
+
     val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config, serviceRegistryActor), name = s"WorkflowActor-$workflowId")
 
     // We have a valid workflowId for the workflow, send it over to the metadata service
     pushToMetadataService(workflowId)
-
     replyTo.foreach { _ ! WorkflowManagerSubmitSuccess(id = workflowId) }
     wfActor ! SubscribeTransitionCallBack(self)
     wfActor ! StartWorkflowCommand
-    logger.info(s"Successfuly started ${wfActor.path} for Workflow $workflowId")
+    logger.info(s"$tag Successfully started ${wfActor.path.name}")
     WorkflowIdToActorRef(workflowId, wfActor)
   }
 
   private def restartWorkflow(restartableWorkflow: OldStyleWorkflowDescriptor): WorkflowIdToActorRef = {
-    logger.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
+    logger.info(s"$tag Invoking restartableWorkflow on ${restartableWorkflow.id.shortString}")
     submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
   }
 

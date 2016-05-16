@@ -80,7 +80,7 @@ class WorkflowManagerActor(config: Config)
 
   override def preStart() {
     addShutdownHook()
-    restartIncompleteWorkflows()
+    if (config.getBoolean("system.workflow-restart")) { restartIncompleteWorkflows() }
   }
 
   private def addShutdownHook(): Unit = {

@@ -1,0 +1,7 @@
+testName: bad_workflow_failure_mode
+testFormat: submissionfailure
+
+files {
+  wdl: bad_workflow_failure_mode/bad_workflow_failure_mode.wdl
+  options: bad_workflow_failure_mode/bad_workflow_failure_mode.options
+}

@@ -1,0 +1,7 @@
+testName: filearrayoutput
+testFormat: workflowsuccess
+
+files {
+  wdl: filearrayoutput/filearrayoutput.wdl
+  metadata: filearrayoutput/filearrayoutput.metadata
+}

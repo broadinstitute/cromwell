@@ -1,10 +1,9 @@
-package centaur
-
-import java.nio.file.Path
+package centaur.test
 
 import cats.implicits._
-import Operations._
-import Test.testMonad
+import centaur._
+import centaur.test.Operations._
+import centaur.test.Test.testMonad
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -18,14 +17,13 @@ object TestFormulas {
     } yield s
   }
 
-  def runSuccessfulWorkflow(request: WorkflowRequest) = {
+  def runSuccessfulWorkflow(request: WorkflowRequest): Test[Unit] = {
     for {
       s <- runWorkflowUntilTerminalStatus(request, Succeeded)
       _ <- verifyMetadataAndOutputs(s, request)
     } yield ()
   }
 
-  def runFailingWorkflow(request: WorkflowRequest) = runWorkflowUntilTerminalStatus(request, Failed)
-
-  def runSubmissionFailureWorkflow(request: WorkflowRequest) = submitWorkflowExpectingRejection(request)
+  def runFailingWorkflow(request: WorkflowRequest): Test[Workflow] = runWorkflowUntilTerminalStatus(request, Failed)
+  def runSubmissionFailureWorkflow(request: WorkflowRequest): Test[String] = submitWorkflowExpectingRejection(request)
 }

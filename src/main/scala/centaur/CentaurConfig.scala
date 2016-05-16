@@ -3,7 +3,6 @@ package centaur
 import java.net.URL
 import java.nio.file.{Path, Paths}
 import java.util.concurrent.TimeUnit
-
 import com.typesafe.config.ConfigFactory
 import lenthall.config.ScalaConfig._
 
@@ -14,13 +13,11 @@ object CentaurConfig {
   lazy val cromwellUrl = new URL(conf.getString("centaur.cromwellUrl"))
   lazy val sendReceiveTimeout = conf.getDuration("centaur.sendReceiveTimeout").toScala
   lazy val maxWorkflowLength = conf.getDuration("centaur.maxWorkflowLength").toScala
-  lazy val successfulTestCasePath = Paths.get(conf.getString("centaur.successfulTestCasePath"))
-  lazy val failingTestCasePath = Paths.get(conf.getString("centaur.failingTestCasePath"))
-  lazy val submissionFailureTestCasePath = Paths.get(conf.getString("centaur.submissionFailureTestCasePath"))
+
+  lazy val standardTestCasePath = Paths.get(conf.getString("centaur.standardTestCasePath"))
   lazy val callCacheTestCasePath = Paths.get(conf.getString("centaur.callCacheTestCasePath"))
 
-
-  // If provided, any tests will be appended to the tests in successfulTestCasePath
+  // If provided, any tests will be appended to the tests in standardTestCasePath
   lazy val optionalTestPath: Option[Path] = conf.getStringOption("centaur.optionalTestPath") map { Paths.get(_) }
 
   implicit class EnhancedJavaDuration(val javaDuration: java.time.Duration) extends AnyVal {

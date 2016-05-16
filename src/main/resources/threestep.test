@@ -1,0 +1,8 @@
+testName: threestep
+testFormat: workflowsuccess
+
+files {
+  wdl: threestep/threestep.wdl
+  input: threestep/threestep.inputs
+  metadata: threestep/threestep.metadata
+}

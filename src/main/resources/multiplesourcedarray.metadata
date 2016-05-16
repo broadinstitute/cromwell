@@ -1,0 +1,689 @@
+{
+  "workflowName": "multplesourcedarray",
+  "calls": {
+    "multplesourcedarray.consume": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-consume/consume-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "out": "blah blah blah blah blah blah blah"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "in_file": ["blah", "blah", "blah", "blah", "blah", "blah", "blah"]
+      },
+      "returnCode": 0,
+      "jobId": "operations/EKO90rDKKhj_2IKoz9Kq6UIg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU",
+      "backend": "JES",
+      "end": "2016-05-12T13:49:40.017-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-consume/consume-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:48:55.000-04:00",
+        "endTime": "2016-05-12T13:49:34.239-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:48:52.861-04:00",
+        "endTime": "2016-05-12T13:48:55.623-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:47:55.000-04:00",
+        "endTime": "2016-05-12T13:48:26.015-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:48:50.689-04:00",
+        "endTime": "2016-05-12T13:48:52.380-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:48:55.623-04:00",
+        "endTime": "2016-05-12T13:48:55.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:48:31.359-04:00",
+        "endTime": "2016-05-12T13:48:50.689-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:48:52.380-04:00",
+        "endTime": "2016-05-12T13:48:52.861-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:48:26.015-04:00",
+        "endTime": "2016-05-12T13:48:31.359-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:47:29.000-04:00",
+        "endTime": "2016-05-12T13:47:55.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-consume/consume.log"
+      },
+      "start": "2016-05-12T13:47:30.366-04:00"
+    }],
+    "multplesourcedarray.source7": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source7/source7-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source7/source7-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 12
+      },
+      "returnCode": 0,
+      "jobId": "operations/EPWjyrDKKhjBzrbB7OWanrwBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:30.359-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source7/source7-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:52.000-04:00",
+        "endTime": "2016-05-12T13:47:29.526-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:50.287-04:00",
+        "endTime": "2016-05-12T13:46:52.841-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:47.000-04:00",
+        "endTime": "2016-05-12T13:46:18.826-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:48.286-04:00",
+        "endTime": "2016-05-12T13:46:49.863-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:52.841-04:00",
+        "endTime": "2016-05-12T13:46:52.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:40.126-04:00",
+        "endTime": "2016-05-12T13:46:48.286-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:49.863-04:00",
+        "endTime": "2016-05-12T13:46:50.287-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:18.826-04:00",
+        "endTime": "2016-05-12T13:46:40.126-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:15.000-04:00",
+        "endTime": "2016-05-12T13:45:47.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source7/source7.log"
+      },
+      "start": "2016-05-12T13:45:16.407-04:00"
+    }],
+    "multplesourcedarray.source3": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source3/source3-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source3/source3-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 3
+      },
+      "returnCode": 0,
+      "jobId": "operations/EMStyrDKKhja5fmxwMueiSwg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:15.978-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source3/source3-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:50.000-04:00",
+        "endTime": "2016-05-12T13:47:07.564-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:47.703-04:00",
+        "endTime": "2016-05-12T13:46:49.846-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:44.000-04:00",
+        "endTime": "2016-05-12T13:46:16.215-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:45.769-04:00",
+        "endTime": "2016-05-12T13:46:47.305-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:49.846-04:00",
+        "endTime": "2016-05-12T13:46:50.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:29.396-04:00",
+        "endTime": "2016-05-12T13:46:45.769-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:47.305-04:00",
+        "endTime": "2016-05-12T13:46:47.703-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:16.215-04:00",
+        "endTime": "2016-05-12T13:46:29.396-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:16.000-04:00",
+        "endTime": "2016-05-12T13:45:44.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source3/source3.log"
+      },
+      "start": "2016-05-12T13:45:16.403-04:00"
+    }],
+    "multplesourcedarray.source6": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source6/source6-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source6/source6-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 11
+      },
+      "returnCode": 0,
+      "jobId": "operations/EJKuyrDKKhi5neykvbrT3Ssg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:27.087-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source6/source6-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:56.000-04:00",
+        "endTime": "2016-05-12T13:47:25.493-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:53.765-04:00",
+        "endTime": "2016-05-12T13:46:56.477-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:47.000-04:00",
+        "endTime": "2016-05-12T13:46:17.402-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:51.739-04:00",
+        "endTime": "2016-05-12T13:46:53.346-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:56.477-04:00",
+        "endTime": "2016-05-12T13:46:56.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:22.891-04:00",
+        "endTime": "2016-05-12T13:46:51.739-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:53.346-04:00",
+        "endTime": "2016-05-12T13:46:53.765-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:17.402-04:00",
+        "endTime": "2016-05-12T13:46:22.891-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:16.000-04:00",
+        "endTime": "2016-05-12T13:45:47.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source6/source6.log"
+      },
+      "start": "2016-05-12T13:45:16.406-04:00"
+    }],
+    "multplesourcedarray.source2": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source2/source2-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source2/source2-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 2
+      },
+      "returnCode": 0,
+      "jobId": "operations/EMuoyrDKKhii__SGybv4uBsg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:03.355-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source2/source2-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:51.000-04:00",
+        "endTime": "2016-05-12T13:46:59.981-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:49.206-04:00",
+        "endTime": "2016-05-12T13:46:51.470-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:43.000-04:00",
+        "endTime": "2016-05-12T13:46:17.083-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:47.637-04:00",
+        "endTime": "2016-05-12T13:46:48.820-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:51.470-04:00",
+        "endTime": "2016-05-12T13:46:51.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:35.931-04:00",
+        "endTime": "2016-05-12T13:46:47.637-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:48.820-04:00",
+        "endTime": "2016-05-12T13:46:49.206-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:17.083-04:00",
+        "endTime": "2016-05-12T13:46:35.931-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:16.000-04:00",
+        "endTime": "2016-05-12T13:45:43.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source2/source2.log"
+      },
+      "start": "2016-05-12T13:45:16.412-04:00"
+    }],
+    "multplesourcedarray.source5": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source5/source5-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source5/source5-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 10
+      },
+      "returnCode": 0,
+      "jobId": "operations/EL6syrDKKhjy_L7Qq-nZ-9kBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:17.125-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source5/source5-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:49.000-04:00",
+        "endTime": "2016-05-12T13:47:11.561-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:47.105-04:00",
+        "endTime": "2016-05-12T13:46:49.182-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:47.000-04:00",
+        "endTime": "2016-05-12T13:46:18.734-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:45.205-04:00",
+        "endTime": "2016-05-12T13:46:46.712-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:49.182-04:00",
+        "endTime": "2016-05-12T13:46:49.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:30.040-04:00",
+        "endTime": "2016-05-12T13:46:45.205-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:46.712-04:00",
+        "endTime": "2016-05-12T13:46:47.105-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:18.734-04:00",
+        "endTime": "2016-05-12T13:46:30.040-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:16.000-04:00",
+        "endTime": "2016-05-12T13:45:47.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source5/source5.log"
+      },
+      "start": "2016-05-12T13:45:16.405-04:00"
+    }],
+    "multplesourcedarray.source1": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source1/source1-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source1/source1-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 1
+      },
+      "returnCode": 0,
+      "jobId": "operations/EL-cyrDKKhiqr-uj-LyxuvQBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:25.116-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source1/source1-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:55.000-04:00",
+        "endTime": "2016-05-12T13:47:22.470-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:52.102-04:00",
+        "endTime": "2016-05-12T13:46:54.875-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:41.000-04:00",
+        "endTime": "2016-05-12T13:46:14.802-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:50.105-04:00",
+        "endTime": "2016-05-12T13:46:51.706-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:54.875-04:00",
+        "endTime": "2016-05-12T13:46:55.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:42.298-04:00",
+        "endTime": "2016-05-12T13:46:50.105-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:51.706-04:00",
+        "endTime": "2016-05-12T13:46:52.102-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:14.802-04:00",
+        "endTime": "2016-05-12T13:46:42.298-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:14.000-04:00",
+        "endTime": "2016-05-12T13:45:41.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source1/source1.log"
+      },
+      "start": "2016-05-12T13:45:16.402-04:00"
+    }],
+    "multplesourcedarray.source4": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source4/source4-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "result": "blah",
+        "resultFile": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source4/source4-stdout.log"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "delay": 4
+      },
+      "returnCode": 0,
+      "jobId": "operations/EK6gyrDKKhiWvqr3pJX3j5ABINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+      "backend": "JES",
+      "end": "2016-05-12T13:47:04.938-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source4/source4-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:46:49.000-04:00",
+        "endTime": "2016-05-12T13:47:01.199-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:46:46.399-04:00",
+        "endTime": "2016-05-12T13:46:48.982-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:45:41.000-04:00",
+        "endTime": "2016-05-12T13:46:11.305-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:46:44.467-04:00",
+        "endTime": "2016-05-12T13:46:46.003-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:46:48.982-04:00",
+        "endTime": "2016-05-12T13:46:49.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:46:32.896-04:00",
+        "endTime": "2016-05-12T13:46:44.467-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:46:46.003-04:00",
+        "endTime": "2016-05-12T13:46:46.399-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:46:11.305-04:00",
+        "endTime": "2016-05-12T13:46:32.896-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:45:15.000-04:00",
+        "endTime": "2016-05-12T13:45:41.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source4/source4.log"
+      },
+      "start": "2016-05-12T13:45:16.410-04:00"
+    }],
+    "multplesourcedarray.consumeFiles": [{
+      "preemptible": false,
+      "executionStatus": "Done",
+      "stdout": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-consumeFiles/consumeFiles-stdout.log",
+      "backendStatus": "Success",
+      "shardIndex": -1,
+      "outputs": {
+        "x": "blah\nblah\nblah\nblah\nblah\nblah\nblah"
+      },
+      "runtimeAttributes": {
+        "preemptible": "0",
+        "failOnStderr": "false",
+        "bootDiskSizeGb": "10",
+        "disks": "local-disk 10 SSD",
+        "continueOnReturnCode": "0",
+        "docker": "ubuntu:latest",
+        "cpu": "1",
+        "zones": "us-central1-a",
+        "memory": "2GB"
+      },
+      "cache": {
+        "allowResultReuse": true
+      },
+      "inputs": {
+        "in_file": ["gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source1/source1-stdout.log", "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source2/source2-stdout.log", "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source3/source3-stdout.log", "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source4/source4-stdout.log", "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source5/source5-stdout.log", "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source6/source6-stdout.log", "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-source7/source7-stdout.log"]
+      },
+      "returnCode": 0,
+      "jobId": "operations/ELGq0rDKKhjY8aKIktj42QQg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU",
+      "backend": "JES",
+      "end": "2016-05-12T13:49:34.112-04:00",
+      "stderr": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-consumeFiles/consumeFiles-stderr.log",
+      "attempt": 1,
+      "executionEvents": [{
+        "description": "cromwell poll interval",
+        "startTime": "2016-05-12T13:49:05.000-04:00",
+        "endTime": "2016-05-12T13:49:31.807-04:00"
+      }, {
+        "description": "delocalizing-files",
+        "startTime": "2016-05-12T13:49:02.000-04:00",
+        "endTime": "2016-05-12T13:49:04.747-04:00"
+      }, {
+        "description": "initializing VM",
+        "startTime": "2016-05-12T13:47:54.000-04:00",
+        "endTime": "2016-05-12T13:48:23.282-04:00"
+      }, {
+        "description": "localizing-files",
+        "startTime": "2016-05-12T13:48:51.269-04:00",
+        "endTime": "2016-05-12T13:49:01.373-04:00"
+      }, {
+        "description": "ok",
+        "startTime": "2016-05-12T13:49:04.747-04:00",
+        "endTime": "2016-05-12T13:49:05.000-04:00"
+      }, {
+        "description": "pulling-image",
+        "startTime": "2016-05-12T13:48:39.536-04:00",
+        "endTime": "2016-05-12T13:48:51.269-04:00"
+      }, {
+        "description": "running-docker",
+        "startTime": "2016-05-12T13:49:01.373-04:00",
+        "endTime": "2016-05-12T13:49:02.000-04:00"
+      }, {
+        "description": "start",
+        "startTime": "2016-05-12T13:48:23.282-04:00",
+        "endTime": "2016-05-12T13:48:39.536-04:00"
+      }, {
+        "description": "waiting for quota",
+        "startTime": "2016-05-12T13:47:27.000-04:00",
+        "endTime": "2016-05-12T13:47:54.000-04:00"
+      }],
+      "backendLogs": {
+        "log": "gs://cloud-cromwell-dev/cromwell-executions/multplesourcedarray/1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232/call-consumeFiles/consumeFiles.log"
+      },
+      "start": "2016-05-12T13:47:30.364-04:00"
+    }]
+  },
+  "outputs": {
+    "multplesourcedarray.consumeFiles.x": "blah\nblah\nblah\nblah\nblah\nblah\nblah"
+  },
+  "id": "1d7c02e1-fe95-4d9c-a9c8-1bef5f5f2232",
+  "inputs": {
+
+  },
+  "submission": "2016-05-12T13:45:16.388-04:00",
+  "status": "Succeeded",
+  "end": "2016-05-12T13:49:40.317-04:00",
+  "start": "2016-05-12T13:45:16.388-04:00"
+}

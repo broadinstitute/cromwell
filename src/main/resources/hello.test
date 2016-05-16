@@ -1,0 +1,8 @@
+testName: hello
+testFormat: workflowsuccess
+
+files {
+  wdl: hello/hello.wdl
+  metadata: hello/hello.metadata
+  inputs: hello/hello.inputs
+}

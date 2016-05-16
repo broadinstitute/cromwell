@@ -1,0 +1,8 @@
+testName: filepassing
+testFormat: workflowsuccess
+
+files {
+  wdl: filepassing/filepassing.wdl
+  input: filepassing/filepassing.inputs
+  metadata: filepassing/filepassing.metadata
+}

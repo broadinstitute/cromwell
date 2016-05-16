@@ -1,0 +1,7 @@
+testName: globbingscatter
+testFormat: workflowsuccess
+
+files {
+  wdl: globbingscatter/globbingscatter.wdl
+  metadata: globbingscatter/globbingscatter.metadata
+}

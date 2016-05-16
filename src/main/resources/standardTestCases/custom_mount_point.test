@@ -1,0 +1,7 @@
+testName: custom_mount_point
+testFormat: workflowsuccess
+
+files {
+  wdl: custom_mount_point/custom_mount_point.wdl
+  metadata: custom_mount_point/custom_mount_point.metadata
+}

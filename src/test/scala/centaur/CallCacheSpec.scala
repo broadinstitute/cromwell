@@ -2,7 +2,8 @@ package centaur
 
 import java.nio.file.Path
 
-import org.scalatest.{ParallelTestExecution, Matchers, FlatSpec}
+import centaur.test.CacheFormulas
+import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
 
 class CallCacheSpec extends FlatSpec with Matchers with ParallelTestExecution {
 

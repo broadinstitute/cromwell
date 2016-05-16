@@ -1,0 +1,6 @@
+testName: write_lines
+testFormat: workflowfailure
+
+files {
+  wdl: write_lines/write_lines.wdl
+}

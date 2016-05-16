@@ -1,0 +1,7 @@
+testName: stdout_stderr_passing
+testFormat: workflowsuccess
+
+files {
+  wdl: stdout_stderr_passing/stdout_stderr_passing.wdl
+  metadata: stdout_stderr_passing/stdout_stderr_passing.metadata
+}

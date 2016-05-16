@@ -1,17 +1,14 @@
-package centaur
-
-import java.nio.file.Path
+package centaur.test
 
 import cats.implicits._
-import Operations._
-import Test.testMonad
+import centaur.{Succeeded, WorkflowRequest}
+import Operations.{verifyInputsOutputs, verifyCaching, verifyCachingOff}
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
   * for comprehension. These assembled formulas can then be run by a client
   */
 object CacheFormulas {
-
   def runCachingWorkflow(request: WorkflowRequest) = {
     for {
       testWF <- TestFormulas.runWorkflowUntilTerminalStatus(request, Succeeded)

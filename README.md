@@ -15,18 +15,26 @@ There are two ways to invoke the intergration tests:
 
 You can add your own tests to the test suite by adding `-Dcentaur.optionalTestPath=DIR` on your sbt invocation, 
 e.g. `sbt -Dcentaur.optionalTestPath=/some/path/to/tests test`. The value of `DIR` is expected to be a directory
-which contains one or more test cases. At the moment the only test cases supported are those where the workflow is submitted to your Cromwell server, it will
-verify the workflow successfully terminates and will optionally verify the outputs & metadata if supplied. The structure is required to be as follows:
-
+which contains one or more test case files. Each test case file is a HOCON file with the following structure:
 ```
-DIR
-└── testCase
-    ├── testCase.wdl
-    ├── testCase.inputs (optional)
-    ├── testCase.options (optional)
-    ├── testCase.metadata (optional)
+testName: TESTNAME
+testFormat: TESTFORMAT
+basePath: /an/optional/field
+
+files {
+  wdl: path/to/wdl
+  inputs: optional/path/to/inputs
+  options: optional/path/to/options
+  metadata: optional/path/to/metadata
+}
 ```
 
+The `basePath` field is optional, but if supplied all paths will be resolved from that directory. If it is not supplied, all paths will be resolved from the directory the test case file is in.
+
+The `testFormat` field can be one of the following, case insensitive:
+* `workflowsuccess`: The workflow being supplied is expected to successfully complete
+* `workflowfailure`: The workflow being supplied is expected to fail 
+* `submissionfailure`: The workflow being supplied is expected to fail on workflow submission
 
 # FAQs
 

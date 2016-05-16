@@ -33,8 +33,8 @@ class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
 
   private def runRetry(retries: Int,
                        work: MockWork,
-                       isTransient: Option[Throwable => Boolean] = None,
-                       isFatal: Option[Throwable => Boolean] = None): Future[Int] = {
+                       isTransient: Throwable => Boolean = Retry.throwableToFalse,
+                       isFatal: Throwable => Boolean = Retry.throwableToFalse): Future[Int] = {
     implicit val ec = actorSystem.dispatcher
 
     val backoff = SimpleExponentialBackoff(1.millis, 2.millis, 1)
@@ -65,7 +65,7 @@ class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
   it should "fail if it hits a fatal exception" in {
     val work = new MockWork(3)
 
-    whenReady(runRetry(3, work, isFatal = Option((t: Throwable) => t.isInstanceOf[IllegalArgumentException])).failed) { x =>
+    whenReady(runRetry(3, work, isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException]).failed) { x =>
       x shouldBe an [CromwellFatalException]
       work.counter shouldBe 2
     }
@@ -73,8 +73,8 @@ class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
     val work2 = new MockWork(4, 2)
     val retry = runRetry(4,
       work2,
-      isFatal = Option((t: Throwable) => t.isInstanceOf[IllegalArgumentException]),
-      isTransient = Option((t: Throwable) => t.isInstanceOf[TransientException]))
+      isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException],
+      isTransient = (t: Throwable) => t.isInstanceOf[TransientException])
 
     whenReady(retry.failed) { x =>
       x shouldBe an [CromwellFatalException]
@@ -84,7 +84,7 @@ class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
 
   it should "not count transient errors against the max limit" in {
     val work = new MockWork(3, 1)
-    whenReady(runRetry(3, work, isTransient = Option((t: Throwable) => t.isInstanceOf[TransientException]))) { x =>
+    whenReady(runRetry(3, work, isTransient = (t: Throwable) => t.isInstanceOf[TransientException])) { x =>
       x shouldBe 9
       work.counter shouldBe 0
     }

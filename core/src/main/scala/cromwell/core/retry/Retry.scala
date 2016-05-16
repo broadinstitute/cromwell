@@ -26,8 +26,8 @@ object Retry {
   def withRetry[A](f: => Future[A],
                    maxRetries: Option[Int] = Option(10),
                    backoff: SimpleExponentialBackoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
-                   isTransient: Option[Throwable => Boolean] = None,
-                   isFatal: Option[Throwable => Boolean] = None)
+                   isTransient: Throwable => Boolean = throwableToFalse,
+                   isFatal: Throwable => Boolean = throwableToFalse)
                    (implicit actorSystem: ActorSystem): Future[A] = {
     // In the future we might want EC passed in separately but at the moment it caused more issues than it solved to do so
     implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -35,9 +35,9 @@ object Retry {
 
     if (maxRetries.forall(_ > 0)) {
       f recoverWith {
-        case throwable if isFatal.evaluate(throwable) => Future.failed(new CromwellFatalException(throwable))
-        case throwable if !isFatal.evaluate(throwable) =>
-          val retriesLeft = if (isTransient.evaluate(throwable)) maxRetries else maxRetries map { _ - 1 }
+        case throwable if isFatal(throwable) => Future.failed(new CromwellFatalException(throwable))
+        case throwable if !isFatal(throwable) =>
+          val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
           after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft))
       }
     } else f recoverWith {
@@ -45,9 +45,6 @@ object Retry {
     }
   }
 
-  implicit class EnhancedOptionThrowableToBoolean(val f: Option[Throwable => Boolean]) extends AnyVal {
-    /** If f is defined, run the function using the passed throwable otherwise return false */
-    def evaluate(throwable: Throwable) = f.fold(false) { _(throwable) }
-  }
+  def throwableToFalse(t: Throwable) = false
 }
 

@@ -51,7 +51,7 @@ trait DataAccess extends AutoCloseable {
   this: SqlDatabase =>
 
   private def withRetry[A](f: => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
-    Retry.withRetry(f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = Option(isTransient))
+    Retry.withRetry(f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = isTransient)
   }
 
   /**

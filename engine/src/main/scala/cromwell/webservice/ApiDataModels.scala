@@ -38,6 +38,8 @@ case class WorkflowMetadataResponse(id: String,
 
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
 
+case class QueryMetadata(page: Option[Int], pageSize: Option[Int], totalRecords: Option[Int])
+
 final case class CallCachingResponse(updateCount: Int)
 
 case class WorkflowFailuresResponse(id: String,

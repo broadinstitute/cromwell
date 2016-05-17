@@ -247,6 +247,31 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
+    it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
+      assume(canConnect || testRequired)
+      val workflowInfo = materializeWorkflowDescriptorFromSources(workflowSources = testSources)
+      (for {
+        _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
+        //get metadata when page and pagesize are specified
+        _ <- dataAccess.queryWorkflows(
+          WorkflowQueryParameters(Seq(WorkflowQueryKey.Page.name -> "1", WorkflowQueryKey.PageSize.name -> "50"))) map { case(response, meta) =>
+          meta match {
+            case Some(metadata) =>
+            case None => fail("Should have metadata when page and pagesize are specified.")
+          }
+        }
+        //don't get metadata when page and pagesize are not specified
+        _ <- dataAccess.queryWorkflows(
+          WorkflowQueryParameters(Seq())) map { case(response, meta) =>
+          meta match {
+            case Some(metadata) => fail("Should not have metadata when page and pagesize are not specified")
+            case None =>
+          }
+        }
+      } yield()).futureValue
+    }
+
+
     it should "create and query a workflow" taggedAs DbmsTest in {
       assume(canConnect || testRequired)
       val workflowInfo = materializeWorkflowDescriptorFromSources(workflowSources = testSources)
@@ -263,58 +288,58 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ = Thread.sleep(50)
         _ <- dataAccess.createWorkflow(workflow2Info, Nil, Nil, localBackend)
         // Query with no filters
-        (test, test2) <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq.empty)) map { response =>
+        (test, test2) <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq.empty)) map { case(response, meta) =>
           val test = response.results find { r => r.name == "test" && r.end.isDefined } getOrElse fail
           val test2 = response.results find { _.name == "test2" } getOrElse fail
           (test, test2)
         }
         // Filter by name
-        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test"))) map { response =>
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test"))) map { case(response, meta) =>
           val resultsByName = response.results groupBy { _.name }
           resultsByName.keys.toSet should equal(Set("test"))
         }
         // Filter by multiple names
-        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test", WorkflowQueryKey.Name.name -> "test2"))) map { response =>
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> "test", WorkflowQueryKey.Name.name -> "test2"))) map { case(response, meta) =>
           val resultsByName = response.results groupBy { _.name }
           resultsByName.keys.toSet should equal(Set("test", "test2"))
         }
         // Filter by workflow id
         _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(
-          Seq(WorkflowQueryKey.Id.name -> workflowId))) map { response =>
+          Seq(WorkflowQueryKey.Id.name -> workflowId))) map { case(response, meta) =>
           val resultsById = response.results groupBy { _.name }
           resultsById.keys.toSet should equal(Set("test"))
         }
         // Filter by multiple workflow ids
         _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(
-          Seq(workflowId, workflow2Id).map(id => WorkflowQueryKey.Id.name -> id))) map { response =>
+          Seq(workflowId, workflow2Id).map(id => WorkflowQueryKey.Id.name -> id))) map { case(response, meta) =>
           val resultsById = response.results groupBy { _.name }
           resultsById.keys.toSet should equal(Set("test", "test2"))
         }
         // Filter by workflow id within random Ids
         _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(
-          (randomIds :+ workflowId).map(id => WorkflowQueryKey.Id.name -> id))) map { response =>
+          (randomIds :+ workflowId).map(id => WorkflowQueryKey.Id.name -> id))) map { case(response, meta) =>
           val resultsById = response.results groupBy { _.name }
           resultsById.keys.toSet should equal(Set("test"))
         }
         // Filter by status
-        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted"))) map { response =>
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted"))) map { case(response, meta) =>
           val resultsByStatus = response.results groupBy(_.status)
           resultsByStatus.keys.toSet should equal(Set("Submitted"))
         }
         // Filter by multiple statuses
-        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted", WorkflowQueryKey.Status.name -> "Succeeded"))) map { response =>
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted", WorkflowQueryKey.Status.name -> "Succeeded"))) map { case(response, meta) =>
           val resultsByStatus = response.results groupBy(_.status)
           resultsByStatus.keys.toSet should equal(Set("Submitted", "Succeeded"))
         }
         // Filter by start date
-        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.StartDate.name -> test2.start.toString))) map { response =>
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.StartDate.name -> test2.start.toString))) map { case(response, meta) =>
           response.results partition { _.start.compareTo(test2.start) >= 0 } match {
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} later workflows and ${n.size} earlier")
           }
         }
         // Filter by end date
-        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.EndDate.name -> test.end.get.toString))) map { response =>
+        _ <- dataAccess.queryWorkflows(WorkflowQueryParameters(Seq(WorkflowQueryKey.EndDate.name -> test.end.get.toString))) map { case(response, meta) =>
           response.results partition { r => r.end.isDefined && r.end.get.compareTo(test.end.get) <= 0 } match {
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")

@@ -7,7 +7,7 @@ import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, _}
 import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
 import cromwell.engine.db.slick._
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
-import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import cromwell.webservice.{CallCachingParameters, QueryMetadata, WorkflowQueryParameters, WorkflowQueryResponse}
 import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
 
@@ -142,7 +142,10 @@ trait DataAccess extends AutoCloseable {
                              (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]]
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)
-                    (implicit ec: ExecutionContext): Future[WorkflowQueryResponse]
+                    (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])]
+
+  def countWorkflows(queryParameters: WorkflowQueryParameters)
+                    (implicit ec: ExecutionContext): Future[Int]
 
   def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int]
 

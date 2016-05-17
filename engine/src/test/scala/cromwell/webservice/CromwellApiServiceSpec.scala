@@ -133,22 +133,22 @@ class MockWorkflowManagerActor extends Actor {
         case _ => WorkflowManagerWorkflowStdoutStderrFailure(id, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
       }
       sender ! message
-    case WorkflowQuery(rawParameters) =>
+    case WorkflowQuery(uri, rawParameters) =>
       val head = rawParameters.head
       head match {
         case ("BadKey", _) =>
           // The exception text is rendered as the body, so there must be exception text or Spray will 500 (!)
           sender ! WorkflowManagerQueryFailure(new IllegalArgumentException("Unrecognized query keys: BadKey"))
         case ("status", _) =>
-          sender ! WorkflowManagerQuerySuccess(WorkflowQueryResponse(
+          sender ! WorkflowManagerQuerySuccess(uri, WorkflowQueryResponse(
             Seq(
               WorkflowQueryResult(
                 id = UUID.randomUUID().toString,
                 name = "w",
                 status = "Succeeded",
                 start = new DateTime("2015-11-01T12:12:11"),
-                end = Option(new DateTime("2015-11-01T12:12:12")))
-            )))
+                end = Option(new DateTime("2015-11-01T12:12:12"))))),
+            rawParameters.collectFirst { case (p, _) if p.contains("page") => QueryMetadata(Option(1), Option(5), Option(1)) })
       }
     case CallCaching(id, parameters, callFqn) =>
       val parametersByKey = parameters.groupBy(_.key.toLowerCase.capitalize) mapValues { _ map { _.value } } mapValues { _.toSet }
@@ -852,6 +852,20 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  it should "return link headers for pagination when page and pagesize are set for a good query" in {
+    Get(s"/workflows/$version/query?status=Succeeded&page=1&pagesize=5") ~>
+      queryRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+          (headers count { header => header.is("link") }) == 4
+        }
+      }
+  }
+
   behavior of "Cromwell query post API"
 
   it should "return 400 for a bad query map body" in {
@@ -881,6 +895,20 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
         assertResult(true) {
           body.asString.contains("\"status\": \"Succeeded\",")
+        }
+      }
+  }
+
+  it should "return link headers for pagination when page and pagesize are set for a good query map body" in {
+    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"},  {"page": "1"}, {"pagesize": "5"}]""")) ~>
+      queryPostRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(true) {
+          body.asString.contains("\"status\": \"Succeeded\",")
+          (headers count { header => header.is("link") }) == 4
         }
       }
   }

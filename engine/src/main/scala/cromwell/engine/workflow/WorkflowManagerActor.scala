@@ -1,6 +1,5 @@
 package cromwell.engine.workflow
 
-import akka.Main
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -104,12 +103,13 @@ class WorkflowManagerActor(config: Config)
 
   private val donePromise = Promise[Unit]()
 
-  val isRestartable = config.getBoolean("system.workflow-restart")
-  val isServerMode = CromwellServer.isServerMode
+  val isRestartable = config.getConfig("system").getBooleanOr("workflow-restart", default = true)
+  val serverMode = CromwellServer.isServerMode
 
   override def preStart() {
     addShutdownHook()
-    if (isServerMode && isRestartable) { restartIncompleteWorkflows() }
+    if (serverMode && isRestartable) { restartIncompleteWorkflows() }
+    else { abortIncompleteWorkflows() }
   }
 
   private def addShutdownHook(): Unit = {
@@ -120,6 +120,17 @@ class WorkflowManagerActor(config: Config)
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {
         logger.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
+        self ! AbortAllWorkflows
+        Await.ready(donePromise.future, Duration.Inf)
+      }
+    }
+  }
+
+  private def abortIncompleteWorkflows(): Unit = {
+    // Abort jobs if running in server mode and incomplete workflows are not meant to be re-started
+    if (serverMode && !isRestartable) {
+      sys.addShutdownHook {
+        logger.info(s"$tag: Received signal to Abort all incomplete workflows...")
         self ! AbortAllWorkflows
         Await.ready(donePromise.future, Duration.Inf)
       }

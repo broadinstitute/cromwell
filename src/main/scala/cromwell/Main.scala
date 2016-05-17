@@ -1,4 +1,4 @@
-package cromwell.main
+package cromwell
 
 import java.io.{File => JFile}
 import java.nio.file.{Files, Path, Paths}

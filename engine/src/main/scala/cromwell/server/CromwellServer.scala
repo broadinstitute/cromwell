@@ -19,6 +19,7 @@ object CromwellServer extends WorkflowManagerSystem {
   val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(), "MaterializeWorkflowDescriptorActor-CromwellServer")
   val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, materializeWorkflowDescriptorActor, conf), "cromwell-service")
   val webserviceConf = conf.getConfig("webservice")
+  val isServerMode = true
 
   def run(): Future[Any] = {
     val interface = webserviceConf.getString("interface")

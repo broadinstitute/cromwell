@@ -1,5 +1,6 @@
 package cromwell.engine.workflow
 
+import akka.Main
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -16,6 +17,7 @@ import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
 import cromwell.{core, engine}
+import cromwell.server._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import wdl4s._
 
@@ -102,9 +104,12 @@ class WorkflowManagerActor(config: Config)
 
   private val donePromise = Promise[Unit]()
 
+  val isRestartable = config.getBoolean("system.workflow-restart")
+  val isServerMode = CromwellServer.isServerMode
+
   override def preStart() {
     addShutdownHook()
-    restartIncompleteWorkflows()
+    if (isServerMode && isRestartable) { restartIncompleteWorkflows() }
   }
 
   private def addShutdownHook(): Unit = {

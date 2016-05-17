@@ -228,7 +228,7 @@ case class OldStyleWorkflowDescriptor(id: WorkflowId,
   override def toString = s"WorkflowDescriptor(${id.id.toString})"
 
   def hash(wdlValue: WdlValue): Option[SymbolHash] = {
-    if (configCallCaching) Option(wdlValue.computeHash(fileHasher)) else None
+    if (writeToCache) Option(wdlValue.computeHash(fileHasher)) else None
   }
 }
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")

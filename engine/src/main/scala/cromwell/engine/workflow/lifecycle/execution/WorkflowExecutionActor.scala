@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor.{FSM, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, JobKey}
@@ -10,7 +10,8 @@ import cromwell.engine.ExecutionStatus.NotStarted
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, workflow}
+import cromwell.services.MetadataServiceActor._
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
 import wdl4s.util.TryUtil
@@ -100,16 +101,24 @@ object WorkflowExecutionActor {
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(WorkflowExecutionActor(workflowId, workflowDescriptor))
+  def props(workflowId: WorkflowId,
+            workflowDescriptor: EngineWorkflowDescriptor,
+            serviceRegistryActor: ActorRef): Props = Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor))
 }
 
-final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
+final case class WorkflowExecutionActor(workflowId: WorkflowId,
+                                        workflowDescriptor: EngineWorkflowDescriptor,
+                                        serviceRegistryActor: ActorRef)
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
 
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
 
   val tag = self.path.name
   private lazy val DefaultMaxRetriesFallbackValue = 10
+
+  implicit val actorSystem = context.system
+  implicit val ec = context.dispatcher
 
   // TODO: We should probably create a trait which loads all the configuration (once per application), and let classes mix it in
   // to avoid doing ConfigFactory.load() at multiple places
@@ -178,6 +187,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       handleCallSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, _), stateData) =>
       log.warning(s"Job ${jobKey.call.fullyQualifiedName} failed! Reason: ${reason.getMessage}", reason)
+      context.parent ! WorkflowExecutionFailedResponse(List(reason))
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(FailedRetryableResponse(jobKey, reason, _), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
@@ -202,17 +212,31 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
   }
 
   whenUnhandled {
+    case Event(MetadataPutFailed(action, error), _) =>
+      // Do something useful here??
+      log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
+      stay
+    case Event(MetadataPutAcknowledgement(_), _) => stay()
     case unhandledMessage =>
       log.warning(s"$tag received an unhandled message: $unhandledMessage in state: $stateName")
       stay
   }
 
   onTransition {
-    case _ -> toState if toState.terminal =>
-      log.info(s"$tag done. Shutting down.")
-      context.stop(self)
     case fromState -> toState =>
       log.info(s"$tag transitioning from $fromState to $toState.")
+  }
+
+  onTransition {
+    case _ -> WorkflowExecutionSuccessfulState =>
+      pushOutputsToMetadataService(nextStateData)
+      context.parent ! WorkflowExecutionSucceededResponse
+    case _ -> WorkflowExecutionAbortedState => context.parent ! WorkflowExecutionAbortedResponse
+  }
+
+  onTransition {
+    case _ -> toState if toState.terminal =>
+      log.info(s"$tag done. Shutting down.")
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey) = {
@@ -310,4 +334,14 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
         Success(WorkflowExecutionDiff(Map(collector -> ExecutionStatus.Starting)))
     }
   }
+
+  private def pushOutputsToMetadataService(data: WorkflowExecutionActorData): Unit = {
+    import workflow._
+    val keyValues = data.outputStore.store.flatMap {
+      case (key, value) => value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue.map(_.toWdlString).getOrElse("NA"))
+    }
+    val metadataEventMsgs = keyValues map{ case (k,v) => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$k"), MetadataValue(v))}
+    metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )
+  }
+
 }

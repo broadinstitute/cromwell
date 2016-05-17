@@ -81,11 +81,4 @@ package object engine {
     }
   }
 
-  final case class EngineWorkflowDescriptor(backendDescriptor: BackendWorkflowDescriptor,
-                                            declarations: WorkflowCoercedInputs,
-                                            backendAssignments: Map[Call, String],
-                                            failureMode: WorkflowFailureMode) {
-    def id = backendDescriptor.id
-    def namespace = backendDescriptor.workflowNamespace
-  }
 }

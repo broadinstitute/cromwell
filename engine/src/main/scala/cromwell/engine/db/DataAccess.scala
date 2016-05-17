@@ -4,9 +4,9 @@ import java.sql.Timestamp
 import java.util.Date
 
 import akka.actor.ActorSystem
-import akka.pattern.after
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
 import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
+import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase
 import cromwell.database.obj._
@@ -15,7 +15,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend.{OldStyleBackend, OldStyleBackendCallJobDescriptor, _}
-import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
+import cromwell.engine.db.DataAccess.{WorkflowExecutionAndAux, RetryBackoff}
 import cromwell.engine.db.EngineConverters._
 import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowNotFoundException
@@ -29,6 +29,7 @@ import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.concurrent.{ExecutionContext, Future}
 
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
@@ -42,21 +43,7 @@ object DataAccess {
   case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
 
   val FailureEventMaxMessageLength = 1024
-
-  // TODO: Nothing DataAccess specific in this retry method. Refactor to lenthall or similar and add a tests.
-  private def withRetry[A](f: => Future[A], delay: FiniteDuration, retries: Int)
-                          (shouldRetry: (Throwable) => Boolean)
-                          (implicit actorSystem: ActorSystem): Future[A] = {
-    // TODO: May want to pass a separate ec, or is the actor system's dispatcher ok?
-    implicit val ec = actorSystem.dispatcher
-    f recoverWith {
-      case throwable if shouldRetry(throwable) && retries > 0 =>
-        log.warn(
-          s"Transient exception detected: ${throwable.getMessage}.  Retrying in $delay ($retries retries remaining)"
-        )
-        after(delay, actorSystem.scheduler)(withRetry(f, delay, retries-1)(shouldRetry))
-    }
-  }
+  val RetryBackoff = SimpleExponentialBackoff(50 millis, 1 seconds, 1D)
 }
 
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
@@ -64,7 +51,7 @@ trait DataAccess extends AutoCloseable {
   this: SqlDatabase =>
 
   private def withRetry[A](f: => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
-    DataAccess.withRetry(f, 200.millis, 10)(isTransient)
+    Retry.withRetry(f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = isTransient)
   }
 
   /**

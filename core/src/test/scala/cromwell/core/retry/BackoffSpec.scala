@@ -1,7 +1,6 @@
-package cromwell.util
+package cromwell.core.retry
 
 import com.google.api.client.util.ExponentialBackOff.Builder
-import cromwell.backend.{InitialGapBackoff, SimpleExponentialBackoff}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._

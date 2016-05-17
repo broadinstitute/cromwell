@@ -1,7 +1,7 @@
 package cromwell.util
 
-import cromwell.backend.SimpleExponentialBackoff
 import cromwell.core.CromwellFatalException
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.logging.WorkflowLogger
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}

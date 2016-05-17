@@ -15,7 +15,8 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.impl.jes.Run.{RunStatus, TerminalRunStatus}
 import cromwell.backend.impl.jes.authentication.JesDockerCredentials
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor, ExecutionHash, PreemptedException, SimpleExponentialBackoff}
+import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutput, CromwellAggregatedException, _}
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction

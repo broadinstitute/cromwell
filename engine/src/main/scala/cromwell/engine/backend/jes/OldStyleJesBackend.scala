@@ -12,7 +12,8 @@ import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException, SimpleExponentialBackoff}
+import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException}
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine._
 import cromwell.engine.backend.EnhancedWorkflowOptions._

@@ -207,7 +207,7 @@ trait OldStyleBackend {
       else
         Future.successful(Option(dockerImage))
 
-    if (descriptor.workflowDescriptor.configCallCaching)
+    if (descriptor.workflowDescriptor.writeToCache)
       descriptor.callRuntimeAttributes.docker map hashDockerImage getOrElse Future.successful(None) map hashGivenDockerHash(descriptor)
     else
       Future.successful(ExecutionHash("", None))

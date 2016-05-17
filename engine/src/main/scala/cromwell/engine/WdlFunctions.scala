@@ -2,7 +2,7 @@ package cromwell.engine
 
 import java.nio.file.{FileSystem, FileSystems}
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions}
 import cromwell.core.WorkflowOptions
 import cromwell.engine.backend.EnhancedWorkflowOptions._
@@ -15,11 +15,12 @@ import wdl4s.values.{WdlFile, WdlValue}
 import scala.util.{Failure, Try}
 
 class WdlFunctions(workflowOptions: WorkflowOptions) extends WdlStandardLibraryFunctions with ReadLikeFunctions with PureFunctions {
+  private val config = ConfigFactory.load
   def gcsFileSystem: Option[GcsFileSystem] = {
     for {
       authModeString <- ConfigFactory.load.getStringOption("engine.filesystems.gcs.auth")
-      authMode <- GoogleConfiguration.Instance.auth(authModeString).toOption
-      fs = GcsFileSystem(GcsFileSystemProvider(authMode.buildStorage(workflowOptions.toGoogleAuthOptions)))
+      authMode <- GoogleConfiguration(config).auth(authModeString).toOption
+      fs = GcsFileSystem(GcsFileSystemProvider(authMode.buildStorage(workflowOptions.toGoogleAuthOptions, config)))
     } yield fs
   }
 

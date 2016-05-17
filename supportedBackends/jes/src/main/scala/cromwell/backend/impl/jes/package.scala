@@ -5,7 +5,7 @@ import java.nio.file.{FileSystem, Path}
 import com.typesafe.config.Config
 import cromwell.backend.async.{ExecutionHandle, NonRetryableExecution}
 import cromwell.backend.impl.jes.Run.RunStatus
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{CallContext, PathFactory, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode, GoogleConfiguration}
@@ -61,17 +61,17 @@ package object jes {
     }
   }
 
-  def buildGcsFileSystem(backendConfig: Config, workflowDescriptor: BackendWorkflowDescriptor): GcsFileSystem = {
+  def buildGcsFileSystem(configurationDescriptor: BackendConfigurationDescriptor, workflowDescriptor: BackendWorkflowDescriptor): GcsFileSystem = {
       // PBE what follows lacks any semblance of error checking
 
       // PBE check the config sanity in the actory factory, preferably in a fail-fast manner.
       val genomicsAuth: GoogleAuthMode =
-        GoogleConfiguration.Instance.auth(backendConfig.getString("genomics.auth")) getOrElse { throw new RuntimeException("borked config") }
+        GoogleConfiguration(configurationDescriptor.globalConfig).auth(configurationDescriptor.backendConfig.getString("genomics.auth")) getOrElse { throw new RuntimeException("borked config") }
 
       // PBE It might be nice to only build this filesystems once per workflow (maybe in the initialization actor) and
       // somehow make that available to the workflow's job execution actors.
       val authOptions = workflowDescriptor.workflowOptions.toGoogleAuthOptions
-      GcsFileSystemProvider(genomicsAuth.buildStorage(authOptions)).getFileSystem
+      GcsFileSystemProvider(genomicsAuth.buildStorage(authOptions, configurationDescriptor.globalConfig)).getFileSystem
   }
 
   object JesCallPaths {
@@ -113,9 +113,6 @@ package object jes {
     lazy val returnCodePath: Path = callRootPath.resolve(returnCodeFilename)
     lazy val stdoutPath: Path = callRootPath.resolve(stdoutFilename)
     lazy val stderrPath: Path = callRootPath.resolve(stderrFilename)
-
-    def buildCallContext: CallContext = {
-      new CallContext(callRootPath, stdoutFilename, stderrFilename)
-    }
+    lazy val callContext = new CallContext(callRootPath, stdoutFilename, stderrFilename)
   }
 }

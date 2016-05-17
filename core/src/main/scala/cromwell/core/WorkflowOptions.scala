@@ -42,7 +42,7 @@ import scala.util.{Failure, Success, Try}
 
 object WorkflowOptions {
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
-  private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toSeq
+  private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = "defaultRuntimeOptions"
 
@@ -132,11 +132,6 @@ case class WorkflowOptions(jsObject: JsObject) {
     case Some(jsObj: JsObject) => WorkflowOptions.getAsJson(key, jsObj)
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
     case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
-  }
-
-  def getDefaultRuntimeOptionKeys: Iterable[String] = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => jsObj.fields.keys
-    case _ => List.empty[String]
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {

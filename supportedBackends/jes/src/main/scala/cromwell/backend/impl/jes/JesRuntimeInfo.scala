@@ -24,10 +24,12 @@ trait JesRuntimeInfoBuilder {
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)
   }
+
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo
 }
 
-object NonPreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
-  def apply(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo = {
+object NonPreemptibleJesRuntimeInfoBuilder extends JesRuntimeInfoBuilder {
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo = {
     /*
      It should be impossible for docker to be None here. Enforcing that w/ ADTs seemed more trouble than
       it was worth. If you're ever debugging a NoSuchElementException which leads you here, that means
@@ -36,18 +38,18 @@ object NonPreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
     */
     val dockerImage = runtimeAttributes.dockerImage.get
     val resources = buildResources(runtimeAttributes).setPreemptible(false)
-    new NonPreemptibleJesRuntimeInfo(resources, buildDockerExecutor(commandLine, dockerImage))
+    new NonPreemptibleJesRuntimeInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
-object PreemptibleJesRuntimeInfo extends JesRuntimeInfoBuilder {
-  def apply(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo = {
+object PreemptibleJesRuntimeInfoBuilder extends JesRuntimeInfoBuilder {
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo = {
     // See comment above
     val dockerImage = runtimeAttributes.dockerImage.get
     val resources = buildResources(runtimeAttributes).setPreemptible(true)
-    new PreemptibleJesRuntimeInfo(resources, buildDockerExecutor(commandLine, dockerImage))
+    new PreemptibleJesRuntimeInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
-case class NonPreemptibleJesRuntimeInfo(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
-case class PreemptibleJesRuntimeInfo(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
+case class NonPreemptibleJesRuntimeInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
+case class PreemptibleJesRuntimeInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo

@@ -9,10 +9,11 @@ import com.google.api.client.http.HttpResponseException
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.{LocalCopy, PipelineParameter}
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException}
+import cromwell.backend.{BackendConfigurationDescriptor, ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
 import cromwell.engine._
@@ -221,7 +222,13 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
     .setMaxIntervalMillis(10.minutes.toMillis.toInt)
     .setMultiplier(1.1D)
 
-  protected lazy val jesAttributes = JesAttributes(backendConfig)
+  override lazy val globalConfig = ConfigFactory.load
+
+  lazy val configurationDescriptor = BackendConfigurationDescriptor(backendConfigEntry.config, globalConfig)
+
+  lazy val googleConfig = GoogleConfiguration(globalConfig)
+
+  protected lazy val jesAttributes = JesAttributes(googleConfig, configurationDescriptor)
 
   override def pollBackoff = pollBackoffBuilder.build()
 
@@ -234,7 +241,7 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
   private lazy val dockerConfiguration: Option[JesDockerCredentials] = DockerConfiguration.build(backendConfig).dockerCredentials map JesDockerCredentials.apply
 
   protected def genomicsInterface(options: WorkflowOptions, jesAttributes: JesAttributes): Genomics = {
-    GenomicsFactory(jesAttributes.genomicsAuth.credential(options.toGoogleAuthOptions), jesAttributes.endpointUrl)
+    GenomicsFactory(googleConfig, jesAttributes.genomicsAuth.credential(options.toGoogleAuthOptions), jesAttributes.endpointUrl)
   }
 
   private def writeAuthenticationFile(workflow: OldStyleWorkflowDescriptor): Try[Unit] = {

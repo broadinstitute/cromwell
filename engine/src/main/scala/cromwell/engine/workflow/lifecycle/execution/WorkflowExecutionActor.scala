@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionFailedResponse, BackendJobExecutionFailedRetryableResponse, BackendJobExecutionSucceededResponse, ExecuteJobCommand}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, JobKey}
 import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionIndex._
@@ -174,12 +174,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
     case Event(BackendJobPreparationFailed(jobKey, t), stateData) =>
       log.error(s"Failed to start job $jobKey", t)
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
-    case Event(BackendJobExecutionSucceededResponse(jobKey, callOutputs), stateData) =>
+    case Event(SucceededResponse(jobKey, callOutputs), stateData) =>
       handleCallSuccessful(jobKey, callOutputs, stateData)
-    case Event(BackendJobExecutionFailedResponse(jobKey, reason), stateData) =>
+    case Event(FailedNonRetryableResponse(jobKey, reason, _), stateData) =>
       log.warning(s"Job ${jobKey.call.fullyQualifiedName} failed! Reason: ${reason.getMessage}", reason)
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
-    case Event(BackendJobExecutionFailedRetryableResponse(jobKey, reason), stateData) =>
+    case Event(FailedRetryableResponse(jobKey, reason, _), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
       handleRetryableFailure(jobKey)
     case Event(JobInitializationFailed(reason), stateData) =>
@@ -261,7 +261,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId, workflowDescript
       case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
     }
 
-    TryUtil.sequence(executionDiffs.toSeq) match {
+    TryUtil.sequence(executionDiffs) match {
       case Success(diffs) if diffs.exists(_.containsNewEntry) => startRunnableScopes(data.mergeExecutionDiffs(diffs))
       case Success(diffs) => data.mergeExecutionDiffs(diffs)
       case Failure(e) =>

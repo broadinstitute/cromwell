@@ -11,9 +11,8 @@ import cromwell.filesystems.gcs.GoogleConfiguration
 
 object GenomicsFactory {
 
-  def apply(credential: Credential, endpointUrl: URL): Genomics = {
-    val gc = GoogleConfiguration.Instance
-    GoogleGenomics.from(gc.applicationName, endpointUrl, credential, credential.getJsonFactory, credential.getTransport)
+  def apply(googleConfig: GoogleConfiguration, credential: Credential, endpointUrl: URL): Genomics = {
+    GoogleGenomics.from(googleConfig.applicationName, endpointUrl, credential, credential.getJsonFactory, credential.getTransport)
   }
 
   // Wrapper object around Google's Genomics class providing a convenience 'from' "method"

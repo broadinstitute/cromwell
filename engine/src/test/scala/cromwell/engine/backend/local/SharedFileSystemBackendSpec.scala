@@ -3,6 +3,7 @@ package cromwell.engine.backend.local
 import java.nio.file.{FileSystems, Files, NoSuchFileException}
 
 import better.files._
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.IntegrationTest
 import cromwell.engine.backend.OldStyleWorkflowDescriptor
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
@@ -134,7 +135,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     val auth: GoogleAuthMode = new ApplicationDefaultMode("default")
     val storage = auth.buildStorage(new GoogleAuthOptions {
       override def get(key: String) = Failure(new UnsupportedOperationException("empty options"))
-    })
+    }, ConfigFactory.load)
     val fileSystem = GcsFileSystemProvider(storage).getFileSystem
     workflowDescriptor.fileSystems returns List(fileSystem, FileSystems.getDefault)
 
@@ -289,7 +290,7 @@ class SharedFileSystemBackendSpec extends FlatSpec with Matchers with Mockito {
     val auth: GoogleAuthMode = new ApplicationDefaultMode("default")
     val storage = auth.buildStorage(new GoogleAuthOptions {
       override def get(key: String) = Failure(new UnsupportedOperationException("empty options"))
-    })
+    }, ConfigFactory.load())
     val fileSystem = GcsFileSystemProvider(storage).getFileSystem
     val workflowDescriptor = mock[OldStyleWorkflowDescriptor]
     workflowDescriptor.fileSystems returns List(fileSystem, FileSystems.getDefault)

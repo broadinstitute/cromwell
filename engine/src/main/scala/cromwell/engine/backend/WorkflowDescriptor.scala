@@ -226,7 +226,7 @@ case class WorkflowDescriptor(id: WorkflowId,
   override def toString = s"WorkflowDescriptor(${id.id.toString})"
 
   def hash(wdlValue: WdlValue): Option[SymbolHash] = {
-    if (configCallCaching) Option(wdlValue.computeHash(fileHasher)) else None
+    if (writeToCache) Option(wdlValue.computeHash(fileHasher)) else None
   }
 }
 

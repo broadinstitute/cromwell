@@ -24,8 +24,9 @@ import cromwell.util.TerminalUtil
 import cromwell.webservice.WorkflowMetadataQueryParameters
 import org.joda.time.DateTime
 import wdl4s.{Scope, _}
+import wdl4s.values._
 import wdl4s.types.WdlArrayType
-import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
+import wdl4s.values.{SymbolHash, WdlArray, WdlCallOutputsObject, WdlValue}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -272,12 +273,21 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
    */
   private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[BackendCallKey]): Try[CallOutputs] = Try {
     val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
-      fetchCallOutputEntries(e) map { _.outputs } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
+      fetchCallOutputs(e) getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }
     collector.scope.task.outputs map { taskOutput =>
-      val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
-      val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-      taskOutput.name -> CallOutput(arrayOfValues, workflow.hash(arrayOfValues))
+      val callOutputs = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
+      val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), callOutputs map { _.wdlValue })
+      // Re-use already computed hash from the output to avoid needless work
+      val hashes = callOutputs map { _.hash  }
+      val hash = if (hashes forall { _.isDefined }) {
+        val concatenatedHashes = hashes map { _.get.value } mkString ""
+        val hash = SymbolHash((WdlArray.getClass.getCanonicalName + concatenatedHashes).md5Sum)
+        Option(hash)
+      } else if (hashes forall { _.isEmpty }) {
+        None
+      } else throw new RuntimeException(s"Shard hashing is not uniform for $collector")
+      taskOutput.name -> CallOutput(arrayOfValues, hash)
     } toMap
   }
 
@@ -920,7 +930,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
           case s: Scatter => key.index
           case _ => None
         }
-        fetchCallOutputEntries(findCallKey(matchedCall, index) getOrElse {
+        fetchCallOutputValues(findCallKey(matchedCall, index) getOrElse {
           throw new WdlExpressionException(s"Could not find a callKey for name '${matchedCall.unqualifiedName}'")
         })
       case None => Failure(new WdlExpressionException(s"Could not find a call with name '$name'"))
@@ -1037,16 +1047,25 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     symbolCache.getOrElse(cacheKey, Seq.empty) filter { _.key.index == outputKey.index }
   }
 
-  private def fetchCallOutputEntries(outputKey: OutputKey): Try[WdlCallOutputsObject] = {
-    val callOutputsAsMap = callOutputEntries(outputKey).map(entry => entry.key.name -> entry.wdlValue).toMap
+  private def fetchCallOutputValues(outputKey: OutputKey): Try[WdlCallOutputsObject] = {
+    fetchCallOutputs(outputKey) map { outputsMap =>
+      WdlCallOutputsObject(outputKey.scope.asInstanceOf[Call], outputsMap mapValues { _.wdlValue })
+    }
+  }
+
+  private def fetchCallOutputs(outputKey: OutputKey): Try[Map[String, CallOutput]] with Product with Serializable = {
+    val callOutputsAsMap = callOutputEntries(outputKey) map { entry =>
+      entry.key.name -> (entry.wdlValue map { wdlValue => CallOutput(wdlValue, entry.symbolHash) })
+    } toMap
+
     callOutputsAsMap find { case (k, v) => v.isEmpty } match {
       case Some(noneValue) => Failure(new WdlExpressionException(s"Could not evaluate call ${outputKey.scope.unqualifiedName} because some of its inputs are not defined (i.e. ${noneValue._1}"))
       // TODO: .asInstanceOf[Call]?
-      case None => Success(WdlCallOutputsObject(outputKey.scope.asInstanceOf[Call], callOutputsAsMap.map {
+      case None => Success(callOutputsAsMap.map {
         case (k, v) => k -> v.getOrElse {
           throw new WdlExpressionException(s"Could not retrieve output $k value for call ${outputKey.scope.unqualifiedName}")
         }
-      }))
+      })
     }
   }
 

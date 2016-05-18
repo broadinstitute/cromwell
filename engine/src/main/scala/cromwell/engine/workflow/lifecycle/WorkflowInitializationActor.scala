@@ -6,7 +6,7 @@ import cromwell.backend.BackendWorkflowInitializationActor
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 
@@ -63,12 +63,11 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
       val backendInitializationActors = Try {
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
-          backendConfiguration = BackendConfiguration.backendConfigurationDescriptor(backend).get
           props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls)
           ).get
           actor = context.actorOf(props)
-        } yield (actor, backend)
+        } yield actor
       }
 
       backendInitializationActors match {
@@ -79,8 +78,9 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
           sender ! WorkflowInitializationSucceededResponse
           goto(InitializationSucceededState)
         case Success(actors) =>
-          actors.keys.foreach(_ ! Initialize)
-          goto(InitializationInProgressState) using stateData.withBackendActors(actors)
+          val actorSet = actors.toSet
+          actorSet.foreach(_ ! Initialize)
+          goto(InitializationInProgressState) using stateData.withActors(actorSet)
       }
 
     case Event(InitializationAbortingState, _) =>
@@ -92,7 +92,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
     case Event(InitializationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender))
     case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
-      stateData.backendActors.keys foreach { _ ! BackendWorkflowInitializationActor.Abort }
+      stateData.actors foreach { _ ! BackendWorkflowInitializationActor.Abort }
       goto(InitializationAbortingState)
   }
 

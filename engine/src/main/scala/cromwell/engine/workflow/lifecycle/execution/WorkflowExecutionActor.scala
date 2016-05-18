@@ -13,6 +13,7 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputEntry
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
@@ -52,10 +53,26 @@ object WorkflowExecutionActor {
   /**
     * Responses
     */
-  sealed trait WorkflowExecutionActorResponse
-  case object WorkflowExecutionSucceededResponse extends WorkflowExecutionActorResponse
-  case object WorkflowExecutionAbortedResponse extends WorkflowExecutionActorResponse with EngineLifecycleActorAbortedResponse
-  final case class WorkflowExecutionFailedResponse(reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse
+  sealed trait WorkflowExecutionActorResponse {
+    def executionStore: ExecutionStore
+
+    def outputStore: OutputStore
+  }
+
+  case class WorkflowExecutionSucceededResponse(executionStore: ExecutionStore, outputStore: OutputStore)
+    extends WorkflowExecutionActorResponse {
+    override def toString = "WorkflowExecutionSucceededResponse"
+  }
+
+  case class WorkflowExecutionAbortedResponse(executionStore: ExecutionStore, outputStore: OutputStore)
+    extends WorkflowExecutionActorResponse with EngineLifecycleActorAbortedResponse {
+    override def toString = "WorkflowExecutionAbortedResponse"
+  }
+
+  final case class WorkflowExecutionFailedResponse(executionStore: ExecutionStore, outputStore: OutputStore,
+                                                   reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse {
+    override def toString = "WorkflowExecutionFailedResponse"
+  }
 
   /**
     * Internal control flow messages
@@ -184,7 +201,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       log.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
-      context.parent ! WorkflowExecutionFailedResponse(List(throwable))
+      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
       goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
@@ -192,7 +209,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
-      context.parent ! WorkflowExecutionFailedResponse(List(reason))
+      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       val mergedStateData = mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
       goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
@@ -275,8 +292,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   onTransition {
     case _ -> WorkflowExecutionSuccessfulState =>
       pushWorkflowOutputMetadata(nextStateData)
-      context.parent ! WorkflowExecutionSucceededResponse
-    case _ -> WorkflowExecutionAbortedState => context.parent ! WorkflowExecutionAbortedResponse
+      context.parent ! WorkflowExecutionSucceededResponse(nextStateData.executionStore, nextStateData.outputStore)
+    case _ -> WorkflowExecutionAbortedState =>
+      context.parent ! WorkflowExecutionAbortedResponse(nextStateData.executionStore, nextStateData.outputStore)
   }
 
   onTransition {
@@ -316,10 +334,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushWorkflowOutputMetadata(data: WorkflowExecutionActorData) = {
-    val keyValues = data.outputStore.store.filterKeys(_.index.isEmpty).flatMap {
+    val reportableOutputs = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.outputs
+    val keyValues = data.outputStore.store filterKeys {
+      _.index.isEmpty
+    } flatMap {
       case (key, value) =>
-        value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue)
-    }.collect {
+        value collect {
+          case entry if isReportableOutput(key.call, entry, reportableOutputs) =>
+            s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue
+        }
+    } collect {
       case (key, Some(wdlValue)) => (key, wdlValue)
     }
 
@@ -328,6 +352,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     }
 
     serviceRegistryActor ! PutMetadataAction(events)
+  }
+
+  private def isReportableOutput(scope: Scope, entry: OutputEntry,
+                                 reportableOutputs: Seq[ReportableSymbol]): Boolean = {
+    reportableOutputs exists { reportableOutput =>
+      reportableOutput.fullyQualifiedName == s"${scope.fullyQualifiedName}.${entry.name}"
+    }
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {

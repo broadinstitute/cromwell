@@ -7,6 +7,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
+import cromwell.engine.workflow.lifecycle.execution.{ExecutionStore, OutputStore}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -36,11 +37,16 @@ object WorkflowFinalizationActor {
   case object WorkflowFinalizationSucceededResponse extends WorkflowLifecycleSuccessResponse
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor))
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore,
+  outputStore: OutputStore): Props = {
+    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore))
+  }
 
 }
 
-case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
+case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor,
+                                     executionStore: ExecutionStore, outputStore: OutputStore)
+  extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
 
   val tag = self.path.name
   val backendAssignments = workflowDescriptor.backendAssignments
@@ -58,12 +64,26 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
       val backendFinalizationActors = Try {
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
-          props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(_.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls)).get
+          props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(
+            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls,
+              executionStore.toBackendExecutionStore, outputStore.toBackendOutputStore)).get
           actor = context.actorOf(props)
-        } yield (actor, backend)
+        } yield actor
       }
 
-      backendFinalizationActors match {
+      val engineFinalizationActors = Try {
+        val props = Seq(
+          CopyWorkflowLogsActor.props(workflowId, workflowDescriptor, executionStore, outputStore),
+          CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, executionStore, outputStore))
+        props map context.actorOf
+      }
+
+      val allActors = for {
+        backendFinalizationActorsFromTry <- backendFinalizationActors
+        engineFinalizationActorsFromTry <- engineFinalizationActors
+      } yield backendFinalizationActorsFromTry ++ engineFinalizationActorsFromTry
+
+      allActors match {
         case Failure(ex) =>
           sender ! WorkflowFinalizationFailedResponse(Seq(ex))
           goto(WorkflowFinalizationFailedState)
@@ -71,8 +91,9 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
           sender ! WorkflowFinalizationSucceededResponse
           goto(FinalizationSucceededState)
         case Success(actors) =>
-          actors.keys.foreach(_ ! Finalize)
-          goto(FinalizationInProgressState) using stateData.withBackendActors(actors)
+          val actorSet = actors.toSet
+          actorSet.foreach(_ ! Finalize)
+          goto(FinalizationInProgressState) using stateData.withActors(actorSet)
         case _ =>
           goto(WorkflowFinalizationFailedState)
       }

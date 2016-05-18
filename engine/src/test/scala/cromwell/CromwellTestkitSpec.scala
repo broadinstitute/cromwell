@@ -48,9 +48,6 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
     throw new NotImplementedError("this is not implemented")
   }
 
-  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                              calls: Seq[Call]): Option[Props] = None
-
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = {
     NoFunctions

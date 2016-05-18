@@ -9,11 +9,10 @@ import org.scalatest.prop.Tables.Table
 
 import scala.language.postfixOps
 
-
 class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
   "CopyWorkflowOutputsCall" should {
-    "copy workflow outputs" ignore {
+    "copy workflow outputs" in {
       val workflowOutputsPath = "copy-workflow-outputs"
 
       val tmpDir = Files.createTempDirectory(workflowOutputsPath).toAbsolutePath
@@ -28,7 +27,8 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
       val workflowId = runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WorkflowOutputsWithFiles,
-        eventFilter = EventFilter.info(pattern = "transitioning from Running to Succeeded.", occurrences = 1),
+        eventFilter = EventFilter.info(
+          pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = "",
         workflowOptions = s""" { "outputs_path": "$tmpDir" } """,
         expectedOutputs = Seq("A.out", "A.out2", "B.outs") map { o => ("wfoutputs." + o) -> CromwellTestkitSpec.AnyValueIsFine } toMap,
@@ -37,13 +37,13 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
       forAll(outputs) { (call, file) =>
         val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, file))
-        Files.exists(path) shouldBe true
+        path.toFile should exist
       }
       val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, "call-C", "out"))
-      Files.exists(path) shouldBe false
+      path.toFile shouldNot exist
     }
 
-    "copy scattered workflow outputs" ignore {
+    "copy scattered workflow outputs" in {
       val workflowOutputsPath = "copy-workflow-outputs"
 
       val tmpDir = Files.createTempDirectory(workflowOutputsPath).toAbsolutePath
@@ -60,7 +60,8 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
       val workflowId = runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WorkflowScatterOutputsWithFileArrays,
-        eventFilter = EventFilter.info(pattern = "transitioning from Running to Succeeded.", occurrences = 1),
+        eventFilter = EventFilter.info(
+          pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = "",
         workflowOptions = s""" { "outputs_path": "$tmpDir" } """,
         expectedOutputs = Map("wfoutputs.A.outs" -> CromwellTestkitSpec.AnyValueIsFine),

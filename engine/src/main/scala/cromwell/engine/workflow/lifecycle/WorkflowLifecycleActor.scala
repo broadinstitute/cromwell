@@ -12,28 +12,28 @@ object WorkflowLifecycleActor {
   trait WorkflowLifecycleFailureResponse extends EngineLifecycleStateCompleteResponse
 
   object WorkflowLifecycleActorData {
-    def empty = WorkflowLifecycleActorData(Map.empty, List.empty, Map.empty, List.empty)
+    def empty = WorkflowLifecycleActorData(Set.empty, List.empty, Map.empty, List.empty)
   }
 
   /**
     * State data
     */
-  case class WorkflowLifecycleActorData (backendActors: Map[ActorRef, String],
-                                         successes: Seq[ActorRef],
-                                         failures: Map[ActorRef, Throwable],
-                                         aborted: Seq[ActorRef]) {
+  case class WorkflowLifecycleActorData(actors: Set[ActorRef],
+                                        successes: Seq[ActorRef],
+                                        failures: Map[ActorRef, Throwable],
+                                        aborted: Seq[ActorRef]) {
 
-    def withBackendActors(backendActors: Map[ActorRef, String]) = this.copy(
-      backendActors = this.backendActors ++ backendActors
+    def withActors(actors: Set[ActorRef]) = this.copy(
+      actors = this.actors ++ actors
     )
     def withSuccess(successfulActor: ActorRef) = this.copy(
-      backendActors = this.backendActors - successfulActor,
+      actors = this.actors - successfulActor,
       successes = successes :+ successfulActor)
     def withFailure(failedActor: ActorRef, reason: Throwable) = this.copy(
-      backendActors = this.backendActors - failedActor,
+      actors = this.actors - failedActor,
       failures = failures + (failedActor -> reason))
     def withAborted(abortedActor: ActorRef) = this.copy(
-      backendActors = this.backendActors - abortedActor,
+      actors = this.actors - abortedActor,
       aborted = aborted :+ abortedActor
     )
   }
@@ -94,5 +94,5 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
     }
   }
 
-  protected final def checkForDone(stateData: WorkflowLifecycleActorData) = stateData.backendActors.isEmpty
+  protected final def checkForDone(stateData: WorkflowLifecycleActorData) = stateData.actors.isEmpty
 }

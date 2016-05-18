@@ -10,9 +10,9 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.engine.workflow.lifecycle.execution.{ExecutionStore, OutputStore}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
-
 
 class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {
   override implicit val actorSystem = system
@@ -67,7 +67,8 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
 
       within(CromwellTestkitSpec.timeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1).intercept {
-          actor ! WorkflowExecutionFailedResponse(Seq(new Exception("Execution Failed")))
+          actor ! WorkflowExecutionFailedResponse(ExecutionStore.empty, OutputStore.empty,
+            Seq(new Exception("Execution Failed")))
         }
       }
 
@@ -81,7 +82,8 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowAbortedState", occurrences = 1).intercept {
           actor ! AbortWorkflowCommand
           currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.timeoutDuration) {
-            case EngineLifecycleActorAbortCommand => actor ! WorkflowExecutionAbortedResponse
+            case EngineLifecycleActorAbortCommand =>
+              actor ! WorkflowExecutionAbortedResponse(ExecutionStore.empty, OutputStore.empty)
           }
         }
       }
@@ -94,7 +96,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
 
       within(CromwellTestkitSpec.timeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1).intercept {
-          actor ! WorkflowExecutionSucceededResponse
+          actor ! WorkflowExecutionSucceededResponse(ExecutionStore.empty, OutputStore.empty)
         }
       }
 

@@ -13,9 +13,6 @@ class RetryableBackendLifecycleActorFactory(configurationDescriptor: BackendConf
     RetryableBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 
-  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                              calls: Seq[Call]): Option[Props] = None
-
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = NoFunctions
 }

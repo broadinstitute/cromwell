@@ -1,8 +1,11 @@
 package cromwell.backend.impl.jes
 
+import java.nio.file.Path
+
 import akka.actor.Props
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
+import com.typesafe.config.Config
 import cromwell.backend.impl.jes.io._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendExecutionStore, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendOutputStore, BackendWorkflowDescriptor}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
@@ -20,8 +23,10 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                              calls: Seq[Call]): Option[Props] = {
-    Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration))
+                                              calls: Seq[Call],
+                                              executionStore: BackendExecutionStore,
+                                              outputStore: BackendOutputStore) = {
+    Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore))
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
@@ -31,5 +36,8 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
     val jesCallPaths = JesCallPaths(jobKey, workflowDescriptor, jesConfiguration)
     new JesExpressionFunctions(List(fileSystem), jesCallPaths.callContext)
   }
-}
 
+  override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config): Path = {
+    JesWorkflowPaths(workflowDescriptor, jesConfiguration).rootPath
+  }
+}

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import cromwell.backend.{BackendJobDescriptorKey, JobKey}
+import cromwell.backend.{BackendExecutionStatus, BackendExecutionStore, BackendJobDescriptorKey, JobKey}
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.ExecutionStoreEntry
@@ -72,5 +72,13 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       case _ =>
         store filter { case (k, _) => k.scope == prerequisiteScope && k.index.isEmpty } toSeq
     }
+  }
+
+  def toBackendExecutionStore: BackendExecutionStore = {
+    BackendExecutionStore(
+      store map {
+        case (key, status) => key -> BackendExecutionStatus.withName(status.toString)
+      }
+    )
   }
 }

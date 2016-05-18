@@ -1,14 +1,14 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.{BackendJobDescriptorKey, BackendOutputEntry, BackendOutputKey, BackendOutputStore}
 import cromwell.core._
 import cromwell.engine.ExecutionIndex._
-import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputEntry, OutputCallKey}
+import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
 import cromwell.util.TryUtil
-import wdl4s.{Call, Scope}
 import wdl4s.types.{WdlArrayType, WdlType}
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
+import wdl4s.{Call, Scope}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -54,5 +54,16 @@ case class OutputStore(store: Map[OutputCallKey, Traversable[OutputEntry]]) {
       val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
       taskOutput.name -> JobOutput(arrayOfValues, None)
     } toMap
+  }
+
+  def toBackendOutputStore: BackendOutputStore = {
+    BackendOutputStore(
+      store map {
+        case (key, entries) =>
+          BackendOutputKey(key.call, key.index) -> entries.map(entry =>
+            BackendOutputEntry(entry.name, entry.wdlType, entry.wdlValue)
+          )
+      }
+    )
   }
 }

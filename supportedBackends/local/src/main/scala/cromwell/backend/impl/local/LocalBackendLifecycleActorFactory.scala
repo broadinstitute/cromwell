@@ -17,9 +17,6 @@ case class LocalBackendLifecycleActorFactory(configurationDescriptor: BackendCon
     LocalJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 
-  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                              calls: Seq[Call]): Option[Props] = None
-
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
@@ -32,4 +29,3 @@ case class LocalBackendLifecycleActorFactory(configurationDescriptor: BackendCon
       new SharedFsExpressionFunctions(LocalJobExecutionActor.fileSystems, callContext)
   }
 }
-

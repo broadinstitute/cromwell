@@ -15,7 +15,6 @@ object BackendLifecycleActor {
    * Commands
    */
   trait BackendWorkflowLifecycleActorCommand extends BackendWorkflowLifecycleActorMessage
-  case object AbortWorkflowCommand extends BackendWorkflowLifecycleActorCommand
   case object AbortJobCommand extends BackendWorkflowLifecycleActorCommand
 
   /*

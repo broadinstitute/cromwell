@@ -13,7 +13,7 @@ import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{Ma
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle._
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
+import cromwell.engine.workflow.lifecycle.execution.{ExecutionStore, OutputStore, WorkflowExecutionActor}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
@@ -186,14 +186,16 @@ class WorkflowActor(workflowId: WorkflowId,
       executionActor ! commandToSend
       goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor))
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
-      finalizeWorkflow(data, workflowDescriptor, failures = Option(reason.toList))
+      finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, Option(reason.toList))
   }
 
   when(ExecutingWorkflowState) {
-    case Event(WorkflowExecutionSucceededResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
-      finalizeWorkflow(data, workflowDescriptor, failures = None)
-    case Event(WorkflowExecutionFailedResponse(failures), data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
-      finalizeWorkflow(data, workflowDescriptor, failures = Option(failures.toList))
+    case Event(WorkflowExecutionSucceededResponse(executionStore, outputStore),
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, None)
+    case Event(WorkflowExecutionFailedResponse(executionStore, outputStore, failures),
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, Option(failures.toList))
   }
 
   when(FinalizingWorkflowState) {
@@ -207,7 +209,9 @@ class WorkflowActor(workflowId: WorkflowId,
 
   when(WorkflowAbortingState) {
     case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
-      finalizeWorkflow(data, workflowDescriptor, failures = None)
+      // TODO: PBE: some of the x-es have an actually execution & output stores.
+      // But do we want the finalization to operate on that data during state aborting?
+      finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, failures = None)
     case _ => stay()
   }
 
@@ -278,8 +282,11 @@ class WorkflowActor(workflowId: WorkflowId,
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.
     */
-  private def finalizeWorkflow(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor, failures: Option[List[Throwable]]) = {
-    val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor), name = s"WorkflowFinalizationActor-$workflowId")
+  private def finalizeWorkflow(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor,
+                               executionStore: ExecutionStore, outputStore: OutputStore,
+                               failures: Option[List[Throwable]]) = {
+    val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor,
+      executionStore, outputStore), name = s"WorkflowFinalizationActor-$workflowId")
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
   }

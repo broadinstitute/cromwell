@@ -4,6 +4,9 @@ import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.WorkflowMetadataKeys
+import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataQuery, GetAllMetadataAction}
+import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.WorkflowJsonSupport._
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
@@ -25,7 +28,7 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 
 object CromwellApiServiceActor {
   def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
-    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config)
+    Props(new CromwellApiServiceActor(workflowManagerActorRef, config))
   }
 }
 
@@ -39,7 +42,7 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
   def receive = runRoute(possibleRoutes)
 }
 
-trait CromwellApiService extends HttpService with PerRequestCreator {
+trait CromwellApiService extends HttpService with PerRequestCreator with ServiceRegistryClient {
   val workflowManager: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
@@ -55,7 +58,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       get {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStatus(w))
+            version match {
+              case "v2" =>
+                val command = GetMetadataQueryAction(MetadataQuery(Option(w), None, Option(WorkflowMetadataKeys.Status)))
+                requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), command)
+              case _ =>
+                requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStatus(w))
+            }
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -166,8 +175,14 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       parameters('outputs ? true, 'timings ? true).as(WorkflowMetadataQueryParameters) { parameters =>
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager),
-              CromwellApiHandler.ApiHandlerWorkflowMetadata(w, parameters))
+            version match {
+              case "v2" =>
+                requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor),
+                  GetAllMetadataAction(w))
+              case _ =>
+                requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager),
+                  CromwellApiHandler.ApiHandlerWorkflowMetadata(w, parameters))
+            }
           case Failure(_) => invalidWorkflowId(workflowId)
         }
       }

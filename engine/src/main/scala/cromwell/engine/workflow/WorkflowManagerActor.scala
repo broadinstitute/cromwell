@@ -11,7 +11,7 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, _}
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.ServiceRegistryActor
+import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import org.joda.time.DateTime
@@ -70,7 +70,7 @@ object WorkflowManagerActor {
 }
 
 class WorkflowManagerActor(config: Config)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor with ServiceRegistryClient {
 
   def this() = this(ConfigFactory.load)
   implicit val actorSystem = context.system
@@ -80,8 +80,6 @@ class WorkflowManagerActor(config: Config)
   private val tag = self.path.name
 
   private val donePromise = Promise[Unit]()
-
-  val serviceRegistryActor = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistoryActor")
 
   override def preStart() {
     addShutdownHook()

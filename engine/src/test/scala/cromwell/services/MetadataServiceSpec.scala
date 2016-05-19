@@ -9,7 +9,7 @@ import cromwell.services.MetadataServiceActor._
 class MetadataServiceSpec extends CromwellServicesSpec with KnowsWhatTimeItIs {
 
   val config = ConfigFactory.load("{}")
-  val actor = actorSystem.actorOf(MetadataServiceActor.props(config, config))
+  val actor = actorSystem.actorOf(MetadataServiceActor.props(dataAccess, config, config))
 
   val workflowId = WorkflowId.randomId()
 

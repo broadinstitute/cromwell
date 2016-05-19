@@ -3,23 +3,25 @@ package cromwell
 import java.nio.file.{Files, Paths}
 
 import akka.testkit._
+import cromwell.util.SampleWdl
 import wdl4s.NamespaceWithWorkflow
 import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
-import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
-  val ns = NamespaceWithWorkflow.load(SampleWdl.MapLiteral(Paths.get(".")).wdlSource(""))
+  private val sampleWdl = SampleWdl.MapLiteral(Paths.get("."))
+  val ns = NamespaceWithWorkflow.load(sampleWdl.wdlSource(""))
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
     WdlFile("f2") -> WdlString("bob"),
     WdlFile("f3") -> WdlString("chuck")
   ))
+  sampleWdl.cleanup()
 
   "A task which contains a parameter " should {
     "accept an array for the value" ignore {

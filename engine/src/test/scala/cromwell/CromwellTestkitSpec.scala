@@ -60,6 +60,12 @@ object CromwellTestkitSpec {
       |       receive = on
       |    }
       |  }
+      |  dispatchers {
+      |    slow-actor-dispatcher {
+      |      type = Dispatcher
+      |      executor = "fork-join-executor"
+      |    }
+      |  }
       |  test {
       |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
       |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts

@@ -190,10 +190,10 @@ class WorkflowManagerActor(config: Config)
   private def pushToMetadataService(workflowId: WorkflowId): Unit = {
     val curTime = DateTime.now.toString
     val metadataEventMsgs = List(
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId.toString), now),
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(curTime), now),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId.toString), currentTime),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(curTime), currentTime),
       // Currently, submission time is the same as start time
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime), now)
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime), currentTime)
     )
     metadataEventMsgs foreach (serviceRegistryActor ! PutMetadataAction(_))
   }

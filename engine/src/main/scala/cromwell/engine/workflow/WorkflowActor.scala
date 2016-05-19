@@ -239,7 +239,7 @@ class WorkflowActor(workflowId: WorkflowId,
     case oldState -> terminalState if terminalState.terminal =>
       log.info(s"$tag transition from $oldState to $terminalState: shutting down")
       // Add the end time of the workflow in the MetadataService
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(DateTime.now.toString), now)
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(DateTime.now.toString), currentTime)
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>
@@ -254,15 +254,15 @@ class WorkflowActor(workflowId: WorkflowId,
 
   private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
     val inputMetadataEvents = workflowDescriptor.backendDescriptor.inputs.map { case (k, v) =>
-      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$k"), MetadataValue(v.toWdlString), now)
+      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$k"), MetadataValue(v.toWdlString), currentTime)
     }
-    val metadataEventMsgs = List(MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), now)) ++ inputMetadataEvents
+    val metadataEventMsgs = List(MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), currentTime)) ++ inputMetadataEvents
     metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service
   private def pushCurrentStateToMetadataService(workflowState: WorkflowState): Unit = {
-    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(workflowState.toString), now)
+    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(workflowState.toString), currentTime)
     serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
 

@@ -341,7 +341,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     val keyValues = data.outputStore.store.flatMap {
       case (key, value) => value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue.map(_.toWdlString).getOrElse("NA"))
     }
-    val metadataEventMsgs = keyValues map{ case (k,v) => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$k"), MetadataValue(v), now)}
+    val metadataEventMsgs = keyValues map{ case (k,v) => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$k"), MetadataValue(v), currentTime)}
     metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )
   }
 

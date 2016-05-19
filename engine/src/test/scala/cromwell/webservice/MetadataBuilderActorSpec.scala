@@ -17,17 +17,13 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
-  with FlatSpecLike with Matchers with TableDrivenPropertyChecks with ImplicitSender with BeforeAndAfterAll {
+  with FlatSpecLike with Matchers with TableDrivenPropertyChecks with ImplicitSender with BeforeAndAfterAll with KnowsWhatTimeItIs {
 
   behavior of "MetadataParser"
 
   val defaultTimeout = 100 millis
   val mockServiceRegistry = TestProbe()
   val parentProbe = TestProbe()
-
-  // TestKit has its own `now` that prevents extending KnowsWhatTimeItIs on this class directly.
-  val knowsWhatTimeItIs = new Object with KnowsWhatTimeItIs
-  def maintenant = knowsWhatTimeItIs.now
 
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
@@ -47,7 +43,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build workflow scope tree from metadata events" in {
     def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
-      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"), maintenant)
+      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"), currentTime)
     }
 
     val workflowA = WorkflowId.randomId()
@@ -133,9 +129,9 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build JSON object structure from dotted key syntax" in {
     val eventBuilderList = List(
-      ("a:b:c", "abc", maintenant),
-      ("b:a", "ba", maintenant),
-      ("c", "c", maintenant)
+      ("a:b:c", "abc", currentTime),
+      ("b:a", "ba", currentTime),
+      ("c", "c", currentTime)
     )
 
     val expectedRes =
@@ -155,12 +151,12 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build lexigraphically sorted JSON list structure from dotted key syntax" in {
     val eventBuilderList = List(
-      ("l1[2]", "l12", maintenant),
-      ("l1[k]", "l1k", maintenant),
-      ("l1[3]", "l13", maintenant),
-      ("l1[i]", "l1i", maintenant),
-      ("l1[10]", "l110", maintenant),
-      ("l1[j]", "l1j", maintenant)
+      ("l1[2]", "l12", currentTime),
+      ("l1[k]", "l1k", currentTime),
+      ("l1[3]", "l13", currentTime),
+      ("l1[i]", "l1i", currentTime),
+      ("l1[10]", "l110", currentTime),
+      ("l1[j]", "l1j", currentTime)
     )
 
     val expectedRes =
@@ -173,12 +169,12 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "override elements with same index in a list if they can't be merged together" in {
     val eventBuilderList = List(
-      ("l1[1]", "a", maintenant),
-      ("l1[2]", "a", maintenant),
-      ("l1[3]", "a", maintenant),
-      ("l1[2]", "b", maintenant),
-      ("l1[3]", "b", maintenant),
-      ("l1[3]", "c", maintenant)
+      ("l1[1]", "a", currentTime),
+      ("l1[2]", "a", currentTime),
+      ("l1[3]", "a", currentTime),
+      ("l1[2]", "b", currentTime),
+      ("l1[3]", "b", currentTime),
+      ("l1[3]", "c", currentTime)
     )
 
     val expectedRes =
@@ -191,17 +187,17 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "nest lists and objects together and respect ordering" in {
     val eventBuilderList = List(
-      ("l1[0]:l11[0]:l111[2]", "l10l110l1112", maintenant),
-      ("l1[0]:l11[1]:l112[1]", "l10l110l1121", maintenant),
-      ("l1[0]:l11[1]:l112[0]", "l10l110l1120", maintenant),
-      ("l1[1]:a:l12[2]:b", "l11al122b", maintenant),
-      ("l1[0]:l11[0]:l111[0]", "l10l110l1110", maintenant),
-      ("l1[0]:l11[0]:l111[1]", "l10l110l1111", maintenant),
-      ("l1[0]:l11[2]:l121[0]:a:b", "l10l111l1210ab", maintenant),
-      ("l1[1]:a:l12[0]:b", "l11al120b", maintenant),
-      ("l1[0]:l11[1]:l112[2]", "l10l110l1122", maintenant),
-      ("l1[1]:a:l12[1]", "l11al121", maintenant),
-      ("l1[0]:l11[2]:l121[0]:a:c", "l10l111l1210ac", maintenant)
+      ("l1[0]:l11[0]:l111[2]", "l10l110l1112", currentTime),
+      ("l1[0]:l11[1]:l112[1]", "l10l110l1121", currentTime),
+      ("l1[0]:l11[1]:l112[0]", "l10l110l1120", currentTime),
+      ("l1[1]:a:l12[2]:b", "l11al122b", currentTime),
+      ("l1[0]:l11[0]:l111[0]", "l10l110l1110", currentTime),
+      ("l1[0]:l11[0]:l111[1]", "l10l110l1111", currentTime),
+      ("l1[0]:l11[2]:l121[0]:a:b", "l10l111l1210ab", currentTime),
+      ("l1[1]:a:l12[0]:b", "l11al120b", currentTime),
+      ("l1[0]:l11[1]:l112[2]", "l10l110l1122", currentTime),
+      ("l1[1]:a:l12[1]", "l11al121", currentTime),
+      ("l1[0]:l11[2]:l121[0]:a:c", "l10l111l1210ac", currentTime)
     )
 
     val expectedRes =
@@ -231,10 +227,10 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   }
 
   it should "override json values if they can't be merged" in {
-    val kv = ("key", "value", maintenant)
-    val ksv2 = ("key:subkey", "value2", maintenant)
-    val kisv3 = ("key[index]:subkey", "value3", maintenant)
-    val kiv4 = ("key[index]", "value4", maintenant)
+    val kv = ("key", "value", currentTime)
+    val ksv2 = ("key:subkey", "value2", currentTime)
+    val kisv3 = ("key[index]:subkey", "value3", currentTime)
+    val kiv4 = ("key[index]", "value4", currentTime)
 
     val t = Table(
       ("list", "res"),

@@ -23,7 +23,7 @@ class MetadataServiceSpec extends CromwellServicesSpec with KnowsWhatTimeItIs {
   val key2 = MetadataKey(workflowId, None, "key2")
   val supJob = MetadataJobKey("sup.sup", None, 1)
   val key3 = MetadataKey(workflowId, Option(supJob), "dog")
-  val moment = now
+  val moment = currentTime
 
   val event1_1 = MetadataEvent(key1, MetadataValue("value1"), moment)
   val event1_2 = MetadataEvent(key1, MetadataValue("value2"), moment)

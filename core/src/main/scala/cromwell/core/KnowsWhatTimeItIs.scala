@@ -5,5 +5,5 @@ import java.util.Date
 
 
 trait KnowsWhatTimeItIs {
-  def now = new Timestamp(new Date().getTime)
+  def currentTime = new Timestamp(new Date().getTime)
 }

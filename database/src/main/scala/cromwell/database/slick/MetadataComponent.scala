@@ -22,6 +22,14 @@ trait MetadataComponent {
 
     override def * = (workflowExecutionUuid, key, callFqn, index, attempt, value, timestamp, metadataId.?) <>
       (Metadatum.tupled, Metadatum.unapply)
+
+    def workflowIndex = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
+
+    def workflowAndKeyIndex = index("METADATA_WORKFLOW_AND_KEY_IDX", (workflowExecutionUuid, key), unique = false)
+
+    def jobIndex = index("METADATA_JOB_IDX", (workflowExecutionUuid, callFqn, index, attempt), unique = false)
+
+    def jobAndKeyIndex = index("METADATA_JOB_AND_KEY_IDX", (workflowExecutionUuid, key, callFqn, index, attempt), unique = false)
   }
 
   protected val metadata = TableQuery[Metadata]

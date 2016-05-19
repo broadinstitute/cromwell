@@ -43,6 +43,14 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="metadata_workflow_and_key_index" author="mcovarr">
+        <createIndex indexName="METADATA_WORKFLOW_AND_KEY_IDX"
+                     tableName="METADATA_JOURNAL" unique="false">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+    </changeSet>
+
     <changeSet id="metadata_job_index" author="mcovarr">
         <createIndex indexName="METADATA_JOB_IDX"
                      tableName="METADATA_JOURNAL" unique="false">
@@ -54,7 +62,7 @@
     </changeSet>
 
     <changeSet id="metadata_key_index" author="mcovarr">
-        <createIndex indexName="METADATA_KEY_IDX"
+        <createIndex indexName="METADATA_JOB_AND_KEY_IDX"
                      tableName="METADATA_JOURNAL" unique="false">
             <column name="WORKFLOW_EXECUTION_UUID"/>
             <column name="METADATA_KEY"/>

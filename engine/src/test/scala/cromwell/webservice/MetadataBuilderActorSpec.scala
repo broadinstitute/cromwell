@@ -263,5 +263,4 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   override def afterAll() = {
     system.shutdown()
   }
-
 }

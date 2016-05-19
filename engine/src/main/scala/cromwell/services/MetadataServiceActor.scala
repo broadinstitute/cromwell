@@ -37,12 +37,14 @@ object MetadataServiceActor {
   case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
   case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceResponse
 
-  def props(dataAccess: DataAccess, serviceConfig: Config, globalConfig: Config) = {
-    Props(MetadataServiceActor(dataAccess, serviceConfig, globalConfig))
+  def props(serviceConfig: Config, globalConfig: Config) = {
+    Props(MetadataServiceActor(serviceConfig, globalConfig))
   }
 }
 
-case class MetadataServiceActor(dataAccess: DataAccess, serviceConfig: Config, globalConfig: Config) extends Actor {
+case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor {
+
+  val dataAccess = DataAccess.globalDataAccess
 
   private def queryAndRespond(query: MetadataQuery) = {
     val sndr = sender()

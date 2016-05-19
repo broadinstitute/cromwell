@@ -25,8 +25,6 @@ trait MetadataComponent {
 
     def workflowIndex = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
 
-    def workflowAndKeyIndex = index("METADATA_WORKFLOW_AND_KEY_IDX", (workflowExecutionUuid, key), unique = false)
-
     def jobIndex = index("METADATA_JOB_IDX", (workflowExecutionUuid, callFqn, index, attempt), unique = false)
 
     def jobAndKeyIndex = index("METADATA_JOB_AND_KEY_IDX", (workflowExecutionUuid, key, callFqn, index, attempt), unique = false)
@@ -45,6 +43,9 @@ trait MetadataComponent {
       metadatum <- metadata
       if metadatum.workflowExecutionUuid === workflowExecutionUuid
       if metadatum.key === key
+      if metadatum.callFqn.isEmpty
+      if metadatum.index.isEmpty
+      if metadatum.attempt.isEmpty
     } yield metadatum)
 
   val metadataByWorkflowUuidAndCallFqnAndIndexAndAttempt = Compiled(

@@ -2,6 +2,7 @@ package cromwell.backend.impl.htcondor
 
 import akka.actor.Props
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
+import cromwell.backend.validation.ContinueOnReturnCode
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import wdl4s.Call

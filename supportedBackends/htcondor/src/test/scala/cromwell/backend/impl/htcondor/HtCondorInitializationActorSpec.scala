@@ -13,7 +13,7 @@ import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
 
 import scala.concurrent.duration._
 
-class HtCondorInitializationActorSpec extends TestKit(ActorSystem("HtCondorInitializationActorSpec", ConfigFactory.parseString(
+class HtCondorInitializationActorSpec extends TestKit(ActorSystem("CondorInitializationActorSpec", ConfigFactory.parseString(
   """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
   val Timeout = 5.second.dilated
 
@@ -55,7 +55,7 @@ class HtCondorInitializationActorSpec extends TestKit(ActorSystem("HtCondorIniti
   }
 
   private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf))
+    system.actorOf(CondorInitializationActor.props(workflowDescriptor, calls, conf))
   }
 
   "HtCondorInitializationActor" should {

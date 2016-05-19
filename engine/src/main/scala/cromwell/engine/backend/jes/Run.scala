@@ -78,7 +78,6 @@ object Run  {
     }
 
     // If runIdForResumption is defined use that, otherwise we'll create a new Run with an ephemeral pipeline.
-    // The Run code takes care of polling.
     val runId = runIdForResumption getOrElse runPipeline
     new Run(runId, workflow.id, key, genomicsInterface, logger)
   }

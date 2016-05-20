@@ -1,12 +1,15 @@
 package cromwell.webservice
 
-import akka.actor.{Props, ActorRef, LoggingFSM}
+import java.sql.Timestamp
+
+import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.workflow.WorkflowMetadataKeys
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
-import cromwell.webservice.MetadataBuilderActor.{Idle, MetadataBuilderActorState, WaitingForMetadata}
+import cromwell.services._
+import cromwell.webservice.MetadataBuilderActor.{Idle, IndexedJsonObject, MetadataBuilderActorState, WaitingForMetadata}
 import cromwell.webservice.PerRequest.RequestComplete
 import org.joda.time.DateTime
 import spray.http.StatusCodes
@@ -121,6 +124,8 @@ object MetadataBuilderActor {
 
   implicit def dateTimeOrdering: Ordering[DateTime] = scala.Ordering.fromLessThan(_ isBefore _)
 
+  implicit val timestampOrdering: Ordering[Timestamp] = scala.Ordering.fromLessThan(_.compareTo(_) < 0)
+
   /** Sort events by timestamp, transform them into IndexedJsonValues, and merge them together. */
   private def eventsToIndexedJson(events: Seq[MetadataEvent]): IndexedJsonValue = {
     events match {
@@ -140,7 +145,7 @@ object MetadataBuilderActor {
     MetadataForIndex(index.getOrElse(-1), metadata)
   }
 
-  private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = {
+  private def parseWorkflowEventsToIndexedJsonValue(events: Seq[MetadataEvent]): IndexedJsonValue = {
     // Partition if sequence of events in a pair of (Workflow level events, Call level events)
     val (workflowLevel, callLevel) = events partition { _.key.jobKey.isEmpty }
     val foldedWorkflowValues = eventsToIndexedJson(workflowLevel)
@@ -158,8 +163,10 @@ object MetadataBuilderActor {
     val callsObject = IndexedJsonObject(callsMap)
     val wrappedCalls = IndexedJsonObject(Map(WorkflowMetadataKeys.Calls -> callsObject))
 
-    (foldedWorkflowValues |+| wrappedCalls).toJson.asJsObject
+    foldedWorkflowValues |+| wrappedCalls
   }
+
+  private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToIndexedJsonValue(events).toJson.asJsObject
 
   private def foldAndAddWorkflowId(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]): JsObject = {
     val result = eventsToIndexedJson(eventsList) |+| IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedJsonString(workflowId.toString)))
@@ -176,6 +183,7 @@ object MetadataBuilderActor {
 }
 
 class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Unit] with DefaultJsonProtocol {
+  // Don't believe IntelliJ, this is used.
   import WorkflowJsonSupport._
 
   startWith(Idle, Unit)
@@ -203,8 +211,8 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
     else {
       query match {
-        case MetadataQuery(Some(_), None, None) => MetadataBuilderActor.parseWorkflowEvents(eventsList)
-        case MetadataQuery(Some(w), None, Some(WorkflowMetadataKeys.Status)) => MetadataBuilderActor.foldAndAddWorkflowId(w, eventsList)
+        case MetadataQuery(w, None, None) => IndexedJsonObject(Map(w.id.toString -> MetadataBuilderActor.parseWorkflowEventsToIndexedJsonValue(eventsList))).toJson.asJsObject
+        case MetadataQuery(w, None, Some(WorkflowMetadataKeys.Status)) => MetadataBuilderActor.foldAndAddWorkflowId(w, eventsList)
         case _ => MetadataBuilderActor.parse(eventsList)
       }
     }

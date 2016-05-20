@@ -11,6 +11,7 @@ import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, workflow}
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.MetadataServiceActor._
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
@@ -109,7 +110,7 @@ object WorkflowExecutionActor {
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         workflowDescriptor: EngineWorkflowDescriptor,
                                         serviceRegistryActor: ActorRef)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with KnowsWhatTimeItIs {
 
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
@@ -340,7 +341,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     val keyValues = data.outputStore.store.flatMap {
       case (key, value) => value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue.map(_.toWdlString).getOrElse("NA"))
     }
-    val metadataEventMsgs = keyValues map{ case (k,v) => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$k"), MetadataValue(v))}
+    val metadataEventMsgs = keyValues map{ case (k,v) => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$k"), MetadataValue(v), currentTime)}
     metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )
   }
 

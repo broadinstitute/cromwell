@@ -32,4 +32,5 @@
     <include file="changesets/execution_backend_info.xml" relativeToChangelogFile="true" />
     <include file="changesets/runtime_attributes_table.xml" relativeToChangelogFile="true" />
     <include file="changesets/failure_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/metadata_journal.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

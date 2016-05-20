@@ -5,8 +5,8 @@ import java.util.Date
 
 import akka.actor.ActorSystem
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
-import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
+import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase
 import cromwell.database.obj._
@@ -15,11 +15,12 @@ import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend.{OldStyleBackend, OldStyleBackendCallJobDescriptor, _}
-import cromwell.engine.db.DataAccess.{WorkflowExecutionAndAux, RetryBackoff}
+import cromwell.engine.db.DataAccess.{RetryBackoff, WorkflowExecutionAndAux}
 import cromwell.engine.db.EngineConverters._
 import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, _}
+import cromwell.services._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
 import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
@@ -29,24 +30,20 @@ import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object DataAccess {
   lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
 
-  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   val globalDataAccess: DataAccess = new SlickDatabase() with DataAccess
 
-  @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
   case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
 
   val FailureEventMaxMessageLength = 1024
   val RetryBackoff = SimpleExponentialBackoff(50 millis, 1 seconds, 1D)
 }
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 trait DataAccess extends AutoCloseable {
   this: SqlDatabase =>
 
@@ -367,6 +364,39 @@ trait DataAccess extends AutoCloseable {
         new Timestamp(failure.timestamp.getMillis))
     }
     addWorkflowFailureEvent(workflowId.toString, failureEvents)
+  }
+
+  def addMetadataEvent(metadataEvent: MetadataEvent)(implicit ec: ExecutionContext): Future[Unit] = {
+    val key = metadataEvent.key
+    val workflowUuid = key.workflowId.id.toString
+    val timestamp = metadataEvent.timestamp
+    key.jobKey match {
+      case None => addMetadataEvent(workflowUuid, key.key, metadataEvent.value.value, timestamp)
+      case Some(jobKey) => addMetadataEvent(workflowUuid, key.key, jobKey.callFqn, jobKey.index, jobKey.attempt, metadataEvent.value.value, timestamp)
+    }
+  }
+
+  def queryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
+    val uuid = query.workflowId.id.toString
+    val futureMetadata: Future[Seq[Metadatum]] = query match {
+      case MetadataQuery(_, None, None) => queryMetadataEvents(uuid)
+      case MetadataQuery(_, None, Some(key)) => queryMetadataEvents(uuid, key)
+      case MetadataQuery(_, Some(jobKey), None) => queryMetadataEvents(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt)
+      case MetadataQuery(_, Some(jobKey), Some(key)) => queryMetadataEvents(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
+    }
+    futureMetadata map { metadata =>
+      metadata map { m =>
+        // If callFqn is non-null then attempt will also be non-null and there is a MetadataJobKey.
+        val metadataJobKey: Option[MetadataJobKey] = for {
+          callFqn <- m.callFqn
+          attempt <- m.attempt
+        } yield new MetadataJobKey(callFqn, m.index, attempt)
+
+        val key = MetadataKey(query.workflowId, metadataJobKey, m.key)
+        val value = MetadataValue(m.value.orNull)
+        MetadataEvent(key, value, m.timestamp)
+      }
+    }
   }
 
   /** Retrieve all recorded failures for a Workflow */

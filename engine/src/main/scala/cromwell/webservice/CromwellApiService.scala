@@ -5,8 +5,8 @@ import com.typesafe.config.Config
 import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.workflow.WorkflowMetadataKeys
-import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataQuery, GetAllMetadataAction}
-import cromwell.services.ServiceRegistryClient
+import cromwell.services.MetadataServiceActor.{GetAllMetadataAction, GetMetadataQueryAction}
+import cromwell.services.{MetadataQuery, ServiceRegistryClient}
 import cromwell.webservice.WorkflowJsonSupport._
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
@@ -60,7 +60,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
           case Success(w) =>
             version match {
               case "v2" =>
-                val command = GetMetadataQueryAction(MetadataQuery(Option(w), None, Option(WorkflowMetadataKeys.Status)))
+                val command = GetMetadataQueryAction(MetadataQuery(w, None, Option(WorkflowMetadataKeys.Status)))
                 requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), command)
               case _ =>
                 requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStatus(w))

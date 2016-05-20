@@ -34,9 +34,9 @@ class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
     """.stripMargin
 
   val defaultRuntimeAttributes = Map(
-    Docker -> None,
-    FailOnStderr -> false,
-    ContinueOnReturnCode -> ContinueOnReturnCodeSet(Set(0)))
+    DockerKey -> None,
+    FailOnStderrKey -> false,
+    ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(0)))
 
   "SgeRuntimeAttributes" should {
     "return an instance of itself when there are no runtime attributes defined." in {
@@ -45,13 +45,13 @@ class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
 
     "return an instance of itself when tries to validate a valid Docker entry" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (Docker -> Option("ubuntu:latest"))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("ubuntu:latest"))
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" }""").head
       assertSgeRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "return an instance of itself when tries to validate a valid Docker entry based on input" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (Docker -> Option("you"))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("you"))
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "\${addressee}" }""").head
       assertSgeRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -62,7 +62,7 @@ class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
 
     "return an instance of itself when tries to validate a valid failOnStderr entry" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (FailOnStderr -> true)
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (FailOnStderrKey -> true)
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "true" }""").head
       assertSgeRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -73,7 +73,7 @@ class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
 
     "return an instance of itself when tries to validate a valid continueOnReturnCode entry" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (ContinueOnReturnCode -> ContinueOnReturnCodeSet(Set(1)))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { continueOnReturnCode: 1 }""").head
       assertSgeRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -116,9 +116,9 @@ class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
   private def assertSgeRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], expectedRuntimeAttributes: Map[String, Any]): Unit = {
     try {
       val sgeRuntimeAttributes = SgeRuntimeAttributes(runtimeAttributes)
-      assert(sgeRuntimeAttributes.dockerImage == expectedRuntimeAttributes.get(Docker).get.asInstanceOf[Option[String]])
-      assert(sgeRuntimeAttributes.failOnStderr == expectedRuntimeAttributes.get(FailOnStderr).get.asInstanceOf[Boolean])
-      assert(sgeRuntimeAttributes.continueOnReturnCode == expectedRuntimeAttributes.get(ContinueOnReturnCode).get.asInstanceOf[ContinueOnReturnCode])
+      assert(sgeRuntimeAttributes.dockerImage == expectedRuntimeAttributes.get(DockerKey).get.asInstanceOf[Option[String]])
+      assert(sgeRuntimeAttributes.failOnStderr == expectedRuntimeAttributes.get(FailOnStderrKey).get.asInstanceOf[Boolean])
+      assert(sgeRuntimeAttributes.continueOnReturnCode == expectedRuntimeAttributes.get(ContinueOnReturnCodeKey).get.asInstanceOf[ContinueOnReturnCode])
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }

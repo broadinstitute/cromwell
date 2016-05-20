@@ -3,7 +3,7 @@ package cromwell.backend.impl.local
 import java.nio.file.{FileSystems, Path, Paths}
 
 import akka.actor.Props
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, BackendJobExecutionResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import org.slf4j.LoggerFactory
 import wdl4s._
@@ -60,7 +60,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     // Fail the call if runtime attributes can't be evaluated
     val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    LocalRuntimeAttributes(evaluatedAttributes)
+    LocalRuntimeAttributes(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions)
   }
 
   lazy val runsOnDocker = runtimeAttributes.dockerImage.isDefined

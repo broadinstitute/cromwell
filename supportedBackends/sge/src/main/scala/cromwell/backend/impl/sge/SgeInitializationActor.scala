@@ -13,7 +13,7 @@ import scala.concurrent.Future
 import scalaz.Scalaz._
 
 object SgeInitializationActor {
-  val SupportedKeys = Set(Docker, FailOnStderr, ContinueOnReturnCode)
+  val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
     Props(new SgeInitializationActor(workflowDescriptor, calls, configurationDescriptor))

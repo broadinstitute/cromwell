@@ -1,23 +1,37 @@
 package cromwell.backend.impl.local
 
+import cromwell.backend.validation.ContinueOnReturnCode
+import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
-import cromwell.backend.validation.{ContinueOnReturnCode, ContinueOnReturnCodeSet}
+import cromwell.core.WorkflowOptions
 import lenthall.exception.MessageAggregation
-import wdl4s.values.WdlValue
+import wdl4s.types._
+import wdl4s.values.{WdlBoolean, WdlInteger, WdlValue}
 
 import scalaz.Scalaz._
 import scalaz._
 
 object LocalRuntimeAttributes {
-  val FailOnStderrDefaultValue = false
-  val ContinueOnRcDefaultValue = 0
+  val staticDefaults = Map(
+    FailOnStderrKey -> WdlBoolean(false),
+    ContinueOnReturnCodeKey -> WdlInteger(0)
+  )
 
-  def apply(attrs: Map[String, WdlValue]): LocalRuntimeAttributes = {
-    val docker = validateDocker(attrs.get(Docker), None.successNel)
-    val failOnStderr = validateFailOnStderr(attrs.get(FailOnStderr), FailOnStderrDefaultValue.successNel)
-    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCode),
-      ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
+  val coercionMap: Map[String, Set[WdlType]] = Map (
+    FailOnStderrKey -> Set[WdlType](WdlBooleanType),
+    ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
+    DockerKey -> Set(WdlStringType)
+  )
+
+  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): LocalRuntimeAttributes = {
+    // Fail now if some workflow options are specified but can't be parsed correctly
+    val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
+    val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
+
+    val docker = validateDocker(withDefaultValues.get(DockerKey), None.successNel)
+    val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
+    val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
     (continueOnReturnCode |@| docker |@| failOnStderr) {
       new LocalRuntimeAttributes(_, _, _)
     } match {

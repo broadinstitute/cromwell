@@ -12,13 +12,13 @@ import scalaz.{Failure, NonEmptyList}
 
 object RuntimeAttributesValidation {
   val MemoryWrongAmountMsg = "Expecting %s runtime attribute value greater than 0 but got %s"
-  val MemoryWrongFormatMsg = s"Expecting $Memory runtime attribute to be an Integer or String with format '8 GB'. Exception: %s"
+  val MemoryWrongFormatMsg = s"Expecting $MemoryKey runtime attribute to be an Integer or String with format '8 GB'. Exception: %s"
 
   def validateDocker(docker: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     docker match {
       case Some(WdlString(s)) => Some(s).successNel
       case None => onMissingKey
-      case _ => s"Expecting $Docker runtime attribute to be a String".failureNel
+      case _ => s"Expecting $DockerKey runtime attribute to be a String".failureNel
     }
   }
 
@@ -27,13 +27,13 @@ object RuntimeAttributesValidation {
       case Some(WdlBoolean(b)) => b.successNel
       case Some(WdlString(s)) if s.toLowerCase == "true" => true.successNel
       case Some(WdlString(s)) if s.toLowerCase == "false" => false.successNel
-      case Some(_) => s"Expecting $FailOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'".failureNel
+      case Some(_) => s"Expecting $FailOnStderrKey runtime attribute to be a Boolean or a String with values of 'true' or 'false'".failureNel
       case None => onMissingKey
     }
   }
 
   def validateContinueOnReturnCode(value: Option[WdlValue], onMissingKey: => ErrorOr[ContinueOnReturnCode]): ErrorOr[ContinueOnReturnCode] = {
-    val failureWithMessage = s"Expecting $ContinueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]".failureNel
+    val failureWithMessage = s"Expecting $ContinueOnReturnCodeKey runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]".failureNel
     value match {
       case Some(b: WdlBoolean) => ContinueOnReturnCodeFlag(b.value).successNel
       case Some(WdlString(s)) if s.toLowerCase == "true" => ContinueOnReturnCodeFlag(true).successNel
@@ -72,7 +72,7 @@ object RuntimeAttributesValidation {
     MemorySize.parse(s.valueString) match {
       case scala.util.Success(x: MemorySize) =>
         if (x.amount <= 0)
-          String.format(MemoryWrongAmountMsg, Memory, x.amount.toString()).failureNel
+          String.format(MemoryWrongAmountMsg, MemoryKey, x.amount.toString()).failureNel
         else
           x.to(MemoryUnit.GB).successNel
       case scala.util.Failure(t) => String.format(MemoryWrongFormatMsg, t.getMessage).failureNel
@@ -81,7 +81,7 @@ object RuntimeAttributesValidation {
 
   def parseMemoryInteger(i: WdlInteger): ErrorOr[MemorySize] = {
     if (i.value <= 0)
-      String.format(MemoryWrongAmountMsg, Memory, i.value.toString()).failureNel
+      String.format(MemoryWrongAmountMsg, MemoryKey, i.value.toString()).failureNel
     else
       MemorySize(i.value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).successNel
   }
@@ -91,11 +91,11 @@ object RuntimeAttributesValidation {
     cpuValidation match {
       case scalaz.Success(i) =>
         if (i <= 0)
-          s"Expecting $Cpu runtime attribute value greater than 0".failureNel
+          s"Expecting $CpuKey runtime attribute value greater than 0".failureNel
         else
           i.successNel
       case scalaz.Failure(f) =>
-        s"Expecting $Cpu runtime attribute to be an Integer".failureNel
+        s"Expecting $CpuKey runtime attribute to be an Integer".failureNel
     }
   }
 

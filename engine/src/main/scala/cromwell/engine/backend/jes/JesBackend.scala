@@ -601,13 +601,13 @@ case class JesBackend(actorSystem: ActorSystem)
   }
 
   private def createJesRun(jobDescriptor: BackendCallJobDescriptor, jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Try[Run] = {
-      def attemptToCreateJesRun(priorAttempt: Option[Run]): Run = Pipeline(
+      def attemptToCreateJesRun(priorAttempt: Option[Run]) = Run(
+        runIdForResumption,
         jobDescriptor,
         jesParameters,
         googleProject(jobDescriptor.workflowDescriptor),
-        genomicsInterface,
-        runIdForResumption
-      ).run
+        genomicsInterface
+      )
 
       val log = jobLogger(jobDescriptor)
       if (jobDescriptor.preemptible) log.info("Starting call with pre-emptible VM")

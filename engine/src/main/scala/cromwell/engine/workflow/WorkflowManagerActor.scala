@@ -17,6 +17,7 @@ import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
 import cromwell.{core, engine}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import spray.http.Uri
 import wdl4s._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -38,7 +39,7 @@ object WorkflowManagerActor {
   case class WorkflowActorSubmitSuccess(replyTo: Option[ActorRef], id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowActorSubmitFailure(replyTo: Option[ActorRef], failure: Throwable) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
-  case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
+  case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
@@ -155,10 +156,10 @@ class WorkflowManagerActor(config: Config)
     }
   }
 
-  private def replyToQuery(rawParameters: Seq[(String, String)]): Unit = {
+  private def replyToQuery(uri: Uri, rawParameters: Seq[(String, String)]): Unit = {
     val sndr = sender()
     query(rawParameters) onComplete {
-      case Success(r) => sndr ! WorkflowManagerQuerySuccess(r)
+      case Success(r) => sndr ! WorkflowManagerQuerySuccess(uri, r._1, r._2)
       case Failure(e) => sndr ! WorkflowManagerQueryFailure(e)
     }
   }
@@ -192,8 +193,8 @@ class WorkflowManagerActor(config: Config)
     case Event(WorkflowStatus(id), _) =>
       replyToStatus(id)
       stay()
-    case Event(WorkflowQuery(rawParameters), _) =>
-      replyToQuery(rawParameters)
+    case Event(WorkflowQuery(uri, rawParameters), _) =>
+      replyToQuery(uri, rawParameters)
       stay()
     case Event(WorkflowAbort(id), _) =>
       replyToAbort(id)
@@ -402,7 +403,7 @@ class WorkflowManagerActor(config: Config)
     }
   }
 
-  private def query(rawParameters: Seq[(String, String)]): Future[WorkflowQueryResponse] = {
+  private def query(rawParameters: Seq[(String, String)]): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
     for {
     // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
       parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))

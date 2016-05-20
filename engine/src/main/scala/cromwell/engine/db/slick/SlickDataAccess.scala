@@ -17,7 +17,7 @@ import slick.driver.JdbcProfile
 import cromwell.engine.db._
 import cromwell.engine.finalcall.FinalCall
 import cromwell.engine.workflow._
-import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import cromwell.webservice.{CallCachingParameters, QueryMetadata, WorkflowQueryParameters, WorkflowQueryResponse}
 import lenthall.config.ScalaConfig._
 import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
@@ -872,18 +872,35 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
   }
 
   override def queryWorkflows(queryParameters: WorkflowQueryParameters)
-                             (implicit ec: ExecutionContext): Future[WorkflowQueryResponse] = {
-    val action = dataAccess.queryWorkflowExecutions(queryParameters).result
-    runTransaction(action) map { workflows =>
-      WorkflowQueryResponse(workflows map { workflow =>
-        WorkflowQueryResult(
+                             (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
+    case class CountAndWorkflowExecutions(count: Int, workflowExecutions: Seq[WorkflowExecution])
+    val action = for {
+      workflowExecutions <- dataAccess.queryWorkflowExecutions(queryParameters).result
+      count <- dataAccess.countWorkflowExecutions(queryParameters).result
+    } yield CountAndWorkflowExecutions(count, workflowExecutions)
+
+    runTransaction(action) map {
+      case c => (WorkflowQueryResponse(
+        for {
+          workflow <- c.workflowExecutions
+        } yield WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.name,
           status = workflow.status,
           start = new DateTime(workflow.startDt),
-          end = workflow.endDt map { new DateTime(_) })
-      })
+          end = workflow.endDt map {
+            new DateTime(_)
+          })),
+        //only return metadata if page is defined
+        queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(c.count)) })
     }
+  }
+
+  override def countWorkflows(queryParameters: WorkflowQueryParameters)
+                                      (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.countWorkflowExecutions(queryParameters).result
+
+    runTransaction(action)
   }
 
   override def updateCallCaching(parameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int] = {

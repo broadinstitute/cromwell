@@ -1466,6 +1466,8 @@ This endpoint allows for querying workflows based on the following criteria:
 * `status`
 * `start` (start datetime)
 * `end` (end datetime)
+* `page` (page of results)
+* `pagesize` (# or results per page)
 
 Names, ids, and statuses can be given multiple times to include
 workflows with any of the specified names, ids, or statuses. When
@@ -1473,7 +1475,7 @@ multiple names are specified, any workflow matching one of the names
 will be returned. The same is true for multiple ids or statuses. When
 different types of criteria are specified, for example names and
 statuses, the results must match both the one of the specified names and
-one of the statuses.
+one of the statuses. Using page and pagesize will enable server side pagination.
 
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
 be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format and `start` cannot be after `end`.
@@ -1481,13 +1483,13 @@ be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format and `sta
 cURL:
 
 ```
-$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 HTTPie:
 
 ```
-$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 Response:
@@ -1521,7 +1523,10 @@ Server: spray-can/1.3.3
       "end": "2015-11-01T07:45:44.000-05:00",
       "start": "2015-11-01T07:38:59.000-05:00"
     }
-  ]
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalRecords": 3
 }
 ```
 
@@ -1538,13 +1543,13 @@ object should contain a different criterion.
 cURL:
 
 ```
-$ curl -X POST --header "Content-Type: application/json" -d "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}]" "http://localhost:8000/api/workflows/v1/query"
+$ curl -X POST --header "Content-Type: application/json" -d "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": 1}, {\"pagesize\": 10}]" "http://localhost:8000/api/workflows/v1/query"
 ```
 
 HTTPie:
 
 ```
-$ echo "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}]" | http "http://localhost:8000/api/workflows/v1/query"
+$ echo "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": 1}, {\"pagesize\": 10}]" | http "http://localhost:8000/api/workflows/v1/query"
 ```
 
 Response:
@@ -1578,7 +1583,10 @@ Server: spray-can/1.3.3
       "end": "2015-11-01T07:45:44.000-05:00",
       "start": "2015-11-01T07:38:59.000-05:00"
     }
-  ]
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalRecords": 3
 }
 ```
 

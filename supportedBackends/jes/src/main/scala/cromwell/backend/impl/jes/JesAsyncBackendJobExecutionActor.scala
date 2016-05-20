@@ -12,7 +12,8 @@ import com.google.api.client.http.HttpResponseException
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, SuccessfulExecutionHandle}
-import cromwell.backend.impl.jes.Run.{RunStatus, TerminalRunStatus}
+import cromwell.backend.impl.jes.RunStatus
+import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.authentication.JesDockerCredentials
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
@@ -338,7 +339,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String] = None): Future[Run] = {
 
-    def createRun() = Future(Pipeline(
+    def createRun() = Future(Run(
+      runIdForResumption,
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       callRootPath = callRootPath.toString,
@@ -346,10 +348,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       logFileName = jesLogFilename,
       jesParameters,
       googleProject(jobDescriptor.descriptor),
-      genomicsFactory,
-      runIdForResumption,
-      retryable
-    ).run)
+      retryable,
+      genomicsFactory
+    ))
 
     implicit val system = context.system
     Retry.withRetry(
@@ -576,21 +577,21 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       lazy val continueOnReturnCode = runtimeAttributes.continueOnReturnCode
 
       status match {
-        case Run.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
+        case RunStatus.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: stderr has length $stderrLength"), returnCode.toOption).future
-        case Run.Success if returnCodeContents.isFailure =>
+        case RunStatus.Success if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warning(s"$tag could not download return code file, retrying: " + exception.getMessage, exception)
           // Return handle to try again.
           handle.future
-        case Run.Success if returnCode.isFailure =>
+        case RunStatus.Success if returnCode.isFailure =>
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
-        case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
+        case RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
-        case Run.Success =>
+        case RunStatus.Success =>
           completelyRandomExecutionHash map { h => handleSuccess(postProcess, returnCode.get, h, handle) }
-        case Run.Failed(errorCode, errorMessage) => handleFailure(errorCode, errorMessage)
+        case RunStatus.Failed(errorCode, errorMessage) => handleFailure(errorCode, errorMessage)
       }
     } catch {
       case e: Exception =>

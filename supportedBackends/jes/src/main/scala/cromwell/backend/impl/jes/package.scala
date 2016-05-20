@@ -4,7 +4,6 @@ import java.nio.file.{FileSystem, Path}
 
 import com.typesafe.config.Config
 import cromwell.backend.async.{ExecutionHandle, NonRetryableExecution}
-import cromwell.backend.impl.jes.Run.RunStatus
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{CallContext, PathFactory, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions

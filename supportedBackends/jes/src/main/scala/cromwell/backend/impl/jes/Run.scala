@@ -1,8 +1,10 @@
 package cromwell.backend.impl.jes
 
+import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -20,43 +22,53 @@ object Run  {
   private val InitialPollingInterval = 5 seconds
   private val PollingBackoffFactor = 1.1
 
-  def apply(pipeline: Pipeline, logFileName: String): Run = {
+  def apply(runIdForResumption: Option[String],
+            jobDescriptor: BackendJobDescriptor,
+            runtimeAttributes: JesRuntimeAttributes,
+            callRootPath: String,
+            commandLine: String,
+            logFileName: String,
+            jesParameters: Seq[JesParameter],
+            projectId: String,
+            preemptible: Boolean,
+            genomicsInterface: Genomics): Run = {
     val logger = LoggerFactory.getLogger(Run.getClass)
 
-    if (pipeline.pipelineId.isDefined == pipeline.runIdForResumption.isDefined) {
-      val message =
-        s"""
-          |Exactly one of JES pipeline ID or run ID for resumption must be specified to create a Run.
-          |pipelineId = ${pipeline.pipelineId}, runIdForResumption = ${pipeline.runIdForResumption}.
-        """.stripMargin
-      throw new RuntimeException(message)
-    }
+    lazy val workflow = jobDescriptor.descriptor
+    val runtimeInfoBuilder = if (preemptible) PreemptibleJesRuntimeInfoBuilder else NonPreemptibleJesRuntimeInfoBuilder
+    val runtimeInfo = runtimeInfoBuilder.build(commandLine, runtimeAttributes)
+
+    val pipeline = new Pipeline()
+             .setProjectId(projectId)
+             .setDocker(runtimeInfo.docker)
+             .setResources(runtimeInfo.resources)
+             .setName(workflow.workflowNamespace.workflow.unqualifiedName)
+             .setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
+             .setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
     def runPipeline: String = {
-      val rpargs = new RunPipelineArgs().setProjectId(pipeline.projectId).setServiceAccount(JesServiceAccount)
+      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount)
 
-      rpargs.setInputs(pipeline.jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
+      rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.info(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")
 
-      rpargs.setOutputs(pipeline.jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
+      rpargs.setOutputs(jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.info(s"Outputs:\n${stringifyMap(rpargs.getOutputs.asScala.toMap)}")
 
-      val rpr = new RunPipelineRequest().setPipelineId(pipeline.pipelineId.get).setPipelineArgs(rpargs)
+      val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 
       val logging = new LoggingOptions()
-      logging.setGcsPath(s"${pipeline.gcsPath}/$logFileName")
+      logging.setGcsPath(s"$callRootPath/$logFileName")
       rpargs.setLogging(logging)
 
-      val runId = pipeline.genomicsService.pipelines().run(rpr).execute().getName
+      val runId = genomicsInterface.pipelines().run(rpr).execute().getName
       logger.info(s"JES Run ID is $runId")
       runId
     }
 
-    // Only run the pipeline if the pipeline ID is defined.  The pipeline ID not being defined corresponds to a
-    // resumption of a previous run, and runIdForResumption will be defined.  The Run code takes care of polling
-    // in both the newly created and resumed scenarios.
-    val runId = if (pipeline.pipelineId.isDefined) runPipeline else pipeline.runIdForResumption.get
-    new Run(runId, pipeline /*, logger */)
+    // If runIdForResumption is defined use that, otherwise we'll create a new Run with an ephemeral pipeline.
+    val runId = runIdForResumption getOrElse runPipeline
+    new Run(runId, jobDescriptor, genomicsInterface)
   }
 
   private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
@@ -65,36 +77,18 @@ object Run  {
     def hasStarted = operation.getMetadata.asScala.get("startTime") isDefined
   }
 
-  sealed trait RunStatus {
-    // Could be defined as false for Initializing and true otherwise, but this is more defensive.
-    def isRunningOrComplete = this match {
-      case Running | _: TerminalRunStatus => true
-      case _ => false
-    }
-  }
-  trait TerminalRunStatus extends RunStatus
-  case object Initializing extends RunStatus
-  case object Running extends RunStatus
-  case object Success extends TerminalRunStatus {
-    override def toString = "Success"
-  }
-  final case class Failed(errorCode: Int, errorMessage: Option[String]) extends TerminalRunStatus {
-    // Don't want to include errorMessage or code in the snappy status toString:
-    override def toString = "Failed"
-  }
-
   // PBE deleted all the ExecutionEvent stuff
 }
 
 // PBE hacked out loggers
-case class Run(runId: String, pipeline: Pipeline /*, logger: WorkflowLogger */) {
+case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInterface: Genomics/*, logger: WorkflowLogger */) {
   import Run._
 
-  lazy val workflowId = pipeline.jobDescriptor.descriptor.id
-  lazy val call = pipeline.jobDescriptor.key.scope
+  lazy val workflowId = jobDescriptor.descriptor.id
+  lazy val call = jobDescriptor.key.scope
 
   def status(): RunStatus = {
-    val op = pipeline.genomicsService.operations().get(runId).execute
+    val op = genomicsInterface.operations().get(runId).execute
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       // val eventList = getEventList(op)
@@ -123,6 +117,6 @@ case class Run(runId: String, pipeline: Pipeline /*, logger: WorkflowLogger */) 
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
-    pipeline.genomicsService.operations().cancel(runId, cancellationRequest).execute
+    genomicsInterface.operations().cancel(runId, cancellationRequest).execute
   }
 }

@@ -13,7 +13,7 @@ object Retry {
     * Retries a Future on a designated backoff strategy until either a designated number of retries or a fatal error
     * is reached.
     *
-    * @param f A function from Unit => Future which will be executed once per cycle
+    * @param f A function Unit => Future which will be executed once per cycle.
     * @param maxRetries An optional number of times to retry the thunk. If this is None, there is no limit.
     * @param backoff An exponential backoff strategy to use for each retry strategy.
     * @param isTransient An optional function of Throwable => Boolean. If provided and it returns true, this throwable

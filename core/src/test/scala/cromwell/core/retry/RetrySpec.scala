@@ -40,7 +40,7 @@ class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
     val backoff = SimpleExponentialBackoff(1.millis, 2.millis, 1)
 
     withRetry(
-      f = work.doIt(),
+      f = work.doIt,
       maxRetries = Option(retries),
       isTransient = isTransient,
       isFatal = isFatal

@@ -47,7 +47,7 @@ object DataAccess {
 trait DataAccess extends AutoCloseable {
   this: SqlDatabase =>
 
-  private def withRetry[A](f: => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
+  private def withRetry[A](f: () => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
     Retry.withRetry(f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = isTransient)
   }
 
@@ -173,7 +173,7 @@ trait DataAccess extends AutoCloseable {
                           actorSystem: ActorSystem): Future[Unit] = {
     implicit val system = actorSystem
     implicit val ec = actorSystem.dispatcher
-    withRetry(upsertExecutionInfo(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex,
+    withRetry(() => upsertExecutionInfo(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex,
       callKey.attempt, keyValues))
   }
 
@@ -184,7 +184,7 @@ trait DataAccess extends AutoCloseable {
     implicit val system = actorSystem
     implicit val ec = actorSystem.dispatcher
     val keyValues = attributes mapValues { _.valueString }
-    withRetry(upsertRuntimeAttributes(workflowId.toString, key.fqn, key.index.fromIndex, key.attempt, keyValues))
+    withRetry(() => upsertRuntimeAttributes(workflowId.toString, key.fqn, key.index.fromIndex, key.attempt, keyValues))
   }
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)

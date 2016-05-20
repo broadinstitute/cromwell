@@ -322,7 +322,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    val writeScript: Future[Unit] = Future(gcsExecPath.write(fileContent))
+    def writeScript(): Future[Unit] = Future(gcsExecPath.write(fileContent))
 
     implicit val system = context.system
     Retry.withRetry(
@@ -338,7 +338,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String] = None): Future[Run] = {
 
-    val createRun = Future(Pipeline(
+    def createRun() = Future(Pipeline(
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       callRootPath = callRootPath.toString,

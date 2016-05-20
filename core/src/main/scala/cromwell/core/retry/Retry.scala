@@ -13,7 +13,7 @@ object Retry {
     * Retries a Future on a designated backoff strategy until either a designated number of retries or a fatal error
     * is reached.
     *
-    * @param f A Future thunk which will be executed once per cycle
+    * @param f A function Unit => Future which will be executed once per cycle.
     * @param maxRetries An optional number of times to retry the thunk. If this is None, there is no limit.
     * @param backoff An exponential backoff strategy to use for each retry strategy.
     * @param isTransient An optional function of Throwable => Boolean. If provided and it returns true, this throwable
@@ -23,7 +23,7 @@ object Retry {
     * @tparam A The return type of the thunk
     * @return The final completed Future
     */
-  def withRetry[A](f: => Future[A],
+  def withRetry[A](f: () => Future[A],
                    maxRetries: Option[Int] = Option(10),
                    backoff: SimpleExponentialBackoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
                    isTransient: Throwable => Boolean = throwableToFalse,
@@ -34,13 +34,13 @@ object Retry {
     val delay = backoff.backoffMillis.millis
 
     if (maxRetries.forall(_ > 0)) {
-      f recoverWith {
+      f() recoverWith {
         case throwable if isFatal(throwable) => Future.failed(new CromwellFatalException(throwable))
         case throwable if !isFatal(throwable) =>
           val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
           after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft))
       }
-    } else f recoverWith {
+    } else f() recoverWith {
       case e: Exception => Future.failed(new CromwellFatalException(e))
     }
   }

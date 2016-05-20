@@ -8,6 +8,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, Props}
 import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.client.http.HttpResponseException
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, SuccessfulExecutionHandle}
@@ -15,7 +16,7 @@ import cromwell.backend.impl.jes.Run.{RunStatus, TerminalRunStatus}
 import cromwell.backend.impl.jes.authentication.JesDockerCredentials
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
-import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CallOutput, CromwellAggregatedException, _}
 import cromwell.filesystems.gcs.GoogleConfiguration
 import wdl4s.AstTools._
@@ -289,7 +290,18 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     jobDescriptor.call.instantiateCommandLine(backendInputs, callEngineFunctions, gcsPathToLocal)
   }
 
-  private def uploadCommandScript(command: String, withMonitoring: Boolean): Try[Unit] = {
+  private def isFatalJesException(t: Throwable): Boolean = t match {
+    case e: HttpResponseException if e.getStatusCode == 403 => true
+    case _ => false
+  }
+
+  private def isTransientJesException(t: Throwable): Boolean = t match {
+    // Quota exceeded
+    case e: HttpResponseException if e.getStatusCode == 429 => true
+    case _ => false
+  }
+
+  private def uploadCommandScript(command: String, withMonitoring: Boolean): Future[Unit] = {
     val monitoring = if (withMonitoring) {
       s"""|touch $JesMonitoringLogFile
           |chmod u+x $JesMonitoringScript
@@ -310,15 +322,23 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    Try(gcsExecPath.write(fileContent))
+    def writeScript(): Future[Unit] = Future(gcsExecPath.write(fileContent))
+
+    implicit val system = context.system
+    Retry.withRetry(
+      writeScript,
+      isTransient = isTransientJesException,
+      isFatal = isFatalJesException
+    )
   }
 
   private def googleProject(descriptor: BackendWorkflowDescriptor): String = {
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, jesAttributes.project)
   }
 
-  private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String] = None): Try[Run] = Try {
-    Pipeline(
+  private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String] = None): Future[Run] = {
+
+    def createRun() = Future(Pipeline(
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       callRootPath = callRootPath.toString,
@@ -329,14 +349,21 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       genomicsFactory,
       runIdForResumption,
       retryable
-    ).run
+    ).run)
+
+    implicit val system = context.system
+    Retry.withRetry(
+      createRun,
+      isTransient = isTransientJesException,
+      isFatal = isFatalJesException
+    )
   }
 
   protected def runWithJes(command: String,
                            jesInputs: Seq[JesInput],
                            jesOutputs: Seq[JesFileOutput],
                            // runIdForResumption: Option[String],
-                           withMonitoring: Boolean): Future[ExecutionHandle] = Future {
+                           withMonitoring: Boolean): Future[ExecutionHandle] = {
 
     val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
 
@@ -345,12 +372,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       run <- createJesRun(jesParameters)
     } yield run
 
-    jesJobSetup match {
-      case Failure(ex) =>
-        log.warning(s"Failed to create a JES run", ex)
-        throw ex // Probably a transient issue, throwing retries it
-      case Success(run) => JesPendingExecutionHandle(jobDescriptor, jesOutputs, run, previousStatus = None)
-    }
+    jesJobSetup map { run => JesPendingExecutionHandle(jobDescriptor, jesOutputs, run, previousStatus = None) }
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {

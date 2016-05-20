@@ -5,7 +5,8 @@ import java.time.OffsetDateTime
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, _}
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
@@ -144,6 +145,8 @@ class WorkflowActor(workflowId: WorkflowId,
 
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
+  pushCurrentStateToMetadataService(WorkflowUnstartedState.workflowState)
+
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
   when(WorkflowUnstartedState) {
@@ -260,8 +263,8 @@ class WorkflowActor(workflowId: WorkflowId,
       serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
     }
     // Workflow name:
-    serviceRegistryActor ! MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name),
-      MetadataValue(workflowDescriptor.name), OffsetDateTime.now)
+    val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), OffsetDateTime.now)
+    serviceRegistryActor ! PutMetadataAction(nameEvent)
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service

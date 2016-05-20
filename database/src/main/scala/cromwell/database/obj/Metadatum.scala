@@ -12,5 +12,5 @@ case class Metadatum
   value: Option[String],
   valueType: Option[String],
   timestamp: Timestamp,
-  metadatumId: Option[Int] = None
+  metadatumId: Option[Long] = None
 )

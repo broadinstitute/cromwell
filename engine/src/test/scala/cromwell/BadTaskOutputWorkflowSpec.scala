@@ -1,8 +1,8 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.CromwellSpec.{IntegrationTest, DockerTest}
-import cromwell.engine.WorkflowFailed
+import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.core.WorkflowFailed
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

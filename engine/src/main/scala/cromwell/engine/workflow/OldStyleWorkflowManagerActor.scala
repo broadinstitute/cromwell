@@ -4,7 +4,7 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowRunning, WorkflowState, WorkflowSubmitted}
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
@@ -12,6 +12,7 @@ import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
 import cromwell.engine.workflow.OldStyleWorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
+import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
@@ -405,9 +406,9 @@ class OldStyleWorkflowManagerActor(config: Config)
 
   private def query(rawParameters: Seq[(String, String)]): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
     for {
-    // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
+      // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
       parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))
-      response <- globalDataAccess.queryWorkflows(parameters)
+      response <- globalDataAccess.queryWorkflowSummaries(parameters)
     } yield response
   }
 

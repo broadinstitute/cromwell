@@ -15,7 +15,6 @@ import slick.driver.JdbcProfile
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-
 object SlickDatabase {
   lazy val rootConfig = ConfigFactory.load()
   private lazy val rootDatabaseConfig = rootConfig.getConfig("database")
@@ -601,19 +600,19 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  override def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                       startDate: Option[Timestamp], endDate: Option[Timestamp],
-                                       page: Option[Int], pageSize: Option[Int])
-                                      (implicit ec: ExecutionContext): Future[Traversable[WorkflowExecution]] = {
-    val action = dataAccess.queryWorkflowExecutions(statuses, names, uuids, startDate, endDate, page, pageSize).result
+  override def queryWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
+                                      startDate: Option[Timestamp], endDate: Option[Timestamp],
+                                      page: Option[Int], pageSize: Option[Int])
+                                     (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummary]] = {
+    val action = dataAccess.queryWorkflowSummaries(statuses, names, uuids, startDate, endDate, page, pageSize).result
 
     runTransaction(action)
   }
 
-  override def countWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                       startDate: Option[Timestamp], endDate: Option[Timestamp])
-                                      (implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess.countWorkflowExecutions(statuses, names, uuids, startDate, endDate).result
+  override def countWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
+                                      startDate: Option[Timestamp], endDate: Option[Timestamp])
+                                     (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.countWorkflowSummaries(statuses, names, uuids, startDate, endDate).result
 
     runTransaction(action)
   }
@@ -737,5 +736,57 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
 
     val action = dataAccess.metadataByWorkflowUuidAndKeyAndCallFqnAndIndexAndAttempt(workflowUuid, key, callFqn, index, attempt).result
     runTransaction(action)
+  }
+
+  private def updateMetadata(buildUpdatedSummary:
+                             (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
+                            (metadataByUuid: (String, Seq[Metadatum]))(implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (uuid, metadataForUuid) = metadataByUuid
+    for {
+    // There might not be a preexisting summary for a given UUID, so `headOption` the result
+      existingSummary <- dataAccess.workflowMetadataSummariesByUuid(uuid).result.headOption
+      updatedSummary = buildUpdatedSummary(existingSummary, metadataForUuid)
+      _ <- upsertWorkflowMetadataSummary(updatedSummary)
+    } yield ()
+  }
+
+  private def upsertWorkflowMetadataSummary(summary: WorkflowMetadataSummary)
+                                           (implicit ec: ExecutionContext): DBIO[Unit] = {
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.workflowMetadataSummaryAutoInc.insertOrUpdate(summary)
+      } yield ()
+    } else {
+      for {
+        updateCount <- dataAccess.workflowMetadataSummariesByUuid(summary.workflowUuid).update(summary)
+        _ <- updateCount match {
+          case 0 => dataAccess.workflowMetadataSummaryAutoInc += summary
+          case 1 => DBIO.successful(Unit)
+          case _ => DBIO.failed(new RuntimeException(s"Unexpected summary update count $updateCount"))
+        }
+      } yield ()
+    }
+  }
+
+  def refreshMetadataSummaries(startId: Long, startTimestamp: Option[Timestamp],
+                               buildUpdatedSummary: (Option[WorkflowMetadataSummary], Seq[Metadatum]) =>
+                                 WorkflowMetadataSummary)
+                              (implicit ec: ExecutionContext): Future[Long] = {
+    val action = for {
+      metadata <- dataAccess.metadataWithIdAndTimestampGreaterThanOrEqual(startId, startTimestamp).result
+      // Take the maximum metadata id returned by the above query, or 0 if there aren't any metadata returned.
+      max = metadata map { _.metadatumId.get } reduceLeftOption { _ max _ } getOrElse 0L
+      metadataByWorkflowUuid = metadata.groupBy(_.workflowUuid)
+      _ <- DBIO.sequence(metadataByWorkflowUuid map updateMetadata(buildUpdatedSummary))
+    } yield max
+
+    runTransaction(action)
+  }
+
+  def getStatus(workflowUuid: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    val action = dataAccess.workflowStatusByUuid(workflowUuid).result.headOption
+    // The workflow might not exist, so `headOption`.  But even if the workflow does exist, the status might be None.
+    // So flatten the Option[Option[String]] to Option[String].
+    runTransaction(action) map { _.flatten }
   }
 }

@@ -2,11 +2,9 @@ package cromwell.webservice
 
 import java.time.OffsetDateTime
 
-import cromwell.core.{ErrorOr, WorkflowId}
-import cromwell.engine.WorkflowState
+import cromwell.core.{ErrorOr, WorkflowId, WorkflowState}
 
 import scala.language.postfixOps
-import scala.util.matching.Regex
 import scala.util.{Success, Try}
 import scalaz.Scalaz._
 

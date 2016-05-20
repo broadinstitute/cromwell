@@ -4,15 +4,15 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowState, WorkflowSubmitted}
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, OldStyleBackend}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
+import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
 import cromwell.engine.workflow.{OldStyleWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.{core, engine}
 import spray.http.HttpHeaders.Link
-import spray.http.Rendering.Empty
 import spray.http.{HttpHeader, StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
@@ -70,7 +70,7 @@ object CromwellApiHandler {
   final case class WorkflowManagerBatchSubmitResponse(responses: Seq[WorkflowManagerResponse]) extends WorkflowManagerResponse
 }
 
-class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
+class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with WorkflowQueryPagination {
   import CromwellApiHandler._
   import WorkflowJsonSupport._
 
@@ -84,38 +84,6 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
   }
 
   private def error(t: Throwable)(f: Throwable => RequestComplete[_]): Unit = context.parent ! f(t)
-
-  private def generatePaginationParams(page: Int, pageSize: Int): String = {
-    s"page=$page&pagesize=$pageSize"
-  }
-
-  //Generates link headers for pagination navigation https://tools.ietf.org/html/rfc5988#page-6
-  private def generateLinkHeaders(uri: Uri, metadata: Option[QueryMetadata]): Seq[HttpHeader] = {
-    //strip off the query params
-    val baseUrl = uri.scheme + ":" + uri.authority + uri.path
-    metadata match {
-      case Some(meta) =>
-        (meta.page, meta.pageSize) match {
-          case (Some(p), Some(ps)) =>
-
-            val firstLink = Link(Uri(baseUrl).withQuery(generatePaginationParams(1, ps)), Link.first)
-
-            val prevPage = math.max(p - 1, 1)
-            val prevLink = Link(Uri(baseUrl).withQuery(generatePaginationParams(prevPage, ps)), Link.prev)
-
-            val lastPage = math.ceil(meta.totalRecords.getOrElse(1).toDouble / ps.toDouble).toInt
-            val lastLink = Link(Uri(baseUrl).withQuery(generatePaginationParams(lastPage, ps)), Link.last)
-
-            val nextPage = math.min(p + 1, lastPage)
-            val nextLink = Link(Uri(baseUrl).withQuery(generatePaginationParams(nextPage, ps)), Link.next)
-
-            Seq(firstLink, prevLink, nextLink, lastLink)
-
-          case _ => Seq()
-        }
-      case None => Seq()
-    }
-  }
 
   override def receive = {
     case ApiHandlerWorkflowStatus(id) => requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowStatus(id)
@@ -149,7 +117,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
       val submitMsg = WorkflowManagerActor.SubmitWorkflowCommand(source)
       requestHandlerActor ! submitMsg
     case WorkflowManagerSubmitSuccess(id) =>
-      context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
+      context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString))
     case WorkflowManagerSubmitFailure(e) =>
       error(e) {
         case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
@@ -163,7 +131,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
 
     case WorkflowManagerBatchSubmitResponse(responses) =>
       val requestResponse: Seq[Either[WorkflowSubmitResponse, FailureResponse]] = responses.map {
-        case WorkflowManagerSubmitSuccess(id) => Left(WorkflowSubmitResponse(id.toString, engine.WorkflowSubmitted.toString))
+        case WorkflowManagerSubmitSuccess(id) => Left(WorkflowSubmitResponse(id.toString, core.WorkflowSubmitted.toString))
         case WorkflowManagerSubmitFailure(e) =>
           Right(e match {
             case _: IllegalArgumentException => APIResponse.fail(e)

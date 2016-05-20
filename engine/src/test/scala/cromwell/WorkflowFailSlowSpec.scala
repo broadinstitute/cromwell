@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.engine.WorkflowFailed
+import cromwell.core.WorkflowFailed
 import cromwell.util.SampleWdl
 
 class WorkflowFailSlowSpec extends CromwellTestkitSpec {

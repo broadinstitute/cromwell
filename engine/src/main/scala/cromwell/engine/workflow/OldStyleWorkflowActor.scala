@@ -7,7 +7,7 @@ import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
-import cromwell.core.{JobOutput, JobOutputs}
+import cromwell.core.{JobOutput, JobOutputs, _}
 import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}

@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.testkit.EventFilter
+import cromwell.core.WorkflowSucceeded
 import cromwell.engine._
 import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfterAll

@@ -4,11 +4,12 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
-import cromwell.core.{JobOutput, WorkflowId}
-import cromwell.engine.backend.{CallLogs, WorkflowDescriptorBuilder, WorkflowQueryResult}
+import cromwell.core.{JobOutput, WorkflowAborted, WorkflowId, WorkflowRunning}
+import cromwell.engine.backend.{CallLogs, WorkflowDescriptorBuilder}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
-import cromwell.engine.{WorkflowAborted, WorkflowRunning}
 import cromwell.server.WorkflowManagerSystem
+import cromwell.services.MetadataServiceActor
+import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
@@ -139,11 +140,11 @@ class MockWorkflowManagerActor extends Actor {
         case ("status", _) =>
           sender ! WorkflowManagerQuerySuccess(uri, WorkflowQueryResponse(
             Seq(
-              WorkflowQueryResult(
+              MetadataServiceActor.WorkflowQueryResult(
                 id = UUID.randomUUID().toString,
-                name = "w",
-                status = "Succeeded",
-                start = OffsetDateTime.parse("2015-11-01T12:12:11Z"),
+                name = Option("w"),
+                status = Option("Succeeded"),
+                start = Option(OffsetDateTime.parse("2015-11-01T12:12:11Z")),
                 end = Option(OffsetDateTime.parse("2015-11-01T12:12:12Z"))))),
             rawParameters.collectFirst { case (p, _) if p.contains("page") => QueryMetadata(Option(1), Option(5), Option(1)) })
 

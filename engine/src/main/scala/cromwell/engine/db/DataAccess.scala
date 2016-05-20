@@ -5,8 +5,8 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorSystem
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
-import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.core.{JobOutput, JobOutputs, WorkflowId}
+import cromwell.core._
+import cromwell.core.retry._
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase
 import cromwell.database.obj._
@@ -20,8 +20,9 @@ import cromwell.engine.db.EngineConverters._
 import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, _}
+import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services._
-import cromwell.webservice.{CallCachingParameters, QueryMetadata, WorkflowQueryParameters, WorkflowQueryResponse}
+import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters}
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import wdl4s.types.WdlPrimitiveType
@@ -44,7 +45,7 @@ object DataAccess {
 }
 
 trait DataAccess extends AutoCloseable {
-  this: SqlDatabase =>
+  self: SqlDatabase =>
 
   private def withRetry[A](f: () => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
     Retry.withRetry(f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = isTransient)
@@ -576,26 +577,26 @@ trait DataAccess extends AutoCloseable {
     updateWorkflowOptions(workflowId.toString, workflowOptionsJson.toClob)
   }
 
-  def queryWorkflows(queryParameters: WorkflowQueryParameters)
-                    (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
-    val workflowExecutions = queryWorkflowExecutions(
+  def queryWorkflowSummaries(queryParameters: WorkflowQueryParameters)
+                            (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
+    val workflowSummaries = queryWorkflowSummaries(
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.page, queryParameters.pageSize)
 
-    val workflowCount = countWorkflowExecutions(
+    val workflowSummaryCount = countWorkflowSummaries(
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
 
-    workflowCount flatMap { count =>
-      workflowExecutions map { workflows =>
+    workflowSummaryCount flatMap { count =>
+      workflowSummaries map { workflows =>
         (WorkflowQueryResponse(workflows.toSeq map { workflow =>
-          WorkflowQueryResult(
-            id = workflow.workflowExecutionUuid,
+          MetadataServiceActor.WorkflowQueryResult(
+            id = workflow.workflowUuid,
             name = workflow.name,
             status = workflow.status,
-            start = workflow.startDt.toSystemOffsetDateTime,
-            end = workflow.endDt map { _.toSystemOffsetDateTime })
+            start = workflow.startDate map { _.toSystemOffsetDateTime },
+            end = workflow.endDate map { _.toSystemOffsetDateTime })
         }),
         //only return metadata if page is defined
         queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })
@@ -648,5 +649,15 @@ trait DataAccess extends AutoCloseable {
           ExecutionWithCacheData(execution, cacheHit)
       }
     }
+  }
+
+  def refreshWorkflowMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[OffsetDateTime])
+                                      (implicit ec: ExecutionContext): Future[Long] = {
+    self.refreshMetadataSummaries(startMetadataId, startMetadataTimestamp)
+  }
+
+  def getWorkflowStatus(id: WorkflowId)
+                       (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
+    self.getStatus(id) map { _ map WorkflowState.fromString }
   }
 }

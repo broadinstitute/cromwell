@@ -4,9 +4,10 @@ import java.time.OffsetDateTime
 
 import cromwell.backend.ExecutionEventEntry
 import cromwell.engine._
-import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
+import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.CallCacheData
+import cromwell.services.MetadataServiceActor.{WorkflowQueryResponse, WorkflowQueryResult}
 import cromwell.webservice.WdlFileJsonFormatter._
 import cromwell.webservice.WdlValueJsonFormatter._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}

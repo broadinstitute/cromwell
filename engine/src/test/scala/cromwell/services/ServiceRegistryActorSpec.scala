@@ -2,7 +2,8 @@ package cromwell.services
 
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.{WorkflowSourceFiles, WorkflowSucceeded}
+import cromwell.core.WorkflowSucceeded
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.services.KeyValueServiceActor._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}

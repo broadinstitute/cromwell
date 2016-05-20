@@ -1,10 +1,13 @@
 package cromwell.database
 
 import java.sql.{Clob, SQLTransientException, Timestamp}
+import java.time.OffsetDateTime
 
+import cromwell.core.WorkflowId
 import cromwell.database.obj._
 
 import scala.concurrent.{ExecutionContext, Future}
+
 
 trait SqlDatabase extends AutoCloseable {
   protected def isTransient(throwable: Throwable): Boolean = {
@@ -144,14 +147,14 @@ trait SqlDatabase extends AutoCloseable {
   protected def updateWorkflowOptions(workflowUuid: String, workflowOptionsJson: Clob)
                                      (implicit ec: ExecutionContext): Future[Unit]
 
-  protected def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                        startDate: Option[Timestamp], endDate: Option[Timestamp],
-                                        page: Option[Int], pageSize: Option[Int])
-                                       (implicit ec: ExecutionContext): Future[Traversable[WorkflowExecution]]
+  protected def queryWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
+                                       startDate: Option[Timestamp], endDate: Option[Timestamp],
+                                       page: Option[Int], pageSize: Option[Int])
+                                      (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummary]]
 
-  protected def countWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                        startDate: Option[Timestamp], endDate: Option[Timestamp])
-                                       (implicit ec: ExecutionContext): Future[Int]
+  protected def countWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
+                                       startDate: Option[Timestamp], endDate: Option[Timestamp])
+                                      (implicit ec: ExecutionContext): Future[Int]
 
   protected def updateCallCaching(workflowUuid: String, allow: Boolean)(implicit ec: ExecutionContext): Future[Int]
 
@@ -213,4 +216,17 @@ trait SqlDatabase extends AutoCloseable {
                                     index: Option[Int],
                                     attempt: Int)
                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+
+  /**
+    * Retrieves all summarizable metadata satisfying the specified criteria.
+    *
+    * @param startMetadataId        The minimum ID an entry in `METADATA_JOURNAL` must have to be examined for summary.
+    * @param startMetadataTimestamp An optional timestamp.  If specified, a metadatum must have a timestamp greater than or equal to this value.
+    * @return A `Future` with the maximum ID value of the metadata summarized by the invocation of this method.
+    */
+  protected def refreshMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[OffsetDateTime])
+                                        (implicit ec: ExecutionContext): Future[Long]
+
+  protected def getStatus(id: WorkflowId)
+                         (implicit ec: ExecutionContext): Future[Option[String]]
 }

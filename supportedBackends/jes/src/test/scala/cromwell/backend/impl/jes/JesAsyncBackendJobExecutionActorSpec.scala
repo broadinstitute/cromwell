@@ -1,5 +1,7 @@
 package cromwell.backend.impl.jes
 
+import java.util.UUID
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
@@ -126,7 +128,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKit(ActorSystem("JesAsync
 
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
     }
-    system.actorOf(Props(new TestableJesJobExecutionActor), "TestableJesJobExecutionActor")
+    system.actorOf(Props(new TestableJesJobExecutionActor), "TestableJesJobExecutionActor-" + UUID.randomUUID().toString)
   }
 
   private def run(attempt: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int): BackendJobExecutionResponse = {

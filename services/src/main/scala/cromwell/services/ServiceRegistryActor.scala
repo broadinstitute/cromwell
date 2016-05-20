@@ -1,6 +1,6 @@
 package cromwell.services
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import lenthall.config.ScalaConfig._
 
@@ -34,7 +34,7 @@ object ServiceRegistryActor {
   }
 }
 
-case class ServiceRegistryActor(globalConfig: Config) extends Actor {
+case class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging {
   import ServiceRegistryActor._
 
   val services: Map[String, ActorRef] = serviceNameToPropsMap(globalConfig) map {
@@ -45,7 +45,12 @@ case class ServiceRegistryActor(globalConfig: Config) extends Actor {
     case msg: ServiceRegistryMessage =>
       services.get(msg.serviceName) match {
         case Some(ref) => ref.tell(msg, sender)
-        case None => sender ! ServiceRegistryFailure(msg.serviceName)
+        case None =>
+          log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
+          sender ! ServiceRegistryFailure(msg.serviceName)
       }
+    case fool =>
+      log.error("Received message which is not a ServiceRegistryMessage: {}", fool)
+      sender ! ServiceRegistryFailure("Message is not a ServiceRegistryMessage: " + fool)
   }
 }

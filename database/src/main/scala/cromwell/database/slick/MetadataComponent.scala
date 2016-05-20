@@ -3,15 +3,17 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cromwell.core.WorkflowMetadataKeys
 import cromwell.database.obj.Metadatum
 
 trait MetadataComponent {
-  this: DriverComponent with WorkflowExecutionComponent =>
+
+  this: DriverComponent =>
 
   import driver.api._
 
   class Metadata(tag: Tag) extends Table[Metadatum](tag, "METADATA_JOURNAL") {
-    def metadataId = column[Int]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
+    def metadataId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
     def key = column[String]("METADATA_KEY")
     def callFqn = column[Option[String]]("METADATA_CALL_FQN")
@@ -67,6 +69,18 @@ trait MetadataComponent {
       if (metadatum.index === index) || (metadatum.index.isEmpty && index.isEmpty)
       if metadatum.attempt === attempt
     } yield metadatum)
+
+  val metadataWithIdAndTimestampGreaterThanOrEqual = Compiled(
+    (id: Rep[Long], timestamp: Rep[Option[Timestamp]]) => for {
+      m <- metadata
+      if m.metadataId >= id && (m.timestamp >= timestamp || timestamp.isEmpty)
+      if (m.key === WorkflowMetadataKeys.StartTime ||
+        m.key === WorkflowMetadataKeys.EndTime ||
+        m.key === WorkflowMetadataKeys.Name ||
+        m.key === WorkflowMetadataKeys.Status) &&
+        (m.callFqn.isEmpty && m.index.isEmpty && m.attempt.isEmpty)
+    } yield m
+  )
 
   val metadataAutoInc = metadata returning metadata.map(_.metadataId)
 }

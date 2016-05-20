@@ -10,12 +10,12 @@ import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
-import cromwell.core.WorkflowId
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
+import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
-import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowMetadataKeys}
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataQuery, ServiceRegistryClient}
@@ -31,7 +31,7 @@ import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType, _}
-import wdl4s.values._
+import wdl4s.values.{WdlFile, WdlString, WdlValue, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -497,7 +497,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   def getWorkflowMetadata(workflowId: WorkflowId, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
-    // MetadataBuilderActor sends it's response to context.parent, so we can't just use an ask to talk to it here
+    // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
     val supervisor = TestActorRef(new Actor() {
       var originalSender = system.deadLetters
 
@@ -523,7 +523,12 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): WorkflowState = {
-    WorkflowState.fromString(getWorkflowMetadata(workflowId, Option(WorkflowMetadataKeys.Status)).getFields(WorkflowMetadataKeys.Status).headOption.map( _.asInstanceOf[JsString].value).getOrElse("Submitted"))
+    val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId)).collect {
+      case StatusLookupResponse(_, state) => state
+      case StatusLookupNotFound(_) => WorkflowSubmitted
+      case f => throw new RuntimeException(s"Unexpected status response: $f")
+    }
+    Await.result(statusResponse, Duration.Inf)
   }
 
   def getWorkflowOutputsFromMetadata(id: WorkflowId): Map[FullyQualifiedName, WdlValue] = {

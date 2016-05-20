@@ -4,24 +4,23 @@ import java.sql.Timestamp
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine.WorkflowState
-import cromwell.engine.workflow.WorkflowMetadataKeys
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services._
-import cromwell.webservice.MetadataBuilderActor.{Idle, IndexedJsonObject, MetadataBuilderActorState, WaitingForMetadata}
-import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.webservice.MetadataBuilderActor.{Idle, IndexedJsonObject, IndexedJsonValue, IndexedPrimitiveJson, MetadataBuilderActorState, WaitingForMetadata}
+import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
 import org.slf4j.LoggerFactory
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
-import spray.json._
+import spray.json.{JsArray, JsObject, JsValue, _}
 
 import scala.language.postfixOps
 import scala.util.Try
 import scalaz.Scalaz._
 import scalaz.Semigroup
+
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -72,6 +71,7 @@ object MetadataBuilderActor {
   private sealed trait KeyElement {
     def toIndexedJson(value: IndexedJsonValue): IndexedJsonValue
   }
+
   private case class ListElement(name: String, indexes: List[String]) extends KeyElement {
     def toIndexedJson(innerValue: IndexedJsonValue) = {
       if (indexes.isEmpty) {
@@ -215,17 +215,6 @@ object MetadataBuilderActor {
 
   private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToIndexedJsonValue(events).toJson.asJsObject
 
-  private def foldStates(eventsList: Seq[MetadataEvent]): IndexedJsonValue = {
-    import WorkflowState._
-    val state: WorkflowState = eventsList collect { case MetadataEvent(_, v, _) => WorkflowState.fromString(v.value) } reduceLeft(_ |+| _)
-    IndexedJsonObject(Map(WorkflowMetadataKeys.Status -> IndexedPrimitiveJson(JsString(state.toString))))
-  }
-
-  private def foldStatesAndAddWorkflowId(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]): JsObject = {
-    val result = foldStates(eventsList) |+| IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedPrimitiveJson(JsString(workflowId.toString))))
-    result.toJson.asJsObject
-  }
-
   /**
     * Parse a Seq of MetadataEvent into a full Json metadata response.
     */
@@ -235,8 +224,9 @@ object MetadataBuilderActor {
 
 }
 
-class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Unit] with DefaultJsonProtocol {
-  // Don't believe IntelliJ, this is used.
+class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Unit]
+  with DefaultJsonProtocol with WorkflowQueryPagination {
+
   import WorkflowJsonSupport._
 
   startWith(Idle, Unit)
@@ -247,16 +237,34 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       goto(WaitingForMetadata)
   }
 
+  private def allDone = {
+    context stop self
+    stay()
+  }
+
   when(WaitingForMetadata) {
     case Event(MetadataLookupResponse(query, metadata), _) =>
       context.parent ! RequestComplete(StatusCodes.OK, processMetadataResponse(query, metadata))
-      context stop self
-      stay()
+      allDone
+    case Event(StatusLookupResponse(w, status), _) =>
+      context.parent ! RequestComplete(StatusCodes.OK, processStatusResponse(w, status))
+      allDone
+    case Event(StatusLookupNotFound(w), _) =>
+      context.parent ! APIResponse.workflowNotFound(w)
+      allDone
+    case Event(StatusLookupFailed(_, t), _) =>
+      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
+      allDone
     case Event(failure: ServiceRegistryFailure, _) =>
       val response = APIResponse.fail(new RuntimeException("Can't find metadata service"))
       context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
-      context stop self
-      stay()
+      allDone
+    case Event(WorkflowQuerySuccess(uri, response, metadata), _) =>
+      context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
+      allDone
+    case Event(WorkflowQueryFailure(t), _) =>
+      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
+      allDone
   }
 
   def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent]): JsObject = {
@@ -265,9 +273,14 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     else {
       query match {
         case MetadataQuery(w, None, None) => IndexedJsonObject(Map(w.id.toString -> MetadataBuilderActor.parseWorkflowEventsToIndexedJsonValue(eventsList))).toJson.asJsObject
-        case MetadataQuery(w, None, Some(WorkflowMetadataKeys.Status)) => MetadataBuilderActor.foldStatesAndAddWorkflowId(w, eventsList)
         case _ => MetadataBuilderActor.parse(eventsList)
       }
     }
+  }
+
+  def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
+    val state: IndexedJsonValue = IndexedJsonObject(Map(WorkflowMetadataKeys.Status -> IndexedPrimitiveJson(JsString(status.toString))))
+    val id: IndexedJsonValue = IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedPrimitiveJson(JsString(workflowId.toString))))
+    (state |+| id).toJson.asJsObject
   }
 }

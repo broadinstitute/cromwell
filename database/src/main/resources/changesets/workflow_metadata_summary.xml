@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="workflow_metadata_summary" author="mcovarr">
+        <createTable tableName="WORKFLOW_METADATA_SUMMARY">
+            <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_NAME" type="VARCHAR(100)"/>
+            <column name="WORKFLOW_STATUS" type="VARCHAR(50)"/>
+            <column name="START_DT" type="datetime"/>
+            <column name="END_DT" type="datetime"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="workflow_metadata_uuid_idx" author="mcovarr">
+        <createIndex indexName="WORKFLOW_METADATA_UUID_IDX"
+                     tableName="WORKFLOW_METADATA_SUMMARY" unique="true">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="workflow_metadata_name_idx" author="mcovarr">
+        <createIndex indexName="WORKFLOW_METADATA_NAME_IDX"
+                     tableName="WORKFLOW_METADATA_SUMMARY" unique="false">
+            <column name="WORKFLOW_NAME"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="workflow_metadata_status_idx" author="mcovarr">
+        <createIndex indexName="WORKFLOW_METADATA_STATUS_IDX"
+                     tableName="WORKFLOW_METADATA_SUMMARY" unique="false">
+            <column name="WORKFLOW_STATUS"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Clustered indexes for start and end dates might be nice -->
+</databaseChangeLog>

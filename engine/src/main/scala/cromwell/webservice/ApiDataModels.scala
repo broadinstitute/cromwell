@@ -2,8 +2,11 @@ package cromwell.webservice
 
 import java.time.OffsetDateTime
 
+import cromwell.core.WorkflowId
+import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
 import cromwell.engine.{FailureEventEntry, QualifiedFailureEventEntry}
-import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
+import cromwell.webservice.PerRequest.RequestComplete
+import spray.http.StatusCodes
 import spray.json._
 import wdl4s.values.WdlValue
 import wdl4s.{FullyQualifiedName, ThrowableWithErrors}
@@ -36,10 +39,6 @@ case class WorkflowMetadataResponse(id: String,
                                     calls: Map[String, Seq[OldStyleCallMetadata]],
                                     failures: Option[Seq[FailureEventEntry]])
 
-case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
-
-case class QueryMetadata(page: Option[Int], pageSize: Option[Int], totalRecords: Option[Int])
-
 final case class CallCachingResponse(updateCount: Int)
 
 case class WorkflowFailuresResponse(id: String,
@@ -48,6 +47,9 @@ case class WorkflowFailuresResponse(id: String,
                                     failures: Seq[QualifiedFailureEventEntry])
 
 object APIResponse {
+  import WorkflowJsonSupport._
+  import spray.httpx.SprayJsonSupport._
+
   private def constructFailureResponse(status: String, ex: Throwable) ={
     ex match {
       case cex: ThrowableWithErrors => FailureResponse(status, cex.message, Option(JsArray(cex.errors.list.map(JsString(_)).toVector)))
@@ -63,6 +65,8 @@ object APIResponse {
 
   /** When a request completes successfully. */
   def success(message: String, data: Option[JsValue] = None) = SuccessResponse("success", message, data)
+
+  def workflowNotFound(id: WorkflowId) = RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Workflow '$id' not found.")))
 }
 
 case class SuccessResponse(status: String, message: String, data: Option[JsValue])

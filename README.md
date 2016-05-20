@@ -1534,7 +1534,7 @@ This endpoint allows for querying workflows based on the following criteria:
 * `start` (start datetime)
 * `end` (end datetime)
 * `page` (page of results)
-* `pagesize` (# or results per pa
+* `pagesize` (# of results per page)
 
 Names, ids, and statuses can be given multiple times to include
 workflows with any of the specified names, ids, or statuses. When
@@ -1591,6 +1591,21 @@ Server: spray-can/1.3.3
       "start": "2015-11-01T07:38:59.000-05:00"
     }
   ]
+}
+```
+
+Query data is refreshed from raw data periodically according to the configuration value `services.MetadataService.metadata-summary-refresh-interval`.
+If not specified the refresh interval will default to 2 seconds.  
+
+Cromwell can also be configured to ignore particularly old raw data via the configuration value `services.MetadataService.metadata-summary-timestamp-minimum`.
+This prevents Cromwell from attempting to scan and summarize data that has already been added to its internal summary table.
+
+```
+services {
+  MetadataService {
+    metadata-summary-refresh-interval = "10 seconds"
+    metadata-summary-timestamp-minimum = "2016-05-31T13:59:55.947-04:00"
+  }
 }
 ```
 

@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit.EventFilter
-import cromwell.engine.WorkflowFailed
+import cromwell.core.WorkflowFailed
 import cromwell.util.SampleWdl
 
 class ContinueOnReturnCodeSpec extends CromwellTestkitSpec {

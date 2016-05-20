@@ -4,9 +4,8 @@ import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.workflow.WorkflowMetadataKeys
-import cromwell.services.MetadataServiceActor.{GetAllMetadataAction, GetMetadataQueryAction}
-import cromwell.services.{MetadataQuery, ServiceRegistryClient}
+import cromwell.services.MetadataServiceActor.{GetAllMetadataAction, GetStatus, WorkflowQuery}
+import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.WorkflowJsonSupport._
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
@@ -58,13 +57,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       get {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            version match {
-              case "v2" =>
-                val command = GetMetadataQueryAction(MetadataQuery(w, None, Option(WorkflowMetadataKeys.Status)))
-                requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), command)
-              case _ =>
-                requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStatus(w))
-            }
+            requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), GetStatus(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -75,7 +68,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       parameterSeq { parameters =>
         get {
           requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowQuery(requestContext.request.uri, parameters))
+            perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), WorkflowQuery(requestContext.request.uri, parameters))
         }
       }
     }
@@ -85,8 +78,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       entity(as[Seq[Map[String, String]]]) { parameterMap =>
         post {
           requestContext =>
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager),
-              CromwellApiHandler.ApiHandlerWorkflowQuery(requestContext.request.uri, parameterMap.flatMap(_.toSeq)))
+            perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), WorkflowQuery(requestContext.request.uri, parameterMap.flatMap(_.toSeq)))
         }
       }
     }

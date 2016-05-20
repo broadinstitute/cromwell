@@ -94,7 +94,7 @@ class JesBackendSpec extends FlatSpec
     val backoff = SimpleExponentialBackoff(1.millis, 2.millis, 1)
 
     JesBackend.retryAsync(
-      f = work.doIt(),
+      f = work.doIt,
       logger = jesBackend.workflowLogger(wd),
       failureMessage = "failed attempt (on purpose)",
       retries = retries,

@@ -129,7 +129,7 @@ object JesBackend {
     *
     * Expect a more unifying solution in the non-hotfix branch
     */
-  def retryAsync[A](f: => Future[A],
+  def retryAsync[A](f: () => Future[A],
                     logger: WorkflowLogger,
                     failureMessage: String,
                     backoff: SimpleExponentialBackoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
@@ -141,7 +141,7 @@ object JesBackend {
     val delay = backoff.backoffMillis.millis
 
     if (retries > 0) {
-      f recoverWith {
+      f() recoverWith {
         case throwable if isFatal(throwable) => Future.failed(new CromwellFatalException(throwable))
         case throwable if !isFatal(throwable) =>
           val retriesLeft = if (isTransient(throwable)) retries else retries - 1
@@ -149,7 +149,7 @@ object JesBackend {
           logger.warn(retryMessage)
           after(delay, actorSystem.scheduler)(retryAsync(f, logger, failureMessage, backoff, retries = retriesLeft))
       }
-    } else f recoverWith {
+    } else f() recoverWith {
       case e: Exception =>
         Future.failed(new CromwellFatalException(e))
     }
@@ -297,7 +297,7 @@ case class JesBackend(actorSystem: ActorSystem)
         val path = gcsAuthFilePath(workflow)
         def upload(): Future[Unit] = Future { blocking { path.writeAsJson(content) } }
         log.info(s"Creating authentication file for workflow ${workflow.id} at \n ${path.toString}")
-        retryAsync(upload(), log, s"Exception occurred while uploading auth file to $path")(actorSystem)
+        retryAsync(upload, log, s"Exception occurred while uploading auth file to $path")(actorSystem)
       case None => Future.successful(())
     }
   }

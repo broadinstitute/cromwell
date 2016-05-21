@@ -8,17 +8,17 @@ import scala.language.postfixOps
 
 class DefaultParamValueWorkflowSpec extends CromwellTestkitSpec {
   "A task with a parameter that has a default value" should {
-    "accept a value for that parameter" ignore {
+    "accept a value for that parameter" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.DefaultParameterValueWithValueSpecified,
-        EventFilter.info(pattern = s"starting calls: default.hello", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map("default.hello.greeting" -> WdlString("hello alice"))
       )
     }
-    "accept NO value for that parameter" ignore {
+    "accept NO value for that parameter" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.DefaultParameterValueWithNOValueSpecified,
-        EventFilter.info(pattern = s"starting calls: default.hello", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map("default.hello.greeting" -> WdlString("hello default value"))
       )
     }

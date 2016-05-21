@@ -9,7 +9,9 @@ import cromwell.services.MetadataServiceActor._
 class MetadataServiceSpec extends CromwellServicesSpec with KnowsWhatTimeItIs {
 
   val config = ConfigFactory.load("{}")
-  val actor = actorSystem.actorOf(MetadataServiceActor.props(config, config))
+  // TODO: PBE: No EngineMetadataServiceActor.props until circular dependencies fixed.
+  //val actor = actorSystem.actorOf(MetadataServiceActor.props(config, config))
+  val actor = actorSystem.actorOf(akka.actor.Props(new EngineMetadataServiceActor(config, config)))
 
   val workflowId = WorkflowId.randomId()
 

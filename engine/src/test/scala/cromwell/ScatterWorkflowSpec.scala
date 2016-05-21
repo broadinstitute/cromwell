@@ -13,7 +13,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.outside_scatter", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "scatter0.outside_scatter.out" -> WdlInteger(8000),
           "scatter0.inside_scatter.out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(1, 2, 3, 4, 5).map(WdlInteger(_)))
@@ -25,7 +25,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = new SampleWdl.ScatterWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: w.A", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "w.E.E_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WdlInteger(_))),
           "w.C.C_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WdlInteger(_))),
@@ -40,7 +40,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SiblingsScatterWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: w.A", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "w.E.E_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WdlInteger(_))),
           "w.F.B_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WdlInteger(_))),
@@ -57,7 +57,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     "run properly" ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.PrepareScatterGatherWdl(),
-        eventFilter = EventFilter.info(pattern = s"starting calls: sc_test.do_prepare", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "sc_test.do_gather.sum" -> WdlInteger(11),
           "sc_test.do_prepare.split_files" -> WdlArray(WdlArrayType(WdlFileType), Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WdlFile(_))),
@@ -69,7 +69,7 @@ class ScatterWorkflowSpec extends CromwellTestkitSpec {
     "run properly in a Docker environment" taggedAs DockerTest ignore {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.PrepareScatterGatherWdl(),
-        eventFilter = EventFilter.info(pattern = s"starting calls: sc_test.do_prepare", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         runtime = """
                   |runtime {
                   |  docker: "ubuntu:latest"

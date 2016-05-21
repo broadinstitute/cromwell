@@ -12,14 +12,14 @@ object ThreeStepActorSpec {
     "three_step.cgrep.count" -> WdlInteger(3),
     "three_step.wc.count" -> WdlInteger(6)
   )
-  val EventMessage = s"starting calls: three_step.cgrep, three_step.wc"
+  val EventMessage = "Workflow complete"
 }
 
 class ThreeStepActorSpec extends CromwellTestkitSpec {
   import ThreeStepActorSpec._
 
   "A three step workflow" should {
-    "best get to (three) steppin'" ignore {
+    "best get to (three) steppin'" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CannedThreeStep,
         EventFilter.info(pattern = EventMessage, occurrences = 1),
@@ -28,7 +28,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec {
   }
 
   "A Dockerized three step workflow" should {
-    "best get to Dockerized (three) steppin'" taggedAs DockerTest ignore {
+    "best get to Dockerized (three) steppin'" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CannedThreeStep,
         EventFilter.info(pattern = EventMessage, occurrences = 1),
@@ -40,7 +40,7 @@ class ThreeStepActorSpec extends CromwellTestkitSpec {
         expectedOutputs = CannedExpectations)
     }
 
-    "pass canned files properly" taggedAs DockerTest ignore {
+    "pass canned files properly" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CannedFilePassing,
         eventFilter = EventFilter.info(pattern = EventMessage, occurrences = 1),

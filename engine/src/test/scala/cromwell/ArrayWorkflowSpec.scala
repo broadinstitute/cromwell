@@ -18,10 +18,10 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
 
   "A task which contains a parameter " should {
-    "accept an array for the value" ignore {
+    "accept an array for the value" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayIO,
-        EventFilter.info(pattern = s"starting calls: wf.concat, wf.find, wf.serialize", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "wf.count_lines.count" -> WdlInteger(3),
           "wf.count_lines_array.count" -> WdlInteger(3),

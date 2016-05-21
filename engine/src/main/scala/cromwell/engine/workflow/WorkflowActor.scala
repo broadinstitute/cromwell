@@ -254,7 +254,7 @@ class WorkflowActor(workflowId: WorkflowId,
 
   private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
     val inputMetadataEvents = workflowDescriptor.backendDescriptor.inputs.map { case (k, v) =>
-      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$k"), MetadataValue(v.toWdlString), currentTime)
+      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$k"), MetadataValue(v.valueString), currentTime)
     }
     val metadataEventMsgs = List(MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), currentTime)) ++ inputMetadataEvents
     metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )

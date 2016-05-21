@@ -1,9 +1,7 @@
 package cromwell.services
 
 import akka.actor.{Actor, ActorRef, Props}
-import com.typesafe.config.{ConfigFactory, Config, ConfigObject}
-import cromwell.engine.db.DataAccess
-import cromwell.services.ServiceRegistryActor._
+import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import lenthall.config.ScalaConfig._
 
 import scala.collection.JavaConverters._

@@ -1,16 +1,7 @@
 package cromwell.services
 
-import akka.actor.{Actor, Props}
-import com.typesafe.config.Config
 import cromwell.core.WorkflowId
-import cromwell.engine.db.DataAccess
-import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.language.postfixOps
-import scala.util.{Failure, Success}
-
 
 object MetadataServiceActor {
 
@@ -37,33 +28,9 @@ object MetadataServiceActor {
   case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
   case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceResponse
 
+  /* TODO: PBE: No EngineMetadataServiceActor.props until circular dependencies fixed.
   def props(serviceConfig: Config, globalConfig: Config) = {
     Props(MetadataServiceActor(serviceConfig, globalConfig))
   }
-}
-
-case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor {
-
-  val dataAccess = DataAccess.globalDataAccess
-
-  private def queryAndRespond(query: MetadataQuery) = {
-    val sndr = sender()
-    dataAccess.queryMetadataEvents(query) onComplete {
-      case Success(m) => sndr ! MetadataLookupResponse(query, m)
-      case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
-    }
-  }
-
-  def receive = {
-    case action@PutMetadataAction(event) =>
-      val sndr = sender()
-      dataAccess.addMetadataEvent(event) onComplete {
-        case Success(_) => sndr ! MetadataPutAcknowledgement(action)
-        case Failure(t) => sndr ! MetadataPutFailed(action, t)
-      }
-    case GetAllMetadataAction(workflowId) =>
-      val query = MetadataQuery(workflowId, None, None)
-      queryAndRespond(query)
-    case GetMetadataQueryAction(query@MetadataQuery(_, _, _)) => queryAndRespond(query)
-  }
+  */
 }

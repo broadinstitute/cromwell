@@ -51,6 +51,12 @@ object Settings {
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
+  val servicesSettings = List(
+    name := "cromwell-services",
+    version := engineVersion,
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
   val gcsFileSystemSettings = List(
     name := "cromwell-gcsfilesystem",
     version := "0.1",

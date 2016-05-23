@@ -229,7 +229,9 @@ class WorkflowActor(workflowId: WorkflowId,
   }
 
   onTransition {
-    case fromState -> toState =>
+    // Only publish "External" state to metadata service
+    // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
+    case fromState -> toState if fromState.workflowState != toState.workflowState =>
       log.info(s"$tag transitioning from $fromState to $toState")
       // This updates the workflow status
       pushCurrentStateToMetadataService(toState.workflowState)

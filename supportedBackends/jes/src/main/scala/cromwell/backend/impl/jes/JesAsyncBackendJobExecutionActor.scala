@@ -1,8 +1,9 @@
 package cromwell.backend.impl.jes
 
-
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, Props}
@@ -12,13 +13,15 @@ import com.google.api.client.http.HttpResponseException
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, SuccessfulExecutionHandle}
-import cromwell.backend.impl.jes.Run.{RunStatus, TerminalRunStatus}
+import cromwell.backend.impl.jes.Run.{EventStartTime, RunStatus, TerminalRunStatus}
 import cromwell.backend.impl.jes.authentication.JesDockerCredentials
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
+import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CallOutput, CromwellAggregatedException, _}
 import cromwell.filesystems.gcs.GoogleConfiguration
+import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services._
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s._
@@ -92,7 +95,7 @@ object JesAsyncBackendJobExecutionActor {
 class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                        val configurationDescriptor: BackendConfigurationDescriptor,
                                        override val completionPromise: Promise[BackendJobExecutionResponse])
-  extends Actor with ActorLogging with AsyncBackendJobExecutionActor {
+  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with ServiceRegistryClient {
 
   import JesAsyncBackendJobExecutionActor._
   /**
@@ -119,12 +122,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private def jesStderrFile = jesCallPaths.stderrPath
   private def jesLogFilename = jesCallPaths.jesLogFilename
   private lazy val call = jobDescriptor.key.call
-  private lazy val runtimeAttributes = {
+  private lazy val evaluatedAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     // Fail the call if runtime attributes can't be evaluated
-    val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    JesRuntimeAttributes(evaluatedAttributes)
+    TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
   }
+  private lazy val runtimeAttributes = JesRuntimeAttributes(evaluatedAttributes)
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
   private lazy val gcsExecPath: Path = callRootPath.resolve(JesExecScript)
@@ -141,6 +144,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val maxPreemption = runtimeAttributes.preemptible
   private lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
   private lazy val tag = self.path.name
+
+  private lazy val workflowId = jobDescriptor.descriptor.id
+
+  private lazy val metadataJobKey = {
+    val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
+    MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
+  }
 
   private def globOutputPath(glob: String) = callRootPath.resolve(s"glob-${glob.md5Sum}/")
 
@@ -365,11 +375,14 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
                            // runIdForResumption: Option[String],
                            withMonitoring: Boolean): Future[ExecutionHandle] = {
 
+    tellStartMetadata()
+
     val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
 
     val jesJobSetup = for {
       _ <- uploadCommandScript(command, withMonitoring)
       run <- createJesRun(jesParameters)
+      tellRunMetadata(run)
     } yield run
 
     jesJobSetup map { run => JesPendingExecutionHandle(jobDescriptor, jesOutputs, run, previousStatus = None) }
@@ -381,6 +394,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       JesFileOutput(s"$MonitoringParamName-out", defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), workingDisk)
     }
 
+    INPUTS AND OUTPUTS GENERATED HERE. PUT THEM IN THE METADATA
     val jesInputs: Seq[JesInput] = generateJesInputs(jobDescriptor).toSeq ++ monitoringScript :+ cmdInput
     val jesOutputs: Seq[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
@@ -402,7 +416,21 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         val tag = handle.jobDescriptor.key.tag
         val runId = handle.run.runId
         log.debug(s"[UUID($wfId)$tag] Polling JES Job $runId")
-        val status = Try(handle.run.checkStatus(jobDescriptor, handle.previousStatus))
+        val previousStatus = handle.previousStatus
+        val status = Try(handle.run.checkStatus(jobDescriptor, previousStatus))
+        status foreach { currentStatus =>
+          if (!(handle.previousStatus contains currentStatus)) {
+            // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
+            // just use the state names.
+            val prevStateName = previousStatus map { _.toString } getOrElse "-"
+            log.info(s"Status change from $prevStateName to $currentStatus")
+            // TODO: PBE: What engine.ExecutionStatus do we record in the _metadata_.
+            // We don't even have access to the engine here in the backend, btw.
+            // Do we send it to metadata at all, or does the engine record it elsewhere during its internal tracking?
+            //tellMetadata("executionStatus", ExecutionStatus.???)
+            tellMetadata("backendStatus", currentStatus.toString)
+          }
+        }
         status match {
           case Success(s: TerminalRunStatus) => executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
@@ -423,6 +451,104 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
     }
   } flatten
+
+  /**
+    * Fire and forget start info to the metadata service
+    */
+  private def tellStartMetadata(): Unit = {
+    //tellTimeMetadata("start", OffsetDateTime.now)
+
+    //tellMetadata("backend", "JES")
+
+    // TODO: PBE: These weren't strings in the metadata before
+    //tellMetadata("attempt", jobDescriptor.key.attempt.toString)
+    //tellMetadata("shardIndex", jobDescriptor.key.index.toString)
+    tellMetadata("preemptible", preemptible.toString)
+
+    // TODO: PBE: Trace callers of "new CallContext()". Seems to be multiple places in JES, etc. For now:
+    tellJesFileMetadata("stdout", jesCallPaths.stdoutFilename)
+    tellJesFileMetadata("stderr", jesCallPaths.stderrFilename)
+    tellJesFileMetadata("backendLogs:log", jesCallPaths.jesLogFilename)
+
+    tellMetadata("inputs", ???)
+
+    jobDescriptor.key.scope.task.outputs foreach { taskOutput =>
+      val key = taskOutput.name
+      val value = taskOutput.wdlType
+      tellMetadata(s"runtimeAttributes:$key", value.valueString)
+      taskOutput.requiredExpression.evaluateFiles(lookup, NoFunctions, taskOutput.wdlType) match {
+        case Success(wdlFiles) =>
+
+
+          wdlFiles
+        case Failure(ex) => /* ignore */
+      }
+    }
+
+    tellMetadata("outputs", ???)
+
+    // TODO: PBE: Is this metadata supposed to be the evaluated or unevaluated runtime attributes?
+    evaluatedAttributes foreach {
+      case (key, value) => tellMetadata(s"runtimeAttributes:$key", value.valueString)
+    }
+
+    tellMetadata("cache:allowResultReuse", ???)
+  }
+
+  /**
+    * Fire and forget end info to the metadata service
+    */
+  private def tellEndMetadata(returnCodeOption: Option[Int], eventList: Seq[EventStartTime]): Unit = {
+    returnCodeOption foreach { returnCode =>
+      // TODO: PBE: This was rendered as a json int before. Hopefully clients don't have problems with the string?
+      //tellMetadata("returnCode", returnCode.toString)
+    }
+
+    // The final event is only used as the book-end for the final pairing so the name is never actually used...
+    val tailedEventList = eventList :+ EventStartTime("unused_name", OffsetDateTime.now)
+    tailedEventList.sliding(2).zipWithIndex foreach {
+      case (Seq(eventCurrent, eventNext), index) =>
+        val eventKey = s"executionEvents[$index]"
+        tellMetadata(s"$eventKey:description", eventCurrent.name)
+        tellTimeMetadata(s"$eventKey:startTime", eventCurrent.timestamp)
+        tellTimeMetadata(s"$eventKey:endTime", eventNext.timestamp)
+    }
+
+    //tellTimeMetadata("end", OffsetDateTime.now)
+  }
+
+  /**
+    * Fire and forget run info to the metadata service
+    */
+  private def tellRunMetadata(run: Run): Unit = {
+    tellMetadata("jobId", run.runId)
+  }
+
+  /**
+    * Fire and forget file info to the metadata service
+    */
+  private def tellJesFileMetadata(key: String, fileName: String): Unit = {
+    tellMetadata(key, jesCallPaths.callRootPath.resolve(fileName).toString)
+  }
+
+  /**
+    * Fire and forget time info to the metadata service
+    */
+  private def tellTimeMetadata(key: String, value: OffsetDateTime): Unit = {
+    // Previous metadata json was formatted by org.joda.time.format.ISODateTimeFormat.dateTime().print()
+    tellMetadata(key, value.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+  }
+
+  /**
+    * Fire and forget to the metadata service
+    */
+  private def tellMetadata(key: String, value: String): Unit = {
+    val metadataKey = MetadataKey(workflowId, Option(metadataJobKey), key)
+    val metadataValue = MetadataValue(value)
+    val metadataEvent = MetadataEvent(metadataKey, metadataValue)
+    val putMetadataAction = PutMetadataAction(metadataEvent)
+    serviceRegistryActor ! putMetadataAction // and forget
+  }
 
   /**
     * Turns a GCS path representing a workflow input into the GCS path where the file would be mirrored to in this workflow:
@@ -576,21 +702,26 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       lazy val continueOnReturnCode = runtimeAttributes.continueOnReturnCode
 
       status match {
-        case Run.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
+        case terminal: TerminalRunStatus => tellEndMetadata(returnCode.toOption, terminal.eventList)
+        case _ => /* ignore */
+      }
+
+      status match {
+        case _: Run.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: stderr has length $stderrLength"), returnCode.toOption).future
-        case Run.Success if returnCodeContents.isFailure =>
+        case _: Run.Success if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warning(s"$tag could not download return code file, retrying: " + exception.getMessage, exception)
           // Return handle to try again.
           handle.future
-        case Run.Success if returnCode.isFailure =>
+        case _: Run.Success if returnCode.isFailure =>
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
-        case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
+        case _: Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
-        case Run.Success =>
+        case _: Run.Success =>
           completelyRandomExecutionHash map { h => handleSuccess(postProcess, returnCode.get, h, handle) }
-        case Run.Failed(errorCode, errorMessage) => handleFailure(errorCode, errorMessage)
+        case Run.Failed(errorCode, errorMessage, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {
       case e: Exception =>

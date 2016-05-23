@@ -1,5 +1,10 @@
 package cromwell.backend.impl.jes
 
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.{ArrayList => JArrayList}
+
+import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
@@ -72,18 +77,33 @@ object Run  {
       case _ => false
     }
   }
-  trait TerminalRunStatus extends RunStatus
+
+  object EventStartTime {
+    def apply(name: String, timestamp: String, format: DateTimeFormatter): EventStartTime = {
+      EventStartTime(name, OffsetDateTime.parse(timestamp, format))
+    }
+  }
+
+  // An event with a startTime timestamp
+  case class EventStartTime(name: String, timestamp: OffsetDateTime)
+
+  trait TerminalRunStatus extends RunStatus {
+    def eventList: Seq[EventStartTime]
+  }
+
   case object Initializing extends RunStatus
+
   case object Running extends RunStatus
-  case object Success extends TerminalRunStatus {
+
+  case class Success(eventList: Seq[EventStartTime]) extends TerminalRunStatus {
     override def toString = "Success"
   }
-  final case class Failed(errorCode: Int, errorMessage: Option[String]) extends TerminalRunStatus {
+
+  final case class Failed(errorCode: Int, errorMessage: Option[String], eventList: Seq[EventStartTime])
+    extends TerminalRunStatus {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
   }
-
-  // PBE deleted all the ExecutionEvent stuff
 }
 
 // PBE hacked out loggers
@@ -97,8 +117,11 @@ case class Run(runId: String, pipeline: Pipeline /*, logger: WorkflowLogger */) 
     val op = pipeline.genomicsService.operations().get(runId).execute
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
-      // val eventList = getEventList(op)
-      Option(op.getError) map { x => Failed(x.getCode, Option(x.getMessage) /*, eventList */) } getOrElse Success
+      val eventList = getEventList(op)
+      Option(op.getError) match {
+        case None => Success(eventList)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList)
+      }
     } else if (op.hasStarted) {
       Running
     } else {
@@ -106,16 +129,35 @@ case class Run(runId: String, pipeline: Pipeline /*, logger: WorkflowLogger */) 
     }
   }
 
+  private def getEventList(op: Operation): Seq[EventStartTime] = {
+    val metadata: Map[String, AnyRef] = op.getMetadata.asScala.toMap
+
+    val starterEvents: Seq[EventStartTime] = Seq(
+      eventIfExists("createTime", metadata, "waiting for quota"),
+      eventIfExists("startTime", metadata, "initializing VM")).flatten
+
+    val eventsList: Seq[EventStartTime] = for {
+      events <- metadata.get("events").toSeq
+      entry <- events.asInstanceOf[JArrayList[GArrayMap[String, String]]].asScala
+    } yield EventStartTime(entry.get("description"), entry.get("startTime"), DateTimeFormatter.ISO_INSTANT)
+
+    val finaleEvents: Seq[EventStartTime] = eventIfExists("endTime", metadata, "cromwell poll interval").toSeq
+
+    starterEvents ++ eventsList ++ finaleEvents
+  }
+
+  private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[EventStartTime] = {
+    metadata.get(name) map {
+      case time => EventStartTime(eventName, OffsetDateTime.parse(time.toString))
+    }
+  }
+
   def checkStatus(jobDescriptor: BackendJobDescriptor, previousStatus: Option[RunStatus]): RunStatus = {
     val currentStatus = status()
 
     if (!(previousStatus contains currentStatus)) {
-      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
-      // just use the state names.
-      val prevStateName = previousStatus map { _.toString } getOrElse "-"
-      println(s"Status change from $prevStateName to $currentStatus")
-
-      // PBE deleted db writes for run id and status
+      // DONE: PBE: Moved state transition logging and "db" writes to our actor.
+      // Only thing "left" here via another ticket is:
       // PBE deleted abort function registration
     }
     currentStatus

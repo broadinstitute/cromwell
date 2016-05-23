@@ -1,5 +1,7 @@
 package cromwell.backend.impl.jes
 
+import java.time.OffsetDateTime
+
 sealed trait RunStatus {
   import RunStatus._
 
@@ -14,16 +16,20 @@ object RunStatus {
   case object Initializing extends RunStatus
   case object Running extends RunStatus
 
-  sealed trait TerminalRunStatus extends RunStatus
+  sealed trait TerminalRunStatus extends RunStatus {
+    def eventList: Seq[EventStartTime]
+  }
 
-  case object Success extends TerminalRunStatus {
+  case class Success(eventList: Seq[EventStartTime]) extends TerminalRunStatus {
     override def toString = "Success"
   }
 
-  final case class Failed(errorCode: Int, errorMessage: Option[String]) extends TerminalRunStatus {
+  final case class Failed(errorCode: Int, errorMessage: Option[String], eventList: Seq[EventStartTime])
+    extends TerminalRunStatus {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
   }
 }
 
-
+// An event with a startTime timestamp
+case class EventStartTime(name: String, timestamp: OffsetDateTime)

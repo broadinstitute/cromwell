@@ -28,6 +28,7 @@ lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = (project in file("backend"))
   .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(services % "test->test;compile->compile")
   .settings(backendSettings:_*)
 
 lazy val localBackend = (project in backendRoot / "local")
@@ -43,7 +44,8 @@ lazy val sgeBackend = (project in backendRoot / "sge")
   .settings(sgeBackendSettings:_*)
 
 lazy val jesBackend = (project in backendRoot / "jes")
-  .dependsOn(backend % "test->test;compile->compile", gcsfilesystem % "test->test;compile->compile")
+  .dependsOn(backend % "test->test;compile->compile")
+  .dependsOn(gcsfilesystem % "test->test;compile->compile")
   .settings(jesBackendSettings:_*)
 
 //TODO: remove jesBackend once refactoring has finished.

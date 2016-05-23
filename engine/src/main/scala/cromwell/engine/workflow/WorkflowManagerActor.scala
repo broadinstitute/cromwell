@@ -20,6 +20,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.language.postfixOps
+import KnowsWhatTimeItIs._
 
 object WorkflowManagerActor {
 
@@ -149,7 +150,7 @@ class WorkflowManagerActor(config: Config)
      Watched transitions
      */
     case Event(Transition(workflowActor, _, toState: WorkflowActorTerminalState), data) =>
-      log.info(workflowActor.path.name + "has gone terminal")
+      log.info(workflowActor.path.name + " has gone terminal")
       stay using data.without(workflowActor)
   }
 
@@ -188,12 +189,12 @@ class WorkflowManagerActor(config: Config)
   }
 
   private def pushToMetadataService(workflowId: WorkflowId): Unit = {
-    val curTime = DateTime.now.toString
+    val curTime = currentTime
     val metadataEventMsgs = List(
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId.toString), currentTime),
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(curTime), currentTime),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId.toString), curTime),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(curTime.asJodaString), curTime),
       // Currently, submission time is the same as start time
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime), currentTime)
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime.asJodaString), curTime)
     )
     metadataEventMsgs foreach (serviceRegistryActor ! PutMetadataAction(_))
   }

@@ -382,7 +382,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val jesJobSetup = for {
       _ <- uploadCommandScript(command, withMonitoring)
       run <- createJesRun(jesParameters)
-      tellRunMetadata(run)
+      _ = tellRunMetadata(run)
     } yield run
 
     jesJobSetup map { run => JesPendingExecutionHandle(jobDescriptor, jesOutputs, run, previousStatus = None) }
@@ -394,7 +394,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       JesFileOutput(s"$MonitoringParamName-out", defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), workingDisk)
     }
 
-    INPUTS AND OUTPUTS GENERATED HERE. PUT THEM IN THE METADATA
     val jesInputs: Seq[JesInput] = generateJesInputs(jobDescriptor).toSeq ++ monitoringScript :+ cmdInput
     val jesOutputs: Seq[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
@@ -475,7 +474,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     jobDescriptor.key.scope.task.outputs foreach { taskOutput =>
       val key = taskOutput.name
       val value = taskOutput.wdlType
-      tellMetadata(s"runtimeAttributes:$key", value.valueString)
+      tellMetadata(s"runtimeAttributes:$key", value.toWdlString)
       taskOutput.requiredExpression.evaluateFiles(lookup, NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) =>
 
@@ -623,7 +622,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def postProcess: Try[CallOutputs] = {
+  private def postProcess: Try[JobOutputs] = {
     val outputs = call.task.outputs
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
@@ -634,7 +633,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def handleSuccess(outputMappings: Try[CallOutputs],
+  private def handleSuccess(outputMappings: Try[JobOutputs],
                             returnCode: Int,
                             hash: ExecutionHash,
                             executionHandle: ExecutionHandle): ExecutionHandle = {

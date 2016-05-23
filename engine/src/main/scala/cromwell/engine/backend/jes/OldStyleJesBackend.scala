@@ -15,7 +15,7 @@ import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
 import cromwell.backend.{BackendConfigurationDescriptor, ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
+import cromwell.core.{CallOutput, JobOutputs, WorkflowOptions, _}
 import cromwell.engine._
 import cromwell.engine.backend.EnhancedWorkflowOptions._
 import cromwell.engine.backend._
@@ -605,7 +605,7 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
     }
   }
 
-  def postProcess(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[CallOutputs] = {
+  def postProcess(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[JobOutputs] = {
     val outputs = jobDescriptor.call.task.outputs
     val outputFoldingFunction = getOutputFoldingFunction(jobDescriptor)
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
@@ -702,7 +702,7 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
     }
   }
 
-  private def handleSuccess(outputMappings: Try[CallOutputs],
+  private def handleSuccess(outputMappings: Try[JobOutputs],
                             workflowDescriptor: OldStyleWorkflowDescriptor,
                             executionEvents: Seq[ExecutionEventEntry],
                             returnCode: Int,

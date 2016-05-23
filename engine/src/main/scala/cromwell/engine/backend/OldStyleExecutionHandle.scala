@@ -1,7 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
-import cromwell.core.CallOutputs
+import cromwell.core.JobOutputs
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
@@ -17,7 +17,7 @@ final case class CompletedExecutionHandle(override val result: OldStyleExecution
   override val isDone = true
 }
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None) extends OldStyleExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: JobOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None) extends OldStyleExecutionHandle {
   override val isDone = true
   override val result = OldStyleSuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
 }

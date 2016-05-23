@@ -15,7 +15,7 @@ object DefaultBackendJobExecutionActor {
 
 case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   override def execute: Future[BackendJobExecutionResponse] = {
-    Future.successful(SucceededResponse(jobDescriptor.key, (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
+    Future.successful(SucceededResponse(jobDescriptor.key, Some(0), (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
   }
   override def recover = execute
 

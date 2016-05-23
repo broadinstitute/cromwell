@@ -4,6 +4,7 @@ import java.nio.file.{FileSystem, Path}
 
 import better.files._
 import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions, WriteFunctions}
+import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.core.CallContext
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values._
@@ -14,6 +15,7 @@ import scala.util.{Success, Try}
 class JesExpressionFunctions(override val fileSystems: List[FileSystem],
                              context: CallContext
                                 ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
+  import JesExpressionFunctions.EnhancedPath
 
   private def globDirectory(glob: String): String = s"glob-${glob.md5Sum}/"
 
@@ -29,4 +31,10 @@ class JesExpressionFunctions(override val fileSystems: List[FileSystem],
   override def stderr(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stderr))
 
   override val writeDirectory: Path = context.root
+}
+
+object JesExpressionFunctions {
+  implicit class EnhancedPath(val path: Path) extends AnyVal {
+    def asDirectory = path.toString.toDirectory(path.getFileSystem)
+  }
 }

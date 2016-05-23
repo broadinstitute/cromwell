@@ -5,6 +5,7 @@ import java.net.URL
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
+import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
 import wdl4s.ThrowableWithErrors

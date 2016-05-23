@@ -11,10 +11,12 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
+
 import cromwell.backend.impl.jes.authentication.JesDockerCredentials
+import cromwell.backend.impl.jes.JesImplicits.{GoogleAuthWorkflowOptions, PathString}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
@@ -86,6 +88,18 @@ object JesAsyncBackendJobExecutionActor {
       case wdlMap: WdlMap => wdlMap map { case (k, v) => gcsPathToLocal(k) -> gcsPathToLocal(v) }
       case _ => wdlValue
     }
+  }
+
+  /**
+    * Representing a running JES execution, instances of this class are never Done and it is never okay to
+    * ask them for results.
+    */
+  case class JesPendingExecutionHandle(jobDescriptor: BackendJobDescriptor,
+                                       jesOutputs: Seq[JesFileOutput],
+                                       run: Run,
+                                       previousStatus: Option[RunStatus]) extends ExecutionHandle {
+    override val isDone = false
+    override val result = NonRetryableExecution(new IllegalStateException("JesPendingExecutionHandle cannot yield a result"))
   }
 }
 

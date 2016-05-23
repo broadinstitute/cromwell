@@ -13,8 +13,7 @@ import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
-import org.joda.time.DateTime
+import cromwell.services._
 
 import scala.language.postfixOps
 
@@ -241,13 +240,13 @@ class WorkflowActor(workflowId: WorkflowId,
     case oldState -> terminalState if terminalState.terminal =>
       log.info(s"$tag transition from $oldState to $terminalState: shutting down")
       // Add the end time of the workflow in the MetadataService
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(DateTime.now.toString), currentTime)
+      import KnowsWhatTimeItIs._
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(currentTime.asJodaString), currentTime)
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>
           context.parent ! WorkflowSucceededResponse(workflowId)
-        case WorkflowFailedState =>
-          context.parent ! WorkflowFailedResponse(workflowId, oldState, Seq.empty[Throwable])
+        case WorkflowFailedState => // The failure will already have been sent. So just kick back and relax here.
         case WorkflowAbortedState =>
           context.parent ! WorkflowAbortedResponse(workflowId)
         case unknownState => log.warning(s"$tag $unknownState is an unhandled terminal state!")
@@ -255,11 +254,13 @@ class WorkflowActor(workflowId: WorkflowId,
   }
 
   private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
-    val inputMetadataEvents = workflowDescriptor.backendDescriptor.inputs.map { case (k, v) =>
-      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$k"), MetadataValue(v.valueString), currentTime)
+    import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
+    // Inputs
+    workflowDescriptor.backendDescriptor.inputs.foreach { case (inputName, wdlValue) =>
+      serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
     }
-    val metadataEventMsgs = List(MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), currentTime)) ++ inputMetadataEvents
-    metadataEventMsgs foreach ( serviceRegistryActor ! PutMetadataAction(_) )
+    // Workflow name:
+    serviceRegistryActor ! MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), currentTime)
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service
@@ -267,5 +268,4 @@ class WorkflowActor(workflowId: WorkflowId,
     val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(workflowState.toString), currentTime)
     serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
-
 }

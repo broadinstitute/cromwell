@@ -1,14 +1,14 @@
 package cromwell
 
+import java.time.OffsetDateTime
+
 import akka.actor.ActorSystem
-import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core.{CallOutput, WorkflowId}
+import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.engine.backend.OldStyleWorkflowDescriptor
 import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor.{MaterializeWorkflow, MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
-import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -25,14 +25,14 @@ package object engine {
   final case class AbortFunction(function: () => Unit)
   final case class AbortRegistrationFunction(register: AbortFunction => Unit)
 
-  final case class QualifiedFailureEventEntry(workflowId: String, execution: Option[ExecutionDatabaseKey], failure: String, timestamp: DateTime) {
+  final case class QualifiedFailureEventEntry(workflowId: String, execution: Option[ExecutionDatabaseKey], failure: String, timestamp: OffsetDateTime) {
     def dequalify = FailureEventEntry(failure, timestamp)
   }
-  final case class FailureEventEntry(failure: String, timestamp: DateTime)
+  final case class FailureEventEntry(failure: String, timestamp: OffsetDateTime)
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 
   type WorkflowOptionsJson = String
-  type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]
+  type WorkflowOutputs = Map[FullyQualifiedName, JobOutput]
   type FullyQualifiedName = String
 
   type HostInputs = Map[String, WdlValue]
@@ -44,9 +44,9 @@ package object engine {
     }
   }
 
-  implicit class EnhancedCallOutputMap[A](val m: Map[A, CallOutput]) extends AnyVal {
+  implicit class EnhancedCallOutputMap[A](val m: Map[A, JobOutput]) extends AnyVal {
     def mapToValues: Map[A, WdlValue] = m map {
-      case (k, CallOutput(wdlValue, hash)) => (k, wdlValue)
+      case (k, JobOutput(wdlValue, hash)) => (k, wdlValue)
     }
   }
 

@@ -1,20 +1,18 @@
 package cromwell.webservice
 
 import java.sql.Timestamp
+import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.WorkflowState
 import cromwell.engine.workflow.WorkflowMetadataKeys
-import cromwell.services
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.MetadataValue._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services._
 import cromwell.webservice.MetadataBuilderActor.{Idle, IndexedJsonObject, MetadataBuilderActorState, WaitingForMetadata}
 import cromwell.webservice.PerRequest.RequestComplete
-import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
@@ -40,7 +38,7 @@ object MetadataBuilderActor {
   private val KeySeparator = ':'
   private val ListNameCaptureID = "listName"
   private val ListIndexCaptureID = "listIndex"
-  private val ListMatcher = "^(.+)\\[([a-zA-Z0-9]+)\\]$".r(ListNameCaptureID, ListIndexCaptureID)
+  private val ListMatcher = "^(.+)\\[([^\\]\\[]+)\\]$".r(ListNameCaptureID, ListIndexCaptureID)
   private val AttemptKey = "attempt"
   private val ShardKey = "shardIndex"
 
@@ -139,7 +137,7 @@ object MetadataBuilderActor {
   /** There's one IndexedJsonValue per attempt, hence the list. */
   private case class MetadataForIndex(index: Int, metadata: List[IndexedJsonValue])
 
-  implicit def dateTimeOrdering: Ordering[DateTime] = scala.Ordering.fromLessThan(_ isBefore _)
+  implicit def dateTimeOrdering: Ordering[OffsetDateTime] = scala.Ordering.fromLessThan(_ isBefore _)
 
   implicit val timestampOrdering: Ordering[Timestamp] = scala.Ordering.fromLessThan(_.compareTo(_) < 0)
 

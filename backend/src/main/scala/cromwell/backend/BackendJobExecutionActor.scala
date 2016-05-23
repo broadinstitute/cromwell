@@ -4,7 +4,7 @@ import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, _}
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.core.{CallOutput, CallOutputs}
+import cromwell.core.{JobOutput, JobOutputs}
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
@@ -23,7 +23,7 @@ object BackendJobExecutionActor {
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
 
   sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse
-  case class SucceededResponse(jobKey: BackendJobDescriptorKey, callOutputs: CallOutputs) extends BackendJobExecutionResponse
+  case class SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) extends BackendJobExecutionResponse
   case class AbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   case class FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobExecutionResponse
   case class FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobExecutionResponse
@@ -62,15 +62,15 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   def evaluateOutputs(wdlFunctions: WdlStandardLibraryFunctions,
                       postMapper: WdlValue => Try[WdlValue] = v => Success(v)) = {
     val inputs = jobDescriptor.inputs
-    jobDescriptor.call.task.outputs.foldLeft(Map.empty[LocallyQualifiedName, Try[CallOutput]])((outputMap, output) => {
+    jobDescriptor.call.task.outputs.foldLeft(Map.empty[LocallyQualifiedName, Try[JobOutput]])((outputMap, output) => {
       val currentOutputs = outputMap collect {
         case (name, value) if value.isSuccess => name -> value.get.wdlValue
       }
       def lookup = (currentOutputs ++ inputs).apply _
       val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
-      val callOutput = output.name -> (coerced flatMap postMapper map { CallOutput(_, None) })
+      val jobOutput = output.name -> (coerced flatMap postMapper map { JobOutput(_, None) })
 
-      outputMap + callOutput
+      outputMap + jobOutput
 
     })
   }

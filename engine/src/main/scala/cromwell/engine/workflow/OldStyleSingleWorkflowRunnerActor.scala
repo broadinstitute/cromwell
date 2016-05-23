@@ -5,7 +5,7 @@ import java.nio.file.Path
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import better.files._
-import cromwell.core.{CallOutput, WorkflowId}
+import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.engine
 import cromwell.engine._
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowMetadata
@@ -145,7 +145,7 @@ case class OldStyleSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     */
   private def outputOutputs(outputs: engine.WorkflowOutputs): Unit = {
     import WdlValueJsonFormatter._
-    val outputValues = outputs mapValues { case CallOutput(wdlValue, _) => wdlValue }
+    val outputValues = outputs mapValues { case JobOutput(wdlValue, _) => wdlValue }
     println(outputValues.toJson.prettyPrint)
   }
 

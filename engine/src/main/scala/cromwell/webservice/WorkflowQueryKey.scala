@@ -1,8 +1,9 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
+
 import cromwell.core.{ErrorOr, WorkflowId}
 import cromwell.engine.WorkflowState
-import org.joda.time.DateTime
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -80,14 +81,14 @@ sealed trait WorkflowQueryKey[T] {
   }
 }
 
-sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[DateTime]] {
-  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[DateTime]] = {
+sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDateTime]] {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[OffsetDateTime]] = {
     valuesFromMap(grouped) match {
       case vs if vs.size > 1 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".failureNel
       case Nil => None.successNel
       case v :: Nil =>
-        Try(new DateTime(v)) match {
+        Try(OffsetDateTime.parse(v)) match {
           case Success(dt) => Option(dt).successNel
           case _ => s"Value given for $displayName does not parse as a datetime: $v".failureNel
         }

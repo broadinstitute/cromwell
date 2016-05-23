@@ -1,10 +1,10 @@
 package cromwell.engine.backend.jes
 
+import java.time.OffsetDateTime
 import java.util
 
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model.Operation
-import org.joda.time.DateTime
 import org.scalatest.{Matchers, FlatSpec}
 import scala.collection.JavaConverters._
 
@@ -35,8 +35,8 @@ class RunSpec extends FlatSpec with Matchers {
 
     Run.getEventList(op) should have size 5
     Run.getEventList(op) filter { x => x.description == "blah" } foreach { x =>
-      x.startTime.getMillis should be (new DateTime("2015-12-05T00:00:01.000Z").getMillis)
-      x.endTime.getMillis should be (new DateTime("2015-12-05T00:01:00.000Z").getMillis)
+      x.startTime.toInstant should be (OffsetDateTime.parse("2015-12-05T00:00:01.000Z").toInstant)
+      x.endTime.toInstant should be (OffsetDateTime.parse("2015-12-05T00:01:00.000Z").toInstant)
     }
 
   }

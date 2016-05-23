@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.core.CallOutput
+import cromwell.core.JobOutput
 import wdl4s.TaskOutput
 import wdl4s.types._
 import wdl4s.values._
@@ -9,7 +9,7 @@ package object mock {
 
   // This is used by stubbed backends that are to be used in tests to prepare dummy outputs for job
   def taskOutputToJobOutput(taskOutput: TaskOutput) =
-    taskOutput.name -> CallOutput(sampleValue(taskOutput.wdlType), None)
+    taskOutput.name -> JobOutput(sampleValue(taskOutput.wdlType), None)
 
   private def sampleValue(wdlType: WdlType): WdlValue = wdlType match {
     case WdlIntegerType => WdlInteger(3)

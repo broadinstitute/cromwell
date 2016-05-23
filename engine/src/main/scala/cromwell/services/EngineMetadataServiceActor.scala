@@ -1,9 +1,10 @@
 package cromwell.services
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{ActorRef, Actor, ActorLogging}
 import com.typesafe.config.Config
 import cromwell.engine.db.DataAccess
 import cromwell.services.MetadataServiceActor._
+import wdl4s.values.{WdlArray, WdlValue}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps

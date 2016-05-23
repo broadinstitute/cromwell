@@ -132,7 +132,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private def processSuccess(rc: Int) = {
     processOutputs(callEngineFunction, jobPaths) match {
-      case Success(outputs) => SucceededResponse(jobDescriptor.key, outputs)
+      case Success(outputs) => SucceededResponse(jobDescriptor.key, Some(rc), outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map {
           ": " + _

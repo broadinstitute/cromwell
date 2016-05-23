@@ -1,5 +1,7 @@
 package cromwell.engine.backend.jes
 
+import java.time.OffsetDateTime
+
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
@@ -12,7 +14,6 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.google.GenomicsScopes
-import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -95,7 +96,7 @@ object Run  {
   }
 
   // An event with a startTime timestamp
-  private case class EventStartTime(name: String, timestamp: DateTime)
+  private case class EventStartTime(name: String, timestamp: OffsetDateTime)
 
   def getEventList(op: Operation): Seq[ExecutionEventEntry] = {
     val starterEvents = eventIfExists("createTime", op, "waiting for quota") ++ eventIfExists("startTime", op, "initializing VM")
@@ -103,14 +104,14 @@ object Run  {
     val eventsList: Seq[EventStartTime] = if (op.getMetadata.containsKey("events")) {
       op.getMetadata.get("events").asInstanceOf[java.util.ArrayList[AnyRef]].asScala map { x =>
         val entry = x.asInstanceOf[ArrayMap[String, String]]
-        EventStartTime(entry.get("description"), DateTime.parse(entry.get("startTime")))
+        EventStartTime(entry.get("description"), OffsetDateTime.parse(entry.get("startTime")))
       } toSeq
     } else Seq.empty
 
     // The final event is only used as the book-end for the final pairing (see below) so the name is never actually used...
     // ... which is rather a pity actually - it's a jolly good name.
     val finaleEvents = eventIfExists("endTime", op, "cromwell poll interval") ++ Seq(
-      EventStartTime("The Queen flying around with a jet-pack, with Winston Churchill cheering and waving a huge Union Jack in the background", DateTime.now))
+      EventStartTime("The Queen flying around with a jet-pack, with Winston Churchill cheering and waving a huge Union Jack in the background", OffsetDateTime.now))
 
     // Join the Seqs together, pair up consecutive elements then make events with start and end times.
     ((starterEvents ++ eventsList ++ finaleEvents).sliding(2) toSeq) map { case Seq(a, b) => ExecutionEventEntry(a.name, a.timestamp, b.timestamp) }
@@ -119,7 +120,7 @@ object Run  {
   private def eventIfExists(name: String, op: Operation, eventName: String): Seq[EventStartTime] = {
     val metadata = op.getMetadata
     if(metadata.containsKey(name))
-      Seq(EventStartTime(eventName, DateTime.parse(metadata.get(name).asInstanceOf[String])))
+      Seq(EventStartTime(eventName, OffsetDateTime.parse(metadata.get(name).asInstanceOf[String])))
     else
       Seq.empty
   }

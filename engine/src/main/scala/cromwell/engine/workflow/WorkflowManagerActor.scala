@@ -16,6 +16,7 @@ import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
 import cromwell.{core, engine}
+import cromwell.server._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.http.Uri
 import wdl4s._
@@ -103,9 +104,13 @@ class WorkflowManagerActor(config: Config)
 
   private val donePromise = Promise[Unit]()
 
+  val isRestartable = config.getConfig("system").getBooleanOr("workflow-restart", default = true)
+  val serverMode = CromwellServer.isServerMode
+
   override def preStart() {
     addShutdownHook()
-    restartIncompleteWorkflows()
+    if (serverMode && isRestartable) { restartIncompleteWorkflows() }
+    else { abortIncompleteWorkflows() }
   }
 
   private def addShutdownHook(): Unit = {
@@ -116,6 +121,17 @@ class WorkflowManagerActor(config: Config)
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {
         logger.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
+        self ! AbortAllWorkflows
+        Await.ready(donePromise.future, Duration.Inf)
+      }
+    }
+  }
+
+  private def abortIncompleteWorkflows(): Unit = {
+    // Abort jobs if running in server mode and incomplete workflows are not meant to be re-started
+    if (serverMode && !isRestartable) {
+      sys.addShutdownHook {
+        logger.info(s"$tag: Received signal to Abort all incomplete workflows...")
         self ! AbortAllWorkflows
         Await.ready(donePromise.future, Duration.Inf)
       }

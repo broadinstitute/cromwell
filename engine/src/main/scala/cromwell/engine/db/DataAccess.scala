@@ -6,7 +6,7 @@ import java.util.Date
 import akka.actor.ActorSystem
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.core.{CallOutput, CallOutputs, WorkflowId}
+import cromwell.core.{CallOutput, JobOutputs, WorkflowId}
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase
 import cromwell.database.obj._
@@ -255,7 +255,7 @@ trait DataAccess extends AutoCloseable {
   }
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
+  def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: JobOutputs,
                  workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit] = {
     val reportableResultNames = workflowOutputFqns map { _.fullyQualifiedName }
     val outputSymbols = (workflowExecutionId: Int) => {

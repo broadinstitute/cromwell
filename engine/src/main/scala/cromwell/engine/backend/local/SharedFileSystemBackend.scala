@@ -5,7 +5,7 @@ import java.nio.file._
 import better.files._
 import cromwell.backend.ExecutionEventEntry
 import cromwell.backend.wdl.OldWorkflowEngineFunctions
-import cromwell.core.{CallOutput, CallOutputs, WorkflowOptions, _}
+import cromwell.core.{CallOutput, JobOutputs, WorkflowOptions, _}
 import cromwell.engine.backend
 import cromwell.engine.backend._
 import cromwell.engine.io.gcs.GcsPath
@@ -126,7 +126,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: OldStyleBacken
     new OldStyleLocalWorkflowEngineFunctions(fileSystems, workflowContext)
   }
 
-  def postProcess(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[CallOutputs] = {
+  def postProcess(jobDescriptor: OldStyleBackendCallJobDescriptor): Try[JobOutputs] = {
     implicit val hasher = jobDescriptor.workflowDescriptor.fileHasher
 
     val outputs = jobDescriptor.call.task.outputs
@@ -157,7 +157,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: OldStyleBacken
     pathAdjustedValue <- Success(absolutizeOutputWdlFile(convertedValue, jobDescriptor.callRootPath))
   } yield pathAdjustedValue
 
-  def adjustOutputPaths(call: Call, outputs: CallOutputs): CallOutputs = outputs
+  def adjustOutputPaths(call: Call, outputs: JobOutputs): JobOutputs = outputs
 
   def sharedFileSystemStdoutStderr(jobDescriptor: OldStyleBackendCallJobDescriptor): CallLogs = {
     val dir = jobDescriptor.callRootPath

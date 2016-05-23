@@ -241,7 +241,8 @@ class WorkflowActor(workflowId: WorkflowId,
     case oldState -> terminalState if terminalState.terminal =>
       log.info(s"$tag transition from $oldState to $terminalState: shutting down")
       // Add the end time of the workflow in the MetadataService
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(DateTime.now.toString), currentTime)
+      import KnowsWhatTimeItIs._
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(currentTime.asJodaString), currentTime)
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>

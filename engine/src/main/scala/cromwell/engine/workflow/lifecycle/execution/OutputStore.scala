@@ -45,7 +45,7 @@ case class OutputStore(store: Map[OutputCallKey, Traversable[OutputEntry]]) {
     * Try to generate output for a collector call, by collecting outputs for all of its shards.
     * It's fail-fast on shard output retrieval
     */
-  def generateCollectorOutput(collector: CollectorKey, shards: Iterable[BackendJobDescriptorKey]): Try[CallOutputs] = Try {
+  def generateCollectorOutput(collector: CollectorKey, shards: Iterable[BackendJobDescriptorKey]): Try[JobOutputs] = Try {
     val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
       fetchCallOutputEntries(e.scope, e.index) map { _.outputs } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }

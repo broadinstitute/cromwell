@@ -19,20 +19,20 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
   behavior of "LocalBackend"
 
   it should "execute an hello world workflow" in {
-    val expectedOutputs: CallOutputs = Map(
+    val expectedOutputs: JobOutputs = Map(
       "salutation" -> CallOutput(WdlString("Hello you !"), None)
     )
-    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
+    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
   }
 
   it should "execute an hello world workflow on Docker" taggedAs DockerTest in {
-    val expectedOutputs: CallOutputs = Map(
+    val expectedOutputs: JobOutputs = Map(
       "salutation" -> CallOutput(WdlString("Hello you !"), None)
     )
-    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
+    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""), defaultBackendConfigDescriptor, expectedResponse)
 
     testWorkflow(wf)
@@ -74,7 +74,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       "inputFileFromJson" -> WdlFile(jsonInputFile)
     )
 
-    val expectedOutputs: CallOutputs = Map(
+    val expectedOutputs: JobOutputs = Map(
       "out" -> CallOutput(WdlArray(WdlArrayType(WdlStringType),
         Array(
           WdlString("content from json inputs"),
@@ -93,7 +93,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       val wf = buildWorkflowDescriptor(InputFiles, inputs)
       val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf, inputs), conf)
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
-      val expectedResponse = SucceededResponse(jobDescriptor.key, expectedOutputs)
+      val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
 
       val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key)
 
@@ -138,7 +138,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
 
       val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
       val backend = localBackend(jd, defaultBackendConfigDescriptor)
-      val response = SucceededResponse(mock[BackendJobDescriptorKey], Map("out" -> CallOutput(WdlInteger(shard), None)))
+      val response = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> CallOutput(WdlInteger(shard), None)))
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -161,7 +161,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       ),
       "o3" -> CallOutput(WdlFile(inputFile), None)
     )
-    val expectedResponse = SucceededResponse(jobDescriptor.key, expectedOutputs)
+    val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
 
     executeJobAndAssertOutputs(backend, expectedResponse)
   }

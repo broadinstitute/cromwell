@@ -1,10 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import akka.actor.ActorRef
 import cromwell.backend.JobKey
 import cromwell.core._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.{WdlFunctions, EngineWorkflowDescriptor, ExecutionStatus}
+import cromwell.services._
+import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.webservice.WdlValueJsonFormatter
 
 import scala.language.postfixOps
@@ -19,17 +22,25 @@ final case class WorkflowExecutionDiff(executionStore: Map[JobKey, ExecutionStat
 
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
-                                      outputStore: OutputStore) extends WdlLookup {
+                                      outputStore: OutputStore,
+                                      serviceRegistryActor: ActorRef) extends WdlLookup {
 
   override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.backendDescriptor.workflowOptions)
 
-  def jobExecutionSuccess(jobKey: JobKey, outputs: CallOutputs) = this.copy(
-    executionStore = executionStore.add(Map(jobKey -> Done)),
-    outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
-  )
+  def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = {
+
+    val metadataKey = MetadataKey(workflowDescriptor.id, Some(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), CallMetadataKeys.ExecutionStatus)
+    val metadataValue = MetadataValue(Done.toString)
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey, metadataValue))
+
+    this.copy(
+      executionStore = executionStore.add(Map(jobKey -> Done)),
+      outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
+    )
+  }
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
-  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs) = {
+  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: JobOutputs) = {
     val newOutputEntries = outputs map {
       case (name, value) => OutputEntry(name, value.wdlValue.wdlType, Option(value.wdlValue))
     }
@@ -48,6 +59,11 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
+    diff.executionStore.foreach { case (key, value) => {
+      val metadataKey = MetadataKey(workflowDescriptor.id, Some(MetadataJobKey(key.scope.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.ExecutionStatus)
+      val metadataValue = MetadataValue(value.toString)
+      serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey, metadataValue))
+    }}
     this.copy(executionStore = executionStore.add(diff.executionStore))
   }
 

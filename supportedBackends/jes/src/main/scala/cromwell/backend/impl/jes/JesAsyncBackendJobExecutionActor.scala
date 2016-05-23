@@ -398,7 +398,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val jesJobSetup = for {
       _ <- uploadCommandScript(command, withMonitoring)
       run <- createJesRun(jesParameters)
-      tellRunMetadata(run)
+      _ = tellRunMetadata(run)
     } yield run
 
     jesJobSetup map { run => JesPendingExecutionHandle(jobDescriptor, jesOutputs, run, previousStatus = None) }
@@ -493,13 +493,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * Fire and forget end info to the metadata service
     */
   private def tellEndMetadata(returnCodeOption: Option[Int], eventList: Seq[EventStartTime]): Unit = {
-    // TODO: PBE: Is this any different that what the engine writes?
-    // If not, put the `outputMappings` back into `postProcess`
-    outputMappings foreach {
-      case (key, Success(value)) => tellWdlValueMetadata(s"outputs:$key", value)
-      case (key, _: Failure) => /* ignore */
-    }
-
     // The final event is only used as the book-end for the final pairing so the name is never actually used...
     val tailedEventList = eventList :+ EventStartTime("unused_name", OffsetDateTime.now)
     tailedEventList.sliding(2).zipWithIndex foreach {
@@ -629,7 +622,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
   }
 
-  private def postProcess: Try[CallOutputs] = {
+  private def postProcess: Try[JobOutputs] = {
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
       outputMap mapValues { v =>
         // PBE fix hashing
@@ -638,7 +631,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def handleSuccess(outputMappings: Try[CallOutputs],
+  private def handleSuccess(outputMappings: Try[JobOutputs],
                             returnCode: Int,
                             hash: ExecutionHash,
                             executionHandle: ExecutionHandle): ExecutionHandle = {

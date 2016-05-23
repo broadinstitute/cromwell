@@ -1,5 +1,10 @@
 package cromwell.backend.impl.jes
 
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.{ArrayList => JArrayList}
+
+import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
@@ -76,8 +81,6 @@ object Run  {
   implicit class RunOperationExtension(val operation: Operation) extends AnyVal {
     def hasStarted = operation.getMetadata.asScala.get("startTime") isDefined
   }
-
-  // PBE deleted all the ExecutionEvent stuff
 }
 
 // PBE hacked out loggers
@@ -91,8 +94,11 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
     val op = genomicsInterface.operations().get(runId).execute
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
-      // val eventList = getEventList(op)
-      Option(op.getError) map { x => Failed(x.getCode, Option(x.getMessage) /*, eventList */) } getOrElse Success
+      val eventList = getEventList(op)
+      Option(op.getError) match {
+        case None => Success(eventList)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList)
+      }
     } else if (op.hasStarted) {
       Running
     } else {
@@ -100,16 +106,35 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
     }
   }
 
+  private def getEventList(op: Operation): Seq[EventStartTime] = {
+    val metadata: Map[String, AnyRef] = op.getMetadata.asScala.toMap
+
+    val starterEvents: Seq[EventStartTime] = Seq(
+      eventIfExists("createTime", metadata, "waiting for quota"),
+      eventIfExists("startTime", metadata, "initializing VM")).flatten
+
+    val eventsList: Seq[EventStartTime] = for {
+      events <- metadata.get("events").toSeq
+      entry <- events.asInstanceOf[JArrayList[GArrayMap[String, String]]].asScala
+    } yield EventStartTime(entry.get("description"), entry.get("startTime"), DateTimeFormatter.ISO_INSTANT)
+
+    val finaleEvents: Seq[EventStartTime] = eventIfExists("endTime", metadata, "cromwell poll interval").toSeq
+
+    starterEvents ++ eventsList ++ finaleEvents
+  }
+
+  private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[EventStartTime] = {
+    metadata.get(name) map {
+      case time => EventStartTime(eventName, OffsetDateTime.parse(time.toString))
+    }
+  }
+
   def checkStatus(jobDescriptor: BackendJobDescriptor, previousStatus: Option[RunStatus]): RunStatus = {
     val currentStatus = status()
 
     if (!(previousStatus contains currentStatus)) {
-      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
-      // just use the state names.
-      val prevStateName = previousStatus map { _.toString } getOrElse "-"
-      println(s"Status change from $prevStateName to $currentStatus")
-
-      // PBE deleted db writes for run id and status
+      // DONE: PBE: Moved state transition logging and "db" writes to our actor.
+      // Only thing "left" here via another ticket is:
       // PBE deleted abort function registration
     }
     currentStatus

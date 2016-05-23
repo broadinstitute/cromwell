@@ -247,14 +247,14 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     val workflow = WorkflowId.randomId()
     val query = MetadataQuery(workflow, None, Option("status"))
     val events = List(
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Running"), Timestamp.valueOf("2000-01-02 12:00:00")),
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Done"), Timestamp.valueOf("2000-01-03 12:00:00")),
+      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Running"), Timestamp.valueOf("2000-01-03 12:00:00")),
+      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Succeeded"), Timestamp.valueOf("2000-01-03 12:00:00")),
       MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Submitted"), Timestamp.valueOf("2000-01-01 12:00:00"))
     )
     val expectedRes =
       s"""{
          |"id": "$workflow",
-         | "status": "Done"
+         | "status": "Succeeded"
          |}""".stripMargin
 
     assertMetadataResponse(GetMetadataQueryAction(query), query, events, expectedRes)

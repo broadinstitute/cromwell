@@ -370,9 +370,12 @@ trait DataAccess extends AutoCloseable {
     val key = metadataEvent.key
     val workflowUuid = key.workflowId.id.toString
     val timestamp = metadataEvent.timestamp
+    val value = metadataEvent.value.value
+    val valueType = Option(metadataEvent.value.valueType) map { _.typeName } orNull
+
     key.jobKey match {
-      case None => addMetadataEvent(workflowUuid, key.key, metadataEvent.value.value, timestamp)
-      case Some(jobKey) => addMetadataEvent(workflowUuid, key.key, jobKey.callFqn, jobKey.index, jobKey.attempt, metadataEvent.value.value, timestamp)
+      case None => addMetadataEvent(workflowUuid, key.key, value, valueType, timestamp)
+      case Some(jobKey) => addMetadataEvent(workflowUuid, key.key, jobKey.callFqn, jobKey.index, jobKey.attempt, value, valueType, timestamp)
     }
   }
 
@@ -393,7 +396,7 @@ trait DataAccess extends AutoCloseable {
         } yield new MetadataJobKey(callFqn, m.index, attempt)
 
         val key = MetadataKey(query.workflowId, metadataJobKey, m.key)
-        val value = MetadataValue(m.value.orNull)
+        val value = new MetadataValue(m.value.orNull, m.valueType.map(MetadataType.fromString).orNull)
         MetadataEvent(key, value, m.timestamp)
       }
     }

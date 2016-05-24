@@ -1,15 +1,18 @@
 package cromwell.engine.backend.local
 
 import java.io.Writer
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{FileSystem, Files, Path, Paths}
 
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine._
+import cromwell.engine.backend._
+import cromwell.engine.backend.io._
+import cromwell.engine.backend.io.filesystem.gcs.{GcsFileSystemProvider, StorageFactory}
 import cromwell.engine.backend.local.LocalBackend.InfoKeys
-import cromwell.engine.backend.{BackendType, _}
 import cromwell.engine.db.DataAccess._
 import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
 import cromwell.util.FileUtil._
@@ -44,6 +47,18 @@ object LocalBackend {
 
   lazy val logger = LoggerFactory.getLogger("cromwell")
 
+  implicit class LocalEnhancedJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
+    def dockerContainerExecutionDir = jobDescriptor.workflowDescriptor.workflowRootPathWithBaseRoot(LocalBackend.ContainerRoot)
+    def containerCallRoot = jobDescriptor.callRuntimeAttributes.docker match {
+      case Some(docker) => jobDescriptor.callRootPathWithBaseRoot(LocalBackend.ContainerRoot)
+      case None => jobDescriptor.callRootPath
+    }
+    def stdout = jobDescriptor.callRootPath.resolve("stdout")
+    def stderr = jobDescriptor.callRootPath.resolve("stderr")
+    def script = jobDescriptor.callRootPath.resolve("script")
+    def returnCode = jobDescriptor.callRootPath.resolve("rc")
+  }
+
   /**
     * If using Mac OS X with Docker Machine, by default Cromwell can only use the -v flag to 'docker run'
     * if running from somewhere within the user's home directory.  If not, then -v will mount to the
@@ -77,7 +92,6 @@ object LocalBackend {
  * Handles both local Docker runs as well as local direct command line executions.
  */
 case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
-  type BackendCall = LocalBackendCall
 
   override def adjustInputPaths(jobDescriptor: BackendCallJobDescriptor) = adjustSharedInputPaths(jobDescriptor)
 
@@ -92,23 +106,17 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
 
   override def pollBackoff = pollBackoffBuilder.build()
 
-  /** WARNING returns a modified copy of the input jobDescriptor as part of the BackendCall result. */
-  override def bindCall(jobDescriptor: BackendCallJobDescriptor,
-                        abortRegistrationFunction: Option[AbortRegistrationFunction]): BackendCall = {
+  def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
 
-    val newDescriptor = jobDescriptor.copy(abortRegistrationFunction = abortRegistrationFunction)
-    LocalBackendCall(this, newDescriptor, abortRegistrationFunction)
-  }
+  def stdoutStderr(jobDescriptor: BackendCallJobDescriptor): CallLogs = sharedFileSystemStdoutStderr(jobDescriptor)
 
-  def stdoutStderr(backendCall: BackendCall): CallLogs = sharedFileSystemStdoutStderr(backendCall)
-
-  def execute(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
-    val logger = workflowLoggerWithCall(backendCall)
-    backendCall.instantiateCommand match {
+  def execute(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future({
+    val logger = jobLogger(jobDescriptor)
+    jobDescriptor.instantiateCommand match {
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
-        writeScript(backendCall, instantiatedCommand, backendCall.containerCallRoot)
-        runSubprocess(backendCall)
+        writeScript(jobDescriptor, instantiatedCommand, jobDescriptor.containerCallRoot)
+        runSubprocess(jobDescriptor)
       case Failure(ex) => NonRetryableExecution(ex).future
     }
   }).flatten map CompletedExecutionHandle
@@ -136,8 +144,8 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
    * Writes the script file containing the user's command from the WDL as well
    * as some extra shell code for monitoring jobs
    */
-  private def writeScript(backendCall: BackendCall, instantiatedCommand: String, containerRoot: Path) = {
-    backendCall.script.write(
+  private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String, containerRoot: Path) = {
+    jobDescriptor.script.write(
       s"""#!/bin/sh
          |cd $containerRoot
          |$instantiatedCommand
@@ -150,30 +158,30 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
    * -v maps the host workflow executions directory to /root/<workflow id> on the container.
    * -i makes the run interactive, required for the cat and <&0 shenanigans that follow.
    */
-  private def buildDockerRunCommand(backendCall: BackendCall, image: String): String = {
-    val callPath = backendCall.containerCallRoot
-    s"docker run --rm -v ${backendCall.callRootPath.toAbsolutePath}:$callPath -i $image"
+  private def buildDockerRunCommand(jobDescriptor: BackendCallJobDescriptor, image: String): String = {
+    val callPath = jobDescriptor.containerCallRoot
+    s"docker run --rm -v ${jobDescriptor.callRootPath.toAbsolutePath}:$callPath -i $image"
   }
 
-  private def runSubprocess(backendCall: BackendCall)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
-    val logger = workflowLoggerWithCall(backendCall)
-    val stdoutWriter = backendCall.stdout.untailed
-    val stderrTailed = backendCall.stderr.tailed(100)
-    val dockerRun = backendCall.runtimeAttributes.docker.map(d => buildDockerRunCommand(backendCall, d)).getOrElse("")
-    val argv = Seq("/bin/bash", "-c", s"cat ${backendCall.script} | $dockerRun /bin/bash <&0")
+  private def runSubprocess(jobDescriptor: BackendCallJobDescriptor)(implicit ec: ExecutionContext): Future[ExecutionResult] = {
+    val logger = jobLogger(jobDescriptor)
+    val stdoutWriter = jobDescriptor.stdout.untailed
+    val stderrTailed = jobDescriptor.stderr.tailed(100)
+    val dockerRun = jobDescriptor.callRuntimeAttributes.docker.map(d => buildDockerRunCommand(jobDescriptor, d)).getOrElse("")
+    val argv = Seq("/bin/bash", "-c", s"cat ${jobDescriptor.script} | $dockerRun /bin/bash <&0")
     val process = argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline))
 
     // TODO: As currently implemented, this process.destroy() will kill the bash process but *not* its descendants. See ticket DSDEEPB-848.
-    backendCall.callAbortRegistrationFunction.foreach(_.register(AbortFunction(() => process.destroy())))
+    jobDescriptor.abortRegistrationFunction.foreach(_.register(AbortFunction(() => process.destroy())))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"command: $backendCommandString")
     val processReturnCode = process.exitValue() // blocks until process finishes
     Vector(stdoutWriter.writer, stderrTailed.writer) foreach { _.flushAndClose() }
 
-    val stderrFileLength = Try(Files.size(backendCall.stderr)).getOrElse(0L)
+    val stderrFileLength = Try(Files.size(jobDescriptor.stderr)).getOrElse(0L)
     val returnCode = Try(
-      if (processReturnCode == 0 || backendCall.runtimeAttributes.docker.isEmpty) {
-        val rc = backendCall.returnCode.contentAsString.stripLineEnd.toInt
+      if (processReturnCode == 0 || jobDescriptor.callRuntimeAttributes.docker.isEmpty) {
+        val rc = jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
         logger.info(s"Return code: $rc")
         rc
       } else {
@@ -183,14 +191,14 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       }
     )
 
-    if (backendCall.runtimeAttributes.failOnStderr && stderrFileLength > 0) {
-      NonRetryableExecution(new Throwable(s"Call ${backendCall.call.fullyQualifiedName}, " +
-        s"Workflow ${backendCall.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
+    if (jobDescriptor.callRuntimeAttributes.failOnStderr && stderrFileLength > 0) {
+      NonRetryableExecution(new Throwable(s"Call ${jobDescriptor.call.fullyQualifiedName}, " +
+        s"Workflow ${jobDescriptor.workflowDescriptor.id}: stderr has length $stderrFileLength")).future
     } else {
 
       def processSuccess(rc: Int) = {
-        postProcess(backendCall) match {
-          case Success(outputs) => backendCall.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
+        postProcess(jobDescriptor) match {
+          case Success(outputs) => jobDescriptor.hash map { h => SuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             NonRetryableExecution(new Throwable("Failed post processing of outputs" + message, e)).future
@@ -198,14 +206,14 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       }
 
       val badReturnCodeMessage =
-         s"""Call ${backendCall.call.fullyQualifiedName}, Workflow ${backendCall.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
+         s"""Call ${jobDescriptor.call.fullyQualifiedName}, Workflow ${jobDescriptor.workflowDescriptor.id}: return code was ${returnCode.getOrElse("(none)")}
             |
             |Full command was: $backendCommandString
             |
             |${stderrTailed.tailString}
           """.stripMargin
 
-      val continueOnReturnCode = backendCall.runtimeAttributes.continueOnReturnCode
+      val continueOnReturnCode = jobDescriptor.callRuntimeAttributes.continueOnReturnCode
       returnCode match {
         case Success(143) => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
         case Success(otherReturnCode) if continueOnReturnCode.continueFor(otherReturnCode) => processSuccess(otherReturnCode)
@@ -215,8 +223,8 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
     }
   }
 
-  override def callRootPathWithBaseRoot(jobDescriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
-    val path = super.callRootPathWithBaseRoot(jobDescriptor, baseRoot)
+  override def callRootPathWithBaseRoot(descriptor: BackendCallJobDescriptor, baseRoot: String): Path = {
+    val path = super.callRootPathWithBaseRoot(descriptor, baseRoot)
     if (!path.toFile.exists()) path.toFile.mkdirs()
     path
   }
@@ -224,7 +232,14 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
   override def executionInfoKeys: List[String] = List(InfoKeys.Pid)
 
   override def callEngineFunctions(descriptor: BackendCallJobDescriptor): CallEngineFunctions = {
-    new LocalCallEngineFunctions(descriptor.workflowDescriptor.ioManager, buildCallContext(descriptor))
+    new LocalCallEngineFunctions(descriptor.workflowDescriptor.fileSystems, buildCallContext(descriptor))
+  }
+
+  override def fileSystems(options: WorkflowOptions): List[FileSystem] = {
+    val gcsStorage = StorageFactory.userAuthenticated(options) orElse StorageFactory.cromwellAuthenticated
+    val gcs = gcsStorage map GcsFileSystemProvider.apply map { _.getFileSystem } toOption
+
+    List(gcs, Option(defaultFileSystem)).flatten
   }
 
   def instantiateCommand(jobDescriptor: BackendCallJobDescriptor): Try[String] = {
@@ -233,8 +248,12 @@ case class LocalBackend(actorSystem: ActorSystem) extends Backend with SharedFil
       case Some(_) => toDockerPath
       case None => (v: WdlValue) => v
     }
-    jobDescriptor.key.scope.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
+    jobDescriptor.call.instantiateCommandLine(backendInputs, jobDescriptor.callEngineFunctions, pathTransformFunction)
   }
 
   override def poll(jobDescriptor: BackendCallJobDescriptor, previous: ExecutionHandle)(implicit ec: ExecutionContext) = Future.successful(previous)
+
+  override def resume(descriptor: BackendCallJobDescriptor, jobKey: BackendJobKey)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    Future.failed(new Throwable("resume invoked on non-resumable Local backend"))
+  }
 }

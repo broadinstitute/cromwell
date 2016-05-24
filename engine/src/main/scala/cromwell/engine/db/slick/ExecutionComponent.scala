@@ -5,9 +5,14 @@ import java.sql.Timestamp
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.db.ExecutionDatabaseKey
+import slick.dbio.Effect.Read
+import slick.jdbc.GetResult
 import slick.profile.RelationalProfile.ColumnOption.Default
 
 import scala.language.postfixOps
+
+case class CallCacheHit(workflowId: String, callName: String)
+case class ExecutionWithCacheData(execution: Execution, cacheHit: Option[CallCacheHit])
 
 case class Execution(workflowExecutionId: Int,
                      callFqn: String,
@@ -160,6 +165,35 @@ trait ExecutionComponent {
       execution <- executions
       if execution.executionId === executionId
     } yield (execution.status, execution.rc))
+
+  import slick.dbio.DBIOAction
+  def executionsWithCacheHitWorkflowAndCall(workflowExecutionUuid: String): DBIOAction[Vector[ExecutionWithCacheData], NoStream, Read] = {
+    implicit val converter = GetResult { r =>
+      /** NOTE: the columns must be in the same order as the attributes in the Execution class for this to work */
+      val execution = Execution(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
+      val cacheHitWorkflow: Option[String] = r.<<
+      val cacheHitCallName: Option[String] = r.<<
+
+      val cacheHit = for {
+        workflow <- cacheHitWorkflow
+        call <- cacheHitCallName
+      } yield CallCacheHit(workflow, call)
+
+      ExecutionWithCacheData(execution, cacheHit)
+    }
+
+    sql"""
+       SELECT e.WORKFLOW_EXECUTION_ID, e.CALL_FQN, e.IDX, e.STATUS, e.RC, e.START_DT,
+              e.END_DT, e.BACKEND_TYPE, e.ALLOWS_RESULT_REUSE, e.DOCKER_IMAGE_HASH,
+              e.RESULTS_CLONED_FROM, e.EXECUTION_HASH, e.ATTEMPT, e.EXECUTION_ID,
+              we1.WORKFLOW_EXECUTION_UUID, e1.CALL_FQN
+       FROM EXECUTION e
+       LEFT JOIN EXECUTION e1 ON e.RESULTS_CLONED_FROM=e1.EXECUTION_ID
+       LEFT JOIN WORKFLOW_EXECUTION we1 ON e1.WORKFLOW_EXECUTION_ID=we1.WORKFLOW_EXECUTION_ID
+       LEFT JOIN WORKFLOW_EXECUTION we ON e.WORKFLOW_EXECUTION_ID=we.WORKFLOW_EXECUTION_ID
+       WHERE we.WORKFLOW_EXECUTION_UUID=$workflowExecutionUuid
+       """.as[ExecutionWithCacheData]
+  }
 
   // see workflowExecutionsByStatuses
   def executionsByWorkflowExecutionIdAndScopeKeys(workflowExecutionId: Int, scopeKeys: Traversable[ExecutionDatabaseKey]) = {

@@ -1,4 +1,5 @@
 import Dependencies.engineDependencies
+import Dependencies.coreDependencies
 import Merging.customMergeStrategy
 import Testing._
 import sbt.Keys._
@@ -30,18 +31,23 @@ object Settings {
     "200"
   )
 
-  val commonSettings = releaseSettings ++ testSettings ++ List(
+  lazy val assemblySettings = Seq(
+    test in assembly     := {},
+    logLevel in assembly := Level.Info
+  )
+
+  val commonSettings = releaseSettings ++ testSettings ++ assemblySettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := "2.11.7",
     resolvers ++= commonResolvers,
     scalacOptions ++= compilerSettings,
-    logLevel in assembly := Level.Info,
     parallelExecution := false
   )
 
   val coreSettings = List(
     name := "cromwell-core",
     version := engineVersion,
+    libraryDependencies ++= coreDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

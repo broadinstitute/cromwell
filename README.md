@@ -1,7 +1,8 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
+[![Stories in Ready](https://badge.waffle.io/broadinstitute/cromwell.svg?label=ready&title=Ready)](http://waffle.io/broadinstitute/cromwell)
 [![Join the chat at https://gitter.im/broadinstitute/cromwell](https://badges.gitter.im/broadinstitute/cromwell.svg)](https://gitter.im/broadinstitute/cromwell?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](http://opensource.org/licenses/BSD-3-Clause)
+[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 Cromwell
 ========
@@ -10,9 +11,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc start-->
 
-* [How To Reach Us](#how-to-reach-us)
+* [Getting Help](#getting-help)
+  * [Website and User Guide](#website-and-user-guide)
+  * [Support Forum](#support-forum)
   * [Gitter](#gitter)
-  * [Mailing List](#mailing-list)
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
@@ -38,6 +40,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Docker](#docker)
     * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
+  * [Specifying Default Values](#specifying-default-values)
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
   * [disks](#disks)
@@ -52,8 +55,10 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
+  * [POST /api/workflows/:version/batch](#post-apiworkflowsversionbatch)
   * [POST /api/workflows/:version/validate](#post-apiworkflowsversionvalidate)
   * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
+  * [POST /api/workflows/:version/query](#post-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/timing](#get-apiworkflowsversionidtiming)
@@ -71,21 +76,24 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 
 <!---toc end-->
 
-# How To Reach Us
+# Getting Help
+
+## Website and User Guide
+
+The [WDL website](https://software.broadinstitute.org/wdl/) is the best place to go for more information on both WDL and Cromwell. In particular new users should check out the [user guide](https://software.broadinstitute.org/wdl/userguide/) which has many tutorials, examples and other bits to get you started.
+
+## Support Forum
+
+If you have questions that aren't covered by the website you can ask them in the [support forum](http://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team).
 
 ## Gitter
-There is a [gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
-
-## Mailing List
-The [Cromwell Mailing List](https://groups.google.com/a/broadinstitute.org/forum/?hl=en#!forum/cromwell) is cromwell@broadinstitute.org.
-
-If you have any questions, suggestions or support issues please send them to this list. To subscribe you can either join via the link above or send an email to cromwell+subscribe@broadinstitute.org.
+There is a [Cromwell gitter channel](https://gitter.im/broadinstitute/cromwell) where people can discuss Cromwell and related topics with both the developers and user community.
 
 # Requirements
 
 The following is the toolchain used for development of Cromwell.  Other versions may work, but these are recommended.
 
-* [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7)
+* [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7/)
 * [SBT 0.13.8](https://github.com/sbt/sbt/releases/tag/v0.13.8)
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 
@@ -154,7 +162,7 @@ $ java -jar cromwell.jar run my_workflow.wdl -
 
 The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
 
-Only a few workflow options are available currently and are all to be used with the JES backend. See the section on the [JES backend](#google-jes-backend) for more details.
+See the section [workflow options](#workflow-options) for more details.
 
 ```
 $ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
@@ -705,7 +713,7 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    zones: "US_Metro MX_Metro"
+    zones: "us-central1-c us-central1-a"
     disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
@@ -726,6 +734,7 @@ This table lists the currently available runtime attributes for cromwell:
 | failOnStderr         |   x   |   x   |   x   |
 | memory               |       |   x   |       |
 | preemptible          |       |   x   |       |
+| bootDiskSizeGb       |       |   x   |       |
 
 Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
 
@@ -744,6 +753,55 @@ task runtime_test {
   }
 }
 ```
+
+## Specifying Default Values
+
+Default values for runtime attributes can be specified via [workflow options](#workflow-options).  For example, consider this WDL file:
+
+```wdl
+task first {
+  command { ... }
+}
+
+task second {
+  command {...}
+  runtime {
+    docker: "my_docker_image"
+  }
+}
+
+workflow w {
+  call first
+  call second
+}
+```
+
+And this set of workflow options:
+
+```json
+{
+  "defaultRuntimeOptions": {
+    "docker": "ubuntu:latest",
+    "zones": "us-central1-a us-central1-b"
+  }
+}
+```
+
+Then these values for `docker` and `zones` will be used for any task that does not explicitly override them in the WDL file. So the effective runtime for `task first` is:
+```
+{
+    "docker": "ubuntu:latest",
+    "zones": "us-central1-a us-central1-b"
+  }
+```
+And the effective runtime for `task second` is:
+```
+{
+    "docker": "my_docker_image",
+    "zones": "us-central1-a us-central1-b"
+  }
+```
+Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
 
 ## continueOnReturnCode
 
@@ -815,21 +873,31 @@ runtime {
 }
 ```
 
+### Boot Disk
+In addition to working disks, JES allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
+Its primary purpose is to ensure that larger docker images can fit on the boot disk.
+```
+runtime {
+  # Yikes, we have a big OS in this docker image! Allow 50GB to hold it:
+  bootDiskSizeGb: 50
+}
+```
+
 Since no `local-disk` entry is specified, Cromwell will automatically add `local-disk 10 SSD` to this list.
 
 ## zones
 
-Passed to JES: "List of Google Compute Engine availability zones to which resource creation will restricted."
+The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
 
 The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  zones: "US_Metro MX_Metro"
+  zones: "us-central1-a us-central1-b"
 }
 ```
 
-Defaults to "us-central1-a".
+Defaults to "us-central1-a"
 
 ## docker
 
@@ -920,17 +988,25 @@ Example workflow options file:
 
 Valid keys and their meanings:
 
-* **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
-* **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
-* **workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
-* **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
-* **call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
-* **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
-* **google_project** - (JES backend only) Specifies which google project to execute this workflow.
-* **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
-* **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
-* **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
-* **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
+* Global *(use with any backend)*
+    * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
+    * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
+    * **workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
+    * **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
+    * **call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
+    * **defaultRuntimeOptions** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
+    * **workflowFailureMode** - What happens after a task fails. Choose from:
+        * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
+        * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish
+        * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
+    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.    
+* JES Backend Only
+    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
+    * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
+    * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
+    * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
+    * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+    * **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
 
 # Call Caching
 
@@ -969,7 +1045,7 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 
 The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
 
-The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jakubroztocil/httpie) and [cURL](http://curl.haxx.se/)
+The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jkbrzt/httpie) and [cURL](https://curl.haxx.se/)
 
 ## REST API Versions
 
@@ -980,7 +1056,7 @@ All web server requests include an API version in the url. The current version i
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](http://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 
 cURL:
@@ -1106,11 +1182,11 @@ task x { ... }
 task y { ... }
 task z { ... }
 
-workflow sfrazer {
+workflow myworkflow {
   call x
   call y
   call z {
-    input: example="gs://my-bucket/cromwell-executions/sfrazer/example.txt", int=3000
+    input: example="gs://my-bucket/cromwell-executions/myworkflow/example.txt", int=3000
   }
 }
 
@@ -1118,17 +1194,196 @@ workflow sfrazer {
 Content-Disposition: form-data; name="workflowInputs"; filename="jes0.json"
 
 {
-  "sfrazer.x.x": "100"
+  "myworkflow.x.x": "100"
 }
 
 --f3fd038395644de596c460257626edd7
 Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 
 {
-  "jes_gcs_root": "gs://sfrazer-dev/workflows"
+  "jes_gcs_root": "gs://myworkflow-dev/workflows"
 }
 
 --f3fd038395644de596c460257626edd7--
+```
+
+## POST /api/workflows/:version/batch
+
+This endpoint accepts a POST request with a `multipart/form-data`
+encoded body.  The form fields that may be included are:
+
+* `wdlSource` - *Required* Contains the WDL file to submit for
+execution.
+* `workflowInputs` - *Required* JSON file containing the inputs in a
+JSON array. A skeleton file for a single inputs json element can be
+generated from [wdltool](https://github.com/broadinstitute/wdltool)
+using the "inputs" subcommand. The orderded endpoint responses will
+contain one workflow submission response for each input, respectively.
+* `workflowOptions` - *Optional* JSON file containing options for this
+workflow execution.  See the [run](#run) CLI sub-command for some more
+information about this.
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
+```
+
+HTTPie:
+
+```
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
+```
+
+Request:
+
+```
+POST /api/workflows/v1/batch HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 750
+Content-Type: multipart/form-data; boundary=64128d499e9e4616adea7d281f695dcb
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--64128d499e9e4616adea7d281f695dcb
+Content-Disposition: form-data; name="wdlSource"
+
+task ps {
+  command {
+    ps
+  }
+  output {
+    File procs = stdout()
+  }
+}
+
+task cgrep {
+  command {
+    grep '${pattern}' ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+task wc {
+  command {
+    cat ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+workflow three_step {
+  call ps
+  call cgrep {
+    input: in_file=ps.procs
+  }
+  call wc {
+    input: in_file=ps.procs
+  }
+}
+
+--64128d499e9e4616adea7d281f695dcb
+Content-Disposition: form-data; name="workflowInputs"; filename="inputs_array.json"
+
+[
+    {
+        "three_step.cgrep.pattern": "..."
+    },
+    {
+        "three_step.cgrep.pattern": "..."
+    }
+]
+
+--64128d499e9e4616adea7d281f695dcb--
+```
+
+Response:
+
+```
+HTTP/1.1 201 Created
+Content-Length: 96
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:28 GMT
+Server: spray-can/1.3.3
+
+[
+    {
+        "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
+        "status": "Submitted"
+    },
+    {
+        "id": "69d1d92f-3895-4a7b-880a-82535e9a096f",
+        "status": "Submitted"
+    }
+]
+```
+
+To specify workflow options as well:
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
+```
+
+HTTPie:
+
+```
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
+```
+
+Request (some parts truncated for brevity):
+
+```
+POST /api/workflows/v1/batch HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 1492
+Content-Type: multipart/form-data; boundary=f3fd038395644de596c460257626edd8
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="wdlSource"
+
+task x { ... }
+task y { ... }
+task z { ... }
+
+workflow myworkflow {
+  call x
+  call y
+  call z {
+    input: example="gs://my-bucket/cromwell-executions/myworkflow/example.txt", int=3000
+  }
+}
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowInputs"; filename="jes0_array.json"
+
+[
+  {
+    "myworkflow.x.x": "100"
+  }, {
+    "myworkflow.x.x": "101"
+  }
+]
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
+
+{
+  "jes_gcs_root": "gs://myworkflow-dev/workflows"
+}
+
+--f3fd038395644de596c460257626edd8--
 ```
 
 ## POST /api/workflows/:version/validate
@@ -1153,7 +1408,7 @@ $ curl -v "localhost:8000/api/workflows/v1/validate" -F wdlSource=@src/main/reso
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/validate wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
 ```
 
 Request:
@@ -1207,24 +1462,34 @@ Server: spray-can/1.3.2
 This endpoint allows for querying workflows based on the following criteria:
 
 * `name`
+* `id`
 * `status`
 * `start` (start datetime)
 * `end` (end datetime)
+* `page` (page of results)
+* `pagesize` (# or results per page)
 
-Names and statuses can be given multiple times to include workflows with any of the specified names or statuses.
+Names, ids, and statuses can be given multiple times to include
+workflows with any of the specified names, ids, or statuses. When
+multiple names are specified, any workflow matching one of the names
+will be returned. The same is true for multiple ids or statuses. When
+different types of criteria are specified, for example names and
+statuses, the results must match both the one of the specified names and
+one of the statuses. Using page and pagesize will enable server side pagination.
+
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
 be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format and `start` cannot be after `end`.
 
 cURL:
 
 ```
-$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 HTTPie:
 
 ```
-$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 Response:
@@ -1258,7 +1523,70 @@ Server: spray-can/1.3.3
       "end": "2015-11-01T07:45:44.000-05:00",
       "start": "2015-11-01T07:38:59.000-05:00"
     }
-  ]
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalRecords": 3
+}
+```
+
+## POST /api/workflows/:version/query
+
+This endpoint allows for querying workflows based on the same criteria
+as [GET /api/workflows/:version/query](#get-apiworkflowsversionquery).
+
+Instead of specifying query parameters in the URL, the parameters
+must be sent via the POST body. The request content type must be
+`application/json`. The json should be a list of objects. Each json
+object should contain a different criterion.
+
+cURL:
+
+```
+$ curl -X POST --header "Content-Type: application/json" -d "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": 1}, {\"pagesize\": 10}]" "http://localhost:8000/api/workflows/v1/query"
+```
+
+HTTPie:
+
+```
+$ echo "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": 1}, {\"pagesize\": 10}]" | http "http://localhost:8000/api/workflows/v1/query"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 133
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+  "results": [
+    {
+      "name": "w",
+      "id": "fdfa8482-e870-4528-b639-73514b0469b2",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:52.000-05:00",
+      "start": "2015-11-01T07:38:57.000-05:00"
+    },
+    {
+      "name": "hello",
+      "id": "e69895b1-42ed-40e1-b42d-888532c49a0f",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:30.000-05:00",
+      "start": "2015-11-01T07:38:58.000-05:00"
+    },
+    {
+      "name": "crasher",
+      "id": "ed44cce4-d21b-4c42-b76d-9d145e4d3607",
+      "status": "Failed",
+      "end": "2015-11-01T07:45:44.000-05:00",
+      "start": "2015-11-01T07:38:59.000-05:00"
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalRecords": 3
 }
 ```
 

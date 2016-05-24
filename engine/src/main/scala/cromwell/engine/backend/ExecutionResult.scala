@@ -1,8 +1,7 @@
 package cromwell.engine.backend
 
+import cromwell.core.CallOutputs
 import cromwell.engine.ExecutionEventEntry
-import cromwell.engine.ExecutionHash
-import cromwell.engine.CallOutputs
 
 /**
  * ADT representing the result of an execution of a BackendCall.
@@ -14,7 +13,7 @@ case object SuccessfulFinalCallExecution extends ExecutionResult
 /**
  * A successful execution with resolved outputs.
  */
-final case class SuccessfulBackendCallExecution(outputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCall] = None) extends ExecutionResult
+final case class SuccessfulBackendCallExecution(outputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendCallJobDescriptor] = None) extends ExecutionResult
 
 /**
  * A user-requested abort of the command.

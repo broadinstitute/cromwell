@@ -6,13 +6,16 @@ import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.genomics.Genomics
-import cromwell.engine.io.gcs.GoogleCloudStorage
+import cromwell.engine.backend.io.filesystem.gcs.GcsFileSystem
+import cromwell.util.google.GoogleCredentialFactory
 
-case class JesInterface(storage: GoogleCloudStorage, genomics: Genomics)
+case class JesInterface(gcsFileSystem: GcsFileSystem, genomics: Genomics)
 
 
 object GenomicsFactory {
-  def apply(appName: String, endpointUrl: URL, credential: Credential): Genomics = {
+  private val credential = GoogleCredentialFactory.fromCromwellAuthScheme
+
+  def apply(appName: String, endpointUrl: URL): Genomics = {
     GoogleGenomics.from(appName, endpointUrl, credential, credential.getJsonFactory, credential.getTransport)
   }
 

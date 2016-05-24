@@ -1,10 +1,11 @@
 package cromwell.webservice
 
-import WdlFileJsonFormatter._
-import WdlValueJsonFormatter._
-import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine._
-import cromwell.engine.backend.{WorkflowQueryResult, CallMetadata, CallLogs}
+import cromwell.engine.backend.{CallLogs, CallMetadata, WorkflowQueryResult}
+import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.workflow.CallCacheData
+import cromwell.webservice.WdlFileJsonFormatter._
+import cromwell.webservice.WdlValueJsonFormatter._
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
@@ -37,7 +38,8 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val unqualifiedFailureEventEntry = jsonFormat2(FailureEventEntry)
   implicit val qualifiedFailureEventEntry = jsonFormat4(QualifiedFailureEventEntry)
   implicit val executionEventProtocol = jsonFormat3(ExecutionEventEntry)
-  implicit val callMetadataProtocol = jsonFormat18(CallMetadata)
+  implicit val callCacheHitProtocol = jsonFormat3(CallCacheData)
+  implicit val callMetadataProtocol = jsonFormat19(CallMetadata)
   implicit val workflowMetadataResponse = jsonFormat10(WorkflowMetadataResponse)
   implicit val workflowFailuresResponse = jsonFormat4(WorkflowFailuresResponse)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)

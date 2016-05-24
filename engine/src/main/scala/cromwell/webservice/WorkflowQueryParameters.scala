@@ -1,5 +1,6 @@
 package cromwell.webservice
 
+import cromwell.core.WorkflowId
 import cromwell.webservice.WorkflowQueryKey._
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -11,8 +12,11 @@ import scalaz.{Name => _, _}
 
 case class WorkflowQueryParameters private(statuses: Set[String],
                                            names: Set[String],
+                                           ids: Set[WorkflowId],
                                            startDate: Option[DateTime],
-                                           endDate: Option[DateTime])
+                                           endDate: Option[DateTime],
+                                           page: Option[Int],
+                                           pageSize: Option[Int])
 
 object WorkflowQueryParameters {
 
@@ -58,7 +62,11 @@ object WorkflowQueryParameters {
       rawParameters groupBy { case (key, _) => key.toLowerCase.capitalize }
 
     val Seq(startDate, endDate) = Seq(StartDate, EndDate) map { _.validate(valuesByCanonicalCapitalization) }
-    val Seq(statuses, names) = Seq(Status, Name) map { _.validate(valuesByCanonicalCapitalization) }
+    val Seq(statuses, names, ids) = Seq(Status, Name, WorkflowQueryKey.Id) map {
+      _.validate(valuesByCanonicalCapitalization)
+    }
+
+    val Seq(page, pageSize) = Seq(Page, PageSize) map { _.validate(valuesByCanonicalCapitalization)}
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEnd = (startDate, endDate) match {
@@ -66,8 +74,10 @@ object WorkflowQueryParameters {
       case _ => ().successNel
     }
 
-    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| startDate |@| endDate) {
-      case (_, _, status, name, start, end) => WorkflowQueryParameters(status.toSet, name.toSet, start, end)
+    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| startDate |@| endDate |@| page |@| pageSize) {
+      case (_, _, status, name, uuid, start, end, _page, _pageSize) =>
+        val workflowId = uuid map WorkflowId.fromString
+        WorkflowQueryParameters(status.toSet, name.toSet, workflowId.toSet, start, end, _page, _pageSize)
     }
   }
 

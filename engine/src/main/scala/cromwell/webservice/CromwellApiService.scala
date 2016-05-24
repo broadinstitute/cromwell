@@ -1,9 +1,9 @@
 package cromwell.webservice
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor._
 import com.typesafe.config.Config
-import cromwell.engine.workflow.ValidateActor
-import cromwell.engine.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.WorkflowId
+import cromwell.engine.WorkflowSourceFiles
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.webservice.CromwellApiServiceActor.traceName
 import cromwell.webservice.WorkflowJsonSupport._
@@ -15,6 +15,7 @@ import spray.http.StatusCodes
 import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
+import spray.httpx.SprayJsonSupport._
 
 import scala.util.{Failure, Success, Try}
 
@@ -25,14 +26,14 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
-    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, config)
+  def props(workflowManagerActorRef: ActorRef, validateActorRef: ActorRef, config: Config): Props = {
+    Props(classOf[CromwellApiServiceActor], workflowManagerActorRef, validateActorRef, config)
   }
 
   def traceName(name: String) = Monitor.traceName(name)
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
+class CromwellApiServiceActor(val workflowManager: ActorRef, val workflowDescriptorMaterializer: ActorRef, config: Config)
   extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
@@ -44,17 +45,16 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
-
-  import CromwellApiServiceActor._
-
   val workflowManager: ActorRef
+  val workflowDescriptorMaterializer: ActorRef
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
   }
 
-  val workflowRoutes = queryRoute ~ workflowOutputsRoute ~ submitRoute ~ workflowStdoutStderrRoute ~ abortRoute ~
-    callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
+  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
+    workflowStdoutStderrRoute ~ abortRoute ~ callOutputsRoute ~ callStdoutStderrRoute ~ validateRoute ~ metadataRoute ~
+    timingRoute ~ callCachingRoute ~ statusRoute
 
   def statusRoute =
     path("workflows" / Segment / Segment / "status") { (version, workflowId) =>
@@ -75,8 +75,19 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         traceName("query") {
           get {
             requestContext =>
-              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowQuery(parameters))
+              perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowQuery(requestContext.request.uri, parameters))
           }
+        }
+      }
+    }
+
+  def queryPostRoute =
+    path("workflows" / Segment / "query") { version =>
+      entity(as[Seq[Map[String, String]]]) { parameterMap =>
+        post {
+          requestContext =>
+            perRequest(requestContext, CromwellApiHandler.props(workflowManager),
+              CromwellApiHandler.ApiHandlerWorkflowQuery(requestContext.request.uri, parameterMap.flatMap(_.toSeq)))
         }
       }
     }
@@ -107,16 +118,30 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
+  def submitBatchRoute =
+    path("workflows" / Segment / "batch") { version =>
+      post {
+        formFields("wdlSource", "workflowInputs", "workflowOptions".?) {
+          (wdlSource, workflowInputs, workflowOptions) =>
+            requestContext =>
+              import spray.json._
+              workflowInputs.parseJson match {
+                case JsArray(inputses) =>
+                  val sources = inputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
+                  perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
+                case _ => reject
+              }
+        }
+      }
+    }
+
   def validateRoute =
     path("workflows" / Segment / "validate") { version =>
       traceName("validate") {
         post {
           formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
             requestContext =>
-              perRequest(
-                requestContext,
-                ValidateActor.props(wdlSource, workflowInputs, workflowOptions),
-                ValidateActor.ValidateWorkflow)
+              perRequest(requestContext, CromwellApiHandler.props(workflowDescriptorMaterializer), CromwellApiHandler.ApiHandlerValidateWorkflow(WorkflowId.randomId(), wdlSource, workflowInputs, workflowOptions))
           }
         }
       }
@@ -173,10 +198,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def metadataRoute =
     path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
       traceName("workflowMetadata") {
-        Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowMetadata(w))
-          case Failure(_) => invalidWorkflowId(workflowId)
+        parameters('outputs ? true, 'timings ? true).as(WorkflowMetadataQueryParameters) { parameters =>
+          Try(WorkflowId.fromString(workflowId)) match {
+            case Success(w) =>
+              requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager),
+                CromwellApiHandler.ApiHandlerWorkflowMetadata(w, parameters))
+            case Failure(_) => invalidWorkflowId(workflowId)
+          }
         }
       }
     }

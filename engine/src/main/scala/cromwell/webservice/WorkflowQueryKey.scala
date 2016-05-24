@@ -1,15 +1,15 @@
 package cromwell.webservice
 
-import cromwell.engine.{ErrorOr, WorkflowState}
+import cromwell.core.{ErrorOr, WorkflowId}
+import cromwell.engine.WorkflowState
 import org.joda.time.DateTime
 
 import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.{Success, Try}
 import scalaz.Scalaz._
-import scalaz.{Success => _, _}
 
 object WorkflowQueryKey {
-  val ValidKeys = Set(StartDate, EndDate, Name, Status) map { _.name }
+  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, Page, PageSize) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
     override val name = "Start"
@@ -19,6 +19,16 @@ object WorkflowQueryKey {
   case object EndDate extends DateTimeWorkflowQueryKey {
     override val name = "End"
     override def displayName = "end date"
+  }
+
+  case object Page extends IntWorkflowQueryKey {
+    override val name = "Page"
+    override def displayName = "page"
+  }
+
+  case object PageSize extends IntWorkflowQueryKey {
+    override val name = "Pagesize"
+    override def displayName = "page size"
   }
 
   case object Name extends SeqStringWorkflowQueryKey {
@@ -33,6 +43,18 @@ object WorkflowQueryKey {
         case v => v.failureNel
       }
       sequenceListOfValidationNels(s"Name values do not match allowed workflow naming pattern", nels)
+    }
+  }
+
+  case object Id extends SeqStringWorkflowQueryKey {
+    override val name = "Id"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
+      val values = valuesFromMap(grouped).toList
+      val nels = values map { v =>
+        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel else v.failureNel
+      }
+      sequenceListOfValidationNels(s"Id values do match allowed workflow id pattern", nels)
     }
   }
 
@@ -81,5 +103,21 @@ sealed trait SeqStringWorkflowQueryKey extends WorkflowQueryKey[Seq[String]] {
     // This turns the ValidationNel into a Validation, force it back to a ValidationNel with toValidationNel.
     errorOr.leftMap(prefix + ": " + _.list.mkString(", ")).toValidationNel
   }
+}
+
+sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Int]] = {
+    valuesFromMap(grouped) match {
+      case vs if vs.size > 1 =>
+        s"Found ${vs.size} values for key '$name' but at most one is allowed.".failureNel
+      case Nil => None.successNel
+      case v :: Nil =>
+        Try(v.toInt) match {
+          case Success(intVal) => if (intVal > 0) Option(intVal).successNel else s"Integer value not greater than 0".failureNel
+          case _ => s"Value given for $displayName does not parse as a integer: $v".failureNel
+        }
+    }
+  }
+  def displayName: String
 }
 

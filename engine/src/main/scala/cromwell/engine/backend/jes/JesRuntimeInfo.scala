@@ -22,6 +22,7 @@ trait JesRuntimeInfoBuilder {
       .setMinimumCpuCores(runtimeAttributes.cpu.toInt)
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
+      .setBootDiskSizeGb(runtimeAttributes.bootDiskSizeGb)
   }
 }
 

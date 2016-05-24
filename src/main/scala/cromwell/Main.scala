@@ -6,12 +6,14 @@ import java.nio.file.{Files, Path, Paths}
 import akka.actor.{Actor, Props, Status}
 import better.files._
 import com.typesafe.config.ConfigFactory
+import cromwell.core.WorkflowOptions
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.engine.workflow.{SingleWorkflowRunnerActor, WorkflowOptions}
 import cromwell.instrumentation.Instrumentation.Monitor
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
+import cromwell.util.PromiseActor
 import org.slf4j.LoggerFactory
 import spray.json._
 import wdl4s._
@@ -89,21 +91,8 @@ object Main extends App {
   } yield action
 }
 
-/** A simplified version of the Akka `PromiseActorRef` that doesn't time out. */
-private class PromiseActor(promise: Promise[Any]) extends Actor {
-  override def receive = {
-    case Status.Failure(f) =>
-      promise.tryFailure(f)
-      context.stop(self)
-    case success =>
-      promise.trySuccess(success)
-      context.stop(self)
-  }
-}
-
 class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   lazy val Log = LoggerFactory.getLogger("cromwell")
-  Monitor.start()
 
   def this() = this(managerSystem = new WorkflowManagerSystem {})
 
@@ -174,14 +163,16 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
 
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
     val workflowManagerSystem = managerSystem
+    implicit val actorSystem = workflowManagerSystem.actorSystem
     val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
-    val promise = Promise[Any]()
-    val promiseActor = workflowManagerSystem.actorSystem.actorOf(Props(classOf[PromiseActor], promise))
-    runner.tell(RunWorkflow, promiseActor)
-    waitAndExit(promise.future, workflowManagerSystem)
+    import PromiseActor.EnhancedActorRef
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    val promise = runner.askNoTimeout(RunWorkflow)
+    waitAndExit(promise, workflowManagerSystem)
   }
 
   private[this] def waitAndExit(futureResult: Future[Any], workflowManagerSystem: WorkflowManagerSystem): Int = {

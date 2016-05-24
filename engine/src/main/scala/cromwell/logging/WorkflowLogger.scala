@@ -1,7 +1,7 @@
 package cromwell.logging
 
 import akka.event.LoggingAdapter
-import cromwell.engine.WorkflowDescriptor
+import cromwell.engine.backend.WorkflowDescriptor
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.slf4j.Logger
 

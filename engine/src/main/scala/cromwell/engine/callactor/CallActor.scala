@@ -25,11 +25,23 @@ object CallActor {
   sealed trait CallActorMessage
   sealed trait StartMode extends CallActorMessage {
     def executionMessage: CallExecutionActorMessage
+    def maybeCallLogs: Option[CallLogs]
   }
-  case object Start extends StartMode { override val executionMessage = CallExecutionActor.Execute }
-  final case class Resume(jobKey: JobKey) extends StartMode { override val executionMessage = CallExecutionActor.Resume(jobKey) }
-  final case class UseCachedCall(cachedBackendCall: BackendCall, backendCall: BackendCall) extends StartMode {
+  case object StartFinalCall extends StartMode {
+    override val executionMessage = CallExecutionActor.Execute
+    override val maybeCallLogs = None
+  }
+  final case class StartBackendCall(maybeCallLogs: Option[CallLogs]) extends StartMode {
+    override val executionMessage = CallExecutionActor.Execute
+  }
+  final case class Resume(jobKey: BackendJobKey) extends StartMode {
+    override val executionMessage = CallExecutionActor.Resume(jobKey)
+    override val maybeCallLogs = None
+  }
+  final case class UseCachedCall(cachedBackendCall: BackendCallJobDescriptor, backendCall: BackendCallJobDescriptor,
+                                 callLogs: CallLogs) extends StartMode {
     override val executionMessage = CallExecutionActor.UseCachedCall(cachedBackendCall)
+    override val maybeCallLogs = Option(callLogs)
   }
   final case class RegisterCallAbortFunction(abortFunction: AbortFunction) extends CallActorMessage
   case object AbortCall extends CallActorMessage
@@ -116,7 +128,7 @@ trait CallActor[D <: JobDescriptor[_ <: CallKey]] extends LoggingFSM[CallActorSt
     case Event(startMode: StartMode, _) =>
       // There's no special Retry/Ack handling required for CallStarted message, the WorkflowActor can always
       // handle those immediately.
-      context.parent ! WorkflowActor.CallStarted(key)
+      context.parent ! WorkflowActor.CallStarted(key, startMode.maybeCallLogs)
       callExecutionActor ! startMode.executionMessage
       goto(CallRunningAbortUnavailable)
     case Event(AbortCall, _) => handleFinished(call, AbortedExecution)

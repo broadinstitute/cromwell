@@ -1,25 +1,23 @@
 package cromwell
 
-import java.nio.file.{Path, Paths}
-
+import akka.actor.ActorSystem
+import cromwell.core.{CallOutput, WorkflowId}
 import cromwell.engine.ExecutionStatus._
+import cromwell.engine.backend.WorkflowDescriptor
+import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
 import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.db.slick.Execution
-import cromwell.engine.io.gcs.GcsFileSystem
-import org.apache.commons.lang3.exception.ExceptionUtils
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess, MaterializeWorkflow}
 import org.joda.time.DateTime
 import wdl4s._
-import wdl4s.values.{SymbolHash, WdlValue}
+import wdl4s.values.WdlValue
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.util.{Failure, Try}
-import scalaz.ValidationNel
+import scala.util.{Failure, Success, Try}
 
 package object engine {
-
-  class WorkflowContext(val root: String)
-  class CallContext(override val root: String, val stdout: String, val stderr: String) extends WorkflowContext(root)
-
   /**
    * Represents the collection of source files that a user submits to run a workflow
    */
@@ -33,17 +31,12 @@ package object engine {
     def dequalify = FailureEventEntry(failure, timestamp)
   }
   final case class FailureEventEntry(failure: String, timestamp: DateTime)
-  final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
-
-  type ErrorOr[+A] = ValidationNel[String, A]
 
   type WorkflowOptionsJson = String
   type WorkflowOutputs = Map[FullyQualifiedName, CallOutput]
   type FullyQualifiedName = String
-  type LocallyQualifiedName = String
-  case class CallOutput(wdlValue: WdlValue, hash: Option[SymbolHash])
-  type CallOutputs = Map[LocallyQualifiedName, CallOutput]
+
   type HostInputs = Map[String, WdlValue]
 
   class CromwellFatalException(exception: Throwable) extends Exception(exception)
@@ -76,20 +69,34 @@ package object engine {
     def executionStatus: ExecutionStatus = ExecutionStatus.withName(execution.status)
   }
 
-  object PathString {
-    implicit class UriString(val str: String) extends AnyVal {
-      def isGcsUrl: Boolean = str.startsWith("gs://")
+  object WorkflowFailureMode {
+    def tryParse(mode: String): Try[WorkflowFailureMode] = {
+      val modes = Seq(ContinueWhilePossible, NoNewCalls)
+      modes find { _.toString.equalsIgnoreCase(mode) } map { Success(_) } getOrElse Failure(new Exception(s"Invalid workflow failure mode: $mode"))
+    }
+  }
+  sealed trait WorkflowFailureMode {
+    def allowNewCallsAfterFailure: Boolean
+  }
+  case object ContinueWhilePossible extends WorkflowFailureMode { override val allowNewCallsAfterFailure = true }
+  case object NoNewCalls extends WorkflowFailureMode { override val allowNewCallsAfterFailure = false }
 
-      def isUriWithProtocol: Boolean = "^[a-z]+://".r.findFirstIn(str).nonEmpty
+  // Used to convert the database returned value `executionAndAux` to a WorkflowDescriptor
+  def workflowDescriptorFromExecutionAndAux(executionAndAux: WorkflowExecutionAndAux)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowDescriptor] = {
+    //imports for implicits
+    import cromwell.engine.db.slick.SlickDataAccess.ClobToRawString
+    import cromwell.util.PromiseActor.EnhancedActorRef
 
-      def toPath(gcsFileSystem: Try[GcsFileSystem] = Failure(new Throwable("No GCS Filesystem"))): Path = {
-        str match {
-          case path if path.isGcsUrl && gcsFileSystem.isSuccess => gcsFileSystem.get.getPath(str)
-          case path if path.isGcsUrl => throw new Throwable(s"Unable to parse GCS path $path: ${gcsFileSystem.failed.get.getMessage}\n${ExceptionUtils.getStackTrace(gcsFileSystem.failed.get)}")
-          case path if !path.isUriWithProtocol => Paths.get(path)
-          case path => throw new Throwable(s"Unable to parse $path")
-        }
-      }
+    val id = WorkflowId.fromString(executionAndAux.execution.workflowExecutionUuid)
+    val sources = WorkflowSourceFiles(executionAndAux.aux.wdlSource.toRawString, executionAndAux.aux.jsonInputs.toRawString, executionAndAux.aux.workflowOptions.toRawString)
+
+    val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props())
+
+    materializeWorkflowDescriptorActor.askNoTimeout(MaterializeWorkflow(id, sources))  map {
+      case MaterializationSuccess(workflowDescriptor) => workflowDescriptor
+      case MaterializationFailure(error) => throw error
+    } andThen {
+      case _ => actorSystem.stop(materializeWorkflowDescriptorActor)
     }
   }
 }

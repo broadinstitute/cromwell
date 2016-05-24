@@ -1,7 +1,8 @@
 package cromwell.engine.backend.sge
 
-import cromwell.engine.CallContext
-import cromwell.engine.backend.local.LocalCallEngineFunctions
-import cromwell.engine.io.IoInterface
+import java.nio.file.FileSystem
 
-class SgeCallEngineFunctions(interface: IoInterface, callContext: CallContext) extends LocalCallEngineFunctions(interface, callContext)
+import cromwell.engine.backend.CallContext
+import cromwell.engine.backend.local.LocalCallEngineFunctions
+
+class SgeCallEngineFunctions(fileSystems: List[FileSystem], callContext: CallContext) extends LocalCallEngineFunctions(fileSystems, callContext)

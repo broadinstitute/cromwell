@@ -1,9 +1,9 @@
 package cromwell.engine.backend.jes
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.engine.ErrorOr
+import cromwell.core.ErrorOr
 import cromwell.engine.backend.runtimeattributes.DiskType
 import wdl4s.ThrowableWithErrors
 import wdl4s.values._
@@ -75,7 +75,7 @@ trait JesAttachedDisk {
 }
 
 case class JesEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends JesAttachedDisk {
-  val name = mountPoint.toString.md5Sum
+  val name = s"d-${mountPoint.toString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
 }
 
@@ -89,4 +89,3 @@ case class JesWorkingDisk(diskType: DiskType, sizeGb: Int) extends JesAttachedDi
   val name = JesWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
 }
-

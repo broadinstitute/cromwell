@@ -1,22 +1,24 @@
 package cromwell.engine.workflow
 
+import akka.actor.ActorSystem
+import cromwell.core.WorkflowId
 import cromwell.engine
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
-import cromwell.engine.backend.{BackendCallJobDescriptor, Backend, CallMetadata, WorkflowLogs}
+import cromwell.engine.backend.{CallMetadata, WorkflowDescriptor}
 import cromwell.engine.db.slick._
-import cromwell.engine.db.{CallStatus, ExecutionDatabaseKey}
+import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
 import cromwell.engine.finalcall.FinalCall._
-import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.webservice._
 import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.io.Source
+import scala.concurrent.Future
 
 object WorkflowMetadataBuilder {
+
+  private type DBMap[+V] = Map[ExecutionDatabaseKey, V]
 
   // TODO: This assertion could be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
   def assertWorkflowExistence(id: WorkflowId, workflowState: Option[WorkflowState]): Future[Unit] = {
@@ -26,153 +28,134 @@ object WorkflowMetadataBuilder {
       case _ => Future.successful(Unit)
     }
   }
-
-  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): String = {
-    descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => c.unqualifiedName
-      case _ => throw new UnsupportedOperationException(
-        s"Expected a fully qualified name to have at least two parts but got $callFqn")
-    }
-  }
-
-  private def hasLogs(entries: Iterable[ExecutionDatabaseKey])(key: ExecutionDatabaseKey) = {
-    !key.fqn.isScatter && !key.isCollector(entries)
-  }
-
-  def workflowStdoutStderr(workflowId: WorkflowId, backend: Backend,
-                           workflowDescriptor: WorkflowDescriptor,
-                           executionStatuses: Map[ExecutionDatabaseKey, CallStatus]): WorkflowLogs = {
-    val statusMap = executionStatuses filterKeys {
-      !_.fqn.isFinalCall
-    } mapValues {
-      _.executionStatus
-    }
-
-    val sortedMap = statusMap.toSeq.sortBy(_._1.index)
-    val callsToPaths = for {
-      (key, status) <- sortedMap if !key.fqn.isFinalCall && hasLogs(statusMap.keys)(key)
-      callName = assertCallFqnWellFormed(workflowDescriptor, key.fqn)
-      call = workflowDescriptor.namespace.workflow.findCallByName(callName).get
-      callKey = BackendCallKey(call, key.index, key.attempt)
-      // TODO There should be an easier way than going as far as backend.bindCall just to retrieve stdout/err path
-      backendCall = backend.bindCall(BackendCallJobDescriptor(workflowDescriptor, callKey))
-      callStandardOutput = backend.stdoutStderr(backendCall)
-    } yield key -> callStandardOutput
-
-    /* Some FP "magic" to transform the pairs of (key, logs) into the final result:
-    grouped by FQNS, ordered by shards, and then ordered by attempts */
-    callsToPaths groupBy {
-      _._1.fqn
-    } mapValues {
-      key => key.groupBy(_._1.index).values.toIndexedSeq.sortBy(_.head._1.index) map {
-        _.sortBy(_._1.attempt).map(_._2).toIndexedSeq
-      }
-    }
-  }
-
-  private def buildWorkflowMetadata(workflowExecution: WorkflowExecution,
-                                    workflowExecutionAux: WorkflowExecutionAux,
-                                    workflowOutputs: engine.WorkflowOutputs,
-                                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]],
-                                    workflowFailures: Seq[FailureEventEntry]):
+  private def build(workflowDescriptor: WorkflowDescriptor,
+                    execution: WorkflowExecution,
+                    workflowOutputs: engine.WorkflowOutputs,
+                    callMetadata: Map[FullyQualifiedName, Seq[CallMetadata]],
+                    workflowFailures: Traversable[FailureEventEntry]):
   WorkflowMetadataResponse = {
 
-    val startDate = new DateTime(workflowExecution.startDt)
-    val endDate = workflowExecution.endDt map {
-      new DateTime(_)
-    }
-    // TODO: Refactor db to expose the clob <-> string implicits.
-    val workflowInputs = Source.fromInputStream(workflowExecutionAux.jsonInputs.getAsciiStream)
-      .mkString.parseJson.asInstanceOf[JsObject]
+    val startDate = new DateTime(execution.startDt)
+    val endDate = execution.endDt map { new DateTime(_) }
+    val workflowInputs = workflowDescriptor.sourceFiles.inputsJson.parseJson.asInstanceOf[JsObject]
     val failures = if (workflowFailures.isEmpty) None else Option(workflowFailures)
 
     WorkflowMetadataResponse(
-      id = workflowExecution.workflowExecutionUuid.toString,
-      workflowName = workflowExecution.name,
-      status = workflowExecution.status,
+      id = execution.workflowExecutionUuid.toString,
+      workflowName = execution.name,
+      status = execution.status,
       // We currently do not make a distinction between the submission and start dates of a workflow, but it's
       // possible at least theoretically that a workflow might not begin to execute immediately upon submission.
       submission = startDate,
       start = Option(startDate),
       end = endDate,
       inputs = workflowInputs,
-      outputs = Option(workflowOutputs) map {
-        _.mapToValues
-      },
+      outputs = Option(workflowOutputs) map { _.mapToValues },
       calls = callMetadata,
-      failures = failures)
+      failures = failures.map(_.toSeq))
   }
 
-  private def callFailuresMap(failureEvents: Seq[QualifiedFailureEventEntry]): Map[ExecutionDatabaseKey, Seq[FailureEventEntry]] = {
+  private def callFailuresMap(failureEvents: Seq[QualifiedFailureEventEntry]): DBMap[Seq[FailureEventEntry]] = {
     failureEvents filter { _.execution.isDefined } groupBy { _.execution } map {
       case (key, qualifiedEntries: Seq[QualifiedFailureEventEntry]) => key.get -> (qualifiedEntries map { _.dequalify })
     }
   }
 
-  private def buildWorkflowMetadata(id: WorkflowId,
-                                    backend: Backend,
-                                    workflowExecution: WorkflowExecution,
-                                    workflowOutputs: Traversable[SymbolStoreEntry],
-                                    workflowExecutionAux: WorkflowExecutionAux,
-                                    workflowDescriptor: WorkflowDescriptor,
-                                    executionStatuses: Map[ExecutionDatabaseKey, CallStatus],
-                                    callInputs: Traversable[SymbolStoreEntry],
-                                    callOutputs: Traversable[SymbolStoreEntry],
-                                    infosByExecution: Traversable[ExecutionInfosByExecution],
-                                    runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
-                                    executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
-                                    failures: Seq[QualifiedFailureEventEntry]):
-  WorkflowMetadataResponse = {
-    val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
-    val nonFinalStatuses = executionStatuses.filterKeys(!_.fqn.isFinalCall)
-    val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
+  private def emptySeq[A] = Future.successful(Seq.empty[A])
 
-    val wfFailures = failures collect {
-      case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp)
-    }
-    val callFailures = callFailuresMap(failures)
-
-    val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
-    val callStandardStreamsMap = workflowStdoutStderr(id, backend, workflowDescriptor, nonFinalStatuses)
-    val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callStandardStreamsMap, callInputs,
-      callOutputs, nonFinalEvents, runtimeAttributes, callFailures)
-    buildWorkflowMetadata(workflowExecution, workflowExecutionAux, engineWorkflowOutputs, callMetadata, wfFailures)
+  private def retrieveTraversable[A](runQuery: Boolean,
+                                     queryResult: => Future[Traversable[A]],
+                                     defaultResult: => Future[Traversable[A]] = emptySeq): Future[Traversable[A]] = {
+    if (runQuery) queryResult else defaultResult
   }
 
-  def workflowMetadata(id: WorkflowId, backend: Backend)
-                      (implicit ec: ExecutionContext): Future[WorkflowMetadataResponse] = {
+  private def emptyMap[V] = Future.successful(Map.empty[ExecutionDatabaseKey, V])
 
-    // TODO: This entire block of chained database actions should be a single request to the db layer.
-    import cromwell.engine.db.DataAccess.globalDataAccess
+  private def retrieveMap[V](runQuery: Boolean,
+                             queryResult: => Future[DBMap[V]],
+                             defaultResult: => Future[DBMap[V]] = emptyMap): Future[DBMap[V]] = {
+    if (runQuery) queryResult else defaultResult
+  }
+}
+
+class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryParameters)(implicit actorSystem: ActorSystem) {
+
+  private[this] implicit val ec = actorSystem.dispatcher
+
+  import WorkflowMetadataBuilder._
+  import cromwell.engine.db.DataAccess.globalDataAccess
+
+  private def futureAssertWorkflowExistsByState = for {
+    workflowState <- globalDataAccess.getWorkflowState(id)
+    // TODO: This assertion could be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
+    _ <- assertWorkflowExistence(id, workflowState)
+  } yield ()
+
+  private def futureWorkflowExecutionAndAux = globalDataAccess.getWorkflowExecutionAndAux(id)
+
+  // If outputs requested, don't retrieve the execution infos, only executions
+  private def futureInfosByExecution = retrieveTraversable(parameters.outputs,
+    globalDataAccess.infosByExecution(id),
+    globalDataAccess.getExecutions(id) map { _ map { ExecutionInfosByExecution(_, Seq.empty) } })
+
+  // If outputs requested, get the workflow outputs
+  private def futureWorkflowOutputs = retrieveTraversable(parameters.outputs, globalDataAccess.getWorkflowOutputs(id))
+
+  // If timings requested, we need the call statuses and execution events
+  private def futureCallToStatusMap = retrieveMap(parameters.timings, globalDataAccess.getExecutionStatuses(id))
+
+  private def futureExecutionEvents = retrieveMap(parameters.timings, globalDataAccess.getAllExecutionEvents(id))
+
+  // Drop the below if timings _or_ outputs requested
+  private def futureCallInputs = retrieveTraversable(parameters.timings && parameters.outputs,
+    globalDataAccess.getAllInputs(id))
+
+  private def futureCallOutputs = retrieveTraversable(parameters.timings && parameters.outputs,
+    globalDataAccess.getAllOutputs(id))
+
+  private def futureCallCacheData = retrieveTraversable(parameters.timings && parameters.outputs,
+    globalDataAccess.callCacheDataByExecution(id))
+
+  private def futureRuntimeAttributes = retrieveMap(parameters.timings && parameters.outputs,
+    globalDataAccess.getAllRuntimeAttributes(id))
+
+  private def futureFailures = retrieveTraversable(parameters.timings && parameters.outputs,
+    globalDataAccess.getFailureEvents(id))
+
+  def build(): Future[WorkflowMetadataResponse] = {
 
     for {
-      workflowState <- globalDataAccess.getWorkflowState(id)
-      // TODO: This assertion could be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
-      _ <- assertWorkflowExistence(id, workflowState)
-      workflowExecution <- globalDataAccess.getWorkflowExecution(id)
-      workflowOutputs <- globalDataAccess.getWorkflowOutputs(id)
-      workflowExecutionAux <- globalDataAccess.getWorkflowExecutionAux(id)
-      workflowDescriptor <- globalDataAccess.getWorkflow(id)
-      callToStatusMap <- globalDataAccess.getExecutionStatuses(id)
-      callInputs <- globalDataAccess.getAllInputs(id)
-      callOutputs <- globalDataAccess.getAllOutputs(id)
-      infosByExecution <- globalDataAccess.infosByExecution(id)
-      runtimeAttributes <- globalDataAccess.getAllRuntimeAttributes(id)
-      executionEvents <- globalDataAccess.getAllExecutionEvents(id)
-      failures <- globalDataAccess.getFailureEvents(id)
-    } yield buildWorkflowMetadata(
-      id,
-      backend,
-      workflowExecution,
-      workflowOutputs,
-      workflowExecutionAux,
-      workflowDescriptor,
-      callToStatusMap,
-      callInputs,
-      callOutputs,
-      infosByExecution,
-      runtimeAttributes,
-      executionEvents,
-      failures)
+      assertWorkflowExistsByState <- futureAssertWorkflowExistsByState
+      workflowExecutionAndAux <- futureWorkflowExecutionAndAux
+      infosByExecution <- futureInfosByExecution
+      workflowOutputs <- futureWorkflowOutputs
+      callToStatusMap <- futureCallToStatusMap
+      executionEvents <- futureExecutionEvents
+      callInputs <- futureCallInputs
+      callOutputs <- futureCallOutputs
+      callCacheData <- futureCallCacheData
+      runtimeAttributes <- futureRuntimeAttributes
+      failures <- futureFailures
+
+      // Database work complete, but we do need one more future to get the workflow descriptor
+      workflowDescriptor <- workflowDescriptorFromExecutionAndAux(workflowExecutionAndAux)
+    } yield {
+
+      val execution = workflowExecutionAndAux.execution
+      val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
+      val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
+
+      val wfFailures = failures collect {
+        case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp)
+      }
+      val callFailures = callFailuresMap(failures.toSeq)
+
+      val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
+      val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs, nonFinalEvents,
+        runtimeAttributes, callCacheData, callFailures)
+
+      WorkflowMetadataBuilder.build(workflowDescriptor, execution, engineWorkflowOutputs, callMetadata, wfFailures)
+    }
+
   }
 }

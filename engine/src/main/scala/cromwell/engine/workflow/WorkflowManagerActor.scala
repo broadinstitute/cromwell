@@ -4,18 +4,20 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine
-import cromwell.engine.ExecutionIndex._
+import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend._
-import cromwell.engine.ExecutionStatus.ExecutionStatus
 import cromwell.engine.db.DataAccess._
-import cromwell.engine.db.ExecutionDatabaseKey
+import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
+import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor.{MaterializationFailure, MaterializationSuccess}
 import cromwell.engine.workflow.WorkflowActor.{Restart, Start}
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.util.PromiseActor
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice._
+import cromwell.{core, engine}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import spray.http.Uri
 import wdl4s._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -28,25 +30,35 @@ object WorkflowManagerActor {
   class WorkflowNotFoundException(message: String) extends RuntimeException(message)
   class CallNotFoundException(message: String) extends RuntimeException(message)
 
+  type WorkflowActorRef = ActorRef
+  type WorkflowIdToActorRef = (WorkflowId, WorkflowActorRef)
+
   sealed trait WorkflowManagerActorMessage
 
   case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowManagerActorMessage
   case class WorkflowActorSubmitSuccess(replyTo: Option[ActorRef], id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowActorSubmitFailure(replyTo: Option[ActorRef], failure: Throwable) extends WorkflowManagerActorMessage
   case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerActorMessage
-  case class WorkflowQuery(parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
+  case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends WorkflowManagerActorMessage
   case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerActorMessage
   case class CallOutputs(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class CallStdoutStderr(id: WorkflowId, callFqn: FullyQualifiedName) extends WorkflowManagerActorMessage
   case class WorkflowStdoutStderr(id: WorkflowId) extends WorkflowManagerActorMessage
   case class SubscribeToWorkflow(id: WorkflowId) extends WorkflowManagerActorMessage
   case class WorkflowAbort(id: WorkflowId) extends WorkflowManagerActorMessage
-  final case class WorkflowMetadata(id: WorkflowId) extends WorkflowManagerActorMessage
-  final case class RestartWorkflows(workflows: Seq[WorkflowDescriptor]) extends WorkflowManagerActorMessage
+
+  final case class WorkflowMetadata
+  (
+    id: WorkflowId,
+    parameters: WorkflowMetadataQueryParameters = WorkflowMetadataQueryParameters()
+  ) extends WorkflowManagerActorMessage
+
+  final case class RestartWorkflows(workflows: List[WorkflowDescriptor]) extends WorkflowManagerActorMessage
   final case class CallCaching(id: WorkflowId, parameters: QueryParameters, call: Option[String]) extends WorkflowManagerActorMessage
+  private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
-  def props(backend: Backend): Props = Props(new WorkflowManagerActor(backend))
+  def props(): Props = Props(new WorkflowManagerActor())
 
   // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
   // as much work as can reasonably be handled.
@@ -58,8 +70,6 @@ object WorkflowManagerActor {
   case object Running extends WorkflowManagerState
   case object Aborting extends WorkflowManagerState
   case object Done extends WorkflowManagerState
-
-  type WorkflowActorRef = ActorRef
 
   case class WorkflowManagerData(workflows: Map[WorkflowId, WorkflowActorRef]) {
     def add(entry: (WorkflowId, WorkflowActorRef)): WorkflowManagerData = this.copy(workflows = workflows + entry)
@@ -82,10 +92,11 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(backend: Backend, config: Config)
+class WorkflowManagerActor(config: Config)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
 
-  def this(backend: Backend) = this(backend, WorkflowManagerActor.defaultConfig)
+  def this() = this(WorkflowManagerActor.defaultConfig)
+  implicit val actorSystem = context.system
 
   private val logger = Logging(context.system, this)
   private val tag = "WorkflowManagerActor"
@@ -145,10 +156,10 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
   }
 
-  private def replyToQuery(rawParameters: Seq[(String, String)]): Unit = {
+  private def replyToQuery(uri: Uri, rawParameters: Seq[(String, String)]): Unit = {
     val sndr = sender()
     query(rawParameters) onComplete {
-      case Success(r) => sndr ! WorkflowManagerQuerySuccess(r)
+      case Success(r) => sndr ! WorkflowManagerQuerySuccess(uri, r._1, r._2)
       case Failure(e) => sndr ! WorkflowManagerQueryFailure(e)
     }
   }
@@ -168,8 +179,11 @@ class WorkflowManagerActor(backend: Backend, config: Config)
 
   when (Running) {
     case Event(SubmitWorkflow(source), _) =>
-      val updatedData = submitWorkflow(source, replyTo = Option(sender), id = None)
-      stay() using updatedData
+      submitWorkflow(source, replyTo = Option(sender), id = None) map {
+        case updatedEntry: WorkflowIdToActorRef => self ! AddEntryToWorkflowManagerData(updatedEntry)
+      }
+      //`recover` doesn't do anything since it's been handled already in the `submitWorkflow` function
+      stay()
     case Event(WorkflowActorSubmitSuccess(replyTo, id), _) =>
       replyTo foreach { _ ! WorkflowManagerSubmitSuccess(id) }
       stay()
@@ -179,8 +193,8 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     case Event(WorkflowStatus(id), _) =>
       replyToStatus(id)
       stay()
-    case Event(WorkflowQuery(rawParameters), _) =>
-      replyToQuery(rawParameters)
+    case Event(WorkflowQuery(uri, rawParameters), _) =>
+      replyToQuery(uri, rawParameters)
       stay()
     case Event(WorkflowAbort(id), _) =>
       replyToAbort(id)
@@ -199,19 +213,22 @@ class WorkflowManagerActor(backend: Backend, config: Config)
       val flatLogs = workflowStdoutStderr(id) map { _.mapValues(_.flatten) }
       reply(id, flatLogs, WorkflowManagerWorkflowStdoutStderrSuccess, WorkflowManagerWorkflowStdoutStderrFailure)
       stay()
-    case Event(WorkflowMetadata(id), _) =>
-      reply(id, workflowMetadata(id), WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
+    case Event(WorkflowMetadata(id, parameters), _) =>
+      reply(id, workflowMetadata(id, parameters),
+        WorkflowManagerWorkflowMetadataSuccess, WorkflowManagerWorkflowMetadataFailure)
       stay()
     case Event(SubscribeToWorkflow(id), data) =>
       //  NOTE: This fails silently. Currently we're ok w/ this, but you might not be in the future
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
       stay()
     case Event(RestartWorkflows(w :: ws), _) =>
-      val updatedData = restartWorkflow(w)
+      restartWorkflow(w) map {
+        case updatedEntry: WorkflowIdToActorRef => self ! AddEntryToWorkflowManagerData(updatedEntry)
+      }
       context.system.scheduler.scheduleOnce(RestartDelay) {
         self ! RestartWorkflows(ws)
       }
-      stay() using updatedData
+      stay()
     case Event(RestartWorkflows(Nil), _) =>
       // No more workflows need restarting.
       stay()
@@ -241,6 +258,10 @@ class WorkflowManagerActor(backend: Backend, config: Config)
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(AddEntryToWorkflowManagerData(entry), _) =>
+      logger.info(s"Updating WorkflowManager state. New Data: $entry")
+      val newData = stateData.add(entry)
+      stay() using newData
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
   }
@@ -269,18 +290,6 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
   }
 
-  /**
-   * Retrieve the entries that produce stdout and stderr.
-   */
-  private def getCallLogKeys(id: WorkflowId, callFqn: FullyQualifiedName): Future[Seq[ExecutionDatabaseKey]] = {
-    globalDataAccess.getExecutionStatuses(id, callFqn) map {
-      case map if map.isEmpty => throw new CallNotFoundException(s"Call '$callFqn' not found in workflow '$id'.")
-      case entries =>
-        val callKeys = entries.keys filterNot { _.isCollector(entries.keys) }
-        callKeys.toSeq.sortBy(_.index)
-    }
-  }
-
   private def workflowOutputs(id: WorkflowId): Future[engine.WorkflowOutputs] = {
     for {
       _ <- assertWorkflowExistence(id)
@@ -290,7 +299,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
   }
 
-  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[engine.CallOutputs] = {
+  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[core.CallOutputs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)
@@ -300,34 +309,22 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
   }
 
-  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Try[String] = {
+  private def assertCallFqnWellFormed(descriptor: WorkflowDescriptor, callFqn: FullyQualifiedName): Future[Unit] = {
     descriptor.namespace.resolve(callFqn) match {
-      case Some(c: Call) => Success(c.unqualifiedName)
-      case _ => Failure(new UnsupportedOperationException(s"Expected a fully qualified name to have at least two parts but got $callFqn"))
+      case None => Future.failed(new UnsupportedOperationException(
+        s"Expected a fully qualified name to have at least two parts but got $callFqn"))
+      case _ => Future.successful(())
     }
   }
 
   private def callStdoutStderr(workflowId: WorkflowId, callFqn: String): Future[AttemptedCallLogs] = {
-
-    def callKey(descriptor: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) =
-      BackendCallKey(descriptor.namespace.workflow.findCallByName(callName).get, key.index, key.attempt)
-
-    def backendCallFromKey(workflow: WorkflowDescriptor, callName: String, key: ExecutionDatabaseKey) = {
-      backend.bindCall(BackendCallJobDescriptor(workflow, callKey(workflow, callName, key)))
-    }
-
-    // Local import for FullyQualifiedName.isFinalCall since FullyQualifiedName is really String
-    import cromwell.engine.finalcall.FinalCall._
     for {
-        _ <- assertWorkflowExistence(workflowId)
-        descriptor <- globalDataAccess.getWorkflow(workflowId)
-        _ <- assertCallExistence(workflowId, callFqn)
-        callName <- Future.fromTry(assertCallFqnWellFormed(descriptor, callFqn)) if !callFqn.isFinalCall
-        callLogKeys <- getCallLogKeys(workflowId, callFqn)
-        backendKeys <- Future.successful(callLogKeys.map(key => backendCallFromKey(descriptor, callName, key)))
-    } yield backendKeys.groupBy(_.key.index).values.toIndexedSeq.sortBy(_.head.key.index) map {
-      _.sortBy(_.key.attempt).map(_.stdoutStderr).toIndexedSeq
-    }
+      _ <- assertWorkflowExistence(workflowId)
+      descriptor <- globalDataAccess.getWorkflowExecutionAndAux(workflowId) flatMap workflowDescriptorFromExecutionAndAux
+      _ <- assertCallExistence(workflowId, callFqn)
+      _ <- assertCallFqnWellFormed(descriptor, callFqn)
+      entries <- globalDataAccess.infosByExecution(workflowId, callFqn) map ExecutionInfosByExecution.toWorkflowLogs
+    } yield entries.getOrElse(callFqn, List.empty)
   }
 
   private def workflowStdoutStderr(workflowId: WorkflowId): Future[WorkflowLogs] = {
@@ -335,46 +332,47 @@ class WorkflowManagerActor(backend: Backend, config: Config)
       workflowState <- globalDataAccess.getWorkflowState(workflowId)
       // TODO: This assertion could also be added to the db layer: "In the future I'll fail if the workflow doesn't exist"
       _ <- WorkflowMetadataBuilder.assertWorkflowExistence(workflowId, workflowState)
-      workflowDescriptor <- globalDataAccess.getWorkflow(workflowId)
-      executionStatuses <- globalDataAccess.getExecutionStatuses(workflowId)
-    } yield WorkflowMetadataBuilder.workflowStdoutStderr(workflowId, backend, workflowDescriptor, executionStatuses)
+      callLogOutputs <- globalDataAccess.infosByExecution(workflowId)
+    } yield ExecutionInfosByExecution.toWorkflowLogs(callLogOutputs)
   }
 
-  private def workflowMetadata(id: WorkflowId): Future[WorkflowMetadataResponse] = {
-    WorkflowMetadataBuilder.workflowMetadata(id, backend)
+  private def workflowMetadata(id: WorkflowId,
+                               parameters: WorkflowMetadataQueryParameters): Future[WorkflowMetadataResponse] = {
+    new WorkflowMetadataBuilder(id, parameters).build()
   }
 
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
     */
-  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): WorkflowManagerData = {
+  private def submitWorkflow(source: WorkflowSourceFiles, replyTo: Option[ActorRef], id: Option[WorkflowId]): Future[WorkflowIdToActorRef] = {
     val workflowId: WorkflowId = id.getOrElse(WorkflowId.randomId())
     logger.info(s"$tag submitWorkflow input id = $id, effective id = $workflowId")
     val isRestart = id.isDefined
 
-    case class ActorAndStateData(actor: WorkflowActorRef, data: WorkflowManagerData)
+    import PromiseActor.EnhancedActorRef
 
-    val actorAndData = for {
-      descriptor <- Try(WorkflowDescriptor(workflowId, source, config))
-      actor = context.actorOf(WorkflowActor.props(descriptor, backend), s"WorkflowActor-$workflowId")
-      _ = actor ! SubscribeTransitionCallBack(self)
-      data = stateData.add(workflowId -> actor)
-    } yield ActorAndStateData(actor, data)
-
-    actorAndData match {
-      case Failure(e) =>
-        val messageOrBlank = Option(e.getMessage).mkString
-        logger.error(e, s"$tag: Workflow failed submission: " + messageOrBlank)
-        replyTo foreach { _ ! WorkflowManagerSubmitFailure(e)}
-        // Return the original state data if the workflow failed submission.
-        stateData
-      case Success(a) =>
-        a.actor ! (if (isRestart) Restart else Start(replyTo))
-        a.data
+    val message  = MaterializeWorkflowDescriptorActor.MaterializeWorkflow(workflowId, source, config)
+    val materializeWorkflowDescriptorActor = context.actorOf(MaterializeWorkflowDescriptorActor.props())
+    materializeWorkflowDescriptorActor.askNoTimeout(message) map {
+      case MaterializationSuccess(descriptor) =>
+        val wfActor = context.actorOf(WorkflowActor.props(descriptor), s"WorkflowActor-$workflowId")
+        wfActor ! SubscribeTransitionCallBack(self)
+        wfActor ! (if (isRestart) Restart else Start(replyTo))
+        logger.debug(s"Successfuly started ${wfActor.path} for Workflow ${workflowId}")
+        context.stop(materializeWorkflowDescriptorActor)
+        (workflowId -> wfActor)
+      case MaterializationFailure(error) =>
+        val messageOrBlank = Option(error.getMessage).mkString
+        logger.error(error, s"$tag: Workflow failed submission: " + messageOrBlank)
+        replyTo foreach { _ ! WorkflowManagerSubmitFailure(error)}
+        // This error will be ignored currently as the only entity that needs to be notified about it
+        // has already been sent a failure message above
+        context.stop(materializeWorkflowDescriptorActor)
+        throw error
     }
   }
 
-  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): WorkflowManagerData = {
+  private def restartWorkflow(restartableWorkflow: WorkflowDescriptor): Future[WorkflowIdToActorRef] = {
     logger.info("Invoking restartableWorkflow on " + restartableWorkflow.id.shortString)
     submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
   }
@@ -394,9 +392,10 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
 
     val result = for {
-      restartableWorkflows <- globalDataAccess.getWorkflowsByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      restartableWorkflowExecutionAndAuxes <- globalDataAccess.getWorkflowExecutionAndAuxByState(Seq(WorkflowSubmitted, WorkflowRunning))
+      restartableWorkflows <- Future.sequence(restartableWorkflowExecutionAndAuxes map workflowDescriptorFromExecutionAndAux)
       _ = logRestarts(restartableWorkflows)
-      _ = self ! RestartWorkflows(restartableWorkflows.toSeq)
+      _ = self ! RestartWorkflows(restartableWorkflows.toList)
     } yield ()
 
     result recover {
@@ -404,7 +403,7 @@ class WorkflowManagerActor(backend: Backend, config: Config)
     }
   }
 
-  private def query(rawParameters: Seq[(String, String)]): Future[WorkflowQueryResponse] = {
+  private def query(rawParameters: Seq[(String, String)]): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
     for {
     // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
       parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))

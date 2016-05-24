@@ -1,7 +1,8 @@
 package cromwell.engine.backend.pbs
 
-import cromwell.engine.CallContext
-import cromwell.engine.backend.local.LocalCallEngineFunctions
-import cromwell.engine.io.IoInterface
+import java.nio.file.FileSystem
 
-class PbsCallEngineFunctions(interface: IoInterface, callContext: CallContext) extends LocalCallEngineFunctions(interface, callContext)
+import cromwell.engine.backend.CallContext
+import cromwell.engine.backend.local.LocalCallEngineFunctions
+
+class PbsCallEngineFunctions(fileSystems: List[FileSystem], callContext: CallContext) extends LocalCallEngineFunctions(fileSystems, callContext)

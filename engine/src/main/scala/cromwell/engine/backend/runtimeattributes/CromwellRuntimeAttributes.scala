@@ -1,10 +1,9 @@
 package cromwell.engine.backend.runtimeattributes
 
-import cromwell.engine.ErrorOr
+import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.engine.backend.jes.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.engine.backend.runtimeattributes.RuntimeKey._
-import cromwell.engine.backend.{BackendCallJobDescriptor, BackendCall, BackendType}
-import cromwell.engine.workflow.WorkflowOptions
+import cromwell.engine.backend.{BackendCallJobDescriptor, BackendType}
 import cromwell.util.TryUtil
 import org.slf4j.LoggerFactory
 import wdl4s._
@@ -16,6 +15,7 @@ import scala.language.postfixOps
 import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
+import scalaz.Validation.FlatMap._
 
 import java.util.{Calendar,GregorianCalendar}
 import java.util.concurrent.TimeUnit
@@ -30,8 +30,9 @@ case class CromwellRuntimeAttributes(attributes: Map[String, WdlValue],
                                      preemptible: Int,
                                      disks: Seq[JesAttachedDisk],
                                      memoryGB: Double,
+                                     walltime: String,
                                      queue: Option[String],
-                                     walltime: String)
+                                     bootDiskSizeGb: Int)
 
 object CromwellRuntimeAttributes {
   private val log = LoggerFactory.getLogger("RuntimeAttributes")
@@ -100,8 +101,9 @@ object CromwellRuntimeAttributes {
                         ValidKeyType("failOnStderr", Set(WdlBooleanType)),
                         ValidKeyType("preemptible", Set(WdlIntegerType)),
                         ValidKeyType("memory", Set(WdlStringType)),
+                        ValidKeyType("walltime", Set(WdlStringType)),
                         ValidKeyType("queue", Set(WdlStringType)),
-                        ValidKeyType("walltime", Set(WdlStringType)))
+                        ValidKeyType("bootDiskSizeGb", Set(WdlStringType)))
 
   private val defaultValues = Map(
     "cpu" -> WdlInteger(1),
@@ -110,8 +112,10 @@ object CromwellRuntimeAttributes {
     "continueOnReturnCode" -> WdlInteger(0),
     "failOnStderr" -> WdlBoolean.False,
     "preemptible" -> WdlInteger(0),
-    "memory" -> WdlString("2GB"),
-    "walltime" -> WdlString("24:00:00")
+    "memory" -> WdlString("1GB"),
+    "walltime" -> WdlString("1:00:00"),
+    "queue" -> WdlString("batch"),
+    "bootDiskSizeGb" -> WdlInteger(10)
   )
 
   private def defaultValues(workflowOptions: WorkflowOptions): Map[String, WdlValue] = {
@@ -138,23 +142,32 @@ object CromwellRuntimeAttributes {
 
   private def validateRuntimeAttributes(attributes: Map[String, WdlValue]): Try[CromwellRuntimeAttributes] = {
     val attributeMap = attributes.collect({ case (k, v) if Try(RuntimeKey.from(k)).isSuccess => RuntimeKey.from(k) -> v })
-    val docker = validateDocker(attributeMap.get(DOCKER))
-    val zones = validateZone(attributeMap.get(ZONES))
-    val failOnStderr = validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
-    val continueOnReturnCode = validateContinueOnReturnCode(attributeMap.get(CONTINUE_ON_RETURN_CODE))
-    val cpu = validateCpu(attributeMap.get(CPU))
-    val disks = validateLocalDisks(attributeMap.get(DISKS))
-    val preemptible = validatePreemptible(attributeMap.get(PREEMPTIBLE))
-    val memory = RuntimeAttributes.validateMemoryValue(attributeMap.getOrElse(MEMORY, WdlString(s"${defaults.memoryGB} GB"))) match {
-      case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
-      case scala.util.Failure(x) => x.getMessage.failureNel
-    }
-    val queue = validateQueue(attributeMap.get(QUEUE))
-    val walltime = validateWalltime(attributeMap.get(WALLTIME))
-
-    (docker |@| zones |@| failOnStderr |@| continueOnReturnCode |@| cpu |@| preemptible |@| disks |@| memory |@| queue |@| walltime) {
-      new CromwellRuntimeAttributes(attributes, _, _, _, _, _, _, _, _, _, _)
-    } match {
+    /*
+     * scalaz.syntax.ApplicativeBuilder |@| (as of version 7.3, anyhow) runs out of steam at 12
+     * arguments so we can't just keep extending what Broad had here to add queue, walltime, etc.
+     * The for comprehension below is a kind of minimal change visually; functionality-wise it's
+     * a bit worse because the first non-success value will cause the whole thing to bail
+     * rather than accumulating list of errors and bailing at the end.
+     */
+    val runtimeAttributes = for {
+      docker <- validateDocker(attributeMap.get(DOCKER))
+      zones <- validateZone(attributeMap.get(ZONES))
+      failOnStderr <- validateFailOnStderr(attributeMap.get(FAIL_ON_STDERR))
+      continueOnReturnCode <- validateContinueOnReturnCode(attributeMap.get(CONTINUE_ON_RETURN_CODE))
+      cpu <- validateCpu(attributeMap.get(CPU))
+      disks <- validateLocalDisks(attributeMap.get(DISKS))
+      preemptible <- validatePreemptible(attributeMap.get(PREEMPTIBLE))
+      memory <- RuntimeAttributes.validateMemoryValue(attributeMap.getOrElse(MEMORY, WdlString(s"${defaults.memoryGB} GB"))) match {
+        case scala.util.Success(x) => x.to(MemoryUnit.GB).amount.successNel
+        case scala.util.Failure(x) => x.getMessage.failureNel
+      }
+      walltime <- validateWalltime(attributeMap.get(WALLTIME))
+      queue <- validateQueue(attributeMap.get(QUEUE))
+      bootDiskSize <- validateBootDisk(attributeMap.get(BOOT_DISK))
+      
+    } yield new CromwellRuntimeAttributes(attributes, docker, zones, failOnStderr, continueOnReturnCode, cpu, preemptible, disks, memory, walltime, queue, bootDiskSize)
+    
+    runtimeAttributes match {
       case Success(x) => scala.util.Success(x)
       case Failure(nel) => scala.util.Failure(new IllegalArgumentException(nel.list.mkString("\n")))
     }
@@ -267,6 +280,16 @@ object CromwellRuntimeAttributes {
       case scala.util.Success(localDisk) => localDisk.successNel
       case scala.util.Failure(ex) => ex.getMessage.failureNel
     }
+  }
+
+  private def validateBootDisk(diskSize: Option[WdlValue]): ErrorOr[Int] = diskSize match {
+    case Some(x) if WdlIntegerType.isCoerceableFrom(x.wdlType) =>
+      WdlIntegerType.coerceRawValue(x) match {
+        case scala.util.Success(x: WdlInteger) => x.value.intValue.successNel
+        case scala.util.Success(coercionhasgoneawry) => s"Coercion was expected to create an Integer but instead got $coercionhasgoneawry".failureNel
+        case scala.util.Failure(t) => t.getMessage.failureNel
+      }
+    case None => defaults.bootDiskSizeGb.successNel
   }
 
   private def validateRequiredKeys(keySet: Set[String],

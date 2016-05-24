@@ -1,14 +1,16 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.16"
-  lazy val wdl4sV = "0.4-b1562df-SNAPSHOT"
+  lazy val lenthallV = "0.18-e690fc2-SNAPSHOT"
+  lazy val wdl4sV = "0.4"
   lazy val sprayV = "1.3.2"
   lazy val DowngradedSprayV = "1.3.1"
   lazy val akkaV = "2.3.12"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
   lazy val kamonV = "0.5.2"
+
+  val wdl4sDependency = "org.broadinstitute" %% "wdl4s" % wdl4sV
 
   val kamonDependencies = List(
     "io.kamon" %% "kamon-core" % kamonV,
@@ -39,8 +41,8 @@ object Dependencies {
     "com.google.api-client" % "google-api-client-java6" % googleClientApiV,
     "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV,
     "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
-    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.3",
-    "com.google.apis" % "google-api-services-genomics" % "v1alpha2-rev7-1.19.1"
+    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.4",
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
   )
 
   val dbDependencies = List(
@@ -54,9 +56,14 @@ object Dependencies {
     "com.mattbertolini" % "liquibase-slf4j" % "2.0.0"
   )
 
+  val coreDependencies = List(
+    wdl4sDependency,
+    "com.typesafe" % "config" % "1.3.0"
+  )
+
   val engineDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.broadinstitute" %% "wdl4s" % wdl4sV,
+    wdl4sDependency,
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.joda" % "joda-convert" % "1.8.1",
     "org.webjars" % "swagger-ui" % "2.1.1",

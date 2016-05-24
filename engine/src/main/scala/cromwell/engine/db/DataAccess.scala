@@ -1,12 +1,13 @@
 package cromwell.engine.db
 
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.ExecutionStatus.ExecutionStatus
-import cromwell.engine.backend.{Backend, BackendCall, JobKey}
-import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
+import cromwell.engine._
+import cromwell.engine.backend.{Backend, BackendCallJobDescriptor, _}
+import cromwell.engine.db.DataAccess.{ExecutionKeyToJobKey, WorkflowExecutionAndAux}
 import cromwell.engine.db.slick._
-import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, OutputKey}
-import cromwell.engine.{WorkflowOutputs, _}
-import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey}
+import cromwell.webservice.{CallCachingParameters, QueryMetadata, WorkflowQueryParameters, WorkflowQueryResponse}
 import wdl4s.values.WdlValue
 import wdl4s.{CallInputs, _}
 
@@ -15,7 +16,8 @@ import scala.language.postfixOps
 
 object DataAccess {
   val globalDataAccess: DataAccess = new slick.SlickDataAccess()
-  case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: JobKey)
+  case class ExecutionKeyToJobKey(executionKey: ExecutionDatabaseKey, jobKey: BackendJobKey)
+  case class WorkflowExecutionAndAux(execution: WorkflowExecution, aux: WorkflowExecutionAux)
 }
 
 trait DataAccess extends AutoCloseable {
@@ -30,16 +32,18 @@ trait DataAccess extends AutoCloseable {
 
   def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowState]]
 
-  def getWorkflow(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowDescriptor]
+  def getWorkflowExecutionAndAux(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux]
 
-  def getWorkflow(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowDescriptor]
+  def getWorkflowExecutionAndAux(workflowExecutionId: Int)(implicit ec: ExecutionContext): Future[WorkflowExecutionAndAux]
 
-  def getWorkflowsByState(states: Traversable[WorkflowState])
-                         (implicit ec: ExecutionContext): Future[Traversable[WorkflowDescriptor]]
+  def getWorkflowExecutionAndAuxByState(states: Traversable[WorkflowState])(implicit ec: ExecutionContext): Future[Traversable[WorkflowExecutionAndAux]]
 
   def getExecutionInfos(workflowId: WorkflowId, call: Call, attempt: Int)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfo]]
 
   def updateExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, key: String, value: Option[String])
+                         (implicit ec: ExecutionContext): Future[Unit]
+
+  def upsertExecutionInfo(workflowId: WorkflowId, callKey: BackendCallKey, keyValues: Map[String, Option[String]])
                          (implicit ec: ExecutionContext): Future[Unit]
 
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
@@ -61,7 +65,7 @@ trait DataAccess extends AutoCloseable {
   def getOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey)
                 (implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
-  def setRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
+  def upsertRuntimeAttributes(id: WorkflowId, key: ExecutionDatabaseKey, attributes: Map[String, WdlValue])(implicit ec: ExecutionContext): Future[Unit]
 
   def getAllRuntimeAttributes(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, Map[String, String]]]
 
@@ -69,7 +73,7 @@ trait DataAccess extends AutoCloseable {
   def getInputs(id: WorkflowId, call: Call)(implicit ec: ExecutionContext): Future[Traversable[SymbolStoreEntry]]
 
   /** Should fail if a value is already set.  The keys in the Map are locally qualified names. */
-  def setOutputs(workflowId: WorkflowId, key: OutputKey, callOutputs: WorkflowOutputs,
+  def setOutputs(workflowId: WorkflowId, key: ExecutionDatabaseKey, callOutputs: CallOutputs,
                  workflowOutputFqns: Seq[ReportableSymbol])(implicit ec: ExecutionContext): Future[Unit]
 
   /** Updates the existing input symbols to replace expressions with real values **/
@@ -101,7 +105,7 @@ trait DataAccess extends AutoCloseable {
 
   /** Set the status of a Call to a terminal status, and update associated information (return code, hash, cache). */
   def setTerminalStatus(workflowId: WorkflowId, scopeKeys: ExecutionDatabaseKey, status: ExecutionStatus,
-                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCall])(implicit ec: ExecutionContext): Future[Unit]
+                        scriptReturnCode: Option[Int], hash: Option[ExecutionHash], resultsClonedFrom: Option[BackendCallJobDescriptor])(implicit ec: ExecutionContext): Future[Unit]
 
   def getExecutionStatuses(workflowId: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Map[ExecutionDatabaseKey, CallStatus]]
@@ -134,13 +138,21 @@ trait DataAccess extends AutoCloseable {
 
   def findResumableExecutions(workflowId: WorkflowId,
                               isResumable: (Execution, Seq[ExecutionInfo]) => Boolean,
-                              jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => JobKey)
+                              jobKeyBuilder: (Execution, Seq[ExecutionInfo]) => BackendJobKey)
                              (implicit ec: ExecutionContext): Future[Traversable[ExecutionKeyToJobKey]]
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)
-                    (implicit ec: ExecutionContext): Future[WorkflowQueryResponse]
+                    (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])]
+
+  def countWorkflows(queryParameters: WorkflowQueryParameters)
+                    (implicit ec: ExecutionContext): Future[Int]
 
   def updateCallCaching(cachingParameters: CallCachingParameters)(implicit ec: ExecutionContext): Future[Int]
 
   def infosByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
+
+  def infosByExecution(id: WorkflowId, fqn: FullyQualifiedName)
+                      (implicit ec: ExecutionContext): Future[Traversable[ExecutionInfosByExecution]]
+
+  def callCacheDataByExecution(id: WorkflowId)(implicit ec: ExecutionContext): Future[Traversable[ExecutionWithCacheData]]
 }

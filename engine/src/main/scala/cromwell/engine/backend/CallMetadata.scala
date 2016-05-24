@@ -1,8 +1,9 @@
 package cromwell.engine.backend
 
-import wdl4s.values.{WdlFile, WdlValue}
-import cromwell.engine.{FailureEventEntry, ExecutionEventEntry}
+import cromwell.engine.workflow.CallCacheData
+import cromwell.engine.{ExecutionEventEntry, FailureEventEntry}
 import org.joda.time.DateTime
+import wdl4s.values.{WdlFile, WdlValue}
 
 case class CallMetadata(inputs: Map[String, WdlValue],
                         executionStatus: String,
@@ -21,4 +22,5 @@ case class CallMetadata(inputs: Map[String, WdlValue],
                         attempt: Int,
                         runtimeAttributes: Map[String, String],
                         preemptible: Option[Boolean],
+                        cache: Option[CallCacheData],
                         failures: Option[Seq[FailureEventEntry]])

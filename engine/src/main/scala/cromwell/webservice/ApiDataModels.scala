@@ -23,6 +23,8 @@ case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQua
 
 case class CallStdoutStderrResponse(id: String, logs: Map[FullyQualifiedName, Seq[CallLogs]])
 
+case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boolean = true)
+
 case class WorkflowMetadataResponse(id: String,
                                     workflowName: String,
                                     status: String,
@@ -35,6 +37,8 @@ case class WorkflowMetadataResponse(id: String,
                                     failures: Option[Seq[FailureEventEntry]])
 
 case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
+
+case class QueryMetadata(page: Option[Int], pageSize: Option[Int], totalRecords: Option[Int])
 
 final case class CallCachingResponse(updateCount: Int)
 

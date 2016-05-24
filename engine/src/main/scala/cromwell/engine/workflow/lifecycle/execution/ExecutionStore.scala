@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import akka.actor.ActorRef
 import cromwell.backend.{BackendJobDescriptorKey, JobKey}
 import cromwell.engine.ExecutionStatus
 import cromwell.engine.ExecutionStatus._
@@ -15,7 +16,10 @@ object ExecutionStore {
 }
 
 case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
-  def add(values: Map[JobKey, ExecutionStatus]) = this.copy(store = store ++ values)
+  def add(values: Map[JobKey, ExecutionStatus]) = {
+    values foreach { case (key, value) => System.out.println(s"Adding $key -> $value") }
+    this.copy(store = store ++ values)
+  }
 
   /** Find currently runnable scopes */
   def runnableScopes: Iterable[JobKey] = store.filter(isRunnable).keys

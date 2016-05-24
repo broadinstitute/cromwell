@@ -181,7 +181,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     processOutputs(callEngineFunction, jobPaths) match {
-      case Success(outputs) => SucceededResponse(jobDescriptor.key, outputs)
+      case Success(outputs) => SucceededResponse(jobDescriptor.key, Some(rc), outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
         FailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))

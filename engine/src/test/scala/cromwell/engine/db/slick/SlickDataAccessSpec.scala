@@ -204,7 +204,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val call = mock[Call]
       call.fullyQualifiedName returns "wf.a"
       val dbKey = ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)
-      val outputs: CallOutputs = Map("wf.a.empty" -> CallOutput(WdlString(""), None))
+      val outputs: JobOutputs = Map("wf.a.empty" -> CallOutput(WdlString(""), None))
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)

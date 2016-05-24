@@ -1,5 +1,11 @@
 package cromwell.backend.validation
 
+import wdl4s.types.{WdlArrayType, WdlBooleanType, WdlIntegerType, WdlType}
+
+object ContinueOnReturnCode {
+  val validWdlTypes = Set[WdlType](WdlArrayType(WdlIntegerType), WdlBooleanType, WdlIntegerType)
+}
+
 /**
   * Decides if a call/job continues upon a specific return code.
   */

@@ -10,7 +10,7 @@ import wdl4s.Call
 import scala.concurrent.Future
 
 object LocalInitializationActor {
-  val SupportedKeys = Set(Docker, FailOnStderr, ContinueOnReturnCode)
+  val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
     Props(new LocalInitializationActor(workflowDescriptor, calls, configurationDescriptor))

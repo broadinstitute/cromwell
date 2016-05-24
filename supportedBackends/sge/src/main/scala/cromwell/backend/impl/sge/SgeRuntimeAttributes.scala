@@ -14,9 +14,9 @@ object SgeRuntimeAttributes {
   val ContinueOnRcDefaultValue = 0
 
   def apply(attrs: Map[String, WdlValue]): SgeRuntimeAttributes = {
-    val docker = validateDocker(attrs.get(Docker), None.successNel)
-    val failOnStderr = validateFailOnStderr(attrs.get(FailOnStderr), FailOnStderrDefaultValue.successNel)
-    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCode),
+    val docker = validateDocker(attrs.get(DockerKey), None.successNel)
+    val failOnStderr = validateFailOnStderr(attrs.get(FailOnStderrKey), FailOnStderrDefaultValue.successNel)
+    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCodeKey),
       ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
     (continueOnReturnCode |@| docker |@| failOnStderr) {
       new SgeRuntimeAttributes(_, _, _)

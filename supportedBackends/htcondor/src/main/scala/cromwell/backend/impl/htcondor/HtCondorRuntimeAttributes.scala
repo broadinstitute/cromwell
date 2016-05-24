@@ -1,23 +1,40 @@
 package cromwell.backend.impl.htcondor
 
-import cromwell.backend.validation.{ContinueOnReturnCodeSet, ContinueOnReturnCode}
+import cromwell.backend.validation.ContinueOnReturnCode
+import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
+import cromwell.core.WorkflowOptions
 import lenthall.exception.MessageAggregation
-import wdl4s.values.WdlValue
+import wdl4s.types.{WdlStringType, WdlBooleanType, WdlType}
+import wdl4s.values.{WdlBoolean, WdlInteger, WdlValue}
 
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 object HtCondorRuntimeAttributes {
   val FailOnStderrDefaultValue = false
   val ContinueOnRcDefaultValue = 0
 
-  def apply(attrs: Map[String, WdlValue]): HtCondorRuntimeAttributes = {
-    val docker = validateDocker(attrs.get(Docker), None.successNel)
-    val failOnStderr = validateFailOnStderr(attrs.get(FailOnStderr), FailOnStderrDefaultValue.successNel)
-    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCode),
-      ContinueOnReturnCodeSet(Set(ContinueOnRcDefaultValue)).successNel)
+  val staticDefaults = Map(
+    FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
+    ContinueOnReturnCodeKey -> WdlInteger(ContinueOnRcDefaultValue)
+  )
+
+  val coercionMap: Map[String, Set[WdlType]] = Map (
+    FailOnStderrKey -> Set[WdlType](WdlBooleanType),
+    ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
+    DockerKey -> Set(WdlStringType)
+  )
+
+  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): HtCondorRuntimeAttributes = {
+    // Fail now if some workflow options are specified but can't be parsed correctly
+    val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
+    val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
+
+    val docker = validateDocker(withDefaultValues.get(DockerKey), None.successNel)
+    val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
+    val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
     (continueOnReturnCode |@| docker |@| failOnStderr) {
       new HtCondorRuntimeAttributes(_, _, _)
     } match {

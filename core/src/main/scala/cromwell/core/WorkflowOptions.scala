@@ -2,6 +2,7 @@ package cromwell.core
 
 import com.typesafe.config.ConfigFactory
 import spray.json._
+import wdl4s.util.TryUtil
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -128,10 +129,14 @@ case class WorkflowOptions(jsObject: JsObject) {
     case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }
 
-  def getDefaultRuntimeOption(key: String): Try[JsValue] = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => WorkflowOptions.getAsJson(key, jsObj)
+  def getDefaultRuntimeOption(key: String): Try[JsValue] = defaultRuntimeOptions map { attributes =>
+    attributes.getOrElse(key, throw new OptionNotFoundException(s"Field not found $key"))
+  }
+
+  lazy val defaultRuntimeOptions = jsObject.fields.get(defaultRuntimeOptionKey) match {
+    case Some(jsObj: JsObject) => TryUtil.sequenceMap(jsObj.fields map { case (k, v) => k -> WorkflowOptions.getAsJson(k, jsObj) })
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(new OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {

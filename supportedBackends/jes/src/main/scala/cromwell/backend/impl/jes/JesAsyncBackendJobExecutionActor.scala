@@ -138,7 +138,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     // Fail the call if runtime attributes can't be evaluated
     val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    JesRuntimeAttributes(evaluatedAttributes)
+    JesRuntimeAttributes(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions)
   }
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get

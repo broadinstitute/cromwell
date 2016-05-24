@@ -9,7 +9,7 @@ import wdl4s.Call
 import scala.concurrent.Future
 
 object JesInitializationActor {
-  val SupportedKeys = Set(Cpu, Memory, Docker, FailOnStderr, ContinueOnReturnCode, JesRuntimeAttributes.ZonesKey,
+  val SupportedKeys = Set(CpuKey, MemoryKey, DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey, JesRuntimeAttributes.ZonesKey,
     JesRuntimeAttributes.PreemptibleKey, JesRuntimeAttributes.BootDiskSizeKey, JesRuntimeAttributes.DisksKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
@@ -45,7 +45,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
           log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions.")
         }
 
-        runtimeAttributes.get(Docker).orElse(throw new IllegalArgumentException(s"$Docker mandatory runtime attribute is missing."))
+        runtimeAttributes.get(DockerKey).orElse(throw new IllegalArgumentException(s"$DockerKey mandatory runtime attribute is missing."))
       }
     }
   }

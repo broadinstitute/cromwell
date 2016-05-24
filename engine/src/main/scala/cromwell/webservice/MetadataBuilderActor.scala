@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
+import cromwell.engine.WorkflowState
 import cromwell.engine.workflow.WorkflowMetadataKeys
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
@@ -168,8 +169,14 @@ object MetadataBuilderActor {
 
   private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToIndexedJsonValue(events).toJson.asJsObject
 
-  private def foldAndAddWorkflowId(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]): JsObject = {
-    val result = eventsToIndexedJson(eventsList) |+| IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedJsonString(workflowId.toString)))
+  private def foldStates(eventsList: Seq[MetadataEvent]): IndexedJsonValue = {
+    import WorkflowState._
+    val state: WorkflowState = eventsList collect { case MetadataEvent(_, MetadataValue(v), _) => WorkflowState.fromString(v) } reduceLeft(_ |+| _)
+    IndexedJsonObject(Map(WorkflowMetadataKeys.Status -> IndexedJsonString(state.toString)))
+  }
+
+  private def foldStatesAndAddWorkflowId(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]): JsObject = {
+    val result = foldStates(eventsList) |+| IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedJsonString(workflowId.toString)))
     result.toJson.asJsObject
   }
 
@@ -212,7 +219,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     else {
       query match {
         case MetadataQuery(w, None, None) => IndexedJsonObject(Map(w.id.toString -> MetadataBuilderActor.parseWorkflowEventsToIndexedJsonValue(eventsList))).toJson.asJsObject
-        case MetadataQuery(w, None, Some(WorkflowMetadataKeys.Status)) => MetadataBuilderActor.foldAndAddWorkflowId(w, eventsList)
+        case MetadataQuery(w, None, Some(WorkflowMetadataKeys.Status)) => MetadataBuilderActor.foldStatesAndAddWorkflowId(w, eventsList)
         case _ => MetadataBuilderActor.parse(eventsList)
       }
     }

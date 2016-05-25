@@ -17,7 +17,7 @@ You can add your own tests to the test suite by adding `-Dcentaur.optionalTestPa
 e.g. `sbt -Dcentaur.optionalTestPath=/some/path/to/tests test`. The value of `DIR` is expected to be a directory
 which contains one or more test case files. Each test case file is a HOCON file with the following structure:
 ```
-testName: TESTNAME
+name: NAME
 testFormat: TESTFORMAT
 basePath: /an/optional/field
 
@@ -25,7 +25,11 @@ files {
   wdl: path/to/wdl
   inputs: optional/path/to/inputs
   options: optional/path/to/options
-  metadata: optional/path/to/metadata
+}
+
+metadata {
+  fully.qualified.key.name1: VALUE1
+  fully.qualified.key.name2: VALUE2
 }
 ```
 
@@ -35,6 +39,8 @@ The `testFormat` field can be one of the following, case insensitive:
 * `workflowsuccess`: The workflow being supplied is expected to successfully complete
 * `workflowfailure`: The workflow being supplied is expected to fail 
 * `submissionfailure`: The workflow being supplied is expected to fail on workflow submission
+
+The `metadata` is optional. If supplied, Centaur will retrieve the metadata from the successfully completed workflow and compare the values retrieved to those supplied. At the moment the only fields supported are strings, numbers and booleans.
 
 # FAQs
 

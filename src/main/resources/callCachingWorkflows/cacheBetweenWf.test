@@ -1,0 +1,19 @@
+name: cacheBetweenWf
+
+files {
+  wdl: cacheBetweenWF/cacheBetweenWF.wdl
+  options: cacheBetweenWF/cacheBetweenWF.options
+}
+
+metadata {
+  workflowName: cacheBetweenWF
+  "cacheBetweenWF.fourAgain.inputs.pi": 3.14159
+  "cacheBetweenWF.fourAgain.inputs.r2": 3844 
+  "cacheBetweenWF.fourAgain.outputs.area": 12076.27196
+  "cacheBetweenWF.fourAgain.outputs.piCopy": 3.14159
+  "cacheBetweenWF.twoAgain.inputs.pi": 3.14159
+  "cacheBetweenWF.twoAgain.inputs.r2": 3844
+  "cacheBetweenWF.twoAgain.outputs.area": 12076.27196
+  "cacheBetweenWF.twoAgain.outputs.piCopy": 3.14159
+}
+

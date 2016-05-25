@@ -1,4 +1,4 @@
-testName: stdout_stderr_passing
+name: stdout_stderr_passing
 testFormat: workflowsuccess
 
 files {

@@ -1,0 +1,6 @@
+name: readFromCache
+
+files {
+  wdl: readFromCache/readFromCache.wdl
+  options: readFromCache/readFromCache.options
+}

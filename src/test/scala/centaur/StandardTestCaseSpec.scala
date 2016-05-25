@@ -7,6 +7,7 @@ import cats.syntax.traverse._
 import cats.std.list._
 import centaur.test.Test
 import centaur.test.standard.StandardTestCase
+import centaur.test.workflow.Workflow
 
 import scala.language.postfixOps
 import org.scalatest._
@@ -22,14 +23,13 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
 
   // Optional test cases are provided by the end user as opposed to the ones built in to the system
   val optionalTestCases = CentaurConfig.optionalTestPath map testCases getOrElse List.empty
-
   optionalTestCases ++ testCases(CentaurConfig.standardTestCasePath) foreach {
-    case t => executeStandardTest(t, t.testFormat.testFunction)
+    case t => executeStandardTest(t, t.testFunction)
   }
 
-  def executeStandardTest(testCase: StandardTestCase, f: WorkflowRequest => Test[_]): Unit = {
-    it should s"${testCase.testFormat.testSpecString} ${testCase.name}" in {
-      f(WorkflowRequest(testCase)).run.get
+  def executeStandardTest(testCase: StandardTestCase, f: Workflow => Test[_]): Unit = {
+    it should s"${testCase.testFormat.testSpecString} ${testCase.workflow.name}" in {
+      f(testCase.workflow).run.get
     }
   }
 }

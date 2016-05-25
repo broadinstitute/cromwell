@@ -1,4 +1,4 @@
-testName: custom_mount_point
+name: custom_mount_point
 testFormat: workflowsuccess
 
 files {

@@ -1,8 +1,16 @@
-testName: hello
+name: hello
 testFormat: workflowsuccess
 
 files {
   wdl: hello/hello.wdl
-  metadata: hello/hello.metadata
   inputs: hello/hello.inputs
+}
+
+metadata {
+  workflowName: hello
+  status: Succeeded
+  "hello.hello.executionStatus": Done
+  "outputs.hello.hello.salutation": "Hello m'Lord!"
+  "hello.hello.runtimeAttributes.docker": "ubuntu:latest"
+  "inputs.hello.hello.addressee": "m'Lord"
 }

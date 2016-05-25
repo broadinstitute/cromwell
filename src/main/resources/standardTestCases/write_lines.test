@@ -1,4 +1,4 @@
-testName: write_lines
+name: write_lines
 testFormat: workflowfailure
 
 files {

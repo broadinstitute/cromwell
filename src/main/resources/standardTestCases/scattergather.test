@@ -1,4 +1,4 @@
-testName: scattergather
+name: scattergather
 testFormat: workflowsuccess
 
 files {

@@ -1,4 +1,4 @@
-testName: globbingscatter
+name: globbingscatter
 testFormat: workflowsuccess
 
 files {

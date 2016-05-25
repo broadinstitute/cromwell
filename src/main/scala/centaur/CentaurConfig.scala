@@ -4,8 +4,7 @@ import java.net.URL
 import java.nio.file.{Path, Paths}
 import java.util.concurrent.TimeUnit
 import com.typesafe.config.ConfigFactory
-import lenthall.config.ScalaConfig._
-
+import configs.syntax._
 import scala.concurrent.duration.FiniteDuration
 
 object CentaurConfig {
@@ -18,7 +17,7 @@ object CentaurConfig {
   lazy val callCacheTestCasePath = Paths.get(conf.getString("centaur.callCacheTestCasePath"))
 
   // If provided, any tests will be appended to the tests in standardTestCasePath
-  lazy val optionalTestPath: Option[Path] = conf.getStringOption("centaur.optionalTestPath") map { Paths.get(_) }
+  lazy val optionalTestPath: Option[Path] = conf.get[Option[Path]]("centaur.optionalTestPath") valueOrElse None
 
   implicit class EnhancedJavaDuration(val javaDuration: java.time.Duration) extends AnyVal {
     def toScala: FiniteDuration = FiniteDuration(javaDuration.toMillis, TimeUnit.MILLISECONDS)

@@ -1,4 +1,4 @@
-testName: runtime_failOnStderr
+name: runtime_failOnStderr
 testFormat: workflowfailure
 
 files {

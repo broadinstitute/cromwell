@@ -1,4 +1,4 @@
-testName: composedenginefunctions
+name: composedenginefunctions
 testFormat: workflowsuccess
 
 files {

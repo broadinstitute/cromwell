@@ -1,4 +1,4 @@
-testName: bad_workflow_failure_mode
+name: bad_workflow_failure_mode
 testFormat: submissionfailure
 
 files {

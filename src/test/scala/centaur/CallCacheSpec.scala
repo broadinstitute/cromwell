@@ -1,38 +1,53 @@
 package centaur
 
-import java.nio.file.Path
+import java.nio.file.Paths
 
-import centaur.test.CacheFormulas
+import cats.Apply
+import cats.data.Validated.{Invalid, Valid}
+import cats.std.list._
+import centaur.test.ErrorOr
+import centaur.test.formulas.TestFormulas
+import centaur.test.workflow.Workflow
 import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
 
+object CallCacheSpec {
+  val CallCachingWorkflowDir = Paths.get("src/main/resources/callCachingWorkflows")
+  val ReadFromCacheTest = CallCachingWorkflowDir.resolve("readFromCache.test")
+  val WriteToCacheTest = CallCachingWorkflowDir.resolve("writeToCache.test")
+  val CacheWithinWf = CallCachingWorkflowDir.resolve("cacheWithinWf.test")
+  val CacheBetweenWf = CallCachingWorkflowDir.resolve("cacheBetweenWF.test")
+}
+
 class CallCacheSpec extends FlatSpec with Matchers with ParallelTestExecution {
+  import CallCacheSpec._
 
-  def testCases(basePath: Path): List[WorkflowRequest] = {
-    basePath.toFile.listFiles.toList collect { case x if x.isDirectory => x.toPath } map WorkflowRequest.apply
-  }
-
-  testCases(CentaurConfig.callCacheTestCasePath) foreach { case w =>
-    if (w.name == "cacheWithinWF") {
-      w.name should s"succesfully run ${w.name}" in {
-        CacheFormulas.runCachingWorkflow(w).run.get
-      }
-    }
-    if (w.name == "readFromCache" || w.name == "writeToCache" ) {
-      w.name should s"successfully run ${w.name}" in {
-        CacheFormulas.runCachingTurnedOffWorkflow(w).run.get
-      }
+  "readFromCache" should "not use call caching" in {
+    Workflow.fromPath(ReadFromCacheTest) match {
+      case Valid(w) => TestFormulas.runCachingTurnedOffWorkflow(w).run.get
+      case Invalid(e) => fail(s"Could not read readFromCache test:\n -${e.unwrap.mkString("\n-")}")
     }
   }
 
-  testCases(CentaurConfig.callCacheTestCasePath) foreach { case w =>
-    if (w.name == "cacheWithinWF") {
-      testCases(CentaurConfig.callCacheTestCasePath) foreach { case w2 =>
-        if (w2.name == "cacheBetweenWF")
-          w2.name should s"successfully run ${w.name}" in {
-            CacheFormulas.runSequentialCachingWorkflow(w, w2).run.get
-          }
-      }
+  "writeToCache" should "not use call caching" in {
+    Workflow.fromPath(WriteToCacheTest) match {
+      case Valid(w) => TestFormulas.runCachingTurnedOffWorkflow(w).run.get
+      case Invalid(e) => fail(s"Could not read writeToCache test:\n - ${e.unwrap.mkString("\n- ")}")
     }
   }
 
+  "cacheWithinWf" should "use call caching" in {
+    Workflow.fromPath(CacheWithinWf) match {
+      case Valid(w) => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(w).run.get
+      case Invalid(e) => fail(s"Could not read cacheWithinWf test:\n - ${e.unwrap.mkString("\n- ")}")
+    }
+  }
+
+  "cacheBetweenWf" should "use call caching" in {
+    val cacheWithinWf = Workflow.fromPath(CacheWithinWf)
+    val cacheBetweenWf = Workflow.fromPath(CacheBetweenWf)
+    Apply[ErrorOr].map2(cacheWithinWf, cacheBetweenWf)((w, b) => TestFormulas.runSequentialCachingWorkflow(w, b)) match {
+      case Valid(t) => t.run.get
+      case Invalid(e) => fail(s"Could not build workflows for cacheBetwenWf test:\n - ${e.unwrap.mkString("\n- ")}")
+    }
+  }
 }

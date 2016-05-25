@@ -1,4 +1,4 @@
-testName: threestep
+name: threestep
 testFormat: workflowsuccess
 
 files {

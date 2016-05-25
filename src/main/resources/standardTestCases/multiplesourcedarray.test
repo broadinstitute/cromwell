@@ -1,4 +1,4 @@
-testName: multiplesourcedarray
+name: multiplesourcedarray
 testFormat: workflowsuccess
 
 files {

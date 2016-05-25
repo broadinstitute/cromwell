@@ -1,4 +1,4 @@
-testName: filepassing
+name: filepassing
 testFormat: workflowsuccess
 
 files {

@@ -2,16 +2,11 @@ name := "centaur"
 
 version := "1.0"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
 val sprayV = "1.3.3"
 val downgradedSprayV = "1.3.2"
 val akkaV = "2.3.14"
-
-resolvers ++= Seq(
-   "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
-   "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
-)
 
 /***
  * by default log buffering is set to true in sbt, which means
@@ -22,7 +17,7 @@ resolvers ++= Seq(
 // logBuffered in Test := false
 
 libraryDependencies ++= Seq(
-  "org.broadinstitute" %% "lenthall" % "0.17",
+  "com.github.kxbmap" %% "configs" % "0.4.2",
   "com.typesafe" % "config" % "1.3.0",
   "org.typelevel" %% "cats" % "0.4.1",
   "com.typesafe.akka" %% "akka-actor" % akkaV,

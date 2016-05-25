@@ -1,4 +1,4 @@
-testName: runtime_continueOnReturnCode
+name: runtime_continueOnReturnCode
 testFormat: workflowsuccess
 
 files {

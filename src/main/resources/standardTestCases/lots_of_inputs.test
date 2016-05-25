@@ -1,4 +1,4 @@
-testName: lots_of_inputs
+name: lots_of_inputs
 testFormat: workflowsuccess
 
 files {

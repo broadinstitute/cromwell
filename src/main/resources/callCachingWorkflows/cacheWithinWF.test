@@ -1,0 +1,14 @@
+name: cacheWithinWF
+
+files {
+  wdl: cacheWithinWF/cacheWithinWF.wdl
+}
+
+metadata {
+  "workflowName": cacheWithinWF
+  "cacheWithinWF.four.cache.cacheHitCall": "cacheWithinWF.two"
+  "cacheWithinWF.four.inputs.pi": 3.14159
+  "cacheWithinWF.four.inputs.r2": 3844
+  "cacheWithinWF.four.outputs.area": 12076.27196
+  "cacheWithinWF.four.outputs.piCopy": 3.14159
+}

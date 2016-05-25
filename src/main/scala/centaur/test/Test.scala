@@ -1,6 +1,5 @@
 package centaur.test
 
-import java.nio.file.Files
 import java.util.UUID
 
 import akka.actor.ActorSystem
@@ -12,9 +11,6 @@ import spray.client.pipelining._
 import spray.http.{FormData, HttpRequest, HttpResponse}
 import spray.httpx.PipelineException
 import spray.httpx.unmarshalling._
-import better.files._
-import centaur.json.JsonUtils._
-import centaur.Metadata._
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
@@ -23,7 +19,8 @@ import scala.util.{Failure, Success, Try}
 import spray.httpx.SprayJsonSupport._
 import FailedWorkflowSubmissionJsonSupport._
 import CromwellStatusJsonSupport._
-import spray.json._
+import centaur.test.metadata.WorkflowMetadata
+import centaur.test.workflow.Workflow
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -63,16 +60,16 @@ object Test {
   * be composed together via a for comprehension as a test formula and then run by some other entity.
   */
 object Operations {
-  def submitWorkflow(request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      override def run: Try[Workflow] = {
+  def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
+    new Test[SubmittedWorkflow] {
+      override def run: Try[SubmittedWorkflow] = {
         // Collect only the parameters which exist:
-        val params = List("wdlSource" -> Option(request.wdl), "workflowInputs" -> request.inputs, "workflowOptions" -> request.options) collect {
-          case (name, Some(value)) => (name, value)
-        }
+        val params = List("wdlSource" -> Option(workflow.data.wdl),
+          "workflowInputs" -> workflow.data.inputs,
+          "workflowOptions" -> workflow.data.options) collect { case (name, Some(value)) => (name, value) }
         val formData = FormData(params)
         val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
-        sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { Workflow(_, CentaurConfig.cromwellUrl) })
+        sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { SubmittedWorkflow(_, CentaurConfig.cromwellUrl, workflow) })
       }
     }
   }
@@ -82,11 +79,11 @@ object Operations {
     *
     * @return The message in the error response
     */
-  def submitWorkflowExpectingRejection(request: WorkflowRequest): Test[String] = {
+  def submitWorkflowExpectingRejection(workflow: Workflow): Test[String] = {
     new Test[String] {
       override def run: Try[String] = {
         // Collect only the parameters which exist:
-        val params = List("wdlSource" -> Option(request.wdl), "workflowInputs" -> request.inputs, "workflowOptions" -> request.options) collect {
+        val params = List("wdlSource" -> Option(workflow.data.wdl), "workflowInputs" -> workflow.data.inputs, "workflowOptions" -> workflow.data.options) collect {
           case (name, Some(value)) => (name, value)
         }
         val formData = FormData(params)
@@ -100,10 +97,10 @@ object Operations {
     * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
     * stops with a failure.
     */
-  def pollUntilStatus(workflow: Workflow, expectedStatus: WorkflowStatus): Test[Workflow] = {
-    new Test[Workflow] {
+  def pollUntilStatus(workflow: SubmittedWorkflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+    new Test[SubmittedWorkflow] {
       @tailrec
-      def doPerform(): Workflow = {
+      def doPerform(): SubmittedWorkflow = {
         val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
         val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
         status match {
@@ -116,164 +113,42 @@ object Operations {
         }
       }
 
-      override def run: Try[Workflow] = workflowLengthFutureCompletion(Future { doPerform() } )
+      override def run: Try[SubmittedWorkflow] = workflowLengthFutureCompletion(Future { doPerform() })
     }
   }
 
-  private val AllowedKeys = Set("runtimeAttributes", "preemptible", "executionStatus")
-  private val CacheKeys = Set("cacheHitCall")
-
-  /**
-    * This method accepts the two maps being compared, Workflow Request, and type of Map
-    * (metadata/output). It finds and prints the differences in the keys/values of the two maps.
-    */
-  def printMapDiff(expectedMetadata: Option[Map[String, JsValue]], actualMetadata: Map[String, JsValue], request: WorkflowRequest, testType: String) = {
-    val expectedMap = expectedMetadata.get
-
-    val diff = expectedMap.keySet -- actualMetadata.keySet
-
-    if (diff.nonEmpty) { println(s"For workflow ${request.name}: \nMissing expected $testType fields: $diff") }
-
-    expectedMap foreach { case (k, v: JsValue) =>
-      if (actualMetadata.contains(k) && (!v.toString.equals(actualMetadata.get(k).mkString))) {
-          println(s"Unexpected $testType for key: $k. Expected: ${v.toString} Actual: ${actualMetadata.get(k).mkString}")
-      }
-    }
-  }
-
-  def verifyMetadataAndOutputs(workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      // Need DefaultJsonProtocol export to use convertTo[Map[String,JsValue]]
-      val expectedMap: Option[Map[String, JsValue]] = request.metadata map { metadataString: String => makeFilteredMap(metadataString, AllowedKeys) }
-      val expectedOutputMap: Option[Map[String, JsValue]] = request.metadata map { metadataString: String => convertJsObjectToMap(filterMetadataByKey(metadataString, "outputs"))}
-
-
-      def verifyWorkflowMetadata(metadata: Map[String, JsValue]) = {
-        if (!expectedMap.equals(metadata)) {
-          printMapDiff(expectedMap, metadata, request, "metadata")
-          throw new Exception(s"Metadata mismatch found for workflow ${request.name}.")
-        }
-      }
-
-      def verifyWorkflowOutputs(outputs: Map[String, JsValue]) = {
-        if (!expectedOutputMap.equals(outputs)) {
-        printMapDiff(expectedOutputMap, outputs, request, "outputs")
-        throw new Exception(s"Output mismatch found for workflow ${request.name}.")
-        }
-      }
-
-      override def run: Try[Workflow] = {
-        def ensureExpectedFile(metadata: String): Unit = {
-          val expectedFile = request.base.getParent.resolve(s"${request.name}.metadata")
-          if (!Files.exists(expectedFile)) {
-            expectedFile.write(metadata)
-          }
-        }
-
+  def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
+    new Test[WorkflowMetadata] {
+      override def run: Try[WorkflowMetadata] = {
         val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response map { allMetadata =>
-          ensureExpectedFile(allMetadata)
-          verifyWorkflowMetadata(makeFilteredMap(allMetadata, AllowedKeys))
-          verifyWorkflowOutputs(convertJsObjectToMap(filterMetadataByKey(allMetadata, "outputs")))
+        // Try to convert the response to a Metadata in our return Try.
+        // Currently any error msg will be opaque as it's unlikely to be an issue (can flesh out later)
+        sendReceiveFutureCompletion(response map { r => WorkflowMetadata.fromMetadataJson(r).toOption.get })
+      }
+    }
+  }
 
-          workflow
-        })
+  def validateMetadata(retrievedMetadata: WorkflowMetadata, expectedMetadata: WorkflowMetadata): Test[Unit] = {
+    new Test[Unit] {
+      override def run: Try[Unit] = {
+        val diffs = expectedMetadata diff retrievedMetadata
 
+        if (diffs.isEmpty) Success(())
+        else Failure(throw new Exception(s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"))
       }
     }
   }
 
   /**
-    * Verify that the expected cache key values being passed in (through the .metadata file)
-    * match the cache key values from the actual metadata json. Print the difference if not equal.
+    * Verify that none of the calls within the workflow are cached.
     */
-  def verifyCaching (workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      val expectedCacheMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => filterMetadataByKey(cacheData, "cache").flattenToMap }
+  def validateCachingWasOff(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = {
+    new Test[Unit] {
+      override def run: Try[Unit] = {
+        val cacheHits = metadata.value.keySet filter { _.contains("cacheHitCall") }
 
-      def verifyWorkflowCaching(cache: Map[String, JsValue]) = {
-        expectedCacheMap match {
-          case Some(expected) if !expected.equals(cache) =>
-            printMapDiff(expectedCacheMap, cache, request, "cache")
-            throw new Exception(s"Mismatching cache for Workflow ${request.name}")
-          case _ =>
-        }
-      }
-
-      override def run: Try[Workflow] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata =>
-          verifyWorkflowCaching(makeFilteredMap(allMetadata, expectedCacheMap.get.keySet))
-          workflow
-        })
-      }
-    }
-  }
-
-  /**
-    * Verify that none of the calls wihtin the workflow are cached.
-    */
-  def verifyCachingOff (workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      override def run: Try[Workflow] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata =>
-          val cacheHitMap = makeFilteredMap(allMetadata, CacheKeys)
-          if (cacheHitMap.nonEmpty) throw new Exception(s"Found unexpected cache hits for ${request.name}: \n$cacheHitMap")
-          workflow
-        })
-      }
-    }
-  }
-
-  /**
-    * Verify that input/output values of interest (listed as a subsection of the .metadata file)
-    * match up to confirm that caching is expected.
-    */
-
-  def verifyInputsOutputs(workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      val equalMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => filterMetadataByKey(cacheData, "assertEqual").flattenToMap}
-
-      def verifyEqual(actualMap: Map[String, JsValue]) = {
-        //FIXME: Another option .get
-       equalMap.get foreach  { case (k, v) =>
-         if(actualMap.get(k) != actualMap.get(v.toString)) throw new Exception (s"Mismatch of Expected Inputs/Outputs for ${request.name}")
-       }
-      }
-
-      override def run: Try[Workflow] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata => val actualMap = allMetadata.parseJson.asJsObject.flattenToMap
-          verifyEqual(actualMap)
-          workflow
-        })
-      }
-    }
-  }
-
-  /**
-    * Verify that input/output values of interest (listed as a subsection of the .metadata file)
-    * match up to confirm that caching is expected.
-    */
-
-  def assertEqual (workflow: Workflow, request: WorkflowRequest): Test[Workflow] = {
-    new Test[Workflow] {
-      val equalMap: Option[Map[String, JsValue]] = request.metadata map { cacheData: String => filterMetadataByKey(cacheData, "assertEqual").flattenToMap}
-
-      def verifyEqual(actualMap: Map[String, JsValue]) = {
-        //FIXME: Another option .get
-       equalMap.get foreach  { case (k, v) =>
-         if(actualMap.get(k) != actualMap.get(v.toString)) throw new Exception (s"Mismatch of Expected Inputs/Outputs for ${request.name}")
-       }
-      }
-
-      override def run: Try[Workflow] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        sendReceiveFutureCompletion(response  map { allMetadata => val actualMap = allMetadata.parseJson.asJsObject.flattenToMap
-          verifyEqual(actualMap)
-          workflow
-        })
+        if (cacheHits.isEmpty) Success(())
+        else Failure(new Exception(s"Found unexpected cache hits for $workflowName: \n"))
       }
     }
   }

@@ -1,4 +1,4 @@
-testName: workspaceenginefunctions
+name: workspaceenginefunctions
 testFormat: workflowsuccess
 
 files {

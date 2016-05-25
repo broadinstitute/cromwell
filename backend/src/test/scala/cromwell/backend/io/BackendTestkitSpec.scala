@@ -1,13 +1,9 @@
-package cromwell.backend.impl.local
-
-import java.nio.file.FileSystems
+package cromwell.backend.io
 
 import akka.actor.ActorSystem
-import akka.testkit.TestActorRef
-import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, FailedRetryableResponse, BackendJobExecutionResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
 import cromwell.backend._
-import cromwell.backend.impl.local.TestWorkflows.TestWorkflow
+import cromwell.backend.io.TestWorkflows.TestWorkflow
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -17,23 +13,15 @@ import wdl4s._
 import wdl4s.values.WdlValue
 
 object BackendTestkitSpec {
-  implicit val testActorSystem = ActorSystem("LocalBackendSystem")
+  implicit val testActorSystem = ActorSystem("BackendTestActorSystem")
   object DockerTest extends Tag("DockerTest")
 }
 
 trait BackendTestkitSpec extends ScalaFutures with Matchers {
-  import BackendTestkitSpec._
-
-  val localFileSystem = List(FileSystems.getDefault)
-
-  val globalConfig = ConfigFactory.load()
-  val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
-  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(500, Millis))
 
-  def testWorkflow(workflow: TestWorkflow, inputs: Map[String, WdlValue] = Map.empty) = {
-    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, inputs), workflow.config)
+  def testWorkflow(workflow: TestWorkflow, backend: BackendJobExecutionActor, inputs: Map[String, WdlValue] = Map.empty) = {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
@@ -47,10 +35,6 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
       inputs,
       options
     )
-  }
-
-  def localBackend(jobDescriptor: BackendJobDescriptor, conf: BackendConfigurationDescriptor) = {
-    TestActorRef(new LocalJobExecutionActor(jobDescriptor, conf)).underlyingActor
   }
 
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,

@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
+import cromwell.backend.io.BackendTestkitSpec
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s.Call
@@ -12,6 +13,11 @@ import scala.concurrent.duration._
 
 class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializationActorSpec", ConfigFactory.parseString(
   """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with BackendTestkitSpec with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+
+  val globalConfig = ConfigFactory.load()
+  val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
+  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+
   val Timeout = 5.second.dilated
 
   val HelloWorld =

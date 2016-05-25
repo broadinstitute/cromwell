@@ -1,4 +1,4 @@
-package cromwell.backend.impl.local
+package cromwell.backend.io
 
 import java.nio.file.{FileSystem, Files, Path, Paths}
 

@@ -2,10 +2,12 @@ package cromwell.backend.impl.local
 
 import java.nio.file.{Files, Paths}
 
+import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
-import cromwell.backend.impl.local.BackendTestkitSpec.DockerTest
-import cromwell.backend.impl.local.TestWorkflows._
+import cromwell.backend.io.{TestWorkflows, JobPaths, BackendTestkitSpec}
+import cromwell.backend.io.BackendTestkitSpec._
+import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core._
 import org.scalatest.FlatSpec
@@ -16,6 +18,13 @@ import wdl4s.values._
 
 class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with MockitoSugar with TestFileUtil with TableDrivenPropertyChecks {
 
+  val globalConfig = ConfigFactory.load()
+  val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
+  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+
+  def localBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) =
+    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor)).underlyingActor
+
   behavior of "LocalBackend"
 
   it should "execute an hello world workflow" in {
@@ -24,8 +33,8 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     )
     val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld), defaultBackendConfigDescriptor, expectedResponse)
-
-    testWorkflow(wf)
+    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf.workflowDescriptor), wf.config)
+    testWorkflow(wf, backend)
   }
 
   it should "execute an hello world workflow on Docker" taggedAs DockerTest in {
@@ -34,15 +43,15 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     )
     val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""), defaultBackendConfigDescriptor, expectedResponse)
-
-    testWorkflow(wf)
+    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf.workflowDescriptor), wf.config)
+    testWorkflow(wf, backend)
   }
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse = FailedNonRetryableResponse(mock[BackendJobDescriptorKey], new Exception(""), Option(1))
     val wf = new TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), defaultBackendConfigDescriptor, expectedResponse)
-
-    testWorkflow(wf)
+    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf.workflowDescriptor), wf.config)
+    testWorkflow(wf, backend)
   }
 
   it should "execute calls with input files and localize them appropriately" in {
@@ -127,7 +136,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
   }
 
   it should "execute shards from a scatter" in {
-    val wf = buildWorkflowDescriptor(Scatter)
+    val wf = buildWorkflowDescriptor(TestWorkflows.Scatter)
 
     val call = wf.workflowNamespace.workflow.calls.head
 
@@ -169,7 +178,7 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
   it should "fail post processing if an output fail is not found" in {
     val expectedResponse = FailedNonRetryableResponse(mock[BackendJobDescriptorKey], new Throwable("Failed post processing of outputs"), Option(0))
     val wf = new TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), defaultBackendConfigDescriptor, expectedResponse)
-
-    testWorkflow(wf)
+    val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf.workflowDescriptor), wf.config)
+    testWorkflow(wf, backend)
   }
 }

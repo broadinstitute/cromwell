@@ -8,6 +8,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core._
 import org.mockito.Matchers._
@@ -72,12 +73,14 @@ class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExec
     val executionDir = jobPaths.callRoot
     val stdout = Paths.get(executionDir.path.toString, "stdout")
     stdout.toString.toFile.createIfNotExists(false)
-    jobPaths.submitFileStdout.toString.toFile.createIfNotExists(false)
-    jobPaths.submitFileStdout <<
+    val submitFileStderr = executionDir.resolve("submitfile.stderr")
+    val submitFileStdout = executionDir.resolve("submitfile.stdout")
+    submitFileStdout.toString.toFile.createIfNotExists(false)
+    submitFileStdout <<
       """Submitting job(s)..
         |1 job(s) submitted to cluster 88.
       """.stripMargin.trim
-    jobPaths.submitFileStderr.toString.toFile.createIfNotExists(false)
+    submitFileStderr.toString.toFile.createIfNotExists(false)
     TestJobDescriptor(jobDesc,jobPaths, backendConfigurationDescriptor)
   }
 

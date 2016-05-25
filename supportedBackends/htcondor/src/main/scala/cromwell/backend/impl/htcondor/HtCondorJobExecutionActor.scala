@@ -7,6 +7,7 @@ import java.util.regex.Pattern
 import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
+import cromwell.backend.io.{SharedFsExpressionFunctions, SharedFileSystem, JobPaths}
 import wdl4s.util.TryUtil
 
 import scala.concurrent.Future
@@ -25,7 +26,6 @@ object HtCondorJobExecutionActor {
 class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                 override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor with SharedFileSystem {
 
-
   import HtCondorJobExecutionActor._
   import better.files._
   import cromwell.core.PathFactory._
@@ -34,27 +34,34 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   lazy val cmds = new HtCondorCommands
   lazy val extProcess = new HtCondorProcess
-  // stdout stderr writers for submit file logs
-  private lazy val stdoutWriter = extProcess.untailedWriter(jobPaths.submitFileStdout)
-  private lazy val stderrWriter = extProcess.tailedWriter(100, jobPaths.submitFileStderr)
+
   private val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.descriptor
   private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+
   // Files
   private val executionDir = jobPaths.callRoot
   private val returnCodePath = jobPaths.returnCode
   private val stdoutPath = jobPaths.stdout
   private val stderrPath = jobPaths.stderr
   private val scriptPath = jobPaths.script
-  private val submitPath = jobPaths.submitFile
 
-  val call = jobDescriptor.key.call
-  val callEngineFunction = HtCondorJobExpressionFunctions(jobPaths)
+  // stdout stderr writers for submit file logs
+  private val submitFilePath = executionDir.resolve("submitfile")
+  private val submitFileStderr = executionDir.resolve("submitfile.stderr")
+  private val submitFileStdout = executionDir.resolve("submitfile.stdout")
+  private val htcondorLog = executionDir.resolve(s"${jobDescriptor.call.unqualifiedName}.log")
 
-  val lookup = jobDescriptor.inputs.apply _
+  private lazy val stdoutWriter = extProcess.untailedWriter(submitFileStdout)
+  private lazy val stderrWriter = extProcess.tailedWriter(100, submitFileStderr)
 
-  val runtimeAttributes = {
+  private val call = jobDescriptor.key.call
+  private val callEngineFunction = SharedFsExpressionFunctions(jobPaths, fileSystems)
+
+  private val lookup = jobDescriptor.inputs.apply _
+
+  private val runtimeAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
     // Fail the call if runtime attributes can't be evaluated
     val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
@@ -75,7 +82,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   override def execute: Future[BackendJobExecutionResponse] = Future(executeTask())
 
   private def executeTask(): BackendJobExecutionResponse = {
-    val argv = Seq(HtCondorCommands.Submit, submitPath.toString)
+    val argv = Seq(HtCondorCommands.Submit, submitFilePath.toString)
     val process = extProcess.externalProcess(argv, ProcessLogger(stdoutWriter.writeWithNewline, stderrWriter.writeWithNewline))
     val condorReturnCode = process.exitValue() // blocks until process (i.e. condor submission) finishes
     log.debug("{} Return code of condor submit command: {}", tag, condorReturnCode)
@@ -83,12 +90,12 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     List(stdoutWriter.writer, stderrWriter.writer).foreach(_.flushAndClose())
 
     condorReturnCode match {
-      case 0 if jobPaths.submitFileStderr.lines.toList.isEmpty =>
+      case 0 if submitFileStderr.lines.toList.isEmpty =>
         log.info("{} {} submitted to HtCondor. Waiting for the job to complete via. RC file status.", tag, jobDescriptor.call.fullyQualifiedName)
         val pattern = Pattern.compile(HtCondorCommands.SubmitOutputPattern)
         //Number of lines in stdout for submit job will be 3 at max therefore reading all lines at once.
-        log.debug(s"{} Output of submit process : {}", tag, jobPaths.submitFileStdout.lines.toList)
-        val line = jobPaths.submitFileStdout.lines.toList.last
+        log.debug(s"{} Output of submit process : {}", tag, submitFileStdout.lines.toList)
+        val line = submitFileStdout.lines.toList.last
         val matcher = pattern.matcher(line)
         if (!matcher.matches())
           FailedNonRetryableResponse(jobDescriptor.key,
@@ -101,7 +108,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
           trackTaskToCompletion(overallJobIdentifier)
         }
       case 0 =>
-        log.error(s"Unexpected! Recieved return code for condor submission as 0, although stderr file is non-empty: {}", jobPaths.submitFileStderr.lines)
+        log.error(s"Unexpected! Recieved return code for condor submission as 0, although stderr file is non-empty: {}", submitFileStderr.lines)
         FailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed. HtCondor returned zero status code but non empty stderr file: $condorReturnCode"), Option(condorReturnCode))
       case nonZeroExitCode: Int =>
@@ -152,9 +159,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       val attributes = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toString,
           HtCondorRuntimeKeys.Output -> stdoutPath.toString,
           HtCondorRuntimeKeys.Error -> stderrPath.toString,
-          HtCondorRuntimeKeys.Log -> jobPaths.htcondorLog.toString
+          HtCondorRuntimeKeys.Log -> htcondorLog.toString
         )
-      cmds.generateSubmitFile(submitPath, attributes) // This writes the condor submit file
+      cmds.generateSubmitFile(submitFilePath, attributes) // This writes the condor submit file
     } catch {
       case ex: Exception =>
         log.error(ex, "Failed to prepare task: " + ex.getMessage)

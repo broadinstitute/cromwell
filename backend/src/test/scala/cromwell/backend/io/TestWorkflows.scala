@@ -1,4 +1,4 @@
-package cromwell.backend.impl.local
+package cromwell.backend.io
 
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}

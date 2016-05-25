@@ -1,4 +1,4 @@
-package cromwell.backend.impl.htcondor
+package cromwell.backend.io
 
 import java.nio.file.{FileSystem, Path}
 
@@ -11,35 +11,37 @@ import wdl4s.values.{WdlFile, WdlValue}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-object HtCondorJobExpressionFunctions {
+object SharedFsExpressionFunctions {
   private val LocalFSScheme = "file"
-  def isLocalPath(path: Path) = path.toUri.getScheme == HtCondorJobExpressionFunctions.LocalFSScheme
-  def apply(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey, configurationDescriptor: BackendConfigurationDescriptor) = {
+  def isLocalPath(path: Path) = path.toUri.getScheme == SharedFsExpressionFunctions.LocalFSScheme
+  def apply(workflowDescriptor: BackendWorkflowDescriptor,
+            jobKey: BackendJobDescriptorKey,
+            configurationDescriptor: BackendConfigurationDescriptor,
+            fileSystems: List[FileSystem]): SharedFsExpressionFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = new CallContext(
       jobPaths.callRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString
     )
-
-    new HtCondorJobExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
+    new SharedFsExpressionFunctions(fileSystems, callContext)
   }
 
-  def apply(jobPaths: JobPaths) = {
+  def apply(jobPaths: JobPaths, fileSystems: List[FileSystem]): SharedFsExpressionFunctions = {
     val callContext = new CallContext(
       jobPaths.callRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString
     )
-
-    new HtCondorJobExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
+    new SharedFsExpressionFunctions(fileSystems, callContext)
   }
+
 }
 
-class HtCondorJobExpressionFunctions(override val fileSystems: List[FileSystem],
-                                     context: CallContext
+class SharedFsExpressionFunctions(override val fileSystems: List[FileSystem],
+                                  context: CallContext
                                  ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
-  import HtCondorJobExpressionFunctions._
+  import SharedFsExpressionFunctions._
   import better.files._
 
   override def glob(path: String, pattern: String): Seq[String] = {
@@ -53,3 +55,4 @@ class HtCondorJobExpressionFunctions(override val fileSystems: List[FileSystem],
 
   override def postMapping(path: Path) = if (!path.isAbsolute && isLocalPath(path)) context.root.resolve(path) else path
 }
+

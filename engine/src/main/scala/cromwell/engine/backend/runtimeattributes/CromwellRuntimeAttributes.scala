@@ -114,7 +114,7 @@ object CromwellRuntimeAttributes {
     "preemptible" -> WdlInteger(0),
     "memory" -> WdlString("1GB"),
     "walltime" -> WdlString("1:00:00"),
-    "queue" -> WdlString("batch"),
+    // no default queue; jobs sent without -q <queuename> go to whatever default queue is configured in the scheduler 
     "bootDiskSizeGb" -> WdlInteger(10)
   )
 

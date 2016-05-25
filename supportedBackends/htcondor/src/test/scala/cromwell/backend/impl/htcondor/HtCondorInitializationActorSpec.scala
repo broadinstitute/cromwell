@@ -55,7 +55,7 @@ class HtCondorInitializationActorSpec extends TestKit(ActorSystem("CondorInitial
   }
 
   private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(CondorInitializationActor.props(workflowDescriptor, calls, conf))
+    system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf))
   }
 
   "HtCondorInitializationActor" should {

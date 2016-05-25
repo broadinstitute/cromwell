@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
 import cromwell.CromwellSpec.DockerTest
 import cromwell.engine.WorkflowSucceeded
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor
+import cromwell.engine.workflow.{OldStyleWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{WorkflowMetadata, WorkflowStatus}
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler.{WorkflowManagerStatusSuccess, WorkflowManagerWorkflowMetadataSuccess}
@@ -144,7 +144,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
 
     "show valid values for call caching in metadata" ignore {
       implicit val workflowManagerActor = TestActorRef(
-        new OldStyleWorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig)
+        new WorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig)
       )
 
       val workflowId = runWdlAndAssertOutputs(

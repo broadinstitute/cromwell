@@ -16,9 +16,11 @@ import spray.testkit.ScalatestRouteTest
 class CromwellApiServiceIntegrationSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
   val testWorkflowManagerSystem = new TestWorkflowManagerSystem
   override def actorRefFactory = testWorkflowManagerSystem.actorSystem
-  override val workflowManager = TestActorRef(new WorkflowManagerActor())
+  val isServerMode = false
+  override val workflowManager = TestActorRef(new WorkflowManagerActor(isServerMode))
   override val workflowDescriptorMaterializer = TestActorRef(new MaterializeWorkflowDescriptorActor())
   val version = "v1"
+
 
   override protected def afterAll() = {
     testWorkflowManagerSystem.shutdownTestActorSystem()

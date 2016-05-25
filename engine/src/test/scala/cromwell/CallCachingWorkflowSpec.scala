@@ -30,6 +30,8 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
     "file_passing.b.stdoutContent" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("Something")))
   )
 
+  val isServerMode = false
+
   "A workflow which is run twice" should {
     "use cached calls on the second run" in {
 
@@ -144,7 +146,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
 
     "show valid values for call caching in metadata" in {
       implicit val workflowManagerActor = TestActorRef(
-        new WorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig)
+        new WorkflowManagerActor(isServerMode, CallCachingWorkflowSpec.callCachingConfig)
       )
 
       val workflowId = runWdlAndAssertOutputs(

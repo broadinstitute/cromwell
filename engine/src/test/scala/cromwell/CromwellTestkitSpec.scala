@@ -51,6 +51,8 @@ object CromwellTestkitSpec {
 
   val timeoutDuration = 30 seconds
 
+  val isServerMode = false
+
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
@@ -208,7 +210,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   private def buildWorkflowManagerActor(config: Config) = {
-    TestActorRef(new WorkflowManagerActor(config))
+    TestActorRef(new WorkflowManagerActor(isServerMode, config))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

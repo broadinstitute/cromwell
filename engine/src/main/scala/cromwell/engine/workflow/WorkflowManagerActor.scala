@@ -58,7 +58,7 @@ object WorkflowManagerActor {
   private final case class AddEntryToWorkflowManagerData(entry: WorkflowIdToActorRef) extends WorkflowManagerActorMessage
   case object AbortAllWorkflows extends WorkflowManagerActorMessage
 
-  def props(): Props = Props(new WorkflowManagerActor())
+  def props(isServerMode: Boolean): Props = Props(new WorkflowManagerActor(isServerMode))
 
   // FIXME hack to deal with one class of "singularity" where Cromwell isn't smart enough to launch only
   // as much work as can reasonably be handled.
@@ -92,10 +92,9 @@ object WorkflowManagerActor {
  * WorkflowOutputs: Returns a `Future[Option[binding.WorkflowOutputs]]` aka `Future[Option[Map[String, WdlValue]]`
  *
  */
-class WorkflowManagerActor(config: Config)
+class WorkflowManagerActor(isServerMode: Boolean, config: Config = WorkflowManagerActor.defaultConfig)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor {
 
-  def this() = this(WorkflowManagerActor.defaultConfig)
   implicit val actorSystem = context.system
 
   private val logger = Logging(context.system, this)
@@ -103,9 +102,11 @@ class WorkflowManagerActor(config: Config)
 
   private val donePromise = Promise[Unit]()
 
+  val isRestartable = config.getConfig("backend").getBooleanOr("workflow-restart", default = true)
+
   override def preStart() {
     addShutdownHook()
-    restartIncompleteWorkflows()
+    if (isServerMode && isRestartable) { restartIncompleteWorkflows() }
   }
 
   private def addShutdownHook(): Unit = {

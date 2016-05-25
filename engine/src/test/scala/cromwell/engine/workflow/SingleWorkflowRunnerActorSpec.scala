@@ -39,8 +39,11 @@ object SingleWorkflowRunnerActorSpec {
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
+
+  val isServerMode = false
+
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(classOf[WorkflowManagerActor]))
+    system.actorOf(WorkflowManagerActor.props(isServerMode))
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

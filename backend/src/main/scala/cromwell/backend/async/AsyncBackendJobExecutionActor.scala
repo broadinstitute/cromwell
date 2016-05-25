@@ -1,11 +1,12 @@
 package cromwell.backend.async
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, _}
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
 import cromwell.core.retry.Backoff
+import cromwell.services.MetadataServiceActor.MetadataServiceResponse
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -89,8 +90,22 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       context.stop(self)
     case Finish(cromwell.backend.async.AbortedExecutionHandle) => ???
 
+    case response: MetadataServiceResponse => handleMetadataServiceResponse(sender(), response)
+
     case badMessage => log.error(s"Unexpected message $badMessage.")
   }
+
+  /**
+    * Handles metadata service responses, with a default implementation that ignores all successes and failures.
+    *
+    * Any AsyncBackendJobExecutionActor that happens to mix in ServiceRegistryClient will have ack messages returning.
+    * One may optionally handle the ack responses here, or use the default implementation which is to ignore the ack.
+    * Sub classes may choose to resend the metadata based on the success or failure response.
+    *
+    * @param response The response from metadata service, possibly a failure to store the metadata due to a network
+    *                 hiccup etc.
+    */
+  protected def handleMetadataServiceResponse(sentBy: ActorRef, response: MetadataServiceResponse): Unit = {}
 
   /**
     * Update the ExecutionHandle

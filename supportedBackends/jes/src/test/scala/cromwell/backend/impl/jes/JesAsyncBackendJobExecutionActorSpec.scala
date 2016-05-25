@@ -115,7 +115,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKit(ActorSystem("JesAsync
 
     // Mock/stub out the bits that would reach out to JES.
     val run = mock[Run]
-    run.checkStatus(any, any) returns new Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"))
+    run.checkStatus(any, any) returns new Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"),
+      Seq.empty)
 
     val handle = JesPendingExecutionHandle(jobDescriptor, Seq.empty, run, None)
 

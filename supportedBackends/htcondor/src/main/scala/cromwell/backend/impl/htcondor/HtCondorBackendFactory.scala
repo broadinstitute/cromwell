@@ -4,6 +4,7 @@ package cromwell.backend.impl.htcondor
 import akka.actor.Props
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.backend.io.{SharedFsExpressionFunctions, JobPaths}
 import cromwell.core.CallContext
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -32,7 +33,7 @@ case class HtCondorBackendFactory(config: Config) extends BackendLifecycleActorF
       jobPaths.stderr.toAbsolutePath.toString
     )
 
-    new HtCondorJobExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
+    new SharedFsExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
   }
 }
 

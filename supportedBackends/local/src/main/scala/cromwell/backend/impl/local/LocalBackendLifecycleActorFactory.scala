@@ -3,6 +3,7 @@ package cromwell.backend.impl.local
 import akka.actor.Props
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.backend.io.{SharedFsExpressionFunctions, JobPaths}
 import cromwell.core.CallContext
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -31,7 +32,7 @@ case class LocalBackendLifecycleActorFactory(config: Config) extends BackendLife
         jobPaths.stderr.toAbsolutePath.toString
       )
 
-      new LocalJobExpressionFunctions(LocalJobExecutionActor.fileSystems, callContext)
+      new SharedFsExpressionFunctions(LocalJobExecutionActor.fileSystems, callContext)
   }
 }
 

@@ -1,12 +1,32 @@
-package cromwell.backend.impl.local
+package cromwell.backend.io
 
 import java.nio.file.Paths
 
-import cromwell.backend.BackendJobDescriptorKey
+import com.typesafe.config.ConfigFactory
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.Call
 
 class JobPathsSpec extends FlatSpec with Matchers with BackendTestkitSpec {
+
+  val configString =
+    """
+      |        root: "local-cromwell-executions"
+      |        filesystems {
+      |          local {
+      |            localization: [
+      |              "hard-link", "soft-link", "copy"
+      |            ]
+      |          }
+      |          gcs {
+      |            auth = "application-default"
+      |          }
+      |        }
+    """.stripMargin
+
+  val globalConfig = ConfigFactory.load()
+  val backendConfig =  ConfigFactory.parseString(configString)
+  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   "JobPaths" should "provide correct paths for a job" in {
 

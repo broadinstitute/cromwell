@@ -3,6 +3,7 @@ package cromwell.backend.impl.local
 import akka.actor.Props
 import better.files._
 import cromwell.backend.impl.local.LocalInitializationActor._
+import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import wdl4s.Call

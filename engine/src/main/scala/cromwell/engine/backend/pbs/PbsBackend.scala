@@ -152,13 +152,18 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String) = {
     jobDescriptor.script.write(
         /*
-         * The user's command is executed in a subshell so rc file is created even if there are
-         * syntax errors in the command. `set -e` makes the subshell sensitive to failure at any
-         * point in the user's command even when it consists of multiple separate steps.
+         * The user's command is executed in a sh subprocess so rc file is created even if there
+         * are syntax errors in the command.
+         * `set -e` makes the subprocess sensitive to failure at any point in the user's command
+         * even when it consists of multiple separate steps.
+         * Single quotes inside the user's command are wrapped in "" so they don't interact with
+         * (prematurely terminate) those around the sh -c argument
          */
       s"""#!/bin/sh
          |cd $$PBS_O_WORKDIR
-         |( set -e; ${instantiatedCommand} )
+         |sh -c 'set -e
+         |${instantiatedCommand.replaceAll("'", "\"'\"")}
+         |'
          |echo $$? > rc
          |""".stripMargin)
   }
@@ -168,7 +173,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
-    val pbsJobName = s"${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}" take 15
+    val pbsJobName = s"crmwll_${jobDescriptor.workflowDescriptor.shortId}" take 15
     val queueSpec = jobDescriptor.callRuntimeAttributes.queue match {
       case Some(q) => List("-q", q)
       case None => List()

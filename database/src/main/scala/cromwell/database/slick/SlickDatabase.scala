@@ -672,10 +672,11 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
   override def addMetadataEvent(workflowUuid: String,
                                 key: String,
                                 value: String,
+                                valueType: String,
                                 timestamp: Timestamp)(implicit ec: ExecutionContext): Future[Unit] = {
 
     val action = dataAccess.metadataAutoInc += Metadatum(workflowUuid, key,
-      callFqn = None, index = None, attempt = None, Option(value), timestamp)
+      callFqn = None, index = None, attempt = None, Option(value), Option(valueType), timestamp)
     runTransaction(action).map(_ => ())
   }
 
@@ -685,10 +686,11 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
                                 index: Option[Int],
                                 attempt: Int,
                                 value: String,
+                                valueType: String,
                                 timestamp: Timestamp)(implicit ec: ExecutionContext): Future[Unit] = {
 
     val action = dataAccess.metadataAutoInc += Metadatum(workflowUuid, key,
-      Option(callFqn), index, Option(attempt), Option(value), timestamp)
+      Option(callFqn), index, Option(attempt), Option(value), Option(valueType), timestamp)
     runTransaction(action).map(_ => ())
   }
 

@@ -18,9 +18,10 @@ trait MetadataComponent {
     def index = column[Option[Int]]("METADATA_CALL_INDEX")
     def attempt = column[Option[Int]]("METADATA_CALL_ATTEMPT")
     def value = column[Option[String]]("METADATA_VALUE")
+    def valueType = column[Option[String]]("METADATA_VALUE_TYPE")
     def timestamp = column[Timestamp]("METADATA_TIMESTAMP")
 
-    override def * = (workflowExecutionUuid, key, callFqn, index, attempt, value, timestamp, metadataId.?) <>
+    override def * = (workflowExecutionUuid, key, callFqn, index, attempt, value, valueType, timestamp, metadataId.?) <>
       (Metadatum.tupled, Metadatum.unapply)
 
     def workflowIndex = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)

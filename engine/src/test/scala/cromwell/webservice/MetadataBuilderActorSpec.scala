@@ -101,14 +101,14 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   type EventBuilder = (String, String, Timestamp)
 
+  def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, timestamp: Timestamp) = {
+    MetadataEvent(MetadataKey(workflow, None, key), value, timestamp)
+  }
+
   def assertMetadataKeyStructure(eventList: List[EventBuilder], expectedJson: String) = {
     val workflow = WorkflowId.randomId()
 
-    def makeEvent(workflow: WorkflowId)(key: String, value: String, timestamp: Timestamp) = {
-      MetadataEvent(MetadataKey(workflow, None, key), MetadataValue(value), timestamp)
-    }
-
-    val events = eventList map Function.tupled(makeEvent(workflow))
+    val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
     val expectedRes = s"""{"${workflow.id.toString}": { "calls": {}, $expectedJson } }"""
 
     val mdQuery = MetadataQuery(workflow, None, None)
@@ -258,6 +258,83 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
          |}""".stripMargin
 
     assertMetadataResponse(GetMetadataQueryAction(query), query, events, expectedRes)
+  }
+
+  it should "coerce values to supported types" in {
+    val workflowId = WorkflowId.randomId()
+    val events = List(
+      makeEvent(workflowId)("a", MetadataValue(2), currentTime),
+      makeEvent(workflowId)("b", MetadataValue(2), currentTime),
+      makeEvent(workflowId)("c", MetadataValue(2), currentTime),
+      makeEvent(workflowId)("d", MetadataValue(2.9), currentTime),
+      makeEvent(workflowId)("e", MetadataValue(2.9), currentTime),
+      makeEvent(workflowId)("f", MetadataValue(true), currentTime),
+      makeEvent(workflowId)("g", MetadataValue(false), currentTime),
+      makeEvent(workflowId)("h", MetadataValue("false"), currentTime)
+    )
+
+    val expectedResponse =
+      s"""{
+        |"$workflowId": {
+        | "calls": {},
+        | "a": 2,
+        | "b": 2,
+        | "c": 2,
+        | "d": 2.9,
+        | "e": 2.9,
+        | "f": true,
+        | "g": false,
+        | "h": "false"
+        | }
+        |}
+      """.stripMargin
+
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
+  }
+
+  it should "fall back to string if the type is unknown" in {
+    val workflowId = WorkflowId.randomId()
+    case class UnknownClass(v: Int)
+
+    val events = List(
+      makeEvent(workflowId)("i", MetadataValue(UnknownClass(50)), currentTime)
+    )
+
+    val expectedResponse =
+      s"""{
+          |"$workflowId": {
+          | "calls": {},
+          | "i": "UnknownClass(50)"
+          | }
+          |}
+      """.stripMargin
+
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
+  }
+
+  it should "fall back to string if the coercion fails" in {
+    val workflowId = WorkflowId.randomId()
+    val value = MetadataValue("notAnInt", MetadataInt)
+    val events = List(
+      makeEvent(workflowId)("i", value, currentTime)
+    )
+
+    val expectedResponse =
+      s"""{
+          |"$workflowId": {
+          | "calls": {},
+          | "i": "notAnInt"
+          | }
+          |}
+      """.stripMargin
+
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
 
   override def afterAll() = {

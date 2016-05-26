@@ -7,20 +7,24 @@ import cromwell.core.WorkflowId
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.WorkflowState
 import cromwell.engine.workflow.WorkflowMetadataKeys
+import cromwell.services
 import cromwell.services.MetadataServiceActor._
+import cromwell.services.MetadataValue._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services._
 import cromwell.webservice.MetadataBuilderActor.{Idle, IndexedJsonObject, MetadataBuilderActorState, WaitingForMetadata}
 import cromwell.webservice.PerRequest.RequestComplete
 import org.joda.time.DateTime
+import org.slf4j.LoggerFactory
 import spray.http.StatusCodes
-import spray.json.{JsArray, JsObject, JsValue, _}
+import spray.httpx.SprayJsonSupport._
+import spray.json._
 
 import scala.annotation.tailrec
 import scala.language.postfixOps
+import scala.util.{Failure, Try}
 import scalaz.Scalaz._
 import scalaz.Semigroup
-import spray.httpx.SprayJsonSupport._
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -30,6 +34,8 @@ object MetadataBuilderActor {
   def props(serviceRegistryActor: ActorRef) = {
     Props(new MetadataBuilderActor(serviceRegistryActor))
   }
+
+  val log = LoggerFactory.getLogger("MetadataBuilder")
 
   private val KeySeparator = ':'
   private val ListNameCaptureID = "listName"
@@ -88,15 +94,10 @@ object MetadataBuilderActor {
     override val toJson = JsObject(v mapValues { _.toJson })
     override def withIndex(index: String) = this.copy(index = index)
   }
-  private case class IndexedJsonString(v: String, index: String = "") extends IndexedJsonValue {
-    override val toJson = JsString(v)
+  private case class IndexedPrimitiveJson(v: JsValue, index: String = "") extends IndexedJsonValue {
+    override val toJson = v
     override def withIndex(index: String) = this.copy(index = index)
   }
-  private case class IndexedJsonNumber(v: Int, index: String = "") extends IndexedJsonValue {
-    override val toJson = JsNumber(v)
-    override def withIndex(index: String) = this.copy(index = index)
-  }
-
 
   /**
     * Create an IndexedJson structure from a list of key chunks.
@@ -113,10 +114,25 @@ object MetadataBuilderActor {
     }
   }
 
-  private def keyValueToIndexedJson(str: String, value: String): IndexedJsonValue = {
+  private def metadataValueToIndexedJson(value: MetadataValue): IndexedPrimitiveJson = {
+    val coerced = value.valueType match {
+      case MetadataInt => Try(IndexedPrimitiveJson(JsNumber(value.value.toInt)))
+      case MetadataNumber => Try(IndexedPrimitiveJson(JsNumber(value.value.toDouble)))
+      case MetadataBoolean => Try(IndexedPrimitiveJson(JsBoolean(value.value.toBoolean)))
+      case MetadataString => Try(IndexedPrimitiveJson(JsString(value.value)))
+    }
+
+    coerced recover {
+      case e =>
+      log.warn(s"Failed to coerce ${value.value} to ${value.valueType}. Falling back to String.", e)
+      IndexedPrimitiveJson(JsString(value.value))
+    } get
+  }
+
+  private def keyValueToIndexedJson(str: String, value: MetadataValue): IndexedJsonValue = {
     // The list is reversed because we build the IndexedJson from the bottom up
     val reversed = str.split(KeySeparator).toList.reverse
-    parseKeyRec(reversed, IndexedJsonString(value))
+    parseKeyRec(reversed, metadataValueToIndexedJson(value))
   }
 
   private case class MetadataForAttempt(attempt: Int, metadata: IndexedJsonValue)
@@ -131,17 +147,17 @@ object MetadataBuilderActor {
   private def eventsToIndexedJson(events: Seq[MetadataEvent]): IndexedJsonValue = {
     events match {
       case empty if empty.isEmpty => IndexedJsonObject.empty
-      case evts => evts sortBy { _.timestamp } map { e => keyValueToIndexedJson(e.key.key, e.value.value) } reduceLeft(_ |+| _)
+      case evts => evts sortBy { _.timestamp } map { e => keyValueToIndexedJson(e.key.key, e.value) } reduceLeft(_ |+| _)
     }
   }
 
   private def eventsToAttemptMetadata(attempt: Int, events: Seq[MetadataEvent]) = {
-    val withAttemptField = eventsToIndexedJson(events) |+| IndexedJsonObject(Map(AttemptKey -> IndexedJsonNumber(attempt)))
+    val withAttemptField = eventsToIndexedJson(events) |+| IndexedJsonObject(Map(AttemptKey -> IndexedPrimitiveJson(JsNumber(attempt))))
     MetadataForAttempt(attempt, withAttemptField)
   }
 
   private def attemptMetadataToIndexMetadata(index: ExecutionIndex, attemptMetadata: Iterable[MetadataForAttempt]) = {
-    def addIndexProperty(value: IndexedJsonValue) = value |+| IndexedJsonObject(Map(ShardKey -> IndexedJsonNumber(index.getOrElse(-1))))
+    def addIndexProperty(value: IndexedJsonValue) = value |+| IndexedJsonObject(Map(ShardKey -> IndexedPrimitiveJson(JsNumber(index.getOrElse(-1)))))
     val metadata = attemptMetadata.toList.sortBy(_.attempt) map { mdForAttempt => addIndexProperty(mdForAttempt.metadata) }
     MetadataForIndex(index.getOrElse(-1), metadata)
   }
@@ -171,12 +187,12 @@ object MetadataBuilderActor {
 
   private def foldStates(eventsList: Seq[MetadataEvent]): IndexedJsonValue = {
     import WorkflowState._
-    val state: WorkflowState = eventsList collect { case MetadataEvent(_, MetadataValue(v), _) => WorkflowState.fromString(v) } reduceLeft(_ |+| _)
-    IndexedJsonObject(Map(WorkflowMetadataKeys.Status -> IndexedJsonString(state.toString)))
+    val state: WorkflowState = eventsList collect { case MetadataEvent(_, v, _) => WorkflowState.fromString(v.value) } reduceLeft(_ |+| _)
+    IndexedJsonObject(Map(WorkflowMetadataKeys.Status -> IndexedPrimitiveJson(JsString(state.toString))))
   }
 
   private def foldStatesAndAddWorkflowId(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]): JsObject = {
-    val result = foldStates(eventsList) |+| IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedJsonString(workflowId.toString)))
+    val result = foldStates(eventsList) |+| IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedPrimitiveJson(JsString(workflowId.toString))))
     result.toJson.asJsObject
   }
 

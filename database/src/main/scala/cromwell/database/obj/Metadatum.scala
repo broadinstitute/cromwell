@@ -10,6 +10,7 @@ case class Metadatum
   index: Option[Int],
   attempt: Option[Int],
   value: Option[String],
+  valueType: Option[String],
   timestamp: Timestamp,
   metadatumId: Option[Int] = None
 )

@@ -14,7 +14,33 @@ import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
 import scala.concurrent.duration._
 
 class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationActorSpec", ConfigFactory.parseString(
-  """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+  // TODO: PBE: 5s leeway copy of CromwellTestkitSpec. Refactor to D.R.Y. this code, and rename Testkit to TestKit
+  """
+    |akka {
+    |  loggers = ["akka.testkit.TestEventListener"]
+    |  loglevel = "INFO"
+    |  actor {
+    |    debug {
+    |       receive = on
+    |    }
+    |  }
+    |  dispatchers {
+    |    slow-actor-dispatcher {
+    |      type = Dispatcher
+    |      executor = "fork-join-executor"
+    |    }
+    |  }
+    |  test {
+    |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
+    |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
+    |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
+    |    filter-leeway = 5s
+    |    single-expect-default = 5s
+    |    default-timeout = 10s
+    |  }
+    |}
+    |""".stripMargin)))
+  with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
   val Timeout = 5.second.dilated
 
   val HelloWorld =
@@ -63,9 +89,8 @@ class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationA
       within(Timeout) {
         val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
         val backend = getSgeBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        backend ! Initialize
         EventFilter.warning(message = s"Key/s [memory] is/are not supported by SgeBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
-          //Log message was intercepted.
+          backend ! Initialize
         }
       }
     }

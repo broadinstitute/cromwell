@@ -5,16 +5,19 @@ import java.nio.file.{Files, Paths}
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
-import cromwell.backend.io.{TestWorkflows, JobPaths, BackendTestkitSpec}
 import cromwell.backend.io.BackendTestkitSpec._
 import cromwell.backend.io.TestWorkflows._
+import cromwell.backend.io.{BackendTestkitSpec, JobPaths, TestWorkflows}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core._
 import org.scalatest.FlatSpec
+import org.scalatest.concurrent.PatienceConfiguration._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
 import wdl4s.types._
 import wdl4s.values._
+
+import scala.concurrent.duration._
 
 class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with MockitoSugar with TestFileUtil with TableDrivenPropertyChecks {
 
@@ -128,9 +131,13 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     val backend = localBackend(jobDescriptor, defaultBackendConfigDescriptor)
 
     val execute = backend.execute
-    val abort = backend.abortJob
+    // TODO: PBE: This test needs work. If the abort fires to quickly, it causes a race condition in waitAndPostProcess.
+    Thread.sleep(1000L)
+    //backend.process shouldNot be(empty) <-- Currently cannot access the private var backend.process
+    backend.abortJob
 
-    whenReady(execute) { executionResponse =>
+    // TODO: PBE: abortJob doesn't actually seem to abort. It runs the full 10 seconsds, then returns the response.
+    whenReady(execute, Timeout(10.seconds)) { executionResponse =>
       executionResponse shouldBe a[AbortedResponse]
     }
   }

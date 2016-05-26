@@ -145,8 +145,13 @@ trait SqlDatabase extends AutoCloseable {
                                      (implicit ec: ExecutionContext): Future[Unit]
 
   protected def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                        startDate: Option[Timestamp], endDate: Option[Timestamp])
+                                        startDate: Option[Timestamp], endDate: Option[Timestamp],
+                                        page: Option[Int], pageSize: Option[Int])
                                        (implicit ec: ExecutionContext): Future[Traversable[WorkflowExecution]]
+
+  protected def countWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
+                                        startDate: Option[Timestamp], endDate: Option[Timestamp])
+                                       (implicit ec: ExecutionContext): Future[Int]
 
   protected def updateCallCaching(workflowUuid: String, allow: Boolean)(implicit ec: ExecutionContext): Future[Int]
 

@@ -59,14 +59,12 @@ trait WorkflowExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowExecution)
 
-  /**
-   * Query workflow execution using the filter criteria encapsulated by the `WorkflowExecutionQueryParameters`.
-   */
-  def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
-                              startDate: Option[Timestamp], endDate: Option[Timestamp]) = {
+  def filterWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
+                               startDate: Option[Timestamp], endDate: Option[Timestamp]): (WorkflowExecutions) => Rep[Boolean] = {
     val include: Rep[Boolean] = true
     val exclude: Rep[Boolean] = false
-    workflowExecutions filter { workflowExecution =>
+
+     { workflowExecution =>
       // All query parameters are either Options or Sets, so they might have no values specified at all.  The general
       // pattern for these criteria is to map Options and map/reduceLeftOption Sets, resulting in optional filters.
 
@@ -74,7 +72,9 @@ trait WorkflowExecutionComponent {
       val startDateTimeFilter = startDate.map(start => workflowExecution.startDt >= start)
       // End date is nullable, necessitating the fold.  If the end date is null in the database we want to filter the
       // row if an end date filter has been specified.
-      val endDateTimeFilter = endDate.map(end => workflowExecution.endDt.fold(ifEmpty = exclude) { _ <= end })
+      val endDateTimeFilter = endDate.map(end => workflowExecution.endDt.fold(ifEmpty = exclude) {
+        _ <= end
+      })
       // Names, UUIDs, and statuses are potentially multi-valued, the reduceLeftOption ORs together any name, UUID, or
       // status criteria to include all matching names, UUIDs, and statuses.
       val nameFilter = names.map(name => workflowExecution.name === name).reduceLeftOption(_ || _)
@@ -89,6 +89,24 @@ trait WorkflowExecutionComponent {
       val filters = optionalFilters.map(_.getOrElse(include))
       // AND together the filters.  If there are no filters at all return `include`.
       filters.reduceLeftOption(_ && _).getOrElse(include)
+    }
+  }
+
+  def countWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
+                              startDate: Option[Timestamp], endDate: Option[Timestamp]) = {
+    workflowExecutions.filter(filterWorkflowExecutions(statuses, names, uuids, startDate, endDate)).length
+  }
+
+  /**
+   * Query workflow execution using the filter criteria encapsulated by the `WorkflowExecutionQueryParameters`.
+   */
+  def queryWorkflowExecutions(statuses: Set[String], names: Set[String], uuids: Set[String],
+                              startDate: Option[Timestamp], endDate: Option[Timestamp],
+                              page: Option[Int], pageSize: Option[Int]) = {
+    val query = workflowExecutions.filter(filterWorkflowExecutions(statuses, names, uuids, startDate, endDate))
+    (page, pageSize) match {
+      case (Some(p), Some(ps)) => query.drop((p - 1) * ps).take(ps)
+      case _ => query
     }
   }
 }

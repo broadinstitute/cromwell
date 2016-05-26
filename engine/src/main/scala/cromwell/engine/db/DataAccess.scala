@@ -21,7 +21,7 @@ import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, _}
 import cromwell.services._
-import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters, WorkflowQueryResponse}
+import cromwell.webservice.{CallCachingParameters, QueryMetadata, WorkflowQueryParameters, WorkflowQueryResponse}
 import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
@@ -578,19 +578,31 @@ trait DataAccess extends AutoCloseable {
   }
 
   def queryWorkflows(queryParameters: WorkflowQueryParameters)
-                    (implicit ec: ExecutionContext): Future[WorkflowQueryResponse] = {
+                    (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
     val workflowExecutions = queryWorkflowExecutions(
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
+      queryParameters.startDate.map(_.toDate.toTimestamp), queryParameters.endDate.map(_.toDate.toTimestamp),
+      queryParameters.page, queryParameters.pageSize)
+
+    val workflowCount = countWorkflowExecutions(
+      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
       queryParameters.startDate.map(_.toDate.toTimestamp), queryParameters.endDate.map(_.toDate.toTimestamp))
-    workflowExecutions map { workflows =>
-      WorkflowQueryResponse(workflows.toSeq map { workflow =>
-        WorkflowQueryResult(
-          id = workflow.workflowExecutionUuid,
-          name = workflow.name,
-          status = workflow.status,
-          start = new DateTime(workflow.startDt),
-          end = workflow.endDt map { new DateTime(_) })
-      })
+
+    workflowCount flatMap { count =>
+      workflowExecutions map { workflows =>
+        (WorkflowQueryResponse(workflows.toSeq map { workflow =>
+          WorkflowQueryResult(
+            id = workflow.workflowExecutionUuid,
+            name = workflow.name,
+            status = workflow.status,
+            start = new DateTime(workflow.startDt),
+            end = workflow.endDt map {
+              new DateTime(_)
+            })
+        }),
+        //only return metadata if page is defined
+        queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })
+      }
     }
   }
 

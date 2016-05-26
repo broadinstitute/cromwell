@@ -1,6 +1,7 @@
 package cromwell.webservice
 
 import java.time.OffsetDateTime
+import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.testkit._
@@ -25,11 +26,12 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   val mockServiceRegistry = TestProbe()
   val parentProbe = TestProbe()
 
+
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
                              expectedRes: String) = {
-    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, "MetadataActor")
+    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     metadataBuilder ! action // Ask for everything
     mockServiceRegistry.expectMsg(defaultTimeout, action) // TestActor runs on CallingThreadDispatcher
     mockServiceRegistry.reply(MetadataLookupResponse(queryReply, events))
@@ -149,19 +151,19 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   }
 
 
-  it should "build lexigraphically sorted JSON list structure from dotted key syntax" in {
+  it should "build numerically sorted JSON list structure from dotted key syntax" in {
     val eventBuilderList = List(
-      ("l1[2]", "l12", OffsetDateTime.now),
-      ("l1[k]", "l1k", OffsetDateTime.now),
-      ("l1[3]", "l13", OffsetDateTime.now),
-      ("l1[i]", "l1i", OffsetDateTime.now),
-      ("l1[10]", "l110", OffsetDateTime.now),
-      ("l1[j]", "l1j", OffsetDateTime.now)
+      ("l[1]", "l1", OffsetDateTime.now),
+      ("l[8]", "l8", OffsetDateTime.now),
+      ("l[3]", "l3", OffsetDateTime.now),
+      ("l[4]", "l4", OffsetDateTime.now),
+      ("l[10]", "l10", OffsetDateTime.now),
+      ("l[49]", "l49", OffsetDateTime.now)
     )
 
     val expectedRes =
-      """"l1": [
-        |    "l110", "l12", "l13", "l1i", "l1j", "l1k"
+      """"l": [
+        |    "l1", "l3", "l4", "l8", "l10", "l49"
         |  ]""".stripMargin
 
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
@@ -226,11 +228,32 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
   }
 
+  it should "support nested lists" in {
+    val eventBuilderList = List(
+      ("l[0][0]", "l00", OffsetDateTime.now),
+      ("l[0][1]", "l01", OffsetDateTime.now),
+      ("l[1][0]:a", "l10a", OffsetDateTime.now),
+      ("l[1][1]:b", "l11b", OffsetDateTime.now)
+    )
+
+    val expectedRes =
+      """"l": [
+        |       [
+        |        "l00", "l01"
+        |       ],
+        |       [
+        |        { "a": "l10a" }, { "b": "l11b" }
+        |       ]
+        |     ]""".stripMargin
+
+    assertMetadataKeyStructure(eventBuilderList, expectedRes)
+  }
+
   it should "override json values if they can't be merged" in {
     val kv = ("key", "value", OffsetDateTime.now)
     val ksv2 = ("key:subkey", "value2", OffsetDateTime.now)
-    val kisv3 = ("key[index]:subkey", "value3", OffsetDateTime.now)
-    val kiv4 = ("key[index]", "value4", OffsetDateTime.now)
+    val kisv3 = ("key[0]:subkey", "value3", OffsetDateTime.now)
+    val kiv4 = ("key[0]", "value4", OffsetDateTime.now)
 
     val t = Table(
       ("list", "res"),

@@ -147,17 +147,18 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   /**
    * Writes the script file containing the user's command from the WDL as well
-   * as some extra shell code for monitoring jobs. The users's command is executed
-   * in a subprocess so 'rc' file is guaranteed to be created even if the command
-   * contains syntax errors.
+   * as some extra shell code for monitoring jobs
    */
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String) = {
     jobDescriptor.script.write(
+        /*
+         * The user's command is executed in a subshell so rc file is created even if there are
+         * syntax errors in the command. `set -e` makes the subshell sensitive to failure at any
+         * point in the user's command even when it consists of multiple separate steps.
+         */
       s"""#!/bin/sh
          |cd $$PBS_O_WORKDIR
-         |sh -c "
-         |$instantiatedCommand
-         |"
+         |( set -e; ${instantiatedCommand} )
          |echo $$? > rc
          |""".stripMargin)
   }

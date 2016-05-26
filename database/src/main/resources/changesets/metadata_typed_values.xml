@@ -8,9 +8,5 @@
                 tableName="METADATA_JOURNAL">
             <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)" />
         </addColumn>
-
-        <modifySql dbms="mysql">
-            <append value=" ENGINE=INNODB"/>
-        </modifySql>
     </changeSet>
 </databaseChangeLog>

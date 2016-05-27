@@ -116,17 +116,37 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    * of PBS is that it creates output stream files in /var/spool/PBS/spool/... and only after
    * execution completes are they are copied to the locations specified by -o/-e.
    */
-  private def waitUntilComplete(jobDescriptor: BackendCallJobDescriptor): Int = {
+  private def waitUntilComplete(jobDescriptor: BackendCallJobDescriptor, pbsJobId: Int): Int = {
+    val logger = jobLogger(jobDescriptor)
     @tailrec
-    def recursiveWait(): Int = Seq(jobDescriptor.returnCode, jobDescriptor.stdout, jobDescriptor.stderr).forall(Files.exists(_)) match {
-      case true => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
-      case false =>
-        val logger = jobLogger(jobDescriptor)
-        logger.info(s"output files do not exist yet")
+    def recursiveWait(): Int = (Seq(jobDescriptor.returnCode, jobDescriptor.stdout, jobDescriptor.stderr).forall(Files.exists(_)), pbsJobIsValid(pbsJobId)) match {
+      case (true, _) => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
+      case (false, true) =>
+        logger.info(s"Output files do not exist yet but PBS job $pbsJobId is valid; waiting...")
         Thread.sleep(5000)
         recursiveWait()
+      case (false, false) =>
+        logger.warn(s"PBS job $pbsJobId does not appear in qstat")
+        // give it one more chance just in case it's a transient connectivity problem
+        Thread.sleep(5000)
+        pbsJobIsValid(pbsJobId) match {
+          case true => recursiveWait()
+          case false =>
+            jobDescriptor.returnCode.clear().appendLine("66")
+            66 // non-zero code to indicate job no longer appearing in qstat, and output files not all created.
+        }
     }
     recursiveWait()
+  }
+  
+  /**
+   * Returns true if the job appears in qstat. When false, catches the case where job has been
+   * killed or otherwise expired without creating rc file - e.g. if walltime was exceeded, or there
+   * is a shell syntax error in user's command. 
+   */
+  private def pbsJobIsValid(pbsJobId: Int): Boolean = {
+    val argv = Seq("qstat", pbsJobId).map { _.toString }
+    Process(argv).run(ProcessLogger(out => (), err => ())).exitValue() == 0
   }
 
   /**
@@ -151,19 +171,9 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String) = {
     jobDescriptor.script.write(
-        /*
-         * The user's command is executed in a sh subprocess so rc file is created even if there
-         * are syntax errors in the command.
-         * `set -e` makes the subprocess sensitive to failure at any point in the user's command
-         * even when it consists of multiple separate steps.
-         * Single quotes inside the user's command are wrapped in "" so they don't interact with
-         * (prematurely terminate) those around the sh -c argument
-         */
       s"""#!/bin/sh
          |cd $$PBS_O_WORKDIR
-         |sh -c 'set -e
-         |${instantiatedCommand.replaceAll("'", "\"'\"")}
-         |'
+         |$instantiatedCommand
          |echo $$? > rc
          |""".stripMargin)
   }
@@ -218,13 +228,17 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def pollForPbsJobCompletionThenPostProcess(jobDescriptor: BackendCallJobDescriptor, pbsJobId: Int)(implicit ec: ExecutionContext): Future[(ExecutionResult, Int)] = {
     val logger = jobLogger(jobDescriptor)
     val abortFunction = killPbsJob(jobDescriptor, pbsJobId)
-    val waitUntilCompleteFunction = waitUntilComplete(jobDescriptor)
+    val waitUntilCompleteFunction = waitUntilComplete(jobDescriptor, pbsJobId)
     jobDescriptor.abortRegistrationFunction.foreach(_.register(AbortFunction(abortFunction)))
     val jobReturnCode = waitUntilCompleteFunction
     val continueOnReturnCode = jobDescriptor.callRuntimeAttributes.continueOnReturnCode
     logger.info(s"PBS job completed (returnCode=$jobReturnCode)")
     val executionResult = (jobReturnCode, jobDescriptor.stderr.toFile.length) match {
       case (r, _) if r == 143 => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
+      case (r, _) if r == 66 => // Special case to check for PBS job not appearing in qstat
+        val message = s"PBS job $pbsJobId reached defunct state without all output files being created"
+        logger.error(message)
+        NonRetryableExecution(new Exception(message), Option(r)).future
       case (r, _) if !continueOnReturnCode.continueFor(r) =>
         val message = s"PBS job failed because of return code: $r"
         logger.error(message)

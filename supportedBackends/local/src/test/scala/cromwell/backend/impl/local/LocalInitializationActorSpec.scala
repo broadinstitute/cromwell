@@ -12,7 +12,33 @@ import wdl4s.Call
 import scala.concurrent.duration._
 
 class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializationActorSpec", ConfigFactory.parseString(
-  """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with BackendTestkitSpec with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+  // TODO: PBE: 5s leeway copy of CromwellTestkitSpec. Refactor to D.R.Y. this code, and rename Testkit to TestKit
+  """
+    |akka {
+    |  loggers = ["akka.testkit.TestEventListener"]
+    |  loglevel = "INFO"
+    |  actor {
+    |    debug {
+    |       receive = on
+    |    }
+    |  }
+    |  dispatchers {
+    |    slow-actor-dispatcher {
+    |      type = Dispatcher
+    |      executor = "fork-join-executor"
+    |    }
+    |  }
+    |  test {
+    |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
+    |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
+    |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
+    |    filter-leeway = 5s
+    |    single-expect-default = 5s
+    |    default-timeout = 10s
+    |  }
+    |}
+    |""".stripMargin)))
+  with BackendTestkitSpec with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
 
   val globalConfig = ConfigFactory.load()
   val backendConfig = globalConfig.getConfig("backend.providers.Local.config")

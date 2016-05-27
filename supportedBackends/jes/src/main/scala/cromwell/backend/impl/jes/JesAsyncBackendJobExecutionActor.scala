@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
-import java.time.{OffsetDateTime, ZoneOffset}
+import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -495,16 +495,19 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * Fire and forget events to the metadata service
     */
   private def tellEventMetadata(eventList: Seq[EventStartTime]): Unit = {
-    // The final event is only used as the book-end for the final pairing so the name is never actually used...
-    val offset = eventList.headOption.map(_.timestamp.getOffset).getOrElse(ZoneOffset.UTC)
-    val now = OffsetDateTime.now.withOffsetSameInstant(offset)
-    val tailedEventList = eventList :+ EventStartTime("unused_name", now)
-    tailedEventList.sliding(2).zipWithIndex foreach {
-      case (Seq(eventCurrent, eventNext), index) =>
-        val eventKey = s"executionEvents[$index]"
-        tellMetadata(s"$eventKey:description", eventCurrent.name)
-        tellTimeMetadata(s"$eventKey:startTime", eventCurrent.timestamp)
-        tellTimeMetadata(s"$eventKey:endTime", eventNext.timestamp)
+    eventList.headOption foreach { firstEvent =>
+      // The final event is only used as the book-end for the final pairing so the name is never actually used...
+      val offset = firstEvent.timestamp.getOffset
+      val now = OffsetDateTime.now.withOffsetSameInstant(offset)
+      val lastEvent = EventStartTime("unused_name", now)
+      val tailedEventList = eventList :+ lastEvent
+      tailedEventList.sliding(2).zipWithIndex foreach {
+        case (Seq(eventCurrent, eventNext), index) =>
+          val eventKey = s"executionEvents[$index]"
+          tellMetadata(s"$eventKey:description", eventCurrent.name)
+          tellTimeMetadata(s"$eventKey:startTime", eventCurrent.timestamp)
+          tellTimeMetadata(s"$eventKey:endTime", eventNext.timestamp)
+      }
     }
   }
 

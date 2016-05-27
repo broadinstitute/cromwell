@@ -59,7 +59,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "Not try to restart any workflows when there are no workflows in restartable states" in {
       waitForPattern("Found no workflows to restart.") {
-        TestActorRef(WorkflowManagerActor.props(isServerMode), self, "No workflows")
+        TestActorRef(WorkflowManagerActor.props(!isServerMode), self, "No workflows")
       }
     }
 
@@ -95,7 +95,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
             // Both the previously in-flight call and the never-started call should get started.
             waitForPattern("starting calls: hello.hello", occurrences = 2) {
               waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
-                TestActorRef(WorkflowManagerActor.props(isServerMode), self, "2 restartable workflows")
+                TestActorRef(WorkflowManagerActor.props(!isServerMode), self, "2 restartable workflows")
               }
             }
           }

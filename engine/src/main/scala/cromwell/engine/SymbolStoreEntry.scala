@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import cromwell.core.{CallOutput, CallOutputs}
+import cromwell.core.{JobOutput, JobOutputs}
 import wdl4s.types.WdlType
 import wdl4s.values.{SymbolHash, WdlValue}
 
@@ -17,11 +17,11 @@ object SymbolStoreEntry {
   }
 
   def toWorkflowOutputs(t: Traversable[SymbolStoreEntry]): WorkflowOutputs = t.map { e =>
-    s"${e.key.scope}.${e.key.name}" -> CallOutput(e.wdlValue.get, e.symbolHash)
+    s"${e.key.scope}.${e.key.name}" -> JobOutput(e.wdlValue.get, e.symbolHash)
   }.toMap
 
-  def toCallOutputs(traversable: Traversable[SymbolStoreEntry]): CallOutputs = traversable.map { entry =>
-    entry.key.name -> CallOutput(entry.wdlValue.get, entry.symbolHash)
+  def toCallOutputs(traversable: Traversable[SymbolStoreEntry]): JobOutputs = traversable.map { entry =>
+    entry.key.name -> JobOutput(entry.wdlValue.get, entry.symbolHash)
   }.toMap
 }
 

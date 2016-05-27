@@ -10,8 +10,8 @@ import cromwell.engine.backend.sge.OldStyleSgeBackend
 import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
 import cromwell.engine.db.EngineConverters.EnhancedExecution
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution, ExecutionWithCacheData}
-import org.joda.time.DateTime
 import wdl4s._
+import cromwell.core.KnowsWhatTimeItIs._
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -257,8 +257,8 @@ object CallMetadataBuilder {
         backend = metadata.backend,
         backendStatus = metadata.backendStatus,
         outputs = Option(outputsMap.toMap),
-        start = metadata.execution.startDt map { new DateTime(_) },
-        end = metadata.execution.endDt map { new DateTime(_) },
+        start = metadata.execution.startDt map { _.toOffsetDateTime },
+        end = metadata.execution.endDt map { _.toOffsetDateTime },
         jobId = metadata.jobId,
         returnCode = metadata.execution.rc,
         shardIndex = metadata.execution.index,

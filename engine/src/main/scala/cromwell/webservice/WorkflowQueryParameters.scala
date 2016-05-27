@@ -1,9 +1,9 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
+
 import cromwell.core.WorkflowId
 import cromwell.webservice.WorkflowQueryKey._
-import org.joda.time.DateTime
-import org.joda.time.format.ISODateTimeFormat
 
 import scala.language.postfixOps
 import scalaz.Scalaz._
@@ -13,23 +13,21 @@ import scalaz.{Name => _, _}
 case class WorkflowQueryParameters private(statuses: Set[String],
                                            names: Set[String],
                                            ids: Set[WorkflowId],
-                                           startDate: Option[DateTime],
-                                           endDate: Option[DateTime],
+                                           startDate: Option[OffsetDateTime],
+                                           endDate: Option[OffsetDateTime],
                                            page: Option[Int],
                                            pageSize: Option[Int])
 
 object WorkflowQueryParameters {
 
-  private lazy val Formatter = ISODateTimeFormat.dateHourMinuteSecondMillis()
-
-  private def validateStartBeforeEnd(start: Option[DateTime], end: Option[DateTime]): ValidationNel[String, Unit] = {
+  private def validateStartBeforeEnd(start: Option[OffsetDateTime], end: Option[OffsetDateTime]): ValidationNel[String, Unit] = {
     // Invert the notion of success/failure here to only "successfully" generate an error message if
     // both start and end dates have been specified and start is after end.
     val startAfterEndError = for {
       s <- start
       e <- end
       if s.isAfter(e)
-    } yield s"Specified start date is after specified end date: start: ${s.toString(Formatter)}, end: ${e.toString(Formatter)}"
+    } yield s"Specified start date is after specified end date: start: $s, end: $e"
 
     // If the Option is defined this represents a failure, if it's empty this is a success.
     startAfterEndError map { _.failureNel } getOrElse ().successNel
@@ -66,7 +64,7 @@ object WorkflowQueryParameters {
       _.validate(valuesByCanonicalCapitalization)
     }
 
-    val Seq(page, pageSize) = Seq(Page, PageSize) map { _.validate(valuesByCanonicalCapitalization)}
+    val Seq(page, pageSize) = Seq(Page, PageSize) map { _.validate(valuesByCanonicalCapitalization) }
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEnd = (startDate, endDate) match {

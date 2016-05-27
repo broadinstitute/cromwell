@@ -1,9 +1,10 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
-import cromwell.core.{CallOutput, WorkflowId}
+import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.engine.backend.{CallLogs, WorkflowDescriptorBuilder, WorkflowQueryResult}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
 import cromwell.engine.{WorkflowAborted, WorkflowRunning}
@@ -11,7 +12,6 @@ import cromwell.server.WorkflowManagerSystem
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
-import org.joda.time.DateTime
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
@@ -82,9 +82,9 @@ class MockWorkflowManagerActor extends Actor {
       val message = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
           WorkflowManagerWorkflowOutputsSuccess(id, Map(
-            "three_step.cgrep.count" -> CallOutput(int8, Option(int8hash)),
-            "three_step.ps.procs" -> CallOutput(file, Option(fileHash)),
-            "three_step.wc.count" -> CallOutput(int8, Option(int8hash))))
+            "three_step.cgrep.count" -> JobOutput(int8, Option(int8hash)),
+            "three_step.ps.procs" -> JobOutput(file, Option(fileHash)),
+            "three_step.wc.count" -> JobOutput(int8, Option(int8hash))))
         case w => WorkflowManagerWorkflowOutputsFailure(id, new WorkflowNotFoundException(s"Workflow '$w' not found"))
       }
       sender ! message
@@ -92,9 +92,9 @@ class MockWorkflowManagerActor extends Actor {
       val message = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
           callFqn match {
-            case "three_step.cgrep" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> CallOutput(int8, Option(int8hash))))
-            case "three_step.ps" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("procs" -> CallOutput(file, Option(fileHash))))
-            case "three_step.wc" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> CallOutput(int8, Option(int8hash))))
+            case "three_step.cgrep" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
+            case "three_step.ps" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("procs" -> JobOutput(file, Option(fileHash))))
+            case "three_step.wc" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
             case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new CallNotFoundException(s"Bad call FQN: $callFqn"))
           }
         case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
@@ -143,8 +143,8 @@ class MockWorkflowManagerActor extends Actor {
                 id = UUID.randomUUID().toString,
                 name = "w",
                 status = "Succeeded",
-                start = new DateTime("2015-11-01T12:12:11"),
-                end = Option(new DateTime("2015-11-01T12:12:12"))))),
+                start = OffsetDateTime.parse("2015-11-01T12:12:11Z"),
+                end = Option(OffsetDateTime.parse("2015-11-01T12:12:12Z"))))),
             rawParameters.collectFirst { case (p, _) if p.contains("page") => QueryMetadata(Option(1), Option(5), Option(1)) })
 
       }

@@ -1,8 +1,9 @@
 package cromwell
 
+import java.time.OffsetDateTime
+
 import com.typesafe.config.Config
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import org.joda.time.DateTime
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -50,7 +51,7 @@ package object backend {
     */
   case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config)
 
-  final case class ExecutionEventEntry(description: String, startTime: DateTime, endTime: DateTime)
+  final case class ExecutionEventEntry(description: String, startTime: OffsetDateTime, endTime: OffsetDateTime)
 
   final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
 

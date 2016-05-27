@@ -88,7 +88,7 @@ trait SharedFileSystem extends PathFactory { this: BackendJobExecutionActor =>
     case "copy" => localizePathViaCopy _
   })
 
-  def processOutputs(engineFunctions: WdlStandardLibraryFunctions, jobPaths: JobPaths): Try[CallOutputs] = {
+  def processOutputs(engineFunctions: WdlStandardLibraryFunctions, jobPaths: JobPaths): Try[JobOutputs] = {
     val evaluatedOutputs = evaluateOutputs(engineFunctions, outputMapper(jobPaths))
     lazy val workflowId = jobDescriptor.descriptor.id
 

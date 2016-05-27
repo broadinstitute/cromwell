@@ -1,5 +1,7 @@
 package cromwell
 
+import java.nio.file.{Paths, Path}
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
@@ -26,7 +28,8 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecL
 import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
+import wdl4s.types.{WdlMapType, WdlArrayType, WdlStringType, WdlType}
+import wdl4s.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -302,18 +305,11 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   // output received from the metadata service is untyped, so WdlValues are converted to strings
-  private def validateOutput(output: String, expectedOutput: WdlValue): Unit = expectedOutput match {
-    case expectedFile: WdlFile =>
-      output.endsWith(expectedFile.valueString) shouldEqual true
-      // PBE: when we re-enable a test in the PBE world that deals with arrays, this will need to be re-instated and refactored
-//    case expectedArray: WdlArray =>
-//      val actualArray = output.asInstanceOf[WdlArray]
-//      actualArray.value.size should be(expectedArray.value.size)
-//      (actualArray.value zip expectedArray.value) foreach {
-//        case (actual, expected) => validateOutput(actual, expected)
-//      }
+  private def validateOutput(output: WdlValue, expectedOutput: WdlValue): Unit = expectedOutput match {
+    case expectedFile: WdlFile => Paths.get(output.valueString).getFileName shouldEqual Paths.get(expectedOutput.valueString).getFileName
     case _ =>
-      output shouldEqual expectedOutput.valueString
+      output.wdlType shouldEqual expectedOutput.wdlType
+      output.valueString shouldEqual expectedOutput.valueString
   }
 
   def runWdl(sampleWdl: SampleWdl,
@@ -349,7 +345,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       within(timeoutDuration) {
         val workflowId = workflowManager.submit(sources)
         verifyWorkflowState(workflowManager, workflowId, terminalState)
-        val outputs = getWorkflowOutputs(workflowId)
+        val outputs = getWorkflowOutputsFromMetadata(workflowId)
         val actualOutputNames = outputs.keys mkString ", "
         val expectedOutputNames = expectedOutputs.keys mkString " "
 
@@ -480,7 +476,28 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     WorkflowState.fromString(getWorkflowMetadata(workflowId, Option(WorkflowMetadataKeys.Status)).getFields(WorkflowMetadataKeys.Status).headOption.map( _.asInstanceOf[JsString].value).getOrElse("Submitted"))
   }
 
-  def getWorkflowOutputs(id: WorkflowId): Map[FullyQualifiedName, String] = {
-    getWorkflowMetadata(id).fields.head._2.asInstanceOf[JsObject].getFields(WorkflowMetadataKeys.Outputs).head.asInstanceOf[JsObject].fields.map( x => (x._1,x._2.asInstanceOf[JsString].value))
+  def getWorkflowOutputsFromMetadata(id: WorkflowId): Map[FullyQualifiedName, WdlValue] = {
+    getWorkflowMetadata(id).fields.head._2.asInstanceOf[JsObject].getFields(WorkflowMetadataKeys.Outputs).toList match {
+      case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))
+      case _ => Map.empty
+    }
+  }
+
+  private def jsValueToWdlValue(jsValue: JsValue): WdlValue = {
+    jsValue match {
+      case str: JsString => WdlString(str.value)
+      case JsNumber(number) if number.isWhole => WdlInteger(number.intValue)
+      case JsNumber(number) => WdlFloat(number.doubleValue)
+      case JsBoolean(bool) => WdlBoolean(bool)
+      case array: JsArray =>
+        val valuesArray = array.elements.map(jsValueToWdlValue)
+        if (valuesArray.isEmpty) WdlArray(WdlArrayType(WdlStringType), Seq.empty)
+        else WdlArray(WdlArrayType(valuesArray.head.wdlType), valuesArray)
+      case map: JsObject =>
+        // TODO: currently assuming all keys are String. But that's not WDL-complete...
+        val valuesMap: Map[WdlValue, WdlValue] = map.fields.map { case (fieldName, fieldValue) => (WdlString(fieldName), jsValueToWdlValue(fieldValue)) }
+        if (valuesMap.isEmpty) WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty)
+        else WdlMap(WdlMapType(WdlStringType, valuesMap.head._2.wdlType), valuesMap)
+    }
   }
 }

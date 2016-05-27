@@ -6,7 +6,7 @@ import akka.testkit.{EventFilter, TestActorRef, _}
 import cromwell.CromwellSpec.DockerTest
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
-import cromwell.core.{CallOutput, WorkflowId}
+import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.engine.ExecutionStatus.{NotStarted, Running}
 import cromwell.engine.backend.{OldStyleCallMetadata, WorkflowDescriptorBuilder}
 import cromwell.engine.backend.local.OldStyleLocalBackend
@@ -45,11 +45,11 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
       val workflowOutputs = messageAndWait[WorkflowManagerWorkflowOutputsSuccess](WorkflowOutputs(workflowId)).outputs
 
-      val actualWorkflowOutputs = workflowOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
+      val actualWorkflowOutputs = workflowOutputs.map { case (k, JobOutput(WdlString(string), _)) => k -> string }
       actualWorkflowOutputs shouldEqual Map(HelloWorld.OutputKey -> HelloWorld.OutputValue)
 
       val callOutputs = messageAndWait[WorkflowManagerCallOutputsSuccess](CallOutputs(workflowId, "hello.hello")).outputs
-      val actualCallOutputs = callOutputs.map { case (k, CallOutput(WdlString(string), _)) => k -> string }
+      val actualCallOutputs = callOutputs.map { case (k, JobOutput(WdlString(string), _)) => k -> string }
       actualCallOutputs shouldEqual Map("salutation" -> HelloWorld.OutputValue)
     }
 
@@ -153,7 +153,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
         EventFilter.info(pattern = s"starting calls: whereami.whereami", occurrences = 1))
       val outputName = "whereami.whereami.pwd"
       val salutation = outputs.get(outputName).get
-      val actualOutput = salutation.asInstanceOf[CallOutput].wdlValue.asInstanceOf[WdlString].value.trim
+      val actualOutput = salutation.asInstanceOf[JobOutput].wdlValue.asInstanceOf[WdlString].value.trim
       actualOutput should endWith("/call-whereami")
     }
 

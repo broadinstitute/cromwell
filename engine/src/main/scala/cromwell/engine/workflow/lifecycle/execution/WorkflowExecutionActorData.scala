@@ -23,13 +23,15 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.backendDescriptor.workflowOptions)
 
-  def jobExecutionSuccess(jobKey: JobKey, outputs: CallOutputs) = this.copy(
-    executionStore = executionStore.add(Map(jobKey -> Done)),
-    outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
-  )
+  def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = {
+    this.copy(
+      executionStore = executionStore.add(Map(jobKey -> Done)),
+      outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
+    )
+  }
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
-  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs) = {
+  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: JobOutputs) = {
     val newOutputEntries = outputs map {
       case (name, value) => OutputEntry(name, value.wdlValue.wdlType, Option(value.wdlValue))
     }
@@ -45,14 +47,6 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   def hasFailedJob: Boolean = {
     executionStore.store.values.exists(_ == ExecutionStatus.Failed)
-  }
-
-  def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
-    this.copy(executionStore = executionStore.add(diff.executionStore))
-  }
-
-  def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
-    diffs.foldLeft(this)((data, diff) => data.mergeExecutionDiff(diff))
   }
 
   def outputsJson(): String = {

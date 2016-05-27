@@ -71,7 +71,6 @@ object Dependencies {
   ) ++ testDependencies ++ googleApiClientDependencies
 
   val backendDependencies = List(
-    "joda-time" % "joda-time" % "2.8.2",
     "org.joda" % "joda-convert" % "1.8.1"
   ) ++ coreDependencies ++ googleApiClientDependencies
 

@@ -1,14 +1,15 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
+
 import cromwell.CromwellTestkitSpec
 import cromwell.webservice.WorkflowQueryKey._
-import org.joda.time.DateTime
 import scalaz.{Name => _, _}
 
 class WorkflowQueryParametersSpec extends CromwellTestkitSpec {
 
-  val StartDateString = "2015-11-01T11:11:11"
-  val EndDateString = "2015-11-01T12:12:12"
+  val StartDateString = "2015-11-01T11:11:11Z"
+  val EndDateString = "2015-11-01T12:12:12Z"
 
   "Workflow query parameters" should {
 
@@ -37,8 +38,8 @@ class WorkflowQueryParametersSpec extends CromwellTestkitSpec {
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {
         case Success(r) =>
-          r.startDate.get should equal(new DateTime(StartDateString))
-          r.endDate.get should equal(new DateTime(EndDateString))
+          r.startDate.get.toInstant should equal(OffsetDateTime.parse(StartDateString).toInstant)
+          r.endDate.get.toInstant should equal(OffsetDateTime.parse(EndDateString).toInstant)
           r.names should be(Set("my_workflow", "my_other_workflow"))
           r.statuses should be(Set("Succeeded", "Running"))
         case Failure(fs) =>

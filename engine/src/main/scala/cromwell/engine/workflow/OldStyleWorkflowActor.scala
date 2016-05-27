@@ -1,12 +1,13 @@
 package cromwell.engine.workflow
 
 import java.sql.SQLException
+import java.time.OffsetDateTime
 
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
-import cromwell.core.{CallOutput, CallOutputs}
+import cromwell.core.{JobOutput, JobOutputs}
 import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
@@ -23,7 +24,6 @@ import cromwell.engine.{HostInputs, _}
 import cromwell.logging.WorkflowLogger
 import cromwell.util.TerminalUtil
 import cromwell.webservice.WorkflowMetadataQueryParameters
-import org.joda.time.DateTime
 import wdl4s.types.WdlArrayType
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 import wdl4s.{Scope, _}
@@ -46,7 +46,7 @@ object OldStyleWorkflowActor {
   case class CallStarted(callKey: OutputKey, maybeCallLogs: Option[CallLogs]) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
-  case class CallCompleted(callKey: OutputKey, callOutputs: CallOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor]) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: JobOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
   case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: Throwable) extends TerminalCallMessage
   case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends TerminalCallMessage
@@ -60,11 +60,11 @@ object OldStyleWorkflowActor {
     def executionStatus: ExecutionStatus
   }
 
-  final private case class PersistStatus(callKey: OutputKey, status: ExecutionStatus, callOutputs: Option[CallOutputs], returnCode: Option[Int],
+  final private case class PersistStatus(callKey: OutputKey, status: ExecutionStatus, callOutputs: Option[JobOutputs], returnCode: Option[Int],
                                          hash: Option[ExecutionHash], resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor], sender: ActorRef, message: TerminalCallMessage)
   final case class PersistenceSucceeded(callKey: ExecutionStoreKey,
                                         executionStatus: ExecutionStatus,
-                                        outputs: Option[CallOutputs] = None) extends PersistenceMessage
+                                        outputs: Option[JobOutputs] = None) extends PersistenceMessage
   final case class PersistenceFailed(callKey: ExecutionStoreKey, executionStatus: ExecutionStatus) extends PersistenceMessage
   /** Used for exploded scatters which create many shards in one shot. */
   final case class PersistencesCompleted(callKeys: Traversable[ExecutionStoreKey],
@@ -323,14 +323,14 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
    * Try to generate output for a collector call, by collecting outputs for all of its shards.
    * It's fail-fast on shard output retrieval
    */
-  private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[BackendCallKey]): Try[CallOutputs] = Try {
+  private def generateCollectorOutput(collector: CollectorKey, shards: Iterable[BackendCallKey]): Try[JobOutputs] = Try {
     val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
       fetchCallOutputEntries(e) map { _.outputs } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }
     collector.scope.task.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(s => s.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
       val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-      taskOutput.name -> CallOutput(arrayOfValues, workflow.hash(arrayOfValues))
+      taskOutput.name -> JobOutput(arrayOfValues, workflow.hash(arrayOfValues))
     } toMap
   }
 
@@ -474,7 +474,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
 
 
   private def handleCallCompleted(callKey: OutputKey,
-                                  callOutputs: CallOutputs,
+                                  jobOutputs: JobOutputs,
                                   executionEvents: Seq[ExecutionEventEntry],
                                   returnCode: Int,
                                   message: TerminalCallMessage,
@@ -484,7 +484,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
     val currentSender = sender()
     val completionWork = for {
       // TODO These should be wrapped in a transaction so this happens atomically.
-      _ <- globalDataAccess.setOutputs(workflow.id, callKey.toDatabaseKey, callOutputs,
+      _ <- globalDataAccess.setOutputs(workflow.id, callKey.toDatabaseKey, jobOutputs,
         callKey.scope.rootWorkflow.outputs)
       _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, executionEvents)
     } yield ()
@@ -495,7 +495,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
         currentSender ! OldStyleCallActor.Ack(message)
         self ! CallFailedNonRetryable(callKey, executionEvents, Option(returnCode), e.getMessage)
       case Success(_) =>
-        self ! PersistStatus(callKey, ExecutionStatus.Done, Option(callOutputs), Option(returnCode), hash, resultsClonedFrom, currentSender, message)
+        self ! PersistStatus(callKey, ExecutionStatus.Done, Option(jobOutputs), Option(returnCode), hash, resultsClonedFrom, currentSender, message)
     }
 
     val updatedData = data.addProcessing(callKey)
@@ -503,7 +503,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
   }
 
   /** Add the outputs for the specified `ExecutionStoreKey` to the symbol cache. */
-  private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: CallOutputs): Unit = {
+  private def updateSymbolCache(executionKey: ExecutionStoreKey)(outputs: JobOutputs): Unit = {
     val newEntriesMap = outputs map { case (lqn, value) =>
       val storeKey = SymbolStoreKey(executionKey.scope.fullyQualifiedName, lqn, executionKey.index, input = false)
       new SymbolStoreEntry(storeKey, value.wdlValue.wdlType, Option(value.wdlValue), value.hash)
@@ -517,7 +517,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
 
   private def addCallFailureEvent(executionKey: ExecutionDatabaseKey, failureMessage: String): Unit = {
     logger.error(failureMessage)
-    globalDataAccess.addCallFailureEvent(workflow.id, executionKey, FailureEventEntry(failureMessage, DateTime.now))
+    globalDataAccess.addCallFailureEvent(workflow.id, executionKey, FailureEventEntry(failureMessage, OffsetDateTime.now))
   }
 
   when(WorkflowRunning) {
@@ -715,7 +715,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
       // This case is common to WorkflowRunning and WorkflowAborting.
       log.debug(s"Got ScatterCompleted($scatterKey)")
       executionStore += scatterKey -> ExecutionStatus.Done
-      persistStatus(scatterKey, ExecutionStatus.Done, callOutputs = None, returnCode = Option(0))
+      persistStatus(scatterKey, ExecutionStatus.Done, jobOutputs = None, returnCode = Option(0))
       val updatedData = data.addPersisting(scatterKey, ExecutionStatus.Done)
       stay() using updatedData
     case Event(callMessage: CallMessage, _) =>
@@ -768,7 +768,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
 
   private def persistStatus(storeKey: ExecutionStoreKey,
                             executionStatus: ExecutionStatus,
-                            callOutputs: Option[CallOutputs] = None,
+                            jobOutputs: Option[JobOutputs] = None,
                             returnCode: Option[Int] = None,
                             hash: Option[ExecutionHash] = None,
                             resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None): Future[Unit] = {
@@ -782,7 +782,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
     }
 
     persistFuture onComplete {
-      case Success(_) => self ! PersistenceSucceeded(storeKey, executionStatus, callOutputs)
+      case Success(_) => self ! PersistenceSucceeded(storeKey, executionStatus, jobOutputs)
       case Failure(t) =>
         logger.error(s"Error persisting status of call ${storeKey.tag} to $executionStatus", t)
         self ! CheckForWorkflowComplete
@@ -794,7 +794,7 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
                                    executionStatus: ExecutionStatus,
                                    recipient: ActorRef,
                                    message: TerminalCallMessage,
-                                   callOutputs: Option[CallOutputs] = None,
+                                   callOutputs: Option[JobOutputs] = None,
                                    returnCode: Option[Int] = None,
                                    hash: Option[ExecutionHash] = None,
                                    resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None): Unit = {

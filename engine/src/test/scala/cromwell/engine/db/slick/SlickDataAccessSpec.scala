@@ -2,6 +2,7 @@ package cromwell.engine.db.slick
 
 import java.nio.file.{FileSystem, FileSystems}
 import java.sql.SQLException
+import java.time.OffsetDateTime
 
 import better.files._
 import com.google.api.client.util.ExponentialBackOff
@@ -24,7 +25,6 @@ import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
 import cromwell.util.SampleWdl
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
 import cromwell.{CromwellTestkitSpec, webservice}
-import org.joda.time.DateTime
 import org.scalactic.StringNormalizations._
 import org.scalatest.PartialFunctionValues._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -204,7 +204,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       val call = mock[Call]
       call.fullyQualifiedName returns "wf.a"
       val dbKey = ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)
-      val outputs: CallOutputs = Map("wf.a.empty" -> CallOutput(WdlString(""), None))
+      val outputs: JobOutputs = Map("wf.a.empty" -> JobOutput(WdlString(""), None))
 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
@@ -724,9 +724,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1),
-          Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+          Map(symbolLqn -> JobOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0), 1),
-          Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
+          Map(symbolLqn -> JobOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)) map { results =>
           results.size should be(1) //getOutputs on a workflowId does NOT return shards outputs
 
@@ -782,9 +782,9 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1),
-          Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+          Map(symbolLqn -> JobOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, Option(0), 1),
-          Map(symbolLqn -> CallOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
+          Map(symbolLqn -> JobOutput(testWdlStringShard, Option(testWdlStringShardHash))), Seq.empty)
         callOutput <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)) map { results =>
           results.head.key.index should be(None)
           results.head.wdlValue.get should be(testWdlString)
@@ -857,7 +857,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(entry), Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1),
-          Map(symbolLqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+          Map(symbolLqn -> JobOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         _ <- dataAccess.getOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)) map { results =>
           results.size should be(1)
           val resultSymbol = results.head
@@ -888,10 +888,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.createWorkflow(workflowInfo, Seq(), Nil, localBackend)
         _ <- dataAccess.updateWorkflowState(workflowId, WorkflowRunning)
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1),
-          Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+          Map(symbolFqn -> JobOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
         // Second attempt should fail
         _ <- dataAccess.setOutputs(workflowId, ExecutionDatabaseKey(call.fullyQualifiedName, None, 1),
-          Map(symbolFqn -> CallOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
+          Map(symbolFqn -> JobOutput(testWdlString, Option(testWdlStringHash))), Seq.empty)
       } yield ()).failed.futureValue should be(a[SQLException])
     }
 
@@ -1016,7 +1016,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 1)), localBackend)
         _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 2)), localBackend)
 
-        now = DateTime.now
+        now = OffsetDateTime.now
         mainEventSeq = Seq(
           ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
           ExecutionEventEntry("o-genki desuka", now.minusHours(4), now.minusHours(2)),
@@ -1075,8 +1075,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       (for {
         _ <- dataAccess.createWorkflow(workflowInfo, Nil, Seq(call), localBackend)
         _ <- dataAccess.setExecutionEvents(WorkflowId.randomId(), call.fullyQualifiedName, None, 1, Seq(
-          ExecutionEventEntry("hello", DateTime.now.minusHours(7), DateTime.now.minusHours(5)),
-          ExecutionEventEntry("cheerio", DateTime.now.minusHours(5), DateTime.now)))
+          ExecutionEventEntry("hello", OffsetDateTime.now.minusHours(7), OffsetDateTime.now.minusHours(5)),
+          ExecutionEventEntry("cheerio", OffsetDateTime.now.minusHours(5), OffsetDateTime.now)))
       } yield ()).failed.futureValue should be(a[NoSuchElementException])
     }
 
@@ -1125,7 +1125,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 
   private def executionEventsCloseEnough(a: ExecutionEventEntry, b: ExecutionEventEntry): Boolean = {
     a.description == b.description &&
-      a.startTime.getMillis - a.startTime.getMillisOfSecond == b.startTime.getMillis - b.startTime.getMillisOfSecond &&
-      a.endTime.getMillis - a.endTime.getMillisOfSecond == b.endTime.getMillis - b.endTime.getMillisOfSecond
+      a.startTime.getSecond == b.startTime.getSecond &&
+      a.endTime.getSecond == b.endTime.getSecond
   }
 }

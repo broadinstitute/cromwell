@@ -46,7 +46,7 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
     (executionResponse, expectedResponse) match {
-      case (SucceededResponse(_, responseOutputs), SucceededResponse(_, expectedOutputs)) =>
+      case (SucceededResponse(_, _, responseOutputs), SucceededResponse(_, _, expectedOutputs)) =>
         responseOutputs.size shouldBe expectedOutputs.size
         responseOutputs foreach {
           case (fqn, out) =>

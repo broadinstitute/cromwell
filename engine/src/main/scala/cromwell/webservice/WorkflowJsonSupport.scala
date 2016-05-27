@@ -1,5 +1,8 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+
 import cromwell.backend.ExecutionEventEntry
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
@@ -7,10 +10,7 @@ import cromwell.engine.db.ExecutionDatabaseKey
 import cromwell.engine.workflow.CallCacheData
 import cromwell.webservice.WdlFileJsonFormatter._
 import cromwell.webservice.WdlValueJsonFormatter._
-import org.joda.time.DateTime
-import org.joda.time.format.ISODateTimeFormat
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
-
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -25,12 +25,11 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val errorResponse = jsonFormat3(FailureResponse)
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
-  implicit object DateJsonFormat extends RootJsonFormat[DateTime] {
-    private val parserISO = ISODateTimeFormat.dateTime()
-    override def write(obj: DateTime) = JsString(parserISO.print(obj))
+  implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
+    override def write(obj: OffsetDateTime) = JsString(obj.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
 
-    override def read(json: JsValue): DateTime = json match {
-      case JsString(str) => parserISO.parseDateTime(str)
+    override def read(json: JsValue): OffsetDateTime = json match {
+      case JsString(str) => OffsetDateTime.parse(str)
       case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a DateTime")
     }
   }

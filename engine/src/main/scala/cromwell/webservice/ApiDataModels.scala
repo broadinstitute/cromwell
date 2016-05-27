@@ -1,8 +1,9 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
+
 import cromwell.engine.{FailureEventEntry, QualifiedFailureEventEntry}
 import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata, WorkflowQueryResult}
-import org.joda.time.DateTime
 import spray.json._
 import wdl4s.values.WdlValue
 import wdl4s.{FullyQualifiedName, ThrowableWithErrors}
@@ -27,9 +28,9 @@ case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boo
 case class WorkflowMetadataResponse(id: String,
                                     workflowName: String,
                                     status: String,
-                                    submission: DateTime,
-                                    start: Option[DateTime],
-                                    end: Option[DateTime],
+                                    submission: OffsetDateTime,
+                                    start: Option[OffsetDateTime],
+                                    end: Option[OffsetDateTime],
                                     inputs: JsObject,
                                     outputs: Option[Map[String, WdlValue]],
                                     calls: Map[String, Seq[OldStyleCallMetadata]],

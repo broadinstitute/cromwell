@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import java.nio.file.{Files, Paths}
+import java.time.OffsetDateTime
 
 import akka.actor.ActorSystem
 import better.files._
@@ -15,7 +16,6 @@ import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{Ma
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, WorkflowSourceFiles, WorkflowSucceeded}
 import cromwell.util.{PromiseActor, SampleWdl}
 import cromwell.webservice.WorkflowMetadataResponse
-import org.joda.time.DateTime
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import spray.json.JsObject
@@ -162,9 +162,9 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
         descriptor.id.toString,
         "wfoutputs",
         WorkflowSucceeded.toString,
-        new DateTime(0),
-        Option(new DateTime(0)),
-        Option(new DateTime(0)),
+        OffsetDateTime.now,
+        Option(OffsetDateTime.now),
+        Option(OffsetDateTime.now),
         JsObject(),
         Option(metadataOutputs),
         Map.empty,
@@ -223,9 +223,9 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
         descriptor.id.toString,
         "wfoutputs",
         WorkflowSucceeded.toString,
-        new DateTime(0),
-        Option(new DateTime(0)),
-        Option(new DateTime(0)),
+        OffsetDateTime.now,
+        Option(OffsetDateTime.now),
+        Option(OffsetDateTime.now),
         JsObject(),
         None,
         calls,

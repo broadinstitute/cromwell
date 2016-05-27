@@ -301,7 +301,7 @@ class OldStyleWorkflowManagerActor(config: Config)
     }
   }
 
-  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[core.CallOutputs] = {
+  private def callOutputs(workflowId: WorkflowId, callFqn: String): Future[core.JobOutputs] = {
     for {
       _ <- assertWorkflowExistence(workflowId)
       _ <- assertCallExistence(workflowId, callFqn)

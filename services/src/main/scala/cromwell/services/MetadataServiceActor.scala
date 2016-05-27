@@ -1,7 +1,10 @@
 package cromwell.services
 
+import akka.actor.ActorRef
 import cromwell.core.WorkflowId
+import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import wdl4s.values._
 
 object MetadataServiceActor {
 
@@ -33,4 +36,23 @@ object MetadataServiceActor {
     Props(MetadataServiceActor(serviceConfig, globalConfig))
   }
   */
+}
+
+object MetadataServiceActorImplicits {
+  implicit class EnhancedServiceRegistryActorForMetadata(val actor: ActorRef) extends AnyVal {
+    def pushWdlValueMetadata(metadataKey: MetadataKey, output: WdlValue): Unit = output match {
+      case WdlArray(_, valueSeq) =>
+        val zippedSeq = valueSeq.zipWithIndex
+        zippedSeq foreach { case (value, index) => actor.pushWdlValueMetadata(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+      case WdlMap(_, valueMap) =>
+        valueMap foreach { case (key, value) => actor.pushWdlValueMetadata(metadataKey.copy(key = metadataKey.key + s":$key"), value) }
+      case value =>
+        actor ! PutMetadataAction(MetadataEvent(metadataKey, MetadataValue(value)))
+    }
+
+    def pushThrowableMetadata(metadataKey: MetadataKey, t: Throwable): Unit = {
+      actor ! PutMetadataAction(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
+      Option(t.getCause) foreach { cause => pushThrowableMetadata(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) }
+    }
+  }
 }

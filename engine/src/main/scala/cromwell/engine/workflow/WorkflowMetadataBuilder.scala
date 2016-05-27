@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.time.OffsetDateTime
+
 import akka.actor.ActorSystem
 import cromwell.core.WorkflowId
 import cromwell.database.obj.WorkflowExecution
@@ -9,9 +11,9 @@ import cromwell.engine.backend.{OldStyleCallMetadata, OldStyleWorkflowDescriptor
 import cromwell.engine.db._
 import cromwell.engine.finalcall.OldStyleFinalCall._
 import cromwell.webservice._
-import org.joda.time.DateTime
 import spray.json._
 import wdl4s._
+import cromwell.core.KnowsWhatTimeItIs._
 
 import scala.concurrent.Future
 
@@ -27,8 +29,8 @@ object WorkflowMetadataBuilder {
                     workflowFailures: Traversable[FailureEventEntry]):
   WorkflowMetadataResponse = {
 
-    val startDate = new DateTime(execution.startDt)
-    val endDate = execution.endDt map { new DateTime(_) }
+    val startDate = execution.startDt.toOffsetDateTime
+    val endDate = execution.endDt map { _.toOffsetDateTime }
     val workflowInputs = workflowDescriptor.sourceFiles.inputsJson.parseJson.asInstanceOf[JsObject]
     val failures = if (workflowFailures.isEmpty) None else Option(workflowFailures)
 

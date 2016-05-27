@@ -16,7 +16,7 @@ package object core {
 
   type ErrorOr[+A] = ValidationNel[String, A]
   type LocallyQualifiedName = String
-  case class JobOutput(wdlValue: WdlValue, hash: Option[SymbolHash])
+  case class JobOutput(wdlValue: WdlValue, @deprecated("Don't return hashes to the engine!", "PBE") hash: Option[SymbolHash] = None) // TODO: Remove this hash
   type JobOutputs = Map[LocallyQualifiedName, JobOutput]
   type EvaluatedRuntimeAttributes = Map[String, WdlValue]
 

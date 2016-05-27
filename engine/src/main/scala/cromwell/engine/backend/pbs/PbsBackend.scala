@@ -133,7 +133,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
           case true => recursiveWait()
           case false =>
             jobDescriptor.returnCode.clear().appendLine("66")
-            66 // non-zero code to indicate job no longer appearing in qstat, and output files not all created.
+            69 // EX_UNAVAILABLE code to indicate PBS job no longer appearing in qstat, and output files not all created.
         }
     }
     recursiveWait()
@@ -235,7 +235,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     logger.info(s"PBS job completed (returnCode=$jobReturnCode)")
     val executionResult = (jobReturnCode, jobDescriptor.stderr.toFile.length) match {
       case (r, _) if r == 143 => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
-      case (r, _) if r == 66 => // Special case to check for PBS job not appearing in qstat
+      case (r, _) if r == 69 => // Special case to check for PBS job not appearing in qstat
         val message = s"PBS job $pbsJobId reached defunct state without all output files being created"
         logger.error(message)
         NonRetryableExecution(new Exception(message), Option(r)).future

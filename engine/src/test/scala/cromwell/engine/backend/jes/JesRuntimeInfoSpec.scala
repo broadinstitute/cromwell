@@ -13,7 +13,7 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
-      cpu = 2L,
+      cpu = 2,
       // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
       preemptible = 1,
       disks = disks,
@@ -38,7 +38,7 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
-      cpu = 2L,
+      cpu = 2,
       // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
       preemptible = 3,
       disks = disks,

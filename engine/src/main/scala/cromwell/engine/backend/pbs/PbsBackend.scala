@@ -132,7 +132,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
         pbsJobIsValid(pbsJobId) match {
           case true => recursiveWait()
           case false =>
-            jobDescriptor.returnCode.clear().appendLine("66")
+            jobDescriptor.returnCode.clear().appendLine("69")
             69 // EX_UNAVAILABLE code to indicate PBS job no longer appearing in qstat, and output files not all created.
         }
     }

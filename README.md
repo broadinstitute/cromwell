@@ -25,7 +25,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Configuring Cromwell](#configuring-cromwell)
   * [Database](#database)
   * [SIGINT abort handler](#sigint-abort-handler)
-  * [Workflow Restarts] (#workflow-restart)
+  * [Workflow Restarts] (#restart-workflow)
 * [Backends](#backends)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
@@ -301,11 +301,11 @@ Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
 For backends that support restarting incomplete tasks, Cromwell can be configured such that when it's instantiated, it can prevent any previously incomplete workflows from restarting. This configuration is only applicable when running Cromwell in server mode. To turn this feature on, set the configuration option
 ```
 backend {
-  workflow-restart = false
+  restart-workflow = false
 }
 ```
 
-Or, via `-Dbackend.workflow-restart=false` command line option.
+Or, via `-Dbackend.restart-workflow=false` command line option.
 
 # Backends
 

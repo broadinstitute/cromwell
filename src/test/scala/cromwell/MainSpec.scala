@@ -215,7 +215,7 @@ object MainSpec {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       waitForInfo(pattern)(
         printBlock("run", args) {
-          new Main().run(args)
+          new Main(workflowManagerSystem).run(args)
         }
       )(workflowManagerSystem.actorSystem)
     }
@@ -233,7 +233,7 @@ object MainSpec {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       waitForErrorWithException(pattern, throwableClass = throwableClass)(
         printBlock("run", args) {
-          new Main().run(args)
+          new Main(workflowManagerSystem).run(args)
         }
       )(workflowManagerSystem.actorSystem)
     }
@@ -243,14 +243,14 @@ object MainSpec {
     * Runs the "runAction" method and waits for a particular pattern to appear as a Log Info event in the system.
     *
     * @param args Args to pass to Main.run().
-    * @param pattern The pattern to watch for.
+    * @param pattern The pattern to watch for
     * @return The return code of run.
     */
   def traceInfoAction(args: String*)(pattern: String): Int = {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       waitForInfo(pattern)(
         printBlock("runAction", args) {
-          new Main().run(args) match {
+          new Main(workflowManagerSystem).runAction(args) match {
             case status: Int => status
           }
         }
@@ -272,7 +272,7 @@ object MainSpec {
       val status = {
         Console.withOut(outStream.teed) {
           Console.withErr(errStream.teed) {
-            block(new Main())
+            block(new Main(workflowManagerSystem))
           }
         }
       }

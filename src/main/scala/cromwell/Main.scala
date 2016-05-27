@@ -91,8 +91,10 @@ object Main extends App {
   } yield action
 }
 
-class Main() {
+class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   lazy val Log = LoggerFactory.getLogger("cromwell")
+
+  def this() = this(managerSystem = new WorkflowManagerSystem {})
 
   // CromwellServer still doesn't clean up... so => Any
   def runAction(args: Seq[String]): Int = {
@@ -160,7 +162,7 @@ class Main() {
   }
 
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
-    val workflowManagerSystem = new WorkflowManagerSystem {}
+    val workflowManagerSystem = managerSystem
     implicit val actorSystem = workflowManagerSystem.actorSystem
     val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)

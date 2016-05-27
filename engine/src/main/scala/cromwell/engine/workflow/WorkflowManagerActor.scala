@@ -102,7 +102,7 @@ class WorkflowManagerActor(isServerMode: Boolean, config: Config = WorkflowManag
 
   private val donePromise = Promise[Unit]()
 
-  val isRestartable = config.getConfig("backend").getBooleanOr("workflow-restart", default = true)
+  val isRestartable = config.getConfig("backend").getBooleanOr("restart-workflow", default = true)
 
   override def preStart() {
     addShutdownHook()

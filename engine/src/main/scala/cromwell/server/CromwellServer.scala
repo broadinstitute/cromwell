@@ -2,7 +2,7 @@ package cromwell.server
 
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.workflow.MaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.{WorkflowManagerActor, MaterializeWorkflowDescriptorActor}
 import cromwell.webservice.CromwellApiServiceActor
 import lenthall.spray.SprayCanHttpService._
 
@@ -17,7 +17,7 @@ object CromwellServer extends WorkflowManagerSystem {
 
   val conf = ConfigFactory.load()
   val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(), "MaterializeWorkflowDescriptorActor-CromwellServer")
-  override val isServerMode = true
+  override lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(isServerMode = false), "WorkflowManagerActorServerMode")
   val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, materializeWorkflowDescriptorActor, conf), "cromwell-service")
   val webserviceConf = conf.getConfig("webservice")
 

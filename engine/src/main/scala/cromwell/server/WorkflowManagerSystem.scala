@@ -24,10 +24,8 @@ trait WorkflowManagerSystem {
   def allowedBackends: List[String] = ConfigFactory.load.getConfig("backend").getStringList("backendsAllowed").toList
   def defaultBackend: String = ConfigFactory.load.getConfig("backend").getString("defaultBackend")
 
-  val isServerMode = false
-
   CromwellBackend.initBackends(allowedBackends, defaultBackend, actorSystem)
 
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
-  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(isServerMode), "WorkflowManagerActor")
+  lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(isServerMode = false), "WorkflowManagerActor")
 }

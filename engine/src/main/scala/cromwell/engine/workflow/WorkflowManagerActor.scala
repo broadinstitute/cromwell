@@ -1,10 +1,12 @@
 package cromwell.engine.workflow
 
+import java.time.OffsetDateTime
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.{KnowsWhatTimeItIs, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
@@ -19,7 +21,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.language.postfixOps
-import KnowsWhatTimeItIs._
 
 object WorkflowManagerActor {
 
@@ -70,7 +71,7 @@ object WorkflowManagerActor {
 }
 
 class WorkflowManagerActor(config: Config)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor with ServiceRegistryClient with KnowsWhatTimeItIs {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor with ServiceRegistryClient {
 
   def this() = this(ConfigFactory.load)
   implicit val actorSystem = context.system
@@ -188,12 +189,13 @@ class WorkflowManagerActor(config: Config)
   }
 
   private def pushToMetadataService(workflowId: WorkflowId): Unit = {
-    val curTime = currentTime
+    val curTime = OffsetDateTime.now
     val metadataEventMsgs = List(
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId.toString), curTime),
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(curTime.asJodaString), curTime),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId), curTime),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime),
+        MetadataValue(curTime), curTime),
       // Currently, submission time is the same as start time
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime.asJodaString), curTime)
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime), curTime)
     )
     metadataEventMsgs foreach (serviceRegistryActor ! PutMetadataAction(_))
   }

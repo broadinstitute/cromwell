@@ -484,7 +484,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private def tellEventMetadata(eventList: Seq[EventStartTime]): Unit = {
     eventList.headOption foreach { firstEvent =>
       // The final event is only used as the book-end for the final pairing so the name is never actually used...
-      val offset = firstEvent.timestamp.getOffset
+      val offset = firstEvent.offsetDateTime.getOffset
       val now = OffsetDateTime.now.withOffsetSameInstant(offset)
       val lastEvent = EventStartTime("unused_name", now)
       val tailedEventList = eventList :+ lastEvent
@@ -492,8 +492,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         case (Seq(eventCurrent, eventNext), index) =>
           val eventKey = s"executionEvents[$index]"
           tellMetadata(s"$eventKey:description", eventCurrent.name)
-          tellTimeMetadata(s"$eventKey:startTime", eventCurrent.timestamp)
-          tellTimeMetadata(s"$eventKey:endTime", eventNext.timestamp)
+          tellMetadata(s"$eventKey:startTime", eventCurrent.offsetDateTime)
+          tellMetadata(s"$eventKey:endTime", eventNext.offsetDateTime)
       }
     }
   }
@@ -510,13 +510,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     */
   private def tellJesFileMetadata(key: String, fileName: String): Unit = {
     tellMetadata(key, jesCallPaths.callRootPath.resolve(fileName).toString)
-  }
-
-  /**
-    * Fire and forget time info to the metadata service
-    */
-  private def tellTimeMetadata(key: String, value: OffsetDateTime): Unit = {
-    tellMetadata(key, value.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
   }
 
   /**

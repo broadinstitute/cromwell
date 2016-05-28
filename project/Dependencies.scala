@@ -70,14 +70,6 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies ++ googleApiClientDependencies
 
-  val backendDependencies = List(
-    "org.joda" % "joda-convert" % "1.8.1"
-  ) ++ coreDependencies ++ googleApiClientDependencies
-
-  val localBackendDependencies = List(
-    "org.broadinstitute" %% "lenthall" % lenthallV
-  )
-
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.webjars" % "swagger-ui" % "2.1.1",
@@ -90,5 +82,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
     "com.github.pathikrit" %% "better-files" % betterFilesV
-  ) ++ coreDependencies ++ sprayDependencies ++ googleCloudDependencies ++ databaseDependencies ++ backendDependencies ++ gcsFileSystemDependencies
+  ) ++ sprayDependencies
 }

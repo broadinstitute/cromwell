@@ -2,7 +2,6 @@ package cromwell.engine.db
 
 import java.sql.Timestamp
 import java.time.OffsetDateTime
-import java.util.Date
 
 import akka.actor.ActorSystem
 import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
@@ -32,7 +31,6 @@ import wdl4s.{CallInputs, _}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import cromwell.core.KnowsWhatTimeItIs._
 
 object DataAccess {
   lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
@@ -64,7 +62,7 @@ trait DataAccess extends AutoCloseable {
       workflowDescriptor.id.toString,
       workflowDescriptor.name,
       WorkflowSubmitted.toString,
-      new Date().toTimestamp,
+      OffsetDateTime.now.toSystemTimestamp,
       None)
     val workflowExecutionAux = (workflowExecutionId: Int) => {
       new WorkflowExecutionAux(
@@ -191,7 +189,7 @@ trait DataAccess extends AutoCloseable {
   def updateWorkflowState(workflowId: WorkflowId, workflowState: WorkflowState)
                          (implicit ec: ExecutionContext): Future[Unit] = {
     updateWorkflowState(workflowId.toString, workflowState.toString,
-      if (workflowState.isTerminal) Option(new Date().toTimestamp) else None
+      if (workflowState.isTerminal) Option(OffsetDateTime.now.toSystemTimestamp) else None
     )
   }
 
@@ -299,8 +297,8 @@ trait DataAccess extends AutoCloseable {
         new ExecutionEvent(
           executionId,
           executionEventEntry.description,
-          Timestamp.valueOf(executionEventEntry.startTime.toLocalDateTime),
-          Timestamp.valueOf(executionEventEntry.endTime.toLocalDateTime))
+          executionEventEntry.startTime.toSystemTimestamp,
+          executionEventEntry.endTime.toSystemTimestamp)
       }
     }
     shardIndex match {
@@ -325,7 +323,7 @@ trait DataAccess extends AutoCloseable {
     val mapped: Traversable[(ExecutionDatabaseKey, ExecutionEventEntry)] = events map {
       case (fqn, index, attempt, description, startTime, endTime) =>
         ExecutionDatabaseKey(fqn, index.toIndex, attempt) ->
-          ExecutionEventEntry(description, startTime.toOffsetDateTime, endTime.toOffsetDateTime)
+          ExecutionEventEntry(description, startTime.toSystemOffsetDateTime, endTime.toSystemOffsetDateTime)
     }
     val grouped: Map[ExecutionDatabaseKey, Seq[(ExecutionDatabaseKey, ExecutionEventEntry)]] = mapped.toSeq groupBy {
       case (key, _) => key
@@ -343,7 +341,7 @@ trait DataAccess extends AutoCloseable {
         workflowExecutionId,
         Option(executionId),
         StringUtils.abbreviate(failure.failure, DataAccess.FailureEventMaxMessageLength),
-        Timestamp.valueOf(failure.timestamp.toLocalDateTime))
+        failure.timestamp.toSystemTimestamp)
     }
     executionKey match {
       case ExecutionDatabaseKey(callFqn, Some(index), attempt) =>
@@ -362,7 +360,7 @@ trait DataAccess extends AutoCloseable {
         workflowExecutionId,
         None,
         StringUtils.abbreviate(failure.failure, DataAccess.FailureEventMaxMessageLength),
-        Timestamp.valueOf(failure.timestamp.toLocalDateTime))
+        failure.timestamp.toSystemTimestamp)
     }
     addWorkflowFailureEvent(workflowId.toString, failureEvents)
   }
@@ -370,7 +368,7 @@ trait DataAccess extends AutoCloseable {
   def addMetadataEvent(metadataEvent: MetadataEvent)(implicit ec: ExecutionContext): Future[Unit] = {
     val key = metadataEvent.key
     val workflowUuid = key.workflowId.id.toString
-    val timestamp = metadataEvent.timestamp
+    val timestamp = metadataEvent.offsetDateTime.toSystemTimestamp
     val value = metadataEvent.value.value
     val valueType = Option(metadataEvent.value.valueType) map { _.typeName } orNull
 
@@ -398,7 +396,7 @@ trait DataAccess extends AutoCloseable {
 
         val key = MetadataKey(query.workflowId, metadataJobKey, m.key)
         val value = new MetadataValue(m.value.orNull, m.valueType.map(MetadataType.fromString).orNull)
-        MetadataEvent(key, value, m.timestamp)
+        MetadataEvent(key, value, m.timestamp.toSystemOffsetDateTime)
       }
     }
   }
@@ -411,9 +409,9 @@ trait DataAccess extends AutoCloseable {
       _.toSeq map {
         case (workflowUuid, message, timestamp, Some(fqn), Some(index), Some(attempt)) =>
           val key = ExecutionDatabaseKey(fqn, index.toIndex, attempt)
-          QualifiedFailureEventEntry(workflowUuid, Option(key), message, timestamp.toOffsetDateTime)
+          QualifiedFailureEventEntry(workflowUuid, Option(key), message, timestamp.toSystemOffsetDateTime)
         case (workflowUuid, message, timestamp, None, None, None) =>
-          QualifiedFailureEventEntry(workflowUuid, None, message, timestamp.toOffsetDateTime)
+          QualifiedFailureEventEntry(workflowUuid, None, message, timestamp.toSystemOffsetDateTime)
         case unexpected =>
           throw new RuntimeException(s"Unexpected failure event: $unexpected")
       }
@@ -430,8 +428,8 @@ trait DataAccess extends AutoCloseable {
       val mappedKeys = scopeKeys map { scopeKey =>
         (scopeKey.fqn, scopeKey.index.fromIndex, scopeKey.attempt)
       }
-      setStartingStatus(workflowId.toString, ExecutionStatus.Starting.toString, Option(new Date().toTimestamp),
-        mappedKeys)
+      setStartingStatus(workflowId.toString, ExecutionStatus.Starting.toString,
+        Option(OffsetDateTime.now.toSystemTimestamp), mappedKeys)
     }
   }
 
@@ -461,7 +459,7 @@ trait DataAccess extends AutoCloseable {
     val index = scopeKeys.index.fromIndex
     val attempt = scopeKeys.attempt
     val statusString = status.toString
-    val endDt = Option(new Date().toTimestamp)
+    val endDt = Option(OffsetDateTime.now.toSystemTimestamp)
     val overallHash = hash map { _.overallHash }
     val dockerHash = hash flatMap { _.dockerHash }
     resultsClonedFrom match {
@@ -582,12 +580,12 @@ trait DataAccess extends AutoCloseable {
                     (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
     val workflowExecutions = queryWorkflowExecutions(
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
-      queryParameters.startDate.map(x => Timestamp.valueOf(x.toLocalDateTime)), queryParameters.endDate.map(x => Timestamp.valueOf(x.toLocalDateTime)),
+      queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.page, queryParameters.pageSize)
 
     val workflowCount = countWorkflowExecutions(
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
-      queryParameters.startDate.map(x => Timestamp.valueOf(x.toLocalDateTime)), queryParameters.endDate.map(x => Timestamp.valueOf(x.toLocalDateTime)))
+      queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
 
     workflowCount flatMap { count =>
       workflowExecutions map { workflows =>
@@ -596,8 +594,8 @@ trait DataAccess extends AutoCloseable {
             id = workflow.workflowExecutionUuid,
             name = workflow.name,
             status = workflow.status,
-            start = workflow.startDt.toOffsetDateTime,
-            end = workflow.endDt map { _.toOffsetDateTime })
+            start = workflow.startDt.toSystemOffsetDateTime,
+            end = workflow.endDt map { _.toSystemOffsetDateTime })
         }),
         //only return metadata if page is defined
         queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })

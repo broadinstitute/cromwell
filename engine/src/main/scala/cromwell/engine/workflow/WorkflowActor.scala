@@ -1,9 +1,11 @@
 package cromwell.engine.workflow
 
+import java.time.OffsetDateTime
+
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
-import cromwell.core.{KnowsWhatTimeItIs, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
@@ -133,7 +135,7 @@ class WorkflowActor(workflowId: WorkflowId,
                     workflowSources: WorkflowSourceFiles,
                     conf: Config,
                     serviceRegistryActor: ActorRef)
-  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging with KnowsWhatTimeItIs {
+  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging {
 
   val tag = self.path.name
 
@@ -240,8 +242,9 @@ class WorkflowActor(workflowId: WorkflowId,
     case oldState -> terminalState if terminalState.terminal =>
       log.info(s"$tag transition from $oldState to $terminalState: shutting down")
       // Add the end time of the workflow in the MetadataService
-      import KnowsWhatTimeItIs._
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(currentTime.asJodaString), currentTime)
+      val now = OffsetDateTime.now
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime),
+        MetadataValue(now), now)
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>
@@ -260,12 +263,14 @@ class WorkflowActor(workflowId: WorkflowId,
       serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
     }
     // Workflow name:
-    serviceRegistryActor ! MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), currentTime)
+    serviceRegistryActor ! MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name),
+      MetadataValue(workflowDescriptor.name), OffsetDateTime.now)
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service
   private def pushCurrentStateToMetadataService(workflowState: WorkflowState): Unit = {
-    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(workflowState.toString), currentTime)
+    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
+      MetadataValue(workflowState), OffsetDateTime.now)
     serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
 }

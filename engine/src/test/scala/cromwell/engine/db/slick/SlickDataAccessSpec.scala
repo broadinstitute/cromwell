@@ -3,6 +3,7 @@ package cromwell.engine.db.slick
 import java.nio.file.{FileSystem, FileSystems}
 import java.sql.SQLException
 import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 import better.files._
 import com.google.api.client.util.ExponentialBackOff

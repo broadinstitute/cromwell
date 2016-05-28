@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.time.OffsetDateTime
+
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
@@ -20,8 +22,7 @@ import wdl4s.values.{WdlArray, WdlValue}
 
 import scala.annotation.tailrec
 import scala.language.postfixOps
-import scala.util.{Random, Failure, Success, Try}
-import KnowsWhatTimeItIs._
+import scala.util.{Failure, Random, Success, Try}
 
 object WorkflowExecutionActor {
 
@@ -111,7 +112,7 @@ object WorkflowExecutionActor {
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         workflowDescriptor: EngineWorkflowDescriptor,
                                         serviceRegistryActor: ActorRef)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with KnowsWhatTimeItIs {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
 
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
@@ -283,7 +284,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   private def handleJobSuccessful(jobKey: JobKey, outputs: JobOutputs, data: WorkflowExecutionActorData) = {
     log.info(s"Job ${jobKey.tag} succeeded! Outputs: ${outputs.mkString("\n")}")
     val metadataKey = MetadataKey(workflowDescriptor.id, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), CallMetadataKeys.ExecutionStatus)
-    val metadataValue = MetadataValue(Done.toString)
+    val metadataValue = MetadataValue(Done)
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey, metadataValue))
     val newData = data.jobExecutionSuccess(jobKey, outputs)
 
@@ -327,7 +328,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   private def pushCompletedJobMetadata(jobKey: JobKey, executionStatus: ExecutionStatus, returnCode: Option[Int]) = {
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(executionStatus)))
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.End), MetadataValue(currentTime.asJodaString)))
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.End),
+      MetadataValue(OffsetDateTime.now)))
     returnCode foreach { rc =>
       serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ReturnCode), MetadataValue(rc)))
     }
@@ -362,7 +364,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushNewJobMetadata(jobKey: BackendJobDescriptorKey, backendName: String) = {
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Start), MetadataValue(currentTime.asJodaString)))
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Start),
+      MetadataValue(OffsetDateTime.now)))
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Backend), MetadataValue(backendName)))
     jobKey.scope.task.runtimeAttributes.attrs.foreach { case (attrName, attrExpression) =>
       serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, s"${CallMetadataKeys.RuntimeAttributes}:$attrName"), MetadataValue(attrExpression.valueString)))

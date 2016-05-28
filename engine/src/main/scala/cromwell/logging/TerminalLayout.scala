@@ -1,7 +1,7 @@
 package cromwell.logging
 
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.pattern.ThrowableProxyConverter
@@ -12,6 +12,8 @@ import cromwell.util.TerminalUtil
 object TerminalLayout {
   val Converter = new ThrowableProxyConverter
   Converter.start()
+
+  private val dateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss,SS")
 
   implicit class EnhancedILoggingEvent(val event: ILoggingEvent) extends AnyVal {
     def toStackTrace: String = Converter.convert(event)
@@ -39,7 +41,7 @@ class TerminalLayout extends LayoutBase[ILoggingEvent] {
       case Level.ERROR => TerminalUtil.highlight(1, "error")
       case x => x.toString.toLowerCase
     }
-    val timestamp = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss,SS").format(new Date())
+    val timestamp = OffsetDateTime.now.format(dateTimeFormatter)
     val highlightedMessage = event.getFormattedMessage.colorizeUuids.colorizeCommand
     s"[$timestamp] [$level] $highlightedMessage\n${event.toStackTrace}"
   }

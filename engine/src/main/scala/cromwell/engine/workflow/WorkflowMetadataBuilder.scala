@@ -1,9 +1,8 @@
 package cromwell.engine.workflow
 
-import java.time.OffsetDateTime
-
 import akka.actor.ActorSystem
 import cromwell.core.WorkflowId
+import cromwell.database.SqlConverters._
 import cromwell.database.obj.WorkflowExecution
 import cromwell.engine
 import cromwell.engine._
@@ -13,7 +12,6 @@ import cromwell.engine.finalcall.OldStyleFinalCall._
 import cromwell.webservice._
 import spray.json._
 import wdl4s._
-import cromwell.core.KnowsWhatTimeItIs._
 
 import scala.concurrent.Future
 
@@ -29,8 +27,8 @@ object WorkflowMetadataBuilder {
                     workflowFailures: Traversable[FailureEventEntry]):
   WorkflowMetadataResponse = {
 
-    val startDate = execution.startDt.toOffsetDateTime
-    val endDate = execution.endDt map { _.toOffsetDateTime }
+    val startDate = execution.startDt.toSystemOffsetDateTime
+    val endDate = execution.endDt map { _.toSystemOffsetDateTime }
     val workflowInputs = workflowDescriptor.sourceFiles.inputsJson.parseJson.asInstanceOf[JsObject]
     val failures = if (workflowFailures.isEmpty) None else Option(workflowFailures)
 
@@ -77,9 +75,8 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
 
   private[this] implicit val ec = actorSystem.dispatcher
 
-  import cromwell.engine.db.DataAccess.globalDataAccess
-
   import WorkflowMetadataBuilder._
+  import cromwell.engine.db.DataAccess.globalDataAccess
 
   private def futureAssertWorkflowExistsByState = globalDataAccess.assertWorkflowExistsByState(id)
 

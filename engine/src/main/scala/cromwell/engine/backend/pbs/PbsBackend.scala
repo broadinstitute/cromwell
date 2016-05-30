@@ -39,6 +39,8 @@ object PbsBackend {
 }
 
 case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileSystem {
+  val installationIsPBSPro: Boolean = ("qstat --version" #| "grep PBSPro" !) == 0
+  
   def returnCode(jobDescriptor: BackendCallJobDescriptor) = jobDescriptor.returnCode
 
   import LocalBackend.WriteWithNewline
@@ -119,35 +121,31 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def waitUntilComplete(jobDescriptor: BackendCallJobDescriptor, pbsJobId: Int): Int = {
     val logger = jobLogger(jobDescriptor)
     @tailrec
-    def recursiveWait(): Int = (Seq(jobDescriptor.returnCode, jobDescriptor.stdout, jobDescriptor.stderr).forall(Files.exists(_)), pbsJobIsValid(pbsJobId)) match {
+    def recursiveWait(): Int = (Seq(jobDescriptor.returnCode, jobDescriptor.stdout, jobDescriptor.stderr).forall(Files.exists(_)), jobDone(pbsJobId)) match {
       case (true, _) => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
-      case (false, true) =>
-        logger.info(s"Output files do not exist yet but PBS job $pbsJobId is valid; waiting...")
+      case (false, false) =>
+        logger.info(s"Output files do not exist yet and PBS job $pbsJobId is not done; waiting...")
         Thread.sleep(5000)
         recursiveWait()
-      case (false, false) =>
-        logger.warn(s"PBS job $pbsJobId does not appear in qstat")
-        // give it one more chance just in case it's a transient connectivity problem
-        Thread.sleep(5000)
-        pbsJobIsValid(pbsJobId) match {
-          case true => recursiveWait()
-          case false =>
-            jobDescriptor.returnCode.clear().appendLine("69")
-            69 // EX_UNAVAILABLE code to indicate PBS job no longer appearing in qstat, and output files not all created.
-        }
+      case (false, true) =>
+        logger.error(s"Output files do not exist and PBS job $pbsJobId is done")
+         jobDescriptor.returnCode.clear().appendLine("69")
+         69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files not all created.
     }
     recursiveWait()
   }
   
   /**
-   * Returns true if the job appears in qstat. When false, catches the case where job has been
+   * Returns true if the PBS job is finished/completed; used to catch the case where job has been
    * killed or otherwise expired without creating rc file - e.g. if walltime was exceeded, or there
    * is a shell syntax error in user's command. 
    */
-  private def pbsJobIsValid(pbsJobId: Int): Boolean = {
-    val argv = Seq("qstat", pbsJobId).map { _.toString }
-    Process(argv).run(ProcessLogger(out => (), err => ())).exitValue() == 0
-  }
+  private def jobDone(pbsJobId: Int): Boolean =
+    if (installationIsPBSPro) {
+      ( s"qstat -x -f ${pbsJobId}" #| Seq("grep", "job_state = F") ! ) == 0
+    } else {
+      ( s"qstat -f ${pbsJobId}" #| Seq("grep", "job_state = C") ! ) == 0
+    }
 
   /**
    * This returns a zero-parameter function which, when called, will kill the
@@ -167,13 +165,17 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
 
   /**
    * Writes the script file containing the user's command from the WDL as well
-   * as some extra shell code for monitoring jobs
+   * as some extra shell code for monitoring jobs. Using a subprocess in the
+   * script guarantees that rc file will be produced even if there are syntax
+   * errors in the user's command.
    */
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String) = {
     jobDescriptor.script.write(
       s"""#!/bin/sh
          |cd $$PBS_O_WORKDIR
-         |$instantiatedCommand
+         |sh -c 'set -e
+         |${instantiatedCommand.replaceAll("'", "\"'\"")}
+         |'
          |echo $$? > rc
          |""".stripMargin)
   }

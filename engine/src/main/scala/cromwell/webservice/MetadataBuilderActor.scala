@@ -145,7 +145,8 @@ object MetadataBuilderActor {
   private def eventsToIndexedJson(events: Seq[MetadataEvent]): IndexedJsonValue = {
     events match {
       case empty if empty.isEmpty => IndexedJsonObject.empty
-      case evts => evts sortBy { _.timestamp } map { e => keyValueToIndexedJson(e.key.key, e.value) } reduceLeft(_ |+| _)
+      case evts =>
+        evts sortBy { _.offsetDateTime } map { e => keyValueToIndexedJson(e.key.key, e.value) } reduceLeft(_ |+| _)
     }
   }
 

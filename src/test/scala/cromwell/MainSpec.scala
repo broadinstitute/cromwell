@@ -2,8 +2,8 @@ package cromwell
 
 import java.io.{ByteArrayOutputStream, OutputStream}
 import java.nio.file.Path
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 import akka.util.Timeout
 import better.files._
@@ -139,8 +139,8 @@ object MainSpec {
 
   /** The return code, plus any captured text from Console.stdout and Console.stderr while executing a block. */
   case class TraceResult(returnCode: Int, out: String, err: String)
-  private val dateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss.SSS")
-  private def now = dateFormat.format(new Date)
+  private val dateFormat = DateTimeFormatter.ofPattern("MM/dd/uuuu HH:mm:ss.SSS")
+  private def now = OffsetDateTime.now.format(dateFormat)
 
   /**
    * Tests running a sample wdl, providing the inputs, and cleaning up the temp files only if no exceptions occur.

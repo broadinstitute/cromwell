@@ -32,4 +32,4 @@ object RunStatus {
 }
 
 // An event with a startTime timestamp
-case class EventStartTime(name: String, timestamp: OffsetDateTime)
+case class EventStartTime(name: String, offsetDateTime: OffsetDateTime)

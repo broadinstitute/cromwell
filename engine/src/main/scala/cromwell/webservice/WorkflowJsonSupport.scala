@@ -1,7 +1,6 @@
 package cromwell.webservice
 
 import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
 
 import cromwell.backend.ExecutionEventEntry
 import cromwell.engine._
@@ -26,7 +25,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
-    override def write(obj: OffsetDateTime) = JsString(obj.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+    override def write(obj: OffsetDateTime) = JsString(obj.toString)
 
     override def read(json: JsValue): OffsetDateTime = json match {
       case JsString(str) => OffsetDateTime.parse(str)

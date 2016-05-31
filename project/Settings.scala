@@ -74,14 +74,12 @@ object Settings {
   val backendSettings = List(
     name := "cromwell-backend",
     version := "0.1",
-    libraryDependencies ++= backendDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
   val localBackendSettings = List(
     name := "cromwell-local-backend",
     version := "0.1",
-    libraryDependencies ++= localBackendDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

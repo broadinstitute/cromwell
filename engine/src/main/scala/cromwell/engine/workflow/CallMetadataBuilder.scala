@@ -1,6 +1,7 @@
 package cromwell.engine.workflow
 
 import cromwell.backend.ExecutionEventEntry
+import cromwell.database.SqlConverters._
 import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
@@ -11,7 +12,6 @@ import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
 import cromwell.engine.db.EngineConverters.EnhancedExecution
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution, ExecutionWithCacheData}
 import wdl4s._
-import cromwell.core.KnowsWhatTimeItIs._
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -257,8 +257,8 @@ object CallMetadataBuilder {
         backend = metadata.backend,
         backendStatus = metadata.backendStatus,
         outputs = Option(outputsMap.toMap),
-        start = metadata.execution.startDt map { _.toOffsetDateTime },
-        end = metadata.execution.endDt map { _.toOffsetDateTime },
+        start = metadata.execution.startDt map { _.toSystemOffsetDateTime },
+        end = metadata.execution.endDt map { _.toSystemOffsetDateTime },
         jobId = metadata.jobId,
         returnCode = metadata.execution.rc,
         shardIndex = metadata.execution.index,

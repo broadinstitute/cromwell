@@ -1,6 +1,7 @@
 package cromwell.engine.workflow
 
 import java.nio.file.Path
+import java.time.OffsetDateTime
 
 import akka.actor._
 import akka.pattern.ask
@@ -8,14 +9,13 @@ import akka.testkit.TestKit
 import better.files._
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
-import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.WorkflowMetadataResponse
-import org.scalatest.prop.{TableFor3, TableDrivenPropertyChecks}
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
 import scala.concurrent.Await
@@ -75,7 +75,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
   override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
 
   private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Int, Int], workflowInputs: Int, workflowOutputs: Int) = {
-    val testStart: Long = System.currentTimeMillis / 1000
+    val testStart = OffsetDateTime.now
     within(timeoutDuration) {
       singleWorkflowActor(
         sampleWdl = wdlFile,
@@ -86,11 +86,11 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
     metadata.id shouldNot be(empty)
     metadata.status should be("Succeeded")
-    metadata.submission.toEpochSecond should be >= testStart
+    metadata.submission should be >= testStart
     metadata.start shouldNot be(empty)
-    metadata.start.get.toEpochSecond should be >= metadata.submission.toEpochSecond
+    metadata.start.get should be >= metadata.submission
     metadata.end shouldNot be(empty)
-    metadata.end.get.toEpochSecond should be >= metadata.start.get.toEpochSecond
+    metadata.end.get should be >= metadata.start.get
     metadata.inputs.fields should have size workflowInputs
     metadata.outputs shouldNot be(empty)
     metadata.outputs.get should have size workflowOutputs
@@ -110,10 +110,10 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       call.outputs shouldNot be(empty)
       call.outputs.get should have size numOutputs
       call.start shouldNot be(empty)
-      call.start.get.toEpochSecond should be >= metadata.start.get.toEpochSecond
+      call.start.get should be >= metadata.start.get
       call.end shouldNot be(empty)
-      call.end.get.toEpochSecond should be >= call.start.get.toEpochSecond
-      call.end.get.toEpochSecond should be <= metadata.end.get.toEpochSecond
+      call.end.get should be >= call.start.get
+      call.end.get should be <= metadata.end.get
       call.jobId should be(empty)
       call.returnCode should be(Option(0))
       call.stdout shouldNot be(empty)
@@ -149,7 +149,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
 
   "A SingleWorkflowRunnerActor" should {
     "fail to run a workflow and still output metadata" ignore {
-      val testStart = System.currentTimeMillis / 1000
+      val testStart = OffsetDateTime.now
       within(timeoutDuration) {
         singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
       }
@@ -158,10 +158,10 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
       metadata.id shouldNot be(empty)
       metadata.status should be("Failed")
-      metadata.submission.toEpochSecond should be >= testStart
+      metadata.submission should be >= testStart
       metadata.start shouldNot be(empty)
-      metadata.start.get.toEpochSecond should be >= metadata.submission.toEpochSecond
-      metadata.end.get.toEpochSecond should be >= metadata.start.get.toEpochSecond
+      metadata.start.get should be >= metadata.submission
+      metadata.end.get should be >= metadata.start.get
       metadata.inputs.fields should have size 0
       metadata.outputs shouldNot be(empty)
       metadata.outputs.get should have size 0
@@ -177,10 +177,10 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       call.outputs shouldNot be(empty)
       call.outputs.get should have size 0
       call.start shouldNot be(empty)
-      call.start.get.toEpochSecond should be >= metadata.start.get.toEpochSecond
+      call.start.get should be >= metadata.start.get
       call.end shouldNot be(empty)
-      call.end.get.toEpochSecond should be >= call.start.get.toEpochSecond
-      call.end.get.toEpochSecond should be <= metadata.end.get.toEpochSecond
+      call.end.get should be >= call.start.get
+      call.end.get should be <= metadata.end.get
       call.jobId should be(empty)
       call.returnCode shouldNot be(empty)
       call.returnCode.get shouldNot be(0)

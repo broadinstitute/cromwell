@@ -1,12 +1,14 @@
 package cromwell.services
 
+import java.time.OffsetDateTime
+
 import akka.actor.PoisonPill
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
-import cromwell.core.{KnowsWhatTimeItIs, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.services.MetadataServiceActor._
 
-class MetadataServiceSpec extends CromwellServicesSpec with KnowsWhatTimeItIs {
+class MetadataServiceSpec extends CromwellServicesSpec {
 
   val config = ConfigFactory.load("{}")
   // TODO: PBE: No EngineMetadataServiceActor.props until circular dependencies fixed.
@@ -25,7 +27,7 @@ class MetadataServiceSpec extends CromwellServicesSpec with KnowsWhatTimeItIs {
   val key2 = MetadataKey(workflowId, None, "key2")
   val supJob = MetadataJobKey("sup.sup", None, 1)
   val key3 = MetadataKey(workflowId, Option(supJob), "dog")
-  val moment = currentTime
+  val moment = OffsetDateTime.now
 
   val event1_1 = MetadataEvent(key1, MetadataValue("value1"), moment)
   val event1_2 = MetadataEvent(key1, MetadataValue("value2"), moment)

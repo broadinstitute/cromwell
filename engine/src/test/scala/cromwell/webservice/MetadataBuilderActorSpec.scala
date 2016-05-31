@@ -1,10 +1,10 @@
 package cromwell.webservice
 
-import java.sql.Timestamp
+import java.time.OffsetDateTime
 
 import akka.actor.ActorSystem
 import akka.testkit._
-import cromwell.core.{KnowsWhatTimeItIs, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import cromwell.webservice.PerRequest.RequestComplete
@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
-  with FlatSpecLike with Matchers with TableDrivenPropertyChecks with ImplicitSender with BeforeAndAfterAll with KnowsWhatTimeItIs {
+  with FlatSpecLike with Matchers with TableDrivenPropertyChecks with ImplicitSender with BeforeAndAfterAll {
 
   behavior of "MetadataParser"
 
@@ -43,7 +43,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build workflow scope tree from metadata events" in {
     def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
-      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"), currentTime)
+      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"), OffsetDateTime.now)
     }
 
     val workflowA = WorkflowId.randomId()
@@ -99,10 +99,10 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     assertMetadataResponse(queryAction, mdQuery, workflowAEvents, expectedRes)
   }
 
-  type EventBuilder = (String, String, Timestamp)
+  type EventBuilder = (String, String, OffsetDateTime)
 
-  def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, timestamp: Timestamp) = {
-    MetadataEvent(MetadataKey(workflow, None, key), value, timestamp)
+  def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+    MetadataEvent(MetadataKey(workflow, None, key), value, offsetDateTime)
   }
 
   def assertMetadataKeyStructure(eventList: List[EventBuilder], expectedJson: String) = {
@@ -118,8 +118,8 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "keep event with later timestamp for the same key in metadata" in {
     val eventBuilderList = List(
-      ("a", "aLater", Timestamp.valueOf("2000-01-02 12:00:00")),
-      ("a", "a", Timestamp.valueOf("2000-01-01 12:00:00"))
+      ("a", "aLater", OffsetDateTime.parse("2000-01-02T12:00:00Z")),
+      ("a", "a", OffsetDateTime.parse("2000-01-01T12:00:00Z"))
     )
     val expectedRes =
       """"a": "aLater"""".stripMargin
@@ -129,9 +129,9 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build JSON object structure from dotted key syntax" in {
     val eventBuilderList = List(
-      ("a:b:c", "abc", currentTime),
-      ("b:a", "ba", currentTime),
-      ("c", "c", currentTime)
+      ("a:b:c", "abc", OffsetDateTime.now),
+      ("b:a", "ba", OffsetDateTime.now),
+      ("c", "c", OffsetDateTime.now)
     )
 
     val expectedRes =
@@ -151,12 +151,12 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build lexigraphically sorted JSON list structure from dotted key syntax" in {
     val eventBuilderList = List(
-      ("l1[2]", "l12", currentTime),
-      ("l1[k]", "l1k", currentTime),
-      ("l1[3]", "l13", currentTime),
-      ("l1[i]", "l1i", currentTime),
-      ("l1[10]", "l110", currentTime),
-      ("l1[j]", "l1j", currentTime)
+      ("l1[2]", "l12", OffsetDateTime.now),
+      ("l1[k]", "l1k", OffsetDateTime.now),
+      ("l1[3]", "l13", OffsetDateTime.now),
+      ("l1[i]", "l1i", OffsetDateTime.now),
+      ("l1[10]", "l110", OffsetDateTime.now),
+      ("l1[j]", "l1j", OffsetDateTime.now)
     )
 
     val expectedRes =
@@ -169,12 +169,12 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "override elements with same index in a list if they can't be merged together" in {
     val eventBuilderList = List(
-      ("l1[1]", "a", currentTime),
-      ("l1[2]", "a", currentTime),
-      ("l1[3]", "a", currentTime),
-      ("l1[2]", "b", currentTime),
-      ("l1[3]", "b", currentTime),
-      ("l1[3]", "c", currentTime)
+      ("l1[1]", "a", OffsetDateTime.now),
+      ("l1[2]", "a", OffsetDateTime.now),
+      ("l1[3]", "a", OffsetDateTime.now),
+      ("l1[2]", "b", OffsetDateTime.now),
+      ("l1[3]", "b", OffsetDateTime.now),
+      ("l1[3]", "c", OffsetDateTime.now)
     )
 
     val expectedRes =
@@ -187,17 +187,17 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "nest lists and objects together and respect ordering" in {
     val eventBuilderList = List(
-      ("l1[0]:l11[0]:l111[2]", "l10l110l1112", currentTime),
-      ("l1[0]:l11[1]:l112[1]", "l10l110l1121", currentTime),
-      ("l1[0]:l11[1]:l112[0]", "l10l110l1120", currentTime),
-      ("l1[1]:a:l12[2]:b", "l11al122b", currentTime),
-      ("l1[0]:l11[0]:l111[0]", "l10l110l1110", currentTime),
-      ("l1[0]:l11[0]:l111[1]", "l10l110l1111", currentTime),
-      ("l1[0]:l11[2]:l121[0]:a:b", "l10l111l1210ab", currentTime),
-      ("l1[1]:a:l12[0]:b", "l11al120b", currentTime),
-      ("l1[0]:l11[1]:l112[2]", "l10l110l1122", currentTime),
-      ("l1[1]:a:l12[1]", "l11al121", currentTime),
-      ("l1[0]:l11[2]:l121[0]:a:c", "l10l111l1210ac", currentTime)
+      ("l1[0]:l11[0]:l111[2]", "l10l110l1112", OffsetDateTime.now),
+      ("l1[0]:l11[1]:l112[1]", "l10l110l1121", OffsetDateTime.now),
+      ("l1[0]:l11[1]:l112[0]", "l10l110l1120", OffsetDateTime.now),
+      ("l1[1]:a:l12[2]:b", "l11al122b", OffsetDateTime.now),
+      ("l1[0]:l11[0]:l111[0]", "l10l110l1110", OffsetDateTime.now),
+      ("l1[0]:l11[0]:l111[1]", "l10l110l1111", OffsetDateTime.now),
+      ("l1[0]:l11[2]:l121[0]:a:b", "l10l111l1210ab", OffsetDateTime.now),
+      ("l1[1]:a:l12[0]:b", "l11al120b", OffsetDateTime.now),
+      ("l1[0]:l11[1]:l112[2]", "l10l110l1122", OffsetDateTime.now),
+      ("l1[1]:a:l12[1]", "l11al121", OffsetDateTime.now),
+      ("l1[0]:l11[2]:l121[0]:a:c", "l10l111l1210ac", OffsetDateTime.now)
     )
 
     val expectedRes =
@@ -227,10 +227,10 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   }
 
   it should "override json values if they can't be merged" in {
-    val kv = ("key", "value", currentTime)
-    val ksv2 = ("key:subkey", "value2", currentTime)
-    val kisv3 = ("key[index]:subkey", "value3", currentTime)
-    val kiv4 = ("key[index]", "value4", currentTime)
+    val kv = ("key", "value", OffsetDateTime.now)
+    val ksv2 = ("key:subkey", "value2", OffsetDateTime.now)
+    val kisv3 = ("key[index]:subkey", "value3", OffsetDateTime.now)
+    val kiv4 = ("key[index]", "value4", OffsetDateTime.now)
 
     val t = Table(
       ("list", "res"),
@@ -247,9 +247,12 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     val workflow = WorkflowId.randomId()
     val query = MetadataQuery(workflow, None, Option("status"))
     val events = List(
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Running"), Timestamp.valueOf("2000-01-03 12:00:00")),
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Succeeded"), Timestamp.valueOf("2000-01-03 12:00:00")),
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Submitted"), Timestamp.valueOf("2000-01-01 12:00:00"))
+      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Running"),
+        OffsetDateTime.parse("2000-01-03T12:00:00Z")),
+      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Succeeded"),
+        OffsetDateTime.parse("2000-01-03T12:00:00Z")),
+      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Submitted"),
+        OffsetDateTime.parse("2000-01-01T12:00:00Z"))
     )
     val expectedRes =
       s"""{
@@ -263,14 +266,14 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   it should "coerce values to supported types" in {
     val workflowId = WorkflowId.randomId()
     val events = List(
-      makeEvent(workflowId)("a", MetadataValue(2), currentTime),
-      makeEvent(workflowId)("b", MetadataValue(2), currentTime),
-      makeEvent(workflowId)("c", MetadataValue(2), currentTime),
-      makeEvent(workflowId)("d", MetadataValue(2.9), currentTime),
-      makeEvent(workflowId)("e", MetadataValue(2.9), currentTime),
-      makeEvent(workflowId)("f", MetadataValue(true), currentTime),
-      makeEvent(workflowId)("g", MetadataValue(false), currentTime),
-      makeEvent(workflowId)("h", MetadataValue("false"), currentTime)
+      makeEvent(workflowId)("a", MetadataValue(2), OffsetDateTime.now),
+      makeEvent(workflowId)("b", MetadataValue(2), OffsetDateTime.now),
+      makeEvent(workflowId)("c", MetadataValue(2), OffsetDateTime.now),
+      makeEvent(workflowId)("d", MetadataValue(2.9), OffsetDateTime.now),
+      makeEvent(workflowId)("e", MetadataValue(2.9), OffsetDateTime.now),
+      makeEvent(workflowId)("f", MetadataValue(true), OffsetDateTime.now),
+      makeEvent(workflowId)("g", MetadataValue(false), OffsetDateTime.now),
+      makeEvent(workflowId)("h", MetadataValue("false"), OffsetDateTime.now)
     )
 
     val expectedResponse =
@@ -299,7 +302,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     case class UnknownClass(v: Int)
 
     val events = List(
-      makeEvent(workflowId)("i", MetadataValue(UnknownClass(50)), currentTime)
+      makeEvent(workflowId)("i", MetadataValue(UnknownClass(50)), OffsetDateTime.now)
     )
 
     val expectedResponse =
@@ -320,7 +323,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     val workflowId = WorkflowId.randomId()
     val value = MetadataValue("notAnInt", MetadataInt)
     val events = List(
-      makeEvent(workflowId)("i", value, currentTime)
+      makeEvent(workflowId)("i", value, OffsetDateTime.now)
     )
 
     val expectedResponse =

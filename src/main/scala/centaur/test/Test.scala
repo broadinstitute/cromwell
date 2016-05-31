@@ -75,25 +75,6 @@ object Operations {
   }
 
   /**
-    * Submits a workflow and expects the response from the server to be an error code.
-    *
-    * @return The message in the error response
-    */
-  def submitWorkflowExpectingRejection(workflow: Workflow): Test[String] = {
-    new Test[String] {
-      override def run: Try[String] = {
-        // Collect only the parameters which exist:
-        val params = List("wdlSource" -> Option(workflow.data.wdl), "workflowInputs" -> workflow.data.inputs, "workflowOptions" -> workflow.data.options) collect {
-          case (name, Some(value)) => (name, value)
-        }
-        val formData = FormData(params)
-        val response = FailingPipeline[FailedWorkflowSubmission].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
-        sendReceiveFutureCompletion(response map { _.message })
-      }
-    }
-  }
-
-  /**
     * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
     * stops with a failure.
     */
@@ -101,7 +82,7 @@ object Operations {
     new Test[SubmittedWorkflow] {
       @tailrec
       def doPerform(): SubmittedWorkflow = {
-        val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
+        val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v2/" + workflow.id + "/status"))
         val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
         status match {
           case Success(s) if s == expectedStatus => workflow

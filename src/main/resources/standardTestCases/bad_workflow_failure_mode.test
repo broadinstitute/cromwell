@@ -1,5 +1,5 @@
 name: bad_workflow_failure_mode
-testFormat: submissionfailure
+testFormat: workflowfailure
 
 files {
   wdl: bad_workflow_failure_mode/bad_workflow_failure_mode.wdl

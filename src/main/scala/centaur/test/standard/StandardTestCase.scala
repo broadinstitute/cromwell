@@ -7,7 +7,7 @@ import cats.Apply
 import cats.std.list._
 import centaur.test._
 import centaur.test.formulas.TestFormulas
-import centaur.test.standard.StandardTestFormat.{SubmissionFailureTest, WorkflowFailureTest, WorkflowSuccessTest}
+import centaur.test.standard.StandardTestFormat.{WorkflowFailureTest, WorkflowSuccessTest}
 import centaur.test.workflow.Workflow
 import centaur.test.workflow.Workflow.{WorkflowWithMetadata, WorkflowWithoutMetadata}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -18,7 +18,6 @@ case class StandardTestCase(workflow: Workflow, testFormat: StandardTestFormat) 
   def testFunction = this.testFormat match {
     case WorkflowSuccessTest => successfulTestFunction
     case WorkflowFailureTest => TestFormulas.runFailingWorkflow _
-    case SubmissionFailureTest => TestFormulas.runSubmissionFailureWorkflow _
   }
 
   private def successfulTestFunction = this.workflow match {

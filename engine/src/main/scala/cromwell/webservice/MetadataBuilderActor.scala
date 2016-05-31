@@ -18,9 +18,8 @@ import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 
-import scala.annotation.tailrec
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.Try
 import scalaz.Scalaz._
 import scalaz.Semigroup
 
@@ -36,9 +35,8 @@ object MetadataBuilderActor {
   val log = LoggerFactory.getLogger("MetadataBuilder")
 
   private val KeySeparator = ':'
-  private val ListNameCaptureID = "listName"
-  private val ListIndexCaptureID = "listIndex"
-  private val ListMatcher = "^(.+)\\[([^\\]\\[]+)\\]$".r(ListNameCaptureID, ListIndexCaptureID)
+  private val bracketMatcher = """\[(\d+)\]""".r
+  private val startMatcher = """^([^\[]+)\[""".r
   private val AttemptKey = "attempt"
   private val ShardKey = "shardIndex"
 
@@ -52,8 +50,16 @@ object MetadataBuilderActor {
             IndexedJsonObject(sg.append(o1.v, o2.v), o1.index)
           case (o1: IndexedJsonList, o2: IndexedJsonList) =>
             val sg = implicitly[Semigroup[IndexedJsonValue]]
-            // Try to merge together values with the same index
-            val merged = (o1.v ++ o2.v).groupBy(_.index) map { case (_, v) => v.reduceLeft(sg.append(_, _)) }
+            /*
+             * Try to merge together values with the same index (if defined)
+             *
+             * If no index is defined the values are just left as is
+             * Note that as long as we require the index to be non empty for a list element (ie disallow l[]), this should not happen
+             */
+            val merged = (o1.v ++ o2.v).groupBy(_.index) flatMap {
+              case (index, v) if index.isDefined => Vector(v.reduceLeft(sg.append(_, _)))
+              case (_, v) => v
+            }
             val sorted = merged.toVector sortBy { _.index }
             IndexedJsonList(sorted, o1.index)
           case (o1, o2) => o2 // We assume values are sorted by timestamp, so if we can't merge we keep the new one.
@@ -63,13 +69,45 @@ object MetadataBuilderActor {
   }
 
   /** Types of element supported in a dotted key notation */
-  private sealed trait KeyElement
-  private case class ListElement(name: String, index: String) extends KeyElement
-  private case class ObjectElement(name: String) extends KeyElement
+  private sealed trait KeyElement {
+    def toIndexedJson(value: IndexedJsonValue): IndexedJsonValue
+  }
+  private case class ListElement(name: String, indexes: List[String]) extends KeyElement {
+    def toIndexedJson(innerValue: IndexedJsonValue) = {
+      if (indexes.isEmpty) {
+        IndexedJsonObject(Map(name -> innerValue))
+      } else {
+       /*
+       * The last index is the one that the innerValue should have in the innerList.
+       * From there lists are fold into one another until we reach the first index.
+       * e.g l[1][2] = "a" means
+       *  "l": [
+       *         [
+       *           "a" <- will have index 2 in the inner list
+       *         ] <- inner list: will have index 1 in the outer list
+       *       ]
+       *
+       * Important note: Indexes are used for sorting purposes ONLY
+       * An index of 2 DOES NOT guarantee that a value will be at index 2 in a list
+       */
+        val innerList = IndexedJsonList(Vector(innerValue.withIndex(indexes.last)))
+        val list = indexes.init.foldRight(innerList)((index, acc) => {
+          IndexedJsonList(Vector(acc.withIndex(index)))
+        })
+
+        IndexedJsonObject(Map(name -> list))
+      }
+    }
+  }
+  private case class ObjectElement(name: String) extends KeyElement {
+    def toIndexedJson(value: IndexedJsonValue) = IndexedJsonObject(Map(name -> value))
+  }
 
   private def parseKeyChunk(chunk: String): KeyElement = {
-    ListMatcher.findAllIn(chunk) match {
-      case matchIterator if matchIterator.hasNext => ListElement(matchIterator.group(ListNameCaptureID), matchIterator.group(ListIndexCaptureID))
+    startMatcher.findFirstMatchIn(chunk) match {
+      case Some(listNameRegex) =>
+        val indexes = bracketMatcher.findAllMatchIn(chunk).map(_.group(1)).toList
+        ListElement(listNameRegex.group(1), indexes)
       case _ => ObjectElement(chunk)
     }
   }
@@ -77,39 +115,33 @@ object MetadataBuilderActor {
   /** Simplified version of Json data structure
     * Every value has an index property that enables late sorting of arrays. */
   private sealed trait IndexedJsonValue {
-    def index:String
+    def index: Option[Int]
     def toJson: JsValue
     def withIndex(index: String): IndexedJsonValue
+
+    // The regex guarantees that indexes contain only digits, so toInt will succeed as long as the index is < Int.max
+    def toIndex(str: String) = str match {
+      case s if s.isEmpty => None
+      case s => Option(s.toInt)
+    }
   }
-  private case class IndexedJsonList(v: Vector[IndexedJsonValue], index: String = "") extends IndexedJsonValue {
+  private object IndexedJsonList {
+    def empty = IndexedJsonList(Vector.empty[IndexedJsonValue])
+  }
+  private case class IndexedJsonList(v: Vector[IndexedJsonValue], index: Option[Int] = None) extends IndexedJsonValue {
     override val toJson = JsArray(v map { _.toJson })
-    override def withIndex(index: String) = this.copy(index = index)
+    override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
   private object IndexedJsonObject {
     def empty = IndexedJsonObject(Map.empty[String, IndexedJsonValue])
   }
-  private case class IndexedJsonObject(v: Map[String, IndexedJsonValue], index: String = "") extends IndexedJsonValue {
+  private case class IndexedJsonObject(v: Map[String, IndexedJsonValue], index: Option[Int] = None) extends IndexedJsonValue {
     override val toJson = JsObject(v mapValues { _.toJson })
-    override def withIndex(index: String) = this.copy(index = index)
+    override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
-  private case class IndexedPrimitiveJson(v: JsValue, index: String = "") extends IndexedJsonValue {
+  private case class IndexedPrimitiveJson(v: JsValue, index: Option[Int] = None) extends IndexedJsonValue {
     override val toJson = v
-    override def withIndex(index: String) = this.copy(index = index)
-  }
-
-  /**
-    * Create an IndexedJson structure from a list of key chunks.
-    */
-  @tailrec
-  private def parseKeyRec(parts: List[String], current: IndexedJsonValue): IndexedJsonValue = {
-    parts match {
-      case p :: r =>
-        parseKeyChunk(p) match {
-          case ObjectElement(name) => parseKeyRec(r, IndexedJsonObject(Map(name -> current)))
-          case ListElement(name, index) => parseKeyRec(r, IndexedJsonObject(Map(name -> IndexedJsonList(Vector(current.withIndex(index))))))
-        }
-      case Nil => current
-    }
+    override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
 
   private def metadataValueToIndexedJson(value: MetadataValue): IndexedPrimitiveJson = {
@@ -128,9 +160,8 @@ object MetadataBuilderActor {
   }
 
   private def keyValueToIndexedJson(str: String, value: MetadataValue): IndexedJsonValue = {
-    // The list is reversed because we build the IndexedJson from the bottom up
-    val reversed = str.split(KeySeparator).toList.reverse
-    parseKeyRec(reversed, metadataValueToIndexedJson(value))
+    val innerValue: IndexedJsonValue = metadataValueToIndexedJson(value)
+    str.split(KeySeparator).foldRight(innerValue)((chunk, acc) => { parseKeyChunk(chunk).toIndexedJson(acc) })
   }
 
   private case class MetadataForAttempt(attempt: Int, metadata: IndexedJsonValue)

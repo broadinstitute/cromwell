@@ -38,7 +38,7 @@ object BackendConfiguration {
   }
 
   def backendConfigurationDescriptor(backendName: String): Try[BackendConfigurationDescriptor] = {
-    AllBackendEntries.collect({case entry if entry.name == backendName => entry.asBackendConfigurationDescriptor}).headOption match {
+    AllBackendEntries.collect({case entry if entry.name.equalsIgnoreCase(backendName) => entry.asBackendConfigurationDescriptor}).headOption match {
       case Some(descriptor) => Success(descriptor)
       case None => Failure(new Exception(s"invalid backend: $backendName"))
     }

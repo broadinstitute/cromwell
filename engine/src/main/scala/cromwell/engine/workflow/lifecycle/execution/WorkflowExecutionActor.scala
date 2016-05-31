@@ -14,11 +14,10 @@ import cromwell.engine.ExecutionStatus._
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, workflow}
-import cromwell.services._
-import cromwell.services.MetadataServiceActor._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, workflow}
+import cromwell.services.MetadataServiceActor._
+import cromwell.services._
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
 import wdl4s.util.TryUtil
@@ -188,9 +187,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       backendExecutionActor ! ExecuteJobCommand
       stay() using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
         .addBackendJobExecutionActor(jobDescriptor.key, backendExecutionActor)
-    case Event(BackendJobPreparationFailed(jobKey, t), stateData) =>
-      log.error(s"Failed to start job $jobKey: {}", t.getMessage)
-      pushFailedJobMetadata(jobKey, None, t, retryableFailure = false)
+    case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
+      log.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
+      pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
+      context.parent ! WorkflowExecutionFailedResponse(List(throwable))
       goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)

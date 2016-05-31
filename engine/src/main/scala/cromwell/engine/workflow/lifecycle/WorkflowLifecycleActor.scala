@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{ActorRef, LoggingFSM}
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
-import wdl4s.Call
 
 object WorkflowLifecycleActor {
 
@@ -40,16 +39,31 @@ object WorkflowLifecycleActor {
   }
 }
 
-trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFSM[S, WorkflowLifecycleActorData] {
-
+trait AbortableWorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends WorkflowLifecycleActor[S] {
   val abortingState: S
+  val abortedState: S
+
+  def abortedResponse: EngineLifecycleActorAbortedResponse
+
+  override protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
+    if (checkForDone(newData)) {
+      if (stateName == abortingState) {
+        context.parent ! abortedResponse
+        goto(abortedState) using newData
+      } else super.checkForDoneAndTransition(newData)
+    } else {
+      stay using newData
+    }
+  }
+}
+
+trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFSM[S, WorkflowLifecycleActorData] {
   val successState: S
   val failureState: S
-  val abortedState: S
 
   def successResponse: WorkflowLifecycleSuccessResponse
   def failureResponse(reasons: Seq[Throwable]): WorkflowLifecycleFailureResponse
-  def abortedResponse: EngineLifecycleActorAbortedResponse
+
 
   whenUnhandled {
     case unhandledMessage =>
@@ -68,22 +82,17 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
 
   protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
     if (checkForDone(newData)) {
-      if (stateName == abortingState) {
-        context.parent ! abortedResponse
-        goto(abortedState) using newData
+      if (newData.failures.isEmpty) {
+        context.parent ! successResponse
+        goto(successState) using newData
       } else {
-        if (newData.failures.isEmpty) {
-          context.parent ! successResponse
-          goto(successState) using newData
-        } else {
-          context.parent ! failureResponse(newData.failures.values.toSeq)
-          goto(failureState) using newData
-        }
+        context.parent ! failureResponse(newData.failures.values.toSeq)
+        goto(failureState) using newData
       }
     } else {
       stay using newData
     }
   }
 
-  private def checkForDone(stateData: WorkflowLifecycleActorData) = stateData.backendActors.isEmpty
+  protected final def checkForDone(stateData: WorkflowLifecycleActorData) = stateData.backendActors.isEmpty
 }

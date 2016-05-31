@@ -1,19 +1,17 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{FSM, ActorRef, Props}
+import akka.actor.{FSM, Props}
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor
-import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
-import wdl4s.Call
 
 import scala.language.postfixOps
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 object WorkflowInitializationActor {
 
@@ -46,7 +44,7 @@ object WorkflowInitializationActor {
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(new WorkflowInitializationActor(workflowId, workflowDescriptor))
 }
 
-case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends WorkflowLifecycleActor[WorkflowInitializationActorState] {
+case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends AbortableWorkflowLifecycleActor[WorkflowInitializationActorState] {
 
   startWith(InitializationPendingState, WorkflowLifecycleActorData.empty)
   val tag = self.path.name

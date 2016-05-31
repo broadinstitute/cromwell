@@ -1854,7 +1854,7 @@ object SampleWdl {
         |  output {
         |    Int count = read_int(stdout())
         |  }
-        |  runtime {docker: "ubuntu:latest"}
+        |    runtime {docker: "ubuntu:latest"}
         |}
         |
         |workflow two_step {

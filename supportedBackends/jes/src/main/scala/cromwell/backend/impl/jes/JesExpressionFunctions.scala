@@ -6,6 +6,7 @@ import better.files._
 import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions, WriteFunctions}
 import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.core.CallContext
+import cromwell.filesystems.gcs.GcsFileSystem
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values._
 
@@ -14,7 +15,7 @@ import scala.util.{Success, Try}
 
 class JesExpressionFunctions(override val fileSystems: List[FileSystem],
                              context: CallContext
-                                ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
+                             ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
   import JesExpressionFunctions.EnhancedPath
 
   private def globDirectory(glob: String): String = s"glob-${glob.md5Sum}/"
@@ -25,7 +26,7 @@ class JesExpressionFunctions(override val fileSystems: List[FileSystem],
     path.toAbsolutePath(fileSystems).asDirectory.glob("**/*") map { _.path.fullPath } filterNot { _.toString == path } toSeq
   }
 
-  override def postMapping(path: Path): Path = if (!path.isAbsolute) context.root.resolve(path) else path
+  override def preMapping(str: String): String = if (!GcsFileSystem.isAbsoluteGcsPath(str)) context.root.resolve(str).toString else str
 
   override def stdout(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stdout))
   override def stderr(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stderr))

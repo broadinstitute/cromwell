@@ -9,19 +9,17 @@ import akka.actor.{Actor, ActorLogging, Props}
 import akka.event.LoggingReceive
 import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.http.HttpResponseException
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.impl.jes.JesImplicits.{GoogleAuthWorkflowOptions, PathString}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
-import cromwell.backend.impl.jes.authentication.JesDockerCredentials
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
+import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
-import cromwell.filesystems.gcs.GoogleConfiguration
+import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
 import wdl4s.AstTools._
@@ -39,8 +37,10 @@ import scala.util.{Failure, Success, Try}
 
 object JesAsyncBackendJobExecutionActor {
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, completionPromise: Promise[BackendJobExecutionResponse]): Props = {
-    Props(new JesAsyncBackendJobExecutionActor(jobDescriptor, configurationDescriptor, completionPromise))
+  def props(jobDescriptor: BackendJobDescriptor,
+            completionPromise: Promise[BackendJobExecutionResponse],
+            jesWorkflowInfo: JesConfiguration): Props = {
+    Props(new JesAsyncBackendJobExecutionActor(jobDescriptor, completionPromise, jesWorkflowInfo))
   }
 
   object WorkflowOptionKeys {
@@ -58,36 +58,6 @@ object JesAsyncBackendJobExecutionActor {
   private val ExtraConfigParamName = "__extra_config_gcs_path"
 
   /**
-    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
-    *
-    * @param gcsPath The input path
-    * @return A path which is unique per input path
-    */
-  private def localFilePathFromCloudStoragePath(gcsPath: GcsPath): Path = {
-    Paths.get(gcsPath.bucket).resolve(gcsPath.objectName)
-  }
-
-  /**
-    * Takes a single WdlValue and maps google cloud storage (GCS) paths into an appropriate local file path.
-    * If the input is not a WdlFile, or the WdlFile is not a GCS path, the mapping is a noop.
-    *
-    * @param wdlValue the value of the input
-    * @return a new FQN to WdlValue pair, with WdlFile paths modified if appropriate.
-    */
-  private def gcsPathToLocal(wdlValue: WdlValue): WdlValue = {
-    wdlValue match {
-      case wdlFile: WdlFile =>
-        GcsPath.parse(wdlFile.value) match {
-          case Success(gcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString, wdlFile.isGlob)
-          case Failure(e) => wdlValue
-        }
-      case wdlArray: WdlArray => wdlArray map gcsPathToLocal
-      case wdlMap: WdlMap => wdlMap map { case (k, v) => gcsPathToLocal(k) -> gcsPathToLocal(v) }
-      case _ => wdlValue
-    }
-  }
-
-  /**
     * Representing a running JES execution, instances of this class are never Done and it is never okay to
     * ask them for results.
     */
@@ -102,8 +72,8 @@ object JesAsyncBackendJobExecutionActor {
 
 
 class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                                       val configurationDescriptor: BackendConfigurationDescriptor,
-                                       override val completionPromise: Promise[BackendJobExecutionResponse])
+                                       override val completionPromise: Promise[BackendJobExecutionResponse],
+                                       jesConfiguration: JesConfiguration)
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with ServiceRegistryClient {
 
   import JesAsyncBackendJobExecutionActor._
@@ -112,18 +82,17 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     */
   override lazy val backoff = SimpleExponentialBackoff(initialInterval = 30 seconds, maxInterval = 60 seconds, multiplier = 1.1)
 
+  private lazy val jesAttributes = jesConfiguration.jesAttributes
+  private lazy val workflowDescriptor = jobDescriptor.descriptor
+  private lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, workflowDescriptor, jesConfiguration)
   private lazy val monitoringScript: Option[JesInput] = {
     jobDescriptor.descriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
-      JesFileInput(s"$MonitoringParamName-in", GcsPath(path).toString, Paths.get(JesMonitoringScript), workingDisk)
+      JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, Paths.get(JesMonitoringScript), workingDisk)
     } toOption
   }
-  private lazy val workflowDescriptor = jobDescriptor.descriptor
-  private lazy val gcsFileSystem = buildGcsFileSystem(configurationDescriptor, jobDescriptor.descriptor)
-  private lazy val backendConfig = configurationDescriptor.backendConfig
-  private lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, gcsFileSystem, jobDescriptor.descriptor, configurationDescriptor.backendConfig)
-  private lazy val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
-  private lazy val genomicsInterface = GenomicsFactory(googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl)
-  private def workflowPath: Path = jesCallPaths.workflowRootPath
+  private lazy val genomicsInterface = GenomicsFactory(
+    jesConfiguration.googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl
+  )
   private def callRootPath: Path = jesCallPaths.callRootPath
   private def returnCodeFilename = jesCallPaths.returnCodeFilename
   private def returnCodeGcsPath = jesCallPaths.returnCodePath
@@ -148,9 +117,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private lazy val standardParameters = Seq(rcJesOutput)
   // PBE this shouldn't need to be defined here, could be at the actor factory level.
-  private lazy val jesAttributes = JesAttributes(googleConfig, configurationDescriptor)
   private lazy val returnCodeContents = Try(returnCodeGcsPath.toAbsolutePath.contentAsString)
-  private lazy val dockerConfiguration: Option[JesDockerCredentials] = DockerConfiguration.build(backendConfig).dockerCredentials map JesDockerCredentials.apply
+  private lazy val dockerConfiguration = jesConfiguration.dockerCredentials
   private lazy val maxPreemption = runtimeAttributes.preemptible
   private lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
   private lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
@@ -187,17 +155,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private def globOutputPath(glob: String) = callRootPath.resolve(s"glob-${glob.md5Sum}/")
 
-  private def gcsAuthFilePath: Path =  {
-    // If we are going to upload an auth file we need a valid GCS path passed via workflow options.
-    val bucket = workflowDescriptor.workflowOptions.get(WorkflowOptionKeys.AuthFilePath) getOrElse workflowPath.toString
-    bucket.toPath(gcsFileSystem).resolve(s"${workflowDescriptor.id}_auth.json")
-  }
-
-  private def authGcsCredentialsPath(gcsPath: String): JesInput = JesLiteralInput(ExtraConfigParamName, gcsPath)
-
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.gcsFilesystemAuth.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(authGcsCredentialsPath(gcsAuthFilePath.toString))
+      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.toString))
     else None
   }
 
@@ -208,7 +168,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       jesStderrFile.toString
     )
 
-    new JesExpressionFunctions(List(gcsFileSystem), callContext)
+    new JesExpressionFunctions(List(jesCallPaths.gcsFileSystem), callContext)
   }
 
   private val lookup: ScopedLookupFunction = {
@@ -238,8 +198,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
   private def relativeLocalizationPath(file: WdlFile): WdlFile = {
-    GcsPath.parse(file.value) match {
-      case Success(gcsPath) => WdlFile(gcsPath.bucket + "/" + gcsPath.objectName, file.isGlob)
+    Try(getPath(file.value)) match {
+      case Success(gcsPath: NioGcsPath) => WdlFile(gcsPath.bucket + "/" + gcsPath.objectName, file.isGlob)
+      case Success(gcsPath) => file
       case Failure(e) => file
     }
   }
@@ -327,17 +288,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private def instantiateCommand: Try[String] = {
     val backendInputs = jobDescriptor.inputs mapValues gcsPathToLocal
     jobDescriptor.call.instantiateCommandLine(backendInputs, callEngineFunctions, gcsPathToLocal)
-  }
-
-  private def isFatalJesException(t: Throwable): Boolean = t match {
-    case e: HttpResponseException if e.getStatusCode == 403 => true
-    case _ => false
-  }
-
-  private def isTransientJesException(t: Throwable): Boolean = t match {
-    // Quota exceeded
-    case e: HttpResponseException if e.getStatusCode == 429 => true
-    case _ => false
   }
 
   private def uploadCommandScript(command: String, withMonitoring: Boolean): Future[Unit] = {
@@ -693,6 +643,39 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         handle.future
     }
   } flatten
+
+  /**
+    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
+    *
+    * @param gcsPath The input path
+    * @return A path which is unique per input path
+    */
+  private def localFilePathFromCloudStoragePath(gcsPath: NioGcsPath): Path = {
+    Paths.get(gcsPath.bucket).resolve(gcsPath.objectName)
+  }
+
+  /**
+    * Takes a single WdlValue and maps google cloud storage (GCS) paths into an appropriate local file path.
+    * If the input is not a WdlFile, or the WdlFile is not a GCS path, the mapping is a noop.
+    *
+    * @param wdlValue the value of the input
+    * @return a new FQN to WdlValue pair, with WdlFile paths modified if appropriate.
+    */
+  private def gcsPathToLocal(wdlValue: WdlValue): WdlValue = {
+    wdlValue match {
+      case wdlFile: WdlFile =>
+        Try(getPath(wdlFile.valueString)) match {
+          case Success(gcsPath: NioGcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString, wdlFile.isGlob)
+          case Success(otherPath) => wdlValue
+          case Failure(e) => wdlValue
+        }
+      case wdlArray: WdlArray => wdlArray map gcsPathToLocal
+      case wdlMap: WdlMap => wdlMap map { case (k, v) => gcsPathToLocal(k) -> gcsPathToLocal(v) }
+      case _ => wdlValue
+    }
+  }
+
+  private def getPath(str: String) = jesCallPaths.gcsFileSystem.getPath(str)
 
   protected implicit def ec: ExecutionContext = context.dispatcher
 }

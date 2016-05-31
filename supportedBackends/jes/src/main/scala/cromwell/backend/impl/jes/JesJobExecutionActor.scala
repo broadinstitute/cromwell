@@ -14,13 +14,13 @@ import scala.language.postfixOps
 object JesJobExecutionActor {
   val logger = LoggerFactory.getLogger("JesBackend")
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new JesJobExecutionActor(jobDescriptor, configurationDescriptor))
+  def props(jobDescriptor: BackendJobDescriptor, jesWorkflowInfo: JesConfiguration): Props =
+    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo))
 
 }
 
 case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                                override val configurationDescriptor: BackendConfigurationDescriptor)
+                                jesConfiguration: JesConfiguration)
   extends BackendJobExecutionActor {
 
   override def receive: Receive = LoggingReceive {
@@ -34,6 +34,8 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     case message => super.receive(message)
   }
 
+  override val configurationDescriptor = jesConfiguration.configurationDescriptor
+
   // PBE keep a reference to be able to hand to a successor executor if the failure is recoverable, or to complete as a
   // failure if the failure is not recoverable.
   private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
@@ -46,7 +48,7 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   override def recover: Future[BackendJobExecutionResponse] = ???
 
   override def execute: Future[BackendJobExecutionResponse] = {
-    val executorRef = context.actorOf(JesAsyncBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor, completionPromise))
+    val executorRef = context.actorOf(JesAsyncBackendJobExecutionActor.props(jobDescriptor, completionPromise, jesConfiguration))
     executor = Option(executorRef)
     executorRef ! Execute
     completionPromise.future

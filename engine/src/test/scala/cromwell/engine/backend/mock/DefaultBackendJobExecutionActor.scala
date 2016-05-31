@@ -1,7 +1,6 @@
 package cromwell.engine.backend.mock
 
 import akka.actor.Props
-import com.typesafe.config.Config
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse}
 import cromwell.backend._
 import wdl4s.Call
@@ -22,20 +21,18 @@ case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJo
   override def abort: Unit = ()
 }
 
-class DefaultBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {
+class DefaultBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
-                                                configurationDescriptor: BackendConfigurationDescriptor): Option[Props] = None
+                                                calls: Seq[Call]): Option[Props] = None
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      configurationDescriptor: BackendConfigurationDescriptor): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor): Props = {
     DefaultBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 
-  override def workflowFinalizationActorProps(): Option[Props] = None
+  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                              calls: Seq[Call]): Option[Props] = None
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey,
-                                           configurationDescriptor: BackendConfigurationDescriptor): WdlStandardLibraryFunctions = NoFunctions
+                                           jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = NoFunctions
 }
 

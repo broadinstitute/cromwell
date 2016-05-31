@@ -11,11 +11,11 @@ import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
-import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, workflow}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import lenthall.exception.ThrowableAggregation
@@ -137,12 +137,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     backendName -> CromwellBackends.shadowBackendLifecycleFactory(backendName)
   } toMap) recover {
     case e => throw new RuntimeException("Could not instantiate backend factories", e)
-  } get
-
-  private val configs = TryUtil.sequenceMap(workflowDescriptor.backendAssignments.values.toSet[String] map { backendName =>
-    backendName -> BackendConfiguration.backendConfigurationDescriptor(backendName)
-  } toMap) recover {
-    case e => throw new RuntimeException("Could not instantiate backend configurations", e)
   } get
 
   // Initialize the StateData with ExecutionStore (all calls as NotStarted) and SymbolStore
@@ -323,7 +317,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   private def pushWorkflowOutputMetadata(data: WorkflowExecutionActorData) = {
     import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
-    import workflow._
     val keyValues = data.outputStore.store.filterKeys(_.index.isEmpty).flatMap {
       case (key, value) =>
         value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue)
@@ -411,19 +404,15 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         log.error(exception, s"$tag $message")
         throw exception
       case Some(backendName) =>
-        (configs.get(backendName), factories.get(backendName)) match {
-          case (Some(configDescriptor), Some(factory)) =>
+        factories.get(backendName) match {
+          case Some(factory) =>
             val jobPreparationActorName = s"${workflowDescriptor.id}-BackendPreparationActor-${jobKey.tag}"
-            val jobPreparationActor = context.actorOf(JobPreparationActor.props(data, jobKey, factory, configDescriptor), jobPreparationActorName)
+            val jobPreparationActor = context.actorOf(JobPreparationActor.props(data, jobKey, factory), jobPreparationActorName)
             pushNewJobMetadata(jobKey, backendName)
             jobPreparationActor ! JobPreparationActor.Start
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
-          case (c, f) =>
-            val noConf = if (c.isDefined) None else Option(new Exception(s"Could not get BackendConfigurationDescriptor for backend $backendName"))
-            val noFactory = if (f.isDefined) None else Option(new Exception(s"Could not get BackendLifecycleActor for backend $backendName"))
-            val errors = List(noConf, noFactory).flatten
-            errors foreach(error => log.error(error.getMessage, error))
-            throw new WorkflowExecutionException(errors)
+          case None =>
+            throw new WorkflowExecutionException(List(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
         }
     }
   }

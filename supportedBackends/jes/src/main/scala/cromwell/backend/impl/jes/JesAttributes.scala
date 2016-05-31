@@ -2,10 +2,10 @@ package cromwell.backend.impl.jes
 
 import java.net.URL
 
-import cromwell.backend.BackendConfigurationDescriptor
+import com.typesafe.config.Config
+import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
-import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
 import wdl4s.ThrowableWithErrors
@@ -45,8 +45,7 @@ object JesAttributes {
 
   private val context = "Jes"
 
-  def apply(googleConfig: GoogleConfiguration, configurationDescriptor: BackendConfigurationDescriptor): JesAttributes = {
-    val backendConfig = configurationDescriptor.backendConfig
+  def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
     backendConfig.warnNotRecognized(jesKeys, context)
 
     val project: ErrorOr[String] = backendConfig.validateString("project")

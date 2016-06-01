@@ -342,7 +342,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   @tailrec
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     val runnableScopes = data.executionStore.runnableScopes.toList
-    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { _.index.getOrElse(-1) } map { _.tag }
+    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
+      (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
     if (runnableCalls.nonEmpty) log.info(s"Starting calls: " + runnableCalls.mkString(", "))
 
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.

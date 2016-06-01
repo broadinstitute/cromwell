@@ -9,10 +9,10 @@ import scala.language.postfixOps
 
 class BadDockerName extends CromwellTestkitSpec {
   "A task which has a bad docker image name" should {
-    "fail properly" taggedAs DockerTest ignore {
+    "fail properly" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"transitioning from Running to Failed.", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"transition from ExecutingWorkflowState to WorkflowFailedState", occurrences = 1),
         runtime = """
                     |runtime {
                     |  docker: "/fauxbuntu:nosuchversion"

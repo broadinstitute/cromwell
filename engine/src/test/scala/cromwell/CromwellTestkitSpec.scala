@@ -11,11 +11,11 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
 import cromwell.core.WorkflowId
-import cromwell.core.retry.{SimpleExponentialBackoff, Retry}
+import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
+import cromwell.engine._
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
 import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowMetadataKeys}
-import cromwell.engine.{WorkflowOutputs, _}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataQuery, ServiceRegistryClient}
@@ -29,11 +29,11 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecL
 import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.types.{WdlMapType, WdlArrayType, WdlStringType}
+import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType}
 import wdl4s.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex

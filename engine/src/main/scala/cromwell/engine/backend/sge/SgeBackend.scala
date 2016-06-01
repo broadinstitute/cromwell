@@ -3,6 +3,8 @@ package cromwell.engine.backend.sge
 import java.nio.file.{FileSystem, Files, Path}
 
 import akka.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
+import com.typesafe.config.Config
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.core.WorkflowOptions
@@ -16,6 +18,7 @@ import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
+import lenthall.config.ScalaConfig._
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
@@ -27,8 +30,11 @@ import scala.util.{Failure, Success, Try}
 object SgeBackend {
   object InfoKeys {
     val JobNumber = "SGE_JOB_NUMBER"
+    val config = ConfigFactory.load
+    val QueueName = config.getStringOption("backend.sge.queue")
+    val ProjectName = config.getStringOption("backend.sge.project")
   }
-
+  
   implicit class SgeEnhancedJobDescriptor(val jobDescriptor: BackendCallJobDescriptor) extends AnyVal {
     def workflowRootPath = jobDescriptor.workflowDescriptor.workflowRootPath
     def stdout = jobDescriptor.callRootPath.resolve("stdout")
@@ -161,7 +167,9 @@ case class SgeBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
     val sgeJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
-    val argv = Seq("qsub", "-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, jobDescriptor.script.toAbsolutePath).map(_.toString)
+    val queueParam = InfoKeys.QueueName.map(Seq("-q", _)).getOrElse(Seq.empty[String])
+    val projectParam = InfoKeys.ProjectName.map(Seq("-P", _)).getOrElse(Seq.empty[String])
+    val argv = (Seq("qsub","-terse", "-N", sgeJobName, "-V", "-b", "n", "-wd", jobDescriptor.callRootPath.toAbsolutePath) ++ queueParam ++ projectParam ++ Seq("-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, jobDescriptor.script.toAbsolutePath)).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 

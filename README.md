@@ -498,10 +498,25 @@ echo $? > rc
 The job is launched using the following command:
 
 ```
-qsub -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
+qsub -q <queue_name> -P <project_name> -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
 ```
 
 `<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
+
+`<queue_name>` is an optional parameter; (e.g., `long`).
+
+`<project_name>` is an optional parameter; (e.g., `MyProjectName`). These optional parameters can be configured in the Cromwell configuration file as follows: 
+
+```hocon
+backend {
+ 
+  sge {
+    queue: "long"
+    project: "MyProjectName"
+  }
+}
+```
+
 
 the `<call_dir>` contains the following special files added by the SGE backend:
 

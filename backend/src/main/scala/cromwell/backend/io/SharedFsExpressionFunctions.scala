@@ -44,6 +44,7 @@ class SharedFsExpressionFunctions(override val fileSystems: List[FileSystem],
   import SharedFsExpressionFunctions._
   import better.files._
 
+  override def globPath(glob: String) = context.root.toAbsolutePath.toString
   override def glob(path: String, pattern: String): Seq[String] = {
     toPath(path).glob(s"**/$pattern") map { _.path.fullPath } toSeq
   }

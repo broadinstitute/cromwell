@@ -11,7 +11,7 @@ class GlobbingWorkflowSpec extends CromwellTestkitSpec {
   def doTheTest(runtime: String = "") = {
     val outputs = runWdl(
       sampleWdl = SampleWdl.GlobtasticWorkflow,
-      eventFilter = EventFilter.info(pattern = s"starting calls: w.B", occurrences = 1),
+      eventFilter = EventFilter.info(pattern = s"transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
       runtime = runtime
     )
 
@@ -26,7 +26,7 @@ class GlobbingWorkflowSpec extends CromwellTestkitSpec {
 
   val newline = System.lineSeparator
   "A workflow with globbed outputs" should {
-    "run properly" ignore doTheTest()
-    "run properly in a Docker environment" taggedAs DockerTest ignore doTheTest("""runtime { docker: "ubuntu:latest" }""")
+    "run properly" in doTheTest()
+    "run properly in a Docker environment" taggedAs DockerTest in doTheTest("""runtime { docker: "ubuntu:latest" }""")
   }
 }

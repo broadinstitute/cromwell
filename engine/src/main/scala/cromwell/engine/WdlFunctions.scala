@@ -36,5 +36,5 @@ class WdlFunctions(workflowOptions: WorkflowOptions) extends WdlStandardLibraryF
   override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
   override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
   override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError(s"Cromwell doesn't support write_* functions at the workflow level")
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_tsv")
 }

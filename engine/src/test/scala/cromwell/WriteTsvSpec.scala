@@ -2,11 +2,9 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
-import wdl4s.types.{WdlArrayType, WdlStringType, WdlFileType}
-import wdl4s.{WorkflowInput, NamespaceWithWorkflow}
-import wdl4s.values.{WdlArray, WdlInteger, WdlString}
-import cromwell.engine.backend.BackendType
 import cromwell.util.SampleWdl
+import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlString}
 
 import scala.language.postfixOps
 
@@ -20,17 +18,17 @@ class WriteTsvSpec extends CromwellTestkitSpec {
   )
 
   "A task that calls write_tsv() called in the command section or declaration" should {
-    "run properly" ignore {
+    "run properly" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteTsvWorkflow,
-        eventFilter = EventFilter.info(pattern = s"starting calls: write_lines.a2f", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"Starting calls: write_lines.a2f", occurrences = 1),
         expectedOutputs = outputs
       )
     }
-    "run properly in a Docker environment" taggedAs DockerTest ignore {
+    "run properly in a Docker environment" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteTsvWorkflow,
-        eventFilter = EventFilter.info(pattern = s"starting calls: write_lines.a2f", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"Starting calls: write_lines.a2f", occurrences = 1),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"

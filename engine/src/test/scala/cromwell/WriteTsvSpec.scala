@@ -21,14 +21,14 @@ class WriteTsvSpec extends CromwellTestkitSpec {
     "run properly" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteTsvWorkflow,
-        eventFilter = EventFilter.info(pattern = s"Starting calls: write_lines.a2f", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Starting calls: write_lines.a2f", occurrences = 1),
         expectedOutputs = outputs
       )
     }
     "run properly in a Docker environment" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WriteTsvWorkflow,
-        eventFilter = EventFilter.info(pattern = s"Starting calls: write_lines.a2f", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Starting calls: write_lines.a2f", occurrences = 1),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"

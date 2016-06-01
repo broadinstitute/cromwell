@@ -2,11 +2,10 @@ package cromwell
 
 import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
+import cromwell.util.SampleWdl
 import wdl4s.WdlNamespace
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlFile, WdlString}
-import cromwell.engine.backend.BackendType
-import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
@@ -18,17 +17,19 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec {
   )
 
   "A workflow with optional parameters" should {
-    "accept optional parameters" ignore {
+    "accept optional parameters" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.OptionalParamWorkflow,
-        eventFilter = EventFilter.info(pattern = s"starting calls: optional.hello, optional.hello2, optional.hello_person", occurrences = 1),
+        eventFilter = EventFilter.info(pattern =
+          "Starting calls: optional.hello:NA:1, optional.hello2:NA:1, optional.hello_person:NA:1", occurrences = 1),
         expectedOutputs = outputs
       )
     }
-    "accept optional parameters in a Docker environment" taggedAs DockerTest ignore {
+    "accept optional parameters in a Docker environment" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.OptionalParamWorkflow,
-        eventFilter = EventFilter.info(pattern = s"starting calls: optional.hello, optional.hello2, optional.hello_person", occurrences = 1),
+        eventFilter = EventFilter.info(pattern =
+          "Starting calls: optional.hello:NA:1, optional.hello2:NA:1, optional.hello_person:NA:1", occurrences = 1),
         runtime =
           """runtime {
             |  docker: "ubuntu:latest"
@@ -40,7 +41,7 @@ class OptionalParamWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow with an optional parameter that has a prefix inside the tag" should {
-    "not include that prefix if no value is specified" ignore {
+    "not include that prefix if no value is specified" in {
       val wf = """
          |task find {
          |  String? pattern

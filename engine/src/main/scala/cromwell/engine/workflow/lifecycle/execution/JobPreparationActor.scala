@@ -35,7 +35,8 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   override val workflowDescriptor: EngineWorkflowDescriptor = executionData.workflowDescriptor
   override val executionStore: ExecutionStore = executionData.executionStore
   override val outputStore: OutputStore = executionData.outputStore
-  override val expressionLanguageFunctions = executionData.expressionLanguageFunctions
+  override val expressionLanguageFunctions = factory.expressionLanguageFunctions(
+    workflowDescriptor.backendDescriptor, jobKey, configDescriptor)
 
   override def receive = {
     case Start =>

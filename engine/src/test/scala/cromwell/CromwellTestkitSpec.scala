@@ -486,7 +486,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   private def jsValueToWdlValue(jsValue: JsValue): WdlValue = {
     jsValue match {
       case str: JsString => WdlString(str.value)
-      case JsNumber(number) if number.isWhole => WdlInteger(number.intValue)
+      case JsNumber(number) if number.scale == 0 => WdlInteger(number.intValue)
       case JsNumber(number) => WdlFloat(number.doubleValue)
       case JsBoolean(bool) => WdlBoolean(bool)
       case array: JsArray =>

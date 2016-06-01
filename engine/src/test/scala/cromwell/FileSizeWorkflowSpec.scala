@@ -48,7 +48,7 @@ class FileSizeWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "size engine function" should {
-    "return the size of a file in bytes or convert it to the specified unit" ignore {
+    "return the size of a file in bytes or convert it to the specified unit" in {
       val outputs = Map(
         "wf.file_size.input_file_size" -> WdlFloat(17),
         "wf.file_size.created_file_size" -> WdlFloat(22),
@@ -71,7 +71,7 @@ class FileSizeWorkflowSpec extends CromwellTestkitSpec {
       )
       runWdlAndAssertOutputs(
         sampleWdl = FileSize,
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.file_size", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         expectedOutputs = outputs
       )
     }

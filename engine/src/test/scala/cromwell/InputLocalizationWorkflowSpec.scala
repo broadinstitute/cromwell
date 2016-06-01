@@ -2,9 +2,9 @@ package cromwell
 
 import akka.testkit.EventFilter
 import cromwell.CromwellSpec.DockerTest
-import wdl4s.types.{WdlFileType, WdlStringType, WdlArrayType}
-import wdl4s.values.{WdlArray, WdlFile, WdlString}
 import cromwell.util.SampleWdl
+import wdl4s.types.{WdlArrayType, WdlFileType}
+import wdl4s.values.{WdlArray, WdlFile, WdlString}
 
 
 class InputLocalizationWorkflowSpec extends CromwellTestkitSpec {
@@ -16,18 +16,18 @@ class InputLocalizationWorkflowSpec extends CromwellTestkitSpec {
       "wf.fromSameDirectory.ls" -> WdlString("2")
     )
 
-    "ensure task inputs isolation" ignore {
+    "ensure task inputs isolation" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.InputIsolationWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.echo_int", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         expectedOutputs = expectedOutputs
       )
     }
 
-    "ensure task inputs isolation in a docker container"  taggedAs DockerTest ignore {
+    "ensure task inputs isolation in a docker container" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.InputIsolationWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.echo_int", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = """
                     |runtime {
                     |  docker: "ubuntu:latest"

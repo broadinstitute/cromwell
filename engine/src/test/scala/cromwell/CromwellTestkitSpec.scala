@@ -23,13 +23,14 @@ import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.MetadataBuilderActor
 import cromwell.webservice.PerRequest.RequestComplete
+import org.scalactic.Equality
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
 import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType}
+import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType, _}
 import wdl4s.values._
 
 import scala.concurrent.duration._
@@ -258,6 +259,43 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
   implicit val ec = system.dispatcher
 
+  // Allow to use shouldEqual between 2 WdlTypes while acknowledging for edge cases
+  implicit val wdlTypeSoftEquality = new Equality[WdlType] {
+    override def areEqual(a: WdlType, b: Any): Boolean = (a, b) match {
+      case (WdlStringType | WdlFileType, WdlFileType | WdlStringType) => true
+      case (arr1: WdlArrayType, arr2: WdlArrayType) => areEqual(arr1.memberType, arr2.memberType)
+      case (map1: WdlMapType, map2: WdlMapType) => areEqual(map1.valueType, map2.valueType)
+      case _ => a == b
+    }
+  }
+
+  // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibilty
+  implicit val wdlEquality = new Equality[WdlValue] {
+    def fileEquality(f1: String, f2: String) = Paths.get(f1).getFileName == Paths.get(f2).getFileName
+
+    override def areEqual(a: WdlValue, b: Any): Boolean = {
+      val typeEquality = b match {
+        case v: WdlValue => wdlTypeSoftEquality.areEqual(a.wdlType, v.wdlType)
+        case _ => false
+      }
+
+      val valueEquality = (a, b) match {
+        case (_: WdlFile, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
+        case (_: WdlString, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
+        case (array: WdlArray, expectedArray: WdlArray) => array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).fold(true)(_ && _)
+        case (map: WdlMap, expectedMap: WdlMap) =>
+          val mapped = map.value.map {
+            case (k, v) => expectedMap.value.get(k).isDefined && areEqual(v, expectedMap.value(k))
+          }
+
+          mapped.fold(true)(_ && _)
+        case _ => a == b
+      }
+
+      typeEquality && valueEquality
+    }
+  }
+
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
     waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$") {
       block
@@ -307,20 +345,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     TestActorRef(new WorkflowManagerActor(config))
   }
 
-  // output received from the metadata service is untyped, so WdlValues are converted to strings
-  private def validateOutput(output: WdlValue, expectedOutput: WdlValue): Unit = expectedOutput match {
-    case expectedFile: WdlFile => Paths.get(output.valueString).getFileName shouldEqual Paths.get(expectedOutput.valueString).getFileName
-    case expectedArray: WdlArray if output.isInstanceOf[WdlArray] =>
-      val actualArray = output.asInstanceOf[WdlArray]
-      actualArray.value.size should be(expectedArray.value.size)
-      (actualArray.value zip expectedArray.value) foreach {
-        case (actual, expected) => validateOutput(actual, expected)
-      }
-    case _ =>
-      output.wdlType shouldEqual expectedOutput.wdlType
-      output.valueString shouldEqual expectedOutput.valueString
-  }
-
   def runWdl(sampleWdl: SampleWdl,
              eventFilter: EventFilter,
              runtime: String = "",
@@ -367,12 +391,12 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
 
           expectedOutputs foreach { case (outputFqn, expectedValue) =>
             val actualValue = outputs.getOrElse(outputFqn, throw new OutputNotFoundException(outputFqn, actualOutputNames))
-            if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+            if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
           }
           if (!allowOtherOutputs) {
             outputs foreach { case (actualFqn, actualValue) =>
               val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
-              if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+              if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
             }
           }
           workflowId

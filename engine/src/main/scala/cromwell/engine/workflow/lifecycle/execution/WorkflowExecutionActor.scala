@@ -299,7 +299,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   private def pushWorkflowOutputMetadata(data: WorkflowExecutionActorData) = {
     import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
     import workflow._
-    val keyValues = data.outputStore.store.flatMap {
+    val keyValues = data.outputStore.store.filterKeys(_.index.isEmpty).flatMap {
       case (key, value) =>
         value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue)
     }.collect {

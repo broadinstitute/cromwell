@@ -24,6 +24,7 @@ object LocalBackendSpec {
     override val rawInputs =  Map.empty[String, String]
   }
 }
+
 class LocalBackendSpec extends CromwellTestkitSpec {
   import LocalBackendSpec._
 
@@ -35,7 +36,7 @@ class LocalBackendSpec extends CromwellTestkitSpec {
         sampleWdl = StdoutWdl,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         runtime = "runtime {failOnStderr: true}",
-        terminalState = WorkflowSucceeded )
+        terminalState = WorkflowSucceeded)
     }
 
     "not allow stderr if failOnStderr is set" in {

@@ -52,7 +52,7 @@ class LocalBackendSpec extends CromwellTestkitSpec {
         sampleWdl = StdoutWdl,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         runtime = "runtime {failOnStderr: false}",
-        terminalState = WorkflowSucceeded )
+        terminalState = WorkflowSucceeded)
     }
 
     "allow stderr if failOnStderr is not set" in {
@@ -60,7 +60,7 @@ class LocalBackendSpec extends CromwellTestkitSpec {
         sampleWdl = StderrWdl,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         runtime = "runtime {failOnStderr: false}",
-        terminalState = WorkflowSucceeded )
+        terminalState = WorkflowSucceeded)
     }
   }
 }

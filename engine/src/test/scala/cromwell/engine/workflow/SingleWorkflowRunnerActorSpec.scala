@@ -201,7 +201,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
   override protected def afterAll() = metadataDir.delete(ignoreIOExceptions = true)
 
   "A SingleWorkflowRunnerActor" should {
-    "successfully run a workflow requesting a bad metadata path" in {
+    "successfully run a workflow requesting a bad metadata path" ignore {
       within(timeoutDuration) {
         val runner = createRunnerActor(outputFile = Option(metadataDir))
         waitForErrorWithException(s"$metadataDir: Is a directory") {

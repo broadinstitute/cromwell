@@ -1,6 +1,7 @@
 package cromwell.engine.backend.pbs
 
 import java.nio.file.{FileSystem, Files, Path}
+import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.ActorSystem
 import better.files._
@@ -113,32 +114,40 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful(())
 
   /**
-   * Returns the RC of this job when it finishes.  Sleeps and polls until the 'rc' file is
-   * generated and stdout, stderr files exist in their specified locations: a feature/quirk
-   * of PBS is that it creates output stream files in /var/spool/PBS/spool/... and only after
-   * execution completes are they are copied to the locations specified by -o/-e.
+   * Returns the RC of this job when it finishes.  Sleeps and polls until the the PBS job is done
+   * and 'rc' file exists.
+   * We choose to wait on completion of PBS job rather than file creation because there are cases
+   * where rc file will never get created: a syntax error in user's qsub script, or job is killed
+   * by the scheduler for exceeding walltime, etc.
+   * Note that a feature/quirk of PBS is that it creates output stream files in /var/spool/PBS/spool/... 
+   * and only -after- execution is finished/completed are they are copied to the locations specified
+   * by -o/-e. I believe however that job_state remains at E (exiting) while the files are being
+   * copied and only reaches F (PBSPro) or C (Torque) once everything is done.
    */
   private def waitUntilComplete(jobDescriptor: BackendCallJobDescriptor, pbsJobId: Int): Int = {
     val logger = jobLogger(jobDescriptor)
     @tailrec
-    def recursiveWait(): Int = (Seq(jobDescriptor.returnCode, jobDescriptor.stdout, jobDescriptor.stderr).forall(Files.exists(_)), jobDone(pbsJobId)) match {
-      case (true, _) => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
-      case (false, false) =>
-        logger.info(s"Output files do not exist yet and PBS job $pbsJobId is not done; waiting...")
-        Thread.sleep(5000)
+    def recursiveWait(): Int = jobDone(pbsJobId) match {
+      case true => Files.exists(jobDescriptor.returnCode) match {
+        case true => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
+        case false => 
+          logger.error(s"PBS job $pbsJobId is done and rc file does not exist")
+          jobDescriptor.returnCode.clear().appendLine("69")
+          69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files not all created.
+      }
+      case false =>
+        logger.info(s"PBS job $pbsJobId not done yet; waiting...")
+        // random interval to spread out the system calls to qstat from all threads 
+        Thread.sleep(5000 + ThreadLocalRandom.current().nextInt(0, 5001))
         recursiveWait()
-      case (false, true) =>
-        logger.error(s"Output files do not exist and PBS job $pbsJobId is done")
-         jobDescriptor.returnCode.clear().appendLine("69")
-         69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files not all created.
     }
     recursiveWait()
   }
   
   /**
    * Returns true if the PBS job is finished/completed; used to catch the case where job has been
-   * killed or otherwise expired without creating rc file - e.g. if walltime was exceeded, or there
-   * is a shell syntax error in user's command. 
+   * killed or otherwise expired without creating rc file - e.g. early on if there is a syntax
+   * error in user's command or later if walltime was exceeded, etc. 
    */
   private def jobDone(pbsJobId: Int): Boolean =
     if (installationIsPBSPro) {

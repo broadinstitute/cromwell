@@ -317,14 +317,14 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
              runtime: String = "",
              workflowOptions: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
-             config: Config = DefaultConfig)(implicit ec: ExecutionContext): WorkflowOutputs = {
+             config: Config = DefaultConfig)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val wma = buildWorkflowManagerActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, terminalState)
-        wma.workflowOutputs(workflowId)
+        getWorkflowOutputsFromMetadata(workflowId)
       }
     }
   }

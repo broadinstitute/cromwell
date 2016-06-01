@@ -381,10 +381,10 @@ class WorkflowManagerActor(isServerMode: Boolean, config: Config = WorkflowManag
   private def restartIncompleteWorkflows(): Unit = {
     def logRestarts(restartableWorkflows: Traversable[WorkflowDescriptor]): Unit = {
       val num = restartableWorkflows.size
-      val displayNum = if (num == 0) "No" else num.toString
+      val displayNum = if (num == 0) "no" else num.toString
       val plural = if (num == 1) "" else "s"
 
-      logger.info(s"$tag: $displayNum workflow$plural to restart.")
+      logger.info(s"$tag found $displayNum workflow$plural to restart.")
 
       if (num > 0) {
         val ids = restartableWorkflows.map { _.id.toString }.toSeq.sorted

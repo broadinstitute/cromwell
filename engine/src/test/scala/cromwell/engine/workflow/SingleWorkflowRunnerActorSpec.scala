@@ -220,7 +220,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
 
 class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
-    "successfully terminate the system on an exception" in {
+    "successfully terminate the system on an exception" ignore {
       within(timeoutDuration) {
         val runner = createRunnerActor()
         val futureResult = runner ? RunWorkflow

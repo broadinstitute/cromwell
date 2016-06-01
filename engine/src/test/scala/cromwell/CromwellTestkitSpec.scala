@@ -1,6 +1,6 @@
 package cromwell
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
@@ -11,6 +11,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
 import cromwell.core.WorkflowId
+import cromwell.core.retry.{SimpleExponentialBackoff, Retry}
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
 import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowMetadataKeys}
@@ -28,11 +29,11 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecL
 import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.types.{WdlMapType, WdlArrayType, WdlStringType, WdlType}
+import wdl4s.types.{WdlMapType, WdlArrayType, WdlStringType}
 import wdl4s.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
@@ -55,6 +56,8 @@ case class TestBackendLifecycleActorFactory(config: Config) extends BackendLifec
     NoFunctions
   }
 }
+
+case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
 
 object CromwellTestkitSpec {
   val ConfigText =
@@ -341,25 +344,40 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                             (implicit ec: ExecutionContext): WorkflowId = {
     val workflowManager = workflowManagerActor.getOrElse(buildWorkflowManagerActor(config))
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
+    val maxRetries = 3
+    def isFatal(e: Throwable) = e match {
+      case _: OutputNotFoundException => false
+      case _ => true
+    }
     eventFilter.intercept {
       within(timeoutDuration) {
         val workflowId = workflowManager.submit(sources)
         verifyWorkflowState(workflowManager, workflowId, terminalState)
-        val outputs = getWorkflowOutputsFromMetadata(workflowId)
-        val actualOutputNames = outputs.keys mkString ", "
-        val expectedOutputNames = expectedOutputs.keys mkString " "
 
-        expectedOutputs foreach { case (outputFqn, expectedValue) =>
-          val actualValue = outputs.getOrElse(outputFqn, throw new RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputNames'"))
-          if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
-        }
-        if (!allowOtherOutputs) {
-          outputs foreach { case (actualFqn, actualValue) =>
-            val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
+        def checkOutputs() = Future {
+          val outputs = getWorkflowOutputsFromMetadata(workflowId)
+          val actualOutputNames = outputs.keys mkString ", "
+          val expectedOutputNames = expectedOutputs.keys mkString " "
+
+          expectedOutputs foreach { case (outputFqn, expectedValue) =>
+            val actualValue = outputs.getOrElse(outputFqn, throw new OutputNotFoundException(outputFqn, actualOutputNames))
             if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
           }
+          if (!allowOtherOutputs) {
+            outputs foreach { case (actualFqn, actualValue) =>
+              val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
+              if (expectedValue != AnyValueIsFine) validateOutput(actualValue, expectedValue)
+            }
+          }
+          workflowId
         }
-        workflowId
+
+        // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
+        Await.result(Retry.withRetry(
+          checkOutputs,
+          maxRetries = Some(maxRetries),
+          isFatal = isFatal,
+          backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), timeoutDuration)
       }
     }
   }

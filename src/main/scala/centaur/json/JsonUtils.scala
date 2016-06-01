@@ -27,7 +27,7 @@ object JsonUtils {
       * scatters are flattened themselves with the scatter index being inserted into the flattened key name.
       */
     def flatten(prefix: String = ""): JsObject = jsValue.asJsObject.fields.foldLeft(JsObject.empty) {
-      case (acc, (k, v: JsArray)) if v.isSingleCallArray => acc ++ JsObject(k -> v.elements.head).flatten()
+      case (acc, (k, v: JsArray)) if v.isSingleCallArray => acc ++ JsObject(k -> v.elements.head).flatten(prefix)
       case (acc, (k, v: JsArray)) if v.hasShardIndex =>
         // The .get on the shardIndex is safe as we know all elements of the array have a shardIndex field
         acc ++ v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${y.shardIndex.get}") }

@@ -9,8 +9,8 @@ files {
 metadata {
   workflowName: hello
   status: Succeeded
-  "hello.hello.executionStatus": Done
+  "calls.hello.hello.executionStatus": Done
+  "calls.hello.hello.runtimeAttributes.docker": "ubuntu:latest"
   "outputs.hello.hello.salutation": "Hello m'Lord!"
-  "hello.hello.runtimeAttributes.docker": "ubuntu:latest"
   "inputs.hello.hello.addressee": "m'Lord"
 }

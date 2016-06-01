@@ -4,5 +4,13 @@ testFormat: workflowsuccess
 files {
   wdl: threestep/threestep.wdl
   inputs: threestep/threestep.inputs
-  metadata: threestep/threestep.metadata
+}
+
+metadata {
+  workflowName: three_step
+  "calls.three_step.wc.shardIndex": -1
+  "calls.three_step.wc.outputs.count": 3
+  "calls.three_step.cgrep.outputs.count": 0
+  "inputs.three_step.cgrep.pattern": v
+  "outputs.three_step.wc.count": 3
 }

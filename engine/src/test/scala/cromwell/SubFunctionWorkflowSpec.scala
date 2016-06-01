@@ -16,10 +16,12 @@ class SubFunctionWorkflowSpec extends CromwellTestkitSpec {
         |  String myBamString = "myfilename.bam"
         |  File myBamFile
         |  String swappedStr = sub(myBamString, ".bam$", ".txt")
-        |  String swappedFile = sub(myBamFile, ".bam$", ".txt")
+        |  # at this point myBamFile is not localized so path must be removed
+        |  String swappedFile = sub(sub(myBamFile,"/.*/",""), ".bam$", ".txt")
         |
         |  command {
-        |    echo ${sub(myBamFile, ".bam$", ".txt")}
+        |    echo ${sub(myBamString, ".bam$", ".txt")}
+        |    touch ${swappedFile}
         |  }
         |
         |  output {
@@ -39,21 +41,22 @@ class SubFunctionWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "sub engine function" should {
-    "apply a regex to a string-like WdlValue" ignore {
+    "apply a regex to a string-like WdlValue" in {
       val outputs = Map(
         "wf.sub.o" -> WdlArray(WdlArrayType(WdlFileType), Seq(
-          WdlFile(SubEngineFunction.tempDir.resolve("myfilename.txt").toString),
-          WdlFile(SubEngineFunction.tempDir.resolve("myfilename.txt").toString)
+          WdlFile("myfilename.txt"),
+          WdlFile("myfilename.txt")
         )),
         "wf.sub.o2" -> WdlString("myfilename.txt")
       )
 
       runWdlAndAssertOutputs(
         sampleWdl = SubEngineFunction,
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.sub", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Starting calls: wf.sub", occurrences = 1),
         expectedOutputs = outputs
       )
     }
   }
 
 }
+

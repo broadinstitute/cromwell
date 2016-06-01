@@ -307,6 +307,12 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   // output received from the metadata service is untyped, so WdlValues are converted to strings
   private def validateOutput(output: WdlValue, expectedOutput: WdlValue): Unit = expectedOutput match {
     case expectedFile: WdlFile => Paths.get(output.valueString).getFileName shouldEqual Paths.get(expectedOutput.valueString).getFileName
+    case expectedArray: WdlArray if output.isInstanceOf[WdlArray] =>
+      val actualArray = output.asInstanceOf[WdlArray]
+      actualArray.value.size should be(expectedArray.value.size)
+      (actualArray.value zip expectedArray.value) foreach {
+        case (actual, expected) => validateOutput(actual, expected)
+      }
     case _ =>
       output.wdlType shouldEqual expectedOutput.wdlType
       output.valueString shouldEqual expectedOutput.valueString

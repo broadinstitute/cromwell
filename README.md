@@ -11,6 +11,19 @@ There are two ways to invoke the intergration tests:
 * `sbt test` - compiles and run via sbt directly, simple but also has the problem of running 2*cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
 * `run_tests_parallel.sh [THREADS]` - runs the same tests with an enforced parallelism limit.  Defaults to `3` if not specified
 
+## Tags
+
+All tests are tagged with their name and their TESTFORMAT, and also any custom tags specified in the `.test` file.
+To run only those tests which have been tagged with a specified tag `tagFoo`:
+```
+sbt "test-only * -- -n tagFoo"
+```
+
+Or to instead exclude all tests which have been tagged with a specified tag `tagFoo`:
+```
+sbt "test-only * -- -l tagFoo"
+```
+
 # Adding custom tests
 
 You can add your own tests to the test suite by adding `-Dcentaur.optionalTestPath=DIR` on your sbt invocation, 
@@ -20,6 +33,7 @@ which contains one or more test case files. Each test case file is a HOCON file 
 name: NAME
 testFormat: TESTFORMAT
 basePath: /an/optional/field
+tags: [ "any", "custom", "tags" ]
 
 files {
   wdl: path/to/wdl
@@ -32,6 +46,8 @@ metadata {
   fully.qualified.key.name2: VALUE2
 }
 ```
+
+The tags are optional. If supplied they will allow people to turn on or off this test case by including or excluding tags when running (see above).
 
 The `basePath` field is optional, but if supplied all paths will be resolved from that directory. If it is not supplied, all paths will be resolved from the directory the test case file is in.
 

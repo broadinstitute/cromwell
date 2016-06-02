@@ -14,7 +14,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.util.{Failure, Success, Try}
 
-case class StandardTestCase(workflow: Workflow, testFormat: StandardTestFormat) {
+case class StandardTestCase(workflow: Workflow, testFormat: StandardTestFormat, tagStrings: List[String]) {
   def testFunction = this.testFormat match {
     case WorkflowSuccessTest => successfulTestFunction
     case WorkflowFailureTest => TestFormulas.runFailingWorkflow _
@@ -37,6 +37,7 @@ object StandardTestCase {
   def fromConfig(conf: Config, configPath: Path): ErrorOr[StandardTestCase] = {
     val workflow = Workflow.fromConfig(conf, configPath)
     val format = StandardTestFormat.fromConfig(conf)
-    Apply[ErrorOr].map2(workflow, format)((w, f) => StandardTestCase(w, f))
+    val tags = TagsStrings.fromConfig(conf)
+    Apply[ErrorOr].map3(workflow, format, tags)((w, f, t) => StandardTestCase(w, f, t))
   }
 }

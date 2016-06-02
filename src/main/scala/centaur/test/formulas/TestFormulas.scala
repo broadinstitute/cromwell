@@ -22,7 +22,6 @@ object TestFormulas {
 
   def runSuccessfulWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Succeeded)
   def runFailingWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Failed)
-  def runSubmissionFailureWorkflow(workflow: Workflow): Test[String] = submitWorkflowExpectingRejection(workflow)
 
   def runSuccessfulWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = {
     // FIXME: This is horrible, but I want to get the issue closed, will come back and make this more type safe

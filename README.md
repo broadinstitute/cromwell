@@ -37,8 +37,7 @@ The `basePath` field is optional, but if supplied all paths will be resolved fro
 
 The `testFormat` field can be one of the following, case insensitive:
 * `workflowsuccess`: The workflow being supplied is expected to successfully complete
-* `workflowfailure`: The workflow being supplied is expected to fail 
-* `submissionfailure`: The workflow being supplied is expected to fail on workflow submission
+* `workflowfailure`: The workflow being supplied is expected to fail
 
 The `metadata` is optional. If supplied, Centaur will retrieve the metadata from the successfully completed workflow and compare the values retrieved to those supplied. At the moment the only fields supported are strings, numbers and booleans.
 

@@ -12,7 +12,7 @@ import centaur.test.workflow.Workflow
 import scala.language.postfixOps
 import org.scalatest._
 
-class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecution{
+class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecution {
   def testCases(basePath: Path): List[StandardTestCase] = {
     // IntelliJ will give some red squiggles in the following block. It lies.
     basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath } traverse StandardTestCase.fromPath match {

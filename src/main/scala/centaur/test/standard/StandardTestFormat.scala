@@ -1,24 +1,23 @@
 package centaur.test.standard
 
 import cats.data.Validated.{Valid, _}
-import centaur.test.standard.StandardTestFormat.{SubmissionFailureTest, WorkflowFailureTest, WorkflowSuccessTest}
+import centaur.test.standard.StandardTestFormat.{WorkflowFailureTest, WorkflowSuccessTest}
 import centaur.test.ErrorOr
 import com.typesafe.config.Config
 import configs.Result.{Failure, Success}
 import configs.syntax._
 
-sealed abstract class StandardTestFormat {
+sealed abstract class StandardTestFormat(val name: String) {
   def testSpecString = this match {
     case WorkflowSuccessTest => "successfully run"
     case WorkflowFailureTest => "fail during execution"
-    case SubmissionFailureTest => "fail to submit"
   }
 }
 
 object StandardTestFormat {
-  case object WorkflowSuccessTest extends StandardTestFormat
-  case object WorkflowFailureTest extends StandardTestFormat
-  case object SubmissionFailureTest extends StandardTestFormat
+
+  case object WorkflowSuccessTest extends StandardTestFormat("WorkflowSuccess")
+  case object WorkflowFailureTest extends StandardTestFormat("WorkflowFailure")
 
   def fromConfig(conf: Config): ErrorOr[StandardTestFormat] = {
     conf.get[String]("testFormat") match {
@@ -28,11 +27,9 @@ object StandardTestFormat {
   }
 
   def fromString(testFormat: String): ErrorOr[StandardTestFormat] = {
-    testFormat.toLowerCase match {
-      case "workflowsuccess" => Valid(WorkflowSuccessTest)
-      case "workflowfailure" => Valid(WorkflowFailureTest)
-      case "submissionfailure" => Valid(SubmissionFailureTest)
-      case bad => invalidNel(s"No such test format: $bad")
-    }
+    val formats = List(WorkflowSuccessTest, WorkflowFailureTest)
+    formats collectFirst {
+      case format if format.name.equalsIgnoreCase(testFormat) => Valid(format)
+    } getOrElse invalidNel(s"No such test format: $testFormat")
   }
 }

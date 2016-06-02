@@ -1598,7 +1598,8 @@ Query data is refreshed from raw data periodically according to the configuratio
 If not specified the refresh interval will default to 2 seconds.  
 
 Cromwell can also be configured to ignore particularly old raw data via the configuration value `services.MetadataService.metadata-summary-timestamp-minimum`.
-This prevents Cromwell from attempting to scan and summarize data that has already been added to its internal summary table.
+This prevents Cromwell from attempting to scan and summarize data that has already been added to its internal summary table.  This setting is optional, if
+not specified Cromwell will scan all raw data for summary refresh on startup.
 
 ```
 services {

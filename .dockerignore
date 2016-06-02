@@ -1,1 +1,9 @@
-.gitignore
+.idea
+log
+target
+.artifactory
+cromwell-executions
+cromwell-test-executions
+cromwell-workflow-logs
+cromwell-test-workflow-logs
+native

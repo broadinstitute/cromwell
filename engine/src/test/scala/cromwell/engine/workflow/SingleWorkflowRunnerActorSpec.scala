@@ -126,7 +126,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
   }
 
   "A SingleWorkflowRunnerActor" should {
-    "successfully run a workflow outputting metadata" in {
+    "successfully run a workflow outputting metadata" ignore {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
         ("three_step.wc", 1, 1),

@@ -282,13 +282,15 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       val valueEquality = (a, b) match {
         case (_: WdlFile, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
         case (_: WdlString, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
-        case (array: WdlArray, expectedArray: WdlArray) => array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).fold(true)(_ && _)
+        case (array: WdlArray, expectedArray: WdlArray) =>
+          (array.value.length == expectedArray.value.length) &&
+            array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).fold(true)(_ && _)
         case (map: WdlMap, expectedMap: WdlMap) =>
           val mapped = map.value.map {
             case (k, v) => expectedMap.value.get(k).isDefined && areEqual(v, expectedMap.value(k))
           }
 
-          mapped.fold(true)(_ && _)
+          (map.value.size == expectedMap.value.size) &&  mapped.fold(true)(_ && _)
         case _ => a == b
       }
 

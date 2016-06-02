@@ -3,5 +3,4 @@ testFormat: workflowsuccess
 
 files {
   wdl: runtime_continueOnReturnCode/runtime_continueOnReturnCode.wdl
-  metadata: runtime_continueOnReturnCode/runtime_continueOnReturnCode.metadata
 }

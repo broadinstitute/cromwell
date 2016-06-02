@@ -4,5 +4,4 @@ testFormat: workflowsuccess
 files {
   wdl: filepassing/filepassing.wdl
   inputs: filepassing/filepassing.inputs
-  metadata: filepassing/filepassing.metadata
 }

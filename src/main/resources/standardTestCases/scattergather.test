@@ -3,5 +3,4 @@ testFormat: workflowsuccess
 
 files {
   wdl: scattergather/scattergather.wdl
-  metadata: scattergather/scattergather.metadata
 }

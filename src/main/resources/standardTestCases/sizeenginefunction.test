@@ -3,5 +3,4 @@ testFormat: workflowsuccess
 
 files {
   wdl: sizeenginefunction/sizeenginefunction.wdl
-  metadata: sizeenginefunction/sizeenginefunction.metadata
 }

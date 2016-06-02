@@ -4,5 +4,4 @@ testFormat: workflowsuccess
 files {
   wdl: composedenginefunctions/composedenginefunctions.wdl
   inputs: composedenginefunctions/composedenginefunctions.inputs
-  metadata: composedenginefunctions/composedenginefunctions.metadata
 }

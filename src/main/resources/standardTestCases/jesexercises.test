@@ -4,5 +4,4 @@ testFormat: workflowsuccess
 files {
   wdl: jesexercises/jesexercises.wdl
   inputs: jesexercises/jesexercises.inputs
-  metadata: jesexercises/jesexercises.metadata
 }

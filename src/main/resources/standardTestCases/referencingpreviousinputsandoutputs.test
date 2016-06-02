@@ -3,5 +3,4 @@ testFormat: workflowsuccess
 
 files {
   wdl: referencingpreviousinputsandoutputs/referencingpreviousinputsandoutputs.wdl
-  metadata: referencingpreviousinputsandoutputs/referencingpreviousinputsandoutputs.metadata
 }

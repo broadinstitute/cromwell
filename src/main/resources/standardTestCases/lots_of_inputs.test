@@ -4,5 +4,4 @@ testFormat: workflowsuccess
 files {
   wdl: lots_of_inputs/lots_of_inputs.wdl
   inputs: lots_of_inputs/lots_of_inputs.inputs
-  metadata: lots_of_inputs/lots_of_inputs.metadata
 }

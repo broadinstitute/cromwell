@@ -8,10 +8,10 @@ import better.files._
 import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.engine
 import cromwell.engine._
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowMetadata
-import cromwell.engine.workflow.WorkflowManagerActor.SubmitWorkflowCommand
 import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor._
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
+import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{WorkflowMetadata, _}
+import cromwell.engine.workflow.WorkflowActor.WorkflowSucceededState
+import cromwell.engine.workflow.WorkflowManagerActor.{SubmitWorkflowCommand, SubscribeToWorkflowCommand}
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.{WdlValueJsonFormatter, WorkflowMetadataResponse}
 import spray.json._
@@ -75,7 +75,7 @@ case class OldStyleSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
 
   when (NotStarted) {
     case Event(RunWorkflow, data) =>
-      log.info(s"$tag: launching workflow")
+      log.info(s"$tag: Launching workflow")
       val submitMessage = SubmitWorkflowCommand(source)
       workflowManager ! submitMessage
       goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
@@ -83,10 +83,10 @@ case class OldStyleSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
 
   when (RunningWorkflow) {
     case Event(WorkflowManagerSubmitSuccess(id), data) =>
-      log.info(s"$tag: workflow ID UUID($id)")
-      workflowManager ! SubscribeToWorkflow(id)
+      log.info(s"$tag: Workflow submitted UUID($id)")
+      workflowManager ! SubscribeToWorkflowCommand(id)
       stay() using data.copy(id = Option(id))
-    case Event(Transition(_, _, WorkflowSucceeded), data) =>
+    case Event(Transition(_, _, WorkflowSucceededState), data) =>
       workflowManager ! WorkflowOutputs(data.id.get)
       goto(RequestingOutputs) using data.copy(terminalState = Option(WorkflowSucceeded))
     case Event(Transition(_, _, WorkflowFailed), data) =>
@@ -102,7 +102,7 @@ case class OldStyleSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
       outputOutputs(outputs)
       if (metadataOutputPath.isDefined) requestMetadata else issueReply
   }
-  
+
   when (RequestingMetadata) {
     case Event(r: WorkflowManagerWorkflowMetadataSuccess, data) =>
       val updatedData = outputMetadata(r.response) match {

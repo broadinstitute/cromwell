@@ -19,7 +19,7 @@ case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJo
   }
   override def recover = execute
 
-  override def abortJob: Unit = ()
+  override def abort: Unit = ()
 }
 
 class DefaultBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {

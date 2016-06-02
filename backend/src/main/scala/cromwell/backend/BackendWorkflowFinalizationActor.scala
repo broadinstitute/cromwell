@@ -2,8 +2,8 @@ package cromwell.backend
 
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
-import cromwell.backend.BackendWorkflowFinalizationActor._
 import cromwell.backend.BackendLifecycleActor._
+import cromwell.backend.BackendWorkflowFinalizationActor._
 
 import scala.concurrent.Future
 
@@ -13,7 +13,7 @@ object BackendWorkflowFinalizationActor {
   sealed trait BackendWorkflowFinalizationActorCommand extends BackendWorkflowLifecycleActorCommand
 
   case object Finalize extends BackendWorkflowFinalizationActorCommand
-  final case class Abort(jobKey: BackendJobDescriptorKey) extends BackendWorkflowFinalizationActorCommand
+  case object Abort extends BackendWorkflowFinalizationActorCommand
 
   // Responses
   sealed trait WorkflowBackendFinalizationActorResponse extends BackendWorkflowLifecycleActorResponse
@@ -30,7 +30,7 @@ trait BackendWorkflowFinalizationActor extends BackendWorkflowLifecycleActor wit
 
   def receive: Receive = LoggingReceive {
     case Finalize => performActionThenRespond(afterAll, onFailure = FinalizationFailed)
-    case AbortWorkflowCommand => abortFinalization
+    case Abort => abortFinalization
   }
 
   /**

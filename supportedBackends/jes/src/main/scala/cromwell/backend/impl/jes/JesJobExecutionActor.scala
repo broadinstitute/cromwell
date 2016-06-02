@@ -1,14 +1,15 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
+import akka.event.LoggingReceive
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
+import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
-
 
 object JesJobExecutionActor {
   val logger = LoggerFactory.getLogger("JesBackend")
@@ -22,6 +23,17 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
                                 override val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendJobExecutionActor {
 
+  override def receive: Receive = LoggingReceive {
+    case AbortJobCommand =>
+      executor.foreach(_ ! AbortJobCommand)
+    case abortResponse: AbortedResponse =>
+      context.parent ! abortResponse
+      context.stop(self)
+
+    // PBE TODO: use PartialFunction.orElse instead of this catch-all case, because Akka might use isDefinedAt over this partial function
+    case message => super.receive(message)
+  }
+
   // PBE keep a reference to be able to hand to a successor executor if the failure is recoverable, or to complete as a
   // failure if the failure is not recoverable.
   private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
@@ -31,14 +43,8 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   // PBE there should be some consideration of supervision here.
 
-  /**
-    * Restart or resume a previously-started job.
-    */
   override def recover: Future[BackendJobExecutionResponse] = ???
 
-  /**
-    * Execute a new job.
-    */
   override def execute: Future[BackendJobExecutionResponse] = {
     val executorRef = context.actorOf(JesAsyncBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor, completionPromise))
     executor = Option(executorRef)
@@ -46,8 +52,5 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     completionPromise.future
   }
 
-  /**
-    * Abort a running job.
-    */
-  override def abortJob: Unit = ???
+  override def abort: Unit = {}
 }

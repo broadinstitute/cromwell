@@ -144,7 +144,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   /**
     * Abort a running job.
     */
-  override def abortJob(): Unit = Future.failed(new UnsupportedOperationException("HtCondorBackend currently doesn't support aborting jobs."))
+  override def abort(): Unit = Future.failed(new UnsupportedOperationException("HtCondorBackend currently doesn't support aborting jobs."))
 
   override def preStart(): Unit = {
     log.debug("{} Creating execution folder: {}", tag, executionDir)

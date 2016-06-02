@@ -128,17 +128,6 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
     }
   }
 
-  def checkStatus(jobDescriptor: BackendJobDescriptor, previousStatus: Option[RunStatus]): RunStatus = {
-    val currentStatus = status()
-
-    if (!(previousStatus contains currentStatus)) {
-      // DONE: PBE: Moved state transition logging and "db" writes to our actor.
-      // Only thing "left" here via another ticket is:
-      // PBE deleted abort function registration
-    }
-    currentStatus
-  }
-
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
     genomicsInterface.operations().cancel(runId, cancellationRequest).execute

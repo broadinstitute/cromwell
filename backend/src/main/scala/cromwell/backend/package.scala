@@ -44,7 +44,9 @@ package object backend {
   case class BackendWorkflowDescriptor(id: WorkflowId,
                                        workflowNamespace: NamespaceWithWorkflow,
                                        inputs: Map[FullyQualifiedName, WdlValue],
-                                       workflowOptions: WorkflowOptions)
+                                       workflowOptions: WorkflowOptions) {
+    override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflowNamespace.workflow.unqualifiedName}]"
+  }
 
   /**
     * For passing to a BackendActor construction time

@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
+import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, JobKey}
 import cromwell.core.{WorkflowId, _}
 import cromwell.engine.ExecutionIndex._
@@ -15,6 +16,8 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.Workf
 import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, workflow}
 import cromwell.services._
 import cromwell.services.MetadataServiceActor._
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
 import wdl4s.util.TryUtil
@@ -34,6 +37,7 @@ object WorkflowExecutionActor {
 
   case object WorkflowExecutionPendingState extends WorkflowExecutionActorState
   case object WorkflowExecutionInProgressState extends WorkflowExecutionActorState
+  case object WorkflowExecutionAbortingState extends WorkflowExecutionActorState
   case object WorkflowExecutionSuccessfulState extends WorkflowExecutionActorTerminalState
   case object WorkflowExecutionFailedState extends WorkflowExecutionActorTerminalState
   case object WorkflowExecutionAbortedState extends WorkflowExecutionActorTerminalState
@@ -44,14 +48,13 @@ object WorkflowExecutionActor {
   sealed trait WorkflowExecutionActorCommand
   case object StartExecutingWorkflowCommand extends WorkflowExecutionActorCommand
   case object RestartExecutingWorkflowCommand extends WorkflowExecutionActorCommand
-  case object AbortExecutingWorkflowCommand extends WorkflowExecutionActorCommand
 
   /**
     * Responses
     */
   sealed trait WorkflowExecutionActorResponse
   case object WorkflowExecutionSucceededResponse extends WorkflowExecutionActorResponse
-  case object WorkflowExecutionAbortedResponse extends WorkflowExecutionActorResponse
+  case object WorkflowExecutionAbortedResponse extends WorkflowExecutionActorResponse with EngineLifecycleActorAbortedResponse
   final case class WorkflowExecutionFailedResponse(reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse
 
   /**
@@ -117,18 +120,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
 
-  val tag = self.path.name
+  val tag = s"WorkflowExecutionActor [UUID(${workflowId.shortString})]"
   private lazy val DefaultMaxRetriesFallbackValue = 10
 
   implicit val actorSystem = context.system
   implicit val ec = context.dispatcher
 
-  // TODO: We should probably create a trait which loads all the configuration (once per application), and let classes mix it in
-  // to avoid doing ConfigFactory.load() at multiple places
   val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {
     case Some(value) => value
     case None =>
-      log.warning(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of `$DefaultMaxRetriesFallbackValue`.")
+      log.warning(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of '$DefaultMaxRetriesFallbackValue'.")
       DefaultMaxRetriesFallbackValue
   }
 
@@ -150,7 +151,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     WorkflowExecutionActorData(
       workflowDescriptor,
       executionStore = buildInitialExecutionStore(),
-      outputStore = OutputStore.empty))
+      backendJobExecutionActors = Map.empty,
+      outputStore = OutputStore.empty
+    )
+  )
 
   private def buildInitialExecutionStore(): ExecutionStore = {
     val workflow = workflowDescriptor.backendDescriptor.workflowNamespace.workflow
@@ -174,18 +178,17 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(RestartExecutingWorkflowCommand, _) =>
       // TODO: Restart executing
       goto(WorkflowExecutionInProgressState)
-    case Event(AbortExecutingWorkflowCommand, _) =>
-      context.parent ! WorkflowExecutionAbortedResponse
-      goto(WorkflowExecutionAbortedState)
   }
 
   when(WorkflowExecutionInProgressState) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
       pushPreparedJobMetadata(jobDescriptor.key, jobDescriptor.inputs)
-      context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor)) ! ExecuteJobCommand
+      val backendExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
+      backendExecutionActor ! ExecuteJobCommand
       stay() using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
+        .addBackendJobExecutionActor(jobDescriptor.key, backendExecutionActor)
     case Event(BackendJobPreparationFailed(jobKey, t), stateData) =>
-      log.error(s"Failed to start job $jobKey", t)
+      log.error(s"Failed to start job $jobKey: {}", t.getMessage)
       pushFailedJobMetadata(jobKey, None, t, retryableFailure = false)
       goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
@@ -195,7 +198,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}", reason) // TODO: This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(List(reason))
-      goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+      val mergedStateData = mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+      goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = true)
@@ -206,7 +210,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       goto(WorkflowExecutionFailedState)
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>
       handleJobSuccessful(jobKey, callOutputs, stateData)
-    case Event(AbortExecutingWorkflowCommand, stateData) => ??? // TODO: Implement!
   }
 
   when(WorkflowExecutionSuccessfulState) {
@@ -236,6 +239,17 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       stay
   }
+  when(WorkflowExecutionAbortingState) {
+    case Event(AbortedResponse(jobKey), stateData) =>
+      log.info(s"$tag job aborted: ${jobKey.tag}")
+      val newStateData = stateData.removeBackendJobExecutionActor(jobKey)
+      if (newStateData.backendJobExecutionActors.isEmpty) {
+        log.info(s"$tag all jobs aborted")
+        goto(WorkflowExecutionAbortedState)
+      } else {
+        stay() using newStateData
+      }
+  }
 
   whenUnhandled {
     case Event(MetadataPutFailed(action, error), _) =>
@@ -243,12 +257,22 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
       stay
     case Event(MetadataPutAcknowledgement(_), _) => stay()
+    case Event(EngineLifecycleActorAbortCommand, stateData) =>
+      if (stateData.backendJobExecutionActors.nonEmpty) {
+        stateData.backendJobExecutionActors.values foreach {_ ! AbortJobCommand}
+        goto(WorkflowExecutionAbortingState)
+      } else {
+        goto(WorkflowExecutionAbortedState)
+      }
     case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message: $unhandledMessage in state: $stateName")
+      log.warning(s"$tag received an unhandled message: ${unhandledMessage.event} in state: $stateName")
       stay
   }
 
   onTransition {
+    case fromState -> toState if toState.terminal =>
+      log.info(s"$tag transitioning from $fromState to $toState. Shutting down.")
+      context.stop(self)
     case fromState -> toState =>
       log.info(s"$tag transitioning from $fromState to $toState.")
   }

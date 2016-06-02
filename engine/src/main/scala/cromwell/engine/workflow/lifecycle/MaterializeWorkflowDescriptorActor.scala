@@ -112,6 +112,8 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
   }
 
   whenUnhandled {
+    case Event(EngineLifecycleActorAbortCommand, _) =>
+      goto(MaterializationAbortedState)
     case unhandledMessage =>
       log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
       stay

@@ -7,9 +7,9 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, OldStyleBackend}
-import cromwell.engine.workflow.{OldStyleWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
+import cromwell.engine.workflow.{OldStyleWorkflowManagerActor, WorkflowManagerActor}
 import cromwell.{core, engine}
 import spray.http.HttpHeaders.Link
 import spray.http.Rendering.Empty
@@ -135,7 +135,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor {
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowAbort(id) => requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowAbort(id)
+    case ApiHandlerWorkflowAbort(id) => requestHandlerActor ! WorkflowManagerActor.AbortWorkflowCommand(id)
     case WorkflowManagerAbortSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
     case WorkflowManagerAbortFailure(_, e) =>

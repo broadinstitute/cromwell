@@ -544,47 +544,21 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
 
-  /**
-    * Turns a GCS path representing a workflow input into the GCS path where the file would be mirrored to in this workflow:
-    * task x {
-    *  File x
-    *  ...
-    *  Output {
-    *    File mirror = x
-    *  }
-    * }
-    *
-    * This function is more useful in working out the common prefix when the filename is modified somehow
-    * in the workflow (e.g. "-new.txt" is appended)
-    */
-  private def gcsInputToGcsOutput(inputValue: WdlValue): WdlValue = {
-    // Convert to the local path where the file is localized to in the VM:
-    val vmLocalizationPath = gcsPathToLocal(inputValue)
 
-    vmLocalizationPath match {
-      // If it's a file, work out where the file would be delocalized to, otherwise no-op:
-      case x : WdlFile =>
-        val delocalizationPath = callRootPath.resolve(vmLocalizationPath.valueString).toString
-        WdlFile(delocalizationPath)
-      case a: WdlArray => WdlArray(a.wdlType, a.value map { f => gcsInputToGcsOutput(f) })
-      case m: WdlMap => WdlMap(m.wdlType, m.value map { case (k, v) => gcsInputToGcsOutput(k) -> gcsInputToGcsOutput(v) })
-      case other => other
-    }
-  }
 
-  private def customLookupFunction(alreadyGeneratedOutputs: Map[String, WdlValue]): String => WdlValue = toBeLookedUp => {
-    val originalLookup: ScopedLookupFunction = x => alreadyGeneratedOutputs.getOrElse(x, lookup(x))
-    gcsInputToGcsOutput(originalLookup(toBeLookedUp))
-  }
+  private def customLookupFunction(alreadyGeneratedOutputs: Map[String, WdlValue])(toBeLookedUp: String): WdlValue = alreadyGeneratedOutputs.getOrElse(toBeLookedUp, lookup(toBeLookedUp))
+
 
   private def wdlValueToGcsPath(jesOutputs: Seq[JesFileOutput])(value: WdlValue): WdlValue = {
-    def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst { case o if o.name == makeSafeJesReferenceName(wdlFile.valueString) => WdlFile(o.gcs) } getOrElse value
+    def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst {
+      case o if o.name == makeSafeJesReferenceName(wdlFile.valueString) => WdlFile(o.gcs)
+    } getOrElse value
     value match {
       case wdlArray: WdlArray => wdlArray map wdlValueToGcsPath(jesOutputs)
       case wdlMap: WdlMap => wdlMap map {
         case (k, v) => wdlValueToGcsPath(jesOutputs)(k) -> wdlValueToGcsPath(jesOutputs)(v)
       }
-      case file: WdlFile => toGcsPath(file)
+      case file: WdlFile => if (file.value.isGcsUrl) file else toGcsPath(file)
       case other => other
     }
   }
@@ -621,10 +595,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val outputs = call.task.outputs
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
-      outputMap mapValues { v =>
-        // PBE fix hashing
-        JobOutput(v, hash = None)
-      }
+      outputMap mapValues { v => JobOutput(v) }
     }
   }
 

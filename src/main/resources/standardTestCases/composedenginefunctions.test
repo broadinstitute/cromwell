@@ -3,5 +3,9 @@ testFormat: workflowsuccess
 
 files {
   wdl: composedenginefunctions/composedenginefunctions.wdl
-  inputs: composedenginefunctions/composedenginefunctions.inputs
+}
+
+metadata {
+  "outputs.composedenginefunctions.composeEngineFunctions.x": "Hello, I am a small test string"
+  "outputs.composedenginefunctions.composeEngineFunctions.y": "2Hello, I am a small test stringHello, I am a small test string"
 }

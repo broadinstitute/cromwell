@@ -68,7 +68,7 @@ object Operations {
           "workflowInputs" -> workflow.data.inputs,
           "workflowOptions" -> workflow.data.options) collect { case (name, Some(value)) => (name, value) }
         val formData = FormData(params)
-        val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
+        val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v2", formData))
         sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { SubmittedWorkflow(_, CentaurConfig.cromwellUrl, workflow) })
       }
     }
@@ -101,7 +101,7 @@ object Operations {
   def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
       override def run: Try[WorkflowMetadata] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
+        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v2/" + workflow.id + "/metadata"))
         // Try to convert the response to a Metadata in our return Try.
         // Currently any error msg will be opaque as it's unlikely to be an issue (can flesh out later)
         sendReceiveFutureCompletion(response map { r => WorkflowMetadata.fromMetadataJson(r).toOption.get })

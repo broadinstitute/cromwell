@@ -1,7 +1,0 @@
-{
-  "chrisl_blah.ls.pattern": "./",
-  "chrisl_blah.grep.pattern": "v",
-  "test.hello.name": "chris",
-  "composedenginefunctions.cat.asdf": "gs://cloud-cromwell-tyburn-test-files/test-files/smalltestfile.txt",
-  "composedenginefunctions.grep.pattern": "h"
-}

@@ -206,6 +206,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       "-l", s"ncpus=${jobDescriptor.callRuntimeAttributes.cpu}",
       "-l", s"mem=${jobDescriptor.callRuntimeAttributes.memoryGB.toInt}gb",
       "-l", s"walltime=${jobDescriptor.callRuntimeAttributes.walltime}",
+      "-W", "umask=0007",
       jobDescriptor.script.toAbsolutePath
     ).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")

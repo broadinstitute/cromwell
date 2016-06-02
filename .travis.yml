@@ -6,6 +6,7 @@ scala:
 jdk:
   - oraclejdk8
 before_install:
+  - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
   - sudo apt-get update -qq
   - sudo apt-get install -qq mysql-server-5.6 mysql-client-5.6 mysql-client-core-5.6
   - docker pull ubuntu:latest

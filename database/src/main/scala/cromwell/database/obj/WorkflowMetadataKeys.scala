@@ -1,4 +1,4 @@
-package cromwell.core
+package cromwell.database.obj
 
 object WorkflowMetadataKeys {
   val Name = "workflowName"

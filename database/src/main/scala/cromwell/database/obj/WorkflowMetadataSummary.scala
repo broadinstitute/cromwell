@@ -3,8 +3,6 @@ package cromwell.database.obj
 import java.sql.Timestamp
 import java.time.OffsetDateTime
 
-import cromwell.core.{WorkflowMetadataKeys, WorkflowState}
-
 import scalaz.Scalaz._
 import scalaz.Semigroup
 import cromwell.database.SqlConverters._
@@ -27,7 +25,6 @@ object WorkflowMetadataSummary {
   }
 }
 
-
 case class WorkflowMetadataSummary
 (
   workflowUuid: String,
@@ -42,9 +39,9 @@ case class WorkflowMetadataSummary
     // Resolve the status if both `this` and `that` have defined statuses.  This will evaluate to `None`
     // if one or both of the statuses is not defined.
     val resolvedStatus = for {
-      a <- this.status map WorkflowState.fromString
-      b <- that.status map WorkflowState.fromString
-    } yield (a |+| b).toString
+      thisStatus <- this.status
+      thatStatus <- that.status
+    } yield (thisStatus |+| thatStatus).toString
 
     WorkflowMetadataSummary(
       workflowUuid = workflowUuid,

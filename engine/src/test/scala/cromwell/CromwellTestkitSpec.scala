@@ -12,6 +12,7 @@ import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{WorkflowId, _}
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}

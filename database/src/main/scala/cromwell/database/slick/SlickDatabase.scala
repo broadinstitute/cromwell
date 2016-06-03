@@ -6,7 +6,6 @@ import java.util.UUID
 import java.util.concurrent.{ExecutorService, Executors}
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.core.WorkflowId
 import cromwell.database.SqlDatabase
 import cromwell.database.obj.WorkflowMetadataSummary._
 import cromwell.database.obj._
@@ -793,10 +792,8 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  def getStatus(id: WorkflowId)
-               (implicit ec: ExecutionContext): Future[Option[String]] = {
-
-    val action = dataAccess.workflowStatusByUuid(id.id.toString).result.headOption
+  def getStatus(workflowUuid: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    val action = dataAccess.workflowStatusByUuid(workflowUuid.toString).result.headOption
     // The workflow might not exist, so `headOption`.  But even if the workflow does exist, the status might be None.
     // So flatten the Option[Option[String]] to Option[String].
     runTransaction(action) map { _.flatten }

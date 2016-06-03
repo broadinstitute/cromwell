@@ -3,7 +3,6 @@ package cromwell.database
 import java.sql.{Clob, SQLTransientException, Timestamp}
 import java.time.OffsetDateTime
 
-import cromwell.core.WorkflowId
 import cromwell.database.obj._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -227,6 +226,6 @@ trait SqlDatabase extends AutoCloseable {
   protected def refreshMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[OffsetDateTime])
                                         (implicit ec: ExecutionContext): Future[Long]
 
-  protected def getStatus(id: WorkflowId)
+  protected def getStatus(workflowUuid: String)
                          (implicit ec: ExecutionContext): Future[Option[String]]
 }

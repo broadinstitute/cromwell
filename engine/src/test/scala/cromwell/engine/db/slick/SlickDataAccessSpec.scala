@@ -14,7 +14,7 @@ import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
 import cromwell.core._
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.database.SqlConverters._
-import cromwell.database.obj.Execution
+import cromwell.database.obj.{Execution, WorkflowMetadataKeys}
 import cromwell.database.slick.SlickDatabase
 import cromwell.engine._
 import cromwell.engine.backend._

@@ -4,7 +4,8 @@ import java.sql.Timestamp
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core.{WorkflowId, WorkflowState}
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure

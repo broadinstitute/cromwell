@@ -7,6 +7,7 @@ import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.{WorkflowId, _}
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._

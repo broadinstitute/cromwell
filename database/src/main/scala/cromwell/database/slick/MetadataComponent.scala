@@ -3,8 +3,7 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
-import cromwell.core.WorkflowMetadataKeys
-import cromwell.database.obj.Metadatum
+import cromwell.database.obj.{Metadatum, WorkflowMetadataKeys}
 
 trait MetadataComponent {
 

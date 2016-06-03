@@ -658,6 +658,6 @@ trait DataAccess extends AutoCloseable {
 
   def getWorkflowStatus(id: WorkflowId)
                        (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
-    self.getStatus(id) map { _ map WorkflowState.fromString }
+    self.getStatus(id.toString) map { _ map WorkflowState.fromString }
   }
 }

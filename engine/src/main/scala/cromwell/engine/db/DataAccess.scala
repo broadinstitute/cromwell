@@ -66,25 +66,27 @@ object DataAccess {
     }
   }
 
-  private def getUpdatedSummary(existingSummary: Option[WorkflowMetadataSummary],
+  private implicit class MetadatumEnhancer(val metadatum: Metadatum) extends AnyVal {
+    def toSummary: WorkflowMetadataSummary = {
+      val base = WorkflowMetadataSummary(metadatum.workflowUuid)
+      metadatum.key match {
+        case WorkflowMetadataKeys.Name => base.copy(name = metadatum.value)
+        case WorkflowMetadataKeys.Status => base.copy(status = metadatum.value)
+        case WorkflowMetadataKeys.StartTime =>
+          base.copy(startDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
+        case WorkflowMetadataKeys.EndTime =>
+          base.copy(endDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
+      }
+    }
+  }
+
+  private def buildUpdatedSummary(existingSummary: Option[WorkflowMetadataSummary],
                                 metadataForUuid: Seq[Metadatum]): WorkflowMetadataSummary = {
     implicit val wmss = WorkflowMetadataSummarySemigroup
 
     val baseSummary = existingSummary.getOrElse(WorkflowMetadataSummary(metadataForUuid.head.workflowUuid))
     metadataForUuid.foldLeft(baseSummary) {
-      case (metadataSummary, metadatum) => metadataSummary |+| toSummary(metadatum)
-    }
-  }
-
-  private def toSummary(metadatum: Metadatum): WorkflowMetadataSummary = {
-    val base = WorkflowMetadataSummary(metadatum.workflowUuid)
-    metadatum.key match {
-      case WorkflowMetadataKeys.Name => base.copy(name = metadatum.value)
-      case WorkflowMetadataKeys.Status => base.copy(status = metadatum.value)
-      case WorkflowMetadataKeys.StartTime =>
-        base.copy(startDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
-      case WorkflowMetadataKeys.EndTime =>
-        base.copy(endDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
+      case (metadataSummary, metadatum) => metadataSummary |+| metadatum.toSummary
     }
   }
 
@@ -700,7 +702,7 @@ trait DataAccess extends AutoCloseable {
   def refreshWorkflowMetadataSummaries(startMetadataId: Long, startMetadataDateTime: Option[OffsetDateTime])
                                       (implicit ec: ExecutionContext): Future[Long] = {
     self.refreshMetadataSummaries(startMetadataId, startMetadataDateTime map { _.toSystemTimestamp },
-      DataAccess.getUpdatedSummary)
+      DataAccess.buildUpdatedSummary)
   }
 
   def getWorkflowStatus(id: WorkflowId)

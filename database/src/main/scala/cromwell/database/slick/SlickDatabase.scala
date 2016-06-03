@@ -738,14 +738,14 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  private def updateMetadata(getUpdatedSummary:
+  private def updateMetadata(buildUpdatedSummary:
                              (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
                             (metadataByUuid: (String, Seq[Metadatum]))(implicit ec: ExecutionContext): DBIO[Unit] = {
     val (uuid, metadataForUuid) = metadataByUuid
     for {
     // There might not be a preexisting summary for a given UUID, so `headOption` the result
       existingSummary <- dataAccess.workflowMetadataSummariesByUuid(uuid).result.headOption
-      updatedSummary = getUpdatedSummary(existingSummary, metadataForUuid)
+      updatedSummary = buildUpdatedSummary(existingSummary, metadataForUuid)
       _ <- upsertWorkflowMetadataSummary(updatedSummary)
     } yield ()
   }
@@ -769,7 +769,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
   }
 
   def refreshMetadataSummaries(startId: Long, startTimestamp: Option[Timestamp],
-                               getUpdatedSummary: (Option[WorkflowMetadataSummary], Seq[Metadatum]) =>
+                               buildUpdatedSummary: (Option[WorkflowMetadataSummary], Seq[Metadatum]) =>
                                  WorkflowMetadataSummary)
                               (implicit ec: ExecutionContext): Future[Long] = {
     val action = for {
@@ -777,7 +777,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
       // Take the maximum metadata id returned by the above query, or 0 if there aren't any metadata returned.
       max = metadata map { _.metadatumId.get } reduceLeftOption { _ max _ } getOrElse 0L
       metadataByWorkflowUuid = metadata.groupBy(_.workflowUuid)
-      _ <- DBIO.sequence(metadataByWorkflowUuid map updateMetadata(getUpdatedSummary))
+      _ <- DBIO.sequence(metadataByWorkflowUuid map updateMetadata(buildUpdatedSummary))
     } yield max
 
     runTransaction(action)

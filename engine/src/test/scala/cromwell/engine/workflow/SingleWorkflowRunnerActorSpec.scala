@@ -61,7 +61,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
 class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
-    "successfully run a workflow" in {
+    "successfully run a workflow" ignore {
       within(timeoutDuration) {
         waitForInfo("workflow finished with status 'Succeeded'.") {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test the SingleWorkflowRunnerActor")

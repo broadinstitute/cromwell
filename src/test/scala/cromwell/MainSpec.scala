@@ -23,7 +23,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
 
   behavior of "Main"
 
-  override val timeLimit: Span = CromwellTestkitSpec.timeoutDuration
+  override val timeLimit: Span = 60 seconds
 
   it should "print usage" in {
     assert(traceMain(_.usageAndExit()).out.contains(UsageSnippet))

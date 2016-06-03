@@ -24,10 +24,10 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
   sampleWdl.cleanup()
 
   "A task which contains a parameter " should {
-    "accept an array for the value" ignore {
+    "accept an array for the value" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.MapLiteral(Paths.get(".")),
-        EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
+        EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
         expectedOutputs = Map(
           "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
             WdlString("x") -> WdlInteger(500),
@@ -53,7 +53,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
       }
       expectedMap.wdlType.coerceRawValue(value).get shouldEqual expectedMap
     }
-    "be usable as an input" ignore {
+    "be usable as an input" in {
       val writeMapTask = ns.findTask("write_map").getOrElse {
         fail("Expected to find task 'write_map'")
       }
@@ -69,19 +69,19 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
       }
       command shouldEqual "cat /test/map/path"
     }
-    "Coerce Map[String, String] to Map[String, Int] when running the workflow" ignore {
+    "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
       val outputs =
-      runWdlAndAssertOutputs(
-        SampleWdl.MapLiteral(Paths.get(".")),
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.read_map, wf.write_map", occurrences = 1),
-        expectedOutputs = Map(
-          "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
-            WdlString("x") -> WdlInteger(500),
-            WdlString("y") -> WdlInteger(600),
-            WdlString("z") -> WdlInteger(700)
-          ))
+        runWdlAndAssertOutputs(
+          SampleWdl.MapLiteral(Paths.get(".")),
+          eventFilter = EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
+          expectedOutputs = Map(
+            "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
+              WdlString("x") -> WdlInteger(500),
+              WdlString("y") -> WdlInteger(600),
+              WdlString("z") -> WdlInteger(700)
+            ))
+          )
         )
-      )
     }
   }
 }

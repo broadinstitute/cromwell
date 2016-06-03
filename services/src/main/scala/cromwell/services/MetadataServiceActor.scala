@@ -45,7 +45,7 @@ object MetadataServiceActorImplicits {
         val zippedSeq = valueSeq.zipWithIndex
         zippedSeq foreach { case (value, index) => actor.pushWdlValueMetadata(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
       case WdlMap(_, valueMap) =>
-        valueMap foreach { case (key, value) => actor.pushWdlValueMetadata(metadataKey.copy(key = metadataKey.key + s":$key"), value) }
+        valueMap foreach { case (key, value) => actor.pushWdlValueMetadata(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       case value =>
         actor ! PutMetadataAction(MetadataEvent(metadataKey, MetadataValue(value)))
     }

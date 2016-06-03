@@ -9,10 +9,9 @@ import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.backend.{ExecutionEventEntry, JobKey}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
+import cromwell.backend.{ExecutionEventEntry, JobKey}
 import cromwell.core._
-import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.{Execution, WorkflowMetadataKeys}
 import cromwell.database.slick.SlickDatabase
@@ -22,8 +21,7 @@ import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.backend.local.OldStyleLocalBackend.InfoKeys
 import cromwell.engine.db.{DataAccess, ExecutionDatabaseKey}
 import cromwell.engine.workflow.{BackendCallKey, ScatterKey}
-import cromwell.services.MetadataServiceActor.PutMetadataAction
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.util.SampleWdl
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
 import cromwell.{CromwellTestkitSpec, webservice}
@@ -51,7 +49,8 @@ object SlickDataAccessSpec {
   val Workflow2Name = "test2"
 }
 
-class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with WorkflowDescriptorBuilder with ServiceRegistryClient {
+class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito
+  with WorkflowDescriptorBuilder {
   import SlickDataAccessSpec._
 
   behavior of "SlickDataAccess"
@@ -124,24 +123,21 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
   }
 
-  // Tests against main database used for command line
-  "SlickDataAccess (main.hsqldb)" should behave like databaseWithConfig("main.hsqldb")
+  // Test the no-args constructor
+  "SlickDataAccess (main.hsqldb)" should behave like testWith(new SlickDatabase() with DataAccess)
 
-  // If able to connect, then also run the tests on mysql, but it's not required
-  "SlickDataAccess (test.mysql)" should behave like databaseWithConfig("test.mysql")
+  "SlickDataAccess (test.mysql)" should behave like
+    testWith(new SlickDatabase(SlickDatabase.getDatabaseConfig("test.mysql")) with DataAccess)
 
-  def databaseWithConfig(path: String): Unit = {
+  /*
+  If the above tests fail, one may be accidentally talking to the singleton.
+  Uncomment the following test, and see if the suite works. If so, have any code talking to services etc. talk to
+  the DataAccess instead.
+  */
+  //"SlickDataAccess (global.singleton)" should behave like
+  //  testWith(DataAccess.globalDataAccess.asInstanceOf[SlickDatabase with DataAccess])
 
-    val databaseConfig = SlickDatabase.getDatabaseConfig(path)
-
-    // PBE I needed to comment this out to prevent what appears to be another attempt to Liquibase in the schema.
-//    lazy val dataAccess =
-//      if (databaseConfig == SlickDatabase.defaultDatabaseConfig)
-//        new SlickDatabase() with DataAccess // Test the no-args constructor
-//      else
-//        new SlickDatabase(databaseConfig) with DataAccess
-
-    val dataAccess = DataAccess.globalDataAccess.asInstanceOf[SlickDatabase with DataAccess]
+  def testWith(dataAccess: SlickDatabase with DataAccess): Unit = {
 
     /**
       * Assert that the specified workflow has the appropriate number of calls in appropriately terminal states per
@@ -165,7 +161,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     lazy val testWdlStringShard = WdlString("testStringValueShard")
     lazy val testWdlStringShardHash = testWdlStringShard.computeHash
 
-    ignore should "(if hsqldb) have transaction isolation mvcc" taggedAs DbmsTest in {
+    it should "(if hsqldb) have transaction isolation mvcc" taggedAs DbmsTest in {
       import dataAccess.dataAccess.driver.api._
 
       val getProduct = SimpleDBIO[String](_.connection.getMetaData.getDatabaseProductName)
@@ -228,13 +224,15 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Unit = {
-      keyValues foreach { case (k, v) =>
-        serviceRegistryActor ! PutMetadataAction(MetadataEvent(baseKey.copy(key = k), MetadataValue(v)))
+    def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {
+      val futures = keyValues map { case (k, v) =>
+        val event = MetadataEvent(baseKey.copy(key = k), MetadataValue(v))
+        dataAccess.addMetadataEvent(event)
       }
+      Future.sequence(futures.toSeq).map(_ => ())
     }
 
-    def baseWorkflowMetadata(name: String): WorkflowId = {
+    def baseWorkflowMetadata(name: String): Future[WorkflowId] = {
       val workflowId = WorkflowId.randomId()
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
       def keyAndValue(name: String) = Array(
@@ -242,33 +240,15 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
         (WorkflowMetadataKeys.Status, WorkflowSubmitted.toString),
         (WorkflowMetadataKeys.Name, name)
       )
-      publishMetadataEvents(workflowKey, keyAndValue(name))
-      workflowId
-    }
-
-    def workflowInState(workflowId: WorkflowId, workflowState: WorkflowState): Future[Unit] = {
-      case object Bust extends RuntimeException
-      def stateOrBust: Future[Unit] = dataAccess.getWorkflowStatus(workflowId) collect {
-        case os if os.contains(workflowState) => ()
-        case _ => throw Bust
-      }
-
-      val backoff = {
-        // avoid conflict with other durationish types by scoping the import to this wee block
-        import scala.concurrent.duration._
-        SimpleExponentialBackoff(FiniteDuration(10, MILLISECONDS), FiniteDuration(5, SECONDS), 1.5)
-      }
-
-      Retry.withRetry(() => stateOrBust, maxRetries = Option(50), backoff = backoff, isTransient = _.getClass.getSimpleName == "Bust" )
+      publishMetadataEvents(workflowKey, keyAndValue(name)).map(_ => workflowId)
     }
 
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
       (for {
-        workflow1Id <- Future.successful(baseWorkflowMetadata(Workflow1Name))
-        _ <- workflowInState(workflow1Id, WorkflowSubmitted)
+        workflow1Id <- baseWorkflowMetadata(Workflow1Name)
         //get metadata when page and pagesize are specified
-        _ <- dataAccess.queryWorkflowSummaries(
-          WorkflowQueryParameters(Seq(WorkflowQueryKey.Page.name -> "1", WorkflowQueryKey.PageSize.name -> "50"))) map { case(response, meta) =>
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.Page.name -> "1", WorkflowQueryKey.PageSize.name -> "50"))) map { case (response, meta) =>
           meta match {
             case Some(metadata) =>
             case None => fail("Should have metadata when page and pagesize are specified.")
@@ -289,7 +269,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       
       val randomIds = Seq.fill(10)(WorkflowId.randomId().toString)
 
-      def succeededWorkflowMetadata(id: WorkflowId): Unit = {
+      def succeededWorkflowMetadata(id: WorkflowId): Future[Unit] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
         val keyAndValue = Array(
           (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
@@ -300,21 +280,26 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       }
 
       (for {
-        workflow1Id <- Future.successful(baseWorkflowMetadata(Workflow1Name))
-        _ = succeededWorkflowMetadata(workflow1Id)
+        workflow1Id <- baseWorkflowMetadata(Workflow1Name)
+        _ <- succeededWorkflowMetadata(workflow1Id)
         // Put a bit of space between the two workflows
         _ = Thread.sleep(50)
-        workflow2Id = baseWorkflowMetadata(Workflow2Name)
-        _ <- workflowInState(workflow1Id, WorkflowSucceeded)
-        _ <- workflowInState(workflow2Id, WorkflowSubmitted)
+        workflow2Id <- baseWorkflowMetadata(Workflow2Name)
+
+        // refresh the metadata
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(0L, None) map { max =>
+          max should be > 0L
+        }
 
         // Query with no filters
-        (test, test2) <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq.empty)) map { case (response, meta) =>
-          val test = response.results find { r => r.name.contains(Workflow1Name) && r.end.isDefined } getOrElse fail
-          val test2 = response.results find {
+        (workflowQueryResult, workflowQueryResult2) <-
+        dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq.empty)) map { case (response, meta) =>
+          val result = response.results find { r => r.name.contains(Workflow1Name) && r.end.isDefined } getOrElse
+            fail(s"$Workflow1Name with an end not found in ${response.results}")
+          val result2 = response.results find {
             _.name.contains(Workflow2Name)
-          } getOrElse fail
-          (test, test2)
+          } getOrElse fail(s"$Workflow2Name not found in ${response.results}")
+          (result, result2)
         }
         // Filter by name
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Name.name -> Workflow1Name))) map { case (response, meta) =>
@@ -365,15 +350,17 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
           resultsByStatus.keys.toSet.flatten should equal(Set("Submitted", "Succeeded"))
         }
         // Filter by start date
-        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.StartDate.name -> test2.start.get.toString))) map { case (response, meta) =>
-          response.results partition { r => r.start.isDefined && r.start.get.compareTo(test.start.get) >= 0 } match {
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.StartDate.name -> workflowQueryResult2.start.get.toString))) map { case (response, meta) =>
+          response.results partition { r => r.start.isDefined && r.start.get.compareTo(workflowQueryResult.start.get) >= 0 } match {
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} later workflows and ${n.size} earlier")
           }
         }
         // Filter by end date
-        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.EndDate.name -> test.end.get.toString))) map { case (response, meta) =>
-          response.results partition { r => r.end.isDefined && r.end.get.compareTo(test.end.get) <= 0 } match {
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.EndDate.name -> workflowQueryResult.end.get.toString))) map { case (response, meta) =>
+          response.results partition { r => r.end.isDefined && r.end.get.compareTo(workflowQueryResult.end.get) <= 0 } match {
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
           }

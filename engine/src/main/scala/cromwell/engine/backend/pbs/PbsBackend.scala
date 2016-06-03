@@ -127,33 +127,34 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     
     val logger = jobLogger(jobDescriptor)
     val fileCheckPeriod = 5000 // 5s
-    val fileCheckRandom = 1000 // 1s so recursiveWait call itself every 5-6 seconds
-    val pbsCheckPeriod = 1200000 // 20min
-    val pbsCheckCycle = pbsCheckPeriod / (fileCheckPeriod + fileCheckRandom/2) 
+    val fileCheckRandomMax = 1000 // 1s
+    val qstatCheckPeriod = 1800000 // 30min
     
     def outputFilesReady: Boolean = Seq(
         jobDescriptor.returnCode,
         jobDescriptor.stdout,
         jobDescriptor.stderr).forall(Files.exists(_))
+        
+    def isQstatCheckCycle(fileCheckCalls: Long): Boolean = 
+      (fileCheckCalls % (qstatCheckPeriod / (fileCheckPeriod + fileCheckRandomMax/2)) == 0) 
 
     @tailrec
-    def recursiveWait(numCalls: Long): Int = outputFilesReady match {
+    def recursiveWait(nCalls: Long): Int = outputFilesReady match {
       case true => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
       case false =>
         /*
-         * Periodically do (relatively expensive) check that PBS job is still alive...
+         * Occasionally do the relatively expensive pbsJobDone check to catch defunct jobs...
+         * Short circuit evaluation of the if (...) is relied on; the order of calls is important.
          */
-        if (numCalls % pbsCheckCycle == 0) {
-          if (jobDone(pbsJobId) && !outputFilesReady) {
-            logger.error(s"PBS job $pbsJobId is done and output files don't exist")
-            jobDescriptor.returnCode.clear().appendLine("69")
-            69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files don't exist
-          }
+        if (isQstatCheckCycle(nCalls) && pbsJobDone(pbsJobId) && !outputFilesReady) {
+          logger.error(s"PBS job $pbsJobId is done and output files don't exist")
+          jobDescriptor.returnCode.clear().appendLine("69")
+          69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files don't exist
         }
         logger.info(s"Output files not ready yet; waiting...")
         // random interval to spread out the system calls from all threads 
-        Thread.sleep(fileCheckPeriod + ThreadLocalRandom.current().nextInt(0, fileCheckRandom))
-        recursiveWait(numCalls + 1)
+        Thread.sleep(fileCheckPeriod + ThreadLocalRandom.current().nextInt(0, fileCheckRandomMax))
+        recursiveWait(nCalls + 1)
     }
     recursiveWait(1)
   }
@@ -161,7 +162,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   /**
    * Returns true if the PBS job is finished/completed.
    */
-  private def jobDone(pbsJobId: Int): Boolean =
+  private def pbsJobDone(pbsJobId: Int): Boolean =
     if (installationIsPBSPro) {
       ( s"qstat -x -f ${pbsJobId}" #| Seq("grep", "job_state = F") ! ) == 0
     } else {

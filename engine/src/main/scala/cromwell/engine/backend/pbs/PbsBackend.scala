@@ -150,11 +150,12 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
           logger.error(s"PBS job $pbsJobId is done and output files don't exist")
           jobDescriptor.returnCode.clear().appendLine("69")
           69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files don't exist
+        } else {
+          logger.info(s"Output files not ready yet; waiting...")
+          // random interval to spread out the system calls from all threads 
+          Thread.sleep(fileCheckPeriod + ThreadLocalRandom.current().nextInt(0, fileCheckRandomMax))
+          recursiveWait(nCalls + 1)
         }
-        logger.info(s"Output files not ready yet; waiting...")
-        // random interval to spread out the system calls from all threads 
-        Thread.sleep(fileCheckPeriod + ThreadLocalRandom.current().nextInt(0, fileCheckRandomMax))
-        recursiveWait(nCalls + 1)
     }
     recursiveWait(1)
   }

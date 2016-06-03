@@ -9,6 +9,7 @@ object Dependencies {
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
   lazy val betterFilesV = "2.13.0"
+  lazy val scalazCoreV = "7.1.3"
 
   val wdl4sDependency = "org.broadinstitute" %% "wdl4s" % wdl4sV
 
@@ -46,7 +47,7 @@ object Dependencies {
 
   val gcsFileSystemDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.scalaz" % "scalaz-core_2.11" % "7.1.3"
+    "org.scalaz" %% "scalaz-core" % scalazCoreV
   ) ++ testDependencies ++ googleCloudDependencies
 
   val databaseDependencies = List(
@@ -80,7 +81,7 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "ch.qos.logback" % "logback-access" % "1.1.3",
     "org.codehaus.janino" % "janino" % "2.7.8",
-    "org.scalaz" % "scalaz-core_2.11" % "7.1.3",
+    "org.scalaz" %% "scalaz-core" % scalazCoreV,
     "com.github.pathikrit" %% "better-files" % betterFilesV
   ) ++ sprayDependencies
 }

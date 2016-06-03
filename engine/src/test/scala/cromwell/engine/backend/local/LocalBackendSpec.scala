@@ -3,7 +3,7 @@ package cromwell.engine.backend.local
 import akka.testkit.EventFilter
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.engine.{WorkflowFailed, WorkflowSucceeded}
+import cromwell.core.{WorkflowFailed, WorkflowSucceeded}
 import cromwell.util.SampleWdl
 import wdl4s.WdlSource
 

@@ -54,6 +54,7 @@ object Settings {
   val servicesSettings = List(
     name := "cromwell-services",
     version := engineVersion,
+    libraryDependencies ++= sprayDependencies,
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 

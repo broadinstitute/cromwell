@@ -7,13 +7,13 @@ import akka.actor.ActorSystem
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSucceeded}
 import cromwell.engine.backend.io._
 import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailure, MaterializationResult, MaterializeWorkflowDescriptorSuccess}
+import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor.{MaterializationResult, MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse, WorkflowDescriptorMaterializationResult, MaterializeWorkflowDescriptorCommand}
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, WorkflowSourceFiles, WorkflowSucceeded}
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse, WorkflowDescriptorMaterializationResult}
+import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, WorkflowSourceFiles}
 import cromwell.util.{PromiseActor, SampleWdl}
 import cromwell.webservice.WorkflowMetadataResponse
 import org.scalatest.prop.TableDrivenPropertyChecks._

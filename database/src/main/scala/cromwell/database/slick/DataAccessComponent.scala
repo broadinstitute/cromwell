@@ -12,7 +12,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with ExecutionEventComponent
   with RuntimeAttributeComponent
   with FailureEventComponent
-  with MetadataComponent {
+  with MetadataComponent
+  with WorkflowMetadataSummaryComponent {
 
   import driver.api._
 
@@ -25,5 +26,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       executionEvents.schema ++
       runtimeAttributes.schema ++
       failureEvents.schema ++
-      metadata.schema
+      metadata.schema ++
+      workflowMetadataSummaries.schema
 }

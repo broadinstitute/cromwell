@@ -6,7 +6,8 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, _}
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.db.DataAccess._
@@ -197,18 +198,6 @@ class WorkflowManagerActor(config: Config)
       logger.info(s"$tag transitioning from $fromState to $toState")
   }
 
-  private def pushToMetadataService(workflowId: WorkflowId): Unit = {
-    val curTime = OffsetDateTime.now
-    val metadataEventMsgs = List(
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Id), MetadataValue(workflowId), curTime),
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime),
-        MetadataValue(curTime), curTime),
-      // Currently, submission time is the same as start time
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(curTime), curTime)
-    )
-    metadataEventMsgs foreach (serviceRegistryActor ! PutMetadataAction(_))
-  }
-
   /** Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
     */
@@ -227,7 +216,9 @@ class WorkflowManagerActor(config: Config)
     val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config, serviceRegistryActor), name = s"WorkflowActor-$workflowId")
 
     // We have a valid workflowId for the workflow, send it over to the metadata service
-    pushToMetadataService(workflowId)
+    val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString), OffsetDateTime.now)
+    serviceRegistryActor ! PutMetadataAction(startEvent)
+
     replyTo.foreach { _ ! WorkflowManagerSubmitSuccess(id = workflowId) }
     wfActor ! SubscribeTransitionCallBack(self)
     wfActor ! StartWorkflowCommand

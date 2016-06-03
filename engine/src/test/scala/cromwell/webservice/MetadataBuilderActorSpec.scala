@@ -266,26 +266,6 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     forAll(t) { (l, r) => assertMetadataKeyStructure(l, r) }
   }
 
-  it should "return workflow status" in {
-    val workflow = WorkflowId.randomId()
-    val query = MetadataQuery(workflow, None, Option("status"))
-    val events = List(
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Running"),
-        OffsetDateTime.parse("2000-01-03T12:00:00Z")),
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Succeeded"),
-        OffsetDateTime.parse("2000-01-03T12:00:00Z")),
-      MetadataEvent(MetadataKey(workflow, None, "status"), MetadataValue("Submitted"),
-        OffsetDateTime.parse("2000-01-01T12:00:00Z"))
-    )
-    val expectedRes =
-      s"""{
-         |"id": "$workflow",
-         | "status": "Succeeded"
-         |}""".stripMargin
-
-    assertMetadataResponse(GetMetadataQueryAction(query), query, events, expectedRes)
-  }
-
   it should "coerce values to supported types" in {
     val workflowId = WorkflowId.randomId()
     val events = List(
@@ -301,18 +281,18 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
     val expectedResponse =
       s"""{
-        |"$workflowId": {
-        | "calls": {},
-        | "a": 2,
-        | "b": 2,
-        | "c": 2,
-        | "d": 2.9,
-        | "e": 2.9,
-        | "f": true,
-        | "g": false,
-        | "h": "false"
-        | }
-        |}
+          |"$workflowId": {
+          | "calls": {},
+          | "a": 2,
+          | "b": 2,
+          | "c": 2,
+          | "d": 2.9,
+          | "e": 2.9,
+          | "f": true,
+          | "g": false,
+          | "h": "false"
+          | }
+          |}
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None)

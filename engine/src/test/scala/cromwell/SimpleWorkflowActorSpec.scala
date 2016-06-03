@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.testkit._
+import cromwell.core.WorkflowState
 import cromwell.engine._
 import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.OldStyleWorkflowActor

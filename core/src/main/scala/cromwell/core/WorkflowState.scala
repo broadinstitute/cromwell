@@ -1,4 +1,4 @@
-package cromwell.engine
+package cromwell.core
 
 import scalaz.Semigroup
 

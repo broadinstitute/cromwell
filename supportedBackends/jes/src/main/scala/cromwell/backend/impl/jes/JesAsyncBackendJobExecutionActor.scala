@@ -19,6 +19,8 @@ import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
+import cromwell.filesystems.gcs.GoogleConfiguration
+import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, GetSingleWorkflowMetadataAction, PutMetadataAction}
 import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
@@ -378,6 +380,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
     instantiateCommand match {
       case Success(command) =>
+        tellMetadata("instantiatedCommand", command)
         runWithJes(command, jesInputs, jesOutputs, /* runIdForResumption, */ monitoringScript.isDefined)
       case Failure(ex: SocketTimeoutException) => Future.successful(FailedNonRetryableExecutionHandle(ex))
       case Failure(ex) => Future.successful(FailedNonRetryableExecutionHandle(ex))
@@ -492,10 +495,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
 
-
-
   private def customLookupFunction(alreadyGeneratedOutputs: Map[String, WdlValue])(toBeLookedUp: String): WdlValue = alreadyGeneratedOutputs.getOrElse(toBeLookedUp, lookup(toBeLookedUp))
-
 
   private def wdlValueToGcsPath(jesOutputs: Seq[JesFileOutput])(value: WdlValue): WdlValue = {
     def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst {

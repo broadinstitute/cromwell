@@ -29,7 +29,7 @@ object MetadataServiceActor {
     def serviceName = MetadataServiceName
   }
   case class PutMetadataAction(event: MetadataEvent) extends MetadataServiceAction
-  case class GetAllMetadataAction(workflowId: WorkflowId) extends MetadataServiceAction
+  case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId) extends MetadataServiceAction
   case class GetMetadataQueryAction(key: MetadataQuery) extends MetadataServiceAction
   case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
   case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends MetadataServiceAction

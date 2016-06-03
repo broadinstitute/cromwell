@@ -83,7 +83,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
           log.error(t, "Sending {} failure message {}", sndr, msg)
           sndr ! msg
       }
-    case GetAllMetadataAction(workflowId) => queryAndRespond(MetadataQuery(workflowId, None, None))
+    case GetSingleWorkflowMetadataAction(workflowId) => queryAndRespond(MetadataQuery(workflowId, None, None))
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case WorkflowQuery(uri, parameters) => queryWorkflowsAndRespond(uri, parameters)

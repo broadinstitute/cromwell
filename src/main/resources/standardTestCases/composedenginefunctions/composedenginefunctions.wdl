@@ -1,25 +1,17 @@
-task cat {
-  File asdf
-  command {
-    cat ${asdf}
-  }
-  output {
-    File stuff = stdout()
-  }
-  runtime {
-    docker: "ubuntu:latest"
-  }
-}
+##
+# Check that we can:
+# - Compose engine functions together.
+##
 
-task grep {
-  File in_file
-  String pattern
+task composeEngineFunctions {
   command {
-    grep '${pattern}' ${in_file}
+    echo "Hello, I am a small test string"
+    echo 2 >&2
   }
   output {
     File blah = stdout()
     String x = read_string(stdout())
+    String y = read_int(stderr()) + x + read_string(blah)
   }
   runtime {
     docker: "ubuntu:latest"
@@ -27,11 +19,10 @@ task grep {
 }
 
 workflow composedenginefunctions {
-  call cat
-  call grep {
-    input: in_file=cat.stuff
-  }
+  call composeEngineFunctions
+
   output {
-    grep.x
+    composeEngineFunctions.x
+    composeEngineFunctions.y
   }
 }

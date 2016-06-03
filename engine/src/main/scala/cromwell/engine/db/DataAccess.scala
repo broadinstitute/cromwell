@@ -32,6 +32,8 @@ import wdl4s.{CallInputs, _}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scalaz.Scalaz._
+import scalaz.Semigroup
 
 object DataAccess {
   lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
@@ -42,6 +44,50 @@ object DataAccess {
 
   val FailureEventMaxMessageLength = 1024
   val RetryBackoff = SimpleExponentialBackoff(50 millis, 1 seconds, 1D)
+
+  private lazy val WorkflowMetadataSummarySemigroup = new Semigroup[WorkflowMetadataSummary] {
+    override def append(summary1: WorkflowMetadataSummary,
+                        summary2: => WorkflowMetadataSummary): WorkflowMetadataSummary = {
+      // Resolve the status if both `this` and `that` have defined statuses.  This will evaluate to `None`
+      // if one or both of the statuses is not defined.
+      val resolvedStatus = for {
+        thisStatus <- summary1.status map WorkflowState.fromString
+        thatStatus <- summary2.status map WorkflowState.fromString
+      } yield (thisStatus |+| thatStatus).toString
+
+      WorkflowMetadataSummary(
+        workflowUuid = summary1.workflowUuid,
+        // If not both statuses are defined, take whichever is defined.
+        status = resolvedStatus orElse summary1.status orElse summary2.status,
+        name = summary1.name orElse summary2.name,
+        startDate = summary1.startDate orElse summary2.startDate,
+        endDate = summary1.endDate orElse summary2.endDate
+      )
+    }
+  }
+
+  private def getUpdatedSummary(existingSummary: Option[WorkflowMetadataSummary],
+                                metadataForUuid: Seq[Metadatum]): WorkflowMetadataSummary = {
+    implicit val wmss = WorkflowMetadataSummarySemigroup
+
+    val baseSummary = existingSummary.getOrElse(WorkflowMetadataSummary(metadataForUuid.head.workflowUuid))
+    metadataForUuid.foldLeft(baseSummary) {
+      case (metadataSummary, metadatum) => metadataSummary |+| toSummary(metadatum)
+    }
+  }
+
+  private def toSummary(metadatum: Metadatum): WorkflowMetadataSummary = {
+    val base = WorkflowMetadataSummary(metadatum.workflowUuid)
+    metadatum.key match {
+      case WorkflowMetadataKeys.Name => base.copy(name = metadatum.value)
+      case WorkflowMetadataKeys.Status => base.copy(status = metadatum.value)
+      case WorkflowMetadataKeys.StartTime =>
+        base.copy(startDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
+      case WorkflowMetadataKeys.EndTime =>
+        base.copy(endDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
+    }
+  }
+
 }
 
 trait DataAccess extends AutoCloseable {
@@ -651,9 +697,10 @@ trait DataAccess extends AutoCloseable {
     }
   }
 
-  def refreshWorkflowMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[OffsetDateTime])
+  def refreshWorkflowMetadataSummaries(startMetadataId: Long, startMetadataDateTime: Option[OffsetDateTime])
                                       (implicit ec: ExecutionContext): Future[Long] = {
-    self.refreshMetadataSummaries(startMetadataId, startMetadataTimestamp)
+    self.refreshMetadataSummaries(startMetadataId, startMetadataDateTime map { _.toSystemTimestamp },
+      DataAccess.getUpdatedSummary)
   }
 
   def getWorkflowStatus(id: WorkflowId)

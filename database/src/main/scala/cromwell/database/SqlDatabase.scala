@@ -1,7 +1,6 @@
 package cromwell.database
 
 import java.sql.{Clob, SQLTransientException, Timestamp}
-import java.time.OffsetDateTime
 
 import cromwell.database.obj._
 
@@ -221,9 +220,13 @@ trait SqlDatabase extends AutoCloseable {
     *
     * @param startMetadataId        The minimum ID an entry in `METADATA_JOURNAL` must have to be examined for summary.
     * @param startMetadataTimestamp An optional timestamp.  If specified, a metadatum must have a timestamp greater than or equal to this value.
+    * @param getUpdatedSummary      Takes in the optional existing summary and the metadata, returns the new summary.
+    *
     * @return A `Future` with the maximum ID value of the metadata summarized by the invocation of this method.
     */
-  protected def refreshMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[OffsetDateTime])
+  protected def refreshMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[Timestamp],
+                                         getUpdatedSummary:
+                                         (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
                                         (implicit ec: ExecutionContext): Future[Long]
 
   protected def getStatus(workflowUuid: String)

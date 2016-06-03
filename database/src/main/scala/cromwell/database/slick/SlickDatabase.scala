@@ -1,13 +1,11 @@
 package cromwell.database.slick
 
 import java.sql.{Clob, Timestamp}
-import java.time.OffsetDateTime
 import java.util.UUID
 import java.util.concurrent.{ExecutorService, Executors}
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.database.SqlDatabase
-import cromwell.database.obj.WorkflowMetadataSummary._
 import cromwell.database.obj._
 import lenthall.config.ScalaConfig._
 import org.slf4j.LoggerFactory
@@ -16,8 +14,6 @@ import slick.driver.JdbcProfile
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scalaz.Scalaz._
-
 
 object SlickDatabase {
   lazy val rootConfig = ConfigFactory.load()
@@ -742,6 +738,18 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
+  private def updateMetadata(getUpdatedSummary:
+                             (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
+                            (metadataByUuid: (String, Seq[Metadatum]))(implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (uuid, metadataForUuid) = metadataByUuid
+    for {
+    // There might not be a preexisting summary for a given UUID, so `headOption` the result
+      existingSummary <- dataAccess.workflowMetadataSummariesByUuid(uuid).result.headOption
+      updatedSummary = getUpdatedSummary(existingSummary, metadataForUuid)
+      _ <- upsertWorkflowMetadataSummary(updatedSummary)
+    } yield ()
+  }
+
   private def upsertWorkflowMetadataSummary(summary: WorkflowMetadataSummary)
                                            (implicit ec: ExecutionContext): DBIO[Unit] = {
     if (useSlickUpserts) {
@@ -760,40 +768,23 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     }
   }
 
-  def refreshMetadataSummaries(startId: Long,
-                               startTimestamp: Option[OffsetDateTime])
+  def refreshMetadataSummaries(startId: Long, startTimestamp: Option[Timestamp],
+                               getUpdatedSummary: (Option[WorkflowMetadataSummary], Seq[Metadatum]) =>
+                                 WorkflowMetadataSummary)
                               (implicit ec: ExecutionContext): Future[Long] = {
-
-    import cromwell.database.SqlConverters._
-
-    def foldToSummary(workflowUuid: String,
-                      existingSummaries: Map[String, WorkflowMetadataSummary],
-                      metadata: Traversable[Metadatum]): WorkflowMetadataSummary = {
-
-      val baseSummary = existingSummaries.getOrElse(workflowUuid, WorkflowMetadataSummary(workflowUuid))
-      metadata.foldLeft(baseSummary) { case (s, m) => s |+| m.toSummary }
-    }
-
     val action = for {
-      metadata <- dataAccess.metadataWithIdAndTimestampGreaterThanOrEqual(startId, startTimestamp map { _.toSystemTimestamp }).result
+      metadata <- dataAccess.metadataWithIdAndTimestampGreaterThanOrEqual(startId, startTimestamp).result
       // Take the maximum metadata id returned by the above query, or 0 if there aren't any metadata returned.
       max = metadata map { _.metadatumId.get } reduceLeftOption { _ max _ } getOrElse 0L
-      metadataByWorkflowUuid = metadata groupBy(_.workflowUuid)
-      uuids = metadataByWorkflowUuid.keys
-      // Find summaries corresponding to the UUIDs of the metadata to be summarized.  There might not be a preexisting
-      // summary for a given UUID, so `headOption` the result, `sequence`, and then `flatten` to return only the existing summaries.
-      existingSummaries <- DBIO.sequence(uuids map { dataAccess.workflowMetadataSummariesByUuid(_).result.headOption }) map { _.flatten }
-      existingSummariesByWorkflowUuid = existingSummaries.map(s => s.workflowUuid -> s).toMap
-      // Create updated summaries using the metadata returned above and a possibly preexisting summary.
-      updatedSummaries = uuids map { u => foldToSummary(u, existingSummariesByWorkflowUuid, metadataByWorkflowUuid.get(u).get) }
-      _ <- DBIO.sequence(updatedSummaries map upsertWorkflowMetadataSummary)
+      metadataByWorkflowUuid = metadata.groupBy(_.workflowUuid)
+      _ <- DBIO.sequence(metadataByWorkflowUuid map updateMetadata(getUpdatedSummary))
     } yield max
 
     runTransaction(action)
   }
 
   def getStatus(workflowUuid: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    val action = dataAccess.workflowStatusByUuid(workflowUuid.toString).result.headOption
+    val action = dataAccess.workflowStatusByUuid(workflowUuid).result.headOption
     // The workflow might not exist, so `headOption`.  But even if the workflow does exist, the status might be None.
     // So flatten the Option[Option[String]] to Option[String].
     runTransaction(action) map { _.flatten }

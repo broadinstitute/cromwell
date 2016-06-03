@@ -1,29 +1,6 @@
 package cromwell.database.obj
 
 import java.sql.Timestamp
-import java.time.OffsetDateTime
-
-import scalaz.Scalaz._
-import scalaz.Semigroup
-import cromwell.database.SqlConverters._
-
-object WorkflowMetadataSummary {
-  implicit val WorkflowMetadataSummarySemigroup = new Semigroup[WorkflowMetadataSummary] {
-    override def append(f1: WorkflowMetadataSummary, f2: => WorkflowMetadataSummary): WorkflowMetadataSummary = f1.append(f2)
-  }
-
-  implicit class MetadatumEnhancer(val metadatum: Metadatum) extends AnyVal {
-    def toSummary: WorkflowMetadataSummary = {
-      val base = WorkflowMetadataSummary(metadatum.workflowUuid)
-      metadatum.key match {
-        case WorkflowMetadataKeys.Name => base.copy(name = metadatum.value)
-        case WorkflowMetadataKeys.Status => base.copy(status = metadatum.value)
-        case WorkflowMetadataKeys.StartTime => base.copy(startDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
-        case WorkflowMetadataKeys.EndTime => base.copy(endDate = metadatum.value map OffsetDateTime.parse map { _.toSystemTimestamp })
-      }
-    }
-  }
-}
 
 case class WorkflowMetadataSummary
 (
@@ -33,23 +10,4 @@ case class WorkflowMetadataSummary
   startDate: Option[Timestamp] = None,
   endDate: Option[Timestamp] = None,
   workflowMetadataSummaryId: Option[Long] = None
-) {
-
-  def append(that: WorkflowMetadataSummary): WorkflowMetadataSummary = {
-    // Resolve the status if both `this` and `that` have defined statuses.  This will evaluate to `None`
-    // if one or both of the statuses is not defined.
-    val resolvedStatus = for {
-      thisStatus <- this.status
-      thatStatus <- that.status
-    } yield (thisStatus |+| thatStatus).toString
-
-    WorkflowMetadataSummary(
-      workflowUuid = workflowUuid,
-      // If not both statuses are defined, take whichever is defined.
-      status = resolvedStatus orElse this.status orElse that.status,
-      name = this.name orElse that.name,
-      startDate = this.startDate orElse that.startDate,
-      endDate = this.endDate orElse that.endDate
-    )
-  }
-}
+)

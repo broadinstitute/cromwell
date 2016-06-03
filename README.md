@@ -1595,7 +1595,8 @@ Server: spray-can/1.3.3
 ```
 
 Query data is refreshed from raw data periodically according to the configuration value `services.MetadataService.metadata-summary-refresh-interval`.
-If not specified the refresh interval will default to 2 seconds.  
+This interval represents the duration between the end of one summary refresh sweep and the beginning of the next sweep.  If not specified the
+refresh interval will default to 2 seconds.
 
 Cromwell can also be configured to ignore particularly old raw data via the configuration value `services.MetadataService.metadata-summary-timestamp-minimum`.
 This prevents Cromwell from attempting to scan and summarize data that has already been added to its internal summary table.  This setting is optional, if

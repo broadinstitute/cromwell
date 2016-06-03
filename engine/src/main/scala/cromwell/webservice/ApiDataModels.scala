@@ -66,7 +66,7 @@ object APIResponse {
   /** When a request completes successfully. */
   def success(message: String, data: Option[JsValue] = None) = SuccessResponse("success", message, data)
 
-  def workflowNotFound(id: WorkflowId) = RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Workflow '$id' not found.")))
+  def workflowNotFound(id: WorkflowId) = RequestComplete(StatusCodes.NotFound, APIResponse.error(new Exception(s"Workflow '$id' not found.")))
 }
 
 case class SuccessResponse(status: String, message: String, data: Option[JsValue])

@@ -19,7 +19,7 @@ import cromwell.util.SampleWdl.{HelloWorld, HelloWorldWithoutWorkflow, Incr}
 import cromwell.webservice.CromwellApiHandler._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlInteger, WdlString}
+import wdl4s.values.{SymbolHash, WdlArray, WdlInteger, WdlString}
 
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
@@ -69,14 +69,17 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       val setupFuture = Future.sequence(
         workflows map { case (workflowId, workflowState) =>
           val status = if (workflowState == WorkflowSubmitted) NotStarted else Running
-          val descriptor = materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = SampleWdl.HelloWorld.asWorkflowSources())
-          val worldSymbolHash = descriptor.hash(worldWdlString)
+          val sources = SampleWdl.HelloWorld.asWorkflowSources()
+          val descriptor = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = sources)
+          // PBE hacked out
+          // val worldSymbolHash = descriptor.hash(worldWdlString)
+          val worldSymbolHash = Option(SymbolHash(UUID.randomUUID().toString))
           val symbols = Map(key -> new SymbolStoreEntry(key, WdlStringType, Option(worldWdlString), worldSymbolHash))
           // FIXME? null AST
           val task = Task.empty
           val call = new Call(None, key.scope, task, Set.empty[FullyQualifiedName], Map.empty, None)
           for {
-            _ <- globalDataAccess.createWorkflow(descriptor, symbols.values, Seq(call), new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, system))
+            _ <- globalDataAccess.createWorkflow(descriptor, sources, symbols.values, Seq(call), new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, system))
             _ <- globalDataAccess.updateWorkflowState(workflowId, workflowState)
             _ <- globalDataAccess.updateStatus(workflowId, Seq(ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)), status)
           } yield ()

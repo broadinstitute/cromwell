@@ -103,7 +103,8 @@ trait DataAccess extends AutoCloseable {
    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
    * `backend`.  Or perhaps defer this?
    */
-  def createWorkflow(workflowDescriptor: OldStyleWorkflowDescriptor,
+  def createWorkflow(workflowDescriptor: EngineWorkflowDescriptor,
+                     sources: WorkflowSourceFiles,
                      workflowInputs: Traversable[SymbolStoreEntry],
                      calls: Traversable[Scope],
                      backend: OldStyleBackend)(implicit ec: ExecutionContext): Future[Unit] = {
@@ -116,9 +117,9 @@ trait DataAccess extends AutoCloseable {
     val workflowExecutionAux = (workflowExecutionId: Int) => {
       new WorkflowExecutionAux(
         workflowExecutionId,
-        workflowDescriptor.sourceFiles.wdlSource.toClob,
-        workflowDescriptor.sourceFiles.inputsJson.toClob,
-        workflowDescriptor.sourceFiles.workflowOptionsJson.toClob
+        sources.wdlSource.toClob,
+        sources.inputsJson.toClob,
+        sources.workflowOptionsJson.toClob
       )
     }
     val workflowSymbols = (workflowExecutionId: Int) => {

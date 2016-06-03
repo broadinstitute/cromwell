@@ -33,12 +33,12 @@ class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBui
   "RestartWorkflowSpec" should {
     "restart a call in Running state" ignore {
       val id = WorkflowId.randomId()
-      val descriptor = materializeWorkflowDescriptorFromSources(id, sources)
+      val descriptor = createMaterializedEngineWorkflowDescriptor(id, sources)
       val a = ExecutionDatabaseKey("w.a", Option(-1), 1)
       val b = ExecutionDatabaseKey("w.b", Option(-1), 1)
 
       (for {
-        _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+        _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
         _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowRunning)
         _ <- dataAccess.updateStatus(descriptor.id, Seq(a), ExecutionStatus.Running)
         _ <- dataAccess.updateStatus(descriptor.id, Seq(b), ExecutionStatus.NotStarted)

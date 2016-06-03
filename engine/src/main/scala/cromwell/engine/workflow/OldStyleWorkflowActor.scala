@@ -303,8 +303,10 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
     val symbolStoreEntries = buildSymbolStoreEntries(workflow, workflow.actualInputs)
     symbolCache = symbolStoreEntries.groupBy(entry => SymbolCacheKey(entry.scope, entry.isInput))
     val finalCalls = OldStyleFinalCall.createFinalCalls(workflow)
-    globalDataAccess.createWorkflow(
-      workflow, symbolStoreEntries, workflow.namespace.workflow.children ++ finalCalls, backend)
+//    globalDataAccess.createWorkflow(
+//      workflow, symbolStoreEntries, workflow.namespace.workflow.children ++ finalCalls, backend)
+    // PBE Olde Junke
+    ???
   }
 
   // This is passed as an implicit parameter to methods of classes in the companion object.

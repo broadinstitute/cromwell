@@ -9,7 +9,7 @@ import akka.util.Timeout
 import better.files._
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.{EmptyWorkflow, GoodbyeWorld, ThreeStep}
+import cromwell.util.SampleWdl._
 import org.apache.commons.io.output.TeeOutputStream
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.time.Span
@@ -35,7 +35,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
   }
 
   it should "run" in {
-    testWdl(ThreeStep) { wdlAndInputs =>
+    testWdl(ThreeStep1) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       traceInfoRun(wdl, inputs)("transitioning from Running to Succeeded.") should be(0)
@@ -43,7 +43,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
   }
 
   it should "run using args" in {
-    testWdl(ThreeStep) { wdlAndInputs =>
+    testWdl(ThreeStep2) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       traceInfoAction("run", wdl, inputs)("transitioning from Running to Succeeded.") should be(0)

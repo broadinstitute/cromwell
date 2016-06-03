@@ -8,12 +8,10 @@ import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.{CromwellBackends, WorkflowDescriptorBuilder}
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{WorkflowDescriptorMaterializationResult, MaterializeWorkflowDescriptorSuccessResponse}
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorSuccessResponse, WorkflowDescriptorMaterializationResult}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.WorkflowInitializationSucceededResponse
 import cromwell.util.SampleWdl.{HelloWorld, ThreeStep}
 import org.scalatest.BeforeAndAfter
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 
 class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {

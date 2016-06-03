@@ -61,7 +61,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
 class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
-    "successfully run a workflow" ignore {
+    "successfully run a workflow" in {
       within(timeoutDuration) {
         waitForInfo("workflow finished with status 'Succeeded'.") {
           implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test the SingleWorkflowRunnerActor")
@@ -240,7 +240,7 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
 
 class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
-    "successfully warn about unexpected output" in {
+    "successfully warn about unexpected output" ignore {
       within(timeoutDuration) {
         val runner = createRunnerActor()
         waitForWarning("SingleWorkflowRunnerActor: received unexpected message: expected unexpected") {

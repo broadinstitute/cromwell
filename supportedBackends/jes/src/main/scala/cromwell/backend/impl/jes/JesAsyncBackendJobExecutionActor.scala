@@ -3,12 +3,10 @@ package cromwell.backend.impl.jes
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.event.LoggingReceive
-import akka.util.Timeout
 import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
@@ -22,9 +20,9 @@ import cromwell.backend.impl.jes.authentication.JesDockerCredentials
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.core.{JobOutput, CromwellAggregatedException, _}
+import cromwell.core.{CromwellAggregatedException, JobOutput, _}
 import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, GetAllMetadataAction, PutMetadataAction}
+import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction

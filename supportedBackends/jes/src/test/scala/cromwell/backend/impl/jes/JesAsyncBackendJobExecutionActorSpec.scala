@@ -128,7 +128,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKit(ActorSystem("JesAsync
 
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
     }
-    system.actorOf(Props(new TestableJesJobExecutionActor), "TestableJesJobExecutionActor-" + UUID.randomUUID().toString)
+    system.actorOf(Props(new TestableJesJobExecutionActor), "TestableJesJobExecutionActor-" + UUID.randomUUID)
   }
 
   private def run(attempt: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int): BackendJobExecutionResponse = {

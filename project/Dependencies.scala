@@ -56,7 +56,7 @@ object Dependencies {
     "com.typesafe.slick" %% "slick-hikaricp" % slickV,
     "org.hsqldb" % "hsqldb" % "2.3.2",
     "mysql" % "mysql-connector-java" % "5.1.36",
-    "org.liquibase" % "liquibase-core" % "3.4.2",
+    "org.liquibase" % "liquibase-core" % "3.5.1",
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % "2.0.0",

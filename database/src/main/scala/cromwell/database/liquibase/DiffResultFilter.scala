@@ -22,15 +22,10 @@ object DiffResultFilter {
   type DiffFilter = (Database, Database, DatabaseObject, Difference) => Boolean
 
   /**
-    * The standard type filters to ignore, including interchangable types.
+    * The standard type filters to ignore, including interchangeable types.
     */
   val StandardTypeFilters: Seq[DiffFilter] =
-    Seq(isTypeSimilar("CLOB", "VARCHAR"), isTypeSimilar("TINYINT", "BOOLEAN"))
-
-  val OldeTables = Array(
-    "EXECUTION_EVENT",
-    "FAILURE_EVENT"
-  )
+    Seq(isReordered, isTypeSimilar("CLOB", "VARCHAR"), isTypeSimilar("TINYINT", "BOOLEAN"))
 
   /**
     * Removes all unique index differences.
@@ -97,7 +92,7 @@ object DiffResultFilter {
     * @param comparisonDatabase The comparison database.
     * @param filters Filters to run on each diff.
     * @param objectAndDiff A tuple of the object and the set of differences.
-    * @return True if the object is actully the same.
+    * @return True if the object is actually the same.
     */
   def isSameObject(referenceDatabase: Database, comparisonDatabase: Database, filters: Seq[DiffFilter])
                   (objectAndDiff: (DatabaseObject, ObjectDifferences)): Boolean = {
@@ -134,6 +129,22 @@ object DiffResultFilter {
   }
 
   /**
+    * Checks if the difference is due to the schemas being reordered.
+    *
+    * Returns true if the type is reordered.
+    *
+    * @param referenceDatabase The reference database.
+    * @param comparisonDatabase The comparison database.
+    * @param databaseObject The database object.
+    * @param difference The difference reported.
+    * @return True if the object is actually similar based on type.
+    */
+  def isReordered(referenceDatabase: Database, comparisonDatabase: Database,
+                  databaseObject: DatabaseObject, difference: Difference): Boolean = {
+    difference.getField == "order"
+  }
+
+  /**
     * Returns true if the object is liquibase database object.
     *
     * @param database The source database.
@@ -144,12 +155,30 @@ object DiffResultFilter {
     database.isLiquibaseObject(databaseObject)
   }
 
-  def isOldeObject(database: Database, databaseObject: DatabaseObject): Boolean = {
-    OldeTables.exists(t =>
-      databaseObject.getName.equalsIgnoreCase(t) ||
-        // getContainingObjects is ill-mannered and returns null when really it ought to return an empty array, so wrap
-        // in an `Option` and `getOrElse`.
-        Option(databaseObject.getContainingObjects).getOrElse(Array.empty).toSeq.exists(isOldeObject(database, _)))
+  /**
+    * Returns true if the object is a member of the excluded table.
+    *
+    * @param tables         Tables to check.
+    * @param database       The source database.
+    * @param databaseObject The database object.
+    * @return True if the object is a member of the tables.
+    */
+  def isTableObject(tables: Seq[String])
+                   (database: Database, databaseObject: DatabaseObject): Boolean = {
+    isTableObject(tables, databaseObject)
+  }
+
+  private def isTableObject(tables: Seq[String], databaseObject: DatabaseObject): Boolean = {
+    tables.exists(table =>
+      databaseObject.getName.equalsIgnoreCase(table) ||
+        getContainingObjects(databaseObject).exists(isTableObject(tables, _))
+    )
+  }
+
+  // getContainingObjects is ill-mannered and returns null when really it ought to return an empty array, so wrap
+  // in an `Option` and `getOrElse`.
+  private def getContainingObjects(databaseObject: DatabaseObject): Array[DatabaseObject] = {
+    Option(databaseObject.getContainingObjects).getOrElse(Array.empty)
   }
 
   /**
@@ -173,7 +202,6 @@ object DiffResultFilter {
       */
     def filterChangedObjects(filters: Seq[DiffFilter]) = filter(diffResult, filters, (_, _) => false)
 
-    // TODO PBE get rid of this after the migration of #789 has run.
-    def filterOldeObjects = filter(diffResult, Seq.empty, isOldeObject)
+    def filterTableObjects(tables: Seq[String]) = filter(diffResult, Seq.empty, isTableObject(tables))
   }
 }

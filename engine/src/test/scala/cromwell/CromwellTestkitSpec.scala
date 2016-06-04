@@ -285,13 +285,13 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         case (_: WdlString, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
         case (array: WdlArray, expectedArray: WdlArray) =>
           (array.value.length == expectedArray.value.length) &&
-            array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).fold(true)(_ && _)
+            array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).forall(identity)
         case (map: WdlMap, expectedMap: WdlMap) =>
           val mapped = map.value.map {
             case (k, v) => expectedMap.value.get(k).isDefined && areEqual(v, expectedMap.value(k))
           }
 
-          (map.value.size == expectedMap.value.size) &&  mapped.fold(true)(_ && _)
+          (map.value.size == expectedMap.value.size) && mapped.forall(identity)
         case _ => a == b
       }
 
@@ -300,7 +300,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   def startingCallsFilter[T](callNames: String*)(block: => T): T =
-    waitForPattern(s"starting calls: ${callNames.mkString(", ")}$$") {
+    waitForPattern(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$") {
       block
     }
 

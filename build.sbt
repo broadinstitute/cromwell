@@ -63,13 +63,5 @@ lazy val root = (project in file("."))
   .settings(rootSettings: _*)
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(engine % "test->test;compile->compile")
-  .dependsOn(backend)
-  .dependsOn(localBackend)
-  .dependsOn(sgeBackend)
-  .dependsOn(jesBackend)
-  .dependsOn(htCondorBackend)
-  .dependsOn(gcsfilesystem)
-  .aggregate(core, backend, engine, localBackend, sgeBackend, jesBackend, htCondorBackend, gcsfilesystem)
+  .aggregate(core, database, backend, engine, localBackend, sgeBackend, jesBackend, htCondorBackend, gcsfilesystem)
   .withTestSettings
-
-

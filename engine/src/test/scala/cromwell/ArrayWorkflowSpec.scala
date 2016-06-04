@@ -32,7 +32,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
   }
 
   "A static Array[File] declaration" should {
-    "be a valid declaration" ignore {
+    "be a valid declaration" in {
       val declaration = ns.workflow.declarations.find {_.name == "arr"}.getOrElse {
         fail("Expected declaration 'arr' to be found")
       }
@@ -44,7 +44,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
       }
       value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
     }
-    "be usable as an input" ignore {
+    "be usable as an input" in {
       val catTask = ns.findTask("cat").getOrElse {
         fail("Expected to find task 'cat'")
       }
@@ -53,7 +53,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
       }
       command shouldEqual "cat -s f1 f2 f3"
     }
-    "Coerce Array[String] to Array[File] when running the workflow" ignore {
+    "Coerce Array[String] to Array[File] when running the workflow" in {
       val outputs = Map(
         "wf.cat.lines" -> WdlArray(WdlArrayType(WdlStringType), Seq(
             WdlString("line1"),
@@ -68,7 +68,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
       val sampleWdl = SampleWdl.ArrayLiteral(Paths.get("."))
       runWdlAndAssertOutputs(
         sampleWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.cat", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Starting calls: wf.cat", occurrences = 1),
         expectedOutputs = outputs
       )
       sampleWdl.cleanup()

@@ -4,7 +4,6 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cromwell.core.{WorkflowId, WorkflowState}
-import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import spray.http.Uri
 import wdl4s.values._
@@ -28,7 +27,10 @@ object MetadataServiceActor {
   trait MetadataServiceAction extends MetadataServiceMessage with ServiceRegistryMessage {
     def serviceName = MetadataServiceName
   }
-  case class PutMetadataAction(event: MetadataEvent) extends MetadataServiceAction
+  object PutMetadataAction {
+    def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
+  }
+  case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId) extends MetadataServiceAction
   case class GetMetadataQueryAction(key: MetadataQuery) extends MetadataServiceAction
   case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
@@ -58,19 +60,23 @@ object MetadataServiceActor {
     Props(MetadataServiceActor(serviceConfig, globalConfig))
   }
   */
+
+  def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
+    case WdlArray(_, valueSeq) =>
+      val zippedSeq = valueSeq.zipWithIndex
+      zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+    case WdlMap(_, valueMap) =>
+      valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+    case value =>
+      List(MetadataEvent(metadataKey, MetadataValue(value)))
+  }
 }
 
 object MetadataServiceActorImplicits {
+  import MetadataServiceActor._
+
   implicit class EnhancedServiceRegistryActorForMetadata(val actor: ActorRef) extends AnyVal {
-    def pushWdlValueMetadata(metadataKey: MetadataKey, output: WdlValue): Unit = output match {
-      case WdlArray(_, valueSeq) =>
-        val zippedSeq = valueSeq.zipWithIndex
-        zippedSeq foreach { case (value, index) => actor.pushWdlValueMetadata(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
-      case WdlMap(_, valueMap) =>
-        valueMap foreach { case (key, value) => actor.pushWdlValueMetadata(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
-      case value =>
-        actor ! PutMetadataAction(MetadataEvent(metadataKey, MetadataValue(value)))
-    }
+    def pushWdlValueMetadata(metadataKey: MetadataKey, output: WdlValue): Unit = actor ! PutMetadataAction(wdlValueToMetadataEvents(metadataKey, output))
 
     def pushThrowableMetadata(metadataKey: MetadataKey, t: Throwable): Unit = {
       actor ! PutMetadataAction(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))

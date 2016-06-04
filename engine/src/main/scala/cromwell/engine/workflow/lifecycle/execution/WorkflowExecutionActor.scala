@@ -316,7 +316,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushWorkflowOutputMetadata(data: WorkflowExecutionActorData) = {
-    import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
     val keyValues = data.outputStore.store.filterKeys(_.index.isEmpty).flatMap {
       case (key, value) =>
         value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue)
@@ -324,15 +323,18 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       case (key, Some(wdlValue)) => (key, wdlValue)
     }
 
-    keyValues foreach { case (outputName, outputValue) =>
-      serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"), outputValue)
+    val events = keyValues flatMap { case (outputName, outputValue) =>
+      wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"), outputValue)
     }
+
+    serviceRegistryActor ! PutMetadataAction(events)
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
-    import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
     pushCompletedJobMetadata(jobKey, ExecutionStatus.Done, returnCode)
-    outputs foreach { case (lqn, value) => serviceRegistryActor.pushWdlValueMetadata(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), value.wdlValue) }
+    val events = outputs flatMap { case (lqn, value) => wdlValueToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), value.wdlValue) }
+
+    serviceRegistryActor ! PutMetadataAction(events)
   }
 
   private def pushFailedJobMetadata(jobKey: JobKey, returnCode: Option[Int], failure: Throwable, retryableFailure: Boolean) = {
@@ -347,7 +349,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   private def pushCompletedJobMetadata(jobKey: JobKey, executionStatus: ExecutionStatus, returnCode: Option[Int]) = {
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(executionStatus)))
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.End),
-      MetadataValue(OffsetDateTime.now)))
+          MetadataValue(OffsetDateTime.now)))
     returnCode foreach { rc =>
       serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ReturnCode), MetadataValue(rc)))
     }
@@ -384,7 +386,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   private def pushNewJobMetadata(jobKey: BackendJobDescriptorKey, backendName: String) = {
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Start),
-      MetadataValue(OffsetDateTime.now)))
+          MetadataValue(OffsetDateTime.now)))
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Backend), MetadataValue(backendName)))
     jobKey.scope.task.runtimeAttributes.attrs.foreach { case (attrName, attrExpression) =>
       serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, s"${CallMetadataKeys.RuntimeAttributes}:$attrName"), MetadataValue(attrExpression.valueString)))

@@ -338,17 +338,18 @@ trait DataAccess extends AutoCloseable {
     updateCallInputs(workflowId.toString, key.scope.fullyQualifiedName, key.index.fromIndex, mappedInputs).map(_.sum)
   }
 
-  def addMetadataEvent(metadataEvent: MetadataEvent)(implicit ec: ExecutionContext): Future[Unit] = {
-    val key = metadataEvent.key
-    val workflowUuid = key.workflowId.id.toString
-    val timestamp = metadataEvent.offsetDateTime.toSystemTimestamp
-    val value = metadataEvent.value.value
-    val valueType = Option(metadataEvent.value.valueType) map { _.typeName } orNull
-
-    key.jobKey match {
-      case None => addMetadataEvent(workflowUuid, key.key, value, valueType, timestamp)
-      case Some(jobKey) => addMetadataEvent(workflowUuid, key.key, jobKey.callFqn, jobKey.index, jobKey.attempt, value, valueType, timestamp)
+  def addMetadataEvents(metadataEvents: Iterable[MetadataEvent])(implicit ec: ExecutionContext): Future[Unit] = {
+    val metadata = metadataEvents map { metadataEvent =>
+      val key = metadataEvent.key
+      val workflowUuid = key.workflowId.id.toString
+      val timestamp = metadataEvent.offsetDateTime.toSystemTimestamp
+      val value = metadataEvent.value.value
+      val valueType = Option(metadataEvent.value.valueType) map { _.typeName } orNull
+      val jobKey = key.jobKey map { jk => (jk.callFqn, jk.index, jk.attempt) }
+        Metadatum(workflowUuid, key.key, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3), Option(value), Option(valueType), timestamp)
     }
+
+    addMetadata(metadata)
   }
 
   def queryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {

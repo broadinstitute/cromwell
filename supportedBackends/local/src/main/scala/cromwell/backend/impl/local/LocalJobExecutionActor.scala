@@ -5,7 +5,8 @@ import java.nio.file.{FileSystems, Path, Paths}
 import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
-import cromwell.backend.io.{SharedFsExpressionFunctions, SharedFileSystem, JobPaths}
+import cromwell.backend.io.{JobPaths, SharedFileSystem, SharedFsExpressionFunctions}
+import cromwell.services._
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.util.TryUtil

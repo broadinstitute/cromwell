@@ -7,7 +7,7 @@ import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.backend.{OldStyleWorkflowDescriptor, WorkflowDescriptorBuilder}
 import cromwell.engine.db.DataAccess
@@ -33,7 +33,7 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
     super.afterAll()
   }
 
-  protected def getBackendJobDescriptorKey(descriptor: OldStyleWorkflowDescriptor, callName: String): BackendJobDescriptor = {
+  protected def getBackendJobDescriptorKey(descriptor: EngineWorkflowDescriptor, callName: String): BackendJobDescriptor = {
     val call = descriptor.namespace.workflow.calls.find(_.unqualifiedName == callName).get
     val backendWorkflowDescriptor = BackendWorkflowDescriptor(
       descriptor.id,
@@ -45,12 +45,12 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
     BackendJobDescriptor(backendWorkflowDescriptor, key, Map.empty)
   }
 
-  protected def makeWorkflowDescriptor(sources: WorkflowSourceFiles): OldStyleWorkflowDescriptor = {
+  protected def makeWorkflowDescriptor(sources: WorkflowSourceFiles): EngineWorkflowDescriptor = {
     val workflowId = WorkflowId.randomId()
-    materializeWorkflowDescriptorFromSources(id = workflowId, workflowSources = sources)
+    createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = sources)
   }
 
-  protected def makeKeyValueActor(cromwellConfig: Config, workflowDescriptor: OldStyleWorkflowDescriptor): ActorRef = {
+  protected def makeKeyValueActor(cromwellConfig: Config): ActorRef = {
     actorSystem.actorOf(
       KeyValueServiceActor.props(ConfigFactory.parseString(""), cromwellConfig)
     )

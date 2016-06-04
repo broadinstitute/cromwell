@@ -86,7 +86,8 @@ class WorkflowManagerActor(config: Config)
 
   override def preStart() {
     addShutdownHook()
-    restartIncompleteWorkflows()
+    // PBE turn this off it tries to do a bunch of Olde stuffe that is badley brokeene
+    // restartIncompleteWorkflows()
   }
 
   private def addShutdownHook(): Unit = {

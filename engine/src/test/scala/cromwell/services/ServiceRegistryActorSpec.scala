@@ -33,7 +33,7 @@ class ServiceRegistryActorSpec extends FlatSpec with Matchers with ScalaFutures 
     val kvGet = KvGet(ScopedKey(callKey, "k"))
 
     val future = for {
-      _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
       get0 <- ask(serviceRegistryActor, kvGet).mapTo[KvKeyLookupFailed]
       _ = get0.action shouldEqual kvGet
       put0 <- ask(serviceRegistryActor, kvPut).mapTo[KvResponse]

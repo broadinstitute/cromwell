@@ -33,13 +33,13 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
 
   it should "insert a key/value" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
-    val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
+    val kvActor = makeKeyValueActor(cromwellConfig)
     val callKey = getBackendJobDescriptorKey(descriptor, "a")
     val put = KvPut(KvPair(ScopedKey(callKey, "k"), Option("v")))
     val get = KvGet(ScopedKey(callKey, "k"))
 
     (for {
-      _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
       put0 <- ask(kvActor, put).mapTo[KvResponse]
       _ = put0 shouldEqual KvPutSuccess(put)
       get0 <- ask(kvActor, get).mapTo[KvResponse]
@@ -50,12 +50,12 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
 
   it should "return error if key doesn't exist" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
-    val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
+    val kvActor = makeKeyValueActor(cromwellConfig)
     val callKey = getBackendJobDescriptorKey(descriptor, "a")
     val get = KvGet(ScopedKey(callKey, "k"))
 
     (for {
-      _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
       get0 <- ask(kvActor, get).mapTo[KvKeyLookupFailed]
       _ = get0.action shouldEqual get
       _ <- dataAccess.updateWorkflowState(descriptor.id, WorkflowSucceeded)
@@ -64,14 +64,14 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
 
   it should "be able to overwrite values" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
-    val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
+    val kvActor = makeKeyValueActor(cromwellConfig)
     val callAKey = getBackendJobDescriptorKey(descriptor, "a")
     val putA = KvPut(KvPair(ScopedKey(callAKey, "k"), None))
     val putB = KvPut(KvPair(ScopedKey(callAKey, "k"), Option("v")))
     val get = KvGet(ScopedKey(callAKey, "k"))
 
     (for {
-      _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
       put0 <- ask(kvActor, putA).mapTo[KvPutSuccess]
       _ = put0 shouldEqual KvPutSuccess(putA)
       get0 <- ask(kvActor, get).mapTo[KvPair]
@@ -86,13 +86,13 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
 
   it should "be able to store NULL values" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
-    val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
+    val kvActor = makeKeyValueActor(cromwellConfig)
     val callAKey = getBackendJobDescriptorKey(descriptor, "a")
     val put = KvPut(KvPair(ScopedKey(callAKey, "k"), None))
     val get = KvGet(ScopedKey(callAKey, "k"))
 
     (for {
-      _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
       put0 <- ask(kvActor, put).mapTo[KvPutSuccess]
       _ = put0 shouldEqual KvPutSuccess(put)
       get0 <- ask(kvActor, get).mapTo[KvPair]
@@ -103,7 +103,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
 
   it should "partition keys by call" ignore {
     val descriptor = makeWorkflowDescriptor(sources)
-    val kvActor = makeKeyValueActor(cromwellConfig, descriptor)
+    val kvActor = makeKeyValueActor(cromwellConfig)
     val callAKey = getBackendJobDescriptorKey(descriptor, "a")
     val callBKey = getBackendJobDescriptorKey(descriptor, "b")
     val putA = KvPut(KvPair(ScopedKey(callAKey, "k"), Option("value_a")))
@@ -112,7 +112,7 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     val getB = KvGet(ScopedKey(callBKey, "k"))
 
     (for {
-      _ <- dataAccess.createWorkflow(descriptor, Nil, descriptor.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor, sources, Nil, descriptor.namespace.workflow.calls, localBackend)
       put0 <- ask(kvActor, putA).mapTo[KvPutSuccess]
       _ = put0 shouldEqual KvPutSuccess(putA)
       get0 <- ask(kvActor, getB).mapTo[KvKeyLookupFailed]
@@ -129,9 +129,9 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
 
   it should "partition keys by workflow" ignore {
     val descriptor0 = makeWorkflowDescriptor(sources)
-    val kv0 = makeKeyValueActor(cromwellConfig, descriptor0)
+    val kv0 = makeKeyValueActor(cromwellConfig)
     val descriptor1 = makeWorkflowDescriptor(sources)
-    val kv1 = makeKeyValueActor(cromwellConfig, descriptor1)
+    val kv1 = makeKeyValueActor(cromwellConfig)
 
     val callA0 = getBackendJobDescriptorKey(descriptor0, "a")
     val callA1 = getBackendJobDescriptorKey(descriptor1, "a")
@@ -141,8 +141,8 @@ class KeyValueServiceActorSpec extends CromwellServicesSpec {
     val getA1 = KvGet(ScopedKey(callA1, "k"))
 
     (for {
-      _ <- dataAccess.createWorkflow(descriptor0, Nil, descriptor0.namespace.workflow.calls, localBackend)
-      _ <- dataAccess.createWorkflow(descriptor1, Nil, descriptor1.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor0, sources, Nil, descriptor0.namespace.workflow.calls, localBackend)
+      _ <- dataAccess.createWorkflow(descriptor1, sources, Nil, descriptor1.namespace.workflow.calls, localBackend)
       put0 <- ask(kv0, putA0).mapTo[KvPutSuccess]
       _ = put0 shouldEqual KvPutSuccess(putA0)
       get0 <- ask(kv1, getA1).mapTo[KvKeyLookupFailed]

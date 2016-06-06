@@ -130,21 +130,24 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
   }
 
-  // Test the no-args constructor
-  "SlickDataAccess (main.hsqldb)" should behave like testWith(new SlickDatabase() with DataAccess)
+  "SlickDataAccess (main.hsqldb)" should behave like testWith("main.hsqldb")
 
-  "SlickDataAccess (test.mysql)" should behave like
-    testWith(new SlickDatabase(SlickDatabase.getDatabaseConfig("test.mysql")) with DataAccess)
+  "SlickDataAccess (test.mysql)" should behave like testWith("test.mysql")
 
   /*
   If the above tests fail, one may be accidentally talking to the singleton.
   Uncomment the following test, and see if the suite works. If so, have any code talking to services etc. talk to
   the DataAccess instead.
   */
-  //"SlickDataAccess (global.singleton)" should behave like
-  //  testWith(DataAccess.globalDataAccess.asInstanceOf[SlickDatabase with DataAccess])
+  //"SlickDataAccess (global.singleton)" should behave like testWith("global.singleton")
 
-  def testWith(dataAccess: SlickDatabase with DataAccess): Unit = {
+  def testWith(configPath: String): Unit = {
+
+    lazy val dataAccess: SlickDatabase with DataAccess = configPath match {
+      case "global.singleton" => DataAccess.globalDataAccess.asInstanceOf[SlickDatabase with DataAccess]
+      case "main.hsqldb" => new SlickDatabase() with DataAccess // Test the no-args constructor
+      case _ => new SlickDatabase(SlickDatabase.getDatabaseConfig(configPath)) with DataAccess
+    }
 
     /**
       * Assert that the specified workflow has the appropriate number of calls in appropriately terminal states per

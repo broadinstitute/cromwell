@@ -25,18 +25,15 @@ case class JesRuntimeAttributes(cpu: Int,
   import JesRuntimeAttributes._
 
   lazy val asMap = Map[String, Any](
-    CpuKey -> cpu,
-    ZonesKey -> zones,
-    PreemptibleKey -> preemptible,
-    BootDiskSizeKey -> bootDiskSize,
-    MemoryKey -> memory,
-    DisksKey -> disks,
+    CpuKey -> cpu.toString,
+    ZonesKey -> zones.mkString(","),
+    PreemptibleKey -> preemptible.toString,
+    BootDiskSizeKey -> bootDiskSize.toString,
+    MemoryKey -> memory.toString,
+    DisksKey -> disks.mkString(","),
     DockerKey -> dockerImage.get,
-    FailOnStderrKey -> failOnStderr,
-    ContinueOnReturnCodeKey -> (continueOnReturnCode match {
-      case ContinueOnReturnCodeFlag(v) => v
-      case ContinueOnReturnCodeSet(v) => v
-    })
+    FailOnStderrKey -> failOnStderr.toString,
+    ContinueOnReturnCodeKey -> continueOnReturnCode
   )
 }
 

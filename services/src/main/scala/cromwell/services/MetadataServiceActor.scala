@@ -63,12 +63,26 @@ object MetadataServiceActor {
 
   def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
     case WdlArray(_, valueSeq) =>
-      val zippedSeq = valueSeq.zipWithIndex
-      zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+      if (valueSeq.isEmpty) {
+        List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
+      } else {
+        val zippedSeq = valueSeq.zipWithIndex
+        zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+      }
     case WdlMap(_, valueMap) =>
-      valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+      if (valueMap.isEmpty) {
+        List(MetadataEvent.empty(metadataKey))
+      } else {
+        valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+      }
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
+  }
+
+  def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable): List[MetadataEvent] = {
+    val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
+    val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
+    message ++ cause
   }
 }
 
@@ -77,10 +91,5 @@ object MetadataServiceActorImplicits {
 
   implicit class EnhancedServiceRegistryActorForMetadata(val actor: ActorRef) extends AnyVal {
     def pushWdlValueMetadata(metadataKey: MetadataKey, output: WdlValue): Unit = actor ! PutMetadataAction(wdlValueToMetadataEvents(metadataKey, output))
-
-    def pushThrowableMetadata(metadataKey: MetadataKey, t: Throwable): Unit = {
-      actor ! PutMetadataAction(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
-      Option(t.getCause) foreach { cause => pushThrowableMetadata(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) }
-    }
   }
 }

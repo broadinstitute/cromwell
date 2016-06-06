@@ -1,6 +1,7 @@
 package cromwell.services
 
 object CallMetadataKeys {
+  val ExecutionEvents = "executionEvents"
   val ExecutionStatus = "executionStatus"
   val RuntimeAttributes = "runtimeAttributes"
   val Inputs = "inputs"

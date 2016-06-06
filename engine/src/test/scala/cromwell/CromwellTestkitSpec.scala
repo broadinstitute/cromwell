@@ -22,8 +22,8 @@ import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataQuery, ServiceRegistryClient}
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
-import cromwell.webservice.MetadataBuilderActor
 import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalactic.Equality
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}

@@ -11,7 +11,8 @@ case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 case class MetadataKey(workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String)
 
 object MetadataEvent {
-  def apply(key: MetadataKey, value: MetadataValue) = new MetadataEvent(key, value, OffsetDateTime.now)
+  def apply(key: MetadataKey, value: MetadataValue) = new MetadataEvent(key, Option(value), OffsetDateTime.now)
+  def empty(key: MetadataKey) = new MetadataEvent(key, None, OffsetDateTime.now)
 }
 
 
@@ -24,7 +25,6 @@ case object MetadataBoolean extends MetadataType { override val typeName = "bool
 object MetadataValue {
   def apply(value: Any) = {
     value match {
-      case null => new MetadataValue(null, null)
       case WdlInteger(i) => new MetadataValue(i.toString, MetadataInt)
       case WdlFloat(f) => new MetadataValue(f.toString, MetadataNumber)
       case WdlBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
@@ -53,7 +53,7 @@ object MetadataType {
 
 case class MetadataValue(value: String, valueType: MetadataType)
 
-case class MetadataEvent(key: MetadataKey, value: MetadataValue, offsetDateTime: OffsetDateTime)
+case class MetadataEvent(key: MetadataKey, value: Option[MetadataValue], offsetDateTime: OffsetDateTime)
 
 case class MetadataQueryJobKey(callFqn: String, index: Option[Int], attempt: Int)
 

@@ -44,4 +44,9 @@ object LocalRuntimeAttributes {
   }
 }
 
-case class LocalRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode, dockerImage: Option[String], failOnStderr: Boolean)
+case class LocalRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode, dockerImage: Option[String], failOnStderr: Boolean) {
+  lazy val asMap = Map[String, Any](
+    ContinueOnReturnCodeKey -> continueOnReturnCode,
+    FailOnStderrKey -> failOnStderr.toString
+  ) ++ dockerImage.map(img => Map(DockerKey -> img)).getOrElse(Map.empty)
+}

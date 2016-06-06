@@ -1,6 +1,5 @@
 package cromwell.engine.workflow
 
-import cromwell.backend.ExecutionEventEntry
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.Execution
 import cromwell.engine.ExecutionIndex._
@@ -36,7 +35,6 @@ object CallMetadataBuilder {
                                            backend: Option[String] = None,
                                            jobId: Option[String] = None,
                                            backendStatus: Option[String] = None,
-                                           executionEvents: Seq[ExecutionEventEntry] = Seq.empty,
                                            runtimeAttributes: Map[String, String] = Map.empty,
                                            cache: Option[CallCacheData] = None,
                                            failures: Seq[FailureEventEntry] = Seq.empty)
@@ -113,17 +111,6 @@ object CallMetadataBuilder {
           ExecutionDatabaseKey(o.scope, o.key.index, lastAttempt) == executionKey
         }
       } yield executionKey -> assembledMetadata.copy(outputs = Option(outputs))
-    }
-
-  /**
-    * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
-    */
-  private def buildExecutionEventsTransformer(eventsMap: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]): ExecutionMapTransformer =
-    executionMap => {
-      for {
-        (executionKey, assembledMetadata) <- executionMap
-        events = eventsMap.getOrElse(executionKey, Seq.empty)
-      } yield executionKey -> assembledMetadata.copy(executionEvents = events)
     }
 
   /**
@@ -214,7 +201,6 @@ object CallMetadataBuilder {
   def build(infosByExecution: Traversable[ExecutionInfosByExecution],
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
-            executionEvents: Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]],
             runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
             cacheData: Traversable[ExecutionWithCacheData],
             callFailures: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): Map[FullyQualifiedName, Seq[OldStyleCallMetadata]] = {
@@ -226,7 +212,6 @@ object CallMetadataBuilder {
       buildBaseTransformer(infosByExecution map { _.execution }, executionKeys),
       buildInputsTransformer(callInputs),
       buildOutputsTransformer(callOutputs),
-      buildExecutionEventsTransformer(executionEvents),
       buildExecutionInfoTransformer(infosByExecution, executionKeys),
       buildStreamsTransformer(infosByExecution),
       buildRuntimeAttributesTransformer(runtimeAttributes),
@@ -265,7 +250,6 @@ object CallMetadataBuilder {
         stdout = metadata.streams map { _.stdout },
         stderr = metadata.streams map { _.stderr },
         backendLogs = metadata.streams flatMap { _.backendLogs },
-        executionEvents = metadata.executionEvents,
         attempt = attempt,
         runtimeAttributes = metadata.runtimeAttributes,
         preemptible = preemptible,

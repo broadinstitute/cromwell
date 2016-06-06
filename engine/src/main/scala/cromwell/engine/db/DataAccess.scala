@@ -1,10 +1,9 @@
 package cromwell.engine.db
 
-import java.sql.Timestamp
 import java.time.OffsetDateTime
 
 import akka.actor.ActorSystem
-import cromwell.backend.{ExecutionEventEntry, ExecutionHash, JobKey}
+import cromwell.backend.{ExecutionHash, JobKey}
 import cromwell.core._
 import cromwell.core.retry._
 import cromwell.database.SqlConverters._
@@ -14,7 +13,7 @@ import cromwell.database.slick.SlickDatabase
 import cromwell.engine.ExecutionIndex._
 import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
-import cromwell.engine.backend.{OldStyleBackend, OldStyleBackendCallJobDescriptor, _}
+import cromwell.engine.backend.{OldStyleBackend, OldStyleBackendCallJobDescriptor}
 import cromwell.engine.db.DataAccess.{RetryBackoff, WorkflowExecutionAndAux}
 import cromwell.engine.db.EngineConverters._
 import cromwell.engine.finalcall.OldStyleFinalCall
@@ -338,49 +337,6 @@ trait DataAccess extends AutoCloseable {
         (inputName, wdlValue.wdlType.toWdlString, Option(wdlValueToDbValue(wdlValue).toClob))
     }
     updateCallInputs(workflowId.toString, key.scope.fullyQualifiedName, key.index.fromIndex, mappedInputs).map(_.sum)
-  }
-
-  def setExecutionEvents(workflowId: WorkflowId, callFqn: String, shardIndex: Option[Int], attempt: Int,
-                         events: Seq[ExecutionEventEntry])(implicit ec: ExecutionContext): Future[Unit] = {
-    val executionEvents = (executionId: Int) => {
-      events map { executionEventEntry =>
-        new ExecutionEvent(
-          executionId,
-          executionEventEntry.description,
-          executionEventEntry.startTime.toSystemTimestamp,
-          executionEventEntry.endTime.toSystemTimestamp)
-      }
-    }
-    shardIndex match {
-      case Some(idx) =>
-        setExecutionEvents(workflowId.toString, callFqn, idx, attempt, executionEvents)
-      case None =>
-        setExecutionEvents(workflowId.toString, callFqn, attempt, executionEvents)
-    }
-  }
-
-  /** Gets a mapping from call FQN to an execution event entry list */
-  def getAllExecutionEvents(workflowId: WorkflowId)(implicit ec: ExecutionContext):
-  Future[Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]]] = {
-    // The database query gives us a Seq[(CallFqn, ExecutionEvent)]. We want a Map[CallFqn -> ExecutionEventEntry].
-    // So let's do some functional programming!
-    val results = getAllExecutionEvents(workflowId.toString)
-    results map toExecutionEvents
-  }
-
-  private def toExecutionEvents(events: Traversable[(String, Int, Int, String, Timestamp, Timestamp)])
-                               (implicit ec: ExecutionContext): Map[ExecutionDatabaseKey, Seq[ExecutionEventEntry]] = {
-    val mapped: Traversable[(ExecutionDatabaseKey, ExecutionEventEntry)] = events map {
-      case (fqn, index, attempt, description, startTime, endTime) =>
-        ExecutionDatabaseKey(fqn, index.toIndex, attempt) ->
-          ExecutionEventEntry(description, startTime.toSystemOffsetDateTime, endTime.toSystemOffsetDateTime)
-    }
-    val grouped: Map[ExecutionDatabaseKey, Seq[(ExecutionDatabaseKey, ExecutionEventEntry)]] = mapped.toSeq groupBy {
-      case (key, _) => key
-    }
-    grouped mapValues {
-      _ map { case (_, values) => values }
-    }
   }
 
   /** Add a new failure event for a call into the database. */

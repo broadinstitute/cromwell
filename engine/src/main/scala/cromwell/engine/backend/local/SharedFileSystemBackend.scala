@@ -3,7 +3,6 @@ package cromwell.engine.backend.local
 import java.nio.file._
 
 import better.files._
-import cromwell.backend.ExecutionEventEntry
 import cromwell.backend.wdl.OldWorkflowEngineFunctions
 import cromwell.core.{JobOutput, JobOutputs, WorkflowOptions, _}
 import cromwell.engine.backend
@@ -115,7 +114,7 @@ trait SharedFileSystemBackend extends CanUseGcsFilesystem { self: OldStyleBacken
 
     outputs match {
       case Success(o) =>
-        cachedJobDescriptor.hash map { h => CompletedExecutionHandle(OldStyleSuccessfulBackendCallExecution(o, Seq.empty[ExecutionEventEntry], callRootPath(jobDescriptor).resolve("rc").contentAsString.stripLineEnd.toInt, h, Option(cachedJobDescriptor))) }
+        cachedJobDescriptor.hash map { h => CompletedExecutionHandle(OldStyleSuccessfulBackendCallExecution(o, callRootPath(jobDescriptor).resolve("rc").contentAsString.stripLineEnd.toInt, h, Option(cachedJobDescriptor))) }
       case Failure(ex) => FailedExecutionHandle(ex).future
     }
   } flatten

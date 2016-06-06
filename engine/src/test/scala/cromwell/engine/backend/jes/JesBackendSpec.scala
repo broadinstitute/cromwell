@@ -74,14 +74,14 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val handle = mock[JesPendingExecutionHandle]
     handle.jobDescriptor returns new PreemptionJobDescriptor(attempt = 2, max = 1)
 
-    val executionResult0 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    val executionResult0 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly.")), handle), 2.seconds)
     executionResult0.isInstanceOf[FailedExecutionHandle] shouldBe true
     val failedHandle0 = executionResult0.asInstanceOf[FailedExecutionHandle]
     failedHandle0.returnCode shouldBe None
 
     handle.jobDescriptor returns new PreemptionJobDescriptor(attempt = 1, max = 1)
 
-    val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    val executionResult = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly.")), handle), 2.seconds)
     executionResult.isInstanceOf[RetryableExecutionHandle] shouldBe true
     val retryableHandle = executionResult.asInstanceOf[RetryableExecutionHandle]
     retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
@@ -91,7 +91,7 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
 
     handle.jobDescriptor returns new PreemptionJobDescriptor(attempt = 1, max = 2)
 
-    val executionResult2 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty), handle), 2.seconds)
+    val executionResult2 = Await.result(jesBackend.executionResult(new Failed(10, Some("14: VM XXX shut down unexpectedly.")), handle), 2.seconds)
     executionResult2.isInstanceOf[RetryableExecutionHandle] shouldBe true
     val retryableHandle2 = executionResult2.asInstanceOf[RetryableExecutionHandle]
     retryableHandle2.throwable.isInstanceOf[PreemptedException] shouldBe true
@@ -99,12 +99,12 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
     val preemptedException2 = retryableHandle2.throwable.asInstanceOf[PreemptedException]
     preemptedException2.getMessage should include ("will be restarted with another preemptible VM")
 
-    Await.result(jesBackend.executionResult(new Failed(10, Some("15: Other type of error."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
-    Await.result(jesBackend.executionResult(new Failed(11, Some("14: Wrong errorCode."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
-    Await.result(jesBackend.executionResult(new Failed(10, Some("Weird error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
-    Await.result(jesBackend.executionResult(new Failed(10, Some("UnparsableInt: Even weirder error message."), Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
-    Await.result(jesBackend.executionResult(new Failed(10, None, Seq.empty), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
-    Await.result(jesBackend.executionResult(new Failed(10, Some("Operation canceled at"), Seq.empty), handle), 2.seconds) shouldBe AbortedExecutionHandle
+    Await.result(jesBackend.executionResult(new Failed(10, Some("15: Other type of error.")), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(11, Some("14: Wrong errorCode.")), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("Weird error message.")), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("UnparsableInt: Even weirder error message.")), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, None), handle), 2.seconds).isInstanceOf[FailedExecutionHandle] shouldBe true
+    Await.result(jesBackend.executionResult(new Failed(10, Some("Operation canceled at")), handle), 2.seconds) shouldBe AbortedExecutionHandle
   }
 
   //"JesBackend" should "consider 403 as a fatal exception" in {

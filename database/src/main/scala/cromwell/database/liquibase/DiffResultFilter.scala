@@ -27,6 +27,9 @@ object DiffResultFilter {
   val StandardTypeFilters: Seq[DiffFilter] =
     Seq(isTypeSimilar("CLOB", "VARCHAR"), isTypeSimilar("TINYINT", "BOOLEAN"))
 
+  val OldeTables = Array(
+    "EXECUTION_EVENT"
+  )
 
   /**
     * Removes all unique index differences.
@@ -131,12 +134,21 @@ object DiffResultFilter {
 
   /**
     * Returns true if the object is liquibase database object.
+    *
     * @param database The source database.
     * @param databaseObject The database object.
     * @return True if the object is a liquibase database object.
     */
   def isLiquibaseObject(database: Database, databaseObject: DatabaseObject): Boolean = {
     database.isLiquibaseObject(databaseObject)
+  }
+
+  def isOldeObject(database: Database, databaseObject: DatabaseObject): Boolean = {
+    OldeTables.exists(t =>
+      databaseObject.getName.equalsIgnoreCase(t) ||
+        // getContainingObjects is ill-mannered and returns null when really it ought to return an empty array, so wrap
+        // in an `Option` and `getOrElse`.
+        Option(databaseObject.getContainingObjects).getOrElse(Array.empty).toSeq.exists(isOldeObject(database, _)))
   }
 
   /**
@@ -159,5 +171,8 @@ object DiffResultFilter {
       * @return The updated diff result.
       */
     def filterChangedObjects(filters: Seq[DiffFilter]) = filter(diffResult, filters, (_, _) => false)
+
+    // TODO PBE get rid of this after the migration of #789 has run.
+    def filterOldeObjects = filter(diffResult, Seq.empty, isOldeObject)
   }
 }

@@ -2,7 +2,6 @@ package cromwell.webservice
 
 import java.time.OffsetDateTime
 
-import cromwell.backend.ExecutionEventEntry
 import cromwell.engine._
 import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
 import cromwell.engine.db.ExecutionDatabaseKey
@@ -36,9 +35,8 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val executionDatabaseKeyValue = jsonFormat3(ExecutionDatabaseKey)
   implicit val unqualifiedFailureEventEntry = jsonFormat2(FailureEventEntry)
   implicit val qualifiedFailureEventEntry = jsonFormat4(QualifiedFailureEventEntry)
-  implicit val executionEventProtocol = jsonFormat3(ExecutionEventEntry)
   implicit val callCacheHitProtocol = jsonFormat3(CallCacheData)
-  implicit val callMetadataProtocol = jsonFormat19(OldStyleCallMetadata)
+  implicit val callMetadataProtocol = jsonFormat18(OldStyleCallMetadata)
   implicit val workflowMetadataResponse = jsonFormat10(WorkflowMetadataResponse)
   implicit val workflowFailuresResponse = jsonFormat4(WorkflowFailuresResponse)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)

@@ -415,37 +415,6 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  override def setExecutionEvents(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
-                                  executionEventsFromExecutionId: Int => Seq[ExecutionEvent])
-                                 (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      executionId <- dataAccess.executionIdsByWorkflowExecutionUuidAndCallKey(
-        workflowUuid, callFqn, index, attempt).result.head
-      _ <- dataAccess.executionEventIdsAutoInc ++= executionEventsFromExecutionId(executionId)
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def setExecutionEvents(workflowUuid: String, callFqn: String, attempt: Int,
-                                  executionEventsFromExecutionId: Int => Seq[ExecutionEvent])
-                                 (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      executionId <- dataAccess.executionIdsByWorkflowExecutionUuidAndCallFqnAndAttempt(
-        workflowUuid, callFqn, attempt).result.head
-      _ <- dataAccess.executionEventIdsAutoInc ++= executionEventsFromExecutionId(executionId)
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def getAllExecutionEvents(workflowUuid: String)(implicit ec: ExecutionContext):
-  Future[Traversable[(String, Int, Int, String, Timestamp, Timestamp)]] = {
-    val action = dataAccess.executionEventsByWorkflowExecutionUuid(workflowUuid).result
-
-    runTransaction(action)
-  }
-
   override def addCallFailureEvent(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
                                    failureEventsFromWorkflowExecutionIdAndExecutionId: (Int, Int) => FailureEvent)
                                   (implicit ec: ExecutionContext): Future[Unit] = {

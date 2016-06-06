@@ -88,9 +88,9 @@ case class OldStyleSgeBackend(backendConfigEntry: BackendConfigurationEntry, act
 
   private def statusString(result: OldStyleExecutionResult): String = (result match {
     case OldStyleAbortedExecution => ExecutionStatus.Aborted
-    case OldStyleNonRetryableFailedExecution(_, _, _) => ExecutionStatus.Failed
-    case OldStyleRetryableFailedExecution(_, _, _) => ExecutionStatus.Failed
-    case OldStyleSuccessfulBackendCallExecution(_, _, _, _, _) => ExecutionStatus.Done
+    case OldStyleNonRetryableFailedExecution(_, _) => ExecutionStatus.Failed
+    case OldStyleRetryableFailedExecution(_, _) => ExecutionStatus.Failed
+    case OldStyleSuccessfulBackendCallExecution(_, _, _, _) => ExecutionStatus.Done
     case OldStyleSuccessfulFinalCallExecution => ExecutionStatus.Done
   }).toString
 
@@ -203,7 +203,7 @@ case class OldStyleSgeBackend(backendConfigEntry: BackendConfigurationEntry, act
         OldStyleNonRetryableFailedExecution(new Exception(message), Option(0)).future
       case (r, _) =>
         postProcess(jobDescriptor) match {
-          case Success(callOutputs) => jobDescriptor.hash map { h => OldStyleSuccessfulBackendCallExecution(callOutputs, Seq.empty, r, h) }
+          case Success(callOutputs) => jobDescriptor.hash map { h => OldStyleSuccessfulBackendCallExecution(callOutputs, r, h) }
           case Failure(e) => OldStyleNonRetryableFailedExecution(e).future
         }
     }

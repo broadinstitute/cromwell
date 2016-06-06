@@ -53,8 +53,6 @@ package object backend {
     */
   case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config)
 
-  final case class ExecutionEventEntry(description: String, startTime: OffsetDateTime, endTime: OffsetDateTime)
-
   final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {

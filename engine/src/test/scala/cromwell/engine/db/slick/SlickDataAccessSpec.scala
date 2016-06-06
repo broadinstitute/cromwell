@@ -10,7 +10,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.backend.{ExecutionEventEntry, JobKey}
+import cromwell.backend.JobKey
 import cromwell.core._
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.{Execution, WorkflowMetadataKeys}
@@ -1071,85 +1071,6 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield()).futureValue
     }
 
-    it should "set and get execution events" taggedAs DbmsTest in {
-      // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
-      val workflowId = WorkflowId.randomId()
-      val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
-      val task = Task.empty
-      val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
-      val shardedCall = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
-      val shardIndex = Some(0)
-
-      (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, test1Sources, Nil, Seq(call), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(call, None, 2)), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 1)), localBackend)
-        _ <- dataAccess.insertCalls(workflowId, Seq(BackendCallKey(shardedCall, shardIndex, 2)), localBackend)
-
-        now = OffsetDateTime.now
-        mainEventSeq = Seq(
-          ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
-          ExecutionEventEntry("o-genki desuka", now.minusHours(4), now.minusHours(2)),
-          ExecutionEventEntry("oopsPreempted", now.minusHours(5), now))
-        mainEventSeqAttempt2 = Seq(
-          ExecutionEventEntry("hello", now.minusHours(7), now.minusHours(5)),
-          ExecutionEventEntry("cheerio", now.minusHours(5), now))
-        shardEventSeq = Seq(
-          ExecutionEventEntry("konnichiwa", now.minusHours(4), now.minusHours(2)),
-          ExecutionEventEntry("preempted again!", now.minusHours(1), now))
-        shardEventSeqAttempt2 = Seq(
-          ExecutionEventEntry("konnichiwa", now.minusHours(7), now.minusHours(5)),
-          ExecutionEventEntry("o-genki desuka", now.minusHours(5), now.minusHours(2)),
-          ExecutionEventEntry("sayounara", now.minusHours(2), now))
-
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, 1, mainEventSeq)
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, None, 2, mainEventSeqAttempt2)
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, 1, shardEventSeq)
-        _ <- dataAccess.setExecutionEvents(workflowId, call.fullyQualifiedName, shardIndex, 2, shardEventSeqAttempt2)
-
-        _ <- dataAccess.getAllExecutionEvents(workflowId) map { retrievedEvents =>
-          val mainExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, None, 1)
-          retrievedEvents valueAt mainExecutionDatabaseKey should have size 3
-          mainEventSeq foreach { event =>
-            retrievedEvents valueAt mainExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
-          }
-
-          val mainExecutionDatabaseKeyAttempt2 = ExecutionDatabaseKey(call.fullyQualifiedName, None, 2)
-          retrievedEvents valueAt mainExecutionDatabaseKeyAttempt2 should have size 2
-          mainEventSeqAttempt2 foreach { event =>
-            retrievedEvents valueAt mainExecutionDatabaseKeyAttempt2 exists { executionEventsCloseEnough(_, event) } should be (true)
-          }
-
-          val shardExecutionDatabaseKey = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex, 1)
-          retrievedEvents valueAt shardExecutionDatabaseKey should have size 2
-          shardEventSeq foreach { event =>
-            retrievedEvents valueAt shardExecutionDatabaseKey exists { executionEventsCloseEnough(_, event) } should be (true)
-          }
-
-          val shardExecutionDatabaseKeyAttempt2 = ExecutionDatabaseKey(call.fullyQualifiedName, shardIndex, 2)
-          retrievedEvents valueAt shardExecutionDatabaseKeyAttempt2 should have size 3
-          shardEventSeqAttempt2 foreach { event =>
-            retrievedEvents valueAt shardExecutionDatabaseKeyAttempt2 exists { executionEventsCloseEnough(_, event) } should be (true)
-          }
-        }
-      } yield ()).futureValue
-    }
-
-    it should "reject a set of execution events without a valid execution to link to" taggedAs DbmsTest in {
-      // We need an execution to create an event. We need a workflow to make an execution. Le Sigh...
-      val workflowId = WorkflowId.randomId()
-      val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
-      val task = Task.empty
-      val call = new Call(None, "fully.qualified.name", task, Set.empty[FullyQualifiedName], Map.empty, None)
-
-      (for {
-        _ <- dataAccess.createWorkflow(workflowInfo, test1Sources, Nil, Seq(call), localBackend)
-        _ <- dataAccess.setExecutionEvents(WorkflowId.randomId(), call.fullyQualifiedName, None, 1, Seq(
-          ExecutionEventEntry("hello", OffsetDateTime.now.minusHours(7), OffsetDateTime.now.minusHours(5)),
-          ExecutionEventEntry("cheerio", OffsetDateTime.now.minusHours(5), OffsetDateTime.now)))
-      } yield ()).failed.futureValue should be(a[NoSuchElementException])
-    }
-
     it should "not deadlock with upserts" taggedAs DbmsTest in {
       val workflowId = WorkflowId.randomId()
       val sources = WorkflowSourceFiles(
@@ -1191,11 +1112,5 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.close()
     }
-  }
-
-  private def executionEventsCloseEnough(a: ExecutionEventEntry, b: ExecutionEventEntry): Boolean = {
-    a.description == b.description &&
-      a.startTime.getSecond == b.startTime.getSecond &&
-      a.endTime.getSecond == b.endTime.getSecond
   }
 }

@@ -222,16 +222,16 @@ trait OldStyleCallActor[D <: OldStyleJobDescriptor[_ <: CallKey]] extends Loggin
     )
 
     val message = executionResult match {
-      case OldStyleSuccessfulBackendCallExecution(outputs, executionEvents, returnCode, hash, resultsClonedFrom) =>
-        OldStyleWorkflowActor.CallCompleted(key, outputs, executionEvents, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
-      case OldStyleSuccessfulFinalCallExecution => OldStyleWorkflowActor.CallCompleted(key, Map.empty, Seq.empty, 0, None, None)
+      case OldStyleSuccessfulBackendCallExecution(outputs, returnCode, hash, resultsClonedFrom) =>
+        OldStyleWorkflowActor.CallCompleted(key, outputs, returnCode, if (workflowDescriptor.writeToCache) Option(hash) else None, resultsClonedFrom)
+      case OldStyleSuccessfulFinalCallExecution => OldStyleWorkflowActor.CallCompleted(key, Map.empty, 0, None, None)
       case OldStyleAbortedExecution => OldStyleWorkflowActor.CallAborted(key)
-      case OldStyleRetryableFailedExecution(e, returnCode, events) =>
+      case OldStyleRetryableFailedExecution(e, returnCode) =>
         logger.error("Failing call with retryable Failure: " + e.getMessage, e)
-        OldStyleWorkflowActor.CallFailedRetryable(key, events, returnCode, e)
-      case OldStyleNonRetryableFailedExecution(e, returnCode, events) =>
+        OldStyleWorkflowActor.CallFailedRetryable(key, returnCode, e)
+      case OldStyleNonRetryableFailedExecution(e, returnCode) =>
         logger.error("Failing call: " + e.getMessage, e)
-        OldStyleWorkflowActor.CallFailedNonRetryable(key, events, returnCode, e.getMessage)
+        OldStyleWorkflowActor.CallFailedNonRetryable(key, returnCode, e.getMessage)
     }
 
     context.parent ! message

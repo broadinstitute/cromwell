@@ -210,7 +210,6 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
           stdout=Option(workflowFile(descriptor, s"$call/stdout")),
           stderr=Option(workflowFile(descriptor, s"$call/stderr")),
           backendLogs=if (call == "call-A") Option(Map("backendLog" -> workflowFile(descriptor, s"$call/backendout"))) else None,
-          executionEvents=Seq.empty,
           attempt=1,
           runtimeAttributes=Map.empty,
           preemptible=None,

@@ -93,8 +93,6 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
   // If timings requested, we need the call statuses and execution events
   private def futureCallToStatusMap = retrieveMap(parameters.timings, globalDataAccess.getExecutionStatuses(id))
 
-  private def futureExecutionEvents = retrieveMap(parameters.timings, globalDataAccess.getAllExecutionEvents(id))
-
   // Drop the below if timings _or_ outputs requested
   private def futureCallInputs = retrieveTraversable(parameters.timings && parameters.outputs,
     globalDataAccess.getAllInputs(id))
@@ -119,7 +117,6 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
       infosByExecution <- futureInfosByExecution
       workflowOutputs <- futureWorkflowOutputs
       callToStatusMap <- futureCallToStatusMap
-      executionEvents <- futureExecutionEvents
       callInputs <- futureCallInputs
       callOutputs <- futureCallOutputs
       callCacheData <- futureCallCacheData
@@ -131,7 +128,6 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
     } yield {
 
       val execution = workflowExecutionAndAux.execution
-      val nonFinalEvents = executionEvents.filterKeys(!_.fqn.isFinalCall)
       val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
 
       val wfFailures = failures collect {
@@ -140,7 +136,7 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
       val callFailures = callFailuresMap(failures.toSeq)
 
       val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
-      val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs, nonFinalEvents,
+      val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs,
         runtimeAttributes, callCacheData, callFailures)
 
       WorkflowMetadataBuilder.build(workflowDescriptor, execution, engineWorkflowOutputs, callMetadata, wfFailures)

@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
+import cromwell.backend.ExecutionHash
 import cromwell.core.JobOutputs
 
 /**
@@ -17,19 +17,19 @@ final case class CompletedExecutionHandle(override val result: OldStyleExecution
   override val isDone = true
 }
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class SuccessfulExecutionHandle(outputs: JobOutputs, events: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None) extends OldStyleExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None) extends OldStyleExecutionHandle {
   override val isDone = true
-  override val result = OldStyleSuccessfulBackendCallExecution(outputs, events, returnCode, hash, resultsClonedFrom)
+  override val result = OldStyleSuccessfulBackendCallExecution(outputs, returnCode, hash, resultsClonedFrom)
 }
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends OldStyleExecutionHandle {
+final case class FailedExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends OldStyleExecutionHandle {
   override val isDone = true
-  override val result = new OldStyleNonRetryableFailedExecution(throwable, returnCode, events)
+  override val result = new OldStyleNonRetryableFailedExecution(throwable, returnCode)
 }
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class RetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends OldStyleExecutionHandle {
+final case class RetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends OldStyleExecutionHandle {
   override val isDone = true
-  override val result = new OldStyleRetryableFailedExecution(throwable, returnCode, events)
+  override val result = new OldStyleRetryableFailedExecution(throwable, returnCode)
 }
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 case object AbortedExecutionHandle extends OldStyleExecutionHandle {

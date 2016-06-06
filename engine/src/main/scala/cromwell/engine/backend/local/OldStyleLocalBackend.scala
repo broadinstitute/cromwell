@@ -8,12 +8,13 @@ import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
 import cromwell.backend.JobKey
 import cromwell.backend.wdl.OldCallEngineFunctions
+import cromwell.core.PathFactory._
 import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.local.OldStyleLocalBackend.InfoKeys
-import cromwell.core.PathFactory._
 import org.slf4j.LoggerFactory
 import wdl4s.values.WdlValue
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -179,7 +180,7 @@ case class OldStyleLocalBackend(backendConfigEntry: BackendConfigurationEntry, a
 
       def processSuccess(rc: Int) = {
         postProcess(jobDescriptor) match {
-          case Success(outputs) => jobDescriptor.hash map { h => OldStyleSuccessfulBackendCallExecution(outputs, Seq.empty, rc, h) }
+          case Success(outputs) => jobDescriptor.hash map { h => OldStyleSuccessfulBackendCallExecution(outputs, rc, h) }
           case Failure(e) =>
             val message = Option(e.getMessage) map { ": " + _ } getOrElse ""
             OldStyleNonRetryableFailedExecution(new Throwable("Failed post processing of outputs" + message, e)).future

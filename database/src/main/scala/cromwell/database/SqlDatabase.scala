@@ -79,17 +79,6 @@ trait SqlDatabase extends AutoCloseable {
                                  callInputs: Traversable[(String, String, Option[Clob])])
                                 (implicit ec: ExecutionContext): Future[Traversable[Int]]
 
-  protected def setExecutionEvents(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
-                                   executionEventsFromExecutionId: Int => Seq[ExecutionEvent])
-                                  (implicit ec: ExecutionContext): Future[Unit]
-
-  protected def setExecutionEvents(workflowUuid: String, callFqn: String, attempt: Int,
-                                   executionEventsFromExecutionId: Int => Seq[ExecutionEvent])
-                                  (implicit ec: ExecutionContext): Future[Unit]
-
-  protected def getAllExecutionEvents(workflowUuid: String)(implicit ec: ExecutionContext):
-  Future[Traversable[(String, Int, Int, String, Timestamp, Timestamp)]]
-
   protected def addCallFailureEvent(workflowUuid: String, callFqn: String, attempt: Int,
                                     failureEventsFromWorkflowExecutionIdAndExecutionId: (Int, Int) => FailureEvent)
                                    (implicit ec: ExecutionContext): Future[Unit]

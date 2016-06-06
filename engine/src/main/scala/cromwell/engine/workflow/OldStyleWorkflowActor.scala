@@ -6,7 +6,7 @@ import java.time.OffsetDateTime
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
-import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
+import cromwell.backend.ExecutionHash
 import cromwell.core.{JobOutput, JobOutputs, _}
 import cromwell.database.obj.{Execution, ExecutionInfo}
 import cromwell.engine.ExecutionIndex._
@@ -46,10 +46,10 @@ object OldStyleWorkflowActor {
   case class CallStarted(callKey: OutputKey, maybeCallLogs: Option[CallLogs]) extends CallMessage
   sealed trait TerminalCallMessage extends CallMessage
   case class CallAborted(callKey: OutputKey) extends TerminalCallMessage
-  case class CallCompleted(callKey: OutputKey, callOutputs: JobOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor]) extends TerminalCallMessage
+  case class CallCompleted(callKey: OutputKey, callOutputs: JobOutputs, returnCode: Int, hash: Option[ExecutionHash], resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor]) extends TerminalCallMessage
   case class ScatterCompleted(callKey: ScatterKey) extends TerminalCallMessage
-  case class CallFailedRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: Throwable) extends TerminalCallMessage
-  case class CallFailedNonRetryable(callKey: OutputKey, executionEvents: Seq[ExecutionEventEntry], returnCode: Option[Int], failure: String) extends TerminalCallMessage
+  case class CallFailedRetryable(callKey: OutputKey, returnCode: Option[Int], failure: Throwable) extends TerminalCallMessage
+  case class CallFailedNonRetryable(callKey: OutputKey, returnCode: Option[Int], failure: String) extends TerminalCallMessage
   case class CallFailedToInitialize(callKey: ExecutionStoreKey, reason: String) extends TerminalCallMessage
   case object Terminate extends WorkflowActorMessage
   final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
@@ -460,14 +460,8 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
                                         returnCode: Option[Int],
                                         failure: Throwable,
                                         message: CallFailedRetryable,
-                                        data: WorkflowData,
-                                        events: Seq[ExecutionEventEntry]) = {
+                                        data: WorkflowData) = {
     val currentSender = sender()
-    val persistEvents = globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, events)
-
-    persistEvents.failed.foreach {
-      case e => logger.error(s"Failed to persist execution events for ${callKey.tag}.", e)
-    }
 
     persistStatusThenAck(callKey, retryStatus, currentSender, message, None, returnCode, None, None)
     val updatedData = data.addPersisting(callKey, retryStatus)
@@ -477,7 +471,6 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
 
   private def handleCallCompleted(callKey: OutputKey,
                                   jobOutputs: JobOutputs,
-                                  executionEvents: Seq[ExecutionEventEntry],
                                   returnCode: Int,
                                   message: TerminalCallMessage,
                                   hash: Option[ExecutionHash],
@@ -488,14 +481,13 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
       // TODO These should be wrapped in a transaction so this happens atomically.
       _ <- globalDataAccess.setOutputs(workflow.id, callKey.toDatabaseKey, jobOutputs,
         callKey.scope.rootWorkflow.outputs)
-      _ <- globalDataAccess.setExecutionEvents(workflow.id, callKey.scope.fullyQualifiedName, callKey.index, callKey.attempt, executionEvents)
     } yield ()
 
     completionWork onComplete {
       case Failure(e) =>
         logger.error(s"Completion work failed for call ${callKey.tag}.", e)
         currentSender ! OldStyleCallActor.Ack(message)
-        self ! CallFailedNonRetryable(callKey, executionEvents, Option(returnCode), e.getMessage)
+        self ! CallFailedNonRetryable(callKey, Option(returnCode), e.getMessage)
       case Success(_) =>
         self ! PersistStatus(callKey, ExecutionStatus.Done, Option(jobOutputs), Option(returnCode), hash, resultsClonedFrom, currentSender, message)
     }
@@ -540,12 +532,12 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
     case Event(message: CallStarted, _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
-    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) && !data.isProcessing(callKey) =>
-      handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
-    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
+    case Event(message @ CallCompleted(callKey, outputs, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) && !data.isProcessing(callKey) =>
+      handleCallCompleted(callKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
-      handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
-    case Event(message @ CallCompleted(collectorKey: CollectorKey, _, _, _, _, _), _) =>
+      handleCallCompleted(collectorKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, _, _, _, _), _) =>
       resendDueToPendingExecutionWrites(message)
       stay()
     case Event(message @ PersistStatus(callKey, status, callOutputs, returnCode, hash, resultsClonedFrom, sender, terminalCallMessage), data) if !data.isPending(callKey) =>
@@ -554,11 +546,11 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
       persistStatusThenAck(callKey, status, sender, terminalCallMessage, callOutputs, returnCode = returnCode, hash = hash, resultsClonedFrom = resultsClonedFrom)
       val updatedData = data.addPersisting(callKey, status)
       stay() using updatedData
-    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) && !data.isPending(callKey) =>
+    case Event(message @ CallFailedRetryable(callKey, returnCode, failure), data) if data.isPersistedRunning(callKey) && !data.isPending(callKey) =>
       addCallFailureEvent(callKey.toDatabaseKey, failure.getMessage)
       // Note: Currently Retryable == Preempted. If another reason than preemption arises that requires retrying at this level, this will need to be updated
-      handleCallFailedRetryable(callKey, ExecutionStatus.Preempted, returnCode, failure, message, data, events)
-    case Event(message @ CallFailedNonRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
+      handleCallFailedRetryable(callKey, ExecutionStatus.Preempted, returnCode, failure, message, data)
+    case Event(message @ CallFailedNonRetryable(callKey, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       addCallFailureEvent(callKey.toDatabaseKey, failure)
@@ -661,18 +653,18 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
   }
 
   when(WorkflowAborting) {
-    case Event(message @ CallCompleted(callKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
-      handleCallCompleted(callKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
-    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, executionEvents, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
+    case Event(message @ CallCompleted(callKey, outputs, returnCode, hash, resultsClonedFrom), data) if data.isPersistedRunning(callKey) =>
+      handleCallCompleted(callKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
+    case Event(message @ CallCompleted(collectorKey: CollectorKey, outputs, returnCode, hash, resultsClonedFrom), data) if !data.isPending(collectorKey) =>
       // Collector keys are weird internal things and never go to Running state.
-      handleCallCompleted(collectorKey, outputs, executionEvents, returnCode, message, hash, resultsClonedFrom, data)
+      handleCallCompleted(collectorKey, outputs, returnCode, message, hash, resultsClonedFrom, data)
     case Event(message @ CallAborted(callKey), data) if data.isPersistedRunning(callKey) =>
       executionStore += callKey -> ExecutionStatus.Aborted
       persistStatusThenAck(callKey, ExecutionStatus.Aborted, sender(), message)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Aborted)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       stay() using updatedData
-    case Event(message @ CallFailedRetryable(callKey, events, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
+    case Event(message @ CallFailedRetryable(callKey, returnCode, failure), data) if data.isPersistedRunning(callKey) =>
       persistStatusThenAck(callKey, ExecutionStatus.Failed, sender(), message, callOutputs = None, returnCode = returnCode)
       val updatedData = data.addPersisting(callKey, ExecutionStatus.Failed)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
@@ -1219,10 +1211,10 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
 
     generateCollectorOutput(collector, shards) match {
       case Failure(e) =>
-        self ! CallFailedNonRetryable(collector, Seq.empty, None, e.getMessage)
+        self ! CallFailedNonRetryable(collector, None, e.getMessage)
       case Success(outputs) =>
         logger.info(s"Collection complete for Scattered Call ${collector.tag}.")
-        self ! CallCompleted(collector, outputs, Seq.empty, 0, hash = None, resultsClonedFrom = None)
+        self ! CallCompleted(collector, outputs, 0, hash = None, resultsClonedFrom = None)
     }
 
     Success(ExecutionStartResult(Set(StartEntry(collector, ExecutionStatus.Starting))))

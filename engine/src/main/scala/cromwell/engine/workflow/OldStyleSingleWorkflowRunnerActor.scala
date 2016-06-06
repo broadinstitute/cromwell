@@ -5,8 +5,7 @@ import java.nio.file.Path
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import better.files._
-import cromwell.core.{JobOutput, WorkflowId}
-import cromwell.core._
+import cromwell.core.{JobOutput, WorkflowId, _}
 import cromwell.engine
 import cromwell.engine._
 import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor._

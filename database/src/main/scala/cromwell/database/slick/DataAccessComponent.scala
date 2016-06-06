@@ -9,7 +9,6 @@ class DataAccessComponent(val driver: JdbcProfile)
   with SymbolComponent
   with ExecutionComponent
   with ExecutionInfoComponent
-  with ExecutionEventComponent
   with RuntimeAttributeComponent
   with FailureEventComponent
   with MetadataComponent
@@ -23,7 +22,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       symbols.schema ++
       executions.schema ++
       executionInfos.schema ++
-      executionEvents.schema ++
       runtimeAttributes.schema ++
       failureEvents.schema ++
       metadata.schema ++

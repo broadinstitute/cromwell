@@ -1,0 +1,12 @@
+name: variable_scoping
+testFormat: workflowsuccess
+
+files {
+  wdl: variable_scoping/variable_scoping.wdl
+}
+
+metadata {
+  workflowName: scoping_wf
+  status: Succeeded
+  "outputs.scoping_wf.scoping_task.out": "10 and 20"
+}

@@ -1,0 +1,11 @@
+name: output_redirection
+testFormat: workflowsuccess
+
+files {
+  wdl: output_redirection/output_redirection.wdl
+}
+
+metadata {
+  "outputs.output_redirection_wf.output_redirection.stdout": "should be on stdout"
+  "outputs.output_redirection_wf.output_redirection.stderr": "should be on stderr"
+}

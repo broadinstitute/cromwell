@@ -1,0 +1,12 @@
+name: input_mirror
+testFormat: workflowsuccess
+
+files {
+  wdl: input_mirror/input_mirror.wdl
+}
+
+metadata {
+  workflowName: mirror_mirror_on_the_wall
+  status: Succeeded
+  "outputs.mirror_mirror_on_the_wall.mirror2.out": "The sixth sheikh's sheep is sick"
+}

@@ -22,7 +22,6 @@ import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, _}
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters}
-import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import wdl4s.types.WdlPrimitiveType
 import wdl4s.values.WdlValue
@@ -339,38 +338,6 @@ trait DataAccess extends AutoCloseable {
     updateCallInputs(workflowId.toString, key.scope.fullyQualifiedName, key.index.fromIndex, mappedInputs).map(_.sum)
   }
 
-  /** Add a new failure event for a call into the database. */
-  def addCallFailureEvent(workflowId: WorkflowId, executionKey: ExecutionDatabaseKey,
-                          failure: FailureEventEntry)(implicit ec: ExecutionContext): Future[Unit] = {
-    val failureEvents = (workflowExecutionId: Int, executionId: Int) => {
-      new FailureEvent(
-        workflowExecutionId,
-        Option(executionId),
-        StringUtils.abbreviate(failure.failure, DataAccess.FailureEventMaxMessageLength),
-        failure.timestamp.toSystemTimestamp)
-    }
-    executionKey match {
-      case ExecutionDatabaseKey(callFqn, Some(index), attempt) =>
-        addCallFailureEvent(workflowId.toString, callFqn, index, attempt, failureEvents)
-      case ExecutionDatabaseKey(callFqn, None, attempt) =>
-        addCallFailureEvent(workflowId.toString, callFqn, attempt, failureEvents)
-    }
-  }
-
-  /** Add a new failure event for a workflow into the database. */
-  def addWorkflowFailureEvent(workflowId: WorkflowId, failure: FailureEventEntry)
-                             (implicit ec: ExecutionContext): Future[Unit] = {
-
-    val failureEvents = (workflowExecutionId: Int) => {
-      new FailureEvent(
-        workflowExecutionId,
-        None,
-        StringUtils.abbreviate(failure.failure, DataAccess.FailureEventMaxMessageLength),
-        failure.timestamp.toSystemTimestamp)
-    }
-    addWorkflowFailureEvent(workflowId.toString, failureEvents)
-  }
-
   def addMetadataEvent(metadataEvent: MetadataEvent)(implicit ec: ExecutionContext): Future[Unit] = {
     val key = metadataEvent.key
     val workflowUuid = key.workflowId.id.toString
@@ -406,24 +373,6 @@ trait DataAccess extends AutoCloseable {
       }
     }
   }
-
-  /** Retrieve all recorded failures for a Workflow */
-  def getFailureEvents(workflowId: WorkflowId)
-                      (implicit ec: ExecutionContext): Future[Seq[QualifiedFailureEventEntry]] = {
-    val results = getFailureEvents(workflowId.toString)
-    results map {
-      _.toSeq map {
-        case (workflowUuid, message, timestamp, Some(fqn), Some(index), Some(attempt)) =>
-          val key = ExecutionDatabaseKey(fqn, index.toIndex, attempt)
-          QualifiedFailureEventEntry(workflowUuid, Option(key), message, timestamp.toSystemOffsetDateTime)
-        case (workflowUuid, message, timestamp, None, None, None) =>
-          QualifiedFailureEventEntry(workflowUuid, None, message, timestamp.toSystemOffsetDateTime)
-        case unexpected =>
-          throw new RuntimeException(s"Unexpected failure event: $unexpected")
-      }
-    }
-  }
-
 
   /** Set the status of one or several calls to starting and update the start date. */
   def setStartingStatus(workflowId: WorkflowId, scopeKeys: Traversable[ExecutionDatabaseKey])

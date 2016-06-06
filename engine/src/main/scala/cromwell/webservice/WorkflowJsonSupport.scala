@@ -37,7 +37,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val qualifiedFailureEventEntry = jsonFormat4(QualifiedFailureEventEntry)
   implicit val callCacheHitProtocol = jsonFormat3(CallCacheData)
   implicit val callMetadataProtocol = jsonFormat18(OldStyleCallMetadata)
-  implicit val workflowMetadataResponse = jsonFormat10(WorkflowMetadataResponse)
+  implicit val workflowMetadataResponse = jsonFormat9(WorkflowMetadataResponse)
   implicit val workflowFailuresResponse = jsonFormat4(WorkflowFailuresResponse)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)

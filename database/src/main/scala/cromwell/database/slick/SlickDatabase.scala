@@ -415,51 +415,6 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  override def addCallFailureEvent(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
-                                   failureEventsFromWorkflowExecutionIdAndExecutionId: (Int, Int) => FailureEvent)
-                                  (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      (executionId, workflowExecutionId) <- dataAccess.
-        executionIdAndWorkflowExecutionIdsByWorkflowExecutionUuidAndCallKey(
-          workflowUuid, callFqn, index, attempt).result.head
-      _ <- dataAccess.failureEventIdsAutoInc +=
-        failureEventsFromWorkflowExecutionIdAndExecutionId(workflowExecutionId, executionId)
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def addCallFailureEvent(workflowUuid: String, callFqn: String, attempt: Int,
-                                   failureEventsFromWorkflowExecutionIdAndExecutionId: (Int, Int) => FailureEvent)
-                                  (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      (executionId, workflowExecutionId) <- dataAccess.
-        executionIdAndWorkflowExecutionIdsByWorkflowExecutionUuidAndCallFqnAndAttempt(
-          workflowUuid, callFqn, attempt).result.head
-      _ <- dataAccess.failureEventIdsAutoInc +=
-        failureEventsFromWorkflowExecutionIdAndExecutionId(workflowExecutionId, executionId)
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def addWorkflowFailureEvent(workflowUuid: String, failureEventsFromWorkflowExecutionId: Int => FailureEvent)
-                                      (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      workflowExecutionId <- dataAccess.workflowExecutionIdsByWorkflowExecutionUuid(workflowUuid).result.head
-      _ <- dataAccess.failureEventIdsAutoInc += failureEventsFromWorkflowExecutionId(workflowExecutionId)
-    } yield ()
-
-    runTransaction(action)
-  }
-
-  override def getFailureEvents(workflowUuid: String)(implicit ec: ExecutionContext):
-  Future[Traversable[(String, String, Timestamp, Option[String], Option[Int], Option[Int])]] = {
-    val action = dataAccess.failureEventsByWorkflowExecutionUuid(workflowUuid).result
-
-    runTransaction(action)
-  }
-
   private def assertUpdateCount(method: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {
       DBIO.successful(Unit)

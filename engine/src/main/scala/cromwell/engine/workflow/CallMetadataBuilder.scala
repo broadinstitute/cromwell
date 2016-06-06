@@ -138,17 +138,6 @@ object CallMetadataBuilder {
     }
 
   /**
-    * Function to build a transformer that adds outputs data to the entries in the input `ExecutionMap`.
-    */
-  private def buildCallFailureTransformer(callFailureMap: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): ExecutionMapTransformer =
-    executionMap => {
-      for {
-        (executionKey, assembledMetadata) <- executionMap
-        failureEvents = callFailureMap.getOrElse(executionKey, Seq.empty)
-      } yield executionKey -> assembledMetadata.copy(failures = failureEvents)
-    }
-
-  /**
    * Function to build a transformer that adds job data to the entries in the input `ExecutionMap`.
    */
   private def buildExecutionInfoTransformer(executionsAndInfos: Traversable[ExecutionInfosByExecution],
@@ -202,8 +191,7 @@ object CallMetadataBuilder {
             callInputs: Traversable[SymbolStoreEntry],
             callOutputs: Traversable[SymbolStoreEntry],
             runtimeAttributes: Map[ExecutionDatabaseKey, Map[String, String]],
-            cacheData: Traversable[ExecutionWithCacheData],
-            callFailures: Map[ExecutionDatabaseKey, Seq[FailureEventEntry]]): Map[FullyQualifiedName, Seq[OldStyleCallMetadata]] = {
+            cacheData: Traversable[ExecutionWithCacheData]): Map[FullyQualifiedName, Seq[OldStyleCallMetadata]] = {
 
     val executionKeys = infosByExecution map { _.execution.toKey }
 
@@ -215,7 +203,6 @@ object CallMetadataBuilder {
       buildExecutionInfoTransformer(infosByExecution, executionKeys),
       buildStreamsTransformer(infosByExecution),
       buildRuntimeAttributesTransformer(runtimeAttributes),
-      buildCallFailureTransformer(callFailures),
       buildCallCacheTransformer(cacheData)
     )
 

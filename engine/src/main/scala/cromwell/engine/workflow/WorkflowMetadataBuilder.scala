@@ -23,14 +23,12 @@ object WorkflowMetadataBuilder {
   private def build(workflowDescriptor: OldStyleWorkflowDescriptor,
                     execution: WorkflowExecution,
                     workflowOutputs: engine.WorkflowOutputs,
-                    callMetadata: Map[FullyQualifiedName, Seq[OldStyleCallMetadata]],
-                    workflowFailures: Traversable[FailureEventEntry]):
+                    callMetadata: Map[FullyQualifiedName, Seq[OldStyleCallMetadata]]):
   WorkflowMetadataResponse = {
 
     val startDate = execution.startDt.toSystemOffsetDateTime
     val endDate = execution.endDt map { _.toSystemOffsetDateTime }
     val workflowInputs = workflowDescriptor.sourceFiles.inputsJson.parseJson.asInstanceOf[JsObject]
-    val failures = if (workflowFailures.isEmpty) None else Option(workflowFailures)
 
     WorkflowMetadataResponse(
       id = execution.workflowExecutionUuid.toString,
@@ -43,8 +41,7 @@ object WorkflowMetadataBuilder {
       end = endDate,
       inputs = workflowInputs,
       outputs = Option(workflowOutputs) map { _.mapToValues },
-      calls = callMetadata,
-      failures = failures.map(_.toSeq))
+      calls = callMetadata)
   }
 
   private def callFailuresMap(failureEvents: Seq[QualifiedFailureEventEntry]): DBMap[Seq[FailureEventEntry]] = {
@@ -106,9 +103,6 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
   private def futureRuntimeAttributes = retrieveMap(parameters.timings && parameters.outputs,
     globalDataAccess.getAllRuntimeAttributes(id))
 
-  private def futureFailures = retrieveTraversable(parameters.timings && parameters.outputs,
-    globalDataAccess.getFailureEvents(id))
-
   def build(): Future[WorkflowMetadataResponse] = {
 
     for {
@@ -121,7 +115,6 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
       callOutputs <- futureCallOutputs
       callCacheData <- futureCallCacheData
       runtimeAttributes <- futureRuntimeAttributes
-      failures <- futureFailures
 
       // Database work complete, but we do need one more future to get the workflow descriptor
       workflowDescriptor <- workflowDescriptorFromExecutionAndAux(workflowExecutionAndAux)
@@ -130,16 +123,11 @@ class WorkflowMetadataBuilder(id: WorkflowId, parameters: WorkflowMetadataQueryP
       val execution = workflowExecutionAndAux.execution
       val nonFinalInfosByExecution = infosByExecution.filterNot(_.execution.callFqn.isFinalCall)
 
-      val wfFailures = failures collect {
-        case QualifiedFailureEventEntry(_, None, message, timestamp) => FailureEventEntry(message, timestamp)
-      }
-      val callFailures = callFailuresMap(failures.toSeq)
-
       val engineWorkflowOutputs = SymbolStoreEntry.toWorkflowOutputs(workflowOutputs)
       val callMetadata = CallMetadataBuilder.build(nonFinalInfosByExecution, callInputs, callOutputs,
-        runtimeAttributes, callCacheData, callFailures)
+        runtimeAttributes, callCacheData)
 
-      WorkflowMetadataBuilder.build(workflowDescriptor, execution, engineWorkflowOutputs, callMetadata, wfFailures)
+      WorkflowMetadataBuilder.build(workflowDescriptor, execution, engineWorkflowOutputs, callMetadata)
     }
 
   }

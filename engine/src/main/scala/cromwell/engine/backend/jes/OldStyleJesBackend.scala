@@ -13,7 +13,7 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.backend.{BackendConfigurationDescriptor, ExecutionEventEntry, ExecutionHash, JobKey, PreemptedException}
+import cromwell.backend.{BackendConfigurationDescriptor, ExecutionHash, JobKey, PreemptedException}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{JobOutput, JobOutputs, WorkflowOptions, _}
 import cromwell.engine._
@@ -399,7 +399,7 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
             FailedExecutionHandle(ex).future
           case Success(_) => postProcess(callDescriptor) match {
             case Success(outputs) => callDescriptor.hash map { h =>
-              SuccessfulExecutionHandle(outputs, List.empty[ExecutionEventEntry], cachedCallDescriptor.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCallDescriptor)) }
+              SuccessfulExecutionHandle(outputs, cachedCallDescriptor.downloadRcFile.get.stripLineEnd.toInt, h, Option(cachedCallDescriptor)) }
             case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
               // TODO: What can we return here to retry this operation?
               // TODO: This match clause is similar to handleSuccess(), though it's subtly different for this specific case
@@ -655,21 +655,21 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
       lazy val continueOnReturnCode = jobDescriptor.callRuntimeAttributes.continueOnReturnCode
 
       status match {
-        case Run.Success(events) if jobDescriptor.callRuntimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
+        case Run.Success if jobDescriptor.callRuntimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: stderr has length $stderrLength"), returnCode.toOption).future
-        case Run.Success(events) if returnCodeContents.isFailure =>
+        case Run.Success if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           log.warn(s"${log.tag} could not download return code file, retrying: " + exception.getMessage, exception)
           // Return handle to try again.
           handle.future
-        case Run.Success(events) if returnCode.isFailure =>
+        case Run.Success if returnCode.isFailure =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
-        case Run.Success(events) if !continueOnReturnCode.continueFor(returnCode.get) =>
+        case Run.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedExecutionHandle(new Throwable(s"${log.tag} execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
-        case Run.Success(events) =>
-          jobDescriptor.hash map { h => handleSuccess(outputMappings, jobDescriptor.workflowDescriptor, events, returnCode.get, h, handle) }
-        case Run.Failed(errorCode, errorMessage, events) => handleFailure(jobDescriptor, errorCode, errorMessage, events, log)
+        case Run.Success =>
+          jobDescriptor.hash map { h => handleSuccess(outputMappings, jobDescriptor.workflowDescriptor, returnCode.get, h, handle) }
+        case Run.Failed(errorCode, errorMessage) => handleFailure(jobDescriptor, errorCode, errorMessage, log)
       }
     } catch {
       case e: Exception =>
@@ -704,12 +704,11 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
 
   private def handleSuccess(outputMappings: Try[JobOutputs],
                             workflowDescriptor: OldStyleWorkflowDescriptor,
-                            executionEvents: Seq[ExecutionEventEntry],
                             returnCode: Int,
                             hash: ExecutionHash,
                             executionHandle: OldStyleExecutionHandle): OldStyleExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, executionEvents, returnCode, hash)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, hash)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
@@ -733,7 +732,7 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
     }
   }
 
-  private def handleFailure(jobDescriptor: OldStyleBackendCallJobDescriptor, errorCode: Int, errorMessage: Option[String], events: Seq[ExecutionEventEntry], logger: WorkflowLogger) = {
+  private def handleFailure(jobDescriptor: OldStyleBackendCallJobDescriptor, errorCode: Int, errorMessage: Option[String], logger: WorkflowLogger) = {
     import lenthall.numeric.IntegerUtil._
 
     val taskName = s"${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.call.unqualifiedName}"
@@ -750,16 +749,16 @@ case class OldStyleJesBackend(backendConfigEntry: BackendConfigurationEntry, act
           s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $max).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
-        RetryableExecutionHandle(e, None, events).future
+        RetryableExecutionHandle(e, None).future
       } else {
         val e = PreemptedException(
           s"""$preemptedMsg The maximum number of preemptible attempts ($max) has been reached. The call will be restarted with a non-preemptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
-        RetryableExecutionHandle(e, None, events).future
+        RetryableExecutionHandle(e, None).future
       }
     } else {
       val e = new Throwable(s"Task ${jobDescriptor.workflowDescriptor.id}:${jobDescriptor.call.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
-      FailedExecutionHandle(e, None, events).future
+      FailedExecutionHandle(e, None).future
     }
   }
 

@@ -1,6 +1,6 @@
 package cromwell.engine.backend
 
-import cromwell.backend.{ExecutionEventEntry, ExecutionHash}
+import cromwell.backend.ExecutionHash
 import cromwell.core.JobOutputs
 
 /**
@@ -15,7 +15,7 @@ case object OldStyleSuccessfulFinalCallExecution extends OldStyleExecutionResult
  * A successful execution with resolved outputs.
  */
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class OldStyleSuccessfulBackendCallExecution(outputs: JobOutputs, executionEvents: Seq[ExecutionEventEntry], returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None) extends OldStyleExecutionResult
+final case class OldStyleSuccessfulBackendCallExecution(outputs: JobOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[OldStyleBackendCallJobDescriptor] = None) extends OldStyleExecutionResult
 
 /**
  * A user-requested abort of the command.
@@ -32,6 +32,6 @@ sealed trait OldStyleFailedExecution extends OldStyleExecutionResult {
   * Failed execution, possibly having a return code.
   */
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class OldStyleNonRetryableFailedExecution(e: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends OldStyleFailedExecution
+final case class OldStyleNonRetryableFailedExecution(e: Throwable, returnCode: Option[Int] = None) extends OldStyleFailedExecution
 @deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-final case class OldStyleRetryableFailedExecution(e: Throwable, returnCode: Option[Int] = None, events: Seq[ExecutionEventEntry] = Seq.empty) extends OldStyleFailedExecution
+final case class OldStyleRetryableFailedExecution(e: Throwable, returnCode: Option[Int] = None) extends OldStyleFailedExecution

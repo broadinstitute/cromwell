@@ -36,8 +36,7 @@ case class WorkflowMetadataResponse(id: String,
                                     end: Option[OffsetDateTime],
                                     inputs: JsObject,
                                     outputs: Option[Map[String, WdlValue]],
-                                    calls: Map[String, Seq[OldStyleCallMetadata]],
-                                    failures: Option[Seq[FailureEventEntry]])
+                                    calls: Map[String, Seq[OldStyleCallMetadata]])
 
 final case class CallCachingResponse(updateCount: Int)
 

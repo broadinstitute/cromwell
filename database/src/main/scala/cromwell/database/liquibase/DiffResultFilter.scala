@@ -28,7 +28,8 @@ object DiffResultFilter {
     Seq(isTypeSimilar("CLOB", "VARCHAR"), isTypeSimilar("TINYINT", "BOOLEAN"))
 
   val OldeTables = Array(
-    "EXECUTION_EVENT"
+    "EXECUTION_EVENT",
+    "FAILURE_EVENT"
   )
 
   /**

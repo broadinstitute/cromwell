@@ -79,14 +79,6 @@ trait SqlDatabase extends AutoCloseable {
                                  callInputs: Traversable[(String, String, Option[Clob])])
                                 (implicit ec: ExecutionContext): Future[Traversable[Int]]
 
-  protected def addCallFailureEvent(workflowUuid: String, callFqn: String, attempt: Int,
-                                    failureEventsFromWorkflowExecutionIdAndExecutionId: (Int, Int) => FailureEvent)
-                                   (implicit ec: ExecutionContext): Future[Unit]
-
-  protected def addCallFailureEvent(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
-                                    failureEventsFromWorkflowExecutionIdAndExecutionId: (Int, Int) => FailureEvent)
-                                   (implicit ec: ExecutionContext): Future[Unit]
-
   protected def setTerminalWithoutClone(workflowUuid: String, callFqn: String, index: Int, attempt: Int,
                                         statusString: String, endDt: Option[Timestamp], scriptReturnCode: Option[Int],
                                         overallHash: Option[String], dockerHash: Option[String])
@@ -97,12 +89,6 @@ trait SqlDatabase extends AutoCloseable {
                                      overallHash: Option[String], dockerHash: Option[String],
                                      workflowUuidClone: String, callFqnClone: String, indexClone: Int,
                                      attemptClone: Int)(implicit ec: ExecutionContext): Future[Unit]
-
-  protected def addWorkflowFailureEvent(workflowUuid: String, failureEventsFromWorkflowExecutionId: Int => FailureEvent)
-                                       (implicit ec: ExecutionContext): Future[Unit]
-
-  protected def getFailureEvents(workflowUuid: String)(implicit ec: ExecutionContext):
-  Future[Traversable[(String, String, Timestamp, Option[String], Option[Int], Option[Int])]]
 
   protected def setStartingStatus(workflowUuid: String, statusString: String, startDt: Option[Timestamp],
                                   scopeKeys: Traversable[(String, Int, Int)])

@@ -511,7 +511,6 @@ case class OldStyleWorkflowActor(workflow: OldStyleWorkflowDescriptor)
 
   private def addCallFailureEvent(executionKey: ExecutionDatabaseKey, failureMessage: String): Unit = {
     logger.error(failureMessage)
-    globalDataAccess.addCallFailureEvent(workflow.id, executionKey, FailureEventEntry(failureMessage, OffsetDateTime.now))
   }
 
   when(WorkflowRunning) {

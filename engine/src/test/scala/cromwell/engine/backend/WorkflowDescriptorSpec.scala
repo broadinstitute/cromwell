@@ -167,8 +167,7 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
         Option(OffsetDateTime.now),
         JsObject(),
         Option(metadataOutputs),
-        Map.empty,
-        None)
+        Map.empty)
 
       descriptor.copyWorkflowOutputs(workflowMetadataResponse).futureValue
       descriptor.maybeDeleteWorkflowLog()
@@ -227,8 +226,7 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
         Option(OffsetDateTime.now),
         JsObject(),
         None,
-        calls,
-        None)
+        calls)
 
       descriptor.copyCallLogs(workflowMetadataResponse).futureValue
       descriptor.maybeDeleteWorkflowLog()

@@ -21,28 +21,28 @@ object CallCacheSpec {
 class CallCacheSpec extends FlatSpec with Matchers with ParallelTestExecution {
   import CallCacheSpec._
 
-  "readFromCache" should "not use call caching" in {
+  "readFromCache" should "not use call caching" ignore {
     Workflow.fromPath(ReadFromCacheTest) match {
       case Valid(w) => TestFormulas.runCachingTurnedOffWorkflow(w).run.get
       case Invalid(e) => fail(s"Could not read readFromCache test:\n -${e.unwrap.mkString("\n-")}")
     }
   }
 
-  "writeToCache" should "not use call caching" in {
+  "writeToCache" should "not use call caching" ignore {
     Workflow.fromPath(WriteToCacheTest) match {
       case Valid(w) => TestFormulas.runCachingTurnedOffWorkflow(w).run.get
       case Invalid(e) => fail(s"Could not read writeToCache test:\n - ${e.unwrap.mkString("\n- ")}")
     }
   }
 
-  "cacheWithinWf" should "use call caching" in {
+  "cacheWithinWf" should "use call caching" ignore {
     Workflow.fromPath(CacheWithinWf) match {
       case Valid(w) => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(w).run.get
       case Invalid(e) => fail(s"Could not read cacheWithinWf test:\n - ${e.unwrap.mkString("\n- ")}")
     }
   }
 
-  "cacheBetweenWf" should "use call caching" in {
+  "cacheBetweenWf" should "use call caching" ignore {
     val cacheWithinWf = Workflow.fromPath(CacheWithinWf)
     val cacheBetweenWf = Workflow.fromPath(CacheBetweenWf)
     Apply[ErrorOr].map2(cacheWithinWf, cacheBetweenWf)((w, b) => TestFormulas.runSequentialCachingWorkflow(w, b)) match {

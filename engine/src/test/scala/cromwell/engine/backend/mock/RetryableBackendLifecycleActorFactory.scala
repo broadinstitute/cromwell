@@ -1,24 +1,21 @@
 package cromwell.engine.backend.mock
 
 import akka.actor.Props
-import com.typesafe.config.Config
 import cromwell.backend._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 
-class RetryableBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {
+class RetryableBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
-                                                configurationDescriptor: BackendConfigurationDescriptor): Option[Props] = None
+                                                calls: Seq[Call]): Option[Props] = None
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      configurationDescriptor: BackendConfigurationDescriptor): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor): Props = {
     RetryableBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 
-  override def workflowFinalizationActorProps(): Option[Props] = None
+  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                              calls: Seq[Call]): Option[Props] = None
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey,
-                                           configurationDescriptor: BackendConfigurationDescriptor): WdlStandardLibraryFunctions = NoFunctions
+                                           jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = NoFunctions
 }

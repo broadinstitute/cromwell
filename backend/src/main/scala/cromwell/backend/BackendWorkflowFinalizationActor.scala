@@ -28,12 +28,12 @@ object BackendWorkflowFinalizationActor {
 trait BackendWorkflowFinalizationActor extends BackendWorkflowLifecycleActor with ActorLogging {
 
   def receive: Receive = LoggingReceive {
-    case Finalize => performActionThenRespond(afterAll, onFailure = FinalizationFailed)
+    case Finalize => performActionThenRespond(afterAll map { _ => FinalizationSuccess }, onFailure = FinalizationFailed)
   }
 
   /**
     * Happens after everything else runs
     */
-  def afterAll: Future[FinalizationResponse]
+  def afterAll(): Future[Unit]
 
 }

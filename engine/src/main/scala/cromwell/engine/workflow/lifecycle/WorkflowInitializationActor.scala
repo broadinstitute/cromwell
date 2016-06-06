@@ -65,7 +65,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
           backendConfiguration = BackendConfiguration.backendConfigurationDescriptor(backend).get
           props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(factory =>
-            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, backendConfiguration)
+            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls)
           ).get
           actor = context.actorOf(props)
         } yield (actor, backend)

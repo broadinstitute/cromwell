@@ -17,9 +17,14 @@ trait FileSystems extends PathFactory {
   def postMapping(path: Path): Path = path
 
   /**
+    * Function applied before a string is attempted to be resolved to a java.nio.Path
+    */
+  def preMapping(string: String): String = string
+
+  /**
     * Use fileSystems in order to try to create a java.nio.Path from path that will be used to perform IO.
     * If no filesystem is able to construct a Path from the String, an exception will be raised.
     */
-  protected final def toPath(path: String) = postMapping(buildPath(path, fileSystems))
+  protected final def toPath(path: String) = postMapping(buildPath(preMapping(path), fileSystems))
 
 }

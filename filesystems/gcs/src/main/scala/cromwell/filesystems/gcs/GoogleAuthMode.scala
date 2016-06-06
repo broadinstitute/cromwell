@@ -85,10 +85,14 @@ sealed trait GoogleAuthMode {
   protected def buildCredentials(options: GoogleAuthOptions): Credential
 
   def buildStorage(options: GoogleAuthOptions, config: Config): Storage = {
+    buildStorage(options, GoogleConfiguration(config))
+  }
+
+  def buildStorage(options: GoogleAuthOptions, googleConfig: GoogleConfiguration): Storage = {
     new Storage.Builder(
       httpTransport,
       jsonFactory,
-      credential(options)).setApplicationName(GoogleConfiguration(config).applicationName).build()
+      credential(options)).setApplicationName(googleConfig.applicationName).build()
   }
 }
 

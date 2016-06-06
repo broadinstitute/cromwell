@@ -21,22 +21,20 @@ object JobPreparationActor {
 
   def props(executionData: WorkflowExecutionActorData,
             jobKey: BackendJobDescriptorKey,
-            factory: BackendLifecycleActorFactory,
-            configDescriptor: BackendConfigurationDescriptor) = {
-    Props(new JobPreparationActor(executionData, jobKey, factory, configDescriptor)).withDispatcher("akka.dispatchers.slow-actor-dispatcher")
+            factory: BackendLifecycleActorFactory) = {
+    Props(new JobPreparationActor(executionData, jobKey, factory)).withDispatcher("akka.dispatchers.slow-actor-dispatcher")
   }
 }
 
 case class JobPreparationActor(executionData: WorkflowExecutionActorData,
                                jobKey: BackendJobDescriptorKey,
-                               factory: BackendLifecycleActorFactory,
-                               configDescriptor: BackendConfigurationDescriptor) extends Actor with WdlLookup with ActorLogging {
+                               factory: BackendLifecycleActorFactory) extends Actor with WdlLookup with ActorLogging {
 
   override val workflowDescriptor: EngineWorkflowDescriptor = executionData.workflowDescriptor
   override val executionStore: ExecutionStore = executionData.executionStore
   override val outputStore: OutputStore = executionData.outputStore
   override val expressionLanguageFunctions = factory.expressionLanguageFunctions(
-    workflowDescriptor.backendDescriptor, jobKey, configDescriptor)
+    workflowDescriptor.backendDescriptor, jobKey)
 
   override def receive = {
     case Start =>
@@ -52,8 +50,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
 
   def prepareJobExecutionActor(inputs: Map[LocallyQualifiedName, WdlValue]): Try[BackendJobPreparationSucceeded] = {
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, inputs)
-    val config = BackendConfigurationDescriptor(configDescriptor.backendConfig, configDescriptor.globalConfig)
-    Try(factory.jobExecutionActorProps(jobDescriptor, config)) map { BackendJobPreparationSucceeded(jobDescriptor, _) }
+    Try(factory.jobExecutionActorProps(jobDescriptor)) map { BackendJobPreparationSucceeded(jobDescriptor, _) }
   }
 
   // Split inputs map (= evaluated workflow declarations + coerced json inputs) into [init\.*].last

@@ -40,21 +40,19 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
-case class TestBackendLifecycleActorFactory(config: Config) extends BackendLifecycleActorFactory {
+case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
-                                                configurationDescriptor: BackendConfigurationDescriptor): Option[Props] = None
+                                                calls: Seq[Call]): Option[Props] = None
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      configurationDescriptor: BackendConfigurationDescriptor): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor): Props = {
     throw new NotImplementedError("this is not implemented")
   }
 
-  override def workflowFinalizationActorProps(): Option[Props] = None
+  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                              calls: Seq[Call]): Option[Props] = None
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey,
-                                           configurationDescriptor: BackendConfigurationDescriptor): WdlStandardLibraryFunctions = {
+                                           jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = {
     NoFunctions
   }
 }

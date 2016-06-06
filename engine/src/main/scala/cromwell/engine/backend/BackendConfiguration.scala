@@ -9,8 +9,8 @@ import scala.util.{Try, Success, Failure}
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
   def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
     Class.forName(lifecycleActorFactoryClass)
-         .getConstructor(classOf[Config])
-         .newInstance(config)
+         .getConstructor(classOf[BackendConfigurationDescriptor])
+         .newInstance(asBackendConfigurationDescriptor)
          .asInstanceOf[BackendLifecycleActorFactory]
   }
 

@@ -61,7 +61,49 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
       |}
     """.stripMargin
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor(ConfigFactory.parseString("{}"), ConfigFactory.load())
+  val globalConfig = ConfigFactory.parseString(
+    """
+      |google {
+      |
+      |  application-name = "cromwell"
+      |
+      |  auths = [
+      |    {
+      |      name = "application-default"
+      |      scheme = "application_default"
+      |    }
+      |  ]
+      |}
+    """.stripMargin)
+  val backendConfig = ConfigFactory.parseString(
+    """
+      |  // Google project
+      |  project = "my-cromwell-workflows"
+      |
+      |  // Base bucket for workflow executions
+      |  root = "gs://my-cromwell-workflows-bucket"
+      |
+      |  // Polling for completion backs-off gradually for slower-running jobs.
+      |  // This is the maximum polling interval (in seconds):
+      |  maximum-polling-interval = 600
+      |
+      |  genomics {
+      |  // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
+      |  // Pipelines and manipulate auth JSONs.
+      |     auth = "application-default"
+      |     // Endpoint for APIs, no reason to change this unless directed by Google.
+      |     endpoint-url = "https://genomics.googleapis.com/"
+      |  }
+      |
+      |  filesystems {
+      |    gcs {
+      |      // A reference to a potentially different auth for manipulating files via engine functions.
+      |      auth = "application-default"
+      |    }
+      |  }
+    """.stripMargin)
+
+  val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
                                       inputs: Map[String, WdlValue] = Map.empty,
@@ -76,7 +118,7 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
   }
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, conf))
+    system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf)))
   }
 
   override def afterAll {

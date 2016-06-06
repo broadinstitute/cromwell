@@ -34,6 +34,7 @@ object MetadataServiceActor {
   case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
   case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends MetadataServiceAction
   case object RefreshSummary extends MetadataServiceAction
+  final case class HandleNotFound(workflowId: WorkflowId, sndr: ActorRef) extends MetadataServiceAction
 
   /**
     * Responses

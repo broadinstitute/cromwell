@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.engine.db.DataAccess
 import cromwell.engine.db.DataAccess._
 import cromwell.services.EngineMetadataServiceActor._
@@ -28,6 +28,9 @@ object EngineMetadataServiceActor {
 
   val MetadataSummaryTimestampMinimum =
     ConfigFactory.load().getStringOption("services.MetadataService.metadata-summary-timestamp-minimum") map OffsetDateTime.parse
+
+  // A workflow will stay in the existence cache for this many runs of the workflow summary actor before being expired out.
+  val CacheExpiryCount = 5
 }
 
 // TODO: PBE: Will not be MetadataServiceActor until circular dependencies fixed.
@@ -36,6 +39,13 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   val dataAccess = DataAccess.globalDataAccess
   val summaryActor = context.system.actorOf(MetadataSummaryRefreshActor.props(MetadataSummaryTimestampMinimum), "metadata-summary-actor")
   self ! RefreshSummary
+
+  // Status lookups are eventually consistent, so it's possible a db status lookup may fail for a recently submitted
+  // workflow ID.  This cache records workflow IDs for which metadata has recently flowed through this actor.  If a db
+  // status lookup fails, this actor consults the cache to see if the queried ID is known.  If the queried ID is known a
+  // status query will return `Submitted`, otherwise the status lookup will fail.  This cache is only consulted if the
+  // db status lookup fails.
+  private var workflowExistenceCache: Map[WorkflowId, Int] = Map.empty
 
   private def queryAndRespond(query: MetadataQuery) = {
     val sndr = sender()
@@ -49,7 +59,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     val sndr = sender()
     dataAccess.getWorkflowStatus(id) onComplete {
       case Success(Some(s)) => sndr ! StatusLookupResponse(id, s)
-      case Success(None) => sndr ! StatusLookupNotFound(id)
+      case Success(None) => self ! HandleNotFound(id, sndr)
       case Failure(t) => sndr ! StatusLookupFailed(id, t)
     }
   }
@@ -75,6 +85,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   def receive = {
     case action@PutMetadataAction(event) =>
+      workflowExistenceCache = workflowExistenceCache + (event.key.workflowId -> CacheExpiryCount)
       val sndr = sender()
       dataAccess.addMetadataEvent(event) onComplete {
         case Success(_) => sndr ! MetadataPutAcknowledgement(action)
@@ -88,9 +99,15 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case WorkflowQuery(uri, parameters) => queryWorkflowsAndRespond(uri, parameters)
     case RefreshSummary => summaryActor ! SummarizeMetadata
-    case MetadataSummarySuccess => scheduleSummary
+    case MetadataSummarySuccess =>
+      // Remove expired cache entries, decrement cache counts for remaining entries.
+      workflowExistenceCache = workflowExistenceCache collect { case (k, v) if v > 1 => k -> (v - 1) }
+      scheduleSummary
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")
       scheduleSummary
+    case HandleNotFound(id, sndr) =>
+      val message = if (workflowExistenceCache.contains(id)) StatusLookupResponse(id, WorkflowSubmitted) else StatusLookupNotFound(id)
+      sndr ! message
   }
 }

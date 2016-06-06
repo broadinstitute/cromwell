@@ -314,7 +314,7 @@ paths:
           required: true
           type: string
           in: path
-          default: v2
+          default: v1
         - name: id
           description: Workflow ID
           required: true

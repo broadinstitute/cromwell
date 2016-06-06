@@ -33,7 +33,7 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
     def runTest = f(testCase.workflow).run.get
 
     // Make tags, but enforce lowercase:
-    val tags = (testCase.tagStrings :+ testCase.workflow.name :+ testCase.testFormat.name) map { x => Tag(x) }
+    val tags = (testCase.tagStrings :+ testCase.workflow.name :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
 
     tags match {
       case Nil => nameTest in runTest

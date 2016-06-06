@@ -13,12 +13,12 @@ import scala.util.{Failure, Success, Try}
 case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
   def diff(other: WorkflowMetadata): Iterable[String] = {
     val missingErrors = value.keySet.diff(other.value.keySet) map { k => s"Missing key: $k" }
-    val mismatchErrors = value.keySet.intersect(other.value.keySet) flatMap { k => diffValues(value(k), other.value(k)) }
+    val mismatchErrors = value.keySet.intersect(other.value.keySet) flatMap { k => diffValues(k, value(k), other.value(k)) }
 
     mismatchErrors ++ missingErrors
   }
 
-  private def diffValues(expected: JsValue, other: JsValue): Option[String] = {
+  private def diffValues(key: String, expected: JsValue, other: JsValue): Option[String] = {
     /*
       FIXME/TODO:
 
@@ -35,7 +35,7 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
     }
 
     if (isMatch) None
-    else Option(s"Metadata mismatch. Expected: $expected. Retrieved: $other")
+    else Option(s"Metadata mismatch for $key - expected: $expected but got: $other")
   }
 }
 

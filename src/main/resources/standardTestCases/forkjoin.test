@@ -1,0 +1,15 @@
+name: forkjoin
+testFormat: workflowsuccess
+
+files {
+  wdl: forkjoin/forkjoin.wdl
+  inputs: forkjoin/forkjoin.inputs
+}
+
+metadata {
+  workflowName: forkjoin
+  "calls.forkjoin.wc.outputs.count": 1000
+  "calls.forkjoin.grep.outputs.count": 21
+  "calls.forkjoin.join.outputs.proportion": 47
+  "outputs.forkjoin.join.proportion": 47
+}

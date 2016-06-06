@@ -403,7 +403,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
             // just use the state names.
             val prevStateName = previousStatus map { _.toString } getOrElse "-"
             log.info(s"$tag Status change from $prevStateName to $currentStatus")
-            tellMetadata("jesOperationStatus", currentStatus.toString)
+            tellMetadata("backendStatus", currentStatus.toString)
           }
         }
         status match {

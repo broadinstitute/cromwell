@@ -179,13 +179,14 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushPreparedJobMetadata(jobDescriptor.key, jobDescriptor.inputs)
       val backendExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
       backendExecutionActor ! ExecuteJobCommand
-      stay() using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
+      pushRunningJobMetadata(jobDescriptor.key)
+      stay() using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
         .addBackendJobExecutionActor(jobDescriptor.key, backendExecutionActor)
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       log.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(List(throwable))
-      goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+      goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
@@ -193,7 +194,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(List(reason))
-      val mergedStateData = mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+      val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
       goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
@@ -292,19 +293,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       /** Currently, we update the status of the old key to Preempted, and add a new entry (with the #attempts incremented by 1)
         * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
       val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Preempted, newJobKey -> ExecutionStatus.NotStarted))
-      val newData = mergeExecutionDiff(stateData, executionDiff)
+      val newData = stateData.mergeExecutionDiff(executionDiff)
       stay() using startRunnableScopes(newData)
     } else {
       log.warning(s"Exhausted maximum number of retries for job ${jobKey.tag}. Failing.")
-      goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+      goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     }
   }
 
   private def handleJobSuccessful(jobKey: JobKey, outputs: JobOutputs, data: WorkflowExecutionActorData) = {
     log.info(s"Job ${jobKey.tag} succeeded! Outputs: ${outputs.mkString("\n")}")
-    val metadataKey = MetadataKey(workflowDescriptor.id, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), CallMetadataKeys.ExecutionStatus)
-    val metadataValue = MetadataValue(Done)
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey, metadataValue))
     val newData = data.jobExecutionSuccess(jobKey, outputs)
 
     if (newData.isWorkflowComplete) {
@@ -328,6 +326,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     }
 
     serviceRegistryActor ! PutMetadataAction(events)
+  }
+
+  private def pushRunningJobMetadata(jobKey: JobKey) = {
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Running)))
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
@@ -378,8 +380,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     }
 
     TryUtil.sequence(executionDiffs) match {
-      case Success(diffs) if diffs.exists(_.containsNewEntry) => startRunnableScopes(mergeExecutionDiffs(data, diffs))
-      case Success(diffs) => mergeExecutionDiffs(data, diffs)
+      case Success(diffs) if diffs.exists(_.containsNewEntry) => startRunnableScopes(data.mergeExecutionDiffs(diffs))
+      case Success(diffs) => data.mergeExecutionDiffs(diffs)
       case Failure(e) => data
     }
   }
@@ -435,17 +437,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       case Success(outputs) => self ! ScatterCollectionSucceededResponse(collector, outputs)
         Success(WorkflowExecutionDiff(Map(collector -> ExecutionStatus.Starting)))
     }
-  }
-
-  def mergeExecutionDiff(data: WorkflowExecutionActorData, diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
-    diff.executionStore foreach { case (jobKey, executionStatus) =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(executionStatus)))
-    }
-    data.copy(executionStore = data.executionStore.add(diff.executionStore))
-  }
-
-  def mergeExecutionDiffs(data: WorkflowExecutionActorData, diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
-    diffs.foldLeft(data)((newData, diff) => mergeExecutionDiff(newData, diff))
   }
 
   private def metadataKey(jobKey: JobKey, myKey: String) = MetadataKey(workflowDescriptor.id, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)

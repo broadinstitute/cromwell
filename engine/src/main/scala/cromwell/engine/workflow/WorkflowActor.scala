@@ -14,7 +14,7 @@ import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinali
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{RestartExecutingWorkflowCommand, StartExecutingWorkflowCommand, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 
@@ -104,14 +104,16 @@ object WorkflowActor {
     override val workflowState = WorkflowFailed
   }
 
+  case class StateCheckpoint(state: WorkflowActorState, failures: Option[List[Throwable]] = None)
+
   /**
     * @param currentLifecycleStateActor The current lifecycle stage, represented by an ActorRef.
     */
   case class WorkflowActorData(currentLifecycleStateActor: Option[ActorRef],
-                               workflowDescriptor: Option[EngineWorkflowDescriptor])
+                               workflowDescriptor: Option[EngineWorkflowDescriptor],
+                               lastStateReached: StateCheckpoint)
   object WorkflowActorData {
-    def empty = WorkflowActorData(None, None)
-    def apply(currentLifecycleStateActor: ActorRef, workflowDescriptor: EngineWorkflowDescriptor): WorkflowActorData = WorkflowActorData(Option(currentLifecycleStateActor), Option(workflowDescriptor))
+    def empty = WorkflowActorData(currentLifecycleStateActor = None, workflowDescriptor = None, StateCheckpoint(WorkflowUnstartedState))
   }
 
   /**
@@ -158,17 +160,21 @@ class WorkflowActor(workflowId: WorkflowId,
   }
 
   when(MaterializingWorkflowDescriptorState) {
-    case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), stateData) =>
+    case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
       val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor), name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
-      goto(InitializingWorkflowState) using WorkflowActorData(Option(initializerActor), Option(workflowDescriptor))
+      goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), _) =>
       context.parent ! WorkflowFailedResponse(workflowId, MaterializingWorkflowDescriptorState, Seq(reason))
       goto(WorkflowFailedState)
+    case Event(AbortWorkflowCommand, stateData) =>
+      // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
+      sender ! WorkflowAbortedResponse(workflowId)
+      goto(WorkflowAbortedState)
   }
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse, WorkflowActorData(_, Some(workflowDescriptor))) =>
+    case Event(WorkflowInitializationSucceededResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
       // Add Workflow name and inputs to the metadata
       pushWfNameAndInputsToMetadataService(workflowDescriptor)
 
@@ -178,33 +184,30 @@ class WorkflowActor(workflowId: WorkflowId,
         case RestartExistingWorkflow => RestartExecutingWorkflowCommand
       }
       executionActor ! commandToSend
-      goto(ExecutingWorkflowState) using WorkflowActorData(executionActor, workflowDescriptor)
-    case Event(WorkflowInitializationFailedResponse(reason), _) =>
-      context.parent ! WorkflowFailedResponse(workflowId, InitializingWorkflowState, reason)
-      goto(WorkflowFailedState)
+      goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor))
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, failures = Option(reason.toList))
   }
 
   when(ExecutingWorkflowState) {
-    case Event(WorkflowExecutionSucceededResponse, WorkflowActorData(_, Some(workflowDescriptor))) =>
-      val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor), name = s"WorkflowFinalizationActor-$workflowId")
-      finalizationActor ! StartFinalizationCommand
-      goto(FinalizingWorkflowState) using WorkflowActorData(finalizationActor, workflowDescriptor)
-    case Event(WorkflowExecutionFailedResponse(reasons), _) =>
-      context.parent ! WorkflowFailedResponse(workflowId, ExecutingWorkflowState, reasons)
-      goto(WorkflowFailedState)
+    case Event(WorkflowExecutionSucceededResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, failures = None)
+    case Event(WorkflowExecutionFailedResponse(failures), data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, failures = Option(failures.toList))
   }
 
   when(FinalizingWorkflowState) {
-    case Event(WorkflowFinalizationSucceededResponse, stateData) =>
-      context.parent ! WorkflowSucceededResponse(workflowId)
-      goto(WorkflowSucceededState)
-    case Event(WorkflowFinalizationFailedResponse(reasons), _) =>
-      context.parent ! WorkflowFailedResponse(workflowId, FinalizingWorkflowState, reasons)
+    case Event(WorkflowFinalizationSucceededResponse, data) => finalizationSucceeded(data)
+    case Event(WorkflowFinalizationFailedResponse(finalizationFailures), data) =>
+      val failures = data.lastStateReached.failures.getOrElse(List.empty) ++ finalizationFailures
+      context.parent ! WorkflowFailedResponse(workflowId, FinalizingWorkflowState, failures)
+
       goto(WorkflowFailedState)
   }
 
   when(WorkflowAbortingState) {
-    case Event(x: EngineLifecycleStateCompleteResponse, _) => goto(WorkflowAbortedState)
+    case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, failures = None)
     case _ => stay()
   }
 
@@ -219,7 +222,7 @@ class WorkflowActor(workflowId: WorkflowId,
       log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
       stay
     case Event(MetadataPutAcknowledgement(_), _) => stay()
-    case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _)) =>
+    case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)
     case unhandledMessage =>
@@ -254,6 +257,31 @@ class WorkflowActor(workflowId: WorkflowId,
           context.parent ! WorkflowAbortedResponse(workflowId)
         case unknownState => log.warning(s"$tag $unknownState is an unhandled terminal state!")
       }
+  }
+
+  private def finalizationSucceeded(data: WorkflowActorData) = {
+    val finalState = data.lastStateReached match {
+      case StateCheckpoint(WorkflowAbortingState, None) =>
+        context.parent ! WorkflowAbortedResponse(workflowId)
+        WorkflowAbortedState
+      case StateCheckpoint(state, Some(failures)) =>
+        context.parent ! WorkflowFailedResponse(workflowId, state, failures)
+        WorkflowFailedState
+      case StateCheckpoint(state, None) =>
+        context.parent ! WorkflowSucceededResponse(workflowId)
+        WorkflowSucceededState
+    }
+
+    goto(finalState) using data.copy(currentLifecycleStateActor = None)
+  }
+
+  /**
+    * Run finalization actor and transition to FinalizingWorkflowState.
+    */
+  private def finalizeWorkflow(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor, failures: Option[List[Throwable]]) = {
+    val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor), name = s"WorkflowFinalizationActor-$workflowId")
+    finalizationActor ! StartFinalizationCommand
+    goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
   }
 
   private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {

@@ -42,7 +42,7 @@ class LocalBackendSpec extends CromwellTestkitSpec {
     "not allow stderr if failOnStderr is set" in {
       runWdl(
         sampleWdl = StderrWdl,
-        eventFilter = EventFilter.info(pattern = "transitioning from ExecutingWorkflowState to WorkflowFailedState", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1),
         runtime = "runtime {failOnStderr: true}",
         terminalState = WorkflowFailed)
     }

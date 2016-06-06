@@ -12,7 +12,7 @@ class BadDockerName extends CromwellTestkitSpec {
     "fail properly" taggedAs DockerTest in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.HelloWorld,
-        eventFilter = EventFilter.info(pattern = s"transition from ExecutingWorkflowState to WorkflowFailedState", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"transition from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1),
         runtime = """
                     |runtime {
                     |  docker: "/fauxbuntu:nosuchversion"

@@ -1,8 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{FSM, Props}
-import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
-import cromwell.backend.BackendWorkflowFinalizationActor
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
@@ -22,10 +20,8 @@ object WorkflowFinalizationActor {
   sealed trait WorkflowFinalizationActorTerminalState extends WorkflowFinalizationActorState
   case object FinalizationPendingState extends WorkflowFinalizationActorState
   case object FinalizationInProgressState extends WorkflowFinalizationActorState
-  case object FinalizationAbortingState extends WorkflowFinalizationActorState
   case object FinalizationSucceededState extends WorkflowFinalizationActorTerminalState
   case object WorkflowFinalizationFailedState extends WorkflowFinalizationActorTerminalState
-  case object FinalizationAbortedState extends WorkflowFinalizationActorTerminalState
 
   /**
     * Commands
@@ -38,7 +34,6 @@ object WorkflowFinalizationActor {
     * Responses
     */
   case object WorkflowFinalizationSucceededResponse extends WorkflowLifecycleSuccessResponse
-  case object WorkflowFinalizationAbortedResponse extends EngineLifecycleActorAbortedResponse
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor))
@@ -50,14 +45,11 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
   val tag = self.path.name
   val backendAssignments = workflowDescriptor.backendAssignments
 
-  override val abortingState = FinalizationAbortingState
   override val successState = FinalizationSucceededState
   override val failureState = WorkflowFinalizationFailedState
-  override val abortedState = FinalizationAbortedState
 
   override val successResponse = WorkflowFinalizationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowFinalizationFailedResponse(reasons)
-  override val abortedResponse = WorkflowFinalizationAbortedResponse
 
   startWith(FinalizationPendingState, WorkflowLifecycleActorData.empty)
 
@@ -84,26 +76,13 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         case _ =>
           goto(WorkflowFinalizationFailedState)
       }
-    case Event(AbortFinalizationCommand, _) =>
-      context.parent ! WorkflowFinalizationAbortedResponse
-      goto(FinalizationAbortedState)
   }
 
   when(FinalizationInProgressState) {
     case Event(FinalizationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender))
     case Event(FinalizationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
-    case Event(EngineLifecycleActorAbortCommand, stateData) =>
-      stateData.backendActors.keys foreach { _ ! BackendWorkflowFinalizationActor.Abort }
-      goto(FinalizationAbortingState)
-  }
-
-  when(FinalizationAbortingState) {
-    case Event(FinalizationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender))
-    case Event(FinalizationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
-    case Event(BackendActorAbortedResponse, stateData) => checkForDoneAndTransition(stateData.withAborted(sender))
   }
 
   when(FinalizationSucceededState) { FSM.NullFunction }
   when(WorkflowFinalizationFailedState) { FSM.NullFunction }
-  when(FinalizationAbortedState) { FSM.NullFunction }
 }

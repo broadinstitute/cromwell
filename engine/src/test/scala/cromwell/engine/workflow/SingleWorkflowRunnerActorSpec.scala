@@ -40,10 +40,8 @@ object SingleWorkflowRunnerActorSpec {
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
-  val isServerMode = false
-
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(WorkflowManagerActor.props(isServerMode))
+    TestActorRef(new WorkflowManagerActor(isServerMode = false))
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
@@ -61,10 +59,10 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
 class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
-    "successfully run a workflow" ignore {
+    "successfully run a workflow" in {
       within(timeoutDuration) {
         waitForInfo("workflow finished with status 'Succeeded'.") {
-          implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test the SingleWorkflowRunnerActor")
+          singleWorkflowActor()
         }
       }
       TestKit.shutdownActorSystem(system, timeoutDuration)
@@ -135,7 +133,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
 
       doTheTest(ThreeStep, expectedCalls, 1, 3)
     }
-    "run a workflow outputting metadata with no remaining input expressions" ignore {
+    "run a workflow outputting metadata with no remaining input expressions" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
         ("wf.echo", 1, 1),
@@ -151,7 +149,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
   override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
 
   "A SingleWorkflowRunnerActor" should {
-    "fail to run a workflow and still output metadata" ignore {
+    "fail to run a workflow and still output metadata" in {
       val testStart = System.currentTimeMillis
       within(timeoutDuration) {
         singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
@@ -201,7 +199,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
   override protected def afterAll() = metadataDir.delete(ignoreIOExceptions = true)
 
   "A SingleWorkflowRunnerActor" should {
-    "successfully run a workflow requesting a bad metadata path" ignore {
+    "successfully run a workflow requesting a bad metadata path" in {
       within(timeoutDuration) {
         val runner = createRunnerActor(outputFile = Option(metadataDir))
         waitForErrorWithException(s"$metadataDir: Is a directory") {

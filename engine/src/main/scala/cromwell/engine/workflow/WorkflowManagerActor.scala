@@ -107,6 +107,7 @@ class WorkflowManagerActor(isServerMode: Boolean, config: Config = WorkflowManag
   override def preStart() {
     addShutdownHook()
     if (isServerMode && shouldRestartWorkflows) { restartIncompleteWorkflows() }
+    else { val x = globalDataAccess }
   }
 
   private def addShutdownHook(): Unit = {

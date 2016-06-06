@@ -17,7 +17,7 @@ object CromwellServer extends WorkflowManagerSystem {
 
   val conf = ConfigFactory.load()
   val materializeWorkflowDescriptorActor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(), "MaterializeWorkflowDescriptorActor-CromwellServer")
-  override lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(isServerMode = false), "WorkflowManagerActorServerMode")
+  override lazy val workflowManagerActor = actorSystem.actorOf(WorkflowManagerActor.props(isServerMode = true), "WorkflowManagerActorServerMode")
   val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, materializeWorkflowDescriptorActor, conf), "cromwell-service")
   val webserviceConf = conf.getConfig("webservice")
 

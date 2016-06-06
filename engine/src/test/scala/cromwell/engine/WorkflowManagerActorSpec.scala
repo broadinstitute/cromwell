@@ -28,8 +28,6 @@ import scala.language.postfixOps
 class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
   override implicit val actorSystem = system
 
-  val isServerMode = false
-
   val backendInstance = Backend.from(CromwellSpec.Config, system)
 
   "A WorkflowManagerActor" should {
@@ -38,7 +36,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "run the Hello World workflow" in {
 
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test the WorkflowManagerActor")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false), self, "Test the WorkflowManagerActor")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(HelloWorld.asWorkflowSources())).id
@@ -59,7 +57,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "Not try to restart any workflows when there are no workflows in restartable states" in {
       waitForPattern("found no workflows to restart.") {
-        TestActorRef(WorkflowManagerActor.props(!isServerMode), self, "No workflows")
+        TestActorRef(WorkflowManagerActor.props(isServerMode = true), self, "No workflows")
       }
     }
 
@@ -95,7 +93,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
             // Both the previously in-flight call and the never-started call should get started.
             waitForPattern("starting calls: hello.hello", occurrences = 2) {
               waitForPattern("transitioning from Running to Succeeded", occurrences = 2) {
-                TestActorRef(WorkflowManagerActor.props(!isServerMode), self, "2 restartable workflows")
+                TestActorRef(WorkflowManagerActor.props(isServerMode = true), self, "2 restartable workflows")
               }
             }
           }
@@ -106,7 +104,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "Handle coercion failures gracefully" in {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test WorkflowManagerActor coercion failures")
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false), self, "Test WorkflowManagerActor coercion failures")
         waitForErrorWithException("Workflow failed submission") {
           val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(Incr.asWorkflowSources())).failure
           e.getMessage should include("Could not coerce value for 'incr.incr.val' into: WdlIntegerType")
@@ -115,14 +113,14 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
     }
 
     "error when running a workflowless WDL" in {
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test a workflowless submission")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false), self, "Test a workflowless submission")
       val e = messageAndWait[WorkflowManagerSubmitFailure](SubmitWorkflow(HelloWorldWithoutWorkflow.asWorkflowSources())).failure
       e.getMessage should include("Namespace does not have a local workflow to run")
     }
 
     "error when asked for outputs of a nonexistent workflow" in {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode),
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false),
           self, "Test WorkflowManagerActor output lookup failure")
         val id = WorkflowId(UUID.randomUUID())
 
@@ -133,7 +131,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "error when asked for call logs of a nonexistent workflow" in {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode),
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false),
           self, "Test WorkflowManagerActor call log lookup failure")
         val id = WorkflowId.randomId()
         val e = messageAndWait[WorkflowManagerCallStdoutStderrFailure](CallStdoutStderr(id, "foo.bar")).failure
@@ -144,7 +142,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "error when asked for logs of a nonexistent workflow" in {
       within(TestExecutionTimeout) {
-        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode),
+        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false),
           self, "Test WorkflowManagerActor log lookup failure")
         val id = WorkflowId.randomId()
         val e = messageAndWait[WorkflowManagerWorkflowStdoutStderrFailure](WorkflowStdoutStderr(id)).failure
@@ -163,7 +161,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     "build metadata correctly" in {
 
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test Workflow metadata construction")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false), self, "Test Workflow metadata construction")
 
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         messageAndWait[WorkflowManagerSubmitSuccess](SubmitWorkflow(new SampleWdl.ScatterWdl().asWorkflowSources())).id
@@ -211,7 +209,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
     "show (only supported) runtime attributes in metadata" taggedAs DockerTest in {
 
       val backendInstance = Backend.from(CromwellSpec.Config, system)
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode), self, "Test Workflow metadata construction")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false), self, "Test Workflow metadata construction")
 
       val fullWfOptions =
         """

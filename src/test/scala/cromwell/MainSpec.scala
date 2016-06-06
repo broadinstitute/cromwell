@@ -35,7 +35,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
   }
 
   it should "run" in {
-    testWdl(ThreeStep1) { wdlAndInputs =>
+    testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       traceInfoRun(wdl, inputs)("transitioning from Running to Succeeded.") should be(0)
@@ -43,7 +43,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
   }
 
   it should "run using args" in {
-    testWdl(ThreeStep2) { wdlAndInputs =>
+    testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       traceInfoAction("run", wdl, inputs)("transitioning from Running to Succeeded.") should be(0)

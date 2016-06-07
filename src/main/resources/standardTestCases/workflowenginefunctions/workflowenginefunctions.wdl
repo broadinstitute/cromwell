@@ -1,5 +1,5 @@
 task printArray {
-  Array[String] array
+  Array[Int] array
 
   command {
     echo "${sep='"; echo "' array}"
@@ -12,8 +12,7 @@ task printArray {
   }
 }
 
-workflow workspaceEngineFunctions {
-  File filein
-  Array[String] in_file = read_lines(filein)
-  call printArray {input: array=in_file}
+workflow workflowEngineFunctions {
+  Array[Int] some_ints = range(10)
+  call printArray {input: array=some_ints}
 }

@@ -140,11 +140,15 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         * should probably be received in an FSM state.
         */
       events.headOption foreach { event =>
-        val jobId = event.value.value
-        log.info(s"$tag Aborting $jobId")
-        Try(Run(jobId, jobDescriptor, genomicsInterface).abort()) match {
-          case Success(_) => log.info(s"$tag Aborted $jobId")
-          case Failure(ex) => log.warning(s"$tag Failed to abort $jobId: ${ex.getMessage}")
+        event.value match {
+          case Some(jobIdMetadata) =>
+            val jobId = jobIdMetadata.value
+            log.info(s"$tag Aborting $jobId")
+            Try(Run(jobId, jobDescriptor, genomicsInterface).abort()) match {
+              case Success(_) => log.info(s"$tag Aborted $jobId")
+              case Failure(ex) => log.warning(s"$tag Failed to abort $jobId: ${ex.getMessage}")
+            }
+          case None => log.warning(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
         }
       }
       context.parent ! AbortedResponse(jobDescriptor.key)
@@ -398,6 +402,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         val previousStatus = handle.previousStatus
         val status = Try(handle.run.status())
         status foreach { currentStatus =>
+          tellEventMetadata(currentStatus.eventList)
+
           if (!(handle.previousStatus contains currentStatus)) {
             // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
             // just use the state names.
@@ -614,10 +620,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = runtimeAttributes.continueOnReturnCode
 
-      status match {
-        case terminalRunStatus: TerminalRunStatus => tellEventMetadata(terminalRunStatus.eventList)
-        case _ => /* ignore */
-      }
+      tellEventMetadata(status.eventList)
 
       status match {
         case _: RunStatus.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>

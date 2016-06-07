@@ -6,6 +6,7 @@ import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.io.{JobPaths, SharedFileSystem, SharedFsExpressionFunctions}
+import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services._
 import org.slf4j.LoggerFactory
 import wdl4s._
@@ -33,7 +34,7 @@ object LocalJobExecutionActor {
 
 class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                              override val configurationDescriptor: BackendConfigurationDescriptor)
-  extends BackendJobExecutionActor with SharedFileSystem {
+  extends BackendJobExecutionActor with SharedFileSystem with ServiceRegistryClient {
 
   import LocalJobExecutionActor._
   import better.files._
@@ -47,7 +48,12 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   // Needs to be accessible to be killed when the job is aborted.
   private var process: Option[Process] = None
 
-  val workflowDescriptor = jobDescriptor.descriptor
+  private val workflowDescriptor = jobDescriptor.descriptor
+  private lazy val workflowId = workflowDescriptor.id
+  private lazy val metadataJobKey = {
+    val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
+    MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
+  }
   val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
   val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
@@ -106,8 +112,49 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     waitAndPostProcess()
   }
 
+  private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
+
+  /**
+    * Fire and forget to the metadata service
+    */
+  private def tellMetadata(key: String, value: Any): Unit = {
+    val metadataValue = MetadataValue(value)
+    val metadataEvent = MetadataEvent(metadataKey(key), metadataValue)
+    val putMetadataAction = PutMetadataAction(metadataEvent)
+    serviceRegistryActor ! putMetadataAction // and forget
+  }
+
+  /**
+    * Fire and forget to the metadata service
+    */
+  private def tellEmptyMetadata(key: String): Unit = {
+    val metadataEvent = MetadataEvent.empty(metadataKey(key))
+    val putMetadataAction = PutMetadataAction(metadataEvent)
+    serviceRegistryActor ! putMetadataAction // and forget
+  }
+
+  /**
+    * Fire and forget start info to the metadata service
+    */
+  private def tellStartMetadata(): Unit = {
+    tellMetadata("stdout", jobPaths.stdout.toAbsolutePath)
+    tellMetadata("stderr", jobPaths.stderr.toAbsolutePath)
+    tellEmptyMetadata(s"${CallMetadataKeys.ExecutionEvents}[0]")
+
+    // Push the evaluated runtime attributes
+    runtimeAttributes.asMap foreach {
+      case (key, value) =>
+        tellMetadata(s"runtimeAttributes:$key", value)
+    }
+
+    // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
+    tellMetadata("cache:allowResultReuse", true)
+  }
+
   override def execute: Future[BackendJobExecutionResponse] = instantiatedScript match {
-    case Success(command) => executeScript(command)
+    case Success(command) =>
+      tellStartMetadata()
+      executeScript(command)
     case Failure(ex) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key, ex, None))
   }
 

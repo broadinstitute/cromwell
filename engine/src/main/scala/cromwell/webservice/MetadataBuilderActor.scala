@@ -128,18 +128,31 @@ object MetadataBuilderActor {
       case s => Option(s.toInt)
     }
   }
+  private case object IndexedEmptyJson extends IndexedJsonValue {
+    override def index: Option[Int] = None
+    override def withIndex(index: String): IndexedJsonValue = this
+    override def toJson: JsValue = throw new IllegalStateException("IndexedEmptyJson cannot be converted to Json")
+  }
   private object IndexedJsonList {
     def empty = IndexedJsonList(Vector.empty[IndexedJsonValue])
   }
   private case class IndexedJsonList(v: Vector[IndexedJsonValue], index: Option[Int] = None) extends IndexedJsonValue {
-    override val toJson = JsArray(v map { _.toJson })
+    override val toJson = JsArray(v filter {
+      case IndexedEmptyJson => false
+      case _ => true
+    } map { _.toJson })
     override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
   private object IndexedJsonObject {
     def empty = IndexedJsonObject(Map.empty[String, IndexedJsonValue])
   }
   private case class IndexedJsonObject(v: Map[String, IndexedJsonValue], index: Option[Int] = None) extends IndexedJsonValue {
-    override val toJson = JsObject(v mapValues { _.toJson })
+    override val toJson = {
+      JsObject(v mapValues {
+        case IndexedEmptyJson => JsObject(Map.empty[String, JsValue])
+        case value => value.toJson
+      })
+    }
     override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
   private case class IndexedPrimitiveJson(v: JsValue, index: Option[Int] = None) extends IndexedJsonValue {
@@ -147,22 +160,24 @@ object MetadataBuilderActor {
     override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
 
-  private def metadataValueToIndexedJson(value: MetadataValue): IndexedPrimitiveJson = {
-    val coerced = value.valueType match {
-      case MetadataInt => Try(IndexedPrimitiveJson(JsNumber(value.value.toInt)))
-      case MetadataNumber => Try(IndexedPrimitiveJson(JsNumber(value.value.toDouble)))
-      case MetadataBoolean => Try(IndexedPrimitiveJson(JsBoolean(value.value.toBoolean)))
-      case MetadataString => Try(IndexedPrimitiveJson(JsString(value.value)))
-    }
+  private def metadataValueToIndexedJson(value: Option[MetadataValue]): IndexedJsonValue = {
+    value map { someValue =>
+      val coerced = someValue.valueType match {
+        case MetadataInt => Try(IndexedPrimitiveJson(JsNumber(someValue.value.toInt)))
+        case MetadataNumber => Try(IndexedPrimitiveJson(JsNumber(someValue.value.toDouble)))
+        case MetadataBoolean => Try(IndexedPrimitiveJson(JsBoolean(someValue.value.toBoolean)))
+        case MetadataString => Try(IndexedPrimitiveJson(JsString(someValue.value)))
+      }
 
-    coerced recover {
-      case e =>
-      log.warn(s"Failed to coerce ${value.value} to ${value.valueType}. Falling back to String.", e)
-      IndexedPrimitiveJson(JsString(value.value))
-    } get
+      coerced recover {
+        case e =>
+          log.warn(s"Failed to coerce ${someValue.value} to ${someValue.valueType}. Falling back to String.", e)
+          IndexedPrimitiveJson(JsString(someValue.value))
+      } get
+    } getOrElse IndexedEmptyJson
   }
 
-  private def keyValueToIndexedJson(str: String, value: MetadataValue): IndexedJsonValue = {
+  private def keyValueToIndexedJson(str: String, value: Option[MetadataValue]): IndexedJsonValue = {
     val innerValue: IndexedJsonValue = metadataValueToIndexedJson(value)
     str.split(KeySeparator).foldRight(innerValue)((chunk, acc) => { parseKeyChunk(chunk).toIndexedJson(acc) })
   }

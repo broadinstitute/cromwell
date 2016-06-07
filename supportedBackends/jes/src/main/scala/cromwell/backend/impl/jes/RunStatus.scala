@@ -7,14 +7,16 @@ sealed trait RunStatus {
 
   // Could be defined as false for Initializing and true otherwise, but this is more defensive.
   def isRunningOrComplete = this match {
-    case Running | _: TerminalRunStatus => true
+    case _:Running | _: TerminalRunStatus => true
     case _ => false
   }
+
+  def eventList: Seq[EventStartTime]
 }
 
 object RunStatus {
-  case object Initializing extends RunStatus
-  case object Running extends RunStatus
+  case class Initializing(eventList: Seq[EventStartTime]) extends RunStatus
+  case class Running(eventList: Seq[EventStartTime]) extends RunStatus
 
   sealed trait TerminalRunStatus extends RunStatus {
     def eventList: Seq[EventStartTime]

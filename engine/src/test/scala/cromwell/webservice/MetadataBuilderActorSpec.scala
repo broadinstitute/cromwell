@@ -45,7 +45,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build workflow scope tree from metadata events" in {
     def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
-      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"), OffsetDateTime.now)
+      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"))
     }
 
     val workflowA = WorkflowId.randomId()
@@ -104,7 +104,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   type EventBuilder = (String, String, OffsetDateTime)
 
   def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
-    MetadataEvent(MetadataKey(workflow, None, key), value, offsetDateTime)
+    MetadataEvent(MetadataKey(workflow, None, key), Option(value), offsetDateTime)
   }
 
   def assertMetadataKeyStructure(eventList: List[EventBuilder], expectedJson: String) = {

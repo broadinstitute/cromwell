@@ -397,6 +397,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   private def pushPreparedJobMetadata(jobKey: BackendJobDescriptorKey, jobInputs: Map[LocallyQualifiedName, WdlValue]) = {
     import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
+    // Push empty inputs / outputs value so it appears empty in the metadata
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}")))
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}")))
+
     jobInputs.foreach { case (inputName, inputValue) => serviceRegistryActor.pushWdlValueMetadata(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}:$inputName"), inputValue) }
   }
 

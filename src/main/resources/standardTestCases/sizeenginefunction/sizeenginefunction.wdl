@@ -1,3 +1,14 @@
+
+task make_a_file {
+  command {
+    echo "hey look here's a file" > a_file
+  }
+  output {
+    File a_file = "a_file"
+  }
+  runtime {docker: "ubuntu:latest"}
+}
+
 task size {
   File input_file
 
@@ -29,8 +40,10 @@ task size {
   runtime {docker: "ubuntu:latest"}
 }
 
+
 workflow enginefunctions {
+    call make_a_file
     call size {
-        input: input_file="gs://cloud-cromwell-tyburn-test-files/test-files/smalltestfile.txt"
+        input: input_file = make_a_file.a_file
     }
 }

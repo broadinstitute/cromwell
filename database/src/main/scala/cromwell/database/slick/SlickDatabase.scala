@@ -601,29 +601,15 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  override def addMetadataEvent(workflowUuid: String,
-                                key: String,
-                                value: String,
-                                valueType: String,
-                                timestamp: Timestamp)(implicit ec: ExecutionContext): Future[Unit] = {
+  protected def addMetadata(events: Iterable[Metadatum])
+                           (implicit ec: ExecutionContext): Future[Unit] = {
+    val actions = events map {
+      case Metadatum(workflowUuid, key, callFqn, index, attempt, value, valueType, timestamp, _) =>
+        dataAccess.metadataAutoInc += Metadatum(workflowUuid, key,
+          callFqn = callFqn, index = index, attempt = attempt, value, valueType, timestamp)
+    }
 
-    val action = dataAccess.metadataAutoInc += Metadatum(workflowUuid, key,
-      callFqn = None, index = None, attempt = None, Option(value), Option(valueType), timestamp)
-    runTransaction(action).map(_ => ())
-  }
-
-  override def addMetadataEvent(workflowUuid: String,
-                                key: String,
-                                callFqn: String,
-                                index: Option[Int],
-                                attempt: Int,
-                                value: String,
-                                valueType: String,
-                                timestamp: Timestamp)(implicit ec: ExecutionContext): Future[Unit] = {
-
-    val action = dataAccess.metadataAutoInc += Metadatum(workflowUuid, key,
-      Option(callFqn), index, Option(attempt), Option(value), Option(valueType), timestamp)
-    runTransaction(action).map(_ => ())
+    runTransaction(DBIO.sequence(actions)).map(_ => ())
   }
 
   override def queryMetadataEvents(workflowUuid: String)

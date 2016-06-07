@@ -38,20 +38,14 @@ class MetadataServiceSpec extends CromwellServicesSpec {
   it should "Store values for different keys" in {
     val putAction1 = PutMetadataAction(event1_1)
     val putAction2 = PutMetadataAction(event1_2)
-    val putAction3 = PutMetadataAction(event2_1)
-    val putAction4 = PutMetadataAction(event3_1)
-    val putAction5 = PutMetadataAction(event3_2)
+    val putAction3 = PutMetadataAction(event2_1, event3_1, event3_2)
     (for {
       response1 <- (actor ? putAction1).mapTo[MetadataServiceResponse]
       response2 <- (actor ? putAction2).mapTo[MetadataServiceResponse]
       response3 <- (actor ? putAction3).mapTo[MetadataServiceResponse]
-      response4 <- (actor ? putAction4).mapTo[MetadataServiceResponse]
-      response5 <- (actor ? putAction5).mapTo[MetadataServiceResponse]
       _ = response1 shouldBe MetadataPutAcknowledgement(putAction1)
       _ = response2 shouldBe MetadataPutAcknowledgement(putAction2)
       _ = response3 shouldBe MetadataPutAcknowledgement(putAction3)
-      _ = response4 shouldBe MetadataPutAcknowledgement(putAction4)
-      _ = response5 shouldBe MetadataPutAcknowledgement(putAction5)
     } yield ()).futureValue
   }
 

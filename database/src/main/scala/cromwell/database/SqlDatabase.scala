@@ -153,22 +153,12 @@ trait SqlDatabase extends AutoCloseable {
                                                   (implicit ec: ExecutionContext):
   Future[Traversable[(Execution, ExecutionInfo)]]
 
-  protected def addMetadataEvent(workflowUuid: String,
-                                 key: String,
-                                 value: String,
-                                 valueType: String,
-                                 timestamp: Timestamp)
-                                (implicit ec: ExecutionContext): Future[Unit]
-
-  protected def addMetadataEvent(workflowUuid: String,
-                                 key: String,
-                                 callFqn: String,
-                                 index: Option[Int],
-                                 attempt: Int,
-                                 value: String,
-                                 valueType: String,
-                                 timestamp: Timestamp)
-                                (implicit ec: ExecutionContext): Future[Unit]
+  /**
+    * Add metadata events to the database transactionally. normalized type structure is as follows:
+    * (WorkflowId, MetadataKey, Option[CallFqn, CallIndex, CallAttempt], MetadataValue, MetadataValueType, Timestamp)
+    */
+  protected def addMetadata(events: Iterable[Metadatum])
+                           (implicit ec: ExecutionContext): Future[Unit]
 
   protected def queryMetadataEvents(workflowUuid: String)
                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]]

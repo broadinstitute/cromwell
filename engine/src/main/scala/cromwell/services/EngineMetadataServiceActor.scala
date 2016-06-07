@@ -84,10 +84,10 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   }
 
   def receive = {
-    case action@PutMetadataAction(event) =>
-      workflowExistenceCache = workflowExistenceCache + (event.key.workflowId -> CacheExpiryCount)
+    case action@PutMetadataAction(events) =>
+      workflowExistenceCache = workflowExistenceCache ++ (events map { _.key.workflowId -> CacheExpiryCount })
       val sndr = sender()
-      dataAccess.addMetadataEvent(event) onComplete {
+      dataAccess.addMetadataEvents(events) onComplete {
         case Success(_) => sndr ! MetadataPutAcknowledgement(action)
         case Failure(t) =>
           val msg = MetadataPutFailed(action, t)

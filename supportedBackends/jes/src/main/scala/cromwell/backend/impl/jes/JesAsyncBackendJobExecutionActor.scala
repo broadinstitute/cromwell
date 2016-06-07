@@ -19,8 +19,6 @@ import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
-import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, GetSingleWorkflowMetadataAction, PutMetadataAction}
 import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
@@ -102,13 +100,14 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private def jesStderrFile = jesCallPaths.stderrPath
   private def jesLogFilename = jesCallPaths.jesLogFilename
   private lazy val call = jobDescriptor.key.call
-  private lazy val evaluatedAttributes = {
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
-    // Fail the call if runtime attributes can't be evaluated
-    TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-  }
-  private lazy val runtimeAttributes =
+  private lazy val runtimeAttributes = {
+    val evaluatedAttributes = {
+      val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
+      // Fail the call if runtime attributes can't be evaluated
+      TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
+    }
     JesRuntimeAttributes(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions)
+  }
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
   private lazy val gcsExecPath: Path = callRootPath.resolve(JesExecScript)
@@ -432,21 +431,21 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * Fire and forget start info to the metadata service
     */
   private def tellStartMetadata(): Unit = {
-    tellMetadata("preemptible", preemptible)
-
-    // TODO: PBE: Trace callers of "new CallContext()". Seems to be multiple places in JES, etc. For now:
-    tellJesFileMetadata("stdout", jesCallPaths.stdoutFilename)
-    tellJesFileMetadata("stderr", jesCallPaths.stderrFilename)
-    tellJesFileMetadata("backendLogs:log", jesCallPaths.jesLogFilename)
-
-    // Push the evaluated runtime attributes
-    import MetadataServiceActorImplicits._
-    evaluatedAttributes foreach {
-      case (key, value) => serviceRegistryActor.pushWdlValueMetadata(metadataKey(s"runtimeAttributes:$key"), value)
+    val runtimeAttributesEvent = runtimeAttributes.asMap map {
+      case (key, value) => MetadataEvent(metadataKey(s"runtimeAttributes:$key"), MetadataValue(value))
     }
 
-    // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
-    tellMetadata("cache:allowResultReuse", true)
+    val events = runtimeAttributesEvent ++ List(
+      metadataEvent("preemptible", preemptible),
+      // TODO: PBE: Trace callers of "new CallContext()". Seems to be multiple places in JES, etc. For now:
+      metadataEvent("stdout", jesCallPaths.stdoutPath.toAbsolutePath),
+      metadataEvent("stderr", jesCallPaths.stderrPath.toAbsolutePath),
+      metadataEvent("backendLogs:log", jesCallPaths.jesLogPath.toAbsolutePath),
+      // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
+      metadataEvent("cache:allowResultReuse", true)
+    )
+
+    serviceRegistryActor ! PutMetadataAction(events)
   }
 
   /**
@@ -459,13 +458,17 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       val now = OffsetDateTime.now.withOffsetSameInstant(offset)
       val lastEvent = EventStartTime("unused_name", now)
       val tailedEventList = eventList :+ lastEvent
-      tailedEventList.sliding(2).zipWithIndex foreach {
+      val events = tailedEventList.sliding(2).zipWithIndex flatMap {
         case (Seq(eventCurrent, eventNext), index) =>
           val eventKey = s"executionEvents[$index]"
-          tellMetadata(s"$eventKey:description", eventCurrent.name)
-          tellMetadata(s"$eventKey:startTime", eventCurrent.offsetDateTime)
-          tellMetadata(s"$eventKey:endTime", eventNext.offsetDateTime)
+          List(
+            metadataEvent(s"$eventKey:description", eventCurrent.name),
+            metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
+            metadataEvent(s"$eventKey:endTime", eventNext.offsetDateTime)
+          )
       }
+
+      serviceRegistryActor ! PutMetadataAction(events.toIterable)
     }
   }
 
@@ -477,20 +480,17 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   /**
-    * Fire and forget file info to the metadata service
-    */
-  private def tellJesFileMetadata(key: String, fileName: String): Unit = {
-    tellMetadata(key, jesCallPaths.callRootPath.resolve(fileName).toString)
-  }
-
-  /**
     * Fire and forget to the metadata service
     */
   private def tellMetadata(key: String, value: Any): Unit = {
-    val metadataValue = MetadataValue(value)
-    val metadataEvent = MetadataEvent(metadataKey(key), metadataValue)
-    val putMetadataAction = PutMetadataAction(metadataEvent)
+    val event = metadataEvent(key, value)
+    val putMetadataAction = PutMetadataAction(event)
     serviceRegistryActor ! putMetadataAction // and forget
+  }
+
+  private def metadataEvent(key: String, value: Any) = {
+    val metadataValue = MetadataValue(value)
+    MetadataEvent(metadataKey(key), metadataValue)
   }
 
   private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)

@@ -40,5 +40,6 @@ class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendW
   lazy val returnCodePath: Path = callRootPath.resolve(returnCodeFilename)
   lazy val stdoutPath: Path = callRootPath.resolve(stdoutFilename)
   lazy val stderrPath: Path = callRootPath.resolve(stderrFilename)
+  lazy val jesLogPath: Path = callRootPath.resolve(jesLogFilename)
   lazy val callContext = new CallContext(callRootPath, stdoutFilename, stderrFilename)
 }

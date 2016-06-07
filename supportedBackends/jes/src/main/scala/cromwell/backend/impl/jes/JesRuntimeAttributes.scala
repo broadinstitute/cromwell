@@ -21,7 +21,24 @@ case class JesRuntimeAttributes(cpu: Int,
                                 disks: Seq[JesAttachedDisk],
                                 dockerImage: Option[String],
                                 failOnStderr: Boolean,
-                                continueOnReturnCode: ContinueOnReturnCode)
+                                continueOnReturnCode: ContinueOnReturnCode) {
+  import JesRuntimeAttributes._
+
+  lazy val asMap = Map[String, Any](
+    CpuKey -> cpu,
+    ZonesKey -> zones,
+    PreemptibleKey -> preemptible,
+    BootDiskSizeKey -> bootDiskSize,
+    MemoryKey -> memory,
+    DisksKey -> disks,
+    DockerKey -> dockerImage.get,
+    FailOnStderrKey -> failOnStderr,
+    ContinueOnReturnCodeKey -> (continueOnReturnCode match {
+      case ContinueOnReturnCodeFlag(v) => v
+      case ContinueOnReturnCodeSet(v) => v
+    })
+  )
+}
 
 object JesRuntimeAttributes {
   private val CpuDefaultValue = 1

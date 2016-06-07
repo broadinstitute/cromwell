@@ -237,11 +237,10 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
 
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {
-      val futures = keyValues map { case (k, v) =>
-        val event = MetadataEvent(baseKey.copy(key = k), MetadataValue(v))
-        dataAccess.addMetadataEvent(event)
+      val events = keyValues map { case (k, v) =>
+        MetadataEvent(baseKey.copy(key = k), MetadataValue(v))
       }
-      Future.sequence(futures.toSeq).map(_ => ())
+      dataAccess.addMetadataEvents(events)
     }
 
     def baseWorkflowMetadata(name: String): Future[WorkflowId] = {

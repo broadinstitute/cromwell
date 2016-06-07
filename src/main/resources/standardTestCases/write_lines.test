@@ -1,6 +1,15 @@
 name: write_lines
-testFormat: workflowfailure
+testFormat: workflowsuccess
 
 files {
   wdl: write_lines/write_lines.wdl
 }
+
+metadata {
+  workflowName: write_lines
+  status: Succeeded
+  "calls.write_lines.a2f.executionStatus": Done
+  "calls.write_lines.f2a.executionStatus": Done
+  "outputs.write_lines.a2f_second.x": "a\nb\nc\nd"
+}
+

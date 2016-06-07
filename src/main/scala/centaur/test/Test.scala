@@ -68,7 +68,7 @@ object Operations {
           "workflowInputs" -> workflow.data.inputs,
           "workflowOptions" -> workflow.data.options) collect { case (name, Some(value)) => (name, value) }
         val formData = FormData(params)
-        val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v2", formData))
+        val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
         sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { SubmittedWorkflow(_, CentaurConfig.cromwellUrl, workflow) })
       }
     }
@@ -82,7 +82,7 @@ object Operations {
     new Test[SubmittedWorkflow] {
       @tailrec
       def doPerform(): SubmittedWorkflow = {
-        val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v2/" + workflow.id + "/status"))
+        val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
         val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
         status match {
           case Success(s) if s == expectedStatus => workflow

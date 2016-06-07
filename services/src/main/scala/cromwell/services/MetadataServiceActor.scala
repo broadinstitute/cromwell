@@ -70,6 +70,12 @@ object MetadataServiceActor {
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }
+
+  def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable): List[MetadataEvent] = {
+    val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
+    val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
+    message ++ cause
+  }
 }
 
 object MetadataServiceActorImplicits {
@@ -77,10 +83,5 @@ object MetadataServiceActorImplicits {
 
   implicit class EnhancedServiceRegistryActorForMetadata(val actor: ActorRef) extends AnyVal {
     def pushWdlValueMetadata(metadataKey: MetadataKey, output: WdlValue): Unit = actor ! PutMetadataAction(wdlValueToMetadataEvents(metadataKey, output))
-
-    def pushThrowableMetadata(metadataKey: MetadataKey, t: Throwable): Unit = {
-      actor ! PutMetadataAction(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
-      Option(t.getCause) foreach { cause => pushThrowableMetadata(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) }
-    }
   }
 }

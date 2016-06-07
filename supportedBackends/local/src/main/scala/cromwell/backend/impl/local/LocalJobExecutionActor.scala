@@ -120,20 +120,20 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     * Fire and forget start info to the metadata service
     */
   private def tellStartMetadata(): Unit = {
-    List(
-      metadataEvent("stdout", jobPaths.stdout.toAbsolutePath),
-      metadataEvent("stderr", jobPaths.stderr.toAbsolutePath),
-      metadataEvent("cache:allowResultReuse", true),
-      emptyMetadataEvent(s"${CallMetadataKeys.ExecutionEvents}[0]")
-    )
-    // Push the evaluated runtime attributes
     val runtimeAttributesEvents = runtimeAttributes.asMap map {
       case (key, value) =>
         metadataEvent(s"runtimeAttributes:$key", value)
     }
 
+    val events = runtimeAttributesEvents ++ List(
+      metadataEvent("stdout", jobPaths.stdout.toAbsolutePath),
+      metadataEvent("stderr", jobPaths.stderr.toAbsolutePath),
     // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
-//    serviceRegistryActor ! PutMetadataAction()
+      metadataEvent("cache:allowResultReuse", true),
+      emptyMetadataEvent(s"${CallMetadataKeys.ExecutionEvents}[0]")
+    )
+
+    serviceRegistryActor ! PutMetadataAction(events)
   }
 
   override def execute: Future[BackendJobExecutionResponse] = instantiatedScript match {

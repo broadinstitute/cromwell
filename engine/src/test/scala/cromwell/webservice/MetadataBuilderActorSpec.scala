@@ -93,7 +93,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
         |    }]
         |  },
         |  "NOT_CHECKED": "NOT_CHECKED",
-        |  "workflowId": "$workflowA"
+        |  "id": "$workflowA"
       |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None)
@@ -111,7 +111,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     val workflow = WorkflowId.randomId()
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
-    val expectedRes = s"""{ "calls": {}, $expectedJson, "workflowId":"$workflow" }"""
+    val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
 
     val mdQuery = MetadataQuery(workflow, None, None)
     val queryAction = GetSingleWorkflowMetadataAction(workflow)
@@ -290,7 +290,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           | "f": true,
           | "g": false,
           | "h": "false",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           | }
       """.stripMargin
 
@@ -311,7 +311,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "i": "UnknownClass(50)",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -331,7 +331,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "i": "notAnInt",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -353,7 +353,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "hey": {},
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -365,7 +365,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "hey": "something",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 

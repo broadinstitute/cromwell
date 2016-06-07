@@ -402,8 +402,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         val previousStatus = handle.previousStatus
         val status = Try(handle.run.status())
         status foreach { currentStatus =>
-          tellEventMetadata(currentStatus.eventList)
-
           if (!(handle.previousStatus contains currentStatus)) {
             // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
             // just use the state names.
@@ -413,7 +411,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           }
         }
         status match {
-          case Success(s: TerminalRunStatus) => executionResult(s, handle)
+          case Success(s: TerminalRunStatus) =>
+            tellEventMetadata(s.eventList)
+            executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
             log.error(s"$tag JES Job ID ${handle.run.runId} has not been found, failing call")
@@ -619,8 +619,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       lazy val stderrLength: Long = jesStderrFile.size
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = runtimeAttributes.continueOnReturnCode
-
-      tellEventMetadata(status.eventList)
 
       status match {
         case _: RunStatus.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>

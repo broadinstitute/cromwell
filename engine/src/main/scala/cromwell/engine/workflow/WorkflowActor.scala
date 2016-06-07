@@ -289,23 +289,20 @@ class WorkflowActor(workflowId: WorkflowId,
   }
 
   private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
-    import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
-
-    // Push empty inputs / outputs value so it appears empty in the metadata
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Outputs)))
-
     // Inputs
-    workflowDescriptor.backendDescriptor.inputs match {
+    val inputEvents = workflowDescriptor.workflowInputs match {
       case empty if empty.isEmpty =>
-        serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
+        List(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
-        inputs.foreach { case (inputName, wdlValue) =>
-          serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+        inputs flatMap { case (inputName, wdlValue) =>
+          wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
         }
     }
+
     // Workflow name:
     val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name))
-    serviceRegistryActor ! PutMetadataAction(nameEvent)
+
+    serviceRegistryActor ! PutMetadataAction(inputEvents ++ List(nameEvent))
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service

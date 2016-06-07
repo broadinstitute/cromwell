@@ -321,8 +321,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       case (key, Some(wdlValue)) => (key, wdlValue)
     }
 
-    val events = keyValues flatMap { case (outputName, outputValue) =>
-      wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"), outputValue)
+    val events = keyValues match {
+      case empty if empty.isEmpty => List(MetadataEvent.empty(MetadataKey(workflowId, None, WorkflowMetadataKeys.Outputs)))
+      case _ => keyValues flatMap {
+        case (outputName, outputValue) =>
+          wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"), outputValue)
+      }
     }
 
     serviceRegistryActor ! PutMetadataAction(events)
@@ -333,28 +337,37 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
-    pushCompletedJobMetadata(jobKey, ExecutionStatus.Done, returnCode)
-    val events = outputs flatMap { case (lqn, value) => wdlValueToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), value.wdlValue) }
+    val completionEvents = completedJobMetadataEvents(jobKey, ExecutionStatus.Done, returnCode)
 
-    serviceRegistryActor ! PutMetadataAction(events)
+    val outputEvents = outputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}")))
+      case _ =>
+        outputs flatMap { case (lqn, value) => wdlValueToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), value.wdlValue) }
+    }
+
+    serviceRegistryActor ! PutMetadataAction(completionEvents ++ outputEvents)
   }
 
   private def pushFailedJobMetadata(jobKey: JobKey, returnCode: Option[Int], failure: Throwable, retryableFailure: Boolean) = {
-    import MetadataServiceActorImplicits._
-    pushCompletedJobMetadata(jobKey, ExecutionStatus.Failed, returnCode)
-    serviceRegistryActor.pushThrowableMetadata(metadataKey(jobKey, s"${CallMetadataKeys.Failures}[$randomNumberString]"), failure)
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure)))
+    val completionEvents = completedJobMetadataEvents(jobKey, ExecutionStatus.Failed, returnCode)
+    val retryableFailureEvent = MetadataEvent(metadataKey(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure))
+    val failureEvents = throwableToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Failures}[$randomNumberString]"), failure).+:(retryableFailureEvent)
+
+    serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
 
   private def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
 
-  private def pushCompletedJobMetadata(jobKey: JobKey, executionStatus: ExecutionStatus, returnCode: Option[Int]) = {
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(executionStatus)))
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.End),
-          MetadataValue(OffsetDateTime.now)))
-    returnCode foreach { rc =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ReturnCode), MetadataValue(rc)))
+  private def completedJobMetadataEvents(jobKey: JobKey, executionStatus: ExecutionStatus, returnCode: Option[Int]) = {
+    val returnCodeEvent = returnCode map { rc =>
+      List(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ReturnCode), MetadataValue(rc)))
     }
+
+    List(
+      MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(executionStatus)),
+      MetadataEvent(metadataKey(jobKey, CallMetadataKeys.End), MetadataValue(OffsetDateTime.now))
+    ) ++ returnCodeEvent.getOrElse(List.empty)
   }
 
   /**
@@ -387,21 +400,26 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushNewJobMetadata(jobKey: BackendJobDescriptorKey, backendName: String) = {
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Start),
-          MetadataValue(OffsetDateTime.now)))
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Backend), MetadataValue(backendName)))
-    jobKey.scope.task.runtimeAttributes.attrs.foreach { case (attrName, attrExpression) =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, s"${CallMetadataKeys.RuntimeAttributes}:$attrName"), MetadataValue(attrExpression.valueString)))
-    }
+    val startEvents = List(
+      MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Start), MetadataValue(OffsetDateTime.now)),
+      MetadataEvent(metadataKey(jobKey, CallMetadataKeys.Backend), MetadataValue(backendName))
+    )
+
+    serviceRegistryActor ! PutMetadataAction(startEvents)
   }
 
   private def pushPreparedJobMetadata(jobKey: BackendJobDescriptorKey, jobInputs: Map[LocallyQualifiedName, WdlValue]) = {
-    import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
-    // Push empty inputs / outputs value so it appears empty in the metadata
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}")))
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Outputs}")))
+    val inputEvents = jobInputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}")))
+      case inputs =>
+        inputs flatMap {
+          case (inputName, inputValue) =>
+            wdlValueToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}:$inputName"), inputValue)
+        }
+    }
 
-    jobInputs.foreach { case (inputName, inputValue) => serviceRegistryActor.pushWdlValueMetadata(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}:$inputName"), inputValue) }
+    serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
   private def processRunnableJob(jobKey: BackendJobDescriptorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {

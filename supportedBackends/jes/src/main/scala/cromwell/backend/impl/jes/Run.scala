@@ -91,17 +91,17 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
 
   def status(): RunStatus = {
     val op = genomicsInterface.operations().get(runId).execute
-    val eventList = getEventList(op)
     if (op.getDone) {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
+      val eventList = getEventList(op)
       Option(op.getError) match {
         case None => Success(eventList)
         case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList)
       }
     } else if (op.hasStarted) {
-      Running(eventList)
+      Running
     } else {
-      Initializing(eventList)
+      Initializing
     }
   }
 

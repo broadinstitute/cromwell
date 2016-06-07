@@ -292,12 +292,16 @@ class WorkflowActor(workflowId: WorkflowId,
     import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
 
     // Push empty inputs / outputs value so it appears empty in the metadata
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
     serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Outputs)))
 
     // Inputs
-    workflowDescriptor.backendDescriptor.inputs.foreach { case (inputName, wdlValue) =>
-      serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+    workflowDescriptor.backendDescriptor.inputs match {
+      case empty if empty.isEmpty =>
+        serviceRegistryActor ! PutMetadataAction(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
+      case inputs =>
+        inputs.foreach { case (inputName, wdlValue) =>
+          serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+        }
     }
     // Workflow name:
     val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name))

@@ -128,11 +128,13 @@ object MetadataBuilderActor {
       case s => Option(s.toInt)
     }
   }
+
   private case object IndexedEmptyJson extends IndexedJsonValue {
     override def index: Option[Int] = None
     override def withIndex(index: String): IndexedJsonValue = this
     override def toJson: JsValue = throw new IllegalStateException("IndexedEmptyJson cannot be converted to Json")
   }
+
   private object IndexedJsonList {
     def empty = IndexedJsonList(Vector.empty[IndexedJsonValue])
   }
@@ -143,6 +145,7 @@ object MetadataBuilderActor {
     } map { _.toJson })
     override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
+
   private object IndexedJsonObject {
     def empty = IndexedJsonObject(Map.empty[String, IndexedJsonValue])
   }
@@ -155,6 +158,7 @@ object MetadataBuilderActor {
     }
     override def withIndex(index: String) = this.copy(index = toIndex(index))
   }
+
   private case class IndexedPrimitiveJson(v: JsValue, index: Option[Int] = None) extends IndexedJsonValue {
     override val toJson = v
     override def withIndex(index: String) = this.copy(index = toIndex(index))

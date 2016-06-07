@@ -113,42 +113,27 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
-
-  /**
-    * Fire and forget to the metadata service
-    */
-  private def tellMetadata(key: String, value: Any): Unit = {
-    val metadataValue = MetadataValue(value)
-    val metadataEvent = MetadataEvent(metadataKey(key), metadataValue)
-    val putMetadataAction = PutMetadataAction(metadataEvent)
-    serviceRegistryActor ! putMetadataAction // and forget
-  }
-
-  /**
-    * Fire and forget to the metadata service
-    */
-  private def tellEmptyMetadata(key: String): Unit = {
-    val metadataEvent = MetadataEvent.empty(metadataKey(key))
-    val putMetadataAction = PutMetadataAction(metadataEvent)
-    serviceRegistryActor ! putMetadataAction // and forget
-  }
+  private def metadataEvent(key: String, value: Any) = MetadataEvent(metadataKey(key), MetadataValue(value))
+  private def emptyMetadataEvent(key: String) = MetadataEvent.empty(metadataKey(key))
 
   /**
     * Fire and forget start info to the metadata service
     */
   private def tellStartMetadata(): Unit = {
-    tellMetadata("stdout", jobPaths.stdout.toAbsolutePath)
-    tellMetadata("stderr", jobPaths.stderr.toAbsolutePath)
-    tellEmptyMetadata(s"${CallMetadataKeys.ExecutionEvents}[0]")
-
+    List(
+      metadataEvent("stdout", jobPaths.stdout.toAbsolutePath),
+      metadataEvent("stderr", jobPaths.stderr.toAbsolutePath),
+      metadataEvent("cache:allowResultReuse", true),
+      emptyMetadataEvent(s"${CallMetadataKeys.ExecutionEvents}[0]")
+    )
     // Push the evaluated runtime attributes
-    runtimeAttributes.asMap foreach {
+    val runtimeAttributesEvents = runtimeAttributes.asMap map {
       case (key, value) =>
-        tellMetadata(s"runtimeAttributes:$key", value)
+        metadataEvent(s"runtimeAttributes:$key", value)
     }
 
     // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
-    tellMetadata("cache:allowResultReuse", true)
+//    serviceRegistryActor ! PutMetadataAction()
   }
 
   override def execute: Future[BackendJobExecutionResponse] = instantiatedScript match {

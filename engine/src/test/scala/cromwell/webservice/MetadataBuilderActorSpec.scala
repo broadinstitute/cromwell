@@ -340,6 +340,38 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
 
+  it should "render empty values" in {
+    val workflowId = WorkflowId.randomId()
+    val value = MetadataValue("something")
+    val emptyEvents = List(MetadataEvent.empty(MetadataKey(workflowId, None, "hey")))
+    val valueEvents = List(
+      MetadataEvent.empty(MetadataKey(workflowId, None, "hey")),
+      MetadataEvent(MetadataKey(workflowId, None, "hey"), Option(value), OffsetDateTime.now().plusSeconds(1L))
+    )
+
+    val expectedEmptyResponse =
+      s"""{
+          | "calls": {},
+          | "hey": {},
+          | "workflowId":"$workflowId"
+          |}
+      """.stripMargin
+
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    assertMetadataResponse(queryAction, mdQuery, emptyEvents, expectedEmptyResponse)
+
+    val expectedNonEmptyResponse =
+      s"""{
+          | "calls": {},
+          | "hey": "something",
+          | "workflowId":"$workflowId"
+          |}
+      """.stripMargin
+
+    assertMetadataResponse(queryAction, mdQuery, valueEvents, expectedNonEmptyResponse)
+  }
+
   override def afterAll() = {
     system.shutdown()
   }

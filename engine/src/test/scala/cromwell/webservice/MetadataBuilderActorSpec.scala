@@ -61,40 +61,40 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     )
     val workflowAEvents = workflowACalls map { makeEvent(workflowA, _) }
 
+    // We'll use a Query instead of a SingleWorkflowMetadataGet, so we expect the WorkflowID this time:
     val expectedRes =
       s"""{
-        |  "$workflowA": {
-        |    "calls": {
-        |      "callB": [{
-        |        "attempt": 1,
-        |        "NOT_CHECKED": "NOT_CHECKED",
-        |        "shardIndex": -1
-        |      }, {
-        |        "attempt": 1,
-        |        "NOT_CHECKED": "NOT_CHECKED",
-        |        "shardIndex": 0
-        |      }, {
-        |        "attempt": 1,
-        |        "NOT_CHECKED": "NOT_CHECKED",
-        |        "shardIndex": 1
-        |      }, {
-        |        "attempt": 2,
-        |        "NOT_CHECKED": "NOT_CHECKED",
-        |        "shardIndex": 1
-        |      }, {
-        |        "attempt": 3,
-        |        "NOT_CHECKED": "NOT_CHECKED",
-        |        "shardIndex": 1
-        |      }],
-        |      "callA": [{
-        |        "attempt": 1,
-        |        "NOT_CHECKED": "NOT_CHECKED",
-        |        "shardIndex": -1
-        |      }]
-        |    },
-        |    "NOT_CHECKED": "NOT_CHECKED"
-        |  }
-        |}""".stripMargin
+        |  "calls": {
+        |    "callB": [{
+        |      "attempt": 1,
+        |      "NOT_CHECKED": "NOT_CHECKED",
+        |      "shardIndex": -1
+        |    }, {
+        |      "attempt": 1,
+        |      "NOT_CHECKED": "NOT_CHECKED",
+        |      "shardIndex": 0
+        |    }, {
+        |      "attempt": 1,
+        |      "NOT_CHECKED": "NOT_CHECKED",
+        |      "shardIndex": 1
+        |    }, {
+        |      "attempt": 2,
+        |      "NOT_CHECKED": "NOT_CHECKED",
+        |      "shardIndex": 1
+        |    }, {
+        |      "attempt": 3,
+        |      "NOT_CHECKED": "NOT_CHECKED",
+        |      "shardIndex": 1
+        |    }],
+        |    "callA": [{
+        |      "attempt": 1,
+        |      "NOT_CHECKED": "NOT_CHECKED",
+        |      "shardIndex": -1
+        |    }]
+        |  },
+        |  "NOT_CHECKED": "NOT_CHECKED",
+        |  "workflowId": "$workflowA"
+      |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
@@ -111,10 +111,10 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     val workflow = WorkflowId.randomId()
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
-    val expectedRes = s"""{"${workflow.id.toString}": { "calls": {}, $expectedJson } }"""
+    val expectedRes = s"""{ "calls": {}, $expectedJson, "workflowId":"$workflow" }"""
 
     val mdQuery = MetadataQuery(workflow, None, None)
-    val queryAction = GetAllMetadataAction(workflow)
+    val queryAction = GetSingleWorkflowMetadataAction(workflow)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
   }
 
@@ -281,7 +281,6 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
     val expectedResponse =
       s"""{
-          |"$workflowId": {
           | "calls": {},
           | "a": 2,
           | "b": 2,
@@ -290,9 +289,9 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           | "e": 2.9,
           | "f": true,
           | "g": false,
-          | "h": "false"
+          | "h": "false",
+          | "workflowId":"$workflowId"
           | }
-          |}
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None)
@@ -310,10 +309,9 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
     val expectedResponse =
       s"""{
-          |"$workflowId": {
           | "calls": {},
-          | "i": "UnknownClass(50)"
-          | }
+          | "i": "UnknownClass(50)",
+          | "workflowId":"$workflowId"
           |}
       """.stripMargin
 
@@ -331,10 +329,9 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
     val expectedResponse =
       s"""{
-          |"$workflowId": {
           | "calls": {},
-          | "i": "notAnInt"
-          | }
+          | "i": "notAnInt",
+          | "workflowId":"$workflowId"
           |}
       """.stripMargin
 

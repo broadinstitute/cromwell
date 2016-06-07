@@ -531,7 +531,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   def getWorkflowOutputsFromMetadata(id: WorkflowId): Map[FullyQualifiedName, WdlValue] = {
-    getWorkflowMetadata(id).fields.head._2.asInstanceOf[JsObject].getFields(WorkflowMetadataKeys.Outputs).toList match {
+    getWorkflowMetadata(id).getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))
       case _ => Map.empty
     }

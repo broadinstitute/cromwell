@@ -190,7 +190,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
-      log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}", reason) // TODO: This log is a candidate for removal. It's now recorded in metadata
+      log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(List(reason))
       val mergedStateData = mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
@@ -200,7 +200,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = true)
       handleRetryableFailure(jobKey, reason, returnCode)
     case Event(JobInitializationFailed(jobKey, reason), stateData) =>
-      log.warning(s"Jobs failed to initialize: $reason") // TODO: This log is a candidate for removal. It's now recorded in metadata
+      log.warning(s"Jobs failed to initialize: $reason") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = false)
       goto(WorkflowExecutionFailedState)
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>

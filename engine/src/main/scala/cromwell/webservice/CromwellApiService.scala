@@ -4,8 +4,10 @@ import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.services.MetadataServiceActor.{GetAllMetadataAction, GetStatus, WorkflowQuery}
+import cromwell.services.MetadataServiceActor.{GetStatus, WorkflowQuery}
 import cromwell.services.ServiceRegistryClient
+import cromwell.services.MetadataServiceActor.{GetSingleWorkflowMetadataAction, GetMetadataQueryAction}
+import cromwell.services.{MetadataQuery, ServiceRegistryClient}
 import cromwell.webservice.WorkflowJsonSupport._
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
@@ -46,6 +48,10 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
 
   private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
+  }
+
+  private def unsupportedEndpoint(endpoint: String) = respondWithMediaType(`application/json`) {
+    complete(StatusCodes.BadRequest, APIResponse.fail(new UnsupportedOperationException(s"Unsupported endpoint: '$endpoint'. If this is unexpected, is your API version correct?")).toJson.prettyPrint)
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
@@ -168,12 +174,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
             version match {
-              case "v2" =>
-                requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor),
-                  GetAllMetadataAction(w))
-              case _ =>
-                requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager),
-                  CromwellApiHandler.ApiHandlerWorkflowMetadata(w, parameters))
+              case _ => requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), GetSingleWorkflowMetadataAction(w))
             }
           case Failure(_) => invalidWorkflowId(workflowId)
         }

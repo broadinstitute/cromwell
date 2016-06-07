@@ -37,7 +37,7 @@ class RetryableCallsSpec extends CromwellTestkitSpec with Mockito with WorkflowD
 
     "succeed and return correct metadata" in {
       CromwellBackend.registerCustomBackend("customizedLocalBackend", customizedLocalBackend)
-      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(), self, "Test Workflow metadata with Retried Calls")
+      implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(isServerMode = false), self, "Test Workflow metadata with Retried Calls")
       val wd = materializeWorkflowDescriptorFromSources(workflowSources = SampleWdl.PrepareScatterGatherWdl().asWorkflowSources(workflowOptions = customizedLocalBackendOptions))
       val workflowId = waitForHandledMessagePattern(pattern = "transitioning from Running to Succeeded") {
         EventFilter.info(pattern = s"persisting status of do_scatter:0:2 to Starting", occurrences = 1).intercept {

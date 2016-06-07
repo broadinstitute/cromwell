@@ -9,7 +9,7 @@ import akka.util.Timeout
 import better.files._
 import cromwell.util.FileUtil._
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.{EmptyWorkflow, GoodbyeWorld, ThreeStep}
+import cromwell.util.SampleWdl._
 import org.apache.commons.io.output.TeeOutputStream
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.time.Span
@@ -143,14 +143,14 @@ object MainSpec {
   private def now = dateFormat.format(new Date)
 
   /**
-   * Tests running a sample wdl, providing the inputs, and cleaning up the temp files only if no exceptions occur.
-   *
-   * @param sampleWdl The sample wdl to run.
-   * @param optionsJson Optional json for the options file.
-   * @param block The block provided the inputs, returning some value.
-   * @tparam T The return type of the block.
-   * @return The result of running the block.
-   */
+    * Tests running a sample wdl, providing the inputs, and cleaning up the temp files only if no exceptions occur.
+    *
+    * @param sampleWdl The sample wdl to run.
+    * @param optionsJson Optional json for the options file.
+    * @param block The block provided the inputs, returning some value.
+    * @tparam T The return type of the block.
+    * @return The result of running the block.
+    */
   def testWdl[T](sampleWdl: SampleWdl, optionsJson: String = "{}")(block: WdlAndInputs => T): T = {
     val wdlAndInputs = WdlAndInputs(sampleWdl, optionsJson)
     val result = block(wdlAndInputs)
@@ -159,13 +159,13 @@ object MainSpec {
   }
 
   /**
-   * Saves and restores some system properties.
-   *
-   * @param keys SystemProperty names that should be saved.
-   * @param block The block to run.
-   * @tparam T The return type of the block.
-   * @return The result of running the block.
-   */
+    * Saves and restores some system properties.
+    *
+    * @param keys SystemProperty names that should be saved.
+    * @param block The block to run.
+    * @tparam T The return type of the block.
+    * @return The result of running the block.
+    */
   def modifyingSysProps[T](keys: String*)(block: => T): T = {
     val saved = sys.props.filterKeys(keys.contains).toMap
     try {
@@ -178,23 +178,23 @@ object MainSpec {
   }
 
   /**
-   * Prints the entry and exit of a block.
-   *
-   * Used primarily to (hopefully?) force a heisenbug to hide itself.
-   *
-   * The pattern matching utilities wait for a certain event to occur within a block. All system events are also
-   * println'ed to the output. Each block supposedly also runs system.awaitTermination() at the end of Main.run,
-   * blocking until the entire system is shutdown.
-   *
-   * However, on Travis, a number of failures have been seen where the pattern appears in the console output, but the
-   * filter returns false that the pattern had been seen.
-   *
-   * println is internally synchronized, so it's possible adding a call to printBlock _inside_ the waitFor... is masking
-   * a heisenbug, allowing the other events to be processed semi-synchronously before the final println in printBlock is
-   * allowed to finish. Switching the order of waitFor... and printBlock _seemed_ to reduce the intermittent errors,
-   * but this hasn't been exhaustively confirmed. Looking forward to seeing the WorkflowActor system revamp its concept
-   * of "terminated" at some point in the future anyway.
-   */
+    * Prints the entry and exit of a block.
+    *
+    * Used primarily to (hopefully?) force a heisenbug to hide itself.
+    *
+    * The pattern matching utilities wait for a certain event to occur within a block. All system events are also
+    * println'ed to the output. Each block supposedly also runs system.awaitTermination() at the end of Main.run,
+    * blocking until the entire system is shutdown.
+    *
+    * However, on Travis, a number of failures have been seen where the pattern appears in the console output, but the
+    * filter returns false that the pattern had been seen.
+    *
+    * println is internally synchronized, so it's possible adding a call to printBlock _inside_ the waitFor... is masking
+    * a heisenbug, allowing the other events to be processed semi-synchronously before the final println in printBlock is
+    * allowed to finish. Switching the order of waitFor... and printBlock _seemed_ to reduce the intermittent errors,
+    * but this hasn't been exhaustively confirmed. Looking forward to seeing the WorkflowActor system revamp its concept
+    * of "terminated" at some point in the future anyway.
+    */
   private def printBlock(action: String, args: Seq[String])(block: => Int): Int = {
     try {
       println(s"[$now] [block] Entering block: $action ${args.mkString(" ")}")
@@ -205,12 +205,12 @@ object MainSpec {
   }
 
   /**
-   * Runs the "run" method and waits for a particular pattern to appear as a Log Info event in the system.
-   *
-   * @param args Args to pass to Main.run().
-   * @param pattern The pattern to watch for.
-   * @return The return code of run.
-   */
+    * Runs the "run" method and waits for a particular pattern to appear as a Log Info event in the system.
+    *
+    * @param args Args to pass to Main.run().
+    * @param pattern The pattern to watch for.
+    * @return The return code of run.
+    */
   def traceInfoRun(args: String*)(pattern: String): Int = {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       waitForInfo(pattern)(
@@ -222,13 +222,13 @@ object MainSpec {
   }
 
   /**
-   * Runs the "run" method and waits for a particular pattern to appear as a Log Error event in the system, with an
-   * attached exception.
-   *
-   * @param args Args to pass to Main.run().
-   * @param pattern The pattern to watch for.
-   * @return The return code of run.
-   */
+    * Runs the "run" method and waits for a particular pattern to appear as a Log Error event in the system, with an
+    * attached exception.
+    *
+    * @param args Args to pass to Main.run().
+    * @param pattern The pattern to watch for.
+    * @return The return code of run.
+    */
   def traceErrorWithExceptionRun(args: String*)(pattern: String, throwableClass: Class[_ <: Throwable] = classOf[Throwable]): Int = {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       waitForErrorWithException(pattern, throwableClass = throwableClass)(
@@ -240,12 +240,12 @@ object MainSpec {
   }
 
   /**
-   * Runs the "runAction" method and waits for a particular pattern to appear as a Log Info event in the system.
-   *
-   * @param args Args to pass to Main.run().
-   * @param pattern The pattern to watch for.
-   * @return The return code of run.
-   */
+    * Runs the "runAction" method and waits for a particular pattern to appear as a Log Info event in the system.
+    *
+    * @param args Args to pass to Main.run().
+    * @param pattern The pattern to watch for
+    * @return The return code of run.
+    */
   def traceInfoAction(args: String*)(pattern: String): Int = {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       waitForInfo(pattern)(
@@ -259,12 +259,12 @@ object MainSpec {
   }
 
   /**
-   * Loans an instance of Main, returning the return code plus everything that passed through Console.out/Console.err
-   * during the run.
-   *
-   * @param block Block to run.
-   * @return return code plus Console.out/Console.err during the block.
-   */
+    * Loans an instance of Main, returning the return code plus everything that passed through Console.out/Console.err
+    * during the run.
+    *
+    * @param block Block to run.
+    * @return return code plus Console.out/Console.err during the block.
+    */
   def traceMain(block: Main => Int): TraceResult = {
     withTestWorkflowManagerSystem { workflowManagerSystem =>
       val outStream = TeeStream(Console.out)
@@ -281,12 +281,12 @@ object MainSpec {
   }
 
   /**
-   * Runs Main.runAction, returning the return code plus everything that passed through Console.out/Console.err
-   * during the run.
-   *
-   * @param args Arguments to pass to runAction.
-   * @return return code plus Console.out/Console.err during the block.
-   */
+    * Runs Main.runAction, returning the return code plus everything that passed through Console.out/Console.err
+    * during the run.
+    *
+    * @param args Arguments to pass to runAction.
+    * @return return code plus Console.out/Console.err during the block.
+    */
   def traceAction(args: String*): TraceResult = {
     traceMain { main =>
       main.runAction(args) match {
@@ -296,9 +296,9 @@ object MainSpec {
   }
 
   /**
-   * Create a temporary wdl file and inputs for the sampleWdl.
-   * When the various properties are lazily accessed, they are also registered for deletion after the suite completes.
-   */
+    * Create a temporary wdl file and inputs for the sampleWdl.
+    * When the various properties are lazily accessed, they are also registered for deletion after the suite completes.
+    */
   case class WdlAndInputs(sampleWdl: SampleWdl, optionsJson: String = "{}") {
     // Track all the temporary files we create, and delete them after the test.
     private var tempFiles = Vector.empty[Path]
@@ -342,10 +342,10 @@ object MainSpec {
   }
 
   /**
-   * Utility for capturing output while also streaming it to stdout/stderr.
+    * Utility for capturing output while also streaming it to stdout/stderr.
     *
     * @param orig The stream to share.
-   */
+    */
   case class TeeStream(orig: OutputStream) {
     private lazy val byteStream = new ByteArrayOutputStream()
 

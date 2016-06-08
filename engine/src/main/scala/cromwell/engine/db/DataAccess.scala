@@ -79,7 +79,7 @@ object DataAccess {
   }
 
   private def buildUpdatedSummary(existingSummary: Option[WorkflowMetadataSummary],
-                                metadataForUuid: Seq[Metadatum]): WorkflowMetadataSummary = {
+                                  metadataForUuid: Seq[Metadatum]): WorkflowMetadataSummary = {
     implicit val wmss = WorkflowMetadataSummarySemigroup
 
     val baseSummary = existingSummary.getOrElse(WorkflowMetadataSummary(metadataForUuid.head.workflowUuid))
@@ -98,9 +98,9 @@ trait DataAccess extends AutoCloseable {
   }
 
   /**
-   * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
-   * `backend`.  Or perhaps defer this?
-   */
+    * Creates a row in each of the backend-info specific tables for each call in `calls` corresponding to the backend
+    * `backend`.  Or perhaps defer this?
+    */
   def createWorkflow(workflowDescriptor: EngineWorkflowDescriptor,
                      sources: WorkflowSourceFiles,
                      workflowInputs: Traversable[SymbolStoreEntry],
@@ -343,10 +343,10 @@ trait DataAccess extends AutoCloseable {
       val key = metadataEvent.key
       val workflowUuid = key.workflowId.id.toString
       val timestamp = metadataEvent.offsetDateTime.toSystemTimestamp
-      val value = metadataEvent.value.value
-      val valueType = Option(metadataEvent.value.valueType) map { _.typeName } orNull
+      val value = metadataEvent.value map { _.value }
+      val valueType = metadataEvent.value map { _.valueType.typeName }
       val jobKey = key.jobKey map { jk => (jk.callFqn, jk.index, jk.attempt) }
-        Metadatum(workflowUuid, key.key, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3), Option(value), Option(valueType), timestamp)
+        Metadatum(workflowUuid, key.key, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3), value, valueType, timestamp)
     }
 
     addMetadata(metadata)
@@ -369,7 +369,11 @@ trait DataAccess extends AutoCloseable {
         } yield new MetadataJobKey(callFqn, m.index, attempt)
 
         val key = MetadataKey(query.workflowId, metadataJobKey, m.key)
-        val value = new MetadataValue(m.value.orNull, m.valueType.map(MetadataType.fromString).orNull)
+        val value =  for {
+          mValue <- m.value
+          mType <- m.valueType
+        } yield MetadataValue(mValue, MetadataType.fromString(mType))
+
         MetadataEvent(key, value, m.timestamp.toSystemOffsetDateTime)
       }
     }
@@ -553,8 +557,8 @@ trait DataAccess extends AutoCloseable {
             start = workflow.startDate map { _.toSystemOffsetDateTime },
             end = workflow.endDate map { _.toSystemOffsetDateTime })
         }),
-        //only return metadata if page is defined
-        queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })
+          //only return metadata if page is defined
+          queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })
       }
     }
   }

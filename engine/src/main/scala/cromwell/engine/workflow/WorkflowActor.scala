@@ -153,6 +153,10 @@ class WorkflowActor(workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
+      // Is this the right place for startTime ?
+      val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
+      serviceRegistryActor ! PutMetadataAction(startEvent)
+
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(), s"MaterializeWorkflowDescriptorActor-$workflowId")
       actor ! MaterializeWorkflowDescriptorCommand(workflowId, workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
@@ -247,7 +251,7 @@ class WorkflowActor(workflowId: WorkflowId,
       // Add the end time of the workflow in the MetadataService
       val now = OffsetDateTime.now
       val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime),
-        MetadataValue(now), now)
+        MetadataValue(now))
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>
@@ -285,20 +289,26 @@ class WorkflowActor(workflowId: WorkflowId,
   }
 
   private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
-    import MetadataServiceActorImplicits.EnhancedServiceRegistryActorForMetadata
     // Inputs
-    workflowDescriptor.backendDescriptor.inputs.foreach { case (inputName, wdlValue) =>
-      serviceRegistryActor.pushWdlValueMetadata(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+    val inputEvents = workflowDescriptor.workflowInputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
+      case inputs =>
+        inputs flatMap { case (inputName, wdlValue) =>
+          wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+        }
     }
+
     // Workflow name:
-    val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name), OffsetDateTime.now)
-    serviceRegistryActor ! PutMetadataAction(nameEvent)
+    val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name))
+
+    serviceRegistryActor ! PutMetadataAction(inputEvents ++ List(nameEvent))
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service
   private def pushCurrentStateToMetadataService(workflowState: WorkflowState): Unit = {
     val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
-      MetadataValue(workflowState), OffsetDateTime.now)
+      MetadataValue(workflowState))
     serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
 }

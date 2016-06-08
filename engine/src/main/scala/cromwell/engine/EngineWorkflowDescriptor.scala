@@ -4,7 +4,7 @@ import cromwell.backend.BackendWorkflowDescriptor
 import wdl4s._
 
 final case class EngineWorkflowDescriptor(backendDescriptor: BackendWorkflowDescriptor,
-                                          declarations: WorkflowCoercedInputs,
+                                          workflowInputs: WorkflowCoercedInputs,
                                           backendAssignments: Map[Call, String],
                                           failureMode: WorkflowFailureMode) {
   def id = backendDescriptor.id

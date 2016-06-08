@@ -9,6 +9,7 @@ import cromwell.core.WorkflowId
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.http.{StatusCode, StatusCodes}
@@ -45,7 +46,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
 
   it should "build workflow scope tree from metadata events" in {
     def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
-      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"), OffsetDateTime.now)
+      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"))
     }
 
     val workflowA = WorkflowId.randomId()
@@ -93,7 +94,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
         |    }]
         |  },
         |  "NOT_CHECKED": "NOT_CHECKED",
-        |  "workflowId": "$workflowA"
+        |  "id": "$workflowA"
       |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None)
@@ -104,14 +105,14 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
   type EventBuilder = (String, String, OffsetDateTime)
 
   def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
-    MetadataEvent(MetadataKey(workflow, None, key), value, offsetDateTime)
+    MetadataEvent(MetadataKey(workflow, None, key), Option(value), offsetDateTime)
   }
 
   def assertMetadataKeyStructure(eventList: List[EventBuilder], expectedJson: String) = {
     val workflow = WorkflowId.randomId()
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
-    val expectedRes = s"""{ "calls": {}, $expectedJson, "workflowId":"$workflow" }"""
+    val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
 
     val mdQuery = MetadataQuery(workflow, None, None)
     val queryAction = GetSingleWorkflowMetadataAction(workflow)
@@ -290,7 +291,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           | "f": true,
           | "g": false,
           | "h": "false",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           | }
       """.stripMargin
 
@@ -311,7 +312,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "i": "UnknownClass(50)",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -331,13 +332,61 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "i": "notAnInt",
-          | "workflowId":"$workflowId"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
+  }
+
+  it should "render empty Json" in {
+    val workflowId = WorkflowId.randomId()
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    val expectedEmptyResponse = """{}"""
+    assertMetadataResponse(queryAction, mdQuery, List.empty, expectedEmptyResponse)
+  }
+
+  it should "render empty values" in {
+    val workflowId = WorkflowId.randomId()
+    val value = MetadataValue("something")
+    val emptyEvents = List(
+      MetadataEvent.empty(MetadataKey(workflowId, None, "hey")),
+      MetadataEvent.empty(MetadataKey(workflowId, None, "emptyList[]"))
+    )
+    val valueEvents = List(
+      MetadataEvent.empty(MetadataKey(workflowId, None, "hey")),
+      MetadataEvent.empty(MetadataKey(workflowId, None, "emptyList[]")),
+      MetadataEvent(MetadataKey(workflowId, None, "hey"), Option(value), OffsetDateTime.now().plusSeconds(1L)),
+      MetadataEvent(MetadataKey(workflowId, None, "emptyList[0]"), Option(value), OffsetDateTime.now().plusSeconds(1L)),
+      MetadataEvent(MetadataKey(workflowId, None, "emptyList[1]"), Option(value), OffsetDateTime.now().plusSeconds(1L))
+    )
+
+    val expectedEmptyResponse =
+      s"""{
+          | "calls": {},
+          | "hey": {},
+          | "emptyList": [],
+          | "id":"$workflowId"
+          |}
+      """.stripMargin
+
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    assertMetadataResponse(queryAction, mdQuery, emptyEvents, expectedEmptyResponse)
+
+    val expectedNonEmptyResponse =
+      s"""{
+          | "calls": {},
+          | "hey": "something",
+          | "emptyList": ["something", "something"],
+          | "id":"$workflowId"
+          |}
+      """.stripMargin
+
+    assertMetadataResponse(queryAction, mdQuery, valueEvents, expectedNonEmptyResponse)
   }
 
   override def afterAll() = {

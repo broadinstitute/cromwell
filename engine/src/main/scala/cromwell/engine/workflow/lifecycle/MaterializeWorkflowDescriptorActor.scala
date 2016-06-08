@@ -157,7 +157,7 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
       declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs)
       declarationsAndInputs = declarations ++ coercedInputs
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
-    } yield EngineWorkflowDescriptor(backendDescriptor, declarations, backendAssignments, failureMode)
+    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode)
   }
 
   private def validateBackendAssignments(calls: Seq[Call], workflowOptions: WorkflowOptions): ErrorOr[Map[Call, String]] = {

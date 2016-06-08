@@ -9,6 +9,7 @@ import cromwell.services.ServiceRegistryClient
 import cromwell.services.MetadataServiceActor.{GetSingleWorkflowMetadataAction, GetMetadataQueryAction}
 import cromwell.services.{MetadataQuery, ServiceRegistryClient}
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._

@@ -8,5 +8,6 @@ object WorkflowMetadataKeys {
   val Outputs = "outputs"
   val Status = "status"
   val StartTime = "start"
+  val SubmissionTime = "submission"
   val EndTime = "end"
 }

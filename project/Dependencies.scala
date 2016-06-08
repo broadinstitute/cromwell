@@ -69,9 +69,10 @@ object Dependencies {
     "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.typesafe" % "config" % "1.3.0",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
+    "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "org.apache.commons" % "commons-lang3" % "3.4"
-  ) ++ testDependencies ++ googleApiClientDependencies
+  ) ++ testDependencies ++ googleApiClientDependencies ++ sprayDependencies
 
   val htCondorBackendDependencies = List(
     "com.twitter" % "chill_2.11" % "0.8.0",
@@ -81,8 +82,6 @@ object Dependencies {
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.webjars" % "swagger-ui" % "2.1.1",
-    "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.4",
     "ch.qos.logback" % "logback-classic" % "1.1.3",
@@ -90,5 +89,5 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" %% "scalaz-core" % scalazCoreV,
     "com.github.pathikrit" %% "better-files" % betterFilesV
-  ) ++ sprayDependencies
+  )
 }

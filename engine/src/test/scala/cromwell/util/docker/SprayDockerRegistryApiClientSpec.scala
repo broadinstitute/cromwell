@@ -1,38 +1,29 @@
 package cromwell.util.docker
 
-import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
-import cromwell.core.DockerConfiguration
+import cromwell.core.{DockerConfiguration, TestKitSuite}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.filesystems.gcs.GoogleCredentialFactorySpec
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.{FlatSpecLike, Matchers}
 import spray.http.HttpResponse
 import spray.httpx.UnsuccessfulResponseException
 
 import scala.language.postfixOps
 
-class SprayDockerRegistryApiClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with ScalaFutures
-with IntegrationPatience {
+class SprayDockerRegistryApiClientSpec extends TestKitSuite("SprayDockerRegistryApiClientSpec") with FlatSpecLike
+  with Matchers with ScalaFutures with IntegrationPatience {
 
-  private var actorSystem: ActorSystem = _
-  private var client: SprayDockerRegistryApiClient = _
+  implicit override val patienceConfig = PatienceConfig(
+    scaled(Span(30, Seconds)), scaled(Span(250, Millis)))
+
+  private val client: SprayDockerRegistryApiClient = new SprayDockerRegistryApiClient()(system)
 
   private val config = BackendConfiguration.DefaultBackendEntry.config
-
-  override protected def beforeAll() = {
-    actorSystem = ActorSystem("spray-docker-test-actor-system")
-    client = new SprayDockerRegistryApiClient()(actorSystem)
-  }
-
-  override protected def afterAll() = {
-    actorSystem.shutdown()
-    actorSystem = null
-    client = null
-  }
 
   behavior of "SprayDockerRegistryApiClient"
 

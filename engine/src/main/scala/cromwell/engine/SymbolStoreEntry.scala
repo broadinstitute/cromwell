@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import cromwell.core.{JobOutput, JobOutputs}
+import cromwell.core.{FullyQualifiedName, JobOutput, JobOutputs, WorkflowOutputs}
 import wdl4s.types.WdlType
 import wdl4s.values.{SymbolHash, WdlValue}
 

@@ -3,23 +3,22 @@ package cromwell.webservice
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.ActorSystem
 import akka.testkit._
-import cromwell.core.WorkflowId
+import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.{FlatSpecLike, Matchers}
 import spray.http.{StatusCode, StatusCodes}
 import spray.json._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
-  with FlatSpecLike with Matchers with TableDrivenPropertyChecks with ImplicitSender with BeforeAndAfterAll {
+class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLike with Matchers
+  with TableDrivenPropertyChecks with ImplicitSender {
 
   behavior of "MetadataParser"
 
@@ -398,9 +397,5 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       """.stripMargin
 
     assertMetadataResponse(queryAction, mdQuery, valueEvents, expectedNonEmptyResponse)
-  }
-
-  override def afterAll() = {
-    system.shutdown()
   }
 }

@@ -2,8 +2,7 @@ package cromwell.util
 
 import java.io.{PrintWriter, StringWriter}
 
-import cromwell.core.retry.Backoff
-import cromwell.core.{CromwellAggregatedException, CromwellFatalException}
+import cromwell.core.CromwellAggregatedException
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}

@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 import java.util.UUID
 
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.core.WorkflowSourceFiles
 import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
@@ -757,12 +757,13 @@ object SampleWdl {
         |  output {
         |    String pwd = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow whereami {
         |  call whereami
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override val rawInputs: Map[String, Any] = Map.empty
   }
@@ -910,6 +911,7 @@ object SampleWdl {
         |  output {
         |    File concatenated = stdout()
         |  }
+        |  RUNTIME
         |}
         |
         |task find {
@@ -921,6 +923,7 @@ object SampleWdl {
         |  output {
         |    Array[String] results = read_lines(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |task count_lines {
@@ -931,6 +934,7 @@ object SampleWdl {
         |  output {
         |    Int count = read_int(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |task serialize {
@@ -941,6 +945,7 @@ object SampleWdl {
         |  output {
         |    String contents = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow wf {
@@ -960,7 +965,7 @@ object SampleWdl {
         |    input: files = find.results
         |  }
         |}
-      """.stripMargin
+      """.stripMargin.replaceAll("RUNTIME", runtime)
 
     val tempDir = Files.createTempDirectory("ArrayIO")
     val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Some(tempDir))

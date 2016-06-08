@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import java.time.OffsetDateTime
 
+import cromwell.core.WorkflowSourceFiles
 import cromwell.engine._
 import cromwell.services.MetadataServiceActor.{WorkflowQueryResponse, WorkflowQueryResult}
 import cromwell.webservice.WdlValueJsonFormatter._

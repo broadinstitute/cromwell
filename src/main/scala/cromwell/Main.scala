@@ -4,8 +4,7 @@ import java.nio.file.{Files, Path, Paths}
 
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowOptions
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.core.{WorkflowOptions, WorkflowSourceFiles}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}

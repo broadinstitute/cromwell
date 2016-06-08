@@ -3,37 +3,37 @@ package cromwell.backend.impl.htcondor
 import java.io.{File, FileWriter, Writer}
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
+import akka.actor.Props
+import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.impl.htcondor.caching.CacheActor
 import cromwell.backend.impl.htcondor.caching.exception.CachedResultNotFoundException
 import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
-import cromwell.backend.io.{BackendTestkitSpec, JobPaths}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.io._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mock.MockitoSugar
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process.{Process, ProcessLogger}
 
-class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExecutionActorSpec"))
-  with BackendTestkitSpec
+class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionActorSpec")
   with WordSpecLike
   with Matchers
   with MockitoSugar
   with BeforeAndAfter
-  with BeforeAndAfterAll
   with ImplicitSender {
+
+  import BackendSpec._
 
   private val htCondorCommands: HtCondorCommands = new HtCondorCommands
   private val htCondorProcess: HtCondorProcess = mock[HtCondorProcess]
@@ -94,8 +94,6 @@ class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExec
   after {
     Mockito.reset(htCondorProcess)
   }
-
-  override def afterAll(): Unit = system.shutdown()
 
   "executeTask method" should {
     "return succeeded task status with stdout" in {

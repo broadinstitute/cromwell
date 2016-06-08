@@ -7,19 +7,17 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.ConfigFactory
-import cromwell.filesystems.gcs.GcsFileSystemSpec.IntegrationTest
 import cromwell.filesystems.gcs.GoogleAuthMode.EnhancedCredentials
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.Try
-
 
 class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
   import GoogleCredentialFactorySpec._
 
   behavior of "GoogleCredentialFactory"
 
-  it should "refresh a token using user credentials" taggedAs IntegrationTest in {
+  it should "refresh a token using user credentials" taggedAs GcsIntegrationTest in {
     val credential = UserMode(
       name = "user",
       user = secretConf("user"),
@@ -42,7 +40,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
     secondCredential.getExpiresInSeconds.longValue should be > 60L
   }
 
-  it should "refresh a token using a service account" taggedAs IntegrationTest in {
+  it should "refresh a token using a service account" taggedAs GcsIntegrationTest in {
     val credential = ServiceAccountMode(
       name = "service",
       accountId = secretConf("service-account-id"),
@@ -64,7 +62,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
     secondCredential.getExpiresInSeconds.longValue should be > 60L
   }
 
-  it should "refresh a token using a refresh token" taggedAs IntegrationTest in {
+  it should "refresh a token using a refresh token" taggedAs GcsIntegrationTest in {
     val opts = GoogleOptionsMap(Map("refresh_token" -> secretConf("refresh_token")))
 
     val credential = RefreshTokenMode(name = "refresh",
@@ -105,7 +103,7 @@ class GoogleCredentialFactorySpec extends FlatSpec with Matchers {
     exception.getMessage should be("Unable to refresh token")
   }
 
-  it should "refresh a token using application default credentials" taggedAs IntegrationTest in {
+  it should "refresh a token using application default credentials" taggedAs GcsIntegrationTest in {
     val credential = applicationDefaultCredential
 
     val firstCredentialTry: Try[Credential] = credential.freshCredential

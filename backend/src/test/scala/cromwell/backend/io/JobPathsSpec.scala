@@ -3,11 +3,11 @@ package cromwell.backend.io
 import java.nio.file.Paths
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.Call
 
-class JobPathsSpec extends FlatSpec with Matchers with BackendTestkitSpec {
+class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   val configString =
     """

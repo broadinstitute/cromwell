@@ -5,8 +5,7 @@ import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.PostMVP
 import cromwell.CromwellTestkitSpec
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFiles}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
@@ -22,7 +21,7 @@ import scala.language.postfixOps
 
 class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
 
-  val workflowId = WorkflowId.randomId
+  val workflowId = WorkflowId.randomId()
   val minimumConf = ConfigFactory.parseString(
     """
       |backend {

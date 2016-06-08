@@ -1,47 +1,28 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.ActorSystem
-import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
+import java.util.UUID
+
+import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import cromwell.backend.impl.jes.authentication.GcsLocalizing
+import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.logging.LoggingTest._
-import spray.json.{JsObject, JsValue}
-import wdl4s.values.WdlValue
-import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
+import cromwell.core.{TestKitSuite, WorkflowOptions}
+import cromwell.filesystems.gcs.SimpleClientSecrets
+import cromwell.util.SampleWdl
+import org.scalatest.{FlatSpecLike, Matchers}
+import org.specs2.mock.Mockito
+import spray.json._
+import wdl4s.Call
 
 import scala.concurrent.duration._
 
-class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationActorSpec", ConfigFactory.parseString(
-  // TODO: PBE: 5s leeway copy of CromwellTestkitSpec. Refactor to D.R.Y. this code, and rename Testkit to TestKit
-  """
-    |akka {
-    |  loggers = ["akka.testkit.TestEventListener"]
-    |  loglevel = "INFO"
-    |  actor {
-    |    debug {
-    |       receive = on
-    |    }
-    |  }
-    |  dispatchers {
-    |    slow-actor-dispatcher {
-    |      type = Dispatcher
-    |      executor = "fork-join-executor"
-    |    }
-    |  }
-    |  test {
-    |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
-    |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
-    |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
-    |    filter-leeway = 5s
-    |    single-expect-default = 5s
-    |    default-timeout = 10s
-    |  }
-    |}
-    |""".stripMargin))) with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpec") with FlatSpecLike with Matchers
+  with ImplicitSender with Mockito {
   val Timeout = 5.second.dilated
+
+  import BackendSpec._
 
   val HelloWorld =
     """
@@ -72,11 +53,18 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
       |    {
       |      name = "application-default"
       |      scheme = "application_default"
+      |    },
+      |    {
+      |      name = "user-via-refresh"
+      |      scheme = "refresh_token"
+      |      client-id = "secret_id"
+      |      client-secret = "secret_secret"
       |    }
       |  ]
       |}
-    """.stripMargin)
-  val backendConfig = ConfigFactory.parseString(
+      | """.stripMargin)
+
+  val backendConfigTemplate =
     """
       |  // Google project
       |  project = "my-cromwell-workflows"
@@ -102,59 +90,189 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
       |      auth = "application-default"
       |    }
       |  }
-    """.stripMargin)
+      |
+      |[DOCKERHUBCONFIG]
+      |""".stripMargin
+
+  val backendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
+
+  val dockerBackendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
+    """
+      |dockerhub {
+      |  account = "my@docker.account"
+      |  token = "mydockertoken"
+      |}
+      | """.stripMargin))
 
   val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig)
-
-  private def buildWorkflowDescriptor(wdl: WdlSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
-                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                      runtime: String = "") = {
-    new BackendWorkflowDescriptor(
-      WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
-      options
-    )
-  }
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf)))
   }
 
-  override def afterAll {
-    system.shutdown()
+  behavior of "JesInitializationActor"
+
+  it should "log a warning message when there are unsupported runtime attributes" in {
+    within(Timeout) {
+      val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
+        runtime = """runtime { docker: "ubuntu/latest" test: true }""")
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
+        defaultBackendConfig)
+      val eventPattern =
+        "Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."
+      EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
+        backend ! Initialize
+      }
+      expectMsgPF() {
+        case InitializationSuccess => //Docker entry is present.
+        case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+      }
+    }
   }
 
-  "JesInitializationActor" should {
-    "log a warning message when there are unsupported runtime attributes" in {
-      within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-        val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        EventFilter.warning(pattern = escapePattern(s"Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
-          backend ! Initialize
-        }
-        expectMsgPF() {
-          case InitializationSuccess => //Docker entry is present.
-          case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
-        }
+  it should "return InitializationFailed when docker runtime attribute key is not present" in {
+    within(Timeout) {
+      val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
+        defaultBackendConfig)
+      backend ! Initialize
+      expectMsgPF() {
+        case InitializationFailed(failure) =>
+          failure match {
+            case exception: IllegalArgumentException =>
+              if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
+                fail("Exception message does not contains 'Runtime attribute validation failed'.")
+          }
       }
     }
+  }
 
-    "return InitializationFailed when docker runtime attribute key is not present" in {
-      within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-        val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        backend ! Initialize
-        expectMsgPF() {
-          case InitializationFailed(failure) =>
-            failure match {
-              case exception: IllegalArgumentException =>
-                if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
-                  fail("Exception message does not contains 'Runtime attribute validation failed'.")
-            }
-        }
-      }
-    }
+  it should "generate the correct json content for no docker token and no refresh token" in {
+    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
+    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
+    val calls = workflowDescriptor.workflowNamespace.workflow.calls
+    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
+      dockerBackendConfig, globalConfig)
+    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
+
+    val actorRef = TestActorRef[JesInitializationActor](
+      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
+      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val actor = actorRef.underlyingActor
+
+    actor.generateAuthJson(None, None) should be(empty)
+
+    val authJsonOption = actor.generateAuthJson(None, None)
+    authJsonOption should be(empty)
+
+    actorRef.stop()
+  }
+
+  it should "generate the correct json content for a docker token and no refresh token" in {
+    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
+    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
+    val calls = workflowDescriptor.workflowNamespace.workflow.calls
+    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
+      dockerBackendConfig, globalConfig)
+    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
+
+    val actorRef = TestActorRef[JesInitializationActor](
+      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
+      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val actor = actorRef.underlyingActor
+
+    val authJsonOption = actor.generateAuthJson(jesConfiguration.dockerCredentials, None)
+    authJsonOption shouldNot be(empty)
+    authJsonOption.get should be(
+      normalize(
+        """
+          |{
+          |    "auths": {
+          |        "docker": {
+          |            "account": "my@docker.account",
+          |            "token": "mydockertoken"
+          |        }
+          |    }
+          |}
+        """.stripMargin)
+    )
+
+    actorRef.stop()
+  }
+
+  it should "generate the correct json content for no docker token and a refresh token" in {
+    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
+    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
+    val calls = workflowDescriptor.workflowNamespace.workflow.calls
+    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
+      dockerBackendConfig, globalConfig)
+    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
+
+    val actorRef = TestActorRef[JesInitializationActor](
+      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
+      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val actor = actorRef.underlyingActor
+
+    val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
+    val authJsonOption = actor.generateAuthJson(None, gcsUserAuth)
+    authJsonOption shouldNot be(empty)
+    authJsonOption.get should be(
+      normalize(
+        """
+          |{
+          |    "auths": {
+          |        "boto": {
+          |            "client_id": "myclientid",
+          |            "client_secret": "myclientsecret",
+          |            "refresh_token": "mytoken"
+          |        }
+          |    }
+          |}
+        """.stripMargin)
+    )
+
+    actorRef.stop()
+  }
+
+  it should "generate the correct json content for a docker token and a refresh token" in {
+    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
+    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
+    val calls = workflowDescriptor.workflowNamespace.workflow.calls
+    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
+      dockerBackendConfig, globalConfig)
+    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
+
+    val actorRef = TestActorRef[JesInitializationActor](
+      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
+      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val actor = actorRef.underlyingActor
+
+    val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
+    val authJsonOption = actor.generateAuthJson(jesConfiguration.dockerCredentials, gcsUserAuth)
+    authJsonOption shouldNot be(empty)
+    authJsonOption.get should be(
+      normalize(
+        """
+          |{
+          |    "auths": {
+          |        "docker": {
+          |            "account": "my@docker.account",
+          |            "token": "mydockertoken"
+          |        },
+          |        "boto": {
+          |            "client_id": "myclientid",
+          |            "client_secret": "myclientsecret",
+          |            "refresh_token": "mytoken"
+          |        }
+          |    }
+          |}
+        """.stripMargin)
+    )
+
+    actorRef.stop()
+  }
+
+  private def normalize(str: String) = {
+    str.parseJson.prettyPrint
   }
 }

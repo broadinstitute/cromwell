@@ -3,13 +3,12 @@ package cromwell.services
 import akka.actor.ActorRef
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
-import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
+import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFiles}
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}

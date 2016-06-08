@@ -5,12 +5,11 @@ import java.nio.file.{Files, Paths}
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
-import cromwell.backend.io.BackendTestkitSpec._
 import cromwell.backend.io.TestWorkflows._
-import cromwell.backend.io.{BackendTestkitSpec, JobPaths, TestWorkflows}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.backend.io.{JobPaths, TestWorkflows}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec}
 import cromwell.core._
-import org.scalatest.FlatSpec
+import org.scalatest.FlatSpecLike
 import org.scalatest.concurrent.PatienceConfiguration._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -19,7 +18,8 @@ import wdl4s.values._
 
 import scala.concurrent.duration._
 
-class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with MockitoSugar with TestFileUtil with TableDrivenPropertyChecks {
+class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpec") with FlatSpecLike
+  with BackendSpec with MockitoSugar with TestFileUtil with TableDrivenPropertyChecks {
 
   val globalConfig = ConfigFactory.load()
   val backendConfig = globalConfig.getConfig("backend.providers.Local.config")

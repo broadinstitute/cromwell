@@ -2,8 +2,7 @@ package cromwell.services
 
 import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowSucceeded
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.core.{WorkflowSourceFiles, WorkflowSucceeded}
 import cromwell.services.KeyValueServiceActor._
 
 class KeyValueServiceActorSpec extends CromwellServicesSpec {

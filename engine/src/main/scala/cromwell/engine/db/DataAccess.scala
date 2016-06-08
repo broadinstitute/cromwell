@@ -3,15 +3,15 @@ package cromwell.engine.db
 import java.time.OffsetDateTime
 
 import akka.actor.ActorSystem
-import cromwell.backend.{ExecutionHash, JobKey}
+import cromwell.backend.ExecutionHash
+import cromwell.core.ExecutionIndex._
+import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.core.retry._
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase
 import cromwell.database.obj._
 import cromwell.database.slick.SlickDatabase
-import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus._
 import cromwell.engine._
 import cromwell.engine.backend.{OldStyleBackend, OldStyleBackendCallJobDescriptor}
 import cromwell.engine.db.DataAccess.{RetryBackoff, WorkflowExecutionAndAux}

@@ -1,4 +1,4 @@
-package cromwell.engine
+package cromwell.core
 
 /*
  * Type and implicit conversion classes for ExecutionIndex

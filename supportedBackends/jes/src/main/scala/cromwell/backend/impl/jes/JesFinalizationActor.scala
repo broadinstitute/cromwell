@@ -5,8 +5,8 @@ import java.nio.file.Path
 import akka.actor.Props
 import better.files._
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{BackendExecutionStore, BackendJobDescriptorKey, BackendOutputStore, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
-import cromwell.core.PathCopier
+import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
+import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
 import cromwell.core.retry.Retry
 import wdl4s.Call
 
@@ -14,7 +14,7 @@ import scala.concurrent.Future
 
 object JesFinalizationActor {
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
-            executionStore: BackendExecutionStore, outputStore: BackendOutputStore) = {
+            executionStore: ExecutionStore, outputStore: OutputStore) = {
     Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore))
       .withDispatcher("akka.dispatchers.slow-actor-dispatcher")
   }
@@ -22,8 +22,8 @@ object JesFinalizationActor {
 
 class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDescriptor,
                             override val calls: Seq[Call],
-                            jesConfiguration: JesConfiguration, executionStore: BackendExecutionStore,
-                            outputStore: BackendOutputStore) extends BackendWorkflowFinalizationActor {
+                            jesConfiguration: JesConfiguration, executionStore: ExecutionStore,
+                            outputStore: OutputStore) extends BackendWorkflowFinalizationActor {
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 

@@ -4,13 +4,12 @@ import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
-import cromwell.core.WorkflowId
+import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.workflow.lifecycle.execution.{ExecutionStore, OutputStore}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 

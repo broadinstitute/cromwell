@@ -3,9 +3,8 @@ package cromwell.engine.workflow.lifecycle
 import java.nio.file.Path
 
 import akka.actor.Props
-import cromwell.core.{PathCopier, WorkflowId}
+import cromwell.core.{ExecutionStore, OutputStore, PathCopier, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.{ExecutionStore, OutputStore}
 
 object CopyWorkflowLogsActor {
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = Props(

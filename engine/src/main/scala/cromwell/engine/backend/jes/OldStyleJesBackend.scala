@@ -13,7 +13,7 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.backend.{BackendConfigurationDescriptor, ExecutionHash, JobKey, PreemptedException}
+import cromwell.backend.{BackendConfigurationDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{JobOutput, JobOutputs, WorkflowOptions, _}
 import cromwell.engine._

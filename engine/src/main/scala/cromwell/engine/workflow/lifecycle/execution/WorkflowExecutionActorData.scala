@@ -1,11 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.ActorRef
-import cromwell.backend.JobKey
+import cromwell.core.ExecutionStatus._
+import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.core._
-import cromwell.engine.ExecutionStatus._
-import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus, WdlFunctions}
+import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.webservice.WdlValueJsonFormatter
 
 import scala.language.postfixOps

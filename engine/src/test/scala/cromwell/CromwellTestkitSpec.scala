@@ -10,10 +10,10 @@ import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
+import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.engine.ExecutionIndex.ExecutionIndex
 import cromwell.engine._
 import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
 import cromwell.engine.workflow.WorkflowManagerActor

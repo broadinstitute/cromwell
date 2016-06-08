@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.backend._
+import cromwell.core.{ExecutionStore, JobKey, OutputStore}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor._
 import wdl4s._

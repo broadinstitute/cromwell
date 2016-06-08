@@ -5,7 +5,8 @@ import java.nio.file.Path
 import akka.actor.Props
 import com.typesafe.config.Config
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendExecutionStore, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendOutputStore, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
+import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
@@ -24,8 +25,8 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                               calls: Seq[Call],
-                                              executionStore: BackendExecutionStore,
-                                              outputStore: BackendOutputStore) = {
+                                              executionStore: ExecutionStore,
+                                              outputStore: OutputStore) = {
     Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore))
   }
 

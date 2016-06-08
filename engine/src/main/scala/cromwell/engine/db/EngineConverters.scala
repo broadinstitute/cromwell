@@ -1,10 +1,11 @@
 package cromwell.engine.db
 
+import cromwell.core.ExecutionIndex._
+import cromwell.core.ExecutionStatus
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.{Execution, Symbol}
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine.workflow.BackendCallKey
-import cromwell.engine.{ExecutionStatus, SymbolStoreEntry, SymbolStoreKey}
+import cromwell.engine.{SymbolStoreEntry, SymbolStoreKey}
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 import wdl4s.values.{SymbolHash, WdlValue}
 import wdl4s.{NamespaceWithWorkflow, ReportableSymbol, Scatter}

@@ -1,8 +1,8 @@
 package cromwell.engine.workflow
 
+import cromwell.core.ExecutionIndex._
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.Execution
-import cromwell.engine.ExecutionIndex._
 import cromwell.engine._
 import cromwell.engine.backend.jes.OldStyleJesBackend
 import cromwell.engine.backend.local.OldStyleLocalBackend

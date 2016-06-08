@@ -1,7 +1,6 @@
 package cromwell.engine.workflow
 
-import cromwell.backend.JobKey
-import cromwell.engine.ExecutionStatus
+import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.engine.workflow.OldStyleWorkflowActor.ExecutionStore
 import wdl4s._

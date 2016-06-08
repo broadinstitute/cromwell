@@ -2,12 +2,11 @@ package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{FSM, Props}
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
-import cromwell.core.WorkflowId
+import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
-import cromwell.engine.workflow.lifecycle.execution.{ExecutionStore, OutputStore}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -65,8 +64,8 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
           props <- CromwellBackends.shadowBackendLifecycleFactory(backend).map(
-            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls,
-              executionStore.toBackendExecutionStore, outputStore.toBackendOutputStore)).get
+            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, executionStore, outputStore)
+          ).get
           actor = context.actorOf(props)
         } yield actor
       }

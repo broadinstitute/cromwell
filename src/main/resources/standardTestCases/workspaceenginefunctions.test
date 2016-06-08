@@ -1,7 +1,0 @@
-name: workspaceenginefunctions
-testFormat: workflowsuccess
-
-files {
-  wdl: workspaceenginefunctions/workspaceenginefunctions.wdl
-  inputs: workspaceenginefunctions/workspaceenginefunctions.inputs
-}

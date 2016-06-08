@@ -53,7 +53,7 @@ trait WorkflowDescriptorBuilder {
     implicit val timeout = akka.util.Timeout(awaitTimeout)
     implicit val ec = actorSystem.dispatcher
 
-    val serviceRegistryIgnorer = actorSystem.actorOf(DevNullActor.props)
+    val serviceRegistryIgnorer = actorSystem.actorOf(Props.empty)
     val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
       MaterializeWorkflowDescriptorCommand(id, workflowSources, ConfigFactory.load)
@@ -63,16 +63,6 @@ trait WorkflowDescriptorBuilder {
       case MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor) => workflowDescriptor
       case MaterializeWorkflowDescriptorFailureResponse(reason) => throw reason
     }, awaitTimeout)
-  }
-}
-
-object DevNullActor {
-  def props: Props = Props(new DevNullActor())
-}
-
-private class DevNullActor extends Actor {
-  def receive = {
-    case _ => // How nice. A message! Let's ignore it!
   }
 }
 

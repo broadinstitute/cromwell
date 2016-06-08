@@ -33,7 +33,7 @@ task continueOnRC2 {
 task continueOnRC3 {
     command <<<
         echo "echo 'OH NO!'" > script.sh
-        echo "exit 123" >> script.sh
+        echo "exit 456" >> script.sh
         chmod +x script.sh
         ./script.sh
     >>>

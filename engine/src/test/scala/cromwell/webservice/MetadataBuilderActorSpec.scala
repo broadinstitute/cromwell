@@ -9,6 +9,7 @@ import cromwell.core.WorkflowId
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.http.{StatusCode, StatusCodes}
@@ -340,19 +341,34 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
 
+  it should "render empty Json" in {
+    val workflowId = WorkflowId.randomId()
+    val mdQuery = MetadataQuery(workflowId, None, None)
+    val queryAction = GetMetadataQueryAction(mdQuery)
+    val expectedEmptyResponse = """{}"""
+    assertMetadataResponse(queryAction, mdQuery, List.empty, expectedEmptyResponse)
+  }
+
   it should "render empty values" in {
     val workflowId = WorkflowId.randomId()
     val value = MetadataValue("something")
-    val emptyEvents = List(MetadataEvent.empty(MetadataKey(workflowId, None, "hey")))
+    val emptyEvents = List(
+      MetadataEvent.empty(MetadataKey(workflowId, None, "hey")),
+      MetadataEvent.empty(MetadataKey(workflowId, None, "emptyList[]"))
+    )
     val valueEvents = List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "hey")),
-      MetadataEvent(MetadataKey(workflowId, None, "hey"), Option(value), OffsetDateTime.now().plusSeconds(1L))
+      MetadataEvent.empty(MetadataKey(workflowId, None, "emptyList[]")),
+      MetadataEvent(MetadataKey(workflowId, None, "hey"), Option(value), OffsetDateTime.now().plusSeconds(1L)),
+      MetadataEvent(MetadataKey(workflowId, None, "emptyList[0]"), Option(value), OffsetDateTime.now().plusSeconds(1L)),
+      MetadataEvent(MetadataKey(workflowId, None, "emptyList[1]"), Option(value), OffsetDateTime.now().plusSeconds(1L))
     )
 
     val expectedEmptyResponse =
       s"""{
           | "calls": {},
           | "hey": {},
+          | "emptyList": [],
           | "id":"$workflowId"
           |}
       """.stripMargin
@@ -365,6 +381,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
       s"""{
           | "calls": {},
           | "hey": "something",
+          | "emptyList": ["something", "something"],
           | "id":"$workflowId"
           |}
       """.stripMargin

@@ -3,7 +3,7 @@ package cromwell.engine.backend
 import java.nio.file.{Files, Paths}
 import java.time.OffsetDateTime
 
-import akka.actor.ActorSystem
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
@@ -53,7 +53,8 @@ trait WorkflowDescriptorBuilder {
     implicit val timeout = akka.util.Timeout(awaitTimeout)
     implicit val ec = actorSystem.dispatcher
 
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(), "MaterializeWorkflowDescriptorActor-" + id.id)
+    val serviceRegistryIgnorer = actorSystem.actorOf(DevNullActor.props)
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
       MaterializeWorkflowDescriptorCommand(id, workflowSources, ConfigFactory.load)
     ).mapTo[WorkflowDescriptorMaterializationResult]
@@ -62,6 +63,16 @@ trait WorkflowDescriptorBuilder {
       case MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor) => workflowDescriptor
       case MaterializeWorkflowDescriptorFailureResponse(reason) => throw reason
     }, awaitTimeout)
+  }
+}
+
+object DevNullActor {
+  def props: Props = Props(new DevNullActor())
+}
+
+private class DevNullActor extends Actor {
+  def receive = {
+    case _ => // How nice. A message! Let's ignore it!
   }
 }
 

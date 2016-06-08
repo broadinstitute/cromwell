@@ -153,7 +153,7 @@ class WorkflowActor(workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(), s"MaterializeWorkflowDescriptorActor-$workflowId")
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor), s"MaterializeWorkflowDescriptorActor-$workflowId")
       actor ! MaterializeWorkflowDescriptorCommand(workflowId, workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)

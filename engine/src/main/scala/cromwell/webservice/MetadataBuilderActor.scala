@@ -195,10 +195,21 @@ object MetadataBuilderActor {
     MetadataForIndex(index.getOrElse(-1), metadata)
   }
 
+  private def reduceWorkflowEvents(workflowEvents: Seq[MetadataEvent]): Seq[MetadataEvent] = {
+    // This handles state specially so a sensible final value is returned irrespective of the order in which raw state
+    // events were recorded in the journal.
+    val (workflowStatusEvents, workflowNonStatusEvents) = workflowEvents partition(_.key.key == WorkflowMetadataKeys.Status)
+
+    val ordering = implicitly[Ordering[WorkflowState]]
+    // This orders by value in WorkflowState CRDT resolution, not necessarily the chronologically most recent state.
+    val sortedStateEvents = workflowStatusEvents sortWith { case (a, b) => ordering.gt(a.value.toWorkflowState, b.value.toWorkflowState) }
+    workflowNonStatusEvents ++ sortedStateEvents.headOption.toList
+  }
+
   private def parseWorkflowEventsToIndexedJsonValue(events: Seq[MetadataEvent]): IndexedJsonValue = {
     // Partition if sequence of events in a pair of (Workflow level events, Call level events)
     val (workflowLevel, callLevel) = events partition { _.key.jobKey.isEmpty }
-    val foldedWorkflowValues = eventsToIndexedJson(workflowLevel)
+    val foldedWorkflowValues = eventsToIndexedJson(reduceWorkflowEvents(workflowLevel))
 
     val callsGroupedByFQN = callLevel groupBy { _.key.jobKey.get.callFqn }
     val callsGroupedByFQNAndIndex = callsGroupedByFQN mapValues { _ groupBy { _.key.jobKey.get.index } }
@@ -225,6 +236,9 @@ object MetadataBuilderActor {
     JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents)
   }
 
+  implicit class EnhancedMetadataValue(val value: MetadataValue) extends AnyVal {
+    def toWorkflowState: WorkflowState = WorkflowState.fromString(value.value)
+  }
 }
 
 class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Unit]

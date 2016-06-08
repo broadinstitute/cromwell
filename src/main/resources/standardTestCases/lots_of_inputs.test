@@ -4,5 +4,4 @@ tags: [ big_metadata ]
 
 files {
   wdl: lots_of_inputs/lots_of_inputs.wdl
-  inputs: lots_of_inputs/lots_of_inputs.inputs
 }

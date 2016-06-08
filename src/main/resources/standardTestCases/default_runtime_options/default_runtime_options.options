@@ -1,0 +1,6 @@
+{
+  "defaultRuntimeOptions": {
+    "docker": "ubuntu:latest",
+    "continueOnReturnCode": 1
+  }
+}

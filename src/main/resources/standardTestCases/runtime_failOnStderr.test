@@ -3,5 +3,4 @@ testFormat: workflowfailure
 
 files {
   wdl: runtime_failOnStderr/runtime_failOnStderr.wdl
-  options: runtime_failOnStderr/runtime_failOnStderr.options
 }

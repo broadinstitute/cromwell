@@ -1,6 +1,0 @@
-name: runtime_continueOnReturnCode
-testFormat: workflowsuccess
-
-files {
-  wdl: runtime_continueOnReturnCode/runtime_continueOnReturnCode.wdl
-}

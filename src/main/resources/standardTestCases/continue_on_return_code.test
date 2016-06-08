@@ -1,0 +1,12 @@
+name: continue_on_return_code
+testFormat: workflowsuccess
+
+files {
+  wdl: continue_on_return_code/continue_on_return_code.wdl
+}
+
+metadata {
+  workflowName: runtime_continueOnRC
+  status: Succeeded
+  "outputs.runtime_continueOnRC.finisher.finished": "OH NO!\nOH NO!\n1"
+}

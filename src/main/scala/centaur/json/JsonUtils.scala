@@ -31,6 +31,13 @@ object JsonUtils {
       case (acc, (k, v: JsArray)) if v.hasShardIndex =>
         // The .get on the shardIndex is safe as we know all elements of the array have a shardIndex field
         acc ++ v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${y.shardIndex.get}") }
+      case (acc, (k, v: JsArray)) =>
+        v.elements.zipWithIndex.foldLeft(acc) { case (accumulator, (element, idx)) =>
+          element match {
+            case obj: JsObject => accumulator.mergeWith(element.flatten(s"$k.$idx"))
+            case x: JsValue => accumulator + (s"$k.$idx" -> x)
+          }
+        }
       case (acc, (k, v: JsObject)) =>
         if (prefix.isEmpty) acc.mergeWith(v.flatten(k))
         else acc.mergeWith(v.flatten(s"$prefix.$k"))

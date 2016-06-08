@@ -36,6 +36,19 @@ object TestFormulas {
     }
   }
 
+  def runFailingWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = {
+    // FIXME: This is horrible, but I just wanted to add this and copy/paste was easier than thinking
+    workflow match {
+      case _: WorkflowWithoutMetadata => throw new Exception("Scala type system: 2, Jeff: 0")
+      case r: WorkflowWithMetadata =>
+        for {
+          w <- runFailingWorkflow(r)
+          m <- retrieveMetadata(w)
+          _ <- validateMetadata(m, r.metadata)
+        } yield ()
+    }
+  }
+
   def runSequentialCachingWorkflow(workflow: Workflow, secondWorkflow: Workflow) = {
     for {
       _ <- runWorkflowUntilTerminalStatus(workflow, Succeeded)

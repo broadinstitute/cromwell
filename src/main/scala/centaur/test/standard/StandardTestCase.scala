@@ -17,12 +17,17 @@ import scala.util.{Failure, Success, Try}
 case class StandardTestCase(workflow: Workflow, testFormat: StandardTestFormat, testOptions: TestOptions) {
   def testFunction = this.testFormat match {
     case WorkflowSuccessTest => successfulTestFunction
-    case WorkflowFailureTest => TestFormulas.runFailingWorkflow _
+    case WorkflowFailureTest => failureTestFunction
   }
 
   private def successfulTestFunction = this.workflow match {
     case _: WorkflowWithoutMetadata => TestFormulas.runSuccessfulWorkflow _
     case _: WorkflowWithMetadata => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata _
+  }
+
+  private def failureTestFunction = this.workflow match {
+    case _: WorkflowWithoutMetadata => TestFormulas.runFailingWorkflow _
+    case _: WorkflowWithMetadata => TestFormulas.runFailingWorkflowAndVerifyMetadata _
   }
 }
 

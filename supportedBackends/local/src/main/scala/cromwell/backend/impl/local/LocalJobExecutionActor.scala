@@ -114,7 +114,6 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
   private def metadataEvent(key: String, value: Any) = MetadataEvent(metadataKey(key), MetadataValue(value))
-  private def emptyMetadataEvent(key: String) = MetadataEvent.empty(metadataKey(key))
 
   /**
     * Fire and forget start info to the metadata service
@@ -129,8 +128,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       metadataEvent("stdout", jobPaths.stdout.toAbsolutePath),
       metadataEvent("stderr", jobPaths.stderr.toAbsolutePath),
     // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
-      metadataEvent("cache:allowResultReuse", true),
-      emptyMetadataEvent(s"${CallMetadataKeys.ExecutionEvents}[0]")
+      metadataEvent("cache:allowResultReuse", true)
     )
 
     serviceRegistryActor ! PutMetadataAction(events)

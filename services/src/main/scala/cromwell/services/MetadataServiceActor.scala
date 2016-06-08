@@ -63,10 +63,18 @@ object MetadataServiceActor {
 
   def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
     case WdlArray(_, valueSeq) =>
-      val zippedSeq = valueSeq.zipWithIndex
-      zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+      if (valueSeq.isEmpty) {
+        List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
+      } else {
+        val zippedSeq = valueSeq.zipWithIndex
+        zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+      }
     case WdlMap(_, valueMap) =>
-      valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+      if (valueMap.isEmpty) {
+        List(MetadataEvent.empty(metadataKey))
+      } else {
+        valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+      }
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

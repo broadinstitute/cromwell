@@ -17,6 +17,7 @@ import cromwell.engine.workflow.BackendCallKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.FileUtil._
 
+import com.typesafe.config.ConfigFactory
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -155,13 +156,26 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
          |""".stripMargin)
   }
 
+  private def lsfOption(argv: Seq[String], option: Seq[String]): Seq[String] = {
+      if(option(1).isEmpty) {
+          argv
+      } else {
+          Seq("bsub") ++ option ++ argv.tail
+      }
+  }
+
   /**
    * Launches the bsub command, returns a tuple: (rc, Option(lsf_job_id))
    */
   private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
+    val backendConf = ConfigFactory.load.getConfig("backend")
+    val lsfConf = backendConf.getConfig("LSF")
+    val queue = lsfConf.getString("queue")
+    val project = lsfConf.getString("project")
+    val group = lsfConf.getString("group")
     val lsfJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
-    val argv = Seq("bsub", "-J", lsfJobName, "-env", "all", "-cwd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, jobDescriptor.script.toAbsolutePath).map(_.toString)
+    val argv = lsfOption(lsfOption(lsfOption(Seq("bsub", "-J", lsfJobName, "-cwd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, "/bin/sh", jobDescriptor.script.toAbsolutePath).map(_.toString), Seq("-q", queue)), Seq("-P", project)), Seq("-g", group))
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 
@@ -176,7 +190,7 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     // The bsub makes it so stdout only has the job ID, if it was successfully launched
     val pattern = "Job <(\\d+)>".r;
     val jobId = Try(pattern.findFirstIn(bsubStdoutFile.contentAsString.stripLineEnd)) match {
-      case Success(id) => Some(id.getOrElse("0").toInt)
+      case Success(line) => line.getOrElse("0") match { case pattern(id) => Some(id.toInt) case _ => Some(0) }
       case Failure(ex) =>
         logger.error(s"Could not find LSF job ID from bsub stdout file.\n\n" +
           s"Check the bsub stderr file for possible errors: ${bsubStderrFile.toAbsolutePath}")

@@ -33,9 +33,10 @@ object JsonUtils {
         acc ++ v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${y.shardIndex.get}") }
       case (acc, (k, v: JsArray)) =>
         v.elements.zipWithIndex.foldLeft(acc) { case (accumulator, (element, idx)) =>
+          val maybePrefix = if (prefix.isEmpty) "" else s"$prefix."
           element match {
-            case obj: JsObject => accumulator.mergeWith(element.flatten(s"$k.$idx"))
-            case x: JsValue => accumulator + (s"$k.$idx" -> x)
+            case obj: JsObject => accumulator.mergeWith(element.flatten(s"$maybePrefix$k.$idx"))
+            case x: JsValue => accumulator + (s"$maybePrefix$k.$idx" -> x)
           }
         }
       case (acc, (k, v: JsObject)) =>

@@ -1,0 +1,11 @@
+name: invalid_return_code
+testFormat: workflowfailure
+
+files {
+  wdl: invalid_return_code/invalid_return_code.wdl
+}
+
+metadata {
+    "calls.invalid_return_code_wf.invalid_return_code.returnCode": 0
+    "calls.invalid_return_code_wf.invalid_return_code.failures.0.message": "execution failed: disallowed command return code: 0"
+}

@@ -9,5 +9,8 @@ private object ServiceRegistryInstance {
 }
 
 trait ServiceRegistryClient {
-  def serviceRegistryActor = ServiceRegistryInstance.ServiceRegistryActorInstance
+  // This is a `val` rather than the expected `def` to force the ServiceRegistryActor to initialize.  This catches
+  // config errors up front and updates the DB schema promptly after startup.  If this is a `def` or `lazy val` these
+  // things only happen the first time an endpoint is accessed.
+  val serviceRegistryActor = ServiceRegistryInstance.ServiceRegistryActorInstance
 }

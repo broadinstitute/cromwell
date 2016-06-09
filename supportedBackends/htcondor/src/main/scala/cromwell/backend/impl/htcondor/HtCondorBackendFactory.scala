@@ -18,9 +18,6 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
     HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 
-  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                              calls: Seq[Call]): Option[Props] = None
-
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)

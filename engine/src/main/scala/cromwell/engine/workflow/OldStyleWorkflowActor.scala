@@ -1,16 +1,15 @@
 package cromwell.engine.workflow
 
 import java.sql.SQLException
-import java.time.OffsetDateTime
 
 import akka.actor._
 import akka.event.Logging
 import akka.pattern.pipe
 import cromwell.backend.ExecutionHash
-import cromwell.core.{JobOutput, JobOutputs, _}
+import cromwell.core.ExecutionIndex._
+import cromwell.core.ExecutionStatus.{ExecutionStatus, _}
+import cromwell.core.{ExecutionStore => _, _}
 import cromwell.database.obj.{Execution, ExecutionInfo}
-import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.engine.backend._
 import cromwell.engine.callactor.OldStyleCallActor
 import cromwell.engine.callactor.OldStyleCallActor.CallActorMessage

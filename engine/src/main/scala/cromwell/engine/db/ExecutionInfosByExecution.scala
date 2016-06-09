@@ -1,7 +1,7 @@
 package cromwell.engine.db
 
+import cromwell.core.ExecutionIndex
 import cromwell.database.obj.{Execution, ExecutionInfo}
-import cromwell.engine._
 import cromwell.engine.backend._
 import wdl4s.values.WdlFile
 

@@ -1,9 +1,7 @@
 package cromwell
 
-import java.time.OffsetDateTime
-
 import com.typesafe.config.Config
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{JobKey, WorkflowId, WorkflowOptions}
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -11,13 +9,6 @@ import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 package object backend {
-
-  trait JobKey {
-    def scope: Scope
-    def index: Option[Int]
-    def attempt: Int
-    def tag: String
-  }
 
   /**
     * For uniquely identifying a job which has been or will be sent to the backend.

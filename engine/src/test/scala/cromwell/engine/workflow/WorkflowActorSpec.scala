@@ -4,7 +4,7 @@ import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
-import cromwell.core.WorkflowId
+import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -12,7 +12,6 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowI
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
-
 
 class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {
   override implicit val actorSystem = system
@@ -67,7 +66,8 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
 
       within(CromwellTestkitSpec.timeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1).intercept {
-          actor ! WorkflowExecutionFailedResponse(Seq(new Exception("Execution Failed")))
+          actor ! WorkflowExecutionFailedResponse(ExecutionStore.empty, OutputStore.empty,
+            Seq(new Exception("Execution Failed")))
         }
       }
 
@@ -81,7 +81,8 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowAbortedState", occurrences = 1).intercept {
           actor ! AbortWorkflowCommand
           currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.timeoutDuration) {
-            case EngineLifecycleActorAbortCommand => actor ! WorkflowExecutionAbortedResponse
+            case EngineLifecycleActorAbortCommand =>
+              actor ! WorkflowExecutionAbortedResponse(ExecutionStore.empty, OutputStore.empty)
           }
         }
       }
@@ -94,7 +95,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
 
       within(CromwellTestkitSpec.timeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1).intercept {
-          actor ! WorkflowExecutionSucceededResponse
+          actor ! WorkflowExecutionSucceededResponse(ExecutionStore.empty, OutputStore.empty)
         }
       }
 

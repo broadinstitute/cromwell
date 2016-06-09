@@ -6,10 +6,10 @@ import akka.actor.ActorSystem
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.{ExecutionHash, JobKey}
+import cromwell.backend.ExecutionHash
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.core.{OldWorkflowContext, WorkflowId, WorkflowOptions}
+import cromwell.core.{JobKey, OldWorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
 import cromwell.logging.WorkflowLogger

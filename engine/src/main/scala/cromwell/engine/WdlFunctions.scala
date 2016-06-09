@@ -2,13 +2,12 @@ package cromwell.engine
 
 import java.nio.file.{FileSystem, FileSystems}
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions}
 import cromwell.core.WorkflowOptions
 import cromwell.engine.backend.EnhancedWorkflowOptions._
 import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleConfiguration}
 import lenthall.config.ScalaConfig._
-import spray.json.JsObject
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.{WdlFile, WdlValue}
 
@@ -20,7 +19,8 @@ class WdlFunctions(workflowOptions: WorkflowOptions) extends WdlStandardLibraryF
     for {
       authModeString <- ConfigFactory.load.getStringOption("engine.filesystems.gcs.auth")
       authMode <- GoogleConfiguration(config).auth(authModeString).toOption
-      fs = GcsFileSystem(GcsFileSystemProvider(authMode.buildStorage(workflowOptions.toGoogleAuthOptions, config)))
+      fs <- Try(GcsFileSystem(GcsFileSystemProvider(
+        authMode.buildStorage(workflowOptions.toGoogleAuthOptions, config)))).toOption
     } yield fs
   }
 

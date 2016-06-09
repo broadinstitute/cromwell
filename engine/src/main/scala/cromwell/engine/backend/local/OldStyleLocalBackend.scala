@@ -6,8 +6,8 @@ import java.nio.file.{Files, Path, Paths}
 import akka.actor.ActorSystem
 import better.files._
 import com.google.api.client.util.ExponentialBackOff.Builder
-import cromwell.backend.JobKey
 import cromwell.backend.wdl.OldCallEngineFunctions
+import cromwell.core.JobKey
 import cromwell.core.PathFactory._
 import cromwell.engine._
 import cromwell.engine.backend._

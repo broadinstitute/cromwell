@@ -1,4 +1,4 @@
-package cromwell.engine
+package cromwell.core
 
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value

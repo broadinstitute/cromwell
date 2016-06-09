@@ -1,7 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import cromwell.core.{ExecutionIndex, ExecutionStore, OutputStore}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.ExecutionIndex._
+import ExecutionIndex._
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}

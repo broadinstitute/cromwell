@@ -10,7 +10,6 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.DbmsTest
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.wdl.{OldCallEngineFunctions, OldWorkflowEngineFunctions}
-import cromwell.backend.JobKey
 import cromwell.core._
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.{Execution, WorkflowMetadataKeys}
@@ -27,7 +26,6 @@ import cromwell.util.SampleWdl
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryKey, WorkflowQueryParameters}
 import cromwell.{CromwellTestkitSpec, webservice}
 import org.scalactic.StringNormalizations._
-import org.scalatest.PartialFunctionValues._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -37,7 +35,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlFile, _}
+import wdl4s.values._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try

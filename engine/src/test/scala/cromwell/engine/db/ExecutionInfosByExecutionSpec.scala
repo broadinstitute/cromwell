@@ -1,8 +1,8 @@
 package cromwell.engine.db
 
+import cromwell.core.ExecutionIndex.ExecutionIndex
+import cromwell.core.{ExecutionIndex, ExecutionStatus}
 import cromwell.database.obj.{Execution, ExecutionInfo}
-import cromwell.engine.ExecutionIndex.ExecutionIndex
-import cromwell.engine._
 import cromwell.engine.backend.CallLogs
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.values.WdlFile

@@ -2,12 +2,12 @@ package cromwell.engine
 
 import java.util.UUID
 
-import akka.testkit.{EventFilter, TestActorRef, _}
+import akka.testkit._
 import cromwell.CromwellSpec.DockerTest
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
-import cromwell.core.{JobOutput, WorkflowId, _}
-import cromwell.engine.ExecutionStatus.{NotStarted, Running}
+import cromwell.core.ExecutionStatus.{NotStarted, Running}
+import cromwell.core._
 import cromwell.engine.backend.local.OldStyleLocalBackend
 import cromwell.engine.backend.{OldStyleCallMetadata, WorkflowDescriptorBuilder}
 import cromwell.engine.db.DataAccess._
@@ -21,7 +21,7 @@ import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{SymbolHash, WdlArray, WdlInteger, WdlString}
 
-import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 

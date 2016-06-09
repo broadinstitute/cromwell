@@ -6,20 +6,23 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, JobKey}
+import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.engine.ExecutionIndex._
-import cromwell.engine.ExecutionStatus._
+import ExecutionIndex._
+import ExecutionStatus._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
+import OutputStore.OutputEntry
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.engine.{EngineWorkflowDescriptor, ExecutionStatus}
+import cromwell.engine.EngineWorkflowDescriptor
+import ExecutionStore.ExecutionStoreEntry
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import lenthall.exception.ThrowableAggregation
 import wdl4s._
+import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
 
@@ -52,10 +55,26 @@ object WorkflowExecutionActor {
   /**
     * Responses
     */
-  sealed trait WorkflowExecutionActorResponse
-  case object WorkflowExecutionSucceededResponse extends WorkflowExecutionActorResponse
-  case object WorkflowExecutionAbortedResponse extends WorkflowExecutionActorResponse with EngineLifecycleActorAbortedResponse
-  final case class WorkflowExecutionFailedResponse(reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse
+  sealed trait WorkflowExecutionActorResponse {
+    def executionStore: ExecutionStore
+
+    def outputStore: OutputStore
+  }
+
+  case class WorkflowExecutionSucceededResponse(executionStore: ExecutionStore, outputStore: OutputStore)
+    extends WorkflowExecutionActorResponse {
+    override def toString = "WorkflowExecutionSucceededResponse"
+  }
+
+  case class WorkflowExecutionAbortedResponse(executionStore: ExecutionStore, outputStore: OutputStore)
+    extends WorkflowExecutionActorResponse with EngineLifecycleActorAbortedResponse {
+    override def toString = "WorkflowExecutionAbortedResponse"
+  }
+
+  final case class WorkflowExecutionFailedResponse(executionStore: ExecutionStore, outputStore: OutputStore,
+                                                   reasons: Seq[Throwable]) extends WorkflowExecutionActorResponse {
+    override def toString = "WorkflowExecutionFailedResponse"
+  }
 
   /**
     * Internal control flow messages
@@ -110,6 +129,93 @@ object WorkflowExecutionActor {
   def props(workflowId: WorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
             serviceRegistryActor: ActorRef): Props = Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor))
+
+  private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
+    /** Find currently runnable scopes */
+    def runnableScopes: Iterable[JobKey] = executionStore.store.filter(isRunnable).keys
+
+    private def isRunnable(entry: ExecutionStoreEntry) = {
+      entry match {
+        case (key, ExecutionStatus.NotStarted) => arePrerequisitesDone(key)
+        case _ => false
+      }
+    }
+
+    def findShardEntries(key: CollectorKey): Iterable[ExecutionStoreEntry] = executionStore.store collect {
+      case (k: BackendJobDescriptorKey, v) if k.scope == key.scope && k.isShard => (k, v)
+    }
+
+    private def arePrerequisitesDone(key: JobKey): Boolean = {
+      def isDone(e: JobKey): Boolean = executionStore.store exists {
+        case (k, s) => k.scope == e.scope && k.index == e.index && s == ExecutionStatus.Done
+      }
+
+      val upstream = key.scope.prerequisiteScopes.map(s => upstreamEntries(key, s))
+      val downstream = key match {
+        case collector: CollectorKey => findShardEntries(collector)
+        case _ => Nil
+      }
+      val dependencies = upstream.flatten ++ downstream
+      val dependenciesResolved = executionStore.store.filter(dependencies).keys forall isDone
+
+      /**
+        * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
+        * If a scope cannot be resolved it may be because it is in a scatter that has not been populated yet,
+        * therefore there is no entry in the executionStore for this scope.
+        * If that's the case this prerequisiteScope has not been run yet, hence the (upstream forall {_.nonEmpty})
+        */
+      (upstream forall { _.nonEmpty }) && dependenciesResolved
+    }
+
+    private def upstreamEntries(entry: JobKey, prerequisiteScope: Scope): Seq[ExecutionStoreEntry] = {
+      prerequisiteScope.closestCommonAncestor(entry.scope) match {
+        /**
+          * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
+          * and that common ancestor is a Scatter block, then find the shard with the same index
+          * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
+          * scope, then depend on the shard (with same index).
+          *
+          * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
+          * work as-is for nested scatter blocks
+          */
+        case Some(ancestor: Scatter) =>
+          executionStore.store filter {
+            case (k, _) => k.scope == prerequisiteScope && k.index == entry.index
+          } toSeq
+
+        /**
+          * Otherwise, simply refer to the entry the collector entry.  This means that 'entry' depends
+          * on every shard of the pre-requisite scope to finish.
+          */
+        case _ =>
+          executionStore.store filter {
+            case (k, _) => k.scope == prerequisiteScope && k.index.isEmpty
+          } toSeq
+      }
+    }
+  }
+
+  private implicit class EnhancedOutputStore(val outputStore: OutputStore) extends AnyVal {
+    /**
+      * Try to generate output for a collector call, by collecting outputs for all of its shards.
+      * It's fail-fast on shard output retrieval
+      */
+    def generateCollectorOutput(collector: CollectorKey,
+                                shards: Iterable[BackendJobDescriptorKey]): Try[JobOutputs] = Try {
+      val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
+        outputStore.fetchCallOutputEntries(e.scope, e.index) map {
+          _.outputs
+        } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
+      }
+      collector.scope.task.outputs map { taskOutput =>
+        val wdlValues = shardsOutputs.map(
+          _.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
+        val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+        taskOutput.name -> JobOutput(arrayOfValues, None)
+      } toMap
+    }
+  }
+
 }
 
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
@@ -184,7 +290,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       log.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
-      context.parent ! WorkflowExecutionFailedResponse(List(throwable))
+      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
       goto(WorkflowExecutionFailedState) using mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
@@ -192,7 +298,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
-      context.parent ! WorkflowExecutionFailedResponse(List(reason))
+      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       val mergedStateData = mergeExecutionDiff(stateData, WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
       goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
@@ -275,8 +381,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   onTransition {
     case _ -> WorkflowExecutionSuccessfulState =>
       pushWorkflowOutputMetadata(nextStateData)
-      context.parent ! WorkflowExecutionSucceededResponse
-    case _ -> WorkflowExecutionAbortedState => context.parent ! WorkflowExecutionAbortedResponse
+      context.parent ! WorkflowExecutionSucceededResponse(nextStateData.executionStore, nextStateData.outputStore)
+    case _ -> WorkflowExecutionAbortedState =>
+      context.parent ! WorkflowExecutionAbortedResponse(nextStateData.executionStore, nextStateData.outputStore)
   }
 
   onTransition {
@@ -316,10 +423,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushWorkflowOutputMetadata(data: WorkflowExecutionActorData) = {
-    val keyValues = data.outputStore.store.filterKeys(_.index.isEmpty).flatMap {
+    val reportableOutputs = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.outputs
+    val keyValues = data.outputStore.store filterKeys {
+      _.index.isEmpty
+    } flatMap {
       case (key, value) =>
-        value map (entry => s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue)
-    }.collect {
+        value collect {
+          case entry if isReportableOutput(key.call, entry, reportableOutputs) =>
+            s"${key.call.fullyQualifiedName}.${entry.name}" -> entry.wdlValue
+        }
+    } collect {
       case (key, Some(wdlValue)) => (key, wdlValue)
     }
 
@@ -328,6 +441,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     }
 
     serviceRegistryActor ! PutMetadataAction(events)
+  }
+
+  private def isReportableOutput(scope: Scope, entry: OutputEntry,
+                                 reportableOutputs: Seq[ReportableSymbol]): Boolean = {
+    reportableOutputs exists { reportableOutput =>
+      reportableOutput.fullyQualifiedName == s"${scope.fullyQualifiedName}.${entry.name}"
+    }
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {

@@ -3,7 +3,7 @@ package cromwell
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
-import cromwell.core.{WorkflowId, WorkflowRunning, WorkflowSucceeded}
+import cromwell.core.{ExecutionStatus, WorkflowId, WorkflowRunning, WorkflowSucceeded}
 import cromwell.engine._
 import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.backend.local.OldStyleLocalBackend

@@ -24,6 +24,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
+import scala.collection.JavaConversions._
 
 object LsfBackend {
   object InfoKeys {
@@ -156,14 +157,6 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
          |""".stripMargin)
   }
 
-  private def lsfOption(argv: Seq[String], option: Seq[String]): Seq[String] = {
-      if(option(1).isEmpty) {
-          argv
-      } else {
-          Seq("bsub") ++ option ++ argv.tail
-      }
-  }
-
   /**
    * Launches the bsub command, returns a tuple: (rc, Option(lsf_job_id))
    */
@@ -171,11 +164,22 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val logger = jobLogger(jobDescriptor)
     val backendConf = ConfigFactory.load.getConfig("backend")
     val lsfConf = backendConf.getConfig("LSF")
-    val queue = lsfConf.getString("queue")
-    val project = lsfConf.getString("project")
-    val group = lsfConf.getString("group")
-    val lsfJobName = s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}"
-    val argv = lsfOption(lsfOption(lsfOption(Seq("bsub", "-J", lsfJobName, "-cwd", jobDescriptor.callRootPath.toAbsolutePath, "-o", jobDescriptor.stdout.getFileName, "-e", jobDescriptor.stderr.getFileName, "/bin/sh", jobDescriptor.script.toAbsolutePath).map(_.toString), Seq("-q", queue)), Seq("-P", project)), Seq("-g", group))
+ 
+    val lsfOption = lsfConf.root().unwrapped()
+    if(lsfOption.get("-J") == null) {
+       lsfOption.put("-J", s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}")
+    }
+    if(lsfOption.get("-cwd") == null) {
+       lsfOption.put("-cwd", jobDescriptor.callRootPath.toAbsolutePath)
+    }
+    if(lsfOption.get("-o") == null) {
+       lsfOption.put("-o", jobDescriptor.stdout.getFileName)
+    }
+    if(lsfOption.get("-e") == null) {
+       lsfOption.put("-e", jobDescriptor.stderr.getFileName)
+    }
+
+    val argv = (lsfOption.foldLeft(Seq("bsub"))((command, kv) =>  command ++ Seq(kv._1, kv._2.toString)) ++  Seq("/bin/sh", jobDescriptor.script.toAbsolutePath)).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 

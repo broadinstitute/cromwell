@@ -163,7 +163,7 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
     val backendConf = ConfigFactory.load.getConfig("backend")
-    val lsfConf = backendConf.getConfig("LSF")
+    val lsfConf = backendConf.getConfig("lsf")
  
     val lsfOption = lsfConf.root().unwrapped()
     if(lsfOption.get("-J") == null) {

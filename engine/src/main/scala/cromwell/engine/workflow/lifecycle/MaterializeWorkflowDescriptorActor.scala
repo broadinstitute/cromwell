@@ -2,14 +2,17 @@ package cromwell.engine.workflow.lifecycle
 
 import java.nio.file.Paths
 
-import akka.actor.{FSM, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.backend.{CromwellBackends, OldStyleWorkflowLogOptions}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData}
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.MetadataServiceActor.PutMetadataAction
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -25,7 +28,7 @@ object MaterializeWorkflowDescriptorActor {
 
   val RuntimeBackendKey: String = "backend"
 
-  def props(): Props = Props(new MaterializeWorkflowDescriptorActor)
+  def props(serviceRegistryActor: ActorRef): Props = Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor))
 
   /*
   Commands
@@ -73,7 +76,7 @@ object MaterializeWorkflowDescriptorActor {
   }
 }
 
-class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging {
+class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
@@ -92,6 +95,9 @@ class MaterializeWorkflowDescriptorActor() extends LoggingFSM[MaterializeWorkflo
             val message = s"Workflow input processing failed."
             val errors = error
           })
+          error.zipWithIndex.foreach { case (err: String, idx: Int) =>
+            serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[$idx]"), MetadataValue(err)))
+          }
           goto(MaterializationFailedState)
       }
     case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>

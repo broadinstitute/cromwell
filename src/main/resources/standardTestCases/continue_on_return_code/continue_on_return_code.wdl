@@ -17,6 +17,22 @@ task continueOnRC1 {
 task continueOnRC2 {
     command <<<
         echo "echo 'OH NO!'" > script.sh
+        echo "exit 12" >> script.sh
+        chmod +x script.sh
+        ./script.sh
+    >>>
+    output {
+        String ohno = read_string(stdout())
+    }
+    runtime {
+        docker: "ubuntu:latest"
+        continueOnReturnCode: 12
+    }
+}
+
+task continueOnRC3 {
+    command <<<
+        echo "echo 'OH NO!'" > script.sh
         echo "exit 123" >> script.sh
         chmod +x script.sh
         ./script.sh
@@ -26,23 +42,7 @@ task continueOnRC2 {
     }
     runtime {
         docker: "ubuntu:latest"
-        continueOnReturnCode: 123
-    }
-}
-
-task continueOnRC3 {
-    command <<<
-        echo "echo 'OH NO!'" > script.sh
-        echo "exit 456" >> script.sh
-        chmod +x script.sh
-        ./script.sh
-    >>>
-    output {
-        String ohno = read_string(stdout())
-    }
-    runtime {
-        docker: "ubuntu:latest"
-        continueOnReturnCode: [1, 23, 123, 456]
+        continueOnReturnCode: [1, 12, 123, 23, 3]
     }
 }
 

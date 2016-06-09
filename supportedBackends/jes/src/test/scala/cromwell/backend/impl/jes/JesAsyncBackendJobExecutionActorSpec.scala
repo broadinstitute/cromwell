@@ -124,7 +124,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKit(ActorSystem("JesAsync
     val jesConfiguration = new JesConfiguration(configurationDescriptor)
     class TestableJesJobExecutionActor extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration) {
       // TODO: PBE: services are currently implemented in the engine, so we can't spin them up in specs
-      override def serviceRegistryActor = system.actorOf(Props.empty)
+      override val serviceRegistryActor = system.actorOf(Props.empty)
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
     }
     system.actorOf(Props(new TestableJesJobExecutionActor), "TestableJesJobExecutionActor-" + UUID.randomUUID)

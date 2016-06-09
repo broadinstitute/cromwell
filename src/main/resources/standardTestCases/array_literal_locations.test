@@ -1,0 +1,15 @@
+name: array_literal_locations
+testFormat: workflowsuccess
+ignore: false
+
+files {
+  wdl: array_literal_locations/array_literal_locations.wdl
+}
+
+metadata {
+  workflowName: array_literal_locations
+  status: Succeeded
+  "outputs.array_literal_locations.array_literal_locations_i.out": "0:1:2"
+  "outputs.array_literal_locations.array_literal_locations_ii.0.out": "0"
+  "outputs.array_literal_locations.array_literal_locations_ii.1.out": "1"
+}

@@ -114,11 +114,13 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   override def prepareForRestart(restartableWorkflow: WorkflowDescriptor)(implicit ec: ExecutionContext) = Future.successful(())
 
   /**
-   * Returns the RC of this job when it finishes.  Sleeps and polls until all the output files
-   * are generated. Periodically check that PBS job is still alive, to catch cases where the rc
-   * file will never get created: e.g. job is killed by the scheduler for exceeding walltime.
+   * Returns the RC of this job when it finishes.  Sleeps and polls until rc file is ready, then
+   * wait till job is finished/completed (i.e. stdout & stderr streams are copied).
    * 
-   * Note a feature/quirk of PBS is that it creates output stream files in /var/spool/PBS/spool/... 
+   * Periodically check anyway that PBS job is still alive, to catch cases where the rc file will
+   * never get created: e.g. job is killed by the scheduler for exceeding walltime.
+   * 
+   * NB: a feature/quirk of PBS is that it creates output stream files in /var/spool/PBS/spool/... 
    * and only -after- execution is finished/completed are they are copied to the locations specified
    * by -o/-e. I believe however that job_state remains at E (exiting) while the files are being
    * copied and only reaches F (PBSPro) or C (Torque) once everything is done.
@@ -126,38 +128,41 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def waitUntilComplete(jobDescriptor: BackendCallJobDescriptor, pbsJobId: Int): Int = {
     
     val logger = jobLogger(jobDescriptor)
-    val fileCheckPeriod = 5000 // 5s
-    val fileCheckRandomMax = 1000 // 1s
-    val qstatCheckPeriod = 1800000 // 30min
-    
-    def outputFilesReady: Boolean = Seq(
-        jobDescriptor.returnCode,
-        jobDescriptor.stdout,
-        jobDescriptor.stderr).forall(Files.exists(_))
+    val fileCheckFixedPeriod = 5000 // 5s
+    val fileCheckRandomPeriodMax = 1000 // 1s
+    val fileCheckMeanPeriod = fileCheckFixedPeriod + fileCheckRandomPeriodMax/2
+    val qstatJobDoneCheckPeriod = 5000 // 5s
+    val qstatHealthCheckPeriod = 1800000 // 30min
         
     def isQstatCheckCycle(fileCheckCalls: Long): Boolean = 
-      (fileCheckCalls % (qstatCheckPeriod / (fileCheckPeriod + fileCheckRandomMax/2)) == 0) 
+      (fileCheckCalls % (qstatHealthCheckPeriod / fileCheckMeanPeriod) == 0) 
 
     @tailrec
-    def recursiveWait(nCalls: Long): Int = outputFilesReady match {
-      case true => jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
+    def rcFileWait(nCalls: Long): Int = jobDescriptor.returnCode.exists match {
+      case true =>
+          logger.info(s"rc file for PBS job $pbsJobId exists")
+        /*
+         * Need to make sure job is actually done, i.e. stdout/stderr files are -finished- copying
+         * not just that they exist 
+         */
+        while (!pbsJobDone(pbsJobId)) { Thread.sleep(qstatJobDoneCheckPeriod) }
+        jobDescriptor.returnCode.contentAsString.stripLineEnd.toInt
       case false =>
         /*
          * Occasionally do the relatively expensive pbsJobDone check to catch defunct jobs...
          * Short circuit evaluation of the if (...) is relied on; the order of calls is important.
          */
-        if (isQstatCheckCycle(nCalls) && pbsJobDone(pbsJobId) && !outputFilesReady) {
-          logger.error(s"PBS job $pbsJobId is done and output files don't exist")
+        if (isQstatCheckCycle(nCalls) && pbsJobDone(pbsJobId) && !jobDescriptor.returnCode.exists) {
+          logger.error(s"PBS job $pbsJobId is done and rc file doesn't exist")
           jobDescriptor.returnCode.clear().appendLine("69")
-          69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and output files don't exist
+          69 // EX_UNAVAILABLE code to indicate PBS job is in Finished/Completed state, and rc file doesn't exist
         } else {
-          logger.info(s"Output files not ready yet; waiting...")
           // random interval to spread out the system calls from all threads 
-          Thread.sleep(fileCheckPeriod + ThreadLocalRandom.current().nextInt(0, fileCheckRandomMax))
-          recursiveWait(nCalls + 1)
+          Thread.sleep(fileCheckFixedPeriod + ThreadLocalRandom.current().nextInt(0, fileCheckRandomPeriodMax))
+          rcFileWait(nCalls + 1)
         }
     }
-    recursiveWait(1)
+    rcFileWait(1)
   }
   
   /**
@@ -167,6 +172,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     if (installationIsPBSPro) {
       ( s"qstat -x -f ${pbsJobId}" #| Seq("grep", "job_state = F") ! ) == 0
     } else {
+      // Torque
       ( s"qstat -f ${pbsJobId}" #| Seq("grep", "job_state = C") ! ) == 0
     }
 
@@ -195,11 +201,10 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   private def writeScript(jobDescriptor: BackendCallJobDescriptor, instantiatedCommand: String) = {
     jobDescriptor.script.write(
       s"""#!/bin/sh
-         |cd $$PBS_O_WORKDIR
          |sh -c 'set -e
          |${instantiatedCommand.replaceAll("'", "\"'\"")}
          |'
-         |echo $$? > rc
+         |echo $$? > ${jobDescriptor.returnCode}
          |""".stripMargin)
   }
 
@@ -223,7 +228,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       "-W", "umask=0007",
       jobDescriptor.script.toAbsolutePath
     ).map(_.toString)
-    val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")
+    val backendCommandString = argv.mkString(" ")
     logger.info(s"backend command: $backendCommandString")
 
     val qsubStdoutFile = jobDescriptor.callRootPath.resolve("qsub.stdout")
@@ -262,7 +267,7 @@ case class PbsBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
     val executionResult = (jobReturnCode, jobDescriptor.stderr.toFile.length) match {
       case (r, _) if r == 143 => AbortedExecution.future // Special case to check for SIGTERM exit code - implying abort
       case (r, _) if r == 69 => // Special case to check for PBS job finished with no outputs
-        val message = s"PBS job $pbsJobId reached defunct state without all output files being created"
+        val message = s"PBS job $pbsJobId reached defunct state without rc file being created"
         logger.error(message)
         NonRetryableExecution(new Exception(message), Option(r)).future
       case (r, _) if !continueOnReturnCode.continueFor(r) =>

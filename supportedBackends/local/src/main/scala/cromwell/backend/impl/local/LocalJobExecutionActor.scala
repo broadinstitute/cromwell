@@ -87,8 +87,9 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
     val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
 
-    val localizedInputs = localizeInputs(jobPaths, runsOnDocker, fileSystems, jobDescriptor.inputs)
-    call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
+    localizeInputs(jobPaths, runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+      call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
+    }
   }
 
   private def executeScript(script: String): Future[BackendJobExecutionResponse] = {

@@ -119,7 +119,7 @@ trait SharedFileSystem extends PathFactory { this: BackendJobExecutionActor =>
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def localizeInputs(jobPaths: JobPaths, docker: Boolean, filesystems: List[FileSystem], inputs: CallInputs): CallInputs = {
+  def localizeInputs(jobPaths: JobPaths, docker: Boolean, filesystems: List[FileSystem], inputs: CallInputs): Try[CallInputs] = {
 
     val strategies = if (docker) DockerLocalizers else Localizers
 
@@ -151,7 +151,7 @@ trait SharedFileSystem extends PathFactory { this: BackendJobExecutionActor =>
       case (name, value) => localizeFunction(value) map { name -> _ }
     }
 
-    TryUtil.sequence(localizedValues, "Failures during localization").get toMap
+    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap)
   }
 
   /**

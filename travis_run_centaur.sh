@@ -4,10 +4,11 @@ shutdown() {
     cd "${INITIAL_DIR}"
     # This will take out the backgrounded Cromwell instance
     pkill -P $$
-    exit 0
+    exit "${EXIT_CODE}"
 }
 
 INITIAL_DIR=$(pwd)
+EXIT_CODE=1
 
 trap "shutdown" EXIT
 
@@ -28,4 +29,9 @@ cd centaur
 echo "Running Centaur with ${PARALLELISM_FACTOR}-way parallelism"
 ./run_tests_parallel.sh "${PARALLELISM_FACTOR}"
 
-exit 0
+if [ $? -eq 0 ]; then
+  EXIT_CODE=0
+else
+  # FIXME: Just testing something, will remove
+  echo "Exiting with non-zero exit status"
+fi

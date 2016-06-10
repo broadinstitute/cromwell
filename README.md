@@ -978,7 +978,7 @@ runtime {
 }
 ```
 
-Defaults to "false".
+Defaults to 0 which means that only non-preembtible instances shall be used.
 
 # Logging
 

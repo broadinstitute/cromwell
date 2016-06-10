@@ -1,6 +1,5 @@
-package cromwell.webservice
+package cromwell.webservice.metadata
 
-import java.sql.Timestamp
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
@@ -10,20 +9,19 @@ import ExecutionIndex.ExecutionIndex
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services._
-import cromwell.webservice.MetadataBuilderActor.WaitingForMetadataService
-import cromwell.webservice.MetadataBuilderActor.{Idle, IndexedJsonObject, IndexedJsonValue, IndexedPrimitiveJson, MetadataBuilderActorState}
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
+import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, WaitingForMetadataService, MetadataBuilderActorState}
+import cromwell.webservice.{WorkflowJsonSupport, APIResponse, WorkflowQueryPagination}
 import org.slf4j.LoggerFactory
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
-import spray.json.{JsString, _}
-import spray.json.{JsArray, JsObject, JsValue, _}
+import spray.json._
+import IndexedJsonValue._
 
+import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
-import scalaz.Semigroup
-
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -37,48 +35,20 @@ object MetadataBuilderActor {
   val log = LoggerFactory.getLogger("MetadataBuilder")
 
   private val KeySeparator = ':'
-  private val bracketMatcher = """\[(\d+)\]""".r
+  private val bracketMatcher = """\[(\d*)\]""".r
   private val startMatcher = """^([^\[]+)\[""".r
   private val AttemptKey = "attempt"
   private val ShardKey = "shardIndex"
 
-  // Define how 2 IndexedJsonValues can be summed
-  private implicit val IndexedJsonSemigroup: Semigroup[IndexedJsonValue] = {
-    new Semigroup[IndexedJsonValue] {
-      def append(f1: IndexedJsonValue, f2: => IndexedJsonValue): IndexedJsonValue = {
-        (f1, f2) match {
-          case (o1: IndexedJsonObject, o2: IndexedJsonObject) =>
-            val sg = implicitly[Semigroup[Map[String, IndexedJsonValue]]]
-            IndexedJsonObject(sg.append(o1.v, o2.v), o1.index)
-          case (o1: IndexedJsonList, o2: IndexedJsonList) =>
-            val sg = implicitly[Semigroup[IndexedJsonValue]]
-            /*
-             * Try to merge together values with the same index (if defined)
-             *
-             * If no index is defined the values are just left as is
-             * Note that as long as we require the index to be non empty for a list element (ie disallow l[]), this should not happen
-             */
-            val merged = (o1.v ++ o2.v).groupBy(_.index) flatMap {
-              case (index, v) if index.isDefined => Vector(v.reduceLeft(sg.append(_, _)))
-              case (_, v) => v
-            }
-            val sorted = merged.toVector sortBy { _.index }
-            IndexedJsonList(sorted, o1.index)
-          case (o1, o2) => o2 // We assume values are sorted by timestamp, so if we can't merge we keep the new one.
-        }
-      }
-    }
-  }
-
   /** Types of element supported in a dotted key notation */
   private sealed trait KeyElement {
-    def toIndexedJson(value: IndexedJsonValue): IndexedJsonValue
+    def toIndexedJson(value: TimestampedJsValue): TimestampedJsValue
   }
 
   private case class ListElement(name: String, indexes: List[String]) extends KeyElement {
-    def toIndexedJson(innerValue: IndexedJsonValue) = {
+    def toIndexedJson(innerValue: TimestampedJsValue) = {
       if (indexes.isEmpty) {
-        IndexedJsonObject(Map(name -> innerValue))
+        TimestampedJsObject(Map(name -> innerValue), innerValue.timestamp)
       } else {
        /*
        * The last index is the one that the innerValue should have in the innerList.
@@ -93,17 +63,32 @@ object MetadataBuilderActor {
        * Important note: Indexes are used for sorting purposes ONLY
        * An index of 2 DOES NOT guarantee that a value will be at index 2 in a list
        */
-        val innerList = IndexedJsonList(Vector(innerValue.withIndex(indexes.last)))
-        val list = indexes.init.foldRight(innerList)((index, acc) => {
-          IndexedJsonList(Vector(acc.withIndex(index)))
-        })
+        val list = innerValue match {
+           // Empty value in a list means empty list
+          case TimestampedEmptyJson(timestamp) => TimestampedJsList(Map.empty, timestamp)
+          case nonEmptyValue =>
+             /*
+              * This creates a (possibly nested) list, by folding over the indexes.
+              * The resulting list will be as deep as there are elements in "indexes"
+              * First we create the deepest list, that will contain innerValue (the actual value we want in the list)
+              * e.g with l[1][2] = "a". indexes will be List[1, 2]. innerValue will be "a".
+              * innerList is TimestampedJsList(Map(2 -> "a"), [timestamp of a])
+              */
+            val innerList = TimestampedJsList(TreeMap(indexes.last.toInt -> innerValue), nonEmptyValue.timestamp)
+            /* Then, stating with this innerList, we wrap around it as many lists as (indexes.length - 1) (because we used the last index for the innerValue above)
+             * Continuing with this example, result will be TimestampedJsList(Map(1 -> TimestampedJsList(Map(2 -> "a"))))
+             */
+            indexes.init.foldRight(innerList)((index, acc) => {
+              TimestampedJsList(TreeMap(index.toInt -> acc), acc.timestamp)
+            })
+        }
 
-        IndexedJsonObject(Map(name -> list))
+        TimestampedJsObject(Map(name -> list), list.timestamp)
       }
     }
   }
   private case class ObjectElement(name: String) extends KeyElement {
-    def toIndexedJson(value: IndexedJsonValue) = IndexedJsonObject(Map(name -> value))
+    def toIndexedJson(value: TimestampedJsValue) = TimestampedJsObject(Map(name -> value), value.timestamp)
   }
 
   private def parseKeyChunk(chunk: String): KeyElement = {
@@ -115,82 +100,47 @@ object MetadataBuilderActor {
     }
   }
 
-  /** Simplified version of Json data structure
-    * Every value has an index property that enables late sorting of arrays. */
-  private sealed trait IndexedJsonValue {
-    def index: Option[Int]
-    def toJson: JsValue
-    def withIndex(index: String): IndexedJsonValue
+  private def metadataValueToIndexedJson(value: Option[MetadataValue], timestamp: OffsetDateTime): TimestampedJsValue = {
+    value map { someValue =>
+      val coerced: Try[TimestampedJsPrimitive] = someValue.valueType match {
+        case MetadataInt => Try(new TimestampedJsPrimitive(JsNumber(someValue.value.toInt), timestamp))
+        case MetadataNumber => Try(new TimestampedJsPrimitive(JsNumber(someValue.value.toDouble), timestamp))
+        case MetadataBoolean => Try(new TimestampedJsPrimitive(JsBoolean(someValue.value.toBoolean), timestamp))
+        case MetadataString => Try(new TimestampedJsPrimitive(JsString(someValue.value), timestamp))
+      }
 
-    // The regex guarantees that indexes contain only digits, so toInt will succeed as long as the index is < Int.max
-    def toIndex(str: String) = str match {
-      case s if s.isEmpty => None
-      case s => Option(s.toInt)
-    }
-  }
-  private object IndexedJsonList {
-    def empty = IndexedJsonList(Vector.empty[IndexedJsonValue])
-  }
-  private case class IndexedJsonList(v: Vector[IndexedJsonValue], index: Option[Int] = None) extends IndexedJsonValue {
-    override val toJson = JsArray(v map { _.toJson })
-    override def withIndex(index: String) = this.copy(index = toIndex(index))
-  }
-  private object IndexedJsonObject {
-    def empty = IndexedJsonObject(Map.empty[String, IndexedJsonValue])
-  }
-  private case class IndexedJsonObject(v: Map[String, IndexedJsonValue], index: Option[Int] = None) extends IndexedJsonValue {
-    override val toJson = JsObject(v mapValues { _.toJson })
-    override def withIndex(index: String) = this.copy(index = toIndex(index))
-  }
-  private case class IndexedPrimitiveJson(v: JsValue, index: Option[Int] = None) extends IndexedJsonValue {
-    override val toJson = v
-    override def withIndex(index: String) = this.copy(index = toIndex(index))
+      coerced match {
+        case Success(v) => v
+        case Failure(e) =>
+          log.warn(s"Failed to coerce ${someValue.value} to ${someValue.valueType}. Falling back to String.", e)
+          new TimestampedJsPrimitive(JsString(someValue.value), timestamp)
+      }
+    } getOrElse TimestampedEmptyJson(timestamp)
   }
 
-  private def metadataValueToIndexedJson(value: MetadataValue): IndexedPrimitiveJson = {
-    val coerced = value.valueType match {
-      case MetadataInt => Try(IndexedPrimitiveJson(JsNumber(value.value.toInt)))
-      case MetadataNumber => Try(IndexedPrimitiveJson(JsNumber(value.value.toDouble)))
-      case MetadataBoolean => Try(IndexedPrimitiveJson(JsBoolean(value.value.toBoolean)))
-      case MetadataString => Try(IndexedPrimitiveJson(JsString(value.value)))
-    }
-
-    coerced recover {
-      case e =>
-      log.warn(s"Failed to coerce ${value.value} to ${value.valueType}. Falling back to String.", e)
-      IndexedPrimitiveJson(JsString(value.value))
-    } get
-  }
-
-  private def keyValueToIndexedJson(str: String, value: MetadataValue): IndexedJsonValue = {
-    val innerValue: IndexedJsonValue = metadataValueToIndexedJson(value)
+  private def keyValueToIndexedJson(str: String, value: Option[MetadataValue], timestamp: OffsetDateTime): TimestampedJsValue = {
+    val innerValue: TimestampedJsValue = metadataValueToIndexedJson(value, timestamp)
     str.split(KeySeparator).foldRight(innerValue)((chunk, acc) => { parseKeyChunk(chunk).toIndexedJson(acc) })
   }
 
-  private case class MetadataForAttempt(attempt: Int, metadata: IndexedJsonValue)
-  /** There's one IndexedJsonValue per attempt, hence the list. */
-  private case class MetadataForIndex(index: Int, metadata: List[IndexedJsonValue])
+  private case class MetadataForAttempt(attempt: Int, metadata: JsObject)
+  /** There's one TimestampedJsValue per attempt, hence the list. */
+  private case class MetadataForIndex(index: Int, metadata: List[JsObject])
 
-  implicit def dateTimeOrdering: Ordering[OffsetDateTime] = scala.Ordering.fromLessThan(_ isBefore _)
+  implicit val dateTimeOrdering: Ordering[OffsetDateTime] = scala.Ordering.fromLessThan(_ isBefore _)
 
-  implicit val timestampOrdering: Ordering[Timestamp] = scala.Ordering.fromLessThan(_.compareTo(_) < 0)
-
-  /** Sort events by timestamp, transform them into IndexedJsonValues, and merge them together. */
-  private def eventsToIndexedJson(events: Seq[MetadataEvent]): IndexedJsonValue = {
-    events match {
-      case empty if empty.isEmpty => IndexedJsonObject.empty
-      case evts =>
-        evts sortBy { _.offsetDateTime } map { e => keyValueToIndexedJson(e.key.key, e.value) } reduceLeft(_ |+| _)
-    }
+  /** Sort events by timestamp, transform them into TimestampedJsValues, and merge them together. */
+  private def eventsToIndexedJson(events: Seq[MetadataEvent]): TimestampedJsValue = {
+     events map { e => keyValueToIndexedJson(e.key.key, e.value, e.offsetDateTime) } reduce(_ |+| _)
   }
 
   private def eventsToAttemptMetadata(attempt: Int, events: Seq[MetadataEvent]) = {
-    val withAttemptField = eventsToIndexedJson(events) |+| IndexedJsonObject(Map(AttemptKey -> IndexedPrimitiveJson(JsNumber(attempt))))
+    val withAttemptField = JsObject(eventsToIndexedJson(events).toJson.asJsObject.fields + (AttemptKey -> JsNumber(attempt)))
     MetadataForAttempt(attempt, withAttemptField)
   }
 
   private def attemptMetadataToIndexMetadata(index: ExecutionIndex, attemptMetadata: Iterable[MetadataForAttempt]) = {
-    def addIndexProperty(value: IndexedJsonValue) = value |+| IndexedJsonObject(Map(ShardKey -> IndexedPrimitiveJson(JsNumber(index.getOrElse(-1)))))
+    def addIndexProperty(value: JsObject) = JsObject(value.fields + (ShardKey -> JsNumber(index.getOrElse(-1))))
     val metadata = attemptMetadata.toList.sortBy(_.attempt) map { mdForAttempt => addIndexProperty(mdForAttempt.metadata) }
     MetadataForIndex(index.getOrElse(-1), metadata)
   }
@@ -202,14 +152,14 @@ object MetadataBuilderActor {
 
     val ordering = implicitly[Ordering[WorkflowState]]
     // This orders by value in WorkflowState CRDT resolution, not necessarily the chronologically most recent state.
-    val sortedStateEvents = workflowStatusEvents sortWith { case (a, b) => ordering.gt(a.value.toWorkflowState, b.value.toWorkflowState) }
+    val sortedStateEvents = workflowStatusEvents.filter(_.value.isDefined) sortWith { case (a, b) => ordering.gt(a.value.get.toWorkflowState, b.value.get.toWorkflowState) }
     workflowNonStatusEvents ++ sortedStateEvents.headOption.toList
   }
 
-  private def parseWorkflowEventsToIndexedJsonValue(events: Seq[MetadataEvent]): IndexedJsonValue = {
+  private def parseWorkflowEventsToTimestampedJsValue(events: Seq[MetadataEvent]): JsObject = {
     // Partition if sequence of events in a pair of (Workflow level events, Call level events)
     val (workflowLevel, callLevel) = events partition { _.key.jobKey.isEmpty }
-    val foldedWorkflowValues = eventsToIndexedJson(reduceWorkflowEvents(workflowLevel))
+    val foldedWorkflowValues = eventsToIndexedJson(reduceWorkflowEvents(workflowLevel)).toJson.asJsObject
 
     val callsGroupedByFQN = callLevel groupBy { _.key.jobKey.get.callFqn }
     val callsGroupedByFQNAndIndex = callsGroupedByFQN mapValues { _ groupBy { _.key.jobKey.get.index } }
@@ -219,15 +169,14 @@ object MetadataBuilderActor {
       eventsForIndex mapValues { eventsForAttempt =>
         eventsForAttempt map Function.tupled(eventsToAttemptMetadata)
       } map { Function.tupled(attemptMetadataToIndexMetadata) }
-    } mapValues { md => IndexedJsonList(md.toVector.sortBy(_.index) flatMap { _.metadata }) }
+    } mapValues { md => JsArray(md.toVector.sortBy(_.index) flatMap { _.metadata }) }
 
-    val callsObject = IndexedJsonObject(callsMap)
-    val wrappedCalls = IndexedJsonObject(Map(WorkflowMetadataKeys.Calls -> callsObject))
+    val wrappedCalls = JsObject(Map(WorkflowMetadataKeys.Calls -> JsObject(callsMap)))
 
-    foldedWorkflowValues |+| wrappedCalls
+    JsObject(foldedWorkflowValues.fields ++ wrappedCalls.fields)
   }
 
-  private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToIndexedJsonValue(events).toJson.asJsObject
+  private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToTimestampedJsValue(events)
 
   /**
     * Parse a Seq of MetadataEvent into a full Json metadata response.
@@ -302,10 +251,11 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
   }
 
   def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
-    val state: IndexedJsonValue = IndexedJsonObject(Map(WorkflowMetadataKeys.Status -> IndexedPrimitiveJson(JsString(status.toString))))
-    val id: IndexedJsonValue = IndexedJsonObject(Map(WorkflowMetadataKeys.Id -> IndexedPrimitiveJson(JsString(workflowId.toString))))
-    (state |+| id).toJson.asJsObject
+    JsObject(Map(
+      WorkflowMetadataKeys.Status -> JsString(status.toString),
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString)
+    ))
   }
 
-  private def workflowMetadataResponse(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]) = JsObject(MetadataBuilderActor.parseWorkflowEvents(eventsList).fields + ("workflowId" -> JsString(workflowId.toString)))
+  private def workflowMetadataResponse(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]) = JsObject(MetadataBuilderActor.parseWorkflowEvents(eventsList).fields + ("id" -> JsString(workflowId.toString)))
 }

@@ -70,4 +70,12 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     "Workflow complete. Final Outputs: \n" + workflowOutputs.flatten.toMap.toJson.prettyPrint
   }
 
+  def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
+    this.copy(executionStore = executionStore.add(diff.executionStore))
+  }
+
+  def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
+    diffs.foldLeft(this)((newData, diff) => newData.mergeExecutionDiff(diff))
+  }
+
 }

@@ -29,11 +29,11 @@ class MetadataServiceSpec extends CromwellServicesSpec {
   val key3 = MetadataKey(workflowId, Option(supJob), "dog")
   val moment = OffsetDateTime.now
 
-  val event1_1 = MetadataEvent(key1, MetadataValue("value1"), moment)
-  val event1_2 = MetadataEvent(key1, MetadataValue("value2"), moment)
-  val event2_1 = MetadataEvent(key2, MetadataValue("value1"), moment)
-  val event3_1 = MetadataEvent(key3, MetadataValue("value3"), moment)
-  val event3_2 = MetadataEvent(key3, MetadataValue(null), moment)
+  val event1_1 = MetadataEvent(key1, Option(MetadataValue("value1")), moment)
+  val event1_2 = MetadataEvent(key1, Option(MetadataValue("value2")), moment)
+  val event2_1 = MetadataEvent(key2, Option(MetadataValue("value1")), moment)
+  val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment)
+  val event3_2 = MetadataEvent(key3, None, moment)
 
   it should "Store values for different keys" in {
     val putAction1 = PutMetadataAction(event1_1)

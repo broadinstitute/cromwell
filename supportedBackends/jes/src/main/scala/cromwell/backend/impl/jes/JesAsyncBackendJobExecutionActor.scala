@@ -140,11 +140,15 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         * should probably be received in an FSM state.
         */
       events.headOption foreach { event =>
-        val jobId = event.value.value
-        log.info(s"$tag Aborting $jobId")
-        Try(Run(jobId, jobDescriptor, genomicsInterface).abort()) match {
-          case Success(_) => log.info(s"$tag Aborted $jobId")
-          case Failure(ex) => log.warning(s"$tag Failed to abort $jobId: ${ex.getMessage}")
+        event.value match {
+          case Some(jobIdMetadata) =>
+            val jobId = jobIdMetadata.value
+            log.info(s"$tag Aborting $jobId")
+            Try(Run(jobId, jobDescriptor, genomicsInterface).abort()) match {
+              case Success(_) => log.info(s"$tag Aborted $jobId")
+              case Failure(ex) => log.warning(s"$tag Failed to abort $jobId: ${ex.getMessage}")
+            }
+          case None => log.warning(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
         }
       }
       context.parent ! AbortedResponse(jobDescriptor.key)
@@ -403,11 +407,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
             // just use the state names.
             val prevStateName = previousStatus map { _.toString } getOrElse "-"
             log.info(s"$tag Status change from $prevStateName to $currentStatus")
-            tellMetadata("jesOperationStatus", currentStatus.toString)
+            tellMetadata("backendStatus", currentStatus.toString)
           }
         }
         status match {
-          case Success(s: TerminalRunStatus) => executionResult(s, handle)
+          case Success(s: TerminalRunStatus) =>
+            tellEventMetadata(s.eventList)
+            executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
             log.error(s"$tag JES Job ID ${handle.run.runId} has not been found, failing call")
@@ -613,11 +619,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       lazy val stderrLength: Long = jesStderrFile.size
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = runtimeAttributes.continueOnReturnCode
-
-      status match {
-        case terminalRunStatus: TerminalRunStatus => tellEventMetadata(terminalRunStatus.eventList)
-        case _ => /* ignore */
-      }
 
       status match {
         case _: RunStatus.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>

@@ -30,12 +30,14 @@ import wdl4s.values.{SymbolHash, WdlArray, WdlCallOutputsObject, WdlValue}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WorkflowActor {
+  val WorkflowAbortingCheckTime = 10 minutes
+
   sealed trait WorkflowActorMessage
   case object GetFailureMessage extends WorkflowActorMessage
   case object AbortWorkflow extends WorkflowActorMessage
@@ -54,6 +56,7 @@ object WorkflowActor {
   final case class CachesCreated(startMode: StartMode) extends WorkflowActorMessage
   final case class AsyncFailure(t: Throwable) extends WorkflowActorMessage
   final case class PerformTransition(toState: WorkflowState) extends WorkflowActorMessage
+  case object AbortingCheck extends WorkflowActorMessage
   sealed trait PersistenceMessage extends WorkflowActorMessage {
     def callKey: ExecutionStoreKey
     def executionStatus: ExecutionStatus
@@ -236,6 +239,8 @@ object WorkflowActor {
 
 case class WorkflowActor(workflow: WorkflowDescriptor)
   extends LoggingFSM[WorkflowState, WorkflowData] with CromwellActor {
+
+  private var abortingTimer = Option.empty[Cancellable]
 
   implicit val actorSystem = context.system
   val backend = workflow.backend
@@ -619,6 +624,9 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
   onTransition {
     case WorkflowSubmitted -> WorkflowRunning =>
       stateData.startMode.get.start(this)
+    case _ -> WorkflowAborting =>
+      implicit val ec: ExecutionContext = context.dispatcher
+      abortingTimer = Option(context.system.scheduler.scheduleOnce(WorkflowAbortingCheckTime, self, AbortingCheck))
   }
 
   when(WorkflowAborting) {
@@ -645,6 +653,10 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
       if (isWorkflowAborted) scheduleTransition(WorkflowAborted)
       val updatedData = data.removePersisting(callKey, ExecutionStatus.Done)
       stay() using updatedData
+    case Event(AbortingCheck, data) =>
+      logger.info(s"Workflow has been aborting longer than ${WorkflowAbortingCheckTime.toString}, forcibly switching to Aborted")
+      scheduleTransition(WorkflowAborted)
+      stay() using data
   }
 
   /**
@@ -1351,6 +1363,7 @@ case class WorkflowActor(workflow: WorkflowDescriptor)
     logger.debug(s"WorkflowActor is done, shutting down.")
     WorkflowCounter.decrement()
     WorkflowDurationTimer.record(System.nanoTime() - startTime)
+    abortingTimer foreach { _.cancel() }
     context.stop(self)
   }
 

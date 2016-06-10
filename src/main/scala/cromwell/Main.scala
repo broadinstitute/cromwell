@@ -1,24 +1,22 @@
 package cromwell
 
-import java.io.{File => JFile}
 import java.nio.file.{Files, Path, Paths}
 
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor
-import cromwell.engine.workflow.OldStyleSingleWorkflowRunnerActor.RunWorkflow
+import cromwell.engine.workflow.SingleWorkflowRunnerActor
+import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, WorkflowManagerSystem}
 import cromwell.util.FileUtil._
 import cromwell.util.PromiseActor
 import org.slf4j.LoggerFactory
 import spray.json._
-import wdl4s._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -162,11 +160,12 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
     val workflowManagerSystem = managerSystem
     implicit val actorSystem = workflowManagerSystem.actorSystem
-    val runnerProps = OldStyleSingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
+    val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
       workflowManagerSystem.workflowManagerActor)
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import PromiseActor.EnhancedActorRef
+
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val promise = runner.askNoTimeout(RunWorkflow)
@@ -275,12 +274,4 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
 
   private[this] def continueIf(valid: => Boolean)(block: => Int): Int = if (valid) block else usageAndExit()
 
-  private[this] def loadWdl(path: String)(f: WdlNamespace => Int): Int = {
-    Try(WdlNamespace.load(new JFile(path))) match {
-      case Success(namespace) => f(namespace)
-      case Failure(t) =>
-        println(t.getMessage)
-        1
-    }
-  }
 }

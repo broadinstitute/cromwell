@@ -4,10 +4,8 @@ import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowId
 import cromwell.engine.WorkflowSourceFiles
-import cromwell.services.MetadataServiceActor.{GetStatus, WorkflowQuery}
+import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryClient
-import cromwell.services.MetadataServiceActor.{GetSingleWorkflowMetadataAction, GetMetadataQueryAction}
-import cromwell.services.{MetadataQuery, ServiceRegistryClient}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.config.ScalaConfig._
@@ -134,7 +132,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       get {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowOutputs(w))
+            requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), WorkflowOutputs(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }

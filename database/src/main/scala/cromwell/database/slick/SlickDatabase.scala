@@ -648,6 +648,13 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
+  protected def queryMetadataEventsWithWildcardKey(workflowUuid: String,
+                                                   key: String)
+                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+    val action = dataAccess.metadataByWorkflowUuidWithWildcardKey(workflowUuid, key).result
+    runTransaction(action)
+  }
+
   private def updateMetadata(buildUpdatedSummary:
                              (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
                             (metadataByUuid: (String, Seq[Metadatum]))(implicit ec: ExecutionContext): DBIO[Unit] = {

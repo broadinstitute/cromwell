@@ -18,7 +18,7 @@ set -e
 # handholding here so running it outside of Travis is likely to not do what you want
 PARALLELISM_FACTOR=3
 
-java -jar ${INITIAL_DIR}/target/scala-2.11/cromwell-*.jar server > cromwell.log &
+java -jar "${INITIAL_DIR}"/target/scala-2.11/cromwell-*.jar server > cromwell.log &
 
 # Build and run centaur
 echo "Cloning Centaur"
@@ -31,7 +31,4 @@ echo "Running Centaur with ${PARALLELISM_FACTOR}-way parallelism"
 
 if [ $? -eq 0 ]; then
   EXIT_CODE=0
-else
-  # FIXME: Just testing something, will remove
-  echo "Exiting with non-zero exit status"
 fi

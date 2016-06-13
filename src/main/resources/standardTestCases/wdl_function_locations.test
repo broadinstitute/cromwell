@@ -1,0 +1,15 @@
+name: wdl_function_locations
+testFormat: workflowsuccess
+ignore: true
+
+files {
+  wdl: wdl_function_locations/wdl_function_locations.wdl
+}
+
+metadata {
+  workflowName: wdl_function_locations
+  status: Succeeded
+  "outputs.wdl_function_locations.wdl_function_locations_i.out": "0:1:2"
+  "outputs.wdl_function_locations.wdl_function_locations_ii.0.out": "0"
+  "outputs.wdl_function_locations.wdl_function_locations_ii.1.out": "1"
+}

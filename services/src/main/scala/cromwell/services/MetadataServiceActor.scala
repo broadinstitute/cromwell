@@ -3,7 +3,7 @@ package cromwell.services
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
-import cromwell.core.{WorkflowId, WorkflowState}
+import cromwell.core.{JobOutputs, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import spray.http.Uri
 import wdl4s.values._
@@ -35,6 +35,7 @@ object MetadataServiceActor {
   case class GetMetadataQueryAction(key: MetadataQuery) extends MetadataServiceAction
   case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
   case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends MetadataServiceAction
+  case class WorkflowOutputs(workflowId: WorkflowId) extends MetadataServiceAction
   case object RefreshSummary extends MetadataServiceAction
   final case class HandleNotFound(workflowId: WorkflowId, sndr: ActorRef) extends MetadataServiceAction
 
@@ -55,7 +56,10 @@ object MetadataServiceActor {
   final case class WorkflowQuerySuccess(uri: Uri, response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataServiceResponse
   final case class WorkflowQueryFailure(failure: Throwable) extends MetadataServiceResponse
 
-  /* TODO: PBE: No EngineMetadataServiceActor.props until circular dependencies fixed.
+  final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceResponse
+
+  /* TODO: PBE: No MetadataServiceActor.props until circular dependencies fixed.
   def props(serviceConfig: Config, globalConfig: Config) = {
     Props(MetadataServiceActor(serviceConfig, globalConfig))
   }

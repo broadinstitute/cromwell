@@ -180,6 +180,10 @@ trait SqlDatabase extends AutoCloseable {
                                     attempt: Int)
                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
 
+  protected def queryMetadataEventsWithWildcardKey(workflowUuid: String,
+                                                   key: String)
+                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+
   /**
     * Retrieves all summarizable metadata satisfying the specified criteria.
     *

@@ -352,6 +352,24 @@ trait DataAccess extends AutoCloseable {
     addMetadata(metadata)
   }
 
+  private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[Metadatum]): Seq[MetadataEvent] = {
+    metadata map { m =>
+      // If callFqn is non-null then attempt will also be non-null and there is a MetadataJobKey.
+      val metadataJobKey: Option[MetadataJobKey] = for {
+        callFqn <- m.callFqn
+        attempt <- m.attempt
+      } yield new MetadataJobKey(callFqn, m.index, attempt)
+
+      val key = MetadataKey(workflowId, metadataJobKey, m.key)
+      val value =  for {
+        mValue <- m.value
+        mType <- m.valueType
+      } yield MetadataValue(mValue, MetadataType.fromString(mType))
+
+      MetadataEvent(key, value, m.timestamp.toSystemOffsetDateTime)
+    }
+  }
+
   def queryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = query.workflowId.id.toString
     val futureMetadata: Future[Seq[Metadatum]] = query match {
@@ -360,23 +378,13 @@ trait DataAccess extends AutoCloseable {
       case MetadataQuery(_, Some(jobKey), None) => queryMetadataEvents(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt)
       case MetadataQuery(_, Some(jobKey), Some(key)) => queryMetadataEvents(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
     }
-    futureMetadata map { metadata =>
-      metadata map { m =>
-        // If callFqn is non-null then attempt will also be non-null and there is a MetadataJobKey.
-        val metadataJobKey: Option[MetadataJobKey] = for {
-          callFqn <- m.callFqn
-          attempt <- m.attempt
-        } yield new MetadataJobKey(callFqn, m.index, attempt)
+    futureMetadata map metadataToMetadataEvents(query.workflowId)
+  }
 
-        val key = MetadataKey(query.workflowId, metadataJobKey, m.key)
-        val value =  for {
-          mValue <- m.value
-          mType <- m.valueType
-        } yield MetadataValue(mValue, MetadataType.fromString(mType))
-
-        MetadataEvent(key, value, m.timestamp.toSystemOffsetDateTime)
-      }
-    }
+  def queryWorkflowOutputs(id: WorkflowId)
+                          (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
+    val uuid = id.id.toString
+    queryMetadataEventsWithWildcardKey(uuid, WorkflowMetadataKeys.Outputs + ":%") map metadataToMetadataEvents(id)
   }
 
   /** Set the status of one or several calls to starting and update the start date. */

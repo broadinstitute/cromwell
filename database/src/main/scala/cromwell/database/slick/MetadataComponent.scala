@@ -50,6 +50,16 @@ trait MetadataComponent {
       if metadatum.attempt.isEmpty
     } yield metadatum)
 
+  val metadataByWorkflowUuidWithWildcardKey = Compiled(
+    (workflowExecutionUuid: Rep[String], key: Rep[String]) => for {
+      metadatum <- metadata
+      if metadatum.workflowExecutionUuid === workflowExecutionUuid
+      if metadatum.key like key
+      if metadatum.callFqn.isEmpty
+      if metadatum.index.isEmpty
+      if metadatum.attempt.isEmpty
+    } yield metadatum)
+
   val metadataByWorkflowUuidAndCallFqnAndIndexAndAttempt = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Option[Int]], attempt: Rep[Int]) => for {
       metadatum <- metadata

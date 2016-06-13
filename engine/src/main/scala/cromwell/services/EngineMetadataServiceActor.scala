@@ -83,6 +83,14 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     }
   }
 
+  private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
+    val replyTo = sender()
+    dataAccess.queryWorkflowOutputs(id) onComplete {
+      case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
+      case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
+    }
+  }
+
   def receive = {
     case action@PutMetadataAction(events) =>
       workflowExistenceCache = workflowExistenceCache ++ (events map { _.key.workflowId -> CacheExpiryCount })
@@ -98,6 +106,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case WorkflowQuery(uri, parameters) => queryWorkflowsAndRespond(uri, parameters)
+    case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
     case RefreshSummary => summaryActor ! SummarizeMetadata
     case MetadataSummarySuccess =>
       // Remove expired cache entries, decrement cache counts for remaining entries.

@@ -156,7 +156,7 @@ object MetadataBuilderActor {
     workflowNonStatusEvents ++ sortedStateEvents.headOption.toList
   }
 
-  private def parseWorkflowEventsToTimestampedJsValue(events: Seq[MetadataEvent]): JsObject = {
+  private def parseWorkflowEventsToTimestampedJsValue(events: Seq[MetadataEvent], includeCallsIfEmpty: Boolean): JsObject = {
     // Partition if sequence of events in a pair of (Workflow level events, Call level events)
     val (workflowLevel, callLevel) = events partition { _.key.jobKey.isEmpty }
     val foldedWorkflowValues = eventsToIndexedJson(reduceWorkflowEvents(workflowLevel)).toJson.asJsObject
@@ -172,17 +172,17 @@ object MetadataBuilderActor {
     } mapValues { md => JsArray(md.toVector.sortBy(_.index) flatMap { _.metadata }) }
 
     val wrappedCalls = JsObject(Map(WorkflowMetadataKeys.Calls -> JsObject(callsMap)))
-
-    JsObject(foldedWorkflowValues.fields ++ wrappedCalls.fields)
+    val callData = if (callsMap.isEmpty && !includeCallsIfEmpty) Nil else wrappedCalls.fields
+    JsObject(foldedWorkflowValues.fields ++ callData)
   }
 
-  private def parseWorkflowEvents(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToTimestampedJsValue(events)
+  private def parseWorkflowEvents(includeCallsIfEmpty: Boolean)(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToTimestampedJsValue(events, includeCallsIfEmpty)
 
   /**
     * Parse a Seq of MetadataEvent into a full Json metadata response.
     */
   private def parse(events: Seq[MetadataEvent]): JsObject = {
-    JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents)
+    JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents(includeCallsIfEmpty = true))
   }
 
   implicit class EnhancedMetadataValue(val value: MetadataValue) extends AnyVal {
@@ -232,6 +232,12 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(WorkflowQueryFailure(t), _) =>
       context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
       allDone
+    case Event(WorkflowOutputsResponse(w, metadata), _) =>
+      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, metadata, includeCallsIfEmpty = false))
+      allDone
+    case Event(WorkflowOutputsFailure(_, t), _) =>
+      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
+      allDone
     case Event(unexpectedMessage, stateData) =>
       val response = APIResponse.fail(new RuntimeException(s"MetadataBuilderActor $tag(WaitingForMetadataService, $stateData) got an unexpected message: $unexpectedMessage"))
       context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
@@ -257,5 +263,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     ))
   }
 
-  private def workflowMetadataResponse(workflowId: WorkflowId, eventsList: Seq[MetadataEvent]) = JsObject(MetadataBuilderActor.parseWorkflowEvents(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+  private def workflowMetadataResponse(workflowId: WorkflowId, eventsList: Seq[MetadataEvent], includeCallsIfEmpty: Boolean = true) = {
+    JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+  }
 }

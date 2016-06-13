@@ -4,7 +4,8 @@ import akka.actor.Props
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import wdl4s.Call
+import wdl4s.types.{WdlBooleanType, WdlStringType}
+import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
 
@@ -18,6 +19,13 @@ object HtCondorInitializationActor {
 class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                                   override val calls: Seq[Call],
                                   override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
+
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
+    DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
+    ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false)
+  )
+
   /**
     * Abort all initializations.
     */

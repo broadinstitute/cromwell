@@ -19,6 +19,7 @@ import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 
 import scala.language.postfixOps
+import scala.util.Random
 
 object WorkflowActor {
 
@@ -190,6 +191,10 @@ class WorkflowActor(workflowId: WorkflowId,
       executionActor ! commandToSend
       goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor))
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      val failureEvent = MetadataEvent(
+        MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"),
+        MetadataValue(reason.map(_.getMessage).mkString(". ")))
+      serviceRegistryActor ! PutMetadataAction(failureEvent)
       finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, Option(reason.toList))
   }
 

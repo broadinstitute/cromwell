@@ -149,7 +149,7 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
           case InitializationFailed(failure) =>
             failure match {
               case exception: IllegalArgumentException =>
-                if (!exception.getMessage.equals("docker mandatory runtime attribute is missing."))
+                if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
                   fail("Exception message does not contains 'Runtime attribute validation failed'.")
             }
         }

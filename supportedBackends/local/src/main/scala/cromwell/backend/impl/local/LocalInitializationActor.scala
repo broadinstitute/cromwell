@@ -6,7 +6,9 @@ import cromwell.backend.impl.local.LocalInitializationActor._
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import wdl4s.Call
+import wdl4s.types.{WdlBooleanType, WdlStringType}
+import wdl4s.{Call, WdlExpression}
+import wdl4s.values.WdlString
 
 import scala.concurrent.Future
 
@@ -21,6 +23,12 @@ object LocalInitializationActor {
 class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                                override val calls: Seq[Call],
                                override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
+
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
+    DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
+    ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false)
+  )
 
   private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig)
 

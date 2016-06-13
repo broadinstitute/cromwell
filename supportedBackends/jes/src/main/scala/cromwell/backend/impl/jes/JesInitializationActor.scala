@@ -9,7 +9,8 @@ import cromwell.backend.{BackendWorkflowDescriptor, BackendWorkflowInitializatio
 import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
-import wdl4s.Call
+import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
+import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
 
@@ -24,6 +25,19 @@ object JesInitializationActor {
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                              override val calls: Seq[Call],
                              jesConfiguration: JesConfiguration) extends BackendWorkflowInitializationActor {
+
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
+    CpuKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),
+    MemoryKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    DockerKey -> wdlTypePredicate(valueRequired = true, WdlStringType.isCoerceableFrom),
+    FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
+    ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false),
+    JesRuntimeAttributes.PreemptibleKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),
+    JesRuntimeAttributes.BootDiskSizeKey -> wdlTypePredicate(valueRequired = false, WdlFloatType.isCoerceableFrom),
+
+    // TODO (eventually): make these more appropriate pre-checks
+    JesRuntimeAttributes.ZonesKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    JesRuntimeAttributes.DisksKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom))
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
   private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
@@ -82,8 +96,6 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
           log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions.")
         }
-
-        runtimeAttributes.get(DockerKey).orElse(throw new IllegalArgumentException(s"$DockerKey mandatory runtime attribute is missing."))
       }
     }
   }

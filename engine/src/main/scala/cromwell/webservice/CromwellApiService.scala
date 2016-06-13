@@ -56,7 +56,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowStdoutStderrRoute ~ abortRoute ~ callOutputsRoute ~ callStdoutStderrRoute ~ metadataRoute ~ timingRoute ~
+    workflowStdoutStderrRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~
     callCachingRoute ~ statusRoute
 
   def statusRoute =
@@ -137,26 +137,6 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
             requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowOutputs(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
-      }
-    }
-
-  def callOutputsRoute =
-    path("workflows" / Segment / Segment / "outputs" / Segment) { (version, workflowId, callFqn) =>
-      Try(WorkflowId.fromString(workflowId)) match {
-        case Success(w) =>
-          // This currently does not attempt to parse the call name for conformation to any pattern.
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallOutputs(w, callFqn))
-        case Failure(_) => invalidWorkflowId(workflowId)
-      }
-    }
-
-  def callStdoutStderrRoute =
-    path("workflows" / Segment / Segment / "logs" / Segment) { (version, workflowId, callFqn) =>
-      Try(WorkflowId.fromString(workflowId)) match {
-        case Success(w) =>
-          // This currently does not attempt to parse the call name for conformation to any pattern.
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallStdoutStderr(w, callFqn))
-        case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
 

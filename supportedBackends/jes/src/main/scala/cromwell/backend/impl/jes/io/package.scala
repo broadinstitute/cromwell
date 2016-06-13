@@ -30,6 +30,7 @@ package object io {
 
   private [jes] def isFatalJesException(t: Throwable): Boolean = t match {
     case e: HttpResponseException if e.getStatusCode == 403 => true
+    case e: HttpResponseException if e.getStatusCode == 400 && e.getContent.contains("INVALID_ARGUMENT") => true
     case _ => false
   }
 

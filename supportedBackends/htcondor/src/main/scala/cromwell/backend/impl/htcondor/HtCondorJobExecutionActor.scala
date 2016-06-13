@@ -150,10 +150,11 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     log.debug("{} Creating execution folder: {}", tag, executionDir)
     executionDir.toString.toFile.createIfNotExists(true)
     try {
-      val localizedInputs = localizeInputs(jobPaths, false, fileSystems, jobDescriptor.inputs)
-      val command = call.task.instantiateCommand(localizedInputs, callEngineFunction, identity).get
+      val command = localizeInputs(jobPaths, false, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+        call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
+      }
       log.debug("{} Creating bash script for executing command: {}", tag, command)
-      writeScript(command, scriptPath, executionDir) // Writes the bash script for executing the command
+      writeScript(command.get, scriptPath, executionDir) // Writes the bash script for executing the command
       scriptPath.addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
       //TODO: Need to append other runtime attributes from Wdl to Condor submit file
       val attributes = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toString,

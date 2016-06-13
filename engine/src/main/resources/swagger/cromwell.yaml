@@ -159,40 +159,6 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/outputs/{callFqn}':
-    get:
-      summary: Query for call outputs based on workflow id and call fully qualified name
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-        - name: callFqn
-          description: Call fully qualified name
-          required: true
-          type: string
-          in: path
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-        '400':
-          description: Malformed Workflow ID
-        '404':
-          description: Call Fully Qualified Name Not Found
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
   '/workflows/{version}/query':
     get:
       summary: Query workflows by start dates, end dates, names, ids, or statuses.
@@ -331,40 +297,6 @@ paths:
           description: Malformed Workflow ID
         '404':
           description: Workflow ID Not Found
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
-  '/workflows/{version}/{id}/logs/{callFqn}':
-    get:
-      summary: Query standard output and error of a call from its fully qualified name
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-        - name: callFqn
-          description: Call fully qualified name
-          required: true
-          type: string
-          in: path
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-        '400':
-          description: Malformed Workflow ID
-        '404':
-          description: Call Fully Qualified Name Not Found
         '500':
           description: Internal Error
       security:

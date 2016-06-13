@@ -63,8 +63,6 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/timing](#get-apiworkflowsversionidtiming)
-  * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
-  * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
   * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
@@ -1734,132 +1732,11 @@ This endpoint is meant to be used in a web browser.  It will show a Gantt Chart 
 
 ![Timing diagram](http://i.imgur.com/EOE2HoL.png)
 
-## GET /api/workflows/:version/:id/outputs/:call
-
-cURL:
-
-```
-$ curl http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
-```
-
-HTTPie:
-
-```
-$ http http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 241
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 04 Jun 2015 12:15:33 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
-    "outputs": {
-        "three_step.wc.count": 8
-    }
-}
-```
-## GET /api/workflows/:version/:id/logs/:call
-
-This will return paths to the standard out and standard error files that were generated during the execution of a particular fully-qualified name for a call.
-
-A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
-
-cURL:
-
-```
-$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
-```
-
-HTTPie:
-
-```
-$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 379
-Content-Type: application/json; charset=UTF-8
-Date: Mon, 03 Aug 2015 17:11:28 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
-    "logs": {
-        "three_step.wc": [
-            {
-                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
-                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
-            }
-        ]
-    }
-}
-```
-
-In the case that the call is inside a `scatter` block, the output for this API will contain a list of stdout/stderr files, one for each shard.  Consider this example:
-
-```
-task add_one {
-  Int n
-  command {
-    python -c "print(${n}+1)"
-  }
-  output {
-    Int incremented = read_int(stdout())
-  }
-}
-
-workflow test {
-  Array[Int] list = [1,2,3,4]
-  scatter (x in list) {
-    call add_one {input: n=x}
-  }
-}
-```
-
-Running this workflow then issuing this API call would return:
-
-```
-HTTP/1.1 200 OK
-Content-Length: 1256
-Content-Type: application/json; charset=UTF-8
-Date: Fri, 04 Sep 2015 12:22:45 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "cbdefb0f-29ae-475b-a42c-90403f8ff9f8",
-    "logs": {
-        "test.add_one": [
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stdout"
-            },
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stdout"
-            },
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stdout"
-            },
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stdout"
-            }
-        ]
-    }
-}
-```
-
 ## GET /api/workflows/:version/:id/logs
 
-This returns a similar format as the `/api/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
+This will return paths to the standard out and standard error files that were generated during the execution of all calls in a workflow.
+
+A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
 
 cURL:
 

@@ -10,6 +10,8 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq mysql-server-5.6 mysql-client-5.6 mysql-client-core-5.6
   - docker pull ubuntu:latest
+  - openssl aes-256-cbc -K $encrypted_5b9e82629fa8_key -iv $encrypted_5b9e82629fa8_iv -in jesConf.tar.enc -out jesConf.tar -d
+  - tar xvf jesConf.tar
 before_script:
   - mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';" 
   - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"

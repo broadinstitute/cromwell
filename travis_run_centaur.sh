@@ -16,9 +16,10 @@ set -e
 
 # Used by the travis builds to build & run centaur against a prebuilt Cromwell. There is almost no
 # handholding here so running it outside of Travis is likely to not do what you want
-PARALLELISM_FACTOR=1
+PARALLELISM_FACTOR=5
 
-java -jar "${INITIAL_DIR}"/target/scala-2.11/cromwell-*.jar server > cromwell.log &
+echo "Launching Cromwell for Centaur testing"
+java -Dconfig.file=./jes.conf -jar "${INITIAL_DIR}"/target/scala-2.11/cromwell-*.jar server > cromwell.log &
 
 # Build and run centaur
 echo "Cloning Centaur"

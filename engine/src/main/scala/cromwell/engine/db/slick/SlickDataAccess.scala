@@ -221,7 +221,7 @@ class SlickDataAccess(databaseConfig: Config) extends DataAccess {
         workflowExecutionInsert.workflowExecutionId.get,
         workflowDescriptor.sourceFiles.wdlSource.toClob,
         workflowDescriptor.sourceFiles.inputsJson.toClob,
-        workflowDescriptor.sourceFiles.workflowOptionsJson.toClob
+        workflowDescriptor.workflowOptions.asPrettyJson.toClob
       )
 
       symbolInsert <- dataAccess.symbolsAutoInc ++= toInputSymbols(workflowExecutionInsert, workflowDescriptor.namespace.workflow, workflowInputs)

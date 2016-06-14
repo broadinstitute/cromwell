@@ -1,6 +1,6 @@
 package cromwell.backend.async
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, PoisonPill}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, _}
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
@@ -33,9 +33,9 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   /**
     * Schedule work according to the schedule of the `backoff`.
     */
-  protected def scheduleWork(work: => Unit): Unit = {
+  protected def scheduleWork(actorContext: ActorContext, work: => Unit)(implicit ec: ExecutionContext): Unit = {
     val interval = backoff.backoffMillis.millis
-    context.system.scheduler.scheduleOnce(interval) {
+    actorContext.system.scheduler.scheduleOnce(interval) {
       work
     }
   }
@@ -48,38 +48,36 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule
     * the execution of the `onFailure` work using an exponential backoff.
     */
-  def withRetry(work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit): Unit = {
+  def withRetry(actorContext: ActorContext, work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit)(implicit ec: ExecutionContext): Unit = {
+    // WARNING! THIS IS NOT IN THE RECEIVE THREAD SO DO NOT LOG FROM THIS METHOD !!
     work onComplete {
       case Success(s) => onSuccess(s)
       case Failure(e: CromwellFatalException) =>
-        log.error(e.getMessage, e)
         val responseBuilder = if (retryable) FailedRetryableResponse else FailedNonRetryableResponse
         completionPromise.success(responseBuilder.apply(jobDescriptor.key, e, None))
-        context.stop(self)
+        actorContext.stop(self)
       case Failure(e: Exception) =>
-        log.error(e.getMessage, e)
-        scheduleWork(onFailure)
+        scheduleWork(actorContext, onFailure)
       case Failure(throwable) =>
         // This is a catch-all for a JVM-ending kind of exception, which is why we throw the exception
-        log.error(throwable.getMessage, throwable)
         throw throwable
     }
   }
 
   def receive: Receive = {
     case mode: ExecutionMode =>
-      withRetry(executeOrRecover(mode),
+      withRetry(context, executeOrRecover(mode),
         onSuccess = self ! IssuePollRequest(_),
         onFailure = self ! mode
       )
 
     case IssuePollRequest(handle) =>
-      withRetry(poll(handle),
+      withRetry(context, poll(handle),
         onSuccess = self ! PollResponseReceived(_),
         onFailure = self ! IssuePollRequest(handle)
       )
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
-    case PollResponseReceived(handle) => scheduleWork(self ! IssuePollRequest(handle))
+    case PollResponseReceived(handle) => scheduleWork(context, self ! IssuePollRequest(handle))
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, hash, resultsClonedFrom)) =>
       completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs))
       context.stop(self)

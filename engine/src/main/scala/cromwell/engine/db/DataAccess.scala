@@ -19,6 +19,7 @@ import cromwell.engine.db.EngineConverters._
 import cromwell.engine.finalcall.OldStyleFinalCall
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.{BackendCallKey, ExecutionStoreKey, _}
+import cromwell.services.CallMetadataKeys.{ExecutionStatus => _, _}
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services._
 import cromwell.webservice.{CallCachingParameters, WorkflowQueryParameters}
@@ -31,7 +32,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scalaz.Scalaz._
-import scalaz.Semigroup
+import scalaz.{NonEmptyList, Semigroup}
 
 object DataAccess {
   lazy val log = LoggerFactory.getLogger(classOf[DataAccess])
@@ -384,7 +385,15 @@ trait DataAccess extends AutoCloseable {
   def queryWorkflowOutputs(id: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
-    queryMetadataEventsWithWildcardKey(uuid, WorkflowMetadataKeys.Outputs + ":%") map metadataToMetadataEvents(id)
+    queryMetadataEventsWithWildcardKey(uuid, WorkflowMetadataKeys.Outputs + ":%", requireEmptyJobKey = true) map metadataToMetadataEvents(id)
+  }
+
+  def queryLogs(id: WorkflowId)
+               (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
+
+    val uuid = id.id.toString
+    val keys = NonEmptyList(Stdout, Stderr, BackendLogsPrefix + ":%")
+    queryMetadataEventsWithWildcardKeys(id.id.toString, keys, requireEmptyJobKey = false) map metadataToMetadataEvents(id)
   }
 
   /** Set the status of one or several calls to starting and update the start date. */

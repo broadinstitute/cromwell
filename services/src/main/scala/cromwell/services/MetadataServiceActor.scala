@@ -36,6 +36,7 @@ object MetadataServiceActor {
   case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
   case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends MetadataServiceAction
   case class WorkflowOutputs(workflowId: WorkflowId) extends MetadataServiceAction
+  case class GetLogs(workflowId: WorkflowId) extends MetadataServiceAction
   case object RefreshSummary extends MetadataServiceAction
   final case class HandleNotFound(workflowId: WorkflowId, sndr: ActorRef) extends MetadataServiceAction
 
@@ -43,21 +44,28 @@ object MetadataServiceActor {
     * Responses
     */
   trait MetadataServiceResponse extends MetadataServiceMessage
+  trait MetadataServiceFailure extends MetadataServiceResponse {
+    def reason: Throwable
+  }
+
   case class MetadataPutAcknowledgement(putRequest: PutMetadataAction) extends MetadataServiceResponse
-  case class MetadataPutFailed(putRequest: PutMetadataAction, reason: Throwable) extends MetadataServiceResponse
+  case class MetadataPutFailed(putRequest: PutMetadataAction, reason: Throwable) extends MetadataServiceFailure
 
   case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
-  case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceResponse
+  case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
 
   case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
   case class StatusLookupNotFound(workflowId: WorkflowId) extends MetadataServiceResponse
-  case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceResponse
+  case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class WorkflowQuerySuccess(uri: Uri, response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataServiceResponse
-  final case class WorkflowQueryFailure(failure: Throwable) extends MetadataServiceResponse
+  final case class WorkflowQueryFailure(reason: Throwable) extends MetadataServiceFailure
 
   final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
-  final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceResponse
+  final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
+  final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   /* TODO: PBE: No MetadataServiceActor.props until circular dependencies fixed.
   def props(serviceConfig: Config, globalConfig: Config) = {

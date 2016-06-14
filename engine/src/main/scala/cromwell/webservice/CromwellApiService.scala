@@ -142,7 +142,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     path("workflows" / Segment / Segment / "logs") { (version, workflowId) =>
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowStdoutStderr(w))
+          requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), GetLogs(w))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }

@@ -14,6 +14,7 @@ import slick.driver.JdbcProfile
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scalaz._
 
 object SlickDatabase {
   lazy val rootConfig = ConfigFactory.load()
@@ -648,10 +649,12 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  protected def queryMetadataEventsWithWildcardKey(workflowUuid: String,
-                                                   key: String)
-                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.metadataByWorkflowUuidWithWildcardKey(workflowUuid, key).result
+  protected def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
+                                                    wildcardKeys: NonEmptyList[String],
+                                                    requireEmptyJobKey: Boolean)
+                                                   (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+
+    val action = dataAccess.queryMetadataMatchingAnyWildcardKeys(workflowUuid, wildcardKeys, requireEmptyJobKey).result
     runTransaction(action)
   }
 

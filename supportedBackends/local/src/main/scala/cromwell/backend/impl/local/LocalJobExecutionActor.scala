@@ -6,6 +6,7 @@ import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.io.{JobPaths, SharedFileSystem, SharedFsExpressionFunctions}
+import cromwell.services.CallMetadataKeys._
 import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services._
 import org.slf4j.LoggerFactory
@@ -126,8 +127,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
 
     val events = runtimeAttributesEvents ++ List(
-      metadataEvent("stdout", jobPaths.stdout.toAbsolutePath),
-      metadataEvent("stderr", jobPaths.stderr.toAbsolutePath),
+      metadataEvent(Stdout, jobPaths.stdout.toAbsolutePath),
+      metadataEvent(Stderr, jobPaths.stderr.toAbsolutePath),
     // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
       metadataEvent("cache:allowResultReuse", true)
     )

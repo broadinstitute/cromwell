@@ -91,6 +91,14 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     }
   }
 
+  private def queryLogsAndRespond(id: WorkflowId): Unit = {
+    val replyTo = sender()
+    dataAccess.queryLogs(id) onComplete {
+      case Success(l) => replyTo ! LogsResponse(id, l)
+      case Failure(t) => replyTo ! LogsFailure(id, t)
+    }
+  }
+
   def receive = {
     case action@PutMetadataAction(events) =>
       workflowExistenceCache = workflowExistenceCache ++ (events map { _.key.workflowId -> CacheExpiryCount })
@@ -105,6 +113,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case GetSingleWorkflowMetadataAction(workflowId) => queryAndRespond(MetadataQuery(workflowId, None, None))
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
+    case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
     case WorkflowQuery(uri, parameters) => queryWorkflowsAndRespond(uri, parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
     case RefreshSummary => summaryActor ! SummarizeMetadata

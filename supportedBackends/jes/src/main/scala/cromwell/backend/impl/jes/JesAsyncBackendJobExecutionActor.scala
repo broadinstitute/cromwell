@@ -20,6 +20,7 @@ import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJob
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
 import cromwell.filesystems.gcs.NioGcsPath
+import cromwell.services.CallMetadataKeys._
 import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
 import wdl4s.AstTools._
@@ -452,9 +453,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val events = runtimeAttributesEvent ++ List(
       metadataEvent("preemptible", preemptible),
       // TODO: PBE: Trace callers of "new CallContext()". Seems to be multiple places in JES, etc. For now:
-      metadataEvent("stdout", jesCallPaths.stdoutPath.toAbsolutePath),
-      metadataEvent("stderr", jesCallPaths.stderrPath.toAbsolutePath),
-      metadataEvent("backendLogs:log", jesCallPaths.jesLogPath.toAbsolutePath),
+      metadataEvent(Stdout, jesCallPaths.stdoutPath.toAbsolutePath),
+      metadataEvent(Stderr, jesCallPaths.stderrPath.toAbsolutePath),
+      metadataEvent(BackendLogsPrefix + ":log", jesCallPaths.jesLogPath.toAbsolutePath),
       // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
       metadataEvent("cache:allowResultReuse", true)
     )

@@ -4,6 +4,7 @@ package cromwell.database.slick
 import java.sql.Timestamp
 
 import cromwell.database.obj.{Metadatum, WorkflowMetadataKeys}
+import scalaz._
 
 trait MetadataComponent {
 
@@ -50,16 +51,6 @@ trait MetadataComponent {
       if metadatum.attempt.isEmpty
     } yield metadatum)
 
-  val metadataByWorkflowUuidWithWildcardKey = Compiled(
-    (workflowExecutionUuid: Rep[String], key: Rep[String]) => for {
-      metadatum <- metadata
-      if metadatum.workflowExecutionUuid === workflowExecutionUuid
-      if metadatum.key like key
-      if metadatum.callFqn.isEmpty
-      if metadatum.index.isEmpty
-      if metadatum.attempt.isEmpty
-    } yield metadatum)
-
   val metadataByWorkflowUuidAndCallFqnAndIndexAndAttempt = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Option[Int]], attempt: Rep[Int]) => for {
       metadatum <- metadata
@@ -92,4 +83,16 @@ trait MetadataComponent {
   )
 
   val metadataAutoInc = metadata returning metadata.map(_.metadataId)
+
+  def queryMetadataMatchingAnyWildcardKeys(workflowUuid: String, keys: NonEmptyList[String], requireEmptyJobKey: Boolean) = {
+    def hasEmptyJobKey(m: Metadata): Rep[Boolean] = m.callFqn.isEmpty && m.index.isEmpty && m.attempt.isEmpty
+    val repRequireEmptyJobKey: Rep[Boolean] = requireEmptyJobKey
+
+    for {
+      m <- metadata
+      if m.workflowExecutionUuid === workflowUuid
+      if keys.list map { m.key like _ } reduce (_ || _)
+      if !repRequireEmptyJobKey || hasEmptyJobKey(m)
+    } yield m
+  }
 }

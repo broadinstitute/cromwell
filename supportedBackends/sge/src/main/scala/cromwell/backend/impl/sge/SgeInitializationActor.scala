@@ -7,7 +7,7 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core._
-import wdl4s.Call
+import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
 import scalaz.Scalaz._
@@ -48,4 +48,6 @@ class SgeInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       }
     }
   }
+
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map.empty
 }

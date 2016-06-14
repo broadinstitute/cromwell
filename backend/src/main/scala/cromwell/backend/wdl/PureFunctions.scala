@@ -2,9 +2,21 @@ package cromwell.backend.wdl
 
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlInteger, WdlString, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlFloat, WdlInteger, WdlString, WdlValue}
 
 import scala.util.{Failure, Success, Try}
+
+case object OnlyPureFunctions extends WdlStandardLibraryFunctions with PureFunctions {
+  override def readFile(path: String): String = throw new NotImplementedError("readFile not available in PureNoFunctions.")
+  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = throw new NotImplementedError("read_json not available in PureNoFunctions.")
+  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("write_json not available in PureNoFunctions.")
+  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = throw new NotImplementedError("size not available in PureNoFunctions.")
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("write_tsv not available in PureNoFunctions.")
+  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("stdout not available in PureNoFunctions.")
+  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError("glob not available in PureNoFunctions.")
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError("writeTempFile not available in PureNoFunctions.")
+  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("stderr not available in PureNoFunctions.")
+}
 
 trait PureFunctions { this: WdlStandardLibraryFunctions =>
 

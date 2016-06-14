@@ -378,6 +378,14 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       JesFileOutput(s"$MonitoringParamName-out", defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), workingDisk)
     }
 
+    // Force runtimeAttributes to evaluate so we can fail quickly now if we need to:
+    Try(runtimeAttributes) match {
+      case Success(_) => startExecuting(monitoringOutput)
+      case Failure(e) => Future.successful(FailedNonRetryableExecutionHandle(e, None))
+    }
+  }
+
+  private def startExecuting(monitoringOutput: Option[JesFileOutput]): Future[ExecutionHandle] = {
     val jesInputs: Seq[JesInput] = generateJesInputs(jobDescriptor).toSeq ++ monitoringScript :+ cmdInput
     val jesOutputs: Seq[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 

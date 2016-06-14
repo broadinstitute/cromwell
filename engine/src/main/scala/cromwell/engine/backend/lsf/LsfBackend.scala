@@ -68,7 +68,7 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
       case Success(instantiatedCommand) =>
         logger.info(s"`$instantiatedCommand`")
         writeScript(jobDescriptor, instantiatedCommand)
-        launchQsub(jobDescriptor) match {
+        launchBsub(jobDescriptor) match {
           case (bsubReturnCode, _) if bsubReturnCode != 0 => NonRetryableExecution(
             new Throwable(s"Error: bsub exited with return code: $bsubReturnCode")).future
           case (_, None) => NonRetryableExecution(new Throwable(s"Could not parse Job ID from bsub output")).future
@@ -160,24 +160,18 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
   /**
    * Launches the bsub command, returns a tuple: (rc, Option(lsf_job_id))
    */
-  private def launchQsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
+  private def launchBsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
-    val backendConf = ConfigFactory.load.getConfig("backend")
-    val lsfConf = backendConf.getConfig("lsf")
- 
-    val lsfOption = lsfConf.root().unwrapped()
-    if(lsfOption.get("-J") == null) {
-       lsfOption.put("-J", s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}")
+    val lsfOption = new java.util.HashMap[String,Object]()
+
+    if(ConfigFactory.load.hasPath("backend.lsf")) {
+       lsfOption.putAll(ConfigFactory.load.getConfig("backend.lsf").root().unwrapped())
     }
-    if(lsfOption.get("-cwd") == null) {
-       lsfOption.put("-cwd", jobDescriptor.callRootPath.toAbsolutePath)
-    }
-    if(lsfOption.get("-o") == null) {
-       lsfOption.put("-o", jobDescriptor.stdout.getFileName)
-    }
-    if(lsfOption.get("-e") == null) {
-       lsfOption.put("-e", jobDescriptor.stderr.getFileName)
-    }
+    // Setup the default bsub options
+    scala.collection.immutable.Map("-J" -> s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}",
+      "-cwd" -> jobDescriptor.callRootPath.toAbsolutePath,
+      "-o" -> jobDescriptor.stdout.getFileName,
+      "-e" -> jobDescriptor.stderr.getFileName).map { case (k, v) => lsfOption.put(k, lsfOption.getOrElse(k, v)) }
 
     val argv = (lsfOption.foldLeft(Seq("bsub"))((command, kv) =>  command ++ Seq(kv._1, kv._2.toString)) ++  Seq("/bin/sh", jobDescriptor.script.toAbsolutePath)).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")

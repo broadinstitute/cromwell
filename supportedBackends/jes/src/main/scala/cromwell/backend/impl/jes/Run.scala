@@ -106,20 +106,36 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
   }
 
   private def getEventList(op: Operation): Seq[EventStartTime] = {
-    val metadata: Map[String, AnyRef] = op.getMetadata.asScala.toMap
+    val metadata = op.getMetadata.asScala.toMap
 
     val starterEvents: Seq[EventStartTime] = Seq(
       eventIfExists("createTime", metadata, "waiting for quota"),
       eventIfExists("startTime", metadata, "initializing VM")).flatten
 
-    val eventsList: Seq[EventStartTime] = for {
+    val eventsList = for {
       events <- metadata.get("events").toSeq
       entry <- events.asInstanceOf[JArrayList[GArrayMap[String, String]]].asScala
     } yield EventStartTime(entry.get("description"), OffsetDateTime.parse(entry.get("startTime")))
 
-    val finaleEvents: Seq[EventStartTime] = eventIfExists("endTime", metadata, "cromwell poll interval").toSeq
+    // A little bit ugly... the endTime of the jes operation can actually be before the final "event" time, due to differences
+    // in the reported precision. As a result, we have to make sure it all lines up nicely:
+    val finalEvent = getCromwellPollIntervalEvent(metadata, eventsList)
 
-    starterEvents ++ eventsList ++ finaleEvents
+    starterEvents ++ eventsList :+ finalEvent
+  }
+
+  private def getCromwellPollIntervalEvent(metadata: Map[String, AnyRef], eventsList: Seq[EventStartTime]) = {
+    {
+      val jesReportedEndTime = eventIfExists("endTime", metadata, "cromwell poll interval")
+      val finalEventsListTime = if (eventsList.nonEmpty) Some(eventsList.last.offsetDateTime) else None
+
+      (jesReportedEndTime, finalEventsListTime) match {
+        case (Some(jesEndTime), Some(finalEventTime)) =>
+          if (jesEndTime.offsetDateTime isAfter finalEventTime) jesEndTime else jesEndTime.copy(offsetDateTime = finalEventTime)
+        case (Some(jesEndTime), None) => jesEndTime
+        case (None, Some(finalEventTime)) => EventStartTime("cromwell poll interval", finalEventTime)
+      }
+    }
   }
 
   private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[EventStartTime] = {

@@ -4,10 +4,21 @@ task centaur {
     File pem
 
     command<<<
-        sudo apt-get update
-        sudo apt-get --yes install git
         git clone https://github.com/broadinstitute/centaur.git
-        centaur/test_cromwell.sh -b${branch} -c${conf}
+        git clone https://github.com/broadinstitute/cromwell.git
+        cd cromwell
+        echo "cd"
+        git checkout ${branch}
+        echo "checkout"
+        git pull
+        echo "pull"
+        sbt clean
+        echo "clean"
+        sbt assembly
+        echo "assembly"
+        java -Dconfig.file=${conf} -jar target/scala-2.11/cromwell-*.jar
+        echo "done"
+        exit 0
     >>>
 
     output {
@@ -15,8 +26,9 @@ task centaur {
     }
 
     runtime {
-        docker: "ubuntu:latest"
-        # FIXME: Some bigass machine here
+        docker: "geoffjentry/centaur-cromwell:latest"
+        cpu: "8"
+        memory: "10 GB"
     }
 }
 

@@ -130,6 +130,17 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
   }
 
+  it should "use CRDT ordering instead of timestamp for status" in {
+    val eventBuilderList = List(
+      ("status", "Succeeded", OffsetDateTime.now),
+      ("status", "Running", OffsetDateTime.now.plusSeconds(1))
+    )
+    val expectedRes =
+      """"status": "Succeeded"""".stripMargin
+
+    assertMetadataKeyStructure(eventBuilderList, expectedRes)
+  }
+
   it should "build JSON object structure from dotted key syntax" in {
     val eventBuilderList = List(
       ("a:b:c", "abc", OffsetDateTime.now),

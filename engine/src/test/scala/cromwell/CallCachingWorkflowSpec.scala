@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
-import cromwell.CromwellSpec.DockerTest
+import cromwell.CromwellSpec.{PostMVP, DockerTest}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.core.WorkflowSucceeded
 import cromwell.engine.workflow.OldStyleWorkflowManagerActor
@@ -32,7 +32,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
   )
 
   "A workflow which is run twice" should {
-    "use cached calls on the second run" ignore {
+    "use cached calls on the second run" taggedAs PostMVP in {
 
       /** This workflow has two identical calls in it (run in serial)
         *
@@ -57,7 +57,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "NOT use cached calls on the second run if read_from_cache workflow option is false" ignore {
+    "NOT use cached calls on the second run if read_from_cache workflow option is false" taggedAs PostMVP in {
       val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
@@ -75,7 +75,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "NOT use cached calls on the second run if write_to_cache workflow option is false" ignore {
+    "NOT use cached calls on the second run if write_to_cache workflow option is false" taggedAs PostMVP in {
       val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
@@ -93,7 +93,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "use cached calls on the second run (docker)" taggedAs DockerTest ignore {
+    "use cached calls on the second run (docker)" taggedAs (DockerTest, PostMVP) in {
       val salt = UUID.randomUUID().toString
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(salt),
@@ -119,7 +119,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "use cached calls on the second run (scatter)" ignore {
+    "use cached calls on the second run (scatter)" taggedAs PostMVP in {
       val outputs = Map(
         "w.E.E_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WdlInteger(_))),
         "w.C.C_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WdlInteger(_))),
@@ -143,7 +143,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
       )
     }
 
-    "show valid values for call caching in metadata" ignore {
+    "show valid values for call caching in metadata" taggedAs PostMVP in {
       implicit val workflowManagerActor = TestActorRef(
         new WorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig)
       )

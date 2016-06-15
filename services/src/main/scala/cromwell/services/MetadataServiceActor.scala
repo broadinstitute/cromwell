@@ -3,7 +3,7 @@ package cromwell.services
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
-import cromwell.core.{JobOutputs, WorkflowId, WorkflowState}
+import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import spray.http.Uri
 import wdl4s.values._

@@ -4,7 +4,6 @@ import akka.actor._
 
 import scala.concurrent.{Future, Promise, ExecutionContext}
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object PromiseActor {
   /**
     * Sends a message to an actor and returns the future associated with the fullfilment of the reply
@@ -31,7 +30,6 @@ object PromiseActor {
   }
 }
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 private class PromiseActor(promise: Promise[Any]) extends Actor {
   override def receive = {
     case Status.Failure(f) =>

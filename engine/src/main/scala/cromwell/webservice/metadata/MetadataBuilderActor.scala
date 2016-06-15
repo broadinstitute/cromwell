@@ -3,15 +3,15 @@ package cromwell.webservice.metadata
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cromwell.core.{ExecutionIndex, WorkflowId, WorkflowState}
+import cromwell.core.ExecutionIndex.ExecutionIndex
+import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.database.obj.WorkflowMetadataKeys
-import ExecutionIndex.ExecutionIndex
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services._
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
-import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, WaitingForMetadataService, MetadataBuilderActorState}
-import cromwell.webservice.{WorkflowJsonSupport, APIResponse, WorkflowQueryPagination}
+import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, MetadataBuilderActorState, WaitingForMetadataService}
+import cromwell.webservice.{APIResponse, WorkflowJsonSupport, WorkflowQueryPagination}
 import org.slf4j.LoggerFactory
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
@@ -21,7 +21,9 @@ import IndexedJsonValue._
 import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
+import scalaz.std.list._
+import scalaz.syntax.foldable._
+
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -131,7 +133,9 @@ object MetadataBuilderActor {
 
   /** Sort events by timestamp, transform them into TimestampedJsValues, and merge them together. */
   private def eventsToIndexedJson(events: Seq[MetadataEvent]): TimestampedJsValue = {
-     events map { e => keyValueToIndexedJson(e.key.key, e.value, e.offsetDateTime) } reduce(_ |+| _)
+    // The `List` has a `Foldable` instance defined in scope, and because the `List`'s elements have a `Monoid` instance
+    // defined in scope, `suml` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
+    events.toList map { e => keyValueToIndexedJson(e.key.key, e.value, e.offsetDateTime) } suml
   }
 
   private def eventsToAttemptMetadata(attempt: Int, events: Seq[MetadataEvent]) = {

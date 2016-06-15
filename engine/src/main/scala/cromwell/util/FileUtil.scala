@@ -8,7 +8,6 @@ import wdl4s.values.Hashable
 
 import scala.util.{Failure, Success, Try}
 
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
 object FileUtil {
   def swapExt(filePath: String, oldExt: String, newExt: String): String = {
     filePath.stripSuffix(oldExt) + newExt
@@ -16,7 +15,7 @@ object FileUtil {
 
   def parseTsv(tsv: String): Try[Array[Array[String]]] = {
     val table = tsv.split("\n").map(_.split("\t"))
-    table.map(_.size).toSet match {
+    table.map(_.length).toSet match {
       case s if s.size > 1 => Failure(new UnsupportedOperationException("TSV is not uniform"))
       case _ => Success(table)
     }

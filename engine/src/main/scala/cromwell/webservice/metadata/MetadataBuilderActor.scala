@@ -223,9 +223,6 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(StatusLookupNotFound(w), _) =>
       context.parent ! APIResponse.workflowNotFound(w)
       allDone
-    case Event(StatusLookupFailed(_, t), _) =>
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
-      allDone
     case Event(failure: ServiceRegistryFailure, _) =>
       val response = APIResponse.fail(new RuntimeException("Can't find metadata service"))
       context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
@@ -233,14 +230,14 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(WorkflowQuerySuccess(uri, response, metadata), _) =>
       context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
       allDone
-    case Event(WorkflowQueryFailure(t), _) =>
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
-      allDone
     case Event(WorkflowOutputsResponse(w, metadata), _) =>
       context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, metadata, includeCallsIfEmpty = false))
       allDone
-    case Event(WorkflowOutputsFailure(_, t), _) =>
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(t))
+    case Event(LogsResponse(w, l), _) =>
+      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false))
+      allDone
+    case Event(failure: MetadataServiceFailure, _) =>
+      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(failure.reason))
       allDone
     case Event(unexpectedMessage, stateData) =>
       val response = APIResponse.fail(new RuntimeException(s"MetadataBuilderActor $tag(WaitingForMetadataService, $stateData) got an unexpected message: $unexpectedMessage"))

@@ -5,6 +5,7 @@ import java.sql.{Clob, SQLTransientException, Timestamp}
 import cromwell.database.obj._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scalaz.NonEmptyList
 
 
 trait SqlDatabase extends AutoCloseable {
@@ -181,8 +182,17 @@ trait SqlDatabase extends AutoCloseable {
                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
 
   protected def queryMetadataEventsWithWildcardKey(workflowUuid: String,
-                                                   key: String)
-                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+                                                   wildcardKey: String,
+                                                   requireEmptyJobKey: Boolean)
+                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+
+    queryMetadataEventsWithWildcardKeys(workflowUuid, NonEmptyList(wildcardKey), requireEmptyJobKey)
+  }
+
+  protected def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
+                                                    wildcardKeys: NonEmptyList[String],
+                                                    requireEmptyJobKey: Boolean)
+                                                   (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
 
   /**
     * Retrieves all summarizable metadata satisfying the specified criteria.
@@ -190,7 +200,6 @@ trait SqlDatabase extends AutoCloseable {
     * @param startMetadataId        The minimum ID an entry in `METADATA_JOURNAL` must have to be examined for summary.
     * @param startMetadataTimestamp An optional timestamp.  If specified, a metadatum must have a timestamp greater than or equal to this value.
     * @param buildUpdatedSummary    Takes in the optional existing summary and the metadata, returns the new summary.
-    *
     * @return A `Future` with the maximum ID value of the metadata summarized by the invocation of this method.
     */
   protected def refreshMetadataSummaries(startMetadataId: Long, startMetadataTimestamp: Option[Timestamp],

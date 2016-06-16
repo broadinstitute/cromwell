@@ -1,6 +1,6 @@
 name: array_literal_locations
 testFormat: workflowsuccess
-ignore: false
+ignore: true
 
 files {
   wdl: array_literal_locations/array_literal_locations.wdl

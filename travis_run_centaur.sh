@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# FIXME: Remove this
+
 shutdown() {
     cd "${INITIAL_DIR}"
     # This will take out the backgrounded Cromwell instance

@@ -13,8 +13,6 @@ case class CromwellBackends(backendEntries: List[BackendConfigurationEntry],
                             defaultBackendEntry: BackendConfigurationEntry,
                             actorSystem: ActorSystem) {
 
-  case class EntryAndBackend(entry: BackendConfigurationEntry, backend: OldStyleBackend)
-
   val backendLifecycleActorFactories = backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory).toMap
   private val _shadowBackendFactories = backendLifecycleActorFactories
   private val _shadowDefaultBackendName = defaultBackendEntry.name
@@ -55,10 +53,4 @@ object CromwellBackends {
       defaultBackendEntry: BackendConfigurationEntry,
       actorSystem: ActorSystem))
   }
-
-  @deprecated(message = "This method is not implemented, will throw if used, and will not be part of the PBE universe", since = "May 2nd 2016")
-  def getBackendFromOptions(optionsString: String): OldStyleBackend = ???
-
-  @deprecated(message = "This method does nothing and will not be part of the PBE universe", since = "May 2nd 2016")
-  def registerCustomBackend(name: String, backend: OldStyleBackend): Unit = ()
 }

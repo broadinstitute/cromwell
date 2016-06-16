@@ -37,7 +37,6 @@ object WorkflowManagerActor {
   case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
   case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
-  private[WorkflowManagerActor] final case class RestartWorkflowsCommand(workflows: Seq[OldStyleWorkflowDescriptor]) extends WorkflowManagerActorCommand
 
   /**
     * Responses
@@ -133,16 +132,6 @@ class WorkflowManagerActor(config: Config)
       data.workflows.values.foreach { _ ! WorkflowActor.AbortWorkflowCommand }
       goto(Aborting)
     /*
-     Internal commands
-     */
-    case Event(RestartWorkflowsCommand(w :: ws), stateData) =>
-      val updatedEntry = restartWorkflow(w)
-      context.system.scheduler.scheduleOnce(RestartDelay) { self ! RestartWorkflowsCommand(ws) }
-      stay() using stateData.withAddition(updatedEntry)
-    case Event(RestartWorkflowsCommand(Nil), _) =>
-      // No more workflows need restarting.
-      stay()
-    /*
      Responses from services
      */
     case Event(WorkflowSucceededResponse(workflowId), data) =>
@@ -225,37 +214,5 @@ class WorkflowManagerActor(config: Config)
     wfActor ! StartWorkflowCommand
     logger.info(s"$tag Successfully started ${wfActor.path.name}")
     WorkflowIdToActorRef(workflowId, wfActor)
-  }
-
-  private def restartWorkflow(restartableWorkflow: OldStyleWorkflowDescriptor): WorkflowIdToActorRef = {
-    logger.info(s"$tag Invoking restartableWorkflow on ${restartableWorkflow.id.shortString}")
-    submitWorkflow(restartableWorkflow.sourceFiles, replyTo = None, Option(restartableWorkflow.id))
-  }
-
-  private def restartIncompleteWorkflows(): Unit = {
-    def logRestarts(restartableWorkflows: Traversable[OldStyleWorkflowDescriptor]): Unit = {
-      val num = restartableWorkflows.size
-      val displayNum = if (num == 0) "no" else num.toString
-      val plural = if (num == 1) "" else "s"
-
-      logger.info(s"$tag Found $displayNum workflow$plural to restart.")
-
-      if (num > 0) {
-        val ids = restartableWorkflows.map { _.id.toString }.toSeq.sorted
-        logger.info(s"$tag Restarting workflow ID$plural: " + ids.mkString(", "))
-      }
-    }
-
-    // TODO: This floating Future is awkward in an actor method. I would like to move all of this out into a WorkflowRestarterActor
-    val result = for {
-      restartableWorkflowExecutionAndAuxes <- globalDataAccess.getWorkflowExecutionAndAuxByState(Seq(WorkflowSubmitted, WorkflowRunning))
-      restartableWorkflows <- Future.sequence(restartableWorkflowExecutionAndAuxes map workflowDescriptorFromExecutionAndAux)
-      _ = logRestarts(restartableWorkflows)
-      _ = self ! RestartWorkflowsCommand(restartableWorkflows.toSeq)
-    } yield ()
-
-    result recover {
-      case e: Throwable => logger.error(e, e.getMessage)
-    }
   }
 }

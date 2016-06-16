@@ -8,10 +8,8 @@ import cromwell.CallCachingWorkflowSpec._
 import cromwell.CromwellSpec.{PostMVP, DockerTest}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.core.WorkflowSucceeded
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{WorkflowMetadata, WorkflowStatus}
 import cromwell.util.SampleWdl
-import cromwell.webservice.CromwellApiHandler.{WorkflowManagerStatusSuccess, WorkflowManagerWorkflowMetadataSuccess}
+import cromwell.webservice.CromwellApiHandler.{WorkflowManagerStatusSuccess}
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
@@ -156,21 +154,21 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
         workflowManagerActor=Option(workflowManagerActor)
       )
 
-      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
-      status shouldEqual WorkflowSucceeded
-
-      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(workflowId)).response
-      metadata should not be null
-
-      val callA = metadata.calls.get("file_passing.a").get.head
-      val callB = metadata.calls.get("file_passing.b").get.head
-
-      callA.cache.get.allowResultReuse shouldEqual true
-      callA.cache.get.cacheHitWorkflow shouldEqual None
-      callA.cache.get.cacheHitCall shouldEqual None
-      callB.cache.get.allowResultReuse shouldEqual true
-      callB.cache.get.cacheHitWorkflow shouldEqual Some(workflowId.id.toString)
-      callB.cache.get.cacheHitCall shouldEqual Some("file_passing.a")
+//      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
+//      status shouldEqual WorkflowSucceeded
+//
+//      val metadata = messageAndWait[WorkflowManagerWorkflowMetadataSuccess](WorkflowMetadata(workflowId)).response
+//      metadata should not be null
+//
+//      val callA = metadata.calls.get("file_passing.a").get.head
+//      val callB = metadata.calls.get("file_passing.b").get.head
+//
+//      callA.cache.get.allowResultReuse shouldEqual true
+//      callA.cache.get.cacheHitWorkflow shouldEqual None
+//      callA.cache.get.cacheHitCall shouldEqual None
+//      callB.cache.get.allowResultReuse shouldEqual true
+//      callB.cache.get.cacheHitWorkflow shouldEqual Some(workflowId.id.toString)
+//      callB.cache.get.cacheHitCall shouldEqual Some("file_passing.a")
     }
   }
 }
@@ -183,5 +181,5 @@ object CallCachingWorkflowSpec {
        |  lookup-docker-hash = true
        |}
      """.stripMargin)
-    .withFallback(OldStyleWorkflowManagerActor.defaultConfig)
+    //.withFallback(OldStyleWorkflowManagerActor.defaultConfig)
 }

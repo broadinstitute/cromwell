@@ -332,7 +332,7 @@ The backend/filesystem pairings are as follows:
 
 ### Shared Local Filesystem
 
-For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) and [Platform Sharing Facility](#platform-load-sharing-facility-backend) backends, the following is required of the underlying filesystem:
+For the [local](#local-backend), [Sun GridEngine](#sun-gridengine-backend), and [Platform Sharing Facility](#platform-load-sharing-facility-backend) backends, the following is required of the underlying filesystem:
 
 * (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
 * (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.

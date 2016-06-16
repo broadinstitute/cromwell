@@ -1,34 +1,28 @@
 task centaur {
-    String branch
+    String cromwell_branch
     File conf
     File pem
 
     command<<<
-        git clone https://github.com/broadinstitute/centaur.git
-        git clone https://github.com/broadinstitute/cromwell.git
-        cd cromwell
-        echo "cd"
-        git checkout ${branch}
-        echo "checkout"
+        mkdir -p /cromwell_root/tmp/.ivy2
+        export SBT_OPTS=-Dsbt.ivy.home=/cromwell_root/tmp/.ivy2
+        cd /centaur
+        git checkout develop
         git pull
-        echo "pull"
-        sbt clean
-        echo "clean"
-        sbt assembly
-        echo "assembly"
-        java -Dconfig.file=${conf} -jar target/scala-2.11/cromwell-*.jar
-        echo "done"
-        exit 0
+        ./test_cromwell.sh -b${cromwell_branch} -r/cromwell_root -c../${conf} -p25
     >>>
 
     output {
-        String centaur_log = read_string(stdout())
+        File cromwell_log = "/cromwell_root/logs/cromwell.log"
+        File centaur_log_file = "/cromwell_root/logs/centaur.log"
     }
 
     runtime {
         docker: "geoffjentry/centaur-cromwell:latest"
-        cpu: "8"
+        cpu: "32"
         memory: "10 GB"
+        zones: "us-central1-b"
+        failOnStderr: false
     }
 }
 

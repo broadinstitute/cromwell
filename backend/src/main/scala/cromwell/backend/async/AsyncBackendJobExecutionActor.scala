@@ -1,25 +1,24 @@
 package cromwell.backend.async
 
-import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, PoisonPill}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, _}
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
-import cromwell.core.retry.Backoff
+import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.services.MetadataServiceActor.MetadataServiceResponse
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
-import cromwell.services.MetadataServiceActor.MetadataServiceResponse
 
 
 object AsyncBackendJobExecutionActor {
 
   sealed trait AsyncBackendJobExecutionActorMessage
-  final case class IssuePollRequest(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
-  final case class PollResponseReceived(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
-  final case class Finish(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
+  private final case class IssuePollRequest(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
+  private final case class PollResponseReceived(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
+  private final case class FailAndStop(reason: Throwable) extends AsyncBackendJobExecutionActorMessage
+  private final case class Finish(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
 
   sealed trait ExecutionMode extends AsyncBackendJobExecutionActorMessage
   case object Execute extends ExecutionMode
@@ -30,54 +29,43 @@ object AsyncBackendJobExecutionActor {
 
 trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
-  /**
-    * Schedule work according to the schedule of the `backoff`.
-    */
-  protected def scheduleWork(actorContext: ActorContext, work: => Unit)(implicit ec: ExecutionContext): Unit = {
-    val interval = backoff.backoffMillis.millis
-    actorContext.system.scheduler.scheduleOnce(interval) {
-      work
+  def retryable: Boolean
+
+  private def withRetry[A](work: () => Future[A], backoff: SimpleExponentialBackoff): Future[A] = {
+    def isFatal(t: Throwable) = t.isInstanceOf[CromwellFatalException]
+
+    Retry.withRetry(work, isTransient = !isFatal(_), isFatal = isFatal, backoff = backoff)(context.system)
+  }
+
+  private def robustExecuteOrRecover(mode: ExecutionMode) = {
+    withRetry(() => executeOrRecover(mode), executeOrRecoverBackoff) onComplete {
+      case Success(h) => self ! IssuePollRequest(h)
+      case Failure(t) => self ! FailAndStop(t)
     }
   }
 
-  def backoff: Backoff
+  def pollBackoff: SimpleExponentialBackoff
 
-  def retryable: Boolean
+  def executeOrRecoverBackoff: SimpleExponentialBackoff
 
-  /**
-    * If the `work` `Future` completes successfully, perform the `onSuccess` work, otherwise schedule
-    * the execution of the `onFailure` work using an exponential backoff.
-    */
-  def withRetry(actorContext: ActorContext, work: Future[ExecutionHandle], onSuccess: ExecutionHandle => Unit, onFailure: => Unit)(implicit ec: ExecutionContext): Unit = {
-    // WARNING! THIS IS NOT IN THE RECEIVE THREAD SO DO NOT LOG FROM THIS METHOD !!
-    work onComplete {
-      case Success(s) => onSuccess(s)
-      case Failure(e: CromwellFatalException) =>
-        val responseBuilder = if (retryable) FailedRetryableResponse else FailedNonRetryableResponse
-        completionPromise.success(responseBuilder.apply(jobDescriptor.key, e, None))
-        actorContext.stop(self)
-      case Failure(e: Exception) =>
-        scheduleWork(actorContext, onFailure)
-      case Failure(throwable) =>
-        // This is a catch-all for a JVM-ending kind of exception, which is why we throw the exception
-        throw throwable
+  private def robustPoll(handle: ExecutionHandle) = {
+    withRetry(() => poll(handle), pollBackoff) onComplete {
+      case Success(h) => self ! PollResponseReceived(h)
+      case Failure(t) => self ! FailAndStop(t)
     }
+  }
+
+  private def failAndStop(t: Throwable) = {
+    val responseBuilder = if (retryable) FailedRetryableResponse else FailedNonRetryableResponse
+    completionPromise.success(responseBuilder.apply(jobDescriptor.key, t, None))
+    context.stop(self)
   }
 
   def receive: Receive = {
-    case mode: ExecutionMode =>
-      withRetry(context, executeOrRecover(mode),
-        onSuccess = self ! IssuePollRequest(_),
-        onFailure = self ! mode
-      )
-
-    case IssuePollRequest(handle) =>
-      withRetry(context, poll(handle),
-        onSuccess = self ! PollResponseReceived(_),
-        onFailure = self ! IssuePollRequest(handle)
-      )
+    case mode: ExecutionMode => robustExecuteOrRecover(mode)
+    case IssuePollRequest(handle) => robustPoll(handle)
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
-    case PollResponseReceived(handle) => scheduleWork(context, self ! IssuePollRequest(handle))
+    case PollResponseReceived(handle) => robustPoll(handle)
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, hash, resultsClonedFrom)) =>
       completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs))
       context.stop(self)
@@ -90,8 +78,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case Finish(cromwell.backend.async.AbortedExecutionHandle) =>
       completionPromise.success(AbortedResponse(jobDescriptor.key))
       context.stop(self)
+    case FailAndStop(t) => failAndStop(t)
     case response: MetadataServiceResponse => handleMetadataServiceResponse(sender(), response)
-
     case badMessage => log.error(s"Unexpected message $badMessage.")
   }
 

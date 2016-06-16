@@ -4,13 +4,14 @@ shutdown() {
     cd "${INITIAL_DIR}"
     # This will take out the backgrounded Cromwell instance
     pkill -P $$
-    exit 0
+    exit "${EXIT_CODE}"
 }
 
 trap "shutdown" EXIT
 
 set -e
 
+EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
@@ -99,6 +100,7 @@ if ./run_tests_parallel.sh "${PARALLELISM_FACTOR}"  >> ../${CENTAUR_LOG} 2>&1 ; 
     TEST_STATUS="failed"
 else
     TEST_STATUS="succeeded"
+    EXIT_CODE=0
 fi
 
 echo "SBT test $TEST_STATUS, please see logs for more information"

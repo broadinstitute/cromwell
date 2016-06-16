@@ -27,7 +27,7 @@ object WorkflowData {
   implicit class EnhancedPath(val path: Path) extends AnyVal {
     /** Read an entire file into a string, closing the underlying stream. */
     def slurp: String = {
-      val source = io.Source.fromFile(path.toFile)
+      val source = io.Source.fromFile(path.toFile, "UTF-8")
       try source.mkString finally source.close()
     }
   }

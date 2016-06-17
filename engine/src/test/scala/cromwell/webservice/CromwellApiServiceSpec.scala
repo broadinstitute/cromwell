@@ -4,14 +4,16 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{Actor, Props}
+import akka.util.Timeout
 import cromwell.core.{JobOutput, WorkflowAborted, WorkflowId, WorkflowRunning}
 import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.server.WorkflowManagerSystem
-import cromwell.services.MetadataServiceActor
-import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowOutputs, WorkflowQuery, WorkflowQueryResponse}
+import cromwell.services.MetadataServiceActor._
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataServiceActor, MetadataValue}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
-import cromwell.webservice.MockWorkflowManagerActor.{SubmitWorkflow, WorkflowStatus, submittedWorkflowId, unknownId}
+import cromwell.webservice.MockWorkflowManagerActor.{WorkflowStatus, submittedWorkflowId, unknownId}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
@@ -19,8 +21,6 @@ import spray.json._
 import spray.testkit.ScalatestRouteTest
 import wdl4s._
 import wdl4s.values.{SymbolHash, WdlFile, WdlInteger, WdlValue}
-
-import scala.util.{Failure, Success, Try}
 
 object MockWorkflowManagerActor {
   sealed trait WorkflowManagerMessage
@@ -128,7 +128,8 @@ object CromwellApiServiceSpec {
   val MalformedWdl : String = "foobar bad wdl!"
 }
 
-class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers {
+class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers
+  with ScalaFutures {
   import spray.httpx.SprayJsonSupport._
 
   // BUG: Must be called once to statically initialize the backends, otherwise this Spec won't run if run alone.
@@ -455,7 +456,111 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 200 with an HTML document for the timings route"in {
+  it should "return with full metadata from the metadata route" in {
+    val workflowId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, "testKey1"), MetadataValue("myValue1")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey2"), MetadataValue("myValue2"))
+    )
+
+    val timeout: Timeout = 5.seconds.dilated
+    val patienceConfig = PatienceConfig(timeout.duration)
+
+    import akka.pattern.ask
+    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
+    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+
+    Get(s"/workflows/$version/$workflowId/metadata") ~>
+      metadataRoute ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf("testKey1", "testKey2")
+        result.fields.keys shouldNot contain("testKey3")
+        result.fields("testKey1") should be(JsString("myValue1"))
+        result.fields("testKey2") should be(JsString("myValue2"))
+      }
+  }
+
+  it should "return with included metadata from the metadata route" in {
+    val workflowId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey2b"), MetadataValue("myValue2b"))
+    )
+
+    val timeout: Timeout = 5.seconds.dilated
+    val patienceConfig = PatienceConfig(timeout.duration)
+
+    import akka.pattern.ask
+    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
+    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+
+    Get(s"/workflows/$version/$workflowId/metadata?includeKey=testKey1&includeKey=testKey2a") ~>
+      metadataRoute ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys should contain noneOf("testKey2b", "testKey3")
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
+      }
+  }
+
+  it should "return with excluded metadata from the metadata route" in {
+    val workflowId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a")),
+      MetadataEvent(MetadataKey(workflowId, None, "testKey2b"), MetadataValue("myValue2b"))
+    )
+
+    val timeout: Timeout = 5.seconds.dilated
+    val patienceConfig = PatienceConfig(timeout.duration)
+
+    import akka.pattern.ask
+    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
+    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+
+    Get(s"/workflows/$version/$workflowId/metadata?excludeKey=testKey2b&excludeKey=testKey3") ~>
+      metadataRoute ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys should contain noneOf("testKey2b", "testKey3")
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
+      }
+  }
+
+  it should "return an error when included and excluded metadata requested from the metadata route" in {
+    val workflowId = WorkflowId.randomId()
+
+    Get(s"/workflows/$version/$workflowId/metadata?includeKey=testKey1&excludeKey=testKey2") ~>
+      metadataRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "includeKey and excludeKey may not be specified together"
+              |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return 200 with an HTML document for the timings route" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/timing") ~>
       timingRoute ~>
       check {

@@ -500,7 +500,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       }
     })
 
-    val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key))
+    val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None))
     Await.result(supervisor.ask(message).mapTo[RequestComplete[(String,JsObject)]], Duration.Inf).response._2
   }
 

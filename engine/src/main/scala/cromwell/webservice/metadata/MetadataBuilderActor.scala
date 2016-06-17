@@ -251,7 +251,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
     else {
       query match {
-        case MetadataQuery(w, _, _) => workflowMetadataResponse(w, eventsList)
+        case MetadataQuery(w, _, _, _, _) => workflowMetadataResponse(w, eventsList)
         case _ => MetadataBuilderActor.parse(eventsList)
       }
     }

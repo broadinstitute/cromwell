@@ -66,6 +66,8 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
             case WdlBoolean(_) => true
             case _ => false
           }
+          case Failure(throwable) =>
+            throw new RuntimeException(s"Expression evaluation failed due to $throwable: $wdlExpression", throwable)
         }
     }
   }

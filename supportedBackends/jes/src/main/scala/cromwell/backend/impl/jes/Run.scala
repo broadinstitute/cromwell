@@ -137,6 +137,8 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
           if (jesEndTime.offsetDateTime isAfter finalEventTime) jesEndTime else jesEndTime.copy(offsetDateTime = finalEventTime)
         case (Some(jesEndTime), None) => jesEndTime
         case (None, Some(finalEventTime)) => EventStartTime("cromwell poll interval", finalEventTime)
+        case (None, None) =>
+          throw new IllegalArgumentException("Both jesReportedEndTime and finalEventsListTime were None.")
       }
     }
   }

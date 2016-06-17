@@ -123,19 +123,33 @@ trait DataAccess extends AutoCloseable {
 
   def queryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = query.workflowId.id.toString
+
     val futureMetadata: Future[Seq[Metadatum]] = query match {
-      case MetadataQuery(_, None, None) => queryMetadataEvents(uuid)
-      case MetadataQuery(_, None, Some(key)) => queryMetadataEvents(uuid, key)
-      case MetadataQuery(_, Some(jobKey), None) => queryMetadataEvents(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt)
-      case MetadataQuery(_, Some(jobKey), Some(key)) => queryMetadataEvents(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
+      case MetadataQuery(_, None, None, None, None) => queryMetadataEvents(uuid)
+      case MetadataQuery(_, None, Some(key), None, None) => queryMetadataEvents(uuid, key)
+      case MetadataQuery(_, Some(jobKey), None, None, None) =>
+        queryMetadataEvents(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt)
+      case MetadataQuery(_, Some(jobKey), Some(key), None, None) =>
+        queryMetadataEvents(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
+      case MetadataQuery(_, None, None, Some(includeKeys), None) =>
+        queryMetadataEventsWithWildcardKeys(uuid, includeKeys.map(_ + "%"), requireEmptyJobKey = false)
+      case MetadataQuery(_, None, None, None, Some(excludeKeys)) =>
+        queryMetadataEventsWithoutWildcardKeys(uuid, excludeKeys.map(_ + "%"), requireEmptyJobKey = false)
+      case MetadataQuery(_, None, None, Some(includeKeys), Some(excludeKeys)) => Future.failed(
+        new IllegalArgumentException(
+          s"Include/Exclude keys may not be mixed: include = $includeKeys, exclude = $excludeKeys"))
+      case invalidQuery => Future.failed(new IllegalArgumentException(
+        s"Include/Exclude keys are only supported when querying the workflow, not when querying calls: $invalidQuery"))
     }
+
     futureMetadata map metadataToMetadataEvents(query.workflowId)
   }
 
   def queryWorkflowOutputs(id: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
-    queryMetadataEventsWithWildcardKey(uuid, WorkflowMetadataKeys.Outputs + ":%", requireEmptyJobKey = true) map metadataToMetadataEvents(id)
+    queryMetadataEventsWithWildcardKeys(uuid, s"${WorkflowMetadataKeys.Outputs}:".wrapNel, requireEmptyJobKey = true).
+      map(metadataToMetadataEvents(id))
   }
 
   def queryLogs(id: WorkflowId)

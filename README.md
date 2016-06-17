@@ -1792,6 +1792,19 @@ Workflow metadata includes submission, start, and end datetimes, as well as stat
 Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
 return code, stdout and stderr.  Date formats are ISO with milliseconds.
 
+Accepted parameters are:
+
+* `includeKey` Optional repeated string value, specifies what metadata
+  keys to include in the output, matched as a prefix string. Keys that
+  are not specified are filtered out. The call keys `attempt` and
+  `shardIndex` will always be included. May not be used with
+  `excludeKey`.
+
+* `excludeKey` Optional repeated string value, specifies what metadata
+  keys to exclude from the output, matched as a prefix string. Keys that
+  are specified are filtered out. The call keys `attempt` and
+  `shardIndex` will always be included. May not be used with
+  `includeKey`.
 
 cURL:
 
@@ -1812,7 +1825,7 @@ Server spray-can/1.3.3 is not blacklisted
 Server: spray-can/1.3.3
 Date: Thu, 01 Oct 2015 22:18:07 GMT
 Content-Type: application/json; charset=UTF-8
-Content-Length: 8286
+Content-Length: 7286
 {
   "workflowName": "sc_test",
   "calls": {
@@ -1824,8 +1837,6 @@ Content-Length: 8286
         "outputs": {
           "split_files": [
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ab",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ac",
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
           ]
         },
@@ -1907,50 +1918,6 @@ Content-Length: 8286
         "attempt": 1,
         "executionEvents": [],
         "start": "2016-02-04T13:47:56.000-05:00"
-      },
-      {
-        "executionStatus": "Done",
-        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/stdout",
-        "shardIndex": 2,
-        "outputs": {
-          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt"
-        },
-        "runtimeAttributes": {
-           "failOnStderr": "true",
-           "continueOnReturnCode": "0"
-        },
-        "inputs": {
-          "input_file": "f"
-        },
-        "returnCode": 0,
-        "backend": "Local",
-        "end": "2016-02-04T13:47:56.000-05:00",
-        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/stderr",
-        "attempt": 1,
-        "executionEvents": [],
-        "start": "2016-02-04T13:47:56.000-05:00"
-      },
-      {
-        "executionStatus": "Done",
-        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/stdout",
-        "shardIndex": 3,
-        "outputs": {
-          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
-        },
-        "runtimeAttributes": {
-           "failOnStderr": "true",
-           "continueOnReturnCode": "0"
-        },
-        "inputs": {
-          "input_file": "f"
-        },
-        "returnCode": 0,
-        "backend": "Local",
-        "end": "2016-02-04T13:47:56.000-05:00",
-        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/stderr",
-        "attempt": 1,
-        "executionEvents": [],
-        "start": "2016-02-04T13:47:56.000-05:00"
       }
     ],
     "sc_test.do_gather": [
@@ -1968,10 +1935,7 @@ Content-Length: 8286
         "inputs": {
           "input_files": [
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
           ]
         },
         "returnCode": 0,
@@ -1988,16 +1952,11 @@ Content-Length: 8286
     "sc_test.do_gather.sum": 12,
     "sc_test.do_prepare.split_files": [
       "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ab",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ac",
       "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
     ],
     "sc_test.do_scatter.count_file": [
       "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
     ]
   },
   "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
@@ -2008,6 +1967,107 @@ Content-Length: 8286
   "status": "Succeeded",
   "end": "2016-02-04T13:47:57.000-05:00",
   "start": "2016-02-04T13:47:55.000-05:00"
+}
+```
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata?includeKey=inputs&includeKey=outputs"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata?includeKey=inputs&includeKey=outputs"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Server spray-can/1.3.3 is not blacklisted
+Server: spray-can/1.3.3
+Date: Thu, 01 Oct 2015 22:19:07 GMT
+Content-Type: application/json; charset=UTF-8
+Content-Length: 4286
+{
+  "calls": {
+    "sc_test.do_prepare": [
+      {
+        "shardIndex": -1,
+        "outputs": {
+          "split_files": [
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
+          ]
+        },
+        "inputs": {
+          "input_file": "/home/jdoe/cromwell/11.txt"
+        },
+        "attempt": 1
+      }
+    ],
+    "sc_test.do_scatter": [
+      {
+        "shardIndex": 0,
+        "outputs": {},
+        "inputs": {
+          "input_file": "f"
+        },
+        "attempt": 1
+      },
+      {
+        "shardIndex": 0,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "attempt": 2
+      },
+      {
+        "shardIndex": 1,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "attempt": 1
+      }
+    ],
+    "sc_test.do_gather": [
+      {
+        "shardIndex": -1,
+        "outputs": {
+          "sum": 12
+        }
+        "inputs": {
+          "input_files": [
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+          ]
+        },
+        "attempt": 1
+      }
+    ]
+  },
+  "outputs": {
+    "sc_test.do_gather.sum": 12,
+    "sc_test.do_prepare.split_files": [
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
+    ],
+    "sc_test.do_scatter.count_file": [
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+    ]
+  },
+  "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
+  "inputs": {
+    "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
+  }
 }
 ```
 

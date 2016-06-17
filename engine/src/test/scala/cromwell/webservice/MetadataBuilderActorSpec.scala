@@ -97,7 +97,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
         |  "id": "$workflowA"
       |}""".stripMargin
 
-    val mdQuery = MetadataQuery(workflowA, None, None)
+    val mdQuery = MetadataQuery(workflowA, None, None, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, workflowAEvents, expectedRes)
   }
@@ -114,8 +114,8 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
     val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
 
-    val mdQuery = MetadataQuery(workflow, None, None)
-    val queryAction = GetSingleWorkflowMetadataAction(workflow)
+    val mdQuery = MetadataQuery(workflow, None, None, None, None)
+    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
   }
 
@@ -306,7 +306,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           | }
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
@@ -327,7 +327,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           |}
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
@@ -347,14 +347,14 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           |}
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
 
   it should "render empty Json" in {
     val workflowId = WorkflowId.randomId()
-    val mdQuery = MetadataQuery(workflowId, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     val expectedEmptyResponse = """{}"""
     assertMetadataResponse(queryAction, mdQuery, List.empty, expectedEmptyResponse)
@@ -384,7 +384,7 @@ class MetadataBuilderActorSpec extends TestKit(ActorSystem("Metadata"))
           |}
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, emptyEvents, expectedEmptyResponse)
 

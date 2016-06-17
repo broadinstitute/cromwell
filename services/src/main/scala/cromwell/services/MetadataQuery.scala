@@ -6,6 +6,8 @@ import cromwell.core.WorkflowId
 import org.slf4j.LoggerFactory
 import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlValue}
 
+import scalaz.NonEmptyList
+
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
 case class MetadataKey(workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String)
@@ -61,12 +63,18 @@ object MetadataQueryJobKey {
   def forMetadataJobKey(jobKey: MetadataJobKey) = MetadataQueryJobKey(jobKey.callFqn, jobKey.index, jobKey.attempt)
 }
 
-case class MetadataQuery(workflowId: WorkflowId, jobKey: Option[MetadataQueryJobKey], key: Option[String])
+case class MetadataQuery(workflowId: WorkflowId, jobKey: Option[MetadataQueryJobKey], key: Option[String],
+                         includeKeysOption: Option[NonEmptyList[String]],
+                         excludeKeysOption: Option[NonEmptyList[String]])
 
 object MetadataQuery {
-  def forWorkflow(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None)
+  def forWorkflow(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None)
 
-  def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey) = MetadataQuery(workflowId, Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None)
+  def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey) = {
+    MetadataQuery(workflowId, Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None, None, None)
+  }
 
-  def forKey(key: MetadataKey) = MetadataQuery(key.workflowId, key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key))
+  def forKey(key: MetadataKey) = {
+    MetadataQuery(key.workflowId, key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key), None, None)
+  }
 }

@@ -9,6 +9,7 @@ import spray.http.Uri
 import wdl4s.values._
 
 import scala.language.postfixOps
+import scalaz.NonEmptyList
 
 object MetadataServiceActor {
 
@@ -31,7 +32,9 @@ object MetadataServiceActor {
     def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
   }
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
-  case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId) extends MetadataServiceAction
+  case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
+                                             excludeKeysOption: Option[NonEmptyList[String]])
+    extends MetadataServiceAction
   case class GetMetadataQueryAction(key: MetadataQuery) extends MetadataServiceAction
   case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
   case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends MetadataServiceAction

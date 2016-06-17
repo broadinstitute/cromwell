@@ -181,18 +181,15 @@ trait SqlDatabase extends AutoCloseable {
                                     attempt: Int)
                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
 
-  protected def queryMetadataEventsWithWildcardKey(workflowUuid: String,
-                                                   wildcardKey: String,
-                                                   requireEmptyJobKey: Boolean)
-                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-
-    queryMetadataEventsWithWildcardKeys(workflowUuid, NonEmptyList(wildcardKey), requireEmptyJobKey)
-  }
-
   protected def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
                                                     wildcardKeys: NonEmptyList[String],
                                                     requireEmptyJobKey: Boolean)
                                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+
+  protected def queryMetadataEventsWithoutWildcardKeys(workflowUuid: String,
+                                                       wildcardKeys: NonEmptyList[String],
+                                                       requireEmptyJobKey: Boolean)
+                                                      (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
 
   /**
     * Retrieves all summarizable metadata satisfying the specified criteria.

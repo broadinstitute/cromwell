@@ -13,10 +13,10 @@ import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._
 import spray.http.MediaTypes._
 import spray.http.StatusCodes
+import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
-import spray.httpx.SprayJsonSupport._
 
 import scala.util.{Failure, Success, Try}
 
@@ -45,8 +45,10 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 trait CromwellApiService extends HttpService with PerRequestCreator with ServiceRegistryClient {
   val workflowManager: ActorRef
 
-  private def invalidWorkflowId(id: String) = respondWithMediaType(`application/json`) {
-    complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
+  private def invalidWorkflowId(id: String) = failBadRequest(new RuntimeException(s"Invalid workflow ID: '$id'."))
+
+  private def failBadRequest(exception: Exception) = respondWithMediaType(`application/json`) {
+    complete(StatusCodes.BadRequest, APIResponse.fail(exception).toJson.prettyPrint)
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
@@ -145,13 +147,26 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
 
   def metadataRoute =
     path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
-      parameters('outputs ? true, 'timings ? true).as(WorkflowMetadataQueryParameters) { parameters =>
-        Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) =>
-            version match {
-              case _ => requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), GetSingleWorkflowMetadataAction(w))
+      parameterMultiMap { parameters =>
+        // import scalaz_ & Scalaz._ add too many slow implicits, on top of the spray and json implicits
+        import scalaz.syntax.std.list._
+        val includeKeysOption = parameters.getOrElse("includeKey", List.empty).toNel
+        val excludeKeysOption = parameters.getOrElse("excludeKey", List.empty).toNel
+        (includeKeysOption, excludeKeysOption) match {
+          case (Some(_), Some(_)) =>
+            failBadRequest(new IllegalArgumentException("includeKey and excludeKey may not be specified together"))
+          case _ =>
+            Try(WorkflowId.fromString(workflowId)) match {
+              case Success(workflowIdFromString) =>
+                version match {
+                  case _ =>
+                    requestContext =>
+                      perRequest(requestContext,
+                        MetadataBuilderActor.props(serviceRegistryActor),
+                        GetSingleWorkflowMetadataAction(workflowIdFromString, includeKeysOption, excludeKeysOption))
+                }
+              case Failure(_) => invalidWorkflowId(workflowId)
             }
-          case Failure(_) => invalidWorkflowId(workflowId)
         }
       }
     }

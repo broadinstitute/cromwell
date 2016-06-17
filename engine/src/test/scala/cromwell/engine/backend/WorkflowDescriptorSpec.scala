@@ -139,7 +139,7 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
 //
 //      val tmpDir = Files.createTempDirectory("wf-outputs").toAbsolutePath
 //      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-//        s"""{ "outputs_path": "$tmpDir" }""")
+//        s"""{ "final_workflow_outputs_dir": "$tmpDir" }""")
 //
 //      val workflowOutputs = Map(
 //        "wfoutputs.A.out" -> "call-A/out",
@@ -253,7 +253,7 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
 //
 //      val tmpDir = Files.createTempDirectory("workflow-log").toAbsolutePath
 //      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-//        s"""{ "workflow_log_dir": "$tmpDir" }""")
+//        s"""{ "final_workflow_log_dir": "$tmpDir" }""")
 //
 //      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = ConfigFactory.load)
 //      descriptor.copyWorkflowLog().futureValue

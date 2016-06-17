@@ -162,16 +162,14 @@ case class LsfBackend(actorSystem: ActorSystem) extends Backend with SharedFileS
    */
   private def launchBsub(jobDescriptor: BackendCallJobDescriptor): (Int, Option[Int]) = {
     val logger = jobLogger(jobDescriptor)
-    val lsfOption = new java.util.HashMap[String,Object]()
-
-    if(ConfigFactory.load.hasPath("backend.lsf")) {
-       lsfOption.putAll(ConfigFactory.load.getConfig("backend.lsf").root().unwrapped())
-    }
     // Setup the default bsub options
-    scala.collection.immutable.Map("-J" -> s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}",
-      "-cwd" -> jobDescriptor.callRootPath.toAbsolutePath,
-      "-o" -> jobDescriptor.stdout.getFileName,
-      "-e" -> jobDescriptor.stderr.getFileName).map { case (k, v) => lsfOption.put(k, lsfOption.getOrElse(k, v)) }
+    val lsfOption = scala.collection.immutable.Map("-J" -> s"cromwell_${jobDescriptor.workflowDescriptor.shortId}_${jobDescriptor.call.unqualifiedName}",
+            "-cwd" -> jobDescriptor.callRootPath.toAbsolutePath,
+            "-o" -> jobDescriptor.stdout.getFileName,
+            "-e" -> jobDescriptor.stderr.getFileName) ++ (ConfigFactory.load.hasPath("backend.lsf") match {
+      case true => ConfigFactory.load.getConfig("backend.lsf").root().unwrapped().toMap
+      case false => scala.collection.immutable.Map()
+    })
 
     val argv = (lsfOption.foldLeft(Seq("bsub"))((command, kv) =>  command ++ Seq(kv._1, kv._2.toString)) ++  Seq("/bin/sh", jobDescriptor.script.toAbsolutePath)).map(_.toString)
     val backendCommandString = argv.map(s => "\""+s+"\"").mkString(" ")

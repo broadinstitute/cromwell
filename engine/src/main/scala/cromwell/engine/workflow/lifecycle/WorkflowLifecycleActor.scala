@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{ActorRef, LoggingFSM}
+import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 
 object WorkflowLifecycleActor {
@@ -57,7 +58,7 @@ trait AbortableWorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends 
   }
 }
 
-trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFSM[S, WorkflowLifecycleActorData] {
+trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFSM[S, WorkflowLifecycleActorData] with WorkflowLogging {
   val successState: S
   val failureState: S
 
@@ -67,17 +68,17 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
 
   whenUnhandled {
     case unhandledMessage =>
-      log.warning(s"received an unhandled message: $unhandledMessage")
+      workflowLogger.warn(s"received an unhandled message: $unhandledMessage")
       stay
   }
 
   onTransition {
     case _ -> state if state.terminal =>
-      log.info("State is now terminal. Shutting down.")
+      workflowLogger.info("State is now terminal. Shutting down.")
       context.stop(self)
     case fromState -> toState =>
       // Only log this at debug - these states are never seen or used outside of the CallActor itself.
-      log.info(s"State is transitioning from $fromState to $toState.")
+      workflowLogger.info(s"State is transitioning from $fromState to $toState.")
   }
 
   protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {

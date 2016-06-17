@@ -70,17 +70,14 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         } yield actor
       }
 
-      val engineFinalizationActors = Try {
-        val props = Seq(
-          CopyWorkflowLogsActor.props(workflowId, workflowDescriptor, executionStore, outputStore),
-          CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, executionStore, outputStore))
-        props map context.actorOf
+      val engineFinalizationActor = Try {
+        context.actorOf(CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, outputStore))
       }
 
       val allActors = for {
         backendFinalizationActorsFromTry <- backendFinalizationActors
-        engineFinalizationActorsFromTry <- engineFinalizationActors
-      } yield backendFinalizationActorsFromTry ++ engineFinalizationActorsFromTry
+        engineFinalizationActorFromTry <- engineFinalizationActor
+      } yield backendFinalizationActorsFromTry.toList.+:(engineFinalizationActorFromTry)
 
       allActors match {
         case Failure(ex) =>

@@ -17,12 +17,14 @@ import cromwell.backend.impl.jes.JesImplicits.{GoogleAuthWorkflowOptions, PathSt
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
+import cromwell.core.logging.JobLogging
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
 import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.CallMetadataKeys._
 import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
+import org.slf4j.Logger
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s._
@@ -75,7 +77,7 @@ object JesAsyncBackendJobExecutionActor {
 class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                        override val completionPromise: Promise[BackendJobExecutionResponse],
                                        jesConfiguration: JesConfiguration)
-  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with ServiceRegistryClient {
+  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with ServiceRegistryClient with JobLogging {
 
   import JesAsyncBackendJobExecutionActor._
 
@@ -83,8 +85,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   override lazy val executeOrRecoverBackoff = SimpleExponentialBackoff(initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
-  private lazy val jesAttributes = jesConfiguration.jesAttributes
   private lazy val workflowDescriptor = jobDescriptor.descriptor
+
+  // For Logging
+  val workflowId = workflowDescriptor.id
+  val jobTag = jobDescriptor.key.tag
+
+  private lazy val jesAttributes = jesConfiguration.jesAttributes
   private lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, workflowDescriptor, jesConfiguration)
   private lazy val monitoringScript: Option[JesInput] = {
     jobDescriptor.descriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
@@ -125,7 +132,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
   private lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
 
-  private lazy val workflowId = jobDescriptor.descriptor.id
 
   private lazy val metadataJobKey = {
     val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
@@ -144,12 +150,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         event.value match {
           case Some(jobIdMetadata) =>
             val jobId = jobIdMetadata.value
-            log.info(s"$tag Aborting $jobId")
+            jobLogger.info(s"$tag Aborting $jobId")
             Try(Run(jobId, jobDescriptor, genomicsInterface).abort()) match {
-              case Success(_) => log.info(s"$tag Aborted $jobId")
-              case Failure(ex) => log.warning(s"$tag Failed to abort $jobId: ${ex.getMessage}")
+              case Success(_) => jobLogger.info(s"$tag Aborted $jobId")
+              case Failure(ex) => jobLogger.warn(s"$tag Failed to abort $jobId: ${ex.getMessage}")
             }
-          case None => log.warning(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
+          case None => jobLogger.warn(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
         }
       }
       context.parent ! AbortedResponse(jobDescriptor.key)
@@ -275,7 +281,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       taskOutput.requiredExpression.evaluateFiles(lookup, NoFunctions, taskOutput.wdlType) match {
         case Success(wdlFiles) => wdlFiles map relativeLocalizationPath
         case Failure(ex) =>
-          log.warning(s"Could not evaluate $taskOutput: ${ex.getMessage}", ex)
+          jobLogger.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}", ex)
           Seq.empty[WdlFile]
       }
     }
@@ -407,7 +413,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       case handle: JesPendingExecutionHandle =>
         val wfId = handle.jobDescriptor.descriptor.id.shortString
         val runId = handle.run.runId
-        log.debug(s"$tag Polling JES Job $runId")
+        jobLogger.debug(s"$tag Polling JES Job $runId")
         val previousStatus = handle.previousStatus
         val status = Try(handle.run.status())
         status foreach { currentStatus =>
@@ -415,7 +421,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
             // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
             // just use the state names.
             val prevStateName = previousStatus map { _.toString } getOrElse "-"
-            log.info(s"$tag Status change from $prevStateName to $currentStatus")
+            jobLogger.info(s"$tag Status change from $prevStateName to $currentStatus")
             tellMetadata("backendStatus", currentStatus.toString)
           }
         }
@@ -425,11 +431,11 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
             executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
-            log.error(s"$tag JES Job ID ${handle.run.runId} has not been found, failing call")
+            jobLogger.error(s"$tag JES Job ID ${handle.run.runId} has not been found, failing call")
             FailedNonRetryableExecutionHandle(e).future
           case Failure(e: Exception) =>
             // Log exceptions and return the original handle to try again.
-            log.warning(s"Caught exception, retrying: {} ({})", e.getMessage, e.getStackTrace.mkString(System.lineSeparator))
+            jobLogger.warn(s"Caught exception, retrying", e)
             handle.future
           case Failure(e: Error) => Future.failed(e) // JVM-ending calamity.
           case Failure(throwable) =>
@@ -586,7 +592,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       errorCode == 10 && errorMessage.isDefined && isPreemptionCode(extractErrorCodeFromErrorMessage(errorMessage.get)) && preemptible
     } catch {
       case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
-        log.warning(s"Unable to parse JES error code from error message: ${}, assuming this was not a preempted VM.", errorMessage.get)
+        jobLogger.warn(s"Unable to parse JES error code from error message: ${}, assuming this was not a preempted VM.", errorMessage.get)
         false
     }
   }
@@ -635,7 +641,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: stderr has length $stderrLength"), returnCode.toOption).future
         case _: RunStatus.Success if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
-          log.warning(s"{} could not download return code file, retrying: {}", tag, exception)
+          jobLogger.warn(s"could not download return code file, retrying", exception)
           // Return handle to try again.
           handle.future
         case _: RunStatus.Success if returnCode.isFailure =>
@@ -648,7 +654,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       }
     } catch {
       case e: Exception =>
-        log.warning("{}: Caught exception trying to download result, retrying: {}", tag, e)
+        jobLogger.warn("Caught exception trying to download result, retrying", e)
         // Return the original handle to try again.
         handle.future
     }

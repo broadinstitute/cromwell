@@ -2,33 +2,44 @@ package cromwell.engine.workflow.lifecycle
 
 import java.nio.file.Path
 
-import akka.actor.Props
-import cromwell.core.{ExecutionStore, OutputStore, PathCopier, WorkflowId}
+import akka.actor.{Actor, Props}
+import cromwell.core._
+import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.engine.EngineWorkflowDescriptor
+import better.files._
 
 object CopyWorkflowLogsActor {
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = Props(
-    new CopyWorkflowLogsActor(workflowId, workflowDescriptor, executionStore, outputStore)
+  // Commands
+  case object Start
+
+  def props(workflowDescriptor: EngineWorkflowDescriptor) = Props(
+    new CopyWorkflowLogsActor(workflowDescriptor)
   )
 }
 
-class CopyWorkflowLogsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor,
-                            executionStore: ExecutionStore, outputStore: OutputStore)
-  extends EngineWorkflowCopyFinalizationActor {
+class CopyWorkflowLogsActor(val workflowDescriptor: EngineWorkflowDescriptor) extends Actor with PathFactory with WorkflowLogging {
 
-  override def copyFiles(): Unit = {
-    for {
-      workflowLogDirString <- getWorkflowOption("workflow_log_dir")
-      tempLogFilePath <- getTempLogFilePathOption
-    } yield copyWorkflowLog(tempLogFilePath, workflowLogDirString)
+  override lazy val workflowId = workflowDescriptor.id
+  workflowLogger.info("Copy Workflow Actor created")
+  val destinationPath = {
+    workflowDescriptor.getWorkflowOption("workflow_log_dir") map { path =>
+      buildPath(path, workflowDescriptor.engineFilesystems)
+    }
   }
 
-  // TODO: PBE: https://github.com/broadinstitute/cromwell/issues/814
-  private def getTempLogFilePathOption: Option[Path] = ???
+  def copyAndClean(dest: Path) = {
+    workflowLogger.workflowLogPath foreach { src =>
+      val destPath = dest.toAbsolutePath.resolve(src.getFileName)
+      workflowLogger.info(s"Copying workflow logs from ${src.toAbsolutePath} to $destPath")
 
-  private def copyWorkflowLog(tempLogFilePath: Path, workflowLogDirString: String): Unit = {
-    val workflowLogDirPath = convertStringToPath(workflowLogDirString)
-    val destinationFilePath = workflowLogDirPath.resolve(tempLogFilePath.getFileName.toString)
-    PathCopier.copy(tempLogFilePath, destinationFilePath)
+      PathCopier.copy(src.toAbsolutePath, destPath)
+      if (WorkflowLogger.workflowLogConfiguration exists { _.temporary }) src.delete(ignoreIOExceptions = false)
+    }
+  }
+
+  override def receive = {
+    case CopyWorkflowLogsActor.Start =>
+      destinationPath foreach copyAndClean
+      context stop self
   }
 }

@@ -3,30 +3,27 @@ package cromwell.engine.workflow.lifecycle
 import java.nio.file.Path
 
 import akka.actor.Props
+import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationSuccess, FinalizationResponse}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
-import cromwell.core.{ExecutionStore, OutputStore, PathCopier, WorkflowId}
+import cromwell.core._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wdl4s.ReportableSymbol
 import wdl4s.values.WdlSingleFile
 
+import scala.concurrent.{Future, ExecutionContext}
+
 object CopyWorkflowOutputsActor {
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore,
-            outputStore: OutputStore) = Props(
-    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, executionStore, outputStore)
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore) = Props(
+    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, outputStore)
   )
 }
 
-class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor,
-                               executionStore: ExecutionStore, outputStore: OutputStore)
-  extends EngineWorkflowCopyFinalizationActor {
-
-  override def copyFiles(): Unit = {
-    getWorkflowOption("outputs_path") foreach copyWorkflowOutputs
-  }
+class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore)
+  extends EngineWorkflowFinalizationActor with PathFactory {
 
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Unit = {
-    val workflowOutputsPath = convertStringToPath(workflowOutputsFilePath)
+    val workflowOutputsPath = buildPath(workflowOutputsFilePath, workflowDescriptor.engineFilesystems)
 
     val reportableOutputs = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.outputs
 
@@ -70,5 +67,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
   private def getRootPath(config: BackendConfigurationDescriptor)
                          (backendFactory: BackendLifecycleActorFactory): Path = {
     backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig)
+  }
+
+  final override def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = Future {
+    workflowDescriptor.getWorkflowOption("outputs_path") foreach copyWorkflowOutputs
+    FinalizationSuccess
   }
 }

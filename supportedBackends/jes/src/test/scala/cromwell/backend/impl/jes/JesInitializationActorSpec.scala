@@ -7,6 +7,7 @@ import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import cromwell.core.logging.LoggingTest._
 import spray.json.{JsObject, JsValue}
 import wdl4s.values.WdlValue
 import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
@@ -130,7 +131,7 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
       within(Timeout) {
         val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
         val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        EventFilter.warning(message = s"Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
+        EventFilter.warning(pattern = escapePattern(s"Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
           backend ! Initialize
         }
         expectMsgPF() {

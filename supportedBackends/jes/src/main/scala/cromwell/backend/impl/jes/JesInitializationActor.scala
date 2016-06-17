@@ -69,7 +69,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       val path = workflowPaths.gcsAuthFilePath
       val upload = () => Future(path.writeAsJson(content))
 
-      log.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
+      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
       Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () }
     } getOrElse Future.successful(())
   }
@@ -94,7 +94,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
 
         if (notSupportedAttributes.nonEmpty) {
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
-          log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions.")
+          workflowLogger.warn(s"Key/s [$notSupportedAttrString] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions.")
         }
       }
     }

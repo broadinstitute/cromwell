@@ -43,7 +43,7 @@ class SgeInitializationActor(override val workflowDescriptor: BackendWorkflowDes
 
         if (notSupportedAttributes.nonEmpty) {
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
-          log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by SgeBackend. Unsupported attributes will not be part of jobs executions.")
+          workflowLogger.warn(s"Key/s [$notSupportedAttrString] is/are not supported by SgeBackend. Unsupported attributes will not be part of jobs executions.")
         }
       }
     }

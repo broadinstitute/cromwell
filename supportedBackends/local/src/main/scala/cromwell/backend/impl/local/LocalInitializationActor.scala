@@ -55,7 +55,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
 
         if (notSupportedAttributes.nonEmpty) {
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
-          log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by LocalBackend. Unsupported attributes will not be part of jobs executions.")
+          workflowLogger.warn(s"Key/s [$notSupportedAttrString] is/are not supported by LocalBackend. Unsupported attributes will not be part of jobs executions.")
         }
       }
     }

@@ -1,12 +1,13 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.Paths
+import java.nio.file.{FileSystem, Paths}
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
+import cromwell.core.logging.WorkflowLogging
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
@@ -28,14 +29,13 @@ object MaterializeWorkflowDescriptorActor {
 
   val RuntimeBackendKey: String = "backend"
 
-  def props(serviceRegistryActor: ActorRef): Props = Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor))
+  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId): Props = Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId))
 
   /*
   Commands
    */
   sealed trait MaterializeWorkflowDescriptorActorMessage
-  case class MaterializeWorkflowDescriptorCommand(id: WorkflowId,
-                                                  workflowSourceFiles: WorkflowSourceFiles,
+  case class MaterializeWorkflowDescriptorCommand(workflowSourceFiles: WorkflowSourceFiles,
                                                   conf: Config) extends MaterializeWorkflowDescriptorActorMessage
   case object MaterializeWorkflowDescriptorAbortCommand
 
@@ -68,7 +68,7 @@ object MaterializeWorkflowDescriptorActor {
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
 }
 
-class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging {
+class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val workflowId: WorkflowId) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
@@ -77,7 +77,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
   startWith(ReadyToMaterializeState, ShadowMaterializeWorkflowDescriptorActorData())
 
   when(ReadyToMaterializeState) {
-    case Event(MaterializeWorkflowDescriptorCommand(workflowId, workflowSourceFiles, conf), _) =>
+    case Event(MaterializeWorkflowDescriptorCommand(workflowSourceFiles, conf), _) =>
       buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf) match {
         case scalaz.Success(descriptor) =>
           sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
@@ -103,17 +103,17 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
 
   onTransition {
     case oldState -> terminalState if terminalState.terminal =>
-      log.info(s"$tag transition from $oldState to $terminalState: shutting down")
+      workflowLogger.info(s"transition from $oldState to $terminalState: shutting down")
       context.stop(self)
     case fromState -> toState =>
-      log.info(s"$tag transitioning from $fromState to $toState")
+      workflowLogger.info(s"transitioning from $fromState to $toState")
   }
 
   whenUnhandled {
     case Event(EngineLifecycleActorAbortCommand, _) =>
       goto(MaterializationAbortedState)
     case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
+      workflowLogger.warn(s"received an unhandled message $unhandledMessage in state $stateName")
       stay
   }
 
@@ -125,7 +125,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
     (namespaceValidation |@| workflowOptionsValidation) {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
-      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf)
+      val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions)
+      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, engineFileSystems)
     }
   }
 
@@ -133,14 +134,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
                                       sourceFiles: WorkflowSourceFiles,
                                       namespace: NamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
-                                      conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
+                                      conf: Config,
+                                      engineFilesystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(namespace.workflow.calls, workflowOptions)
     (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation ) {
       (_, _, _)
     } flatMap { case (rawInputs, failureMode, backendAssignments) =>
-      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode)
+      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, engineFilesystems)
     }
   }
 
@@ -149,13 +151,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
                                       rawInputs: Map[String, JsValue],
                                       backendAssignments: Map[Call, String],
                                       workflowOptions: WorkflowOptions,
-                                      failureMode: WorkflowFailureMode): ErrorOr[EngineWorkflowDescriptor] = {
+                                      failureMode: WorkflowFailureMode,
+                                      engineFileSystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
-      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs)
+      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, engineFileSystems)
       declarationsAndInputs = declarations ++ coercedInputs
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
-    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode)
+    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, engineFileSystems)
   }
 
   private def validateBackendAssignments(calls: Seq[Call], workflowOptions: WorkflowOptions): ErrorOr[Map[Call, String]] = {
@@ -178,7 +181,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
     callToBackendMap match {
       case Success(backendMap) =>
         val backendMapAsString = backendMap.map({case (k, v) => s"${k.fullyQualifiedName} -> $v"}).mkString(", ")
-        log.info(s"$tag: Call-to-Backend assignments: $backendMapAsString")
+        workflowLogger.info(s"Call-to-Backend assignments: $backendMapAsString")
         backendMap.successNel
       case Failure(t) => t.getMessage.failureNel
     }
@@ -204,9 +207,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends
 
   private def validateDeclarations(namespace: NamespaceWithWorkflow,
                                    options: WorkflowOptions,
-                                   coercedInputs: WorkflowCoercedInputs): ErrorOr[WorkflowCoercedInputs] = {
-    // TODO: Need to create engine-only engine functions!
-    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(options)) match {
+                                   coercedInputs: WorkflowCoercedInputs,
+                                   engineFileSystems: List[FileSystem]): ErrorOr[WorkflowCoercedInputs] = {
+    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(engineFileSystems)) match {
       case Success(d) => d.successNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".failureNel
     }

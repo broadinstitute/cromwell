@@ -7,17 +7,18 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.core.ExecutionIndex._
+import cromwell.core.ExecutionStatus._
+import cromwell.core.ExecutionStore.ExecutionStoreEntry
+import cromwell.core.OutputStore.OutputEntry
+import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
-import ExecutionIndex._
-import ExecutionStatus._
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
-import OutputStore.OutputEntry
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.engine.EngineWorkflowDescriptor
-import ExecutionStore.ExecutionStoreEntry
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import lenthall.exception.ThrowableAggregation
@@ -221,7 +222,7 @@ object WorkflowExecutionActor {
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         workflowDescriptor: EngineWorkflowDescriptor,
                                         serviceRegistryActor: ActorRef)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
 
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
@@ -235,7 +236,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {
     case Some(value) => value
     case None =>
-      log.warning(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of '$DefaultMaxRetriesFallbackValue'.")
+      workflowLogger.warn(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of '$DefaultMaxRetriesFallbackValue'.")
       DefaultMaxRetriesFallbackValue
   }
 
@@ -289,7 +290,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       stay() using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
         .addBackendJobExecutionActor(jobDescriptor.key, backendExecutionActor)
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
-      log.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
+      workflowLogger.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
@@ -297,17 +298,17 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
-      log.warning(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
+      workflowLogger.warn(s"Job ${jobKey.tag} failed! Reason: ${reason.getMessage}") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
       goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
-      log.warning(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
+      workflowLogger.warn(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = true)
       handleRetryableFailure(jobKey, reason, returnCode)
     case Event(JobInitializationFailed(jobKey, reason), stateData) =>
-      log.warning(s"Jobs failed to initialize: $reason") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
+      workflowLogger.warn(s"Jobs failed to initialize: $reason") // TODO: PBE This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = false)
       goto(WorkflowExecutionFailedState)
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>
@@ -343,10 +344,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
   when(WorkflowExecutionAbortingState) {
     case Event(AbortedResponse(jobKey), stateData) =>
-      log.info(s"$tag job aborted: ${jobKey.tag}")
+      workflowLogger.info(s"$tag job aborted: ${jobKey.tag}")
       val newStateData = stateData.removeBackendJobExecutionActor(jobKey)
       if (newStateData.backendJobExecutionActors.isEmpty) {
-        log.info(s"$tag all jobs aborted")
+        workflowLogger.info(s"$tag all jobs aborted")
         goto(WorkflowExecutionAbortedState)
       } else {
         stay() using newStateData
@@ -356,7 +357,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   whenUnhandled {
     case Event(MetadataPutFailed(action, error), _) =>
       // Do something useful here??
-      log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
+      workflowLogger.warn(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
       stay
     case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
@@ -367,16 +368,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         goto(WorkflowExecutionAbortedState)
       }
     case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message: ${unhandledMessage.event} in state: $stateName")
+      workflowLogger.warn(s"$tag received an unhandled message: ${unhandledMessage.event} in state: $stateName")
       stay
   }
 
   onTransition {
     case fromState -> toState if toState.terminal =>
-      log.info(s"$tag transitioning from $fromState to $toState. Shutting down.")
+      workflowLogger.info(s"$tag transitioning from $fromState to $toState. Shutting down.")
       context.stop(self)
     case fromState -> toState =>
-      log.info(s"$tag transitioning from $fromState to $toState.")
+      workflowLogger.info(s"$tag transitioning from $fromState to $toState.")
   }
 
   onTransition {
@@ -389,31 +390,31 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   onTransition {
     case _ -> toState if toState.terminal =>
-      log.info(s"$tag done. Shutting down.")
+      workflowLogger.info(s"$tag done. Shutting down.")
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
     // We start with index 1 for #attempts, hence invariant breaks only if jobKey.attempt > MaxRetries
     if (jobKey.attempt <= MaxRetries) {
       val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
-      log.info(s"Retrying job execution for ${newJobKey.tag}")
+      workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
       /** Currently, we update the status of the old key to Preempted, and add a new entry (with the #attempts incremented by 1)
         * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
       val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Preempted, newJobKey -> ExecutionStatus.NotStarted))
       val newData = stateData.mergeExecutionDiff(executionDiff)
       stay() using startRunnableScopes(newData)
     } else {
-      log.warning(s"Exhausted maximum number of retries for job ${jobKey.tag}. Failing.")
+      workflowLogger.warn(s"Exhausted maximum number of retries for job ${jobKey.tag}. Failing.")
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     }
   }
 
   private def handleJobSuccessful(jobKey: JobKey, outputs: JobOutputs, data: WorkflowExecutionActorData) = {
-    log.info(s"Job ${jobKey.tag} succeeded! Outputs: ${outputs.mkString("\n")}")
+    workflowLogger.info(s"Job ${jobKey.tag} succeeded! Outputs: ${outputs.mkString("\n")}")
     val newData = data.jobExecutionSuccess(jobKey, outputs)
 
     if (newData.isWorkflowComplete) {
-      log.info(newData.outputsJson())
+      workflowLogger.info(newData.outputsJson())
       goto(WorkflowExecutionSuccessfulState) using newData
     }
     else
@@ -499,7 +500,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     val runnableScopes = data.executionStore.runnableScopes.toList
     val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
-    if (runnableCalls.nonEmpty) log.info(s"Starting calls: " + runnableCalls.mkString(", "))
+    if (runnableCalls.nonEmpty) workflowLogger.info(s"Starting calls: " + runnableCalls.mkString(", "))
 
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
     val executionDiffs = runnableScopes map {
@@ -547,7 +548,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       case None =>
         val message = s"Could not start call ${jobKey.tag} because it was not assigned a backend"
         val exception = new IllegalStateException(s"$tag $message")
-        log.error(exception, s"$tag $message")
+        workflowLogger.error(exception, s"$tag $message")
         throw exception
       case Some(backendName) =>
         factories.get(backendName) match {

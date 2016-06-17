@@ -3,7 +3,7 @@ package cromwell.engine.backend
 import java.nio.file.{Files, Paths}
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ActorSystem, Props}
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
@@ -52,9 +52,9 @@ trait WorkflowDescriptorBuilder {
     implicit val ec = actorSystem.dispatcher
 
     val serviceRegistryIgnorer = actorSystem.actorOf(Props.empty)
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer), "MaterializeWorkflowDescriptorActor-" + id.id)
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
-      MaterializeWorkflowDescriptorCommand(id, workflowSources, ConfigFactory.load)
+      MaterializeWorkflowDescriptorCommand(workflowSources, ConfigFactory.load)
     ).mapTo[WorkflowDescriptorMaterializationResult]
 
     Await.result(workflowDescriptorFuture map {

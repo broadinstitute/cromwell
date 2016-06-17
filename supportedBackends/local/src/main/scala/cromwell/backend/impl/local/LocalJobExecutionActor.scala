@@ -50,7 +50,6 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private var process: Option[Process] = None
 
   private val workflowDescriptor = jobDescriptor.descriptor
-  private lazy val workflowId = workflowDescriptor.id
   private lazy val metadataJobKey = {
     val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
     MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
@@ -100,9 +99,9 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def executeScript(script: String): Future[BackendJobExecutionResponse] = {
-    logger.info(s"`$script`")
+    jobLogger.info(s"`$script`")
     writeScript(script, if (runsOnDocker) jobPaths.callDockerRoot else jobPaths.callRoot)
-    logger.info(s"command: $processArgs")
+    jobLogger.info(s"command: $processArgs")
     process = Option(processArgs.argv.run(ProcessLogger(stdoutWriter writeWithNewline, stderrTailed writeWithNewline)))
     /* This can't run on the context.dispatcher EC because it blocks incoming message processing (in particular abort)
      * TODO use a new separate, backend scoped EC ?
@@ -193,8 +192,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       case SIGINT => AbortedResponse(jobDescriptor.key)
       case other if other == 0 || runtimeAttributes.dockerImage.isEmpty => postProcessJob()
       case failed =>
-        logger.error(s"Non-zero return code: $failed")
-        logger.error(s"Standard error was:\n\n${stderrTailed.tailString}\n")
+        jobLogger.error(s"Non-zero return code: $failed")
+        jobLogger.error(s"Standard error was:\n\n${stderrTailed.tailString}\n")
         throw new Exception(s"Unexpected process exit code: $failed")
     }
   }
@@ -202,7 +201,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private def postProcessJob(): BackendJobExecutionResponse = {
     val stderrFileLength = Try(jobPaths.stderr.size).getOrElse(0L)
     val returnCode = Try(jobPaths.returnCode.contentAsString.stripLineEnd.toInt)
-    logger.info(s"Return code: $returnCode")
+    jobLogger.info(s"Return code: $returnCode")
 
     if (runtimeAttributes.failOnStderr && stderrFileLength > 0) {
       FailedNonRetryableResponse(jobDescriptor.key, new Throwable(s"Call ${call.fullyQualifiedName}, " +

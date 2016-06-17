@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.backend._
+import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{ExecutionStore, JobKey, OutputStore}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor._
@@ -29,9 +30,10 @@ object JobPreparationActor {
 
 case class JobPreparationActor(executionData: WorkflowExecutionActorData,
                                jobKey: BackendJobDescriptorKey,
-                               factory: BackendLifecycleActorFactory) extends Actor with WdlLookup with ActorLogging {
+                               factory: BackendLifecycleActorFactory) extends Actor with WdlLookup with WorkflowLogging {
 
   override val workflowDescriptor: EngineWorkflowDescriptor = executionData.workflowDescriptor
+  override val workflowId = workflowDescriptor.id
   override val executionStore: ExecutionStore = executionData.executionStore
   override val outputStore: OutputStore = executionData.outputStore
   override val expressionLanguageFunctions = factory.expressionLanguageFunctions(
@@ -46,7 +48,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
 
       context.parent ! response
       context stop self
-    case unhandled => log.warning(self.path.name + " received an unhandled message: " + unhandled)
+    case unhandled => workflowLogger.warn(self.path.name + " received an unhandled message: " + unhandled)
   }
 
   def prepareJobExecutionActor(inputs: Map[LocallyQualifiedName, WdlValue]): Try[BackendJobPreparationSucceeded] = {

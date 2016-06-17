@@ -3,6 +3,7 @@ package cromwell.backend.impl.jes
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
@@ -11,9 +12,11 @@ import cromwell.backend.async.ExecutionHandle
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.logging.LoggerWrapper
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s.NamespaceWithWorkflow
@@ -126,6 +129,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKit(ActorSystem("JesAsync
       // TODO: PBE: services are currently implemented in the engine, so we can't spin them up in specs
       override val serviceRegistryActor = system.actorOf(Props.empty)
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
+      override lazy val jobLogger = new LoggerWrapper {
+        override def akkaLogger: Option[LoggingAdapter] = Option(log)
+        override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
+        override def slf4jLoggers: Set[Logger] = Set.empty
+      }
     }
     system.actorOf(Props(new TestableJesJobExecutionActor), "TestableJesJobExecutionActor-" + UUID.randomUUID)
   }

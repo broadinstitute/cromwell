@@ -2,7 +2,7 @@ package cromwell.engine.backend
 
 import cromwell.engine.AbortRegistrationFunction
 import cromwell.engine.backend.runtimeattributes.CromwellRuntimeAttributes
-import cromwell.engine.workflow.{BackendCallKey, FinalCallKey}
+import cromwell.engine.workflow.{BackendCallKey, CallKey, FinalCallKey}
 import cromwell.webservice.WorkflowMetadataResponse
 import wdl4s._
 import wdl4s.values.WdlValue
@@ -17,7 +17,7 @@ import scala.util.Try
   *
   * @tparam K CallKey subtype
   */
-sealed trait JobDescriptor[K <: JobKey] {
+sealed trait JobDescriptor[K <: CallKey] {
   def workflowDescriptor: WorkflowDescriptor
   def key: K
   def locallyQualifiedInputs: CallInputs

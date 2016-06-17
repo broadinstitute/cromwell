@@ -4,16 +4,17 @@ import cromwell.engine.backend.BackendType;
 import static cromwell.engine.backend.BackendType.JES;
 import static cromwell.engine.backend.BackendType.LOCAL;
 import static cromwell.engine.backend.BackendType.SGE;
+import static cromwell.engine.backend.BackendType.LSF;
 /**
  * Backend runtime keys and the backends which are known to support them.
  */
 public enum RuntimeKey {
-    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES),
+    CONTINUE_ON_RETURN_CODE("continueOnReturnCode", LOCAL, SGE, JES, LSF),
     CPU("cpu", JES),
     DISKS("disks", JES),
     ZONES("zones", JES),
     DOCKER("docker", new BackendType[]{JES}, LOCAL), // Alternate constructor due to both optional and mandatory backends
-    FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE),
+    FAIL_ON_STDERR("failOnStderr", JES, LOCAL, SGE, LSF),
     MEMORY("memory", JES),
     PREEMPTIBLE("preemptible", JES),
     BOOT_DISK("bootDiskSizeGb", JES);

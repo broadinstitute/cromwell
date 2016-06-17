@@ -8,8 +8,7 @@ import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
-import cromwell.engine.backend.local.OldStyleLocalBackend
-import cromwell.engine.backend.{OldStyleWorkflowDescriptor, WorkflowDescriptorBuilder}
+import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.db.DataAccess
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -23,7 +22,7 @@ trait CromwellServicesSpec extends FlatSpec with Matchers with BeforeAndAfterAll
   val actorSystem = workflowManagerSystem.actorSystem
   val dataAccess = DataAccess.globalDataAccess
 
-  val localBackend = OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
+//  val localBackend = OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = actorSystem.dispatcher
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))

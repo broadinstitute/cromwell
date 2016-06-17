@@ -5,14 +5,13 @@ import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import cromwell.core.{JobOutput, WorkflowAborted, WorkflowId, WorkflowRunning}
-import cromwell.engine.backend.{CallLogs, WorkflowDescriptorBuilder}
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor._
+import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor
-import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
+import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowOutputs, WorkflowQuery, WorkflowQueryResponse}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
-import cromwell.webservice.MockWorkflowManagerActor.{submittedWorkflowId, unknownId}
+import cromwell.webservice.MockWorkflowManagerActor.{SubmitWorkflow, WorkflowStatus, submittedWorkflowId, unknownId}
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
@@ -51,34 +50,34 @@ class MockWorkflowManagerActor extends Actor {
   val fileHash = file.computeHash
 
   def receive = {
-    case SubmitWorkflow(sources) =>
-      val id = MockWorkflowManagerActor.submittedWorkflowId
-      /*
-        id will always succeed, but WorkflowDescriptor might not. If all of this works we
-        want to pass Future[WorkflowId] but otherwise we want to pass the error. Try the
-        WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
-        from WorkflowDescriptor's validation
-       */
-      val message = Try(materializeWorkflowDescriptorFromSources(id = id, workflowSources = sources)) match {
-        case Success(w) => WorkflowManagerSubmitSuccess(w.id)
-        case Failure(e) => WorkflowManagerSubmitFailure(e)
-      }
-      sender ! message
+//    case SubmitWorkflow(sources) =>
+//      val id = MockWorkflowManagerActor.submittedWorkflowId
+//      /*
+//        id will always succeed, but WorkflowDescriptor might not. If all of this works we
+//        want to pass Future[WorkflowId] but otherwise we want to pass the error. Try the
+//        WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
+//        from WorkflowDescriptor's validation
+//       */
+//      val message = Try(materializeWorkflowDescriptorFromSources(id = id, workflowSources = sources)) match {
+//        case Success(w) => WorkflowManagerSubmitSuccess(w.id)
+//        case Failure(e) => WorkflowManagerSubmitFailure(e)
+//      }
+//      sender ! message
     case WorkflowStatus(id) =>
       val message = id match {
         case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerStatusSuccess(id, WorkflowRunning)
         case MockWorkflowManagerActor.abortedWorkflowId => WorkflowManagerStatusSuccess(id, WorkflowAborted)
-        case _ => WorkflowManagerStatusFailure(id, new WorkflowNotFoundException("Cromwell knows not this workflow"))
+        //case _ => WorkflowManagerStatusFailure(id, new WorkflowNotFoundException("Cromwell knows not this workflow"))
       }
       sender ! message
-    case WorkflowAbort(id) =>
-      val message = id match {
-        case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerAbortSuccess(id)
-        case MockWorkflowManagerActor.abortedWorkflowId =>
-          WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
-        case x => WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Workflow '$x' not found."))
-      }
-      sender ! message
+//    case WorkflowAbort(id) =>
+//      val message = id match {
+//        case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerAbortSuccess(id)
+//        case MockWorkflowManagerActor.abortedWorkflowId =>
+//          WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
+//        case x => WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Workflow '$x' not found."))
+//      }
+//      sender ! message
     case WorkflowOutputs(id) =>
       val message = id match {
         case MockWorkflowManagerActor.submittedWorkflowId =>
@@ -86,51 +85,21 @@ class MockWorkflowManagerActor extends Actor {
             "three_step.cgrep.count" -> JobOutput(int8, Option(int8hash)),
             "three_step.ps.procs" -> JobOutput(file, Option(fileHash)),
             "three_step.wc.count" -> JobOutput(int8, Option(int8hash))))
-        case w => WorkflowManagerWorkflowOutputsFailure(id, new WorkflowNotFoundException(s"Workflow '$w' not found"))
+        //case w => WorkflowManagerWorkflowOutputsFailure(id, new WorkflowNotFoundException(s"Workflow '$w' not found"))
       }
       sender ! message
-    case CallOutputs(id, callFqn) =>
-      val message = id match {
-        case MockWorkflowManagerActor.submittedWorkflowId =>
-          callFqn match {
-            case "three_step.cgrep" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
-            case "three_step.ps" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("procs" -> JobOutput(file, Option(fileHash))))
-            case "three_step.wc" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
-            case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new CallNotFoundException(s"Bad call FQN: $callFqn"))
-          }
-        case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
-      }
-      sender ! message
-    case CallStdoutStderr(id, callFqn) =>
-      val message = id match {
-        case MockWorkflowManagerActor.submittedWorkflowId =>
-          callFqn match {
-            case "three_step.cgrep" =>
-              WorkflowManagerCallStdoutStderrSuccess(id, callFqn, Seq(CallLogs(WdlFile("/path/to/cgrep-stdout"), WdlFile("/path/to/cgrep-stderr"))))
-            case "three_step.ps" =>
-              WorkflowManagerCallStdoutStderrSuccess(id, callFqn, Seq(CallLogs(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr"))))
-            case "three_step.wc" =>
-              WorkflowManagerCallStdoutStderrSuccess(id, callFqn, Seq(CallLogs(WdlFile("/path/to/wc-stdout"), WdlFile("/path/to/wc-stderr"))))
-            case "scatterwf.inside-scatter" =>
-              WorkflowManagerCallStdoutStderrSuccess(id, callFqn, Seq(
-                CallLogs(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
-                CallLogs(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr"))))
-            case _ => WorkflowManagerCallStdoutStderrFailure(id, callFqn, new CallNotFoundException(s"Bad call FQN: $callFqn"))
-          }
-        case _ => WorkflowManagerCallStdoutStderrFailure(id, callFqn, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
-      }
-      sender ! message
-    case WorkflowStdoutStderr(id) =>
-      val message = id match {
-        case MockWorkflowManagerActor.submittedWorkflowId =>
-          WorkflowManagerWorkflowStdoutStderrSuccess(id, Map("three_step.ps" -> Seq(CallLogs(WdlFile("/path/to/ps-stdout"), WdlFile("/path/to/ps-stderr")))))
-        case MockWorkflowManagerActor.submittedScatterWorkflowId =>
-          WorkflowManagerWorkflowStdoutStderrSuccess(id, Map("scatterwf.inside-scatter" ->
-            Seq(CallLogs(WdlFile("/path/to/inside-scatter/shard0-stdout"), WdlFile("/path/to/inside-scatter/shard0-stderr")),
-              CallLogs(WdlFile("/path/to/inside-scatter/shard1-stdout"), WdlFile("/path/to/inside-scatter/shard1-stderr")))))
-        case _ => WorkflowManagerWorkflowStdoutStderrFailure(id, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
-      }
-      sender ! message
+//    case CallOutputs(id, callFqn) =>
+//      val message = id match {
+//        case MockWorkflowManagerActor.submittedWorkflowId =>
+//          callFqn match {
+//            case "three_step.cgrep" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
+//            case "three_step.ps" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("procs" -> JobOutput(file, Option(fileHash))))
+//            case "three_step.wc" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
+//            case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new CallNotFoundException(s"Bad call FQN: $callFqn"))
+//          }
+//        case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
+//      }
+//      sender ! message
     case WorkflowQuery(uri, rawParameters) =>
       val head = rawParameters.head
       head match {
@@ -149,22 +118,7 @@ class MockWorkflowManagerActor extends Actor {
             rawParameters.collectFirst { case (p, _) if p.contains("page") => QueryMetadata(Option(1), Option(5), Option(1)) })
 
       }
-    case CallCaching(id, parameters, callFqn) =>
-      val parametersByKey = parameters.groupBy(_.key.toLowerCase.capitalize) mapValues { _ map { _.value } } mapValues { _.toSet }
-      val message =
-        if (id == unknownId)
-          WorkflowManagerCallCachingFailure(id, new IllegalArgumentException("Unknown workflow"))
-        else if (!parametersByKey.contains("Allow"))
-        // Currently this is not strictly true as the "allow" validation only fails if "allow"s are non-boolean
-        // or both true and false.  But really it would be better if "allow" was only specified once.
-          WorkflowManagerCallCachingFailure(id, new IllegalArgumentException("must specify 'allow' exactly once"))
-        else if (parametersByKey.keys.size > 1)
-          WorkflowManagerCallCachingFailure(id, new IllegalArgumentException("Unrecognized parameters: " + (parametersByKey.keys.toSet - "allow").mkString(", ")))
-        else if (callFqn.contains("bogus"))
-          WorkflowManagerCallCachingFailure(id, new IllegalArgumentException("Invalid call"))
-        // If we run the gauntlet of checks, return a made up update count.
-        else WorkflowManagerCallCachingSuccess(id, 1)
-      sender ! message
+
   }
 }
 

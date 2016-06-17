@@ -15,7 +15,7 @@ import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
-import cromwell.engine.backend.{BackendConfigurationEntry, CallLogs}
+import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
@@ -171,15 +171,6 @@ object CromwellTestkitSpec {
       val submitMessage = WorkflowManagerActor.SubmitWorkflowCommand(sources)
       Await.result(manager.ask(submitMessage), Duration.Inf).asInstanceOf[WorkflowManagerSubmitSuccess].id
     }
-
-    @deprecated("callers should use getWorkflowOutputs instead, but the return type has changed")
-    def workflowOutputs(id: WorkflowId): engine.WorkflowOutputs = throw new UnsupportedOperationException()
-
-    @deprecated("should no longer be on WorkflowManagerActor in a PBE world")
-    def workflowStdoutStderr(id: WorkflowId): Map[FullyQualifiedName, Seq[CallLogs]] = throw new UnsupportedOperationException()
-
-    @deprecated("should no longer be on WorkflowManagerActor in a PBE world")
-    def callStdoutStderr(id: WorkflowId, fqn: FullyQualifiedName): Seq[CallLogs] = throw new UnsupportedOperationException()
   }
 
   lazy val DefaultConfig = ConfigFactory.load
@@ -426,13 +417,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       within(timeoutDuration) {
         val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
-        val standardStreams = wma.callStdoutStderr(workflowId, fqn)
-        stdout foreach { souts =>
-          souts shouldEqual (standardStreams map { s => File(s.stdout.value).contentAsString })
-        }
-        stderr foreach { serrs =>
-          serrs shouldEqual (standardStreams map { s => File(s.stderr.value).contentAsString })
-        }
       }
     }
   }
@@ -451,14 +435,14 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         verifyWorkflowState(wma, workflowId, terminalState)
 
         if (assertStdoutStderr) {
-          val standardStreams = wma.workflowStdoutStderr(workflowId)
-          stdout foreach {
-            case (fqn, out) if standardStreams.contains(fqn) =>
-              out shouldEqual (standardStreams(fqn) map { s => File(s.stdout.value).contentAsString })
+          //val standardStreams = wma.workflowStdoutStderr(workflowId)
+          stdout foreach { ???
+//            case (fqn, out) if standardStreams.contains(fqn) =>
+//              out shouldEqual (standardStreams(fqn) map { s => File(s.stdout.value).contentAsString })
           }
-          stderr foreach {
-            case (fqn, err) if standardStreams.contains(fqn) =>
-              err shouldEqual (standardStreams(fqn) map { s => File(s.stderr.value).contentAsString })
+          stderr foreach { ???
+//            case (fqn, err) if standardStreams.contains(fqn) =>
+//              err shouldEqual (standardStreams(fqn) map { s => File(s.stderr.value).contentAsString })
           }
         }
       }

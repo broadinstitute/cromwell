@@ -2,16 +2,24 @@ package cromwell.engine
 
 import java.nio.file.{FileSystem, FileSystems, Path}
 
-import cromwell.backend.wdl.WdlStandardLibraryImpl
+import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions, WriteFunctions}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.expression.NoFunctions
+import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.values.{WdlFile, WdlInteger, WdlString, WdlValue}
 
 import scala.util.{Failure, Success, Try}
 
 class EngineFunctionsSpec extends FlatSpec with Matchers {
+
+  trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions with ReadLikeFunctions with WriteFunctions with PureFunctions {
+    private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
+
+    override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stdout")
+    override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
+  }
+
   def expectFailure(value: Try[WdlValue]) = value match {
     case Success(s) => fail(s"$s: Expected this function invocation to fail")
     case Failure(ex) => // expected

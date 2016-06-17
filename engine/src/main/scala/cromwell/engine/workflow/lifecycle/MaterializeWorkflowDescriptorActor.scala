@@ -9,7 +9,7 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
-import cromwell.engine.backend.{CromwellBackends, OldStyleWorkflowLogOptions}
+import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData}
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.MetadataServiceActor.PutMetadataAction
@@ -66,14 +66,6 @@ object MaterializeWorkflowDescriptorActor {
   import lenthall.config.ScalaConfig._
 
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
-
-  def workflowLogOptions(conf: Config): Option[OldStyleWorkflowLogOptions] = {
-    for {
-      workflowConfig <- conf.getConfigOption("workflow-options")
-      dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
-      temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
-    } yield OldStyleWorkflowLogOptions(Paths.get(dir), temporary)
-  }
 }
 
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, ShadowMaterializeWorkflowDescriptorActorData] with LazyLogging {

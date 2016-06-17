@@ -6,14 +6,11 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowState, WorkflowSubmitted}
 import cromwell.engine._
-import cromwell.engine.backend.{CallLogs, OldStyleBackend}
-import cromwell.engine.workflow.OldStyleWorkflowManagerActor.{CallNotFoundException, WorkflowNotFoundException}
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
-import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
-import cromwell.engine.workflow.{OldStyleWorkflowManagerActor, WorkflowManagerActor}
+import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{core, engine}
-import spray.http.HttpHeaders.Link
-import spray.http.{HttpHeader, StatusCodes, Uri}
+import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
 import scala.concurrent.duration._
@@ -59,11 +56,11 @@ object CromwellApiHandler {
   final case class WorkflowManagerQueryFailure(override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallOutputsSuccess(id: WorkflowId, callFqn: FullyQualifiedName, outputs: core.JobOutputs) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallOutputsFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerCallStdoutStderrSuccess(id: WorkflowId, callFqn: FullyQualifiedName, logs: Seq[CallLogs]) extends WorkflowManagerSuccessResponse
+  //final case class WorkflowManagerCallStdoutStderrSuccess(id: WorkflowId, callFqn: FullyQualifiedName, logs: Seq[CallLogs]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallStdoutStderrFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerWorkflowStdoutStderrSuccess(id: WorkflowId, logs: Map[FullyQualifiedName, Seq[CallLogs]]) extends WorkflowManagerSuccessResponse
+  //final case class WorkflowManagerWorkflowStdoutStderrSuccess(id: WorkflowId, logs: Map[FullyQualifiedName, Seq[CallLogs]]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowStdoutStderrFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerWorkflowMetadataSuccess(id: WorkflowId, response: WorkflowMetadataResponse) extends WorkflowManagerSuccessResponse
+  //final case class WorkflowManagerWorkflowMetadataSuccess(id: WorkflowId, response: WorkflowMetadataResponse) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowMetadataFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallCachingSuccess(id: WorkflowId, updateCount: Int) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
@@ -86,29 +83,13 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
   private def error(t: Throwable)(f: Throwable => RequestComplete[_]): Unit = context.parent ! f(t)
 
   override def receive = {
-    case ApiHandlerWorkflowStatus(id) => requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowStatus(id)
-    case WorkflowManagerStatusSuccess(id, state) => context.parent ! RequestComplete(StatusCodes.OK, WorkflowStatusResponse(id.toString, state.toString))
-    case WorkflowManagerStatusFailure(_, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => RequestComplete(StatusCodes.NotFound, e)
-        case _ => RequestComplete(StatusCodes.InternalServerError, e)
-      }
-
-    case ApiHandlerWorkflowQuery(uri, parameters) => requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowQuery(uri, parameters)
-    case WorkflowManagerQuerySuccess(uri, response, metadata) =>
-      context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
-    case WorkflowManagerQueryFailure(e) =>
-      error(e) {
-        case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
 
     case ApiHandlerWorkflowAbort(id) => requestHandlerActor ! WorkflowManagerActor.AbortWorkflowCommand(id)
     case WorkflowManagerAbortSuccess(id) =>
       context.parent ! RequestComplete(StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
     case WorkflowManagerAbortFailure(_, e) =>
       error(e) {
-        case _: WorkflowNotFoundException => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
+        //case _: WorkflowNotFoundException => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
         case _: IllegalStateException => RequestComplete(StatusCodes.Forbidden, APIResponse.error(e))
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
@@ -140,62 +121,5 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
         case unexpected => Right(FailureResponse("error", s"unexpected message: $unexpected", None))
       }
       context.parent ! RequestComplete(StatusCodes.OK, requestResponse)
-
-    case ApiHandlerWorkflowOutputs(id) => requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowOutputs(id)
-    case WorkflowManagerWorkflowOutputsSuccess(id, outputs) =>
-      context.parent ! RequestComplete(StatusCodes.OK, WorkflowOutputResponse(id.toString, outputs.mapToValues))
-    case WorkflowManagerWorkflowOutputsFailure(id, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => workflowNotFound(id)
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
-
-    case ApiHandlerCallOutputs(id, callFqn) => requestHandlerActor ! OldStyleWorkflowManagerActor.CallOutputs(id, callFqn)
-    case WorkflowManagerCallOutputsSuccess(id, callFqn, outputs) =>
-      context.parent ! RequestComplete(StatusCodes.OK, CallOutputResponse(id.toString, callFqn, outputs.mapToValues))
-    case WorkflowManagerCallOutputsFailure(id, callFqn, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => workflowNotFound(id)
-        case _: CallNotFoundException => callNotFound(callFqn, id)
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
-
-    case ApiHandlerCallStdoutStderr(id, callFqn) => requestHandlerActor ! OldStyleWorkflowManagerActor.CallStdoutStderr(id, callFqn)
-    case WorkflowManagerCallStdoutStderrSuccess(id, callFqn, logs) =>
-      context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, Map(callFqn -> logs)))
-    case WorkflowManagerCallStdoutStderrFailure(id, callFqn, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => workflowNotFound(id)
-        case _: CallNotFoundException => callNotFound(callFqn, id)
-        case _: OldStyleBackend.StdoutStderrException => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
-
-    case ApiHandlerWorkflowStdoutStderr(id) => requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowStdoutStderr(id)
-    case WorkflowManagerWorkflowStdoutStderrSuccess(id, callLogs) =>
-          context.parent ! RequestComplete(StatusCodes.OK, CallStdoutStderrResponse(id.toString, callLogs))
-    case WorkflowManagerWorkflowStdoutStderrFailure(id, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => workflowNotFound(id)
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
-
-    case ApiHandlerWorkflowMetadata(id, parameters) =>
-      requestHandlerActor ! OldStyleWorkflowManagerActor.WorkflowMetadata(id, parameters)
-    case WorkflowManagerWorkflowMetadataSuccess(id, response) => context.parent ! RequestComplete(StatusCodes.OK, response)
-    case WorkflowManagerWorkflowMetadataFailure(id, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => workflowNotFound(id)
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
-
-    case ApiHandlerCallCaching(id, parameters, callName) => requestHandlerActor ! OldStyleWorkflowManagerActor.CallCaching(id, parameters, callName)
-    case WorkflowManagerCallCachingSuccess(id, updateCount) => context.parent ! RequestComplete(StatusCodes.OK, CallCachingResponse(updateCount))
-    case WorkflowManagerCallCachingFailure(id, e) =>
-      error(e) {
-        case _: WorkflowNotFoundException => workflowNotFound(id)
-        case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
   }
 }

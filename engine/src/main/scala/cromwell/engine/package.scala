@@ -4,11 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorSystem
 import cromwell.core.{JobOutput, WorkflowId}
-import cromwell.engine.backend.OldStyleWorkflowDescriptor
 import cromwell.engine.db.DataAccess.WorkflowExecutionAndAux
-import cromwell.engine.db.ExecutionDatabaseKey
-import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor
-import cromwell.engine.workflow.OldStyleMaterializeWorkflowDescriptorActor.{MaterializeWorkflow, MaterializeWorkflowDescriptorFailure, MaterializeWorkflowDescriptorSuccess}
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -25,9 +21,7 @@ package object engine {
   final case class AbortFunction(function: () => Unit)
   final case class AbortRegistrationFunction(register: AbortFunction => Unit)
 
-  final case class QualifiedFailureEventEntry(workflowId: String, execution: Option[ExecutionDatabaseKey], failure: String, timestamp: OffsetDateTime) {
-    def dequalify = FailureEventEntry(failure, timestamp)
-  }
+
   final case class FailureEventEntry(failure: String, timestamp: OffsetDateTime)
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 
@@ -62,23 +56,6 @@ package object engine {
   case object ContinueWhilePossible extends WorkflowFailureMode { override val allowNewCallsAfterFailure = true }
   case object NoNewCalls extends WorkflowFailureMode { override val allowNewCallsAfterFailure = false }
 
-  // Used to convert the database returned value `executionAndAux` to a WorkflowDescriptor
-  def workflowDescriptorFromExecutionAndAux(executionAndAux: WorkflowExecutionAndAux)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[OldStyleWorkflowDescriptor] = {
-    //imports for implicits
-    import cromwell.database.SqlConverters.ClobToRawString
-    import cromwell.util.PromiseActor.EnhancedActorRef
 
-    val id = WorkflowId.fromString(executionAndAux.execution.workflowExecutionUuid)
-    val sources = WorkflowSourceFiles(executionAndAux.aux.wdlSource.toRawString, executionAndAux.aux.jsonInputs.toRawString, executionAndAux.aux.workflowOptions.toRawString)
-
-    val materializeWorkflowDescriptorActor = actorSystem.actorOf(OldStyleMaterializeWorkflowDescriptorActor.props())
-
-    materializeWorkflowDescriptorActor.askNoTimeout(MaterializeWorkflow(id, sources))  map {
-      case MaterializeWorkflowDescriptorSuccess(workflowDescriptor) => workflowDescriptor
-      case MaterializeWorkflowDescriptorFailure(error) => throw error
-    } andThen {
-      case _ => actorSystem.stop(materializeWorkflowDescriptorActor)
-    }
-  }
 
 }

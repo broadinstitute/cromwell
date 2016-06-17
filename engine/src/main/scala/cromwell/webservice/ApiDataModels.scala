@@ -1,10 +1,6 @@
 package cromwell.webservice
 
-import java.time.OffsetDateTime
-
 import cromwell.core.WorkflowId
-import cromwell.engine.backend.{CallLogs, OldStyleCallMetadata}
-import cromwell.engine.{FailureEventEntry, QualifiedFailureEventEntry}
 import cromwell.webservice.PerRequest.RequestComplete
 import spray.http.StatusCodes
 import spray.json._
@@ -23,27 +19,7 @@ case class WorkflowAbortResponse(id: String, status: String)
 
 case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQualifiedName, WdlValue])
 
-case class CallStdoutStderrResponse(id: String, logs: Map[FullyQualifiedName, Seq[CallLogs]])
-
 case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boolean = true)
-
-@deprecated(message = "This class will not be part of the PBE universe", since = "May 2nd 2016")
-case class WorkflowMetadataResponse(id: String,
-                                    workflowName: String,
-                                    status: String,
-                                    submission: OffsetDateTime,
-                                    start: Option[OffsetDateTime],
-                                    end: Option[OffsetDateTime],
-                                    inputs: JsObject,
-                                    outputs: Option[Map[String, WdlValue]],
-                                    calls: Map[String, Seq[OldStyleCallMetadata]])
-
-final case class CallCachingResponse(updateCount: Int)
-
-case class WorkflowFailuresResponse(id: String,
-                                    workflowName: String,
-                                    status: String,
-                                    failures: Seq[QualifiedFailureEventEntry])
 
 object APIResponse {
   import WorkflowJsonSupport._

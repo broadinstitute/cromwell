@@ -11,7 +11,7 @@ trap "shutdown" EXIT
 
 set -e
 
-EXIT_CODE=1
+EXIT_CODE=31
 PROGNAME="$(basename $0)"
 
 usage="
@@ -96,11 +96,12 @@ fi
 cd centaur
 
 echo "Running Centaur with ${PARALLELISM_FACTOR}-way parallelism"
-if ./run_tests_parallel.sh "${PARALLELISM_FACTOR}"  >> ../${CENTAUR_LOG} 2>&1 ; then
-    TEST_STATUS="failed"
-else
-    TEST_STATUS="succeeded"
+TEST_STATUS="failed"
+./run_tests_parallel.sh "${PARALLELISM_FACTOR}"  >> ../${CENTAUR_LOG} 2>&1
+
+if [ $? -eq 0 ]; then
     EXIT_CODE=0
+    TEST_STATUS="succeeded"
 fi
 
 echo "SBT test $TEST_STATUS, please see logs for more information"

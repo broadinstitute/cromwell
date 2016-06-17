@@ -248,7 +248,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   }
 
   private def validateWorkflowFailureMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[WorkflowFailureMode] = {
-    val modeString: Try[String] = workflowOptions.get("workflowFailureMode") match {
+    val modeString: Try[String] = workflowOptions.get(WorkflowOptions.WorkflowFailureMode) match {
       case Success(x) => Success(x)
       case Failure(_: OptionNotFoundException) => Success(conf.getStringOption("workflow-failure-mode") getOrElse DefaultWorkflowFailureMode)
       case Failure(t) => Failure(t)

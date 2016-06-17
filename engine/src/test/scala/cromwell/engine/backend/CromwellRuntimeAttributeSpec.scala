@@ -197,7 +197,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
   it should "allow workflow options to specify defaults for all tasks in a WDL file" ignore {
 //    val workflowOptions =
 //      """{
-//        |  "defaultRuntimeOptions": {
+//        |  "default_runtime_options": {
 //        |    "docker": "ubuntu:latest",
 //        |    "memory": "5000000 KB"
 //        |  }
@@ -220,7 +220,7 @@ class CromwellRuntimeAttributeSpec extends FlatSpec with Matchers with EitherVal
   it should "NOT allow workflow options to override values specified in a task runtime section" ignore {
 //    val workflowOptions =
 //      """{
-//        |  "defaultRuntimeOptions": {
+//        |  "default_runtime_options": {
 //        |    "docker": "ubuntu:latest"
 //        |  }
 //        |}

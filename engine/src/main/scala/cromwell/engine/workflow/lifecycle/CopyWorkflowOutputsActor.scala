@@ -6,6 +6,7 @@ import akka.actor.Props
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationSuccess, FinalizationResponse}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
 import cromwell.core._
+import cromwell.core.WorkflowOptions._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wdl4s.ReportableSymbol
@@ -70,7 +71,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
   }
 
   final override def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = Future {
-    workflowDescriptor.getWorkflowOption("outputs_path") foreach copyWorkflowOutputs
+    workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir) foreach copyWorkflowOutputs
     FinalizationSuccess
   }
 }

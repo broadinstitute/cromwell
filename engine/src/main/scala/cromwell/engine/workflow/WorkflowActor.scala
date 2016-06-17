@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
-import cromwell.core.logging.WorkflowLogging
+import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
@@ -271,10 +271,12 @@ class WorkflowActor(val workflowId: WorkflowId,
       }
 
       // Copy workflow logs
-      stateData.workflowDescriptor foreach { wd =>
-        // Create the actor in the system context because this WorkflowActor is going to die right after
-        val copyWorkflowLogsActor: ActorRef = context.system.actorOf(CopyWorkflowLogsActor.props(wd), s"CopyWorkflowLogsActor-$workflowId")
-        copyWorkflowLogsActor ! CopyWorkflowLogsActor.Start
+      if (WorkflowLogger.isEnabled) {
+        stateData.workflowDescriptor foreach { wd =>
+          // Create the actor in the system context because this WorkflowActor is going to die right after
+          val copyWorkflowLogsActor: ActorRef = context.system.actorOf(CopyWorkflowLogsActor.props(wd), s"CopyWorkflowLogsActor-$workflowId")
+          copyWorkflowLogsActor ! CopyWorkflowLogsActor.Start
+        }
       }
 
       context stop self

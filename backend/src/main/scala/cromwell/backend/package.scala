@@ -1,6 +1,7 @@
 package cromwell
 
 import com.typesafe.config.Config
+import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.{JobKey, WorkflowId, WorkflowOptions}
 import wdl4s._
 import wdl4s.values.WdlValue
@@ -37,6 +38,7 @@ package object backend {
                                        inputs: Map[FullyQualifiedName, WdlValue],
                                        workflowOptions: WorkflowOptions) {
     override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflowNamespace.workflow.unqualifiedName}]"
+    def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption
   }
 
   /**

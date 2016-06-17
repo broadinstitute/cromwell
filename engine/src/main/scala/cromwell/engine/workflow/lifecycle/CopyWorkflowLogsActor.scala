@@ -3,10 +3,11 @@ package cromwell.engine.workflow.lifecycle
 import java.nio.file.Path
 
 import akka.actor.{Actor, Props}
+import better.files._
+import cromwell.core.WorkflowOptions._
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.engine.EngineWorkflowDescriptor
-import better.files._
 
 object CopyWorkflowLogsActor {
   // Commands
@@ -20,9 +21,8 @@ object CopyWorkflowLogsActor {
 class CopyWorkflowLogsActor(val workflowDescriptor: EngineWorkflowDescriptor) extends Actor with PathFactory with WorkflowLogging {
 
   override lazy val workflowId = workflowDescriptor.id
-  workflowLogger.info("Copy Workflow Actor created")
   val destinationPath = {
-    workflowDescriptor.getWorkflowOption("workflow_log_dir") map { path =>
+    workflowDescriptor.getWorkflowOption(FinalWorkflowLogDir) map { path =>
       buildPath(path, workflowDescriptor.engineFilesystems)
     }
   }

@@ -210,7 +210,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 //      val fullWfOptions =
 //        """
 //          |{
-//          |  "defaultRuntimeOptions": {
+//          |  "default_runtime_options": {
 //          |    "continueOnReturnCode": [0, 1, 2, 3],
 //          |    "failOnStderr": true,
 //          |    "zones": "us-central1-a",

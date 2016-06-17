@@ -8,14 +8,14 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
   val FailSlowOptions =
     """
       |{
-      |  "workflowFailureMode": "ContinueWhilePossible"
+      |  "workflow_failure_mode": "ContinueWhilePossible"
       |}
     """.stripMargin
 
   val FailFastOptions =
     """
       |{
-      |  "workflowFailureMode": "NoNewCalls"
+      |  "workflow_failure_mode": "NoNewCalls"
       |}
     """.stripMargin
 

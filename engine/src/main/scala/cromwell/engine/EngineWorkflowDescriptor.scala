@@ -3,6 +3,7 @@ package cromwell.engine
 import java.nio.file.FileSystem
 
 import cromwell.backend.BackendWorkflowDescriptor
+import cromwell.core.WorkflowOptions.WorkflowOption
 import wdl4s._
 
 final case class EngineWorkflowDescriptor(backendDescriptor: BackendWorkflowDescriptor,
@@ -13,5 +14,5 @@ final case class EngineWorkflowDescriptor(backendDescriptor: BackendWorkflowDesc
   def id = backendDescriptor.id
   def namespace = backendDescriptor.workflowNamespace
   def name = namespace.workflow.unqualifiedName
-  def getWorkflowOption(key: String) = backendDescriptor.workflowOptions.get(key).toOption
+  def getWorkflowOption(key: WorkflowOption) = backendDescriptor.getWorkflowOption(key)
 }

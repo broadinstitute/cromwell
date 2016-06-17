@@ -22,5 +22,5 @@ script:
   - echo "RUNNING TRAVIS CENTAUR"
   - sed -i "s/BRANCH/${TRAVIS_BRANCH}/g" centaur.json
   - cat centaur.json
-  - java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run travis.wdl centaur.json
+  - travis_wait 30 java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run travis.wdl centaur.json
 after_success: sbt coveralls

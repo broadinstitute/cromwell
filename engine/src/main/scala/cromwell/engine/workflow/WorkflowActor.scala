@@ -258,8 +258,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       workflowLogger.info(s"transition from $oldState to $terminalState: shutting down")
       // Add the end time of the workflow in the MetadataService
       val now = OffsetDateTime.now
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime),
-        MetadataValue(now))
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(now))
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>
@@ -270,7 +269,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         case unknownState => workflowLogger.warn(s"$unknownState is an unhandled terminal state!")
       }
 
-      // Copy workflow logs
+      // Copy/Delete workflow logs
       if (WorkflowLogger.isEnabled) {
         stateData.workflowDescriptor foreach { wd =>
           // Create the actor in the system context because this WorkflowActor is going to die right after

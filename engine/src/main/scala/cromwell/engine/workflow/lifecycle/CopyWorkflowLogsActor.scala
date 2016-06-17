@@ -7,7 +7,10 @@ import better.files._
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services.{MetadataValue, MetadataKey, MetadataEvent, ServiceRegistryClient}
 
 object CopyWorkflowLogsActor {
   // Commands
@@ -18,7 +21,7 @@ object CopyWorkflowLogsActor {
   )
 }
 
-class CopyWorkflowLogsActor(val workflowDescriptor: EngineWorkflowDescriptor) extends Actor with PathFactory with WorkflowLogging {
+class CopyWorkflowLogsActor(val workflowDescriptor: EngineWorkflowDescriptor) extends Actor with PathFactory with WorkflowLogging with ServiceRegistryClient {
 
   override lazy val workflowId = workflowDescriptor.id
   val destinationPath = {
@@ -34,6 +37,9 @@ class CopyWorkflowLogsActor(val workflowDescriptor: EngineWorkflowDescriptor) ex
 
       PathCopier.copy(src.toAbsolutePath, destPath)
       if (WorkflowLogger.workflowLogConfiguration exists { _.temporary }) src.delete(ignoreIOExceptions = false)
+
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(destPath.toAbsolutePath))
+      serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
     }
   }
 

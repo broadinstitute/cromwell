@@ -21,5 +21,6 @@ script:
   - sbt -Dbackend.providers.Local.config.filesystems.local.localization.0=copy clean coverage nointegration:test coverageReport && sbt coverageAggregate && sbt assembly
   - echo "RUNNING TRAVIS CENTAUR"
   - sed -i "s/BRANCH/${TRAVIS_BRANCH}/g" centaur.json
+  - cat centaur.json
   - java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run travis.wdl centaur.json
 after_success: sbt coveralls

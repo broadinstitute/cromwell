@@ -491,7 +491,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       var originalSender = system.deadLetters
 
       override def receive: Receive = {
-        case m: RequestComplete[JsObject] =>
+        case m: RequestComplete[_] =>
           originalSender ! m
         case m: GetMetadataQueryAction =>
           originalSender = sender

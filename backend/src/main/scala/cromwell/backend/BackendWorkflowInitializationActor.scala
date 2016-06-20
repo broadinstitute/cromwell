@@ -81,16 +81,16 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   private def validateRuntimeAttributes: Future[Unit] = {
 
     def badRuntimeAttrsForTask(task: Task) = {
-      runtimeAttributeValidators map { case (attributeName, validator) => {
+      runtimeAttributeValidators map { case (attributeName, validator) =>
         val expression = task.runtimeAttributes.attrs.get(attributeName)
         attributeName -> (expression, validator(expression))
-      }} collect {
+      } collect {
         case (name, (expression, false)) => s"Task ${task.name} has an invalid runtime attribute $name = ${expression map {_.valueString} getOrElse "!! NOT FOUND !!"}"
       }
     }
 
     workflowDescriptor.workflowNamespace.tasks flatMap badRuntimeAttrsForTask match {
-      case errors if errors.isEmpty => Future.successful()
+      case errors if errors.isEmpty => Future.successful(())
       case errors => Future.failed(new IllegalArgumentException(errors.mkString(". ")))
     }
   }
